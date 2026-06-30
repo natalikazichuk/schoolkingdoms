@@ -94,7 +94,7 @@
       quests:[{label:'1 клас — 20 рівнів 🧮',href:'math-test.html'},{label:'Додавання до 10',href:'addition-test-10.html'},{label:'Віднімання до 10',href:'subtraction-test-10.html'},{label:'Додавання до 20',href:'addition-test-20.html'},{label:'Віднімання до 20',href:'subtraction-test-20.html'},{label:'Множення',href:'multiplication-test.html'}]},
     {id:'ukr',icon:'🌺',name:'Українська мова',accent:'#D6577A',
       trainings:[{label:'Вивчаю букви Абетки',href:'learn-ukrainian-letters.html'}],
-      quests:[{label:'Правопис слів',href:'spelling-test.html'}]},
+      quests:[{label:'Правопис слів',href:'spelling-test.html'},{label:'🏰 Палац Української мови',href:'ukrainian-palace-test.html'}]},
     {id:'eng',icon:'🌍',name:'English',accent:'#3FB6A8',
       trainings:[{label:'Learn ABC',href:'learn-english-letters.html'}],
       quests:[{label:'Тест A1 · 10 рівнів',href:'english-test.html'}]},
@@ -103,7 +103,13 @@
       quests:[{label:'Логіка і пам\'ять',href:'logic-memory-test.html'}]},
     {id:'geo',icon:'🗺️',name:'Географія',accent:'#E0954E',
       trainings:[],
-      quests:[{label:'Міста України',href:'learn-cities-ukraine.html'}]}
+      quests:[{label:'Міста України',href:'learn-cities-ukraine.html'}]},
+    {id:'mini',icon:'🎲',name:'Міні-пригоди',accent:'#5CB85C',
+      games:[
+        {label:'🤝 Хто з ким дружить',href:'mini-gra-druzhba.html'},
+        {label:'🐓 Півень рано прокидався',href:'mini-gra-piven.html'},
+        {label:'🦀 Рак рубав з горіха дрова',href:'mini-gra-rak.html'}
+      ]}
   ];
 
   function chipHtml(t, accent){
@@ -111,16 +117,26 @@
   }
 
   function cardHtml(s){
-    const hasAny = s.trainings.length>0||s.quests.length>0;
+    const isGames = Array.isArray(s.games);
+    const hasAny = isGames ? s.games.length>0 : (s.trainings.length>0||s.quests.length>0);
     const pill = hasAny
       ? `<span class="ac-pill ready">✅ Доступно</span>`
       : `<span class="ac-pill soon">🔒 Скоро</span>`;
-    const tr = s.trainings.length
-      ? `<div class="ac-chip-row">${s.trainings.map(t=>chipHtml(t,s.accent)).join('')}</div>`
-      : `<p class="ac-empty">Тренажера ще немає.</p>`;
-    const qu = s.quests.length
-      ? `<div class="ac-chip-row">${s.quests.map(t=>chipHtml(t,s.accent)).join('')}</div>`
-      : `<p class="ac-empty">Квестів ще немає.</p>`;
+    let panel;
+    if(isGames){
+      const gm = s.games.length
+        ? `<div class="ac-chip-row">${s.games.map(t=>chipHtml(t,s.accent)).join('')}</div>`
+        : `<p class="ac-empty">Ігор ще немає.</p>`;
+      panel = `<p class="ac-panel-heading">🎲 Міні-ігри</p>${gm}`;
+    } else {
+      const tr = s.trainings.length
+        ? `<div class="ac-chip-row">${s.trainings.map(t=>chipHtml(t,s.accent)).join('')}</div>`
+        : `<p class="ac-empty">Тренажера ще немає.</p>`;
+      const qu = s.quests.length
+        ? `<div class="ac-chip-row">${s.quests.map(t=>chipHtml(t,s.accent)).join('')}</div>`
+        : `<p class="ac-empty">Квестів ще немає.</p>`;
+      panel = `<p class="ac-panel-heading">🎯 Тренування</p>${tr}<p class="ac-panel-heading">🏆 Квести</p>${qu}`;
+    }
     return `
       <details class="ac-card" style="--ac-accent:${s.accent}">
         <summary>
@@ -131,10 +147,7 @@
           </span>
           <span class="ac-arrow">▾</span>
         </summary>
-        <div class="ac-panel">
-          <p class="ac-panel-heading">🎯 Тренування</p>${tr}
-          <p class="ac-panel-heading">🏆 Квести</p>${qu}
-        </div>
+        <div class="ac-panel">${panel}</div>
       </details>`;
   }
 
