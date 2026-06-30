@@ -614,9 +614,28 @@ render();
 /* ── якщо дитина в системі — перекриваємо індикатори реальними даними з бази ── */
 (function(){
   if(!window.SK || !window.SK.ready) return;
+
+  // номер класу → підпис
+  function gradeLabel(g){
+    var n = Number(g);
+    var names = {1:'Перший клас',2:'Другий клас',3:'Третій клас',4:'Четвертий клас'};
+    return names[n] || (n ? n + '-й клас' : profile.grade);
+  }
+
   window.SK.ready.then(async function(u){
     if(!u){ location.href='login.html?next=child'; return; }
     try{
+      // 1) Особистість героя = профіль активної дитини (джерело правди: children/{id})
+      const child = (window.SK.getActiveChild) ? await window.SK.getActiveChild() : null;
+      if(child){
+        if(child.name){
+          $('heroName').textContent = child.name;
+          $('avatarMini').textContent = (child.name||'🧒').trim().charAt(0).toUpperCase()||'🧒';
+        }
+        if(child.grade!=null) $('heroGrade').textContent = gradeLabel(child.grade);
+      }
+
+      // 2) Характеристики героя = документ heroes/{heroID}
       const h = await window.SK.getHero();
       if(!h) return;
       if(h.health!=null){ $('hpCur').textContent=h.health; $('hpBar').style.width=pct(h.health,100)+'%'; }
@@ -626,7 +645,10 @@ render();
       if(h.level!=null && $('heroLevel')) $('heroLevel').textContent=h.level;
       if(h.xp!=null){ $("xpCur").textContent=h.xp%100; $("xpFill").style.width=pct(h.xp%100,100)+"%"; }
       if(h.coins!=null){ $('w-coins').textContent=h.coins; $('coins2').textContent=h.coins; }
-      if(h.name){ $('heroName').textContent=h.name; $('avatarMini').textContent=(h.name||'🧒').trim().charAt(0).toUpperCase()||'🧒'; }
+      // ім'я беремо з документа дитини; якщо його там немає — як запасний варіант ім'я героя
+      if(!child || !child.name){
+        if(h.name){ $('heroName').textContent=h.name; $('avatarMini').textContent=(h.name||'🧒').trim().charAt(0).toUpperCase()||'🧒'; }
+      }
       if(h.title) $('heroTitle').textContent=h.title;
       Object.keys(lockedMap).forEach(function(k){ if(h[k]!=null){ var el=$(lockedMap[k]); if(el) el.textContent=h[k]; } });
     }catch(e){}
