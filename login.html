@@ -178,7 +178,7 @@
           <button class="btn btn-gold" onclick="doChildLogin()">Почати пригоду ⚡</button>
         </div>
         <div class="divider">потрібен дорослий?</div>
-        <button class="btn btn-blue" onclick="showTab('parent')">Вхід для батьків</button>
+        <button class="btn btn-blue" onclick="goParentForChild()">Вхід для батьків</button>
       </section>
     </div>
 
@@ -198,6 +198,9 @@
     const authNext = params.get('next') || '';          // 'child' → одразу профілі дитини
     let familyChildren = {};
     let selectedChildId = null;
+    // Намір «вхід батьків лише для вибору дитини». Спочатку — з URL,
+    // далі його вмикає кнопка «Вхід для батьків» усередині дитячої вкладки.
+    let wantChild = (authNext === 'child');
 
     function $(id){ return document.getElementById(id); }
     let toastT;
@@ -214,14 +217,19 @@
       return 'спробуйте ще раз';
     }
 
-    function showTab(which){
+    function showTab(which, fromChildFlow){
       const isChild = which === 'child';
+      // Явний клік на верхню вкладку «Я — батько/мати» = справді хочемо кабінет.
+      if (which === 'parent' && !fromChildFlow) wantChild = false;
       $('tabParent').classList.toggle('active', !isChild);
       $('tabChild').classList.toggle('active', isChild);
       $('parentForm').classList.toggle('hidden', isChild);
       $('childForm').classList.toggle('hidden', !isChild);
       if (isChild) loadChildren();
     }
+
+    // «Вхід для батьків» із дитячої вкладки: лишаємось у дитячому сценарії.
+    function goParentForChild(){ wantChild = true; showTab('parent', true); }
 
     // дочекатися firebase-config (SK)
     function whenSK(cb){
@@ -249,7 +257,7 @@
       if (!window.SK){ toast('⚠️ Зачекайте, ще завантажується…'); return; }
       try{
         await SK.login(email, pass);
-        if (authNext === 'child'){ showTab('child'); return; }
+        if (authNext === 'child' || wantChild){ showTab('child'); return; }
         location.href = 'parent.html';
       }catch(e){
         toast('❌ Не вдалося увійти: ' + friendlyAuthError(e));
