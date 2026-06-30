@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Вхід — School Kingdoms</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=Nunito:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#13315f; --navy-d:#0c2247; --navy-l:#1e4d8b;
+    --green:#2c7a4b; --gold:#F2C75C; --gold-d:#C9942F;
+    --cream:#FBEFD0; --ink:#16315c;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{min-height:100%}
+  body{font-family:'Nunito',sans-serif;color:#fff;min-height:100vh;position:relative;
+    display:flex;flex-direction:column;overflow-x:hidden}
+
+  /* ── Фон: зоряне небо (як на лендінгу) ── */
+  .bg-fallback{position:fixed;inset:0;z-index:-3;
+    background:radial-gradient(120% 90% at 50% 0%,#2d1b6b 0%,#1a1040 45%,#0d2647 100%)}
+  .stars{position:fixed;inset:0;z-index:-2;overflow:hidden}
+  .stars::before,.stars::after{content:"";position:absolute;inset:-50%;
+    background-image:
+      radial-gradient(1.6px 1.6px at 40px 60px,#fff,transparent),
+      radial-gradient(1.4px 1.4px at 130px 170px,#fff,transparent),
+      radial-gradient(1px 1px at 210px 90px,#cfe3ff,transparent),
+      radial-gradient(1.3px 1.3px at 300px 230px,#fff,transparent),
+      radial-gradient(1px 1px at 360px 40px,#ffe9b8,transparent),
+      radial-gradient(1.5px 1.5px at 80px 300px,#fff,transparent);
+    background-repeat:repeat;background-size:400px 400px;animation:twinkle 4.5s ease-in-out infinite}
+  .stars::after{background-size:300px 300px;background-position:90px 130px;animation-duration:6.5s;animation-delay:1.6s;opacity:.7}
+  @keyframes twinkle{0%,100%{opacity:.35}50%{opacity:.95}}
+  .moon{position:fixed;top:8%;right:9%;width:120px;height:120px;z-index:-2;border-radius:50%;
+    background:radial-gradient(circle at 38% 38%,#fff7e0 0%,#ffe9b8 38%,rgba(255,233,184,0) 70%);
+    filter:blur(2px);opacity:.85;pointer-events:none}
+  @media(prefers-reduced-motion:reduce){.stars::before,.stars::after{animation:none}}
+
+  /* ── Шапка ── */
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:14px clamp(16px,4vw,48px)}
+  .brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:#fff}
+  .brand .crest{font-size:2rem;filter:drop-shadow(0 3px 5px rgba(0,0,0,.45))}
+  .brand-name{font-family:'Playfair Display',serif;font-weight:900;font-size:clamp(1.3rem,3vw,1.7rem);
+    text-shadow:0 2px 5px rgba(0,0,0,.45);letter-spacing:.4px}
+  .brand-name b{color:var(--gold)}
+  .brand-sub{font-size:.72rem;color:#ffe9b8;font-weight:600;margin-top:1px}
+
+  /* ── Картка входу ── */
+  .auth-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 16px 50px}
+
+  /* ── Блок: створення нової сім'ї ── */
+  .create-family{display:flex;align-items:center;gap:14px;width:100%;max-width:440px;margin:16px auto 0;
+    text-decoration:none;color:#fff;border:2px solid rgba(242,199,92,.6);border-radius:18px;
+    background:linear-gradient(165deg,rgba(47,132,81,.5),rgba(20,62,40,.55));
+    padding:14px 18px;transition:transform .15s,box-shadow .15s,border-color .15s}
+  .create-family:hover{transform:translateY(-2px);border-color:#FFE7A0;box-shadow:0 12px 26px rgba(0,0,0,.4)}
+  .create-family .cf-plus{flex:0 0 auto;width:42px;height:42px;border-radius:12px;display:grid;place-items:center;
+    font-size:1.5rem;font-weight:800;background:var(--gold);color:#5a3d08}
+  .create-family .cf-text{display:flex;flex-direction:column;gap:2px}
+  .create-family .cf-text b{font-family:'Playfair Display',serif;font-weight:800;font-size:1.1rem;color:#FBEFD0}
+  .create-family .cf-text small{font-size:.82rem;color:#dde7f5;font-weight:600;line-height:1.3}
+  .auth-card{width:100%;max-width:440px;border:2px solid rgba(242,199,92,.85);border-radius:24px;
+    padding:clamp(22px,4vw,32px);background:linear-gradient(165deg,rgba(39,81,140,.62),rgba(16,40,82,.7));
+    backdrop-filter:blur(10px) saturate(1.15);-webkit-backdrop-filter:blur(10px) saturate(1.15);
+    box-shadow:0 18px 44px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.16)}
+  .auth-title{font-family:'Playfair Display',serif;font-weight:800;font-size:1.7rem;text-align:center;color:#FBEFD0;margin-bottom:4px}
+  .auth-sub{text-align:center;color:#cdd9ef;font-weight:600;font-size:.92rem;margin-bottom:18px;line-height:1.4}
+
+  /* ── Перемикач Батьки / Дитина ── */
+  .tabs{display:flex;gap:8px;background:rgba(0,0,0,.25);border-radius:14px;padding:5px;margin-bottom:20px}
+  .tabs button{flex:1;border:none;border-radius:10px;padding:11px 6px;font-family:'Nunito',sans-serif;
+    font-weight:800;font-size:.92rem;color:#cdd9ef;background:transparent;cursor:pointer;transition:.15s}
+  .tabs button.active{background:linear-gradient(180deg,#27518c,#16356a);color:#fff;
+    box-shadow:0 3px 10px rgba(0,0,0,.3),inset 0 0 0 1.5px var(--gold)}
+
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:.74rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#ffe9b8;margin-bottom:6px}
+  .field input{width:100%;padding:13px 14px;border:1.5px solid rgba(242,199,92,.4);border-radius:13px;
+    background:rgba(8,20,42,.55);color:#fff;font-size:1rem;font-family:'Nunito',sans-serif;font-weight:600;transition:.15s}
+  .field input::placeholder{color:#8ea3c4}
+  .field input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 4px rgba(242,199,92,.2)}
+
+  .btn{width:100%;padding:14px;border:none;border-radius:14px;font-family:'Nunito',sans-serif;font-weight:800;
+    font-size:1.02rem;cursor:pointer;transition:transform .15s,box-shadow .15s;margin-top:4px}
+  .btn:active{transform:translateY(1px)}
+  .btn-gold{background:linear-gradient(180deg,#FFE7A0,#E0A93A);color:#5a3d08;border:2px solid var(--gold-d);
+    box-shadow:0 8px 18px rgba(216,159,34,.4)}
+  .btn-gold:hover{filter:brightness(1.05)}
+  .btn-blue{background:linear-gradient(180deg,#27518c,#16356a);color:#fff;border:2px solid var(--gold);
+    box-shadow:0 8px 18px rgba(0,0,0,.35)}
+  .btn-blue:hover{filter:brightness(1.08)}
+
+  .row-link{text-align:center;margin-top:14px}
+  .link{background:none;border:none;color:#ffe9b8;font-family:'Nunito',sans-serif;font-weight:700;
+    font-size:.88rem;cursor:pointer;text-decoration:underline;padding:2px}
+  .divider{display:flex;align-items:center;gap:12px;color:#9fb2d2;font-size:.78rem;font-weight:700;margin:18px 0 12px}
+  .divider::before,.divider::after{content:"";flex:1;height:1px;background:rgba(242,199,92,.3)}
+
+  /* ── Профілі дітей ── */
+  .child-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px;margin-bottom:16px}
+  .avatar-option{border:2px solid rgba(242,199,92,.4);border-radius:16px;padding:12px 6px;text-align:center;
+    cursor:pointer;background:rgba(8,20,42,.4);transition:.15s}
+  .avatar-option:hover{border-color:var(--gold);transform:translateY(-2px)}
+  .avatar-option.selected{border-color:#FFE7A0;background:rgba(242,199,92,.18);box-shadow:0 0 0 2px rgba(242,199,92,.5)}
+  .avatar-option .emoji{font-size:2rem;display:block}
+  .avatar-option .name{font-weight:800;font-size:.88rem;margin-top:4px;display:block;color:#fff}
+  .info-msg{grid-column:1/-1;text-align:center;color:#cdd9ef;font-weight:600;font-size:.9rem;padding:8px 0;line-height:1.4}
+
+  /* ── PIN ── */
+  .pin-label{text-align:center;font-size:.74rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#ffe9b8;margin:4px 0 8px}
+  .pin-wrap{display:flex;gap:10px;justify-content:center;margin-bottom:8px}
+  .pin-digit{width:52px;height:60px;text-align:center;font-size:1.7rem;font-weight:800;font-family:'Playfair Display',serif;
+    border:1.5px solid rgba(242,199,92,.45);border-radius:14px;background:rgba(8,20,42,.55);color:#fff;transition:.15s}
+  .pin-digit:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 4px rgba(242,199,92,.22)}
+  .pin-digit.filled{border-color:var(--gold);background:rgba(242,199,92,.12)}
+
+  .hidden{display:none !important}
+
+  /* ── Тост ── */
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);opacity:0;
+    background:#0c2247;border:2px solid var(--gold);color:#fff;font-weight:700;padding:12px 20px;border-radius:14px;
+    box-shadow:0 10px 28px rgba(0,0,0,.5);transition:.25s;z-index:60;max-width:90vw;text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+  <div class="bg-fallback"></div>
+  <div class="stars"></div>
+  <div class="moon"></div>
+
+  <header class="topbar">
+    <a class="brand" href="index.html" aria-label="School Kingdoms — на головну">
+      <span class="crest" aria-hidden="true">🛡️</span>
+      <span><span class="brand-name">School <b>Kingdoms</b></span><span class="brand-sub">Моє королівство знань</span></span>
+    </a>
+  </header>
+
+  <main class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-title">Вхід до королівства</div>
+      <div class="auth-sub">Оберіть, хто заходить у систему.</div>
+
+      <div class="tabs">
+        <button id="tabParent" class="active" onclick="showTab('parent')">Я — батько / мати</button>
+        <button id="tabChild" onclick="showTab('child')">Я — дитина</button>
+      </div>
+
+      <!-- ── ФОРМА БАТЬКІВ ── -->
+      <section id="parentForm">
+        <div class="field">
+          <label for="loginEmail">Email</label>
+          <input id="loginEmail" type="email" autocomplete="email" placeholder="name@example.com">
+        </div>
+        <div class="field">
+          <label for="loginPass">Пароль</label>
+          <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••">
+        </div>
+        <button class="btn btn-blue" onclick="doParentLogin()">Увійти</button>
+        <div class="row-link"><button class="link" onclick="forgotPass()">Забули пароль?</button></div>
+      </section>
+
+      <!-- ── ФОРМА ДИТИНИ ── -->
+      <section id="childForm" class="hidden">
+        <div class="auth-sub" style="margin-top:-4px">Обери свій профіль і введи PIN.</div>
+        <div class="child-grid" id="childGrid">
+          <div class="info-msg">Завантаження…</div>
+        </div>
+        <div id="pinArea" class="hidden">
+          <div class="pin-label">PIN-код (4 цифри)</div>
+          <div class="pin-wrap" id="pinWrap">
+            <input class="pin-digit" type="text" inputmode="numeric" maxlength="1" aria-label="Цифра 1">
+            <input class="pin-digit" type="text" inputmode="numeric" maxlength="1" aria-label="Цифра 2">
+            <input class="pin-digit" type="text" inputmode="numeric" maxlength="1" aria-label="Цифра 3">
+            <input class="pin-digit" type="text" inputmode="numeric" maxlength="1" aria-label="Цифра 4">
+          </div>
+          <button class="btn btn-gold" onclick="doChildLogin()">Почати пригоду ⚡</button>
+        </div>
+        <div class="divider">потрібен дорослий?</div>
+        <button class="btn btn-blue" onclick="showTab('parent')">Вхід для батьків</button>
+      </section>
+    </div>
+
+    <!-- ── Блок: +Створи сім'ю ── -->
+    <a class="create-family" href="auth.html?mode=register">
+      <span class="cf-plus">＋</span>
+      <span class="cf-text"><b>Створи сім'ю</b><small>Вперше тут? Зареєструй сімʼю за пару хвилин</small></span>
+    </a>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Реальний вхід через спільний firebase-config.js -->
+  <script type="module" src="firebase-config.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const authNext = params.get('next') || '';          // 'child' → одразу профілі дитини
+    let familyChildren = {};
+    let selectedChildId = null;
+
+    function $(id){ return document.getElementById(id); }
+    let toastT;
+    function toast(msg){
+      const t = $('toast'); t.textContent = msg; t.classList.add('show');
+      clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove('show'), 2600);
+    }
+    function friendlyAuthError(e){
+      const c = (e && e.code) || '';
+      if (c.includes('invalid-credential') || c.includes('wrong-password') || c.includes('user-not-found')) return 'невірний email або пароль';
+      if (c.includes('invalid-email')) return 'некоректний email';
+      if (c.includes('too-many-requests')) return 'забагато спроб, спробуйте пізніше';
+      if (c.includes('network')) return 'немає зв\'язку з мережею';
+      return 'спробуйте ще раз';
+    }
+
+    function showTab(which){
+      const isChild = which === 'child';
+      $('tabParent').classList.toggle('active', !isChild);
+      $('tabChild').classList.toggle('active', isChild);
+      $('parentForm').classList.toggle('hidden', isChild);
+      $('childForm').classList.toggle('hidden', !isChild);
+      if (isChild) loadChildren();
+    }
+
+    // дочекатися firebase-config (SK)
+    function whenSK(cb){
+      let n = 0;
+      (function wait(){
+        if (window.SK && SK.ready){ SK.ready.then(cb); return; }
+        if (n++ < 100) setTimeout(wait, 50);
+      })();
+    }
+
+    // на старті: залогінених не тримаємо на сторінці входу
+    whenSK(function(u){
+      if (u){
+        if (authNext === 'child') showTab('child');
+        else location.replace('parent.html');
+      } else {
+        showTab(authNext === 'child' ? 'child' : 'parent');
+      }
+    });
+
+    async function doParentLogin(){
+      const email = $('loginEmail').value.trim();
+      const pass  = $('loginPass').value;
+      if (!email || !pass){ toast('⚠️ Введіть email і пароль'); return; }
+      if (!window.SK){ toast('⚠️ Зачекайте, ще завантажується…'); return; }
+      try{
+        await SK.login(email, pass);
+        if (authNext === 'child'){ showTab('child'); return; }
+        location.href = 'parent.html';
+      }catch(e){
+        toast('❌ Не вдалося увійти: ' + friendlyAuthError(e));
+      }
+    }
+
+    function forgotPass(){
+      toast('Звернися до батьків — відновлення пароля доступне в кабінеті.');
+    }
+
+    function escapeHtml(s){
+      return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    async function loadChildren(){
+      const grid = $('childGrid');
+      $('pinArea').classList.add('hidden');
+      selectedChildId = null;
+      grid.innerHTML = '<div class="info-msg">Завантаження…</div>';
+      if (!window.SK){ grid.innerHTML = '<div class="info-msg">Зачекайте, ще завантажується…</div>'; return; }
+      try{
+        await SK.ready;
+        if (!(SK.currentUser && SK.currentUser())){
+          grid.innerHTML = '<div class="info-msg">Спочатку має увійти хтось із батьків — натисни «Вхід для батьків».</div>';
+          return;
+        }
+        familyChildren = await SK.getChildren();
+        const ids = Object.keys(familyChildren || {});
+        if (!ids.length){
+          grid.innerHTML = '<div class="info-msg">У сім\'ї ще немає дітей. Додайте дитину в кабінеті батьків.</div>';
+          return;
+        }
+        grid.innerHTML = ids.map(id => {
+          const c = familyChildren[id] || {};
+          return '<div class="avatar-option" onclick="selectChild(this,\''+id+'\')">'
+               + '<span class="emoji">'+escapeHtml(c.avatar || '🙂')+'</span>'
+               + '<span class="name">'+escapeHtml(c.name || 'Дитина')+'</span></div>';
+        }).join('');
+      }catch(e){
+        grid.innerHTML = '<div class="info-msg">Не вдалося завантажити профілі.</div>';
+        console.warn('[login] getChildren:', e);
+      }
+    }
+
+    function selectChild(el, id){
+      document.querySelectorAll('#childGrid .avatar-option').forEach(a => a.classList.remove('selected'));
+      el.classList.add('selected');
+      selectedChildId = id;
+      $('pinArea').classList.remove('hidden');
+      clearPin(); 
+      const first = document.querySelector('#pinWrap .pin-digit'); if (first) first.focus();
+    }
+
+    // PIN: автоперехід, backspace, вставка
+    const pinCells = Array.from(document.querySelectorAll('#pinWrap .pin-digit'));
+    pinCells.forEach((cell, i) => {
+      cell.addEventListener('input', () => {
+        cell.value = cell.value.replace(/\D/g,'').slice(0,1);
+        cell.classList.toggle('filled', cell.value !== '');
+        if (cell.value && i < pinCells.length-1) pinCells[i+1].focus();
+      });
+      cell.addEventListener('keydown', ev => {
+        if (ev.key === 'Backspace' && !cell.value && i > 0) pinCells[i-1].focus();
+      });
+      cell.addEventListener('paste', ev => {
+        const d = (ev.clipboardData.getData('text')||'').replace(/\D/g,'').slice(0,4);
+        if (!d) return; ev.preventDefault();
+        d.split('').forEach((n,k)=>{ if(pinCells[k]){ pinCells[k].value=n; pinCells[k].classList.add('filled'); }});
+        pinCells[Math.min(d.length, pinCells.length-1)].focus();
+      });
+    });
+    function clearPin(){ pinCells.forEach(c=>{ c.value=''; c.classList.remove('filled'); }); }
+
+    async function doChildLogin(){
+      if (!selectedChildId){ toast('⚠️ Оберіть профіль'); return; }
+      const pin = pinCells.map(c=>c.value).join('');
+      if (!/^\d{4}$/.test(pin)){ toast('⚠️ Введіть PIN з 4 цифр'); return; }
+      const c = familyChildren[selectedChildId];
+      if (!c || String(c.pin) !== pin){ toast('❌ Невірний PIN'); clearPin(); pinCells[0].focus(); return; }
+      SK.setActiveChild(selectedChildId);
+      // heroID підтягнеться сам через _resolveHero() → children/{id}.heroID
+      location.href = 'hero.html';
+    }
+  </script>
+</body>
+</html>
