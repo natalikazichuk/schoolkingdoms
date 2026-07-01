@@ -95,7 +95,7 @@ function defaultHero(name, parentEmail, parentUid) {
     health: 50, mana: 10, agility: 1, accuracy: 1,
     strength: 2, defense: 1, intelligence: 1, wisdom: 1,
     luck: 1, memory: 1, charisma: 1,
-    level: 1, xp: 0, coins: 600,
+    level: 1, xp: 0, coins: 0,
     parentEmail: parentEmail,
     parentUid: parentUid,
     createdAt: serverTimestamp()

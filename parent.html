@@ -55,6 +55,7 @@
   .cab-title{font-family:'Playfair Display',serif;font-weight:800;font-size:clamp(1.7rem,4.5vw,2.4rem);color:#FBEFD0;
     text-shadow:0 2px 12px rgba(0,0,0,.5);margin-bottom:4px}
   .cab-sub{color:#cdd9ef;font-weight:600;font-size:.95rem;margin-bottom:22px}
+  .greeting{font-family:'Playfair Display',serif;font-weight:800;font-size:1.1rem;color:var(--gold);margin:2px 0 8px}
 
   /* ── Вкладки ── */
   .tabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:22px;
@@ -152,6 +153,7 @@
   <!-- ── Тіло ── -->
   <main class="cab-wrap">
     <h1 class="cab-title">Кабінет user</h1>
+    <p class="greeting" id="greeting"></p>
     <p class="cab-sub">Керуйте завданнями, перевіряйте роботи та стежте за прогресом.</p>
 
     <!-- Вкладки -->
@@ -278,9 +280,27 @@
         try {
           if (window.SK.requireParent && !window.SK.requireParent()) return; // редірект уже зроблено
           loadHeroes();
+          loadGreeting();
         } catch(_){}
       });
     })();
+
+    // ── Привітання: "Сьогодні чудовий день, ім'я прізвище!" ──
+    async function loadGreeting(){
+      const el = $('greeting');
+      if (!el) return;
+      try{
+        const p = await SK.getParent();
+        const name    = (p && p.name)    ? p.name.trim()    : '';
+        const surname = (p && p.surname) ? p.surname.trim() : '';
+        const full = [name, surname].filter(Boolean).join(' ');
+        el.textContent = full
+          ? `Сьогодні чудовий день, ${full}!`
+          : 'Сьогодні чудовий день!';
+      }catch(e){
+        console.warn('[parent] loadGreeting:', e);
+      }
+    }
 
     // Перемикання вкладок (поки лише UI, без даних)
     function showTab(id, btn){
