@@ -143,8 +143,8 @@
       <div class="auth-sub">Оберіть, хто заходить у систему.</div>
 
       <div class="tabs">
-        <button id="tabParent" class="active" onclick="showTab('parent')">Я — батько / мати</button>
-        <button id="tabChild" onclick="showTab('child')">Я — дитина</button>
+        <button id="tabParent" class="active" onclick="showTab('parent')">Я — user</button>
+        <button id="tabChild" onclick="showTab('hero')">Я — Герой</button>
       </div>
 
       <!-- ── ФОРМА БАТЬКІВ ── -->
@@ -161,24 +161,21 @@
         <div class="row-link"><button class="link" onclick="forgotPass()">Забули пароль?</button></div>
       </section>
 
-      <!-- ── ФОРМА ДИТИНИ ── -->
+      <!-- ── ФОРМА ГЕРОЯ ── -->
       <section id="childForm" class="hidden">
-        <div class="auth-sub" style="margin-top:-4px">Обери свій профіль і введи PIN.</div>
-        <div class="child-grid" id="childGrid">
-          <div class="info-msg">Завантаження…</div>
+        <div class="auth-sub" style="margin-top:-4px">Введи свій логін і пароль Героя.</div>
+        <div class="field">
+          <label for="heroLogin">Логін Героя</label>
+          <input id="heroLogin" type="text" autocomplete="username" autocapitalize="none"
+                 spellcheck="false" placeholder="напр. lev2024">
         </div>
-        <div id="pinArea" class="hidden">
-          <div class="pin-label">PIN-код (4 цифри)</div>
-          <div class="pin-wrap" id="pinWrap">
-            <input class="pin-digit" type="text" inputmode="numeric" maxlength="1" aria-label="Цифра 1">
-            <input class="pin-digit" type="text" inputmode="numeric" maxlength="1" aria-label="Цифра 2">
-            <input class="pin-digit" type="text" inputmode="numeric" maxlength="1" aria-label="Цифра 3">
-            <input class="pin-digit" type="text" inputmode="numeric" maxlength="1" aria-label="Цифра 4">
-          </div>
-          <button class="btn btn-gold" onclick="doChildLogin()">Почати пригоду ⚡</button>
+        <div class="field">
+          <label for="heroPass">Пароль</label>
+          <input id="heroPass" type="password" autocomplete="current-password" placeholder="••••••••">
         </div>
+        <button class="btn btn-gold" onclick="doHeroLogin()">Почати пригоду ⚡</button>
         <div class="divider">потрібен дорослий?</div>
-        <button class="btn btn-blue" onclick="goParentForChild()">Вхід для батьків</button>
+        <button class="btn btn-blue" onclick="showTab('parent')">Вхід для user</button>
       </section>
     </div>
 
@@ -195,12 +192,9 @@
   <script type="module" src="firebase-config.js"></script>
   <script>
     const params = new URLSearchParams(location.search);
-    const authNext = params.get('next') || '';          // 'child' → одразу профілі дитини
-    let familyChildren = {};
-    let selectedChildId = null;
-    // Намір «вхід батьків лише для вибору дитини». Спочатку — з URL,
-    // далі його вмикає кнопка «Вхід для батьків» усередині дитячої вкладки.
-    let wantChild = (authNext === 'child');
+    // 'hero' (новий) або 'child' (старий) → одразу вкладка Героя
+    const authNext = params.get('next') || '';
+    const wantHeroFirst = (authNext === 'hero' || authNext === 'child');
 
     function $(id){ return document.getElementById(id); }
     let toastT;
@@ -210,26 +204,22 @@
     }
     function friendlyAuthError(e){
       const c = (e && e.code) || '';
-      if (c.includes('invalid-credential') || c.includes('wrong-password') || c.includes('user-not-found')) return 'невірний email або пароль';
-      if (c.includes('invalid-email')) return 'некоректний email';
+      if (c.includes('sk/login-too-short')) return 'логін закороткий';
+      if (c.includes('invalid-credential') || c.includes('wrong-password') || c.includes('user-not-found')) return 'невірний логін/email або пароль';
+      if (c.includes('invalid-email')) return 'некоректний логін або email';
       if (c.includes('too-many-requests')) return 'забагато спроб, спробуйте пізніше';
       if (c.includes('network')) return 'немає зв\'язку з мережею';
       return 'спробуйте ще раз';
     }
 
-    function showTab(which, fromChildFlow){
-      const isChild = which === 'child';
-      // Явний клік на верхню вкладку «Я — батько/мати» = справді хочемо кабінет.
-      if (which === 'parent' && !fromChildFlow) wantChild = false;
-      $('tabParent').classList.toggle('active', !isChild);
-      $('tabChild').classList.toggle('active', isChild);
-      $('parentForm').classList.toggle('hidden', isChild);
-      $('childForm').classList.toggle('hidden', !isChild);
-      if (isChild) loadChildren();
+    function showTab(which){
+      const isHero = (which === 'hero' || which === 'child');
+      $('tabParent').classList.toggle('active', !isHero);
+      $('tabChild').classList.toggle('active', isHero);
+      $('parentForm').classList.toggle('hidden', isHero);
+      $('childForm').classList.toggle('hidden', !isHero);
+      if (isHero) { const h = $('heroLogin'); if (h) h.focus(); }
     }
-
-    // «Вхід для батьків» із дитячої вкладки: лишаємось у дитячому сценарії.
-    function goParentForChild(){ wantChild = true; showTab('parent', true); }
 
     // дочекатися firebase-config (SK)
     function whenSK(cb){
@@ -240,13 +230,12 @@
       })();
     }
 
-    // на старті: залогінених не тримаємо на сторінці входу
+    // на старті: залогінених ведемо в їхній кабінет
     whenSK(function(u){
       if (u){
-        if (authNext === 'child') showTab('child');
-        else location.replace('parent.html');
+        location.replace(SK.isHeroSession() ? 'hero.html' : 'parent.html');
       } else {
-        showTab(authNext === 'child' ? 'child' : 'parent');
+        showTab(wantHeroFirst ? 'hero' : 'parent');
       }
     });
 
@@ -257,89 +246,28 @@
       if (!window.SK){ toast('⚠️ Зачекайте, ще завантажується…'); return; }
       try{
         await SK.login(email, pass);
-        if (authNext === 'child' || wantChild){ showTab('child'); return; }
         location.href = 'parent.html';
       }catch(e){
         toast('❌ Не вдалося увійти: ' + friendlyAuthError(e));
       }
     }
 
-    function forgotPass(){
-      toast('Звернися до батьків — відновлення пароля доступне в кабінеті.');
-    }
-
-    function escapeHtml(s){
-      return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    }
-
-    async function loadChildren(){
-      const grid = $('childGrid');
-      $('pinArea').classList.add('hidden');
-      selectedChildId = null;
-      grid.innerHTML = '<div class="info-msg">Завантаження…</div>';
-      if (!window.SK){ grid.innerHTML = '<div class="info-msg">Зачекайте, ще завантажується…</div>'; return; }
+    async function doHeroLogin(){
+      const login = $('heroLogin').value.trim();
+      const pass  = $('heroPass').value;
+      if (!login || !pass){ toast('⚠️ Введіть логін і пароль'); return; }
+      if (!window.SK){ toast('⚠️ Зачекайте, ще завантажується…'); return; }
       try{
-        await SK.ready;
-        if (!(SK.currentUser && SK.currentUser())){
-          grid.innerHTML = '<div class="info-msg">Спочатку має увійти хтось із батьків — натисни «Вхід для батьків».</div>';
-          return;
-        }
-        familyChildren = await SK.getChildren();
-        const ids = Object.keys(familyChildren || {});
-        if (!ids.length){
-          grid.innerHTML = '<div class="info-msg">У сім\'ї ще немає дітей. Додайте дитину в кабінеті батьків.</div>';
-          return;
-        }
-        grid.innerHTML = ids.map(id => {
-          const c = familyChildren[id] || {};
-          return '<div class="avatar-option" onclick="selectChild(this,\''+id+'\')">'
-               + '<span class="emoji">'+escapeHtml(c.avatar || '🙂')+'</span>'
-               + '<span class="name">'+escapeHtml(c.name || 'Дитина')+'</span></div>';
-        }).join('');
+        await SK.heroLogin(login, pass);
+        location.href = 'hero.html';
       }catch(e){
-        grid.innerHTML = '<div class="info-msg">Не вдалося завантажити профілі.</div>';
-        console.warn('[login] getChildren:', e);
+        console.warn('[login] heroLogin:', e);
+        toast('❌ Не вдалося увійти: ' + friendlyAuthError(e));
       }
     }
 
-    function selectChild(el, id){
-      document.querySelectorAll('#childGrid .avatar-option').forEach(a => a.classList.remove('selected'));
-      el.classList.add('selected');
-      selectedChildId = id;
-      $('pinArea').classList.remove('hidden');
-      clearPin(); 
-      const first = document.querySelector('#pinWrap .pin-digit'); if (first) first.focus();
-    }
-
-    // PIN: автоперехід, backspace, вставка
-    const pinCells = Array.from(document.querySelectorAll('#pinWrap .pin-digit'));
-    pinCells.forEach((cell, i) => {
-      cell.addEventListener('input', () => {
-        cell.value = cell.value.replace(/\D/g,'').slice(0,1);
-        cell.classList.toggle('filled', cell.value !== '');
-        if (cell.value && i < pinCells.length-1) pinCells[i+1].focus();
-      });
-      cell.addEventListener('keydown', ev => {
-        if (ev.key === 'Backspace' && !cell.value && i > 0) pinCells[i-1].focus();
-      });
-      cell.addEventListener('paste', ev => {
-        const d = (ev.clipboardData.getData('text')||'').replace(/\D/g,'').slice(0,4);
-        if (!d) return; ev.preventDefault();
-        d.split('').forEach((n,k)=>{ if(pinCells[k]){ pinCells[k].value=n; pinCells[k].classList.add('filled'); }});
-        pinCells[Math.min(d.length, pinCells.length-1)].focus();
-      });
-    });
-    function clearPin(){ pinCells.forEach(c=>{ c.value=''; c.classList.remove('filled'); }); }
-
-    async function doChildLogin(){
-      if (!selectedChildId){ toast('⚠️ Оберіть профіль'); return; }
-      const pin = pinCells.map(c=>c.value).join('');
-      if (!/^\d{4}$/.test(pin)){ toast('⚠️ Введіть PIN з 4 цифр'); return; }
-      const c = familyChildren[selectedChildId];
-      if (!c || String(c.pin) !== pin){ toast('❌ Невірний PIN'); clearPin(); pinCells[0].focus(); return; }
-      SK.setActiveChild(selectedChildId);
-      // heroID підтягнеться сам через _resolveHero() → children/{id}.heroID
-      location.href = 'hero.html';
+    function forgotPass(){
+      toast('Відновлення пароля зʼявиться згодом. Поки що зверніться до підтримки.');
     }
   </script>
 </body>

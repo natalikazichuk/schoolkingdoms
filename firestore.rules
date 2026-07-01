@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Батьки (user): доступ лише до власного документа ──
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // ── Герої ──
+    // Читати/писати документ Героя може:
+    //   • сам Герой (його uid == id документа),
+    //   • його батьки (parentUid у документі == uid того, хто звертається),
+    //   • батьки при СТВОРЕННІ (parentUid у новому документі == їх uid).
+    match /heroes/{heroId} {
+      allow read: if request.auth != null && (
+        request.auth.uid == heroId ||
+        request.auth.uid == resource.data.parentUid
+      );
+      allow create: if request.auth != null &&
+        request.auth.uid == request.resource.data.parentUid;
+      allow update, delete: if request.auth != null && (
+        request.auth.uid == heroId ||
+        request.auth.uid == resource.data.parentUid
+      );
+    }
+
+    // (необов'язково) лічильники, якщо колись знадобляться
+    match /meta/{doc} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

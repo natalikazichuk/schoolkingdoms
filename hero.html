@@ -280,7 +280,6 @@ a{color:inherit;text-decoration:none}
   </div>
   <nav class="topnav">
     <a href="hero.html"><span class="ic">🏠</span>Головна</a>
-    <a href="akademiya-geroya.html"><span class="ic">📜</span>Квести</a>
     <a href="akademiya-geroya.html"><span class="ic">📖</span>Тренування</a>
     <a href="index.html"><span class="ic">📚</span>Бібліотека</a>
     <a href="learn_play_moi_svit.html"><span class="ic">🌍</span>Мій Світ</a>
@@ -291,6 +290,9 @@ a{color:inherit;text-decoration:none}
     <span class="coin gem"><span class="ic">💎</span><span id="w-gems">35</span></span>
     <span class="coin shield"><span class="ic">🛡️</span><span id="w-shield">24</span></span>
     <div class="avatar-mini" id="avatarMini">🧒</div>
+    <button id="heroLogout" title="Вийти" aria-label="Вийти"
+      style="flex-shrink:0;background:rgba(0,0,0,.28);border:1.5px solid var(--chrome-line);color:#cfe0ff;
+      font-weight:800;font-size:.8rem;border-radius:12px;padding:8px 12px;cursor:pointer">Вийти →</button>
   </div>
 </header>
 
@@ -459,13 +461,12 @@ a{color:inherit;text-decoration:none}
 
 <!-- BOTTOM NAV -->
 <nav class="botnav">
-  <a href="hero.html"><span class="ic">🏠</span>Головна</a>
-  <a href="akademiya-geroya.html"><span class="ic">📜</span>Квести</a>
-  <a class="active" href="learn_play_moi_svit.html"><span class="ic">🧭</span>Пригоди</a>
+  <a class="active" href="hero.html"><span class="ic">🏠</span>Головна</a>
   <a href="akademiya-geroya.html"><span class="ic">📖</span>Тренування</a>
   <a href="index.html"><span class="ic">📚</span>Бібліотека</a>
   <a href="learn_play_moi_svit.html"><span class="ic">🌍</span>Мій Світ</a>
   <button id="settingsBtn"><span class="ic">⚙️</span>Налашт.</button>
+  <button id="heroLogoutBtn"><span class="ic">🚪</span>Вийти</button>
 </nav>
 
 <script>
@@ -623,7 +624,8 @@ render();
   }
 
   window.SK.ready.then(async function(u){
-    if(!u){ location.href='login.html?next=child'; return; }
+    if(!u){ location.href='login.html?next=hero'; return; }
+    if(window.SK.isHeroSession && !window.SK.isHeroSession()){ location.href='parent.html'; return; }
     try{
       // 1) Особистість героя = профіль активної дитини (джерело правди: children/{id})
       const child = (window.SK.getActiveChild) ? await window.SK.getActiveChild() : null;
@@ -710,6 +712,19 @@ $('settingsBtn').addEventListener('click',()=>{
       r.readAsDataURL(f);
     });
   }
+})();
+</script>
+<script>
+/* Вихід Героя: завершуємо сесію Firebase → лендинг */
+(function(){
+  async function doLogout(){
+    try{ if(window.SK && SK.logout) await SK.logout(); }catch(e){}
+    location.href = 'index.html';
+  }
+  ['heroLogout','heroLogoutBtn'].forEach(function(id){
+    var btn = document.getElementById(id);
+    if(btn) btn.addEventListener('click', doLogout);
+  });
 })();
 </script>
 </body>
