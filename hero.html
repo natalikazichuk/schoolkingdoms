@@ -506,20 +506,12 @@ function levelsPassed(store){
 }
 
 const store=lsAll();
-const ukrXP   = sumXP(store,['palace','spell','rak','piven','druzhba','ukr','abetk']);
-const mathXP  = sumXP(store,['add','sub','mult','math','num','cifr']);
-const logicXP = sumXP(store,['logic','logika','pamyat','memory']);
-const engXP   = sumXP(store,['eng','abc']);
-const worldXP = sumXP(store,['capital','geo','svit','world','yads','dovkil']);
-const totalXP = ukrXP+mathXP+logicXP+engXP+worldXP;
-const hasData = totalXP>0;
-
-/* характеристики з реального XP (формули — налаштовуються) */
-const hp  = Math.min(100, 50 + Math.floor(ukrXP/10));      // +1 HP / 10 XP укр. мови
-const agi = Math.min(100,  1 + Math.floor(worldXP/15));     // ЯДС / світ
-const mpBase = Math.min(100, 10 + Math.floor(logicXP/12));  // логіка + пам'ять
-const mp  = Math.min(100, mpBase + Math.min(6, Math.floor(engXP/25))); // + English бонус
-const acc = Math.min(100,  1 + Math.floor(mathXP/15));      // математика
+// ukrXP/engXP лишаються — потрібні лише для косметичного лічильника "мов" (langs),
+// якого немає в схемі heroes/{heroId}. mathXP/logicXP/worldXP та формули
+// hp/agi/mp/acc/level/coins/xp ЗВІДСИ ВИДАЛЕНІ — тепер це рахує ЛИШЕ
+// sk-progress.js і зберігає у Firebase; hero.html тільки читає heroes/{heroId}.
+const ukrXP = sumXP(store,['palace','spell','rak','piven','druzhba','ukr','abetk']);
+const engXP = sumXP(store,['eng','abc']);
 
 const stars = sumStars(store);
 const passed = levelsPassed(store);
@@ -534,22 +526,17 @@ let profile = {name:'Сашко', grade:'Перший клас', title:'Лица
 try{ const p=JSON.parse(localStorage.getItem('sk_hero_profile')||'null'); if(p) profile=Object.assign(profile,p); }catch(e){}
 function saveProfile(){ try{ localStorage.setItem('sk_hero_profile',JSON.stringify(profile)); }catch(e){} }
 
-/* підсумкові числа: реальні, якщо є дані; інакше демо як на концепті */
-const data = hasData ? {
-  hp, agi, mp, acc,
-  level: Math.floor(totalXP/100)+1,
-  coins: totalXP,
+/* косметичні показники нижньої стрічки — поки НЕ є полями heroes/{heroId},
+   тож рахуються локально (окрема задача — додати їх у схему, якщо потрібно) */
+const data = {
   gems: Math.max(profile.gems||0, Math.floor(stars)),
   achievements: stars,
-  xpCur: totalXP % 100, xpMax: 100,
   medals: stars, tests: passed, langs: langs||1,
   books: profile.books, sport: profile.sport
-} : {
-  hp:50, agi:1, mp:10, acc:1, level:1, coins:540, gems:35, achievements:24,
-  xpCur:50, xpMax:100, medals:24, tests:320, langs:2, books:18, sport:15
 };
 
-// заблоковані стати 1 класу — стартові значення з шаблону героя
+// заблоковані стати 1 класу — поки без формул; показуємо те, що реально лежить
+// у документі Героя (за відсутності поля — стартове значення з шаблону створення)
 const lockedStats = {strength:2, defense:1, intelligence:1, wisdom:1, luck:1, memory:1, charisma:1};
 const lockedMap = {strength:'lk-str',defense:'lk-def',intelligence:'lk-int',wisdom:'lk-wis',luck:'lk-luck',memory:'lk-mem',charisma:'lk-cha'};
 
@@ -563,30 +550,42 @@ function render(){
   $('heroGrade').textContent=profile.grade;
   $('heroTitle').textContent=profile.title;
   $('heroAbout').textContent=profile.about;
-  if($('heroLevel')) $('heroLevel').textContent=data.level;
-  // заблоковані стати
+  // заблоковані стати (поки без формул — стартові значення; перезапишуться,
+  // якщо відповідне поле раптом з'явиться в документі Героя)
   Object.keys(lockedMap).forEach(k=>{ const el=$(lockedMap[k]); if(el) el.textContent=lockedStats[k]; });
 
-  // wallet
-  $('w-coins').textContent=data.coins;
+  // активні бойові стати (health/agility/mana/accuracy/level/xp/coins) —
+  // ЄДИНЕ джерело: Firestore. Поки дані не прийшли — нейтральний стан очікування.
+  renderLoadingStats();
+
+  // косметична нижня стрічка — поки не є полями heroes/{heroId}, тому локальна
   $('w-gems').textContent=data.gems;
   $('w-shield').textContent=data.achievements;
-  $('coins2').textContent=data.coins;
   $('ach2').textContent=data.achievements;
+  $('s-medals').textContent=data.medals;
+  $('s-books').textContent=data.books;
+  $('s-tests').textContent=data.tests;
+  $('s-langs').textContent=data.langs;
+  $('s-sport').textContent=data.sport;
 
-  // xp
-  $('xpCur').textContent=data.xpCur;
-  $('xpMax').textContent=data.xpMax;
-  $('xpFill').style.width=pct(data.xpCur,data.xpMax)+'%';
+  // avatar mini = first letter
+  $('avatarMini').textContent=(profile.name||'🧒').trim().charAt(0).toUpperCase()||'🧒';
+}
 
-  // active stats
-  $('hpCur').textContent=data.hp;  $('hpBar').style.width=pct(data.hp,100)+'%';
-  $('agiCur').textContent=data.agi; $('agiBar').style.width=pct(data.agi,100)+'%';
-  $('mpCur').textContent=data.mp;  $('mpBar').style.width=pct(data.mp,100)+'%';
-  $('accCur').textContent=data.acc; $('accBar').style.width=pct(data.acc,100)+'%';
+function renderLoadingStats(){
+  ['w-coins','coins2','xpCur','hpCur','agiCur','mpCur','accCur','m20Acc'].forEach(function(id){
+    const el=$(id); if(el) el.textContent='…';
+  });
+  if($('heroLevel')) $('heroLevel').textContent='…';
+  ['hpBar','agiBar','mpBar','accBar','xpFill'].forEach(function(id){
+    const el=$(id); if(el) el.style.width='0%';
+  });
+  if($('xpMax')) $('xpMax').textContent=100;
+}
 
-  // ── віджет «20 рівнів»: математика → точність ──
-  $('m20Acc').textContent=data.acc;              // той самий показник, що й Точність/головна
+// віджет «20 рівнів»: сегменти пройдених рівнів математики — не залежить
+// від героя-статів, будуємо одразу з локального прогресу тесту
+function renderLevelSegments(){
   $('m20Passed').textContent=mathLevels;
   const segWrap=$('m20Segs');
   if(segWrap && !segWrap.dataset.built){
@@ -599,18 +598,36 @@ function render(){
     segWrap.innerHTML=html;
     segWrap.dataset.built='1';
   }
-
-  // strip
-  $('s-medals').textContent=data.medals;
-  $('s-books').textContent=data.books;
-  $('s-tests').textContent=data.tests;
-  $('s-langs').textContent=data.langs;
-  $('s-sport').textContent=data.sport;
-
-  // avatar mini = first letter
-  $('avatarMini').textContent=(profile.name||'🧒').trim().charAt(0).toUpperCase()||'🧒';
 }
+
+// заповнює всі активні бойові стати ВИКЛЮЧНО з документа heroes/{heroId}
+function renderHeroStats(h){
+  if(!h) return;
+  const health   = h.health!=null   ? h.health   : 50;
+  const agility  = h.agility!=null  ? h.agility  : 1;
+  const mana     = h.mana!=null     ? h.mana     : 10;
+  const accuracy = h.accuracy!=null ? h.accuracy : 1;
+  const level    = h.level!=null    ? h.level    : 1;
+  const xp       = h.xp!=null       ? h.xp       : 0;
+  const coins    = h.coins!=null    ? h.coins    : 0;
+
+  $('hpCur').textContent=health;   $('hpBar').style.width=pct(health,100)+'%';
+  $('agiCur').textContent=agility; $('agiBar').style.width=pct(agility,100)+'%';
+  $('mpCur').textContent=mana;     $('mpBar').style.width=pct(mana,100)+'%';
+  $('accCur').textContent=accuracy; $('accBar').style.width=pct(accuracy,100)+'%';
+  const ma=$('m20Acc'); if(ma) ma.textContent=accuracy;
+  if($('heroLevel')) $('heroLevel').textContent=level;
+  $('xpCur').textContent=xp%100; $('xpFill').style.width=pct(xp%100,100)+'%';
+  $('w-coins').textContent=coins; $('coins2').textContent=coins;
+
+  // якщо колись з'являться формули для заблокованих статів — підхоплюємо їх з документа
+  Object.keys(lockedMap).forEach(function(k){
+    if(h[k]!=null){ const el=$(lockedMap[k]); if(el) el.textContent=h[k]; }
+  });
+}
+
 render();
+renderLevelSegments();
 
 /* ── якщо дитина в системі — перекриваємо індикатори реальними даними з бази ── */
 (function(){
@@ -652,25 +669,19 @@ render();
         if(child.grade!=null) $('heroGrade').textContent = gradeLabel(child.grade);
       }
 
-      // 2) Характеристики героя = документ heroes/{heroID}
+      // 2) Характеристики героя = документ heroes/{heroID} — єдине джерело правди
       const h = await window.SK.getHero();
       if(!h){
         console.warn('[hero.html] getHero() повернув null — документ heroes/{uid} не знайдено');
+        // залишаємо "…" з renderLoadingStats() — вигаданих чисел більше не показуємо
         return;
       }
-      if(h.health!=null){ $('hpCur').textContent=h.health; $('hpBar').style.width=pct(h.health,100)+'%'; }
-      if(h.agility!=null){ $('agiCur').textContent=h.agility; $('agiBar').style.width=pct(h.agility,100)+'%'; }
-      if(h.mana!=null){ $('mpCur').textContent=h.mana; $('mpBar').style.width=pct(h.mana,100)+'%'; }
-      if(h.accuracy!=null){ $('accCur').textContent=h.accuracy; $('accBar').style.width=pct(h.accuracy,100)+'%'; var ma=$('m20Acc'); if(ma) ma.textContent=h.accuracy; }
-      if(h.level!=null && $('heroLevel')) $('heroLevel').textContent=h.level;
-      if(h.xp!=null){ $("xpCur").textContent=h.xp%100; $("xpFill").style.width=pct(h.xp%100,100)+"%"; }
-      if(h.coins!=null){ $('w-coins').textContent=h.coins; $('coins2').textContent=h.coins; }
+      renderHeroStats(h);
       // ім'я беремо з документа дитини; якщо його там немає — як запасний варіант ім'я героя
       if(!child || !child.name){
         if(h.name){ $('heroName').textContent=h.name; $('avatarMini').textContent=(h.name||'🧒').trim().charAt(0).toUpperCase()||'🧒'; }
       }
       if(h.title) $('heroTitle').textContent=h.title;
-      Object.keys(lockedMap).forEach(function(k){ if(h[k]!=null){ var el=$(lockedMap[k]); if(el) el.textContent=h[k]; } });
     }catch(e){
       console.error('[hero.html] не вдалося завантажити дані героя з Firebase:', e);
     }
