@@ -614,7 +614,16 @@ render();
 
 /* ── якщо дитина в системі — перекриваємо індикатори реальними даними з бази ── */
 (function(){
-  if(!window.SK || !window.SK.ready) return;
+  // очікуємо, поки завантажиться firebase-config.js (він type="module" — виконується відкладено,
+  // тож на момент цього inline-скрипта window.SK ще може не існувати)
+  function whenSK(cb){
+    let n = 0;
+    (function wait(){
+      if (window.SK && window.SK.ready){ cb(); return; }
+      if (n++ < 100) setTimeout(wait, 50);
+      else console.error('[hero.html] firebase-config.js не завантажився за 5с — window.SK так і не з’явився');
+    })();
+  }
 
   // номер класу → підпис
   function gradeLabel(g){
@@ -623,6 +632,7 @@ render();
     return names[n] || (n ? n + '-й клас' : profile.grade);
   }
 
+  whenSK(function(){
   window.SK.ready.then(async function(u){
     if(!u){ location.href='login.html?next=hero'; return; }
     if(window.SK.isHeroSession && !window.SK.isHeroSession()){ location.href='parent.html'; return; }
@@ -665,6 +675,7 @@ render();
       console.error('[hero.html] не вдалося завантажити дані героя з Firebase:', e);
     }
   });
+  }); // кінець whenSK
 })();
 
 /* edit name */
