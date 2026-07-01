@@ -629,6 +629,11 @@ render();
     try{
       // 1) Особистість героя = профіль активної дитини (джерело правди: children/{id})
       const child = (window.SK.getActiveChild) ? await window.SK.getActiveChild() : null;
+      if(!child){
+        console.warn('[hero.html] getActiveChild() повернув null — документ дитини не знайдено або немає activeChildId/activeHeroId');
+      } else if(!child.name){
+        console.warn('[hero.html] документ дитини знайдено, але поле name відсутнє:', child);
+      }
       if(child){
         if(child.name){
           $('heroName').textContent = child.name;
@@ -639,7 +644,10 @@ render();
 
       // 2) Характеристики героя = документ heroes/{heroID}
       const h = await window.SK.getHero();
-      if(!h) return;
+      if(!h){
+        console.warn('[hero.html] getHero() повернув null — документ heroes/{uid} не знайдено');
+        return;
+      }
       if(h.health!=null){ $('hpCur').textContent=h.health; $('hpBar').style.width=pct(h.health,100)+'%'; }
       if(h.agility!=null){ $('agiCur').textContent=h.agility; $('agiBar').style.width=pct(h.agility,100)+'%'; }
       if(h.mana!=null){ $('mpCur').textContent=h.mana; $('mpBar').style.width=pct(h.mana,100)+'%'; }
@@ -653,7 +661,9 @@ render();
       }
       if(h.title) $('heroTitle').textContent=h.title;
       Object.keys(lockedMap).forEach(function(k){ if(h[k]!=null){ var el=$(lockedMap[k]); if(el) el.textContent=h[k]; } });
-    }catch(e){}
+    }catch(e){
+      console.error('[hero.html] не вдалося завантажити дані героя з Firebase:', e);
+    }
   });
 })();
 
