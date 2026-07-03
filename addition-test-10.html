@@ -97,11 +97,20 @@ body{font-family:'Nunito',sans-serif;background:linear-gradient(160deg,var(--nav
 .result-score{font-size:1rem;color:rgba(255,255,255,.65)}
 .result-xp{font-size:1.25rem;font-weight:800;color:var(--gold);background:rgba(255,213,74,.12);border:1px solid rgba(255,213,74,.3);padding:8px 24px;border-radius:14px}
 .result-lvl{font-size:.78rem;color:rgba(255,255,255,.35);letter-spacing:2px;text-transform:uppercase}
+.result-acc{font-size:1.02rem;font-weight:800;color:#69DB7C;background:rgba(76,175,80,.12);border:1px solid rgba(76,175,80,.32);padding:8px 22px;border-radius:14px}
+.result-acc span{color:rgba(255,255,255,.5);font-weight:700;font-size:.85rem}
+.result-acc.dim{color:rgba(255,255,255,.6);background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.14)}
+.unlock-box{width:100%;text-align:center;line-height:1.5;font-size:.95rem;color:#fff;background:rgba(255,213,74,.12);border:1px solid rgba(255,213,74,.4);border-radius:18px;padding:16px;animation:pop .4s ease}
+.unlock-box b{color:var(--gold)}
 </style>
 </head>
 <body>
 <div class="stars-bg" id="stars"></div>
 <div id="app"></div>
+
+<!-- Firebase + розрахунок статів Героя (accuracy/health/xp) -->
+<script type="module" src="firebase-config.js"></script>
+<script src="sk-progress.js"></script>
 
 <script>
 (function(){
@@ -110,6 +119,14 @@ body{font-family:'Nunito',sans-serif;background:linear-gradient(160deg,var(--nav
 /* ─── CONFIG ─── */
 // 10 levels, question count = level*5  → 5,10,15,...,50. All addition within 10.
 const LEVEL_COUNT = 10;
+
+/* Скіл «Додавання до 10» формує стат ТОЧНІСТЬ (accuracy):
+   кожен рівень, пройдений БЕЗ помилок, = +1 до точності (зберігається у Firebase
+   через sk-progress.js: heroes/{id}.accuracy). Множина пройдених рівнів — у DONE_KEY.
+   Після 55% рівнів відкривається скіл «Віднімання до 10» (UNLOCK_NEXT_KEY). */
+const DONE_KEY        = 'sk_add10_levels_v1';       // {"1":true,...} пройдені рівні
+const UNLOCK_NEXT_KEY = 'sk_sub10_skill_unlocked_v1';
+const UNLOCK_NEXT_AT  = Math.ceil(0.55 * LEVEL_COUNT); // 55% → 6 рівнів
 const NAMES = ['Перший крок','Маленький рахівник','Спритні пальчики','Юний математик',
                'Знавець десятки','Швидкий розум','Пошук числа','Кмітливий учень',
                'Майстер задач','Чемпіон додавання'];
@@ -155,6 +172,36 @@ function flashXP(){
     el.textContent='⭐ '+xp+' XP'; el.classList.add('flash');
     setTimeout(()=>el.classList.remove('flash'),500);
   });
+}
+
+/* ─── СКІЛ · ТОЧНІСТЬ + РОЗБЛОКУВАННЯ ─── */
+function loadDone(){
+  try{ const o=JSON.parse(localStorage.getItem(DONE_KEY)||'{}'); return (o&&typeof o==='object'&&!Array.isArray(o))?o:{}; }
+  catch(e){ return {}; }
+}
+function doneCount(){ return Object.keys(loadDone()).length; }
+// Рівень пройдено без помилок → додаємо у множину. Повертає {isNew, count}.
+function markLevelDone(lv){
+  const d=loadDone();
+  const isNew=!d[lv];
+  d[lv]=true; save(DONE_KEY,d);
+  return {isNew, count:Object.keys(d).length};
+}
+// Синхронізація статів Героя у Firebase (accuracy/health/xp) — через sk-progress.
+function syncHeroStats(){
+  try{ if(window.SKProgress && typeof SKProgress.save==='function') SKProgress.save(); }catch(e){}
+}
+// Розблокування наступного скіла після 55% пройдених рівнів.
+// Повертає true, якщо саме зараз щойно відкрили (для показу привітання).
+function checkUnlockNext(){
+  const already = localStorage.getItem(UNLOCK_NEXT_KEY)==='1';
+  if(already) return false;
+  if(doneCount() >= UNLOCK_NEXT_AT){
+    save(UNLOCK_NEXT_KEY,'1');
+    syncHeroStats(); // штовхаємо прогрес у heroes/{id}.progress одразу
+    return true;
+  }
+  return false;
 }
 
 /* ─── QUESTION GENERATORS (all within 10) ─── */
@@ -307,6 +354,20 @@ function renderResult(){
   const stars = pct>=0.9?3 : pct>=0.7?2 : 1;
   const gained=ST.correct*1;
   const isLast=ST.level>=LEVEL_COUNT;
+  const accGained=ST.accGained||0;
+  const accTotal=ST.accTotal||0;
+  const unlockedNext = localStorage.getItem(UNLOCK_NEXT_KEY)==='1';
+
+  const accHtml = accGained>0
+    ? `<div class="result-acc">🎯 +${accGained} Точність <span>(усього ${accTotal}/${LEVEL_COUNT})</span></div>`
+    : `<div class="result-acc dim">🎯 Точність: ${accTotal}/${LEVEL_COUNT} рівнів</div>`;
+
+  const unlockHtml = ST.justUnlockedNext
+    ? `<div class="unlock-box">🔓 <b>Новий скіл відкрито!</b><br>Ти пройшов 55% Додавання — тепер доступне <b>Віднімання до 10</b>.
+         <a class="nav-btn" style="margin-top:10px" href="subtraction-test-10.html">➖ Почати Віднімання</a></div>`
+    : (unlockedNext && isLast
+        ? `<a class="nav-btn ghost" href="subtraction-test-10.html">➖ Перейти до Віднімання до 10</a>`
+        : '');
 
   app.innerHTML=`
     <div class="topbar">
@@ -319,6 +380,8 @@ function renderResult(){
       <div class="result-title">${stars===3?'Бездоганно!':stars===2?'Молодець!':'Готово!'}</div>
       <div class="result-score">${ST.correct} з ${total} правильно</div>
       <div class="result-xp">+${gained} XP</div>
+      ${accHtml}
+      ${unlockHtml}
       ${isLast
         ? `<button class="nav-btn" onclick="window.__app.goMenu()">🏆 До меню</button>`
         : `<button class="nav-btn" onclick="window.__app.startLevel(${ST.level+1})">Наступний рівень →</button>`}
@@ -390,6 +453,12 @@ window.__app={
       const stars=pct>=0.9?3:pct>=0.7?2:1;
       if((starsMap[ST.level]||0)<stars){ starsMap[ST.level]=stars; save(STAR_KEY,starsMap); }
       if(ST.level===unlocked && unlocked<LEVEL_COUNT){ unlocked++; save(UNL_KEY,String(unlocked)); }
+      // рівень пройдено БЕЗ помилок → +1 до точності Героя (accuracy у Firebase)
+      const mark=markLevelDone(ST.level);
+      ST.accGained=mark.isNew?1:0;   // повторне проходження точність не збільшує
+      ST.accTotal=mark.count;        // всього пройдено рівнів = accuracy від цього скіла
+      syncHeroStats();               // пише accuracy/health/xp у heroes/{id}
+      ST.justUnlockedNext=checkUnlockNext();
       ST.screen='result';
       renderResult();
     } else {
