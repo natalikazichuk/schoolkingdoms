@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Тести — School Kingdoms</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=Nunito:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="sk-styles.css">
+<style>
+  /* ── шапка (беремо .topbar зі sk-styles) ── */
+  .brand{display:flex;align-items:center;gap:12px;text-decoration:none}
+  .brand .crest{font-size:1.8rem;filter:drop-shadow(0 2px 4px rgba(0,0,0,.45))}
+  .brand-name{font-family:'Playfair Display',serif;font-weight:900;font-size:clamp(1.2rem,3vw,1.6rem);color:#fff;text-shadow:0 2px 5px rgba(0,0,0,.45)}
+  .brand-name b{color:var(--gold)}
+  .brand-sub{font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:#ffe9b8;font-weight:700;margin-top:2px}
+  .nav-links{display:flex;gap:10px;flex-wrap:wrap}
+  .nav-btn{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.08);
+    border:1.5px solid rgba(242,199,92,.5);color:#fff;text-decoration:none;border-radius:12px;
+    padding:9px 16px;font-weight:800;font-size:.85rem;transition:transform .15s,background .15s}
+  .nav-btn:hover{transform:translateY(-2px);background:rgba(255,255,255,.16)}
+
+  /* ── заголовок сторінки ── */
+  .page-head{max-width:940px;margin:0 auto;padding:clamp(18px,4vh,40px) 20px 6px;text-align:center}
+  .page-title{font-family:'Playfair Display',serif;font-weight:900;color:#FBEFD0;
+    font-size:clamp(2rem,6vw,3.4rem);line-height:1.05;text-shadow:0 2px 12px rgba(0,0,0,.55),0 0 26px rgba(124,99,255,.4)}
+  .page-sub{color:#dce6f7;font-weight:600;font-size:clamp(.95rem,2.2vw,1.15rem);margin:12px auto 0;max-width:620px;line-height:1.5;text-shadow:0 1px 8px rgba(0,0,0,.5)}
+
+  /* ── смужка Героя (якщо увійшов Герой) ── */
+  .hero-strip{max-width:720px;margin:22px auto 0;display:none;
+    background:linear-gradient(180deg,rgba(16,33,62,.85),rgba(10,22,46,.9));
+    border:2px solid var(--gold);border-radius:16px;padding:12px 18px;
+    box-shadow:0 10px 26px rgba(0,0,0,.4)}
+  .hero-strip.show{display:block}
+  .hs-name{font-family:'Playfair Display',serif;font-weight:800;color:#FBEFD0;font-size:1.05rem;margin-bottom:8px}
+  .hs-stats{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+  .hs-stat{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.07);
+    border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:5px 12px;font-weight:800;font-size:.85rem;color:#eaf1ff}
+  .hs-stat b{color:var(--gold)}
+  .hs-guest{max-width:720px;margin:20px auto 0;text-align:center;color:#cdd8ef;font-weight:600;font-size:.9rem;
+    background:rgba(255,255,255,.05);border:1px dashed rgba(242,199,92,.45);border-radius:14px;padding:12px 16px;display:none}
+  .hs-guest.show{display:block}
+  .hs-guest a{color:var(--gold);font-weight:800}
+
+  /* ── контейнер ── */
+  .wrap{max-width:940px;margin:0 auto;padding:24px 18px 70px}
+
+  /* ── ступінь (tier) ── */
+  details.tier{margin:0 0 16px;border-radius:20px;overflow:hidden;
+    background:linear-gradient(165deg,rgba(30,52,92,.55),rgba(12,28,54,.62));
+    border:2px solid rgba(242,199,92,.5);box-shadow:0 12px 30px rgba(0,0,0,.38)}
+  details.tier > summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:14px;
+    padding:18px 20px;user-select:none}
+  details.tier > summary::-webkit-details-marker{display:none}
+  .tier-ic{font-size:1.9rem;line-height:1;flex-shrink:0;filter:drop-shadow(0 2px 4px rgba(0,0,0,.4))}
+  .tier-tt{flex:1 1 auto;min-width:0}
+  .tier-name{font-family:'Playfair Display',serif;font-weight:800;font-size:clamp(1.2rem,3vw,1.55rem);color:#fff}
+  .tier-note{font-size:.82rem;color:#c6d3ea;font-weight:600;margin-top:2px}
+  .tier-arrow{font-size:1.1rem;color:#f0d9a6;transition:transform .25s;flex-shrink:0}
+  details.tier[open] > summary .tier-arrow{transform:rotate(180deg)}
+  .pill{font-size:.66rem;font-weight:800;letter-spacing:.03em;padding:3px 10px;border-radius:999px;white-space:nowrap}
+  .pill.ready{background:rgba(120,220,150,.18);color:#9be6b0;border:1px solid rgba(120,220,150,.35)}
+  .pill.wip{background:rgba(242,199,92,.16);color:#f2d68a;border:1px solid rgba(242,199,92,.4)}
+  .pill.soon{background:rgba(255,255,255,.08);color:#c9cbe0;border:1px solid rgba(255,255,255,.18)}
+  .tier-body{padding:4px 18px 20px}
+
+  /* ── клас ── */
+  .grade-name{font-family:'Playfair Display',serif;font-weight:800;color:var(--gold);
+    font-size:1.05rem;margin:14px 4px 10px;display:flex;align-items:center;gap:8px}
+
+  /* ── предмет ── */
+  details.subj{margin:0 0 12px;border-radius:16px;overflow:hidden;background:rgba(9,20,42,.5);
+    border:1.5px solid rgba(255,255,255,.1)}
+  details.subj > summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;
+    padding:13px 16px;border-left:7px solid var(--accent,#5C6BC0)}
+  details.subj > summary::-webkit-details-marker{display:none}
+  .subj-ic{font-size:1.5rem;line-height:1;flex-shrink:0}
+  .subj-tt{flex:1 1 auto;min-width:0}
+  .subj-name{font-weight:800;font-size:1.02rem;color:#fff}
+  .subj-stat{font-size:.74rem;color:#b9c4e0;font-weight:700;margin-top:2px}
+  .subj-stat b{color:var(--accent,#8fa2e6)}
+  .subj-arrow{font-size:1rem;color:#cfd4ff;transition:transform .25s;flex-shrink:0}
+  details.subj[open] > summary .subj-arrow{transform:rotate(180deg)}
+  .subj-body{padding:12px 16px 16px}
+  .grp-title{font-weight:800;font-size:.72rem;letter-spacing:.05em;color:#c3c8f0;margin:2px 0 8px;text-transform:uppercase}
+  .grp-title:not(:first-child){margin-top:14px}
+
+  /* ── теми/тести (чіпи) ── */
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{display:inline-flex;align-items:center;gap:7px;font-size:.85rem;font-weight:700;
+    padding:9px 13px;border-radius:11px;text-decoration:none;transition:filter .15s,transform .1s}
+  .chip.ready{background:var(--accent,#5C6BC0);color:#fff;box-shadow:0 3px 0 rgba(0,0,0,.32)}
+  .chip.ready:hover{filter:brightness(1.12);transform:translateY(-1px)}
+  .chip.plan{background:rgba(255,255,255,.05);color:#aeb6d6;border:1px solid rgba(255,255,255,.14);cursor:default}
+  .chip .num{opacity:.65;font-weight:800}
+  .chip .dot{color:var(--accent,#8fa2e6);font-weight:900}
+
+  .foot{max-width:940px;margin:0 auto;padding:0 20px 40px;color:#a9b6d4;font-size:.82rem;text-align:center;line-height:1.6}
+  .foot b{color:var(--gold)}
+  .foot code{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:1px 6px;color:#ffe9b8;font-size:.9em}
+
+  @media(max-width:560px){
+    .nav-links .nav-btn span{display:none}
+    .nav-btn{padding:9px 12px}
+  }
+</style>
+</head>
+<body>
+  <div class="bg-fallback"></div>
+  <div class="stars"></div>
+  <div class="moon"></div>
+
+  <!-- ШАПКА -->
+  <header class="topbar">
+    <a class="brand" href="index.html">
+      <span class="crest">🛡️</span>
+      <span>
+        <span class="brand-name">School <b>Kingdoms</b></span>
+        <span class="brand-sub" style="display:block">Тести королівства</span>
+      </span>
+    </a>
+    <nav class="nav-links">
+      <a class="nav-btn" href="hero.html">🦁 <span>До Героя</span></a>
+    </nav>
+  </header>
+
+  <!-- ЗАГОЛОВОК -->
+  <div class="page-head">
+    <h1 class="page-title">📜 Тести</h1>
+    <p class="page-sub">Дорожня карта знань Героя — від дошкільної підготовки до старшої школи.
+      Тести 1 класу готуються в окремій теці <b>tests_1/</b>. Кожен пройдений тест
+      зберігатиметься в базі та прокачуватиме характеристику предмета.</p>
+
+    <!-- смужка активного Героя -->
+    <div class="hero-strip" id="heroStrip">
+      <div class="hs-name" id="hsName">Твій Герой</div>
+      <div class="hs-stats" id="hsStats"></div>
+    </div>
+    <div class="hs-guest" id="hsGuest">
+      Увійди як <a href="login.html?next=hero">Герой</a>, щоб результати тестів зберігались і прокачували характеристики.
+    </div>
+  </div>
+
+  <!-- ДОРОЖНЯ КАРТА -->
+  <main class="wrap" id="root"></main>
+
+  <div class="foot">
+    Тести 1 класу з'являтимуться у теці <code>tests_1/</code>.
+    Кожен додає <b>XP</b>, що підвищує характеристику предмета Героя.
+    Схему впливу узгоджуємо окремо.
+  </div>
+
+<script>
+/* ============================================================
+   ДОРОЖНЯ КАРТА. Поки БЕЗ посилань — тести 1 класу будуть у теці tests_1/.
+   Щоб «увімкнути» тему пізніше: у items постав status:'ready'
+   та href:'tests_1/<файл>.html'.
+   Предмет прив'язаний до характеристики Героя через поле stat.
+   ============================================================ */
+const CURRICULUM = [
+  {
+    id:'preschool', icon:'🌱', name:'Дошкільна підготовка', status:'soon',
+    note:'Готуємо майбутнього першачка. Заплановано.',
+    grades:[]
+  },
+  {
+    id:'junior', icon:'🎓', name:'Молодша школа', status:'wip',
+    note:'1 клас — у розробці (тека tests_1/). 2–4 класи заплановано.',
+    grades:[
+      {
+        id:'g1', name:'1 клас', status:'wip',
+        subjects:[
+          { id:'math', icon:'🧮', name:'Математика',        accent:'#5C6BC0', stat:'Точність 🎯',  items:[] },
+          { id:'yads', icon:'🌍', name:'ЯДС · Я досліджую світ', accent:'#E0954E', stat:'Спритність 🏃', items:[] },
+          { id:'eng',  icon:'🔤', name:'English',            accent:'#3FB6A8', stat:'Мана 🔮',      items:[] },
+          { id:'ukr',  icon:'🌺', name:'Українська мова',    accent:'#D6577A', stat:'Здоров\u2019я \u2764\ufe0f', items:[] }
+        ]
+      }
+    ]
+  },
+  {
+    id:'senior', icon:'🏰', name:'Старша школа', status:'soon',
+    note:'5–11 класи. Заплановано.',
+    grades:[]
+  }
+];
+
+/* ── рендер ── */
+function pill(status){
+  if(status==='ready') return '<span class="pill ready">✅ Доступно</span>';
+  if(status==='wip')   return '<span class="pill wip">🔧 Готуємо</span>';
+  return '<span class="pill soon">🔒 Скоро</span>';
+}
+function chip(it, accent){
+  if(it.status==='ready' && it.href){
+    return '<a class="chip ready" href="'+it.href+'" target="_blank" rel="noopener" style="--accent:'+accent+'">▶ '+it.label+'</a>';
+  }
+  return '<span class="chip plan" style="--accent:'+accent+'"><span class="dot">•</span> '+it.label+'</span>';
+}
+function subjectHtml(s){
+  var accent = s.accent || '#5C6BC0';
+  var body = '';
+  if(Array.isArray(s.groups)){
+    s.groups.forEach(function(g){
+      body += '<div class="grp-title">'+g.title+'</div><div class="chips">'
+            + g.items.map(function(i){return chip(i,accent);}).join('') + '</div>';
+    });
+  }
+  if(Array.isArray(s.items) && s.items.length){
+    body += '<div class="grp-title">📚 Теми ('+s.items.length+')</div><div class="chips">'
+          + s.items.map(function(i,idx){
+              var c = chip(i,accent);
+              return c.replace('<span class="dot">•</span> ','<span class="num">'+(idx+1)+'.</span> ');
+            }).join('') + '</div>';
+  }
+  if(!body){
+    body = '<p style="color:#9aa6c6;font-weight:600;font-size:.85rem;font-style:italic;margin:2px 0">Теми додамо згодом (tests_1/).</p>';
+  }
+  return '<details class="subj" style="--accent:'+accent+'">'
+    + '<summary><span class="subj-ic">'+s.icon+'</span>'
+    + '<span class="subj-tt"><span class="subj-name">'+s.name+'</span>'
+    + '<span class="subj-stat">Прокачує: <b>'+s.stat+'</b></span></span>'
+    + '<span class="subj-arrow">▾</span></summary>'
+    + '<div class="subj-body">'+body+'</div></details>';
+}
+function tierHtml(t, openFirst){
+  var inner = '';
+  if(Array.isArray(t.grades) && t.grades.length){
+    t.grades.forEach(function(g){
+      inner += '<div class="grade-name">📖 '+g.name+'</div>';
+      inner += (g.subjects||[]).map(subjectHtml).join('');
+    });
+  } else {
+    inner = '<p style="color:#c6d3ea;font-weight:600;font-size:.9rem;padding:6px 4px 4px">'
+          + (t.note || 'У розробці.') + '</p>';
+  }
+  return '<details class="tier"'+(openFirst?' open':'')+'>'
+    + '<summary><span class="tier-ic">'+t.icon+'</span>'
+    + '<span class="tier-tt"><span class="tier-name">'+t.name+'</span>'
+    + '<span class="tier-note">'+t.note+'</span></span>'
+    + pill(t.status)
+    + '<span class="tier-arrow">▾</span></summary>'
+    + '<div class="tier-body">'+inner+'</div></details>';
+}
+document.getElementById('root').innerHTML =
+  CURRICULUM.map(function(t){ return tierHtml(t, t.id==='junior'); }).join('');
+</script>
+
+<!-- смужка характеристик активного Героя (читання з Firebase) -->
+<script type="module" src="firebase-config.js"></script>
+<script>
+(function(){
+  var tries = 0;
+  (function whenSK(){
+    if(window.SK && SK.ready){
+      SK.ready.then(function(){
+        try{
+          if(SK.isHeroSession && SK.isHeroSession()){
+            SK.getHero().then(function(h){
+              if(!h) return;
+              var strip = document.getElementById('heroStrip');
+              document.getElementById('hsName').textContent =
+                '🦁 ' + (h.name || 'Герой') + ' · рівень ' + (h.level||1);
+              var stats = [
+                {k:'❤️ Здоров\u2019я', v:h.health},
+                {k:'🔮 Мана', v:h.mana},
+                {k:'🏃 Спритність', v:h.agility},
+                {k:'🎯 Точність', v:h.accuracy},
+                {k:'⭐ XP', v:h.xp}
+              ];
+              document.getElementById('hsStats').innerHTML = stats.map(function(s){
+                return '<span class="hs-stat">'+s.k+' <b>'+(s.v!=null?s.v:0)+'</b></span>';
+              }).join('');
+              strip.classList.add('show');
+            }).catch(function(){});
+          } else {
+            document.getElementById('hsGuest').classList.add('show');
+          }
+        }catch(e){}
+      });
+      return;
+    }
+    if(tries++ < 100) setTimeout(whenSK, 50);
+  })();
+})();
+</script>
+</body>
+</html>

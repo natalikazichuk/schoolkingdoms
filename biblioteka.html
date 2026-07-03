@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Бібліотека — Читацький щоденник — School Kingdoms</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=Nunito:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="sk-styles.css">
+<style>
+  :root{
+    --paper:#FBEFD0; --paper-2:#F5E4BE; --ink-warm:#5a3d08; --ink-soft:#7a5a20;
+    --wine:#8a2f3b; --wine-d:#6d2029;
+  }
+  .nav-links{display:flex;gap:10px;flex-wrap:wrap}
+  .nav-btn{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.08);
+    border:1.5px solid rgba(242,199,92,.5);color:#fff;text-decoration:none;border-radius:12px;
+    padding:9px 16px;font-weight:800;font-size:.85rem;transition:transform .15s,background .15s}
+  .nav-btn:hover{transform:translateY(-2px);background:rgba(255,255,255,.16)}
+
+  /* ── заголовок ── */
+  .page-head{max-width:900px;margin:0 auto;padding:clamp(16px,4vh,36px) 20px 4px;text-align:center}
+  .page-title{font-family:'Playfair Display',serif;font-weight:900;color:#FBEFD0;
+    font-size:clamp(1.9rem,6vw,3.2rem);line-height:1.05;text-shadow:0 2px 12px rgba(0,0,0,.55),0 0 24px rgba(124,99,255,.35)}
+  .page-sub{color:#dce6f7;font-weight:600;font-size:clamp(.92rem,2.2vw,1.1rem);margin:10px auto 0;max-width:560px;line-height:1.5;text-shadow:0 1px 8px rgba(0,0,0,.5)}
+  .hero-line{margin-top:8px;color:#ffe9b8;font-weight:800;font-size:.95rem;display:none}
+  .hero-line.show{display:block}
+
+  /* ── статистика ── */
+  .stats{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:18px auto 0;max-width:560px}
+  .stat{display:inline-flex;align-items:center;gap:8px;background:rgba(16,33,62,.7);
+    border:2px solid var(--gold);border-radius:999px;padding:7px 16px;font-weight:800;color:#FBEFD0;font-size:.92rem}
+  .stat b{color:var(--gold)}
+
+  .wrap{max-width:900px;margin:0 auto;padding:22px 18px 80px}
+
+  /* ── форма-нотатник ── */
+  .add-panel{background:
+      repeating-linear-gradient(180deg,transparent 0 33px,rgba(138,95,20,.14) 33px 34px),
+      linear-gradient(180deg,var(--paper),var(--paper-2));
+    border:2px solid var(--gold-d);border-radius:18px;padding:20px 20px 22px;
+    box-shadow:0 14px 34px rgba(0,0,0,.4),inset 0 0 0 6px rgba(255,255,255,.25);
+    position:relative;overflow:hidden}
+  .add-panel::before{content:"";position:absolute;top:0;bottom:0;left:34px;width:2px;background:rgba(160,40,50,.35)}
+  .add-title{font-family:'Playfair Display',serif;font-weight:800;color:var(--ink-warm);
+    font-size:1.25rem;margin:0 0 14px;padding-left:14px;display:flex;align-items:center;gap:8px}
+  .field{margin:0 0 12px;padding-left:14px}
+  .field label{display:block;font-weight:800;color:var(--ink-soft);font-size:.8rem;letter-spacing:.02em;margin-bottom:5px;text-transform:uppercase}
+  .field input,.field textarea{width:100%;box-sizing:border-box;font-family:'Nunito',sans-serif;
+    font-weight:600;font-size:1rem;color:var(--ink-warm);background:rgba(255,255,255,.55);
+    border:2px solid rgba(138,95,20,.35);border-radius:11px;padding:11px 13px;outline:none;transition:border-color .15s,background .15s}
+  .field input::placeholder,.field textarea::placeholder{color:#a98a52}
+  .field input:focus,.field textarea:focus{border-color:var(--gold-d);background:#fff}
+  .field textarea{resize:vertical;min-height:74px;line-height:1.45}
+  .row2{display:flex;gap:12px}
+  .row2 .field{flex:1;padding-left:0}
+  .row2{padding-left:14px}
+
+  /* зірочки-оцінка */
+  .stars-input{display:inline-flex;gap:4px;font-size:1.9rem;cursor:pointer;user-select:none;line-height:1}
+  .stars-input span{color:#c9a94e;filter:grayscale(.3);transition:transform .1s}
+  .stars-input span.on{color:#E0A93A;filter:none;text-shadow:0 1px 2px rgba(138,95,20,.4)}
+  .stars-input span:hover{transform:scale(1.15)}
+
+  .add-btn{margin-left:14px;margin-top:4px;background:linear-gradient(180deg,#FFE7A0,#E0A93A);
+    color:#5a3d08;border:2px solid var(--gold-d);border-radius:13px;font-family:'Nunito',sans-serif;
+    font-weight:900;font-size:1rem;padding:12px 26px;cursor:pointer;box-shadow:0 4px 0 var(--gold-deep);
+    transition:transform .1s,filter .15s}
+  .add-btn:hover{filter:brightness(1.05)}
+  .add-btn:active{transform:translateY(2px);box-shadow:0 2px 0 var(--gold-deep)}
+
+  /* ── полиця записів ── */
+  .shelf-title{font-family:'Playfair Display',serif;font-weight:800;color:#FBEFD0;font-size:1.3rem;
+    margin:28px 4px 14px;display:flex;align-items:center;gap:9px}
+  .shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+
+  .book{display:flex;background:linear-gradient(180deg,var(--paper),var(--paper-2));
+    border:2px solid var(--gold-d);border-radius:14px;overflow:hidden;
+    box-shadow:0 10px 24px rgba(0,0,0,.34);position:relative}
+  .book-spine{width:12px;flex-shrink:0;background:linear-gradient(180deg,var(--wine),var(--wine-d));
+    box-shadow:inset -3px 0 5px rgba(0,0,0,.3)}
+  .book-body{flex:1;min-width:0;padding:14px 15px 13px}
+  .book-top{display:flex;align-items:flex-start;gap:8px}
+  .book-title{font-family:'Playfair Display',serif;font-weight:800;color:var(--ink-warm);
+    font-size:1.15rem;line-height:1.2;margin:0;flex:1;word-break:break-word}
+  .del{flex-shrink:0;background:transparent;border:none;cursor:pointer;font-size:1rem;opacity:.5;
+    padding:2px 4px;border-radius:8px;transition:opacity .15s,background .15s}
+  .del:hover{opacity:1;background:rgba(138,47,59,.14)}
+  .book-author{color:var(--ink-soft);font-weight:700;font-size:.85rem;margin:3px 0 8px}
+  .book-stars{font-size:1.05rem;letter-spacing:2px;color:#E0A93A;margin-bottom:8px}
+  .book-stars .empty{color:#c9a94e;opacity:.5}
+  .book-note{color:#4c3a16;font-weight:600;font-size:.9rem;line-height:1.5;margin:0 0 10px;
+    background:rgba(255,255,255,.4);border-left:3px solid rgba(138,95,20,.4);border-radius:0 8px 8px 0;padding:7px 10px;word-break:break-word}
+  .book-date{color:#8a6a2c;font-weight:700;font-size:.76rem}
+
+  /* порожньо */
+  .empty{grid-column:1/-1;text-align:center;background:rgba(251,239,208,.1);
+    border:2px dashed rgba(242,199,92,.5);border-radius:16px;padding:34px 20px;color:#e8dcc0}
+  .empty .big{font-size:2.6rem;margin-bottom:8px}
+  .empty p{font-weight:700;margin:0;color:#f0e6cd}
+
+  @media(max-width:560px){
+    .nav-btn span{display:none}.nav-btn{padding:9px 12px}
+    .row2{flex-direction:column;gap:0}
+  }
+</style>
+</head>
+<body>
+  <div class="bg-fallback"></div>
+  <div class="stars"></div>
+  <div class="moon"></div>
+
+  <header class="topbar">
+    <a class="brand" href="index.html">
+      <span class="crest">📚</span>
+      <span>
+        <span class="brand-name">School <b>Kingdoms</b></span>
+        <span class="brand-sub" style="display:block">Читацький щоденник</span>
+      </span>
+    </a>
+    <nav class="nav-links">
+      <a class="nav-btn" href="hero.html">🦁 <span>До Героя</span></a>
+    </nav>
+  </header>
+
+  <div class="page-head">
+    <h1 class="page-title">📖 Бібліотека</h1>
+    <p class="page-sub">Записуй книги, які прочитав Герой королівства. Кожна книга — новий скарб знань!</p>
+    <div class="hero-line" id="heroLine"></div>
+    <div class="stats">
+      <span class="stat">📚 Прочитано: <b id="stCount">0</b></span>
+      <span class="stat">⭐ Середня оцінка: <b id="stAvg">—</b></span>
+    </div>
+  </div>
+
+  <main class="wrap">
+    <!-- ФОРМА -->
+    <section class="add-panel">
+      <h2 class="add-title">✍️ Новий запис</h2>
+      <div class="field">
+        <label for="fTitle">Назва книги</label>
+        <input id="fTitle" type="text" maxlength="120" placeholder="Напр.: Котигорошко" autocomplete="off">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="fAuthor">Автор</label>
+          <input id="fAuthor" type="text" maxlength="80" placeholder="Народна казка / автор" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>Моя оцінка</label>
+          <div class="stars-input" id="starInput" role="radiogroup" aria-label="Оцінка">
+            <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label for="fNote">Про що книга / що сподобалось</label>
+        <textarea id="fNote" maxlength="600" placeholder="Кілька слів про книгу, улюбленого героя чи момент…"></textarea>
+      </div>
+      <button class="add-btn" id="addBtn">➕ Додати в щоденник</button>
+    </section>
+
+    <!-- ЗАПИСИ -->
+    <h2 class="shelf-title">🏰 Моя полиця книг</h2>
+    <div class="shelf" id="shelf"></div>
+  </main>
+
+<script>
+(function(){
+  'use strict';
+  var KEY_BASE = 'sk_library_v1';
+  var state = { key: KEY_BASE + '_guest', entries: [], rating: 0, mem:false };
+
+  /* ── сховище з fallback у пам'ять ── */
+  var memStore = {};
+  function load(){
+    try{
+      var raw = state.mem ? memStore[state.key] : localStorage.getItem(state.key);
+      state.entries = raw ? JSON.parse(raw) : [];
+    }catch(e){ state.entries = []; }
+  }
+  function save(){
+    var raw = JSON.stringify(state.entries);
+    try{
+      if(state.mem){ memStore[state.key] = raw; }
+      else { localStorage.setItem(state.key, raw); }
+    }catch(e){ state.mem = true; memStore[state.key] = raw; }
+  }
+
+  function esc(s){
+    return String(s==null?'':s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;');
+  }
+  function starRow(n){
+    var s='';
+    for(var i=1;i<=5;i++){ s += (i<=n) ? '★' : '<span class="empty">★</span>'; }
+    return s;
+  }
+  function fmtDate(iso){
+    try{ return new Date(iso).toLocaleDateString('uk-UA',{day:'numeric',month:'long',year:'numeric'}); }
+    catch(e){ return ''; }
+  }
+
+  /* ── рендер зірочок у формі ── */
+  var starInput = document.getElementById('starInput');
+  function paintStars(){
+    var spans = starInput.querySelectorAll('span');
+    for(var i=0;i<spans.length;i++){
+      spans[i].classList.toggle('on', (i+1) <= state.rating);
+    }
+  }
+  starInput.addEventListener('click', function(e){
+    var t = e.target.closest('span'); if(!t) return;
+    var v = +t.getAttribute('data-v');
+    state.rating = (state.rating === v) ? 0 : v; // повторний клік знімає
+    paintStars();
+  });
+
+  /* ── рендер полиці ── */
+  function render(){
+    var count = state.entries.length;
+    document.getElementById('stCount').textContent = count;
+    var rated = state.entries.filter(function(x){ return x.rating>0; });
+    if(rated.length){
+      var avg = rated.reduce(function(a,x){return a+x.rating;},0)/rated.length;
+      document.getElementById('stAvg').textContent = avg.toFixed(1) + ' / 5';
+    } else {
+      document.getElementById('stAvg').textContent = '—';
+    }
+
+    var shelf = document.getElementById('shelf');
+    if(!count){
+      shelf.innerHTML = '<div class="empty"><div class="big">🕮</div>'
+        + '<p>Полиця поки порожня. Додай першу прочитану книгу вгорі!</p></div>';
+      return;
+    }
+    var items = state.entries.slice().sort(function(a,b){ return b.id - a.id; });
+    shelf.innerHTML = items.map(function(x){
+      return '<article class="book">'
+        + '<div class="book-spine"></div>'
+        + '<div class="book-body">'
+        +   '<div class="book-top"><h3 class="book-title">'+esc(x.title)+'</h3>'
+        +     '<button class="del" data-id="'+x.id+'" title="Видалити">🗑</button></div>'
+        +   (x.author ? '<div class="book-author">✍️ '+esc(x.author)+'</div>' : '<div class="book-author">✍️ —</div>')
+        +   '<div class="book-stars">'+starRow(x.rating||0)+'</div>'
+        +   (x.note ? '<p class="book-note">'+esc(x.note)+'</p>' : '')
+        +   '<div class="book-date">📅 '+fmtDate(x.date)+'</div>'
+        + '</div></article>';
+    }).join('');
+  }
+
+  /* ── додати запис ── */
+  function addEntry(){
+    var title = document.getElementById('fTitle').value.trim();
+    var author = document.getElementById('fAuthor').value.trim();
+    var note = document.getElementById('fNote').value.trim();
+    if(!title){
+      var f = document.getElementById('fTitle');
+      f.focus(); f.style.borderColor = '#8a2f3b';
+      setTimeout(function(){ f.style.borderColor=''; }, 900);
+      return;
+    }
+    state.entries.push({
+      id: Date.now(),
+      title: title, author: author, note: note,
+      rating: state.rating, date: new Date().toISOString()
+    });
+    save();
+    // очистити форму
+    document.getElementById('fTitle').value = '';
+    document.getElementById('fAuthor').value = '';
+    document.getElementById('fNote').value = '';
+    state.rating = 0; paintStars();
+    render();
+    document.getElementById('fTitle').focus();
+  }
+  document.getElementById('addBtn').addEventListener('click', addEntry);
+
+  /* ── видалити ── */
+  document.getElementById('shelf').addEventListener('click', function(e){
+    var b = e.target.closest('.del'); if(!b) return;
+    var id = +b.getAttribute('data-id');
+    state.entries = state.entries.filter(function(x){ return x.id !== id; });
+    save(); render();
+  });
+
+  /* ── визначити ключ (per-Герой) через SK, потім завантажити ── */
+  function boot(keySuffix, heroName){
+    state.key = KEY_BASE + '_' + keySuffix;
+    if(heroName){
+      var hl = document.getElementById('heroLine');
+      hl.textContent = '🦁 Щоденник Героя: ' + heroName;
+      hl.classList.add('show');
+    }
+    load(); render();
+  }
+  var tries = 0, booted = false;
+  (function whenSK(){
+    if(booted) return;
+    if(window.SK && SK.ready){
+      SK.ready.then(function(){
+        try{
+          if(SK.isHeroSession && SK.isHeroSession()){
+            SK.getHero().then(function(h){
+              if(booted) return; booted = true;
+              var id = (h && (h.uid || h.id || h.login || h.name)) || 'hero';
+              boot(String(id).replace(/[^a-zA-Z0-9_-]/g,''), h && h.name);
+            }).catch(function(){ if(!booted){booted=true; boot('hero');} });
+          } else {
+            booted = true; boot('guest');
+          }
+        }catch(e){ if(!booted){ booted=true; boot('guest'); } }
+      }).catch(function(){ if(!booted){ booted=true; boot('guest'); } });
+      return;
+    }
+    if(tries++ < 60){ setTimeout(whenSK, 50); }
+    else if(!booted){ booted = true; boot('guest'); } // SK так і не зʼявився
+  })();
+})();
+</script>
+<script type="module" src="firebase-config.js"></script>
+</body>
+</html>
