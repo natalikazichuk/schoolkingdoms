@@ -92,7 +92,7 @@ function defaultHero(name, parentEmail, parentUid) {
   return {
     name: name || 'Герой',
     title: 'Лицар Знань',
-    health: 50, mana: 10, agility: 1, accuracy: 1,
+    health: 50, mana: 20, agility: 50, accuracy: 50,
     strength: 2, defense: 1, intelligence: 1, wisdom: 1,
     luck: 1, memory: 1, charisma: 1,
     level: 1, xp: 0, coins: 0,
