@@ -98,6 +98,9 @@
     padding:9px 13px;border-radius:11px;text-decoration:none;transition:filter .15s,transform .1s}
   .chip.ready{background:var(--accent,#5C6BC0);color:#fff;box-shadow:0 3px 0 rgba(0,0,0,.32)}
   .chip.ready:hover{filter:brightness(1.12);transform:translateY(-1px)}
+  .chip-xp{font-size:.72rem;font-weight:800;color:var(--gold);
+    background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.18);
+    padding:2px 8px;border-radius:999px;white-space:nowrap}
   .chip.plan{background:rgba(255,255,255,.05);color:#aeb6d6;border:1px solid rgba(255,255,255,.14);cursor:default}
   .chip .num{opacity:.65;font-weight:800}
   .chip .dot{color:var(--accent,#8fa2e6);font-weight:900}
@@ -178,8 +181,8 @@ const CURRICULUM = [
         id:'g1', name:'1 клас', status:'wip',
         subjects:[
           { id:'math', icon:'🧮', name:'Математика',        accent:'#5C6BC0', stat:'Точність 🎯',  items:[
-            { label:'Додавання в межах 10',  status:'ready', href:'tests_1/addition-test-10.html' },
-            { label:'Віднімання в межах 10', status:'ready', href:'tests_1/subtraction-test-10.html' }
+            { label:'Додавання в межах 10',  status:'ready', href:'tests_1/addition-test-10.html', xpKey:'sk_add_xp_v1' },
+            { label:'Віднімання в межах 10', status:'ready', href:'tests_1/subtraction-test-10.html', xpKey:'sk_sub_xp_v1' }
           ] },
           { id:'yads', icon:'🌍', name:'ЯДС · Я досліджую світ', accent:'#E0954E', stat:'Спритність 🏃', items:[] },
           { id:'eng',  icon:'🔤', name:'English',            accent:'#3FB6A8', stat:'Мана 🔮',      items:[] },
@@ -203,7 +206,8 @@ function pill(status){
 }
 function chip(it, accent){
   if(it.status==='ready' && it.href){
-    return '<a class="chip ready" href="'+it.href+'" target="_blank" rel="noopener" style="--accent:'+accent+'">▶ '+it.label+'</a>';
+    var xp = it.xpKey ? ' <span class="chip-xp" data-xpkey="'+it.xpKey+'">0 XP</span>' : '';
+    return '<a class="chip ready" href="'+it.href+'" target="_blank" rel="noopener" style="--accent:'+accent+'">▶ '+it.label+xp+'</a>';
   }
   return '<span class="chip plan" style="--accent:'+accent+'"><span class="dot">•</span> '+it.label+'</span>';
 }
@@ -328,12 +332,20 @@ document.getElementById('root').innerHTML =
               }).join('');
               strip.classList.add('show');
 
-              /* ── бейдж «Математика»: Рівень = (Точність − 50), XP = мат-ХР ── */
+              /* ── бейдж «Математика»: лише загальний ХР (без рівня) ── */
               var mp = document.getElementById('mathProg');
               if(mp){
-                mp.innerHTML = '🎯 <span class="lvl">Рівень '+mathLevels+'</span> · <span class="xp">'+mathXP+' XP</span>';
+                mp.innerHTML = '🎯 <span class="xp">'+mathXP+' XP</span>';
                 mp.hidden = false;
               }
+
+              /* ── ХР біля кожної теми (з progress відповідного тесту) ── */
+              document.querySelectorAll('.chip-xp[data-xpkey]').forEach(function(el){
+                var key = el.getAttribute('data-xpkey');
+                var v = 0;
+                if(prog[key]!=null){ var n=parseFloat(prog[key]); if(!isNaN(n)) v=n; }
+                el.textContent = v + ' XP';
+              });
             }).catch(function(){});
           } else {
             document.getElementById('hsGuest').classList.add('show');
