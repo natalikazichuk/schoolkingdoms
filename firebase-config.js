@@ -334,12 +334,22 @@ const SK = {
 
 SK.ready = new Promise(res => { SK._userResolve = res; });
 
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
   SK.user = user;
   // у сесії Героя одразу фіксуємо активного Героя = його uid
   if (user && user.email && user.email.endsWith('@' + HERO_EMAIL_DOMAIN)) {
     SK.activeChildId = user.uid;
     SK.activeHeroId  = user.uid;
+    // ── ГІДРАТАЦІЯ localStorage під цього Героя ──
+    // Один раз при зміні активного Героя тягнемо його прогрес із heroes/{uid}
+    // у localStorage. Без цього computeXP/accuracy рахували б від чужого або
+    // порожнього localStorage → перетікання між Героями чи затирання статів.
+    try {
+      if (localStorage.getItem('sk_active_child') !== user.uid) {
+        await SK.pullLocal(user.uid);
+        localStorage.setItem('sk_active_child', user.uid);
+      }
+    } catch (e) {}
   } else if (!user) {
     SK.activeChildId = null;
     SK.activeHeroId  = null;
