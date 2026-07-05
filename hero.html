@@ -426,6 +426,29 @@ renderLevelSegments();
     }
   });
   }); // кінець whenSK
+
+  /* ── Перечитуємо стати Героя щоразу, коли повертаємось на цю вкладку. ──
+     Тести відкриваються в НОВІЙ вкладці (target="_blank"); поки дитина грає,
+     ця сторінка лишається відкритою зі старими числами. Тож щойно вона знову
+     стає видимою — тягнемо свіжий документ heroes/{id} і оновлюємо ХР/Точність. */
+  (function(){
+    let busy=false;
+    function refreshHeroStats(){
+      if(busy) return;
+      if(!(window.SK && window.SK.ready)) return;
+      if(window.SK.isHeroSession && !window.SK.isHeroSession()) return;
+      busy=true;
+      window.SK.getHero()
+        .then(function(h){ if(h) renderHeroStats(h); })
+        .catch(function(){})
+        .finally(function(){ busy=false; });
+    }
+    document.addEventListener('visibilitychange',function(){
+      if(document.visibilityState==='visible') refreshHeroStats();
+    });
+    window.addEventListener('focus', refreshHeroStats);
+    window.addEventListener('pageshow', function(e){ if(e.persisted) refreshHeroStats(); });
+  })();
 })();
 
 /* edit name */

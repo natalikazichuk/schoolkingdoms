@@ -82,6 +82,12 @@
   .subj-stat b{color:var(--accent,#8fa2e6)}
   .subj-arrow{font-size:1rem;color:#cfd4ff;transition:transform .25s;flex-shrink:0}
   details.subj[open] > summary .subj-arrow{transform:rotate(180deg)}
+  /* бейдж прогресу предмета (рівень + ХР), напр. біля Математики */
+  .subj-prog{flex-shrink:0;display:inline-flex;align-items:center;gap:7px;font-size:.72rem;
+    font-weight:800;color:#fff;background:rgba(255,209,102,.14);
+    border:1px solid rgba(255,209,102,.42);padding:4px 10px;border-radius:999px;white-space:nowrap}
+  .subj-prog .lvl{color:#FFD166}
+  .subj-prog .xp{color:#ffe08a}
   .subj-body{padding:12px 16px 16px}
   .grp-title{font-weight:800;font-size:.72rem;letter-spacing:.05em;color:#c3c8f0;margin:2px 0 8px;text-transform:uppercase}
   .grp-title:not(:first-child){margin-top:14px}
@@ -224,6 +230,7 @@ function subjectHtml(s){
     + '<summary><span class="subj-ic">'+s.icon+'</span>'
     + '<span class="subj-tt"><span class="subj-name">'+s.name+'</span>'
     + '<span class="subj-stat">Прокачує: <b>'+s.stat+'</b></span></span>'
+    + (s.id==='math' ? '<span class="subj-prog" id="mathProg" hidden></span>' : '')
     + '<span class="subj-arrow">▾</span></summary>'
     + '<div class="subj-body">'+body+'</div></details>';
 }
@@ -276,6 +283,38 @@ document.getElementById('root').innerHTML =
                 return '<span class="hs-stat">'+s.k+' <b>'+(s.v!=null?s.v:0)+'</b></span>';
               }).join('');
               strip.classList.add('show');
+
+              /* ── прогрес предмета «Математика»: рівень + ХР біля назви ──
+                 Джерело правди — документ heroes/{id}. Рівень = кількість
+                 пройдених математичних рівнів (лічимо множини пройдених рівнів
+                 у progress; запасний варіант — стат Точність, база якого 1).
+                 ХР — сума лічильників математичних скілів у progress. */
+              (function(){
+                var mp = document.getElementById('mathProg');
+                if(!mp) return;
+                var prog = h.progress || {};
+                function countSet(v){
+                  try{ var o=JSON.parse(v);
+                    if(Array.isArray(o)) return o.length;
+                    return (o && typeof o==='object') ? Object.keys(o).length : 0;
+                  }catch(e){ return 0; }
+                }
+                var levelKeys = ['sk_add10_levels_v1','sk_sub10_levels_v1'];
+                var passed = 0;
+                levelKeys.forEach(function(k){ if(prog[k]!=null) passed += countSet(prog[k]); });
+                if(passed===0 && h.accuracy!=null) passed = Math.max(0, h.accuracy - 1);
+                var mathXP = 0;
+                Object.keys(prog).forEach(function(k){
+                  var kl = k.toLowerCase();
+                  if(kl.indexOf('xp')===-1) return;
+                  if(/(add|sub|mult|math|cifr|num)/.test(kl)){
+                    var v = parseInt(prog[k]||'0',10);
+                    if(!isNaN(v)) mathXP += v;
+                  }
+                });
+                mp.innerHTML = '🎯 <span class="lvl">Рівень '+passed+'</span> · <span class="xp">'+mathXP+' XP</span>';
+                mp.hidden = false;
+              })();
             }).catch(function(){});
           } else {
             document.getElementById('hsGuest').classList.add('show');
