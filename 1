@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>School Kingdom — Панель адміна</title>
+
+<!-- Спільний дизайн-система (night-sky family) -->
+<link rel="stylesheet" href="sk-styles.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+
+<style>
+  :root{
+    --bg:        var(--sk-bg, #0b1026);
+    --bg-2:      var(--sk-bg-2, #131a3f);
+    --panel:     var(--sk-panel, rgba(22,29,66,.72));
+    --panel-2:   var(--sk-panel-2, rgba(30,39,86,.6));
+    --border:    var(--sk-border, rgba(140,155,255,.22));
+    --gold:      var(--sk-gold, #f5c542);
+    --gold-2:    var(--sk-gold-2, #e0a83a);
+    --blue:      var(--sk-blue, #2f6fed);
+    --purple:    var(--sk-purple, #7c5cff);
+    --text:      var(--sk-text, #e9ecff);
+    --muted:     var(--sk-muted, #9aa3d0);
+    --danger:    #ff6b7a;
+    --ok:        #58d68d;
+    --radius:    16px;
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    font-family:'Nunito',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    color:var(--text);
+    background:
+      radial-gradient(1200px 700px at 80% -10%, rgba(124,92,255,.18), transparent 60%),
+      radial-gradient(900px 600px at 0% 100%, rgba(47,111,237,.16), transparent 55%),
+      linear-gradient(180deg, var(--bg), var(--bg-2));
+    min-height:100vh;
+    line-height:1.5;
+  }
+  /* Зорі */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.5;
+    background-image:
+      radial-gradient(1px 1px at 20% 30%, #fff, transparent),
+      radial-gradient(1px 1px at 70% 60%, #fff, transparent),
+      radial-gradient(1px 1px at 40% 80%, #cfe, transparent),
+      radial-gradient(2px 2px at 85% 20%, #fff, transparent),
+      radial-gradient(1px 1px at 55% 15%, #fff, transparent);
+    background-repeat:no-repeat;
+  }
+  .wrap{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:24px 18px 80px}
+
+  h1,h2,h3{font-family:'Fredoka One',cursive;font-weight:400;letter-spacing:.3px;margin:0}
+  h1{font-size:1.9rem;color:var(--gold)}
+  h2{font-size:1.25rem}
+  a{color:var(--gold)}
+
+  /* Хедер */
+  header.topbar{
+    display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+    margin-bottom:22px;padding-bottom:18px;border-bottom:1px solid var(--border);
+  }
+  .brand{display:flex;align-items:center;gap:12px}
+  .crown{font-size:1.7rem;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))}
+  .spacer{flex:1}
+  .who{color:var(--muted);font-weight:700;font-size:.9rem}
+  .who b{color:var(--text)}
+
+  /* Кнопки */
+  .btn{
+    font-family:'Nunito',sans-serif;font-weight:800;font-size:.92rem;
+    border:1px solid var(--border);background:var(--panel-2);color:var(--text);
+    padding:10px 16px;border-radius:12px;cursor:pointer;transition:.15s;
+    display:inline-flex;align-items:center;gap:8px;
+  }
+  .btn:hover{transform:translateY(-1px);border-color:var(--gold)}
+  .btn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+  .btn.gold{
+    background:linear-gradient(180deg,var(--gold),var(--gold-2));
+    color:#2a1e06;border-color:var(--gold-2);
+    box-shadow:0 6px 16px rgba(245,197,66,.28);
+  }
+  .btn.ghost{background:transparent}
+  .btn.danger{color:var(--danger);border-color:rgba(255,107,122,.4)}
+  .btn.danger:hover{background:rgba(255,107,122,.12)}
+  .btn.sm{padding:7px 11px;font-size:.82rem;border-radius:10px}
+
+  /* Панелі / картки */
+  .panel{
+    background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+    padding:18px;backdrop-filter:blur(6px);box-shadow:0 10px 30px rgba(0,0,0,.25);
+  }
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+  .toolbar .spacer{flex:1}
+
+  /* Список тестів */
+  .test-list{display:grid;gap:12px}
+  .test-card{
+    display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;
+    background:var(--panel-2);border:1px solid var(--border);border-radius:14px;padding:14px 16px;
+  }
+  .test-card .title{font-family:'Fredoka One',cursive;font-size:1.05rem}
+  .badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+  .badge{
+    font-size:.72rem;font-weight:800;padding:4px 9px;border-radius:999px;
+    background:rgba(124,92,255,.18);color:#cbb8ff;border:1px solid rgba(124,92,255,.35);
+  }
+  .badge.subject{background:rgba(47,111,237,.16);color:#9dc0ff;border-color:rgba(47,111,237,.35)}
+  .badge.stat{background:rgba(245,197,66,.14);color:var(--gold);border-color:rgba(245,197,66,.35)}
+  .badge.reward{background:rgba(88,214,141,.14);color:#8be0ac;border-color:rgba(88,214,141,.35)}
+  .test-card .actions{display:flex;gap:8px;align-items:center}
+
+  /* Перемикач "активний" */
+  .switch{position:relative;display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:.8rem;color:var(--muted);font-weight:700}
+  .switch input{position:absolute;opacity:0;width:0;height:0}
+  .track{width:40px;height:22px;border-radius:999px;background:#2a3160;border:1px solid var(--border);position:relative;transition:.2s}
+  .track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--muted);transition:.2s}
+  .switch input:checked + .track{background:rgba(88,214,141,.35);border-color:var(--ok)}
+  .switch input:checked + .track::after{transform:translateX(18px);background:var(--ok)}
+
+  /* Форми */
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field.full{grid-column:1 / -1}
+  label{font-size:.82rem;font-weight:800;color:var(--muted)}
+  input[type=text],input[type=number],select,textarea{
+    font-family:'Nunito',sans-serif;font-size:.95rem;color:var(--text);
+    background:rgba(9,13,35,.55);border:1px solid var(--border);border-radius:10px;
+    padding:10px 12px;width:100%;
+  }
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(245,197,66,.18)}
+  textarea{resize:vertical;min-height:120px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85rem}
+  .hint{font-size:.75rem;color:var(--muted)}
+  .reward-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+  /* Питання */
+  .q-list{display:grid;gap:14px;margin-top:6px}
+  .q-item{background:var(--panel-2);border:1px solid var(--border);border-radius:14px;padding:14px}
+  .q-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .q-num{font-family:'Fredoka One',cursive;color:var(--gold);min-width:26px}
+  .opt-row{display:flex;align-items:center;gap:10px;margin-top:8px}
+  .opt-row input[type=radio]{width:18px;height:18px;accent-color:var(--ok);flex:none}
+  .opt-row .opt-text{flex:1}
+  .opt-row .correct-lbl{font-size:.72rem;color:var(--ok);font-weight:800;min-width:74px}
+
+  /* Секції редактора */
+  .section-title{margin:22px 0 10px;font-size:1.05rem;color:var(--gold);display:flex;align-items:center;gap:8px}
+  .divider{height:1px;background:var(--border);margin:20px 0}
+
+  /* Модалка */
+  .modal-bg{position:fixed;inset:0;background:rgba(4,6,20,.66);backdrop-filter:blur(3px);z-index:50;display:none;align-items:center;justify-content:center;padding:18px}
+  .modal-bg.open{display:flex}
+  .modal{width:min(640px,100%);max-height:88vh;overflow:auto}
+
+  /* Стани */
+  .empty{text-align:center;color:var(--muted);padding:40px 16px}
+  .empty .big{font-size:2.4rem;margin-bottom:8px}
+  .toast{
+    position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
+    background:var(--panel);border:1px solid var(--gold);color:var(--text);
+    padding:12px 20px;border-radius:12px;font-weight:800;z-index:80;opacity:0;pointer-events:none;
+    transition:.25s;box-shadow:0 10px 30px rgba(0,0,0,.4)
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.err{border-color:var(--danger);color:#ffd7dc}
+
+  /* Гейт доступу / завантаження */
+  .gate{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,var(--bg),var(--bg-2));text-align:center;padding:24px}
+  .gate .box{max-width:420px}
+  .gate .big{font-size:2.6rem;margin-bottom:10px}
+  .spin{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 14px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .hidden{display:none !important}
+
+  @media (max-width:640px){
+    .form-grid{grid-template-columns:1fr}
+    .test-card{grid-template-columns:1fr}
+    .test-card .actions{justify-content:flex-start;flex-wrap:wrap}
+    h1{font-size:1.5rem}
+  }
+  @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
+</style>
+</head>
+<body>
+
+<!-- ===== ГЕЙТ: завантаження / перевірка доступу ===== -->
+<div class="gate" id="gate">
+  <div class="box" id="gateLoading">
+    <div class="spin"></div>
+    <div class="who">Перевіряємо доступ…</div>
+  </div>
+  <div class="box hidden" id="gateDenied">
+    <div class="big">🔒</div>
+    <h2>Доступ лише для адміністраторів</h2>
+    <p class="who" style="margin:10px 0 18px">Ця частина Королівства закрита. Повернись на головну.</p>
+    <a class="btn gold" href="index.html">На головну</a>
+  </div>
+</div>
+
+<!-- ===== ОСНОВНИЙ ІНТЕРФЕЙС ===== -->
+<div class="wrap hidden" id="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="crown">👑</span>
+      <div>
+        <h1>Панель адміна</h1>
+        <div class="who">School Kingdom · керування тестами</div>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <div class="who">Ви: <b id="adminEmail">—</b></div>
+    <a class="btn ghost sm" href="index.html">← Вихід у гру</a>
+  </header>
+
+  <!-- ---- ВИД: СПИСОК ТЕСТІВ ---- -->
+  <section id="viewList">
+    <div class="toolbar">
+      <button class="btn gold" id="btnNew">＋ Новий тест</button>
+      <button class="btn" id="btnImport">⬆ Імпорт JSON</button>
+      <button class="btn ghost" id="btnExportAll">⬇ Експорт усіх</button>
+      <div class="spacer"></div>
+      <select id="filterSubject" aria-label="Фільтр за предметом" style="max-width:220px">
+        <option value="">Усі предмети</option>
+      </select>
+    </div>
+
+    <div class="panel">
+      <div class="test-list" id="testList"></div>
+      <div class="empty hidden" id="emptyState">
+        <div class="big">📜</div>
+        <div>Тестів ще немає. Створи перший — натисни «Новий тест».</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---- ВИД: РЕДАКТОР ТЕСТУ ---- -->
+  <section id="viewEdit" class="hidden">
+    <div class="toolbar">
+      <button class="btn ghost" id="btnBack">← Назад до списку</button>
+      <div class="spacer"></div>
+      <button class="btn" id="btnExportOne">⬇ Експорт цього тесту</button>
+      <button class="btn gold" id="btnSave">💾 Зберегти тест</button>
+    </div>
+
+    <div class="panel">
+      <h2 id="editTitle">Новий тест</h2>
+
+      <div class="section-title">📋 Основне</div>
+      <div class="form-grid">
+        <div class="field">
+          <label for="fTitle">Назва тесту</label>
+          <input type="text" id="fTitle" placeholder="Напр. Додавання до 10" />
+        </div>
+        <div class="field">
+          <label for="fSubject">Предмет</label>
+          <input type="text" id="fSubject" list="subjectList" placeholder="Математика" />
+          <datalist id="subjectList"></datalist>
+        </div>
+        <div class="field">
+          <label for="fGrade">Клас</label>
+          <input type="number" id="fGrade" min="1" max="4" value="1" />
+        </div>
+        <div class="field">
+          <label for="fStat">Розвиває характеристику</label>
+          <select id="fStat"></select>
+        </div>
+      </div>
+
+      <div class="section-title">🏆 Нагороди</div>
+      <div class="form-grid">
+        <div class="field">
+          <label>Нарахування XP</label>
+          <div class="reward-row">
+            <select id="fXpMode">
+              <option value="fixed">Фіксовано за тест</option>
+              <option value="perCorrect">За кожну правильну</option>
+            </select>
+            <input type="number" id="fXpValue" min="0" value="10" aria-label="Кількість XP" />
+          </div>
+          <span class="hint" id="xpHint"></span>
+        </div>
+        <div class="field">
+          <label>Одиниці характеристики</label>
+          <div class="reward-row">
+            <select id="fStatMode">
+              <option value="fixed">Фіксовано за тест</option>
+              <option value="perCorrect">За кожну правильну</option>
+            </select>
+            <input type="number" id="fStatValue" min="0" value="1" aria-label="Одиниці характеристики" />
+          </div>
+          <span class="hint" id="statHint"></span>
+        </div>
+        <div class="field full">
+          <label class="switch" style="align-self:flex-start">
+            <input type="checkbox" id="fActive" checked />
+            <span class="track"></span>
+            <span>Активний (показувати в Академії)</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="section-title" style="justify-content:space-between">
+        <span>❓ Питання (<span id="qCount">0</span>)</span>
+        <button class="btn sm gold" id="btnAddQ">＋ Питання</button>
+      </div>
+      <div class="q-list" id="qList"></div>
+    </div>
+  </section>
+</div>
+
+<!-- ===== МОДАЛКА ІМПОРТУ JSON ===== -->
+<div class="modal-bg" id="importModal">
+  <div class="panel modal">
+    <h2>Імпорт тестів (JSON)</h2>
+    <p class="hint" style="margin:8px 0 12px">
+      Встав один тест або масив тестів. Формат:
+      <code style="color:var(--gold)">{ title, subject, grade, stat, xpMode, xpValue, statMode, statValue, active, questions:[{ q, options:[…], correct }] }</code>
+    </p>
+    <textarea id="importText" placeholder='[{ "title": "…", "subject": "Математика", "stat": "accuracy", "questions": [ … ] }]'></textarea>
+    <div class="toolbar" style="margin-top:14px">
+      <div class="spacer"></div>
+      <button class="btn ghost" id="importCancel">Скасувати</button>
+      <button class="btn gold" id="importApply">Імпортувати</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Firebase / SK API (модуль, deferred) -->
+<script type="module" src="firebase-config.js"></script>
+
+<script>
+/* ============================================================
+   School Kingdom — admin.html
+   ------------------------------------------------------------
+   ⚠️ ЄДИНИЙ ШОВ ІНТЕГРАЦІЇ З FIREBASE — блок SK_API нижче.
+   Сторінка викликає лише ці 6 методів. Якщо в firebase-config.js
+   вони називаються інакше — правиться ТІЛЬКИ цей блок.
+
+   Потрібні методи window.SK:
+     SK.getCurrentUser()            -> user | null   (дорослий акаунт)
+     SK.isAdmin(user)               -> Promise<bool> (роль === 'admin')
+     SK.listTests()                 -> Promise<[{id, ...test}]>
+     SK.saveTest(test)              -> Promise<id>   (створити або оновити за test.id)
+     SK.deleteTest(id)              -> Promise<void>
+     SK.setTestActive(id, active)   -> Promise<void>
+   ============================================================ */
+
+/* ---- Довідники ---- */
+const STATS = [
+  { v:'health',       label:"Здоров'я",   note:'Українська мова' },
+  { v:'accuracy',     label:'Влучність',  note:'Математика' },
+  { v:'agility',      label:'Спритність', note:'ЯДС' },
+  { v:'mana',         label:'Мана',       note:'Англійська / Логіка / Пам’ять' },
+  { v:'strength',     label:'Сила',       note:'' },
+  { v:'defense',      label:'Захист',     note:'' },
+  { v:'intelligence', label:'Інтелект',   note:'' },
+  { v:'wisdom',       label:'Мудрість',   note:'' },
+  { v:'luck',         label:'Удача',      note:'' },
+  { v:'memory',       label:'Пам’ять',    note:'' },
+  { v:'charisma',     label:'Харизма',    note:'' },
+];
+const SUBJECTS = ['Математика','Українська мова','ЯДС','Англійська','Логіка','Пам’ять','Творчість'];
+const statLabel = v => (STATS.find(s => s.v === v)?.label) || v;
+
+/* ---- Паттерн whenSK: firebase-config.js — модуль (deferred) ---- */
+function whenSK(cb){
+  if (window.SK) return cb(window.SK);
+  const t = setInterval(() => { if (window.SK){ clearInterval(t); cb(window.SK); } }, 60);
+  setTimeout(() => clearInterval(t), 10000);
+}
+
+/* ============================================================
+   SK_API — тонкі обгортки. Правити тільки тут.
+   ============================================================ */
+const SK_API = {
+  currentUser: () => (window.SK.getCurrentUser?.() ?? window.SK.currentUser ?? null),
+  isAdmin:     (u) => Promise.resolve(window.SK.isAdmin ? window.SK.isAdmin(u) : false),
+  list:        ()  => window.SK.listTests(),
+  save:        (t) => window.SK.saveTest(t),
+  remove:      (id)=> window.SK.deleteTest(id),
+  setActive:   (id,a)=> window.SK.setTestActive(id, a),
+};
+
+/* ---- Стан ---- */
+let TESTS = [];
+let draft = null;           // редагований тест
+const $ = id => document.getElementById(id);
+
+/* ============================================================
+   Ініціалізація + гейт доступу
+   ============================================================ */
+whenSK(async () => {
+  try {
+    const user = SK_API.currentUser();
+    const ok = user ? await SK_API.isAdmin(user) : false;
+    if (!ok){ showDenied(); return; }
+    $('adminEmail').textContent = user.email || user.uid || '—';
+    await bootstrap();
+  } catch (e){
+    console.error(e);
+    showDenied();
+  }
+});
+
+function showDenied(){
+  $('gateLoading').classList.add('hidden');
+  $('gateDenied').classList.remove('hidden');
+}
+
+async function bootstrap(){
+  buildStaticControls();
+  await loadTests();
+  $('gate').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  bindEvents();
+}
+
+/* ---- Наповнення селектів ---- */
+function buildStaticControls(){
+  $('fStat').innerHTML = STATS.map(s =>
+    `<option value="${s.v}">${s.label}${s.note ? ` — ${s.note}` : ''}</option>`).join('');
+  $('subjectList').innerHTML = SUBJECTS.map(s => `<option value="${s}">`).join('');
+  const filter = $('filterSubject');
+  filter.innerHTML = '<option value="">Усі предмети</option>' +
+    SUBJECTS.map(s => `<option value="${s}">${s}</option>`).join('');
+}
+
+/* ============================================================
+   СПИСОК ТЕСТІВ
+   ============================================================ */
+async function loadTests(){
+  try { TESTS = await SK_API.list() || []; }
+  catch(e){ console.error(e); TESTS = []; toast('Не вдалося завантажити тести', true); }
+  renderList();
+}
+
+function renderList(){
+  const filter = $('filterSubject').value;
+  const rows = TESTS.filter(t => !filter || t.subject === filter);
+  const list = $('testList');
+  $('emptyState').classList.toggle('hidden', rows.length !== 0);
+
+  list.innerHTML = rows.map(t => {
+    const qn = (t.questions || []).length;
+    const xp = t.xpMode === 'perCorrect' ? `${t.xpValue} XP/правильну` : `${t.xpValue} XP`;
+    const st = t.statMode === 'perCorrect' ? `${t.statValue}/правильну` : `+${t.statValue}`;
+    return `
+      <div class="test-card" data-id="${t.id}">
+        <div>
+          <div class="title">${esc(t.title || 'Без назви')}</div>
+          <div class="badges">
+            <span class="badge subject">${esc(t.subject || '—')}</span>
+            <span class="badge">Клас ${t.grade ?? 1}</span>
+            <span class="badge stat">${statLabel(t.stat)}</span>
+            <span class="badge">${qn} пит.</span>
+            <span class="badge reward">${xp} · ${statLabel(t.stat)} ${st}</span>
+          </div>
+        </div>
+        <div class="actions">
+          <label class="switch" title="Активний">
+            <input type="checkbox" data-active="${t.id}" ${t.active ? 'checked' : ''}/>
+            <span class="track"></span>
+          </label>
+          <button class="btn sm" data-edit="${t.id}">✏ Редагувати</button>
+          <button class="btn sm danger" data-del="${t.id}">🗑</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ============================================================
+   РЕДАКТОР
+   ============================================================ */
+function blankTest(){
+  return { id:null, title:'', subject:'', grade:1, stat:'accuracy',
+    xpMode:'fixed', xpValue:10, statMode:'fixed', statValue:1, active:true,
+    questions:[ blankQuestion() ] };
+}
+function blankQuestion(){ return { q:'', options:['',''], correct:0 }; }
+
+function openEditor(test){
+  draft = test ? deepClone(test) : blankTest();
+  $('editTitle').textContent = draft.id ? 'Редагування тесту' : 'Новий тест';
+  $('fTitle').value    = draft.title;
+  $('fSubject').value  = draft.subject;
+  $('fGrade').value    = draft.grade ?? 1;
+  $('fStat').value     = draft.stat;
+  $('fXpMode').value   = draft.xpMode;
+  $('fXpValue').value  = draft.xpValue;
+  $('fStatMode').value = draft.statMode;
+  $('fStatValue').value= draft.statValue;
+  $('fActive').checked = !!draft.active;
+  renderQuestions();
+  updateHints();
+  $('viewList').classList.add('hidden');
+  $('viewEdit').classList.remove('hidden');
+  window.scrollTo(0,0);
+}
+
+function closeEditor(){
+  draft = null;
+  $('viewEdit').classList.add('hidden');
+  $('viewList').classList.remove('hidden');
+}
+
+function renderQuestions(){
+  $('qCount').textContent = draft.questions.length;
+  $('qList').innerHTML = draft.questions.map((q, qi) => `
+    <div class="q-item" data-qi="${qi}">
+      <div class="q-head">
+        <span class="q-num">${qi+1}.</span>
+        <input type="text" class="opt-text" data-q="${qi}" value="${esc(q.q)}" placeholder="Текст питання" />
+        <button class="btn sm danger" data-delq="${qi}" title="Видалити питання">✕</button>
+      </div>
+      ${q.options.map((opt, oi) => `
+        <div class="opt-row">
+          <input type="radio" name="correct-${qi}" data-correct="${qi}" value="${oi}" ${q.correct===oi?'checked':''} title="Правильна відповідь"/>
+          <input type="text" class="opt-text" data-opt="${qi}:${oi}" value="${esc(opt)}" placeholder="Варіант ${oi+1}" />
+          <span class="correct-lbl">${q.correct===oi ? '✔ правильна' : ''}</span>
+          <button class="btn sm ghost" data-delopt="${qi}:${oi}" title="Видалити варіант" ${q.options.length<=2?'disabled style=opacity:.3':''}>−</button>
+        </div>`).join('')}
+      <button class="btn sm ghost" data-addopt="${qi}" style="margin-top:8px">＋ Варіант</button>
+    </div>`).join('');
+}
+
+function updateHints(){
+  $('xpHint').textContent = $('fXpMode').value === 'perCorrect'
+    ? 'Дитина отримає XP за кожну правильну відповідь.'
+    : 'Дитина отримає цей XP один раз за завершений тест.';
+  $('statHint').textContent = $('fStatMode').value === 'perCorrect'
+    ? `+${$('fStatValue').value||0} до «${statLabel($('fStat').value)}» за кожну правильну.`
+    : `+${$('fStatValue').value||0} до «${statLabel($('fStat').value)}» за тест.`;
+}
+
+/* ---- Зчитати форму в draft ---- */
+function collectForm(){
+  draft.title     = $('fTitle').value.trim();
+  draft.subject   = $('fSubject').value.trim();
+  draft.grade     = +$('fGrade').value || 1;
+  draft.stat      = $('fStat').value;
+  draft.xpMode    = $('fXpMode').value;
+  draft.xpValue   = Math.max(0, +$('fXpValue').value || 0);
+  draft.statMode  = $('fStatMode').value;
+  draft.statValue = Math.max(0, +$('fStatValue').value || 0);
+  draft.active    = $('fActive').checked;
+}
+
+function validate(){
+  collectForm();
+  if (!draft.title) return 'Вкажи назву тесту.';
+  if (!draft.subject) return 'Вкажи предмет.';
+  if (!draft.questions.length) return 'Додай хоча б одне питання.';
+  for (let i=0;i<draft.questions.length;i++){
+    const q = draft.questions[i];
+    if (!q.q.trim()) return `Питання ${i+1}: порожній текст.`;
+    const filled = q.options.filter(o => o.trim()).length;
+    if (filled < 2) return `Питання ${i+1}: потрібно щонайменше 2 варіанти.`;
+    if (q.correct == null || !q.options[q.correct]?.trim()) return `Питання ${i+1}: познач правильну відповідь.`;
+  }
+  return null;
+}
+
+async function saveDraft(){
+  const err = validate();
+  if (err){ toast(err, true); return; }
+  // прибрати порожні варіанти в кінці
+  draft.questions.forEach(q => {
+    const correctText = q.options[q.correct];
+    q.options = q.options.filter(o => o.trim());
+    q.correct = Math.max(0, q.options.indexOf(correctText));
+  });
+  try {
+    const id = await SK_API.save(draft);
+    if (id && !draft.id) draft.id = id;
+    toast('Тест збережено ✔');
+    await loadTests();
+    closeEditor();
+  } catch(e){ console.error(e); toast('Помилка збереження', true); }
+}
+
+/* ============================================================
+   Події
+   ============================================================ */
+function bindEvents(){
+  $('btnNew').onclick        = () => openEditor(null);
+  $('btnBack').onclick       = closeEditor;
+  $('btnSave').onclick       = saveDraft;
+  $('filterSubject').onchange= renderList;
+  $('btnExportAll').onclick  = () => download('tests.json', JSON.stringify(stripIds(TESTS), null, 2));
+  $('btnExportOne').onclick  = () => { collectForm(); download((draft.title||'test')+'.json', JSON.stringify(stripIds([draft])[0], null, 2)); };
+
+  // Реакції на зміну нагород
+  ['fXpMode','fXpValue','fStatMode','fStatValue','fStat'].forEach(id => $(id).addEventListener('input', updateHints));
+
+  // Додати питання
+  $('btnAddQ').onclick = () => { draft.questions.push(blankQuestion()); renderQuestions(); };
+
+  // Делеговані кліки в списку тестів
+  $('testList').addEventListener('click', async (e) => {
+    const edit = e.target.closest('[data-edit]');
+    const del  = e.target.closest('[data-del]');
+    if (edit){ openEditor(TESTS.find(t => t.id === edit.dataset.edit)); }
+    if (del){
+      const t = TESTS.find(x => x.id === del.dataset.del);
+      if (confirm(`Видалити тест «${t?.title||''}»? Дію не скасувати.`)){
+        try { await SK_API.remove(del.dataset.del); toast('Тест видалено'); await loadTests(); }
+        catch(err){ console.error(err); toast('Не вдалося видалити', true); }
+      }
+    }
+  });
+  $('testList').addEventListener('change', async (e) => {
+    const sw = e.target.closest('[data-active]');
+    if (!sw) return;
+    try { await SK_API.setActive(sw.dataset.active, sw.checked);
+          const t = TESTS.find(x => x.id === sw.dataset.active); if (t) t.active = sw.checked; }
+    catch(err){ console.error(err); sw.checked = !sw.checked; toast('Не вдалося змінити стан', true); }
+  });
+
+  // Делеговані події в редакторі питань
+  $('qList').addEventListener('input', (e) => {
+    const q = e.target;
+    if (q.dataset.q != null) draft.questions[+q.dataset.q].q = q.value;
+    if (q.dataset.opt != null){ const [qi,oi]=q.dataset.opt.split(':').map(Number); draft.questions[qi].options[oi]=q.value; }
+  });
+  $('qList').addEventListener('change', (e) => {
+    const c = e.target.closest('[data-correct]');
+    if (c){ draft.questions[+c.dataset.correct].correct = +c.value; renderQuestions(); }
+  });
+  $('qList').addEventListener('click', (e) => {
+    const addOpt = e.target.closest('[data-addopt]');
+    const delOpt = e.target.closest('[data-delopt]');
+    const delQ   = e.target.closest('[data-delq]');
+    if (addOpt){ draft.questions[+addOpt.dataset.addopt].options.push(''); renderQuestions(); }
+    if (delOpt){
+      const [qi,oi]=delOpt.dataset.delopt.split(':').map(Number);
+      const q=draft.questions[qi]; if (q.options.length<=2) return;
+      q.options.splice(oi,1); if (q.correct>=q.options.length) q.correct=0; renderQuestions();
+    }
+    if (delQ){
+      if (draft.questions.length<=1){ toast('Має бути хоча б одне питання', true); return; }
+      draft.questions.splice(+delQ.dataset.delq,1); renderQuestions();
+    }
+  });
+
+  // Імпорт JSON
+  $('btnImport').onclick   = () => { $('importText').value=''; $('importModal').classList.add('open'); };
+  $('importCancel').onclick= () => $('importModal').classList.remove('open');
+  $('importModal').addEventListener('click', e => { if (e.target.id==='importModal') $('importModal').classList.remove('open'); });
+  $('importApply').onclick = doImport;
+}
+
+async function doImport(){
+  let data;
+  try { data = JSON.parse($('importText').value); }
+  catch(e){ toast('Некоректний JSON', true); return; }
+  const arr = Array.isArray(data) ? data : [data];
+  let ok = 0;
+  for (const raw of arr){
+    const t = normalizeImported(raw);
+    if (!t){ continue; }
+    try { await SK_API.save(t); ok++; } catch(e){ console.error(e); }
+  }
+  $('importModal').classList.remove('open');
+  toast(ok ? `Імпортовано тестів: ${ok}` : 'Нічого не імпортовано', !ok);
+  if (ok) await loadTests();
+}
+
+function normalizeImported(raw){
+  if (!raw || typeof raw !== 'object' || !raw.title) return null;
+  return {
+    id: raw.id || null,
+    title: String(raw.title),
+    subject: raw.subject || '',
+    grade: +raw.grade || 1,
+    stat: STATS.some(s => s.v === raw.stat) ? raw.stat : 'accuracy',
+    xpMode: raw.xpMode === 'perCorrect' ? 'perCorrect' : 'fixed',
+    xpValue: Math.max(0, +raw.xpValue || 0),
+    statMode: raw.statMode === 'perCorrect' ? 'perCorrect' : 'fixed',
+    statValue: Math.max(0, +raw.statValue || 0),
+    active: raw.active !== false,
+    questions: Array.isArray(raw.questions) ? raw.questions.map(q => ({
+      q: String(q.q || ''),
+      options: Array.isArray(q.options) ? q.options.map(String) : [],
+      correct: Number.isInteger(q.correct) ? q.correct : 0,
+    })) : [],
+  };
+}
+
+/* ============================================================
+   Утиліти
+   ============================================================ */
+function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function deepClone(o){ return JSON.parse(JSON.stringify(o)); }
+function stripIds(list){ return list.map(({id, ...rest}) => rest); }
+function download(name, text){
+  const blob = new Blob([text], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  URL.revokeObjectURL(a.href);
+}
+let toastT;
+function toast(msg, isErr){
+  const el = $('toast'); el.textContent = msg;
+  el.className = 'toast show' + (isErr ? ' err' : '');
+  clearTimeout(toastT); toastT = setTimeout(() => el.className = 'toast', 2600);
+}
+</script>
+</body>
+</html>
