@@ -84,10 +84,10 @@
   details.subj[open] > summary .subj-arrow{transform:rotate(180deg)}
   /* бейдж прогресу предмета (рівень + ХР), напр. біля Математики */
   .subj-prog{flex-shrink:0;display:inline-flex;align-items:center;gap:7px;font-size:.72rem;
-    font-weight:800;color:#fff;background:rgba(255,209,102,.14);
-    border:1px solid rgba(255,209,102,.42);padding:4px 10px;border-radius:999px;white-space:nowrap}
-  .subj-prog .lvl{color:#FFD166}
-  .subj-prog .xp{color:#ffe08a}
+    font-weight:800;color:#eaf1ff;background:rgba(255,255,255,.07);
+    border:1px solid rgba(255,255,255,.16);padding:5px 12px;border-radius:999px;white-space:nowrap}
+  .subj-prog .lvl{color:var(--gold)}
+  .subj-prog .xp{color:var(--gold)}
   .subj-body{padding:12px 16px 16px}
   .grp-title{font-weight:800;font-size:.72rem;letter-spacing:.05em;color:#c3c8f0;margin:2px 0 8px;text-transform:uppercase}
   .grp-title:not(:first-child){margin-top:14px}
@@ -270,51 +270,70 @@ document.getElementById('root').innerHTML =
             SK.getHero().then(function(h){
               if(!h) return;
               var strip = document.getElementById('heroStrip');
+              var prog = h.progress || {};
+
+              /* ── похідні з progress (єдине джерело для бейджа й статів) ── */
+              function countSet(v){
+                try{ var o=JSON.parse(v);
+                  if(Array.isArray(o)) return o.length;
+                  return (o && typeof o==='object') ? Object.keys(o).length : 0;
+                }catch(e){ return 0; }
+              }
+              function sumXP(match){
+                var s=0;
+                Object.keys(prog).forEach(function(k){
+                  var kl=k.toLowerCase();
+                  if(kl.indexOf('xp')===-1) return;
+                  if(match(kl)){ var v=parseInt(prog[k]||'0',10); if(!isNaN(v)) s+=v; }
+                });
+                return s;
+              }
+              // Математика: рівень = пройдені мат-рівні; ХР = сума мат-лічильників
+              var mathLevels = 0;
+              ['sk_add10_levels_v1','sk_sub10_levels_v1'].forEach(function(k){
+                if(prog[k]!=null) mathLevels += countSet(prog[k]);
+              });
+              var mathXP = sumXP(function(kl){ return /(add|sub|mult|math|cifr|num)/.test(kl); });
+              // усі предмети → загальний ХР (ті самі підрядки, що в sk-progress.js)
+              var QP=['palace','rak','piven','druzhba','math','add','sub','mult','num','cifr',
+                      'capital','geo','svit','world','yads','dovkil','eng','abc',
+                      'logic','logika','pamyat','memory'];
+              var totalXP = sumXP(function(kl){ return QP.some(function(p){return kl.indexOf(p)!==-1;}); });
+
+              /* ── самолікування розсинхрону: якщо стат-поля відстали від progress,
+                    підтягуємо їх (лише вгору), щоб бейдж і хедер не суперечили.
+                    Точність = 50 (база) + пройдені мат-рівні; XP ⩾ сума ХР з квестів. */
+              var acc = (h.accuracy!=null ? h.accuracy : 50);
+              var xpv = (h.xp!=null ? h.xp : 0);
+              var expAcc = 50 + mathLevels;
+              var patch = {};
+              if(acc < expAcc){ acc = expAcc; patch.accuracy = acc; }
+              if(xpv < totalXP){ xpv = totalXP; patch.xp = xpv; }
+              if(Object.keys(patch).length && SK.saveHeroStats){
+                SK.saveHeroStats(patch).catch(function(){});
+              }
+
+              /* ── смужка Героя (числа вже узгоджені зі сторінкою Героя) ── */
               document.getElementById('hsName').textContent =
                 '🦁 ' + (h.name || 'Герой') + ' · рівень ' + (h.level||1);
               var stats = [
                 {k:'❤️ Здоров\u2019я', v:h.health},
                 {k:'🔮 Мана', v:h.mana},
                 {k:'🏃 Спритність', v:h.agility},
-                {k:'🎯 Точність', v:h.accuracy},
-                {k:'⭐ XP', v:h.xp}
+                {k:'🎯 Точність', v:acc},
+                {k:'⭐ XP', v:xpv}
               ];
               document.getElementById('hsStats').innerHTML = stats.map(function(s){
                 return '<span class="hs-stat">'+s.k+' <b>'+(s.v!=null?s.v:0)+'</b></span>';
               }).join('');
               strip.classList.add('show');
 
-              /* ── прогрес предмета «Математика»: рівень + ХР біля назви ──
-                 Джерело правди — документ heroes/{id}. Рівень = кількість
-                 пройдених математичних рівнів (лічимо множини пройдених рівнів
-                 у progress; запасний варіант — стат Точність, база якого 1).
-                 ХР — сума лічильників математичних скілів у progress. */
-              (function(){
-                var mp = document.getElementById('mathProg');
-                if(!mp) return;
-                var prog = h.progress || {};
-                function countSet(v){
-                  try{ var o=JSON.parse(v);
-                    if(Array.isArray(o)) return o.length;
-                    return (o && typeof o==='object') ? Object.keys(o).length : 0;
-                  }catch(e){ return 0; }
-                }
-                var levelKeys = ['sk_add10_levels_v1','sk_sub10_levels_v1'];
-                var passed = 0;
-                levelKeys.forEach(function(k){ if(prog[k]!=null) passed += countSet(prog[k]); });
-                if(passed===0 && h.accuracy!=null) passed = Math.max(0, h.accuracy - 1);
-                var mathXP = 0;
-                Object.keys(prog).forEach(function(k){
-                  var kl = k.toLowerCase();
-                  if(kl.indexOf('xp')===-1) return;
-                  if(/(add|sub|mult|math|cifr|num)/.test(kl)){
-                    var v = parseInt(prog[k]||'0',10);
-                    if(!isNaN(v)) mathXP += v;
-                  }
-                });
-                mp.innerHTML = '🎯 <span class="lvl">Рівень '+passed+'</span> · <span class="xp">'+mathXP+' XP</span>';
+              /* ── бейдж «Математика»: Рівень = (Точність − 50), XP = мат-ХР ── */
+              var mp = document.getElementById('mathProg');
+              if(mp){
+                mp.innerHTML = '🎯 <span class="lvl">Рівень '+mathLevels+'</span> · <span class="xp">'+mathXP+' XP</span>';
                 mp.hidden = false;
-              })();
+              }
             }).catch(function(){});
           } else {
             document.getElementById('hsGuest').classList.add('show');
