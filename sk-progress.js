@@ -86,7 +86,7 @@
 
   /* ── допоміжні ── */
   function num(key) {
-    var v = parseFloat(localStorage.getItem(key) || '0');
+    var v = parseInt(localStorage.getItem(key) || '0', 10);
     return isNaN(v) ? 0 : v;
   }
   // частка за JSON-мапою виконаних елементів {"1":true,...} → keys/total
@@ -153,7 +153,7 @@
         if (kl.indexOf('xp') === -1) continue;
         for (var p = 0; p < QUEST_XP_PATTERNS.length; p++) {
           if (kl.indexOf(QUEST_XP_PATTERNS[p]) !== -1) {
-            var v = parseFloat(localStorage.getItem(key) || '0');
+            var v = parseInt(localStorage.getItem(key) || '0', 10);
             if (!isNaN(v)) xp += v;
             break;
           }
@@ -222,33 +222,6 @@
       try { localStorage.setItem(key, JSON.stringify([item])); } catch (e2) {}
     }
   }
-
-  /* ── АВТО-СИНХРОНІЗАЦІЯ ──────────────────────────────────────────────
-     Будь-який запис результату в localStorage (XP / бали / пройдені рівні /
-     розблокування) одразу планує збереження статів Героя в базу. Завдяки
-     цьому кожному тесту достатньо ЛИШЕ підключити цей файл — окремо кликати
-     SKProgress.save() у completion-хендлері вже не треба, і рахунок
-     синхронно оновлюється в heroes/{id} та на всіх сторінках. */
-  (function hookAutoSave(){
-    try{
-      if (!window.localStorage) return;
-      var orig = localStorage.setItem;
-      if (orig && orig._skWrapped) return;              // не обгортати двічі
-      var wrapped = function(k, v){
-        orig.call(localStorage, k, v);
-        try{
-          var kl = String(k).toLowerCase();
-          if (kl === 'sk_active_family' || kl === 'sk_active_child') return;
-          // реагуємо на ключі, що впливають на стати/рахунок
-          if (/(xp|pts|score|level|unlock|learned|done|palace|logika|pamyat|abetk|spell)/.test(kl)){
-            saveDebounced();
-          }
-        }catch(e){}
-      };
-      wrapped._skWrapped = true;
-      localStorage.setItem = wrapped;
-    }catch(e){}
-  })();
 
   window.SKProgress = {
     UKR_TASKS: UKR_TASKS,

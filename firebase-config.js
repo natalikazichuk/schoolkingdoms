@@ -38,7 +38,7 @@ import {
   signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 import {
-  getFirestore, doc, getDoc, setDoc, updateDoc, addDoc,
+  getFirestore, doc, getDoc, setDoc, updateDoc, addDoc, deleteDoc,
   collection, getDocs, query, where, serverTimestamp, runTransaction
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
@@ -327,6 +327,72 @@ const SK = {
       if (v != null) localStorage.setItem(k, v);
     });
     return true;
+  },
+
+  /* ===== ТЕСТИ / АКАДЕМІЯ (адмінка) ===== */
+
+  // Псевдонім для сумісності з admin.html (він кличе getCurrentUser()).
+  getCurrentUser() { return auth.currentUser; },
+
+  // Чи є user адміном: users/{uid}.role === 'admin'. Сесія Героя — ніколи.
+  async isAdmin(user) {
+    const u = user || auth.currentUser;
+    if (!u || SK.isHeroSession()) return false;
+    try {
+      const s = await getDoc(doc(db, 'users', u.uid));
+      return s.exists() && s.data().role === 'admin';
+    } catch (e) { return false; }
+  },
+
+  // Усі тести (для адмінки). -> [{ id, ...test }]
+  async listTests() {
+    const snap = await getDocs(collection(db, 'tests'));
+    const out = [];
+    snap.forEach(d => out.push(Object.assign({ id: d.id }, d.data())));
+    out.sort((a, b) =>
+      String(a.subject || '').localeCompare(String(b.subject || ''), 'uk') ||
+      String(a.title || '').localeCompare(String(b.title || ''), 'uk'));
+    return out;
+  },
+
+  // Лише активні тести (для Академії / tests.html). grade — необов'язковий фільтр.
+  async listActiveTests(grade) {
+    const snap = await getDocs(collection(db, 'tests'));
+    const out = [];
+    snap.forEach(d => {
+      const t = d.data();
+      if (t.active === false) return;
+      if (grade != null && Number(t.grade) !== Number(grade)) return;
+      out.push(Object.assign({ id: d.id }, t));
+    });
+    return out;
+  },
+
+  // Створити (без id) або оновити (з id) тест. -> id
+  async saveTest(test) {
+    if (!test || typeof test !== 'object') throw new Error('empty-test');
+    const { id, ...data } = test;
+    data.updatedAt = serverTimestamp();
+    if (id) {
+      await setDoc(doc(db, 'tests', id), data, { merge: true });
+      return id;
+    }
+    data.createdAt = serverTimestamp();
+    const ref = await addDoc(collection(db, 'tests'), data);
+    return ref.id;
+  },
+
+  async deleteTest(id) {
+    if (!id) return;
+    await deleteDoc(doc(db, 'tests', id));
+  },
+
+  async setTestActive(id, active) {
+    if (!id) return;
+    await updateDoc(doc(db, 'tests', id), {
+      active: !!active,
+      updatedAt: serverTimestamp()
+    });
   },
 
   onUser(cb) { if (typeof cb === 'function') SK._userCbs.push(cb); }
