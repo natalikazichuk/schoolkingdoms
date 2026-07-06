@@ -25,6 +25,11 @@
     font-size:.88rem;background:rgba(255,255,255,.1);border:1.5px solid rgba(242,199,92,.5);
     border-radius:12px;padding:9px 16px;transition:.15s}
   .logout:hover{background:rgba(255,255,255,.2)}
+  .topbar-actions{display:flex;align-items:center;gap:10px}
+  .admin-link{background:linear-gradient(180deg,#f5c542,#e0a83a);color:#2a1e06;
+    border-color:#e0a83a;box-shadow:0 4px 12px rgba(245,197,66,.25)}
+  .admin-link:hover{filter:brightness(1.05);background:linear-gradient(180deg,#f5c542,#e0a83a)}
+  [hidden]{display:none !important}
 
   /* ── Тіло ── */
   .cab-wrap{flex:1;width:100%;max-width:960px;margin:0 auto;padding:clamp(20px,4vw,36px) clamp(16px,4vw,28px) 56px}
@@ -117,8 +122,12 @@
       <span class="crest" aria-hidden="true">🛡️</span>
       <span><span class="brand-name">School <b>Kingdoms</b></span><span class="brand-sub">Кабінет user</span></span>
     </a>
-    <!-- Вихід: завершує сесію Firebase, інакше index.html кине назад у кабінет -->
-    <a class="logout" href="login.html" id="logoutBtn">Вийти →</a>
+    <div class="topbar-actions">
+      <!-- Показується лише адмінам (users/{uid}.role === 'admin') -->
+      <a class="logout admin-link" href="admin.html" id="adminLink" hidden>⚙️ Адмінка</a>
+      <!-- Вихід: завершує сесію Firebase, інакше index.html кине назад у кабінет -->
+      <a class="logout" href="login.html" id="logoutBtn">Вийти →</a>
+    </div>
   </header>
 
   <!-- ── Тіло ── -->
@@ -252,9 +261,20 @@
           if (window.SK.requireParent && !window.SK.requireParent()) return; // редірект уже зроблено
           loadHeroes();
           loadGreeting();
+          revealAdmin();
         } catch(_){}
       });
     })();
+
+    // ── Показати кнопку «Адмінка» лише адмінам ──
+    async function revealAdmin(){
+      try{
+        if (SK.isAdmin && await SK.isAdmin()){
+          const a = $('adminLink');
+          if (a) a.hidden = false;
+        }
+      }catch(e){ console.warn('[parent] revealAdmin:', e); }
+    }
 
     // ── Привітання: "Сьогодні чудовий день, ім'я прізвище!" ──
     async function loadGreeting(){
