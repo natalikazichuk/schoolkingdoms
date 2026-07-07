@@ -368,13 +368,6 @@ const SK = {
     return out;
   },
 
-  // Один тест за id (для плеєра test.html). -> { id, ...test } | null
-  async getTest(id) {
-    if (!id) return null;
-    const s = await getDoc(doc(db, 'tests', id));
-    return s.exists() ? Object.assign({ id: s.id }, s.data()) : null;
-  },
-
   // Створити (без id) або оновити (з id) тест. -> id
   async saveTest(test) {
     if (!test || typeof test !== 'object') throw new Error('empty-test');
@@ -436,4 +429,3 @@ window.addEventListener('visibilitychange', () => {
 });
 
 window.SK = SK;
-
