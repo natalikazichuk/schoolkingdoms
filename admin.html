@@ -147,6 +147,14 @@
   .opt-row .opt-text{flex:1 1 140px;min-width:120px}
   .opt-row .correct-lbl{font-size:.72rem;color:var(--ok);font-weight:800;min-width:64px}
 
+  /* Рівні */
+  .lv-list{display:grid;gap:16px}
+  .lv-block{background:rgba(9,13,35,.35);border:1px solid var(--border);border-radius:16px;padding:14px 14px 16px}
+  .lv-block-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .lv-badge{font-family:'Fredoka One',cursive;color:#2a1e06;background:linear-gradient(180deg,var(--gold),var(--gold-2));border-radius:10px;padding:4px 12px;font-size:.95rem;flex:none}
+  .lv-block-head input{flex:1}
+  .lv-qmeta{font-size:.75rem;color:var(--muted);font-weight:800;margin:4px 0 8px}
+
   /* Секції редактора */
   .section-title{margin:22px 0 10px;font-size:1.05rem;color:var(--gold);display:flex;align-items:center;gap:8px}
   .divider{height:1px;background:var(--border);margin:20px 0}
@@ -270,6 +278,14 @@
           <label for="fStat">Розвиває характеристику</label>
           <select id="fStat"></select>
         </div>
+        <div class="field full">
+          <label for="fFormat">Формат тесту</label>
+          <select id="fFormat">
+            <option value="flat">Звичайний — один список питань</option>
+            <option value="levels">Рівні — кілька рівнів із різною к-стю питань</option>
+          </select>
+          <span class="hint" id="formatHint"></span>
+        </div>
       </div>
 
       <div class="section-title">🏆 Нагороди</div>
@@ -307,11 +323,23 @@
 
       <div class="divider"></div>
 
-      <div class="section-title" style="justify-content:space-between">
-        <span>❓ Питання (<span id="qCount">0</span>)</span>
-        <button class="btn sm gold" id="btnAddQ">＋ Питання</button>
+      <!-- РЕДАКТОР: ЗВИЧАЙНИЙ (ПЛОСКИЙ) -->
+      <div id="flatEditor">
+        <div class="section-title" style="justify-content:space-between">
+          <span>❓ Питання (<span id="qCount">0</span>)</span>
+          <button class="btn sm gold" id="btnAddQ">＋ Питання</button>
+        </div>
+        <div class="q-list" id="qList"></div>
       </div>
-      <div class="q-list" id="qList"></div>
+
+      <!-- РЕДАКТОР: РІВНІ -->
+      <div id="levelsEditor" class="hidden">
+        <div class="section-title" style="justify-content:space-between">
+          <span>🧩 Рівні (<span id="lvCount">0</span>)</span>
+          <button class="btn sm gold" id="btnAddLevel">＋ Рівень</button>
+        </div>
+        <div class="lv-list" id="lvList"></div>
+      </div>
     </div>
   </section>
 </div>
@@ -321,8 +349,10 @@
   <div class="panel modal">
     <h2>Імпорт тестів (JSON)</h2>
     <p class="hint" style="margin:8px 0 12px">
-      Встав один тест або масив тестів. Формат:
-      <code style="color:var(--gold)">{ title, subject, grade, stat, xpMode, xpValue, statMode, statValue, active, questions:[{ q, options:[…], correct }] }</code>
+      Встав один тест або масив тестів. Звичайний:
+      <code style="color:var(--gold)">{ title, subject, grade, stat, …, questions:[{ q, options:[…], correct }] }</code>
+      <br>Рівні:
+      <code style="color:var(--gold)">{ title, …, format:"levels", levels:[{ level, name, questions:[…] }] }</code>
     </p>
     <textarea id="importText" placeholder='[{ "title": "…", "subject": "Математика", "stat": "accuracy", "questions": [ … ] }]'></textarea>
     <div class="toolbar" style="margin-top:14px">
@@ -451,7 +481,9 @@ function renderList(){
   $('emptyState').classList.toggle('hidden', rows.length !== 0);
 
   list.innerHTML = rows.map(t => {
-    const qn = (t.questions || []).length;
+    const isLv = t.format === 'levels' || (Array.isArray(t.levels) && t.levels.length);
+    const lv = isLv ? (t.levels || []) : null;
+    const qn = isLv ? lv.reduce((s, L) => s + ((L.questions || []).length), 0) : (t.questions || []).length;
     const xp = t.xpMode === 'perCorrect' ? `${t.xpValue} XP/правильну` : `${t.xpValue} XP`;
     const st = t.statMode === 'perCorrect' ? `${t.statValue}/правильну` : `+${t.statValue}`;
     return `
@@ -462,6 +494,7 @@ function renderList(){
             <span class="badge subject">${esc(t.subject || '—')}</span>
             <span class="badge">Клас ${t.grade ?? 1}</span>
             <span class="badge stat">${statLabel(t.stat)}</span>
+            ${isLv ? `<span class="badge">🧩 ${lv.length} рівнів</span>` : ''}
             <span class="badge">${qn} пит.</span>
             <span class="badge reward">${xp} · ${statLabel(t.stat)} ${st}</span>
           </div>
@@ -482,29 +515,98 @@ function renderList(){
    РЕДАКТОР
    ============================================================ */
 function blankTest(){
-  return { id:null, title:'', subject:'', grade:1, stat:'accuracy',
+  return { id:null, title:'', subject:'', grade:1, stat:'accuracy', format:'flat',
     xpMode:'fixed', xpValue:10, statMode:'fixed', statValue:1, active:true,
-    questions:[ blankQuestion() ] };
+    questions:[ blankQuestion() ], levels:[] };
 }
 function blankQuestion(){ return { q:'', options:['',''], correct:0 }; }
+function blankLevel(n){ return { level:n||1, name:'', questions:[ blankQuestion() ] }; }
 
 function openEditor(test){
   draft = test ? deepClone(test) : blankTest();
+  // нормалізація формату та масивів
+  if (!draft.format) draft.format = (Array.isArray(draft.levels) && draft.levels.length) ? 'levels' : 'flat';
+  if (!Array.isArray(draft.questions)) draft.questions = [];
+  if (!Array.isArray(draft.levels))    draft.levels = [];
+  if (draft.format==='flat'   && !draft.questions.length) draft.questions = [ blankQuestion() ];
+  if (draft.format==='levels' && !draft.levels.length)    draft.levels    = [ blankLevel(1) ];
+
   $('editTitle').textContent = draft.id ? 'Редагування тесту' : 'Новий тест';
   $('fTitle').value    = draft.title;
   $('fSubject').value  = draft.subject;
   $('fGrade').value    = draft.grade ?? 1;
   $('fStat').value     = draft.stat;
+  $('fFormat').value   = draft.format;
   $('fXpMode').value   = draft.xpMode;
   $('fXpValue').value  = draft.xpValue;
   $('fStatMode').value = draft.statMode;
   $('fStatValue').value= draft.statValue;
   $('fActive').checked = !!draft.active;
-  renderQuestions();
-  updateHints();
+  renderEditor();
   $('viewList').classList.add('hidden');
   $('viewEdit').classList.remove('hidden');
   window.scrollTo(0,0);
+}
+
+/* Показати потрібний редактор (плоский / рівні) */
+function renderEditor(){
+  const levels = draft.format==='levels';
+  $('flatEditor').classList.toggle('hidden', levels);
+  $('levelsEditor').classList.toggle('hidden', !levels);
+  if (levels) renderLevels(); else renderQuestions();
+  updateHints();
+}
+
+/* Перемикання формату: переносимо наявні питання, щоб не втратити роботу */
+function onFormatChange(){
+  const fmt = $('fFormat').value === 'levels' ? 'levels' : 'flat';
+  draft.format = fmt;
+  if (fmt==='levels'){
+    if (!Array.isArray(draft.levels) || !draft.levels.length){
+      const seed = (draft.questions||[]).filter(q => (q.q||'').trim());
+      draft.levels = [ { level:1, name:'', questions: seed.length ? deepClone(seed) : [ blankQuestion() ] } ];
+    }
+  } else {
+    if (!Array.isArray(draft.questions) || !draft.questions.length){
+      const seed = [];
+      (draft.levels||[]).forEach(L => (L.questions||[]).forEach(q => { if ((q.q||'').trim()) seed.push(q); }));
+      draft.questions = seed.length ? deepClone(seed) : [ blankQuestion() ];
+    }
+  }
+  renderEditor();
+}
+
+/* Рендер редактора рівнів */
+function renderLevels(){
+  $('lvCount').textContent = draft.levels.length;
+  $('lvList').innerHTML = draft.levels.map((L, li) => `
+    <div class="lv-block" data-li="${li}">
+      <div class="lv-block-head">
+        <span class="lv-badge">Рівень ${li+1}</span>
+        <input type="text" data-lvname="${li}" value="${esc(L.name||'')}" placeholder="Назва рівня (напр. Перший крок)" />
+        <button class="btn sm danger" data-dellv="${li}" title="Видалити рівень">🗑</button>
+      </div>
+      <div class="lv-qmeta">Питань у рівні: ${L.questions.length}</div>
+      <div class="q-list">
+        ${L.questions.map((q, qi) => `
+          <div class="q-item" data-li="${li}" data-qi="${qi}">
+            <div class="q-head">
+              <span class="q-num">${qi+1}.</span>
+              <input type="text" class="opt-text" data-lq="${li}:${qi}" value="${esc(q.q)}" placeholder="Текст питання" />
+              <button class="btn sm danger" data-ldelq="${li}:${qi}" title="Видалити питання">✕</button>
+            </div>
+            ${q.options.map((opt, oi) => `
+              <div class="opt-row">
+                <input type="radio" name="lcorrect-${li}-${qi}" data-lcorrect="${li}:${qi}" value="${oi}" ${q.correct===oi?'checked':''} title="Правильна відповідь"/>
+                <input type="text" class="opt-text" data-lopt="${li}:${qi}:${oi}" value="${esc(opt)}" placeholder="Варіант ${oi+1}" />
+                <span class="correct-lbl">${q.correct===oi ? '✔ правильна' : ''}</span>
+                <button class="btn sm ghost" data-ldelopt="${li}:${qi}:${oi}" title="Видалити варіант" ${q.options.length<=2?'disabled style=opacity:.3':''}>−</button>
+              </div>`).join('')}
+            <button class="btn sm ghost" data-laddopt="${li}:${qi}" style="margin-top:8px">＋ Варіант</button>
+          </div>`).join('')}
+      </div>
+      <button class="btn sm gold" data-laddq="${li}" style="margin-top:10px">＋ Питання в рівень</button>
+    </div>`).join('');
 }
 
 function closeEditor(){
@@ -534,12 +636,17 @@ function renderQuestions(){
 }
 
 function updateHints(){
+  const perUnit = $('fFormat').value === 'levels' ? 'рівень' : 'тест';
   $('xpHint').textContent = $('fXpMode').value === 'perCorrect'
     ? 'Дитина отримає XP за кожну правильну відповідь.'
-    : 'Дитина отримає цей XP один раз за завершений тест.';
+    : `Дитина отримає цей XP один раз за завершений ${perUnit}.`;
   $('statHint').textContent = $('fStatMode').value === 'perCorrect'
     ? `+${$('fStatValue').value||0} до «${statLabel($('fStat').value)}» за кожну правильну.`
-    : `+${$('fStatValue').value||0} до «${statLabel($('fStat').value)}» за тест.`;
+    : `+${$('fStatValue').value||0} до «${statLabel($('fStat').value)}» за ${perUnit}.`;
+  const fh = $('formatHint');
+  if (fh) fh.textContent = $('fFormat').value === 'levels'
+    ? 'Дитина проходить рівні по черзі; кожен пройдений відкриває наступний.'
+    : 'Один список питань поспіль.';
 }
 
 /* ---- Зчитати форму в draft ---- */
@@ -548,6 +655,7 @@ function collectForm(){
   draft.subject   = $('fSubject').value.trim();
   draft.grade     = +$('fGrade').value || 1;
   draft.stat      = $('fStat').value;
+  draft.format    = $('fFormat').value === 'levels' ? 'levels' : 'flat';
   draft.xpMode    = $('fXpMode').value;
   draft.xpValue   = Math.max(0, +$('fXpValue').value || 0);
   draft.statMode  = $('fStatMode').value;
@@ -555,17 +663,36 @@ function collectForm(){
   draft.active    = $('fActive').checked;
 }
 
+function validateQuestion(q, where){
+  if (!q.q.trim()) return `${where}: порожній текст.`;
+  const filled = q.options.filter(o => o.trim()).length;
+  if (filled < 2) return `${where}: потрібно щонайменше 2 варіанти.`;
+  if (q.correct == null || !q.options[q.correct]?.trim()) return `${where}: познач правильну відповідь.`;
+  return null;
+}
+
 function validate(){
   collectForm();
   if (!draft.title) return 'Вкажи назву тесту.';
   if (!draft.subject) return 'Вкажи предмет.';
+
+  if (draft.format==='levels'){
+    if (!draft.levels.length) return 'Додай хоча б один рівень.';
+    for (let li=0; li<draft.levels.length; li++){
+      const L = draft.levels[li];
+      if (!L.questions.length) return `Рівень ${li+1}: додай хоча б одне питання.`;
+      for (let i=0;i<L.questions.length;i++){
+        const err = validateQuestion(L.questions[i], `Рівень ${li+1}, питання ${i+1}`);
+        if (err) return err;
+      }
+    }
+    return null;
+  }
+
   if (!draft.questions.length) return 'Додай хоча б одне питання.';
   for (let i=0;i<draft.questions.length;i++){
-    const q = draft.questions[i];
-    if (!q.q.trim()) return `Питання ${i+1}: порожній текст.`;
-    const filled = q.options.filter(o => o.trim()).length;
-    if (filled < 2) return `Питання ${i+1}: потрібно щонайменше 2 варіанти.`;
-    if (q.correct == null || !q.options[q.correct]?.trim()) return `Питання ${i+1}: познач правильну відповідь.`;
+    const err = validateQuestion(draft.questions[i], `Питання ${i+1}`);
+    if (err) return err;
   }
   return null;
 }
@@ -574,11 +701,18 @@ async function saveDraft(){
   const err = validate();
   if (err){ toast(err, true); return; }
   // прибрати порожні варіанти в кінці
-  draft.questions.forEach(q => {
+  const stripOpts = (q) => {
     const correctText = q.options[q.correct];
     q.options = q.options.filter(o => o.trim());
     q.correct = Math.max(0, q.options.indexOf(correctText));
-  });
+  };
+  if (draft.format==='levels'){
+    draft.levels.forEach((L, i) => { L.level = i+1; L.name = (L.name||'').trim(); L.questions.forEach(stripOpts); });
+    draft.questions = [];   // очищаємо невикористаний масив (перезаписує старе значення при merge)
+  } else {
+    draft.questions.forEach(stripOpts);
+    draft.levels = [];
+  }
   try {
     const id = await SK_API.save(draft);
     if (id && !draft.id) draft.id = id;
@@ -604,6 +738,10 @@ function bindEvents(){
 
   // Додати питання
   $('btnAddQ').onclick = () => { draft.questions.push(blankQuestion()); renderQuestions(); };
+
+  // Формат тесту + додати рівень
+  $('fFormat').addEventListener('change', onFormatChange);
+  $('btnAddLevel').onclick = () => { draft.levels.push(blankLevel(draft.levels.length+1)); renderLevels(); };
 
   // Делеговані кліки в списку тестів
   $('testList').addEventListener('click', async (e) => {
@@ -652,6 +790,42 @@ function bindEvents(){
     }
   });
 
+  // Делеговані події в редакторі рівнів
+  $('lvList').addEventListener('input', (e) => {
+    const el = e.target;
+    if (el.dataset.lvname != null){ draft.levels[+el.dataset.lvname].name = el.value; return; }
+    if (el.dataset.lq != null){ const [li,qi]=el.dataset.lq.split(':').map(Number); draft.levels[li].questions[qi].q = el.value; return; }
+    if (el.dataset.lopt != null){ const [li,qi,oi]=el.dataset.lopt.split(':').map(Number); draft.levels[li].questions[qi].options[oi] = el.value; return; }
+  });
+  $('lvList').addEventListener('change', (e) => {
+    const c = e.target.closest('[data-lcorrect]');
+    if (c){ const [li,qi]=c.dataset.lcorrect.split(':').map(Number); draft.levels[li].questions[qi].correct = +c.value; renderLevels(); }
+  });
+  $('lvList').addEventListener('click', (e) => {
+    const addOpt = e.target.closest('[data-laddopt]');
+    const delOpt = e.target.closest('[data-ldelopt]');
+    const delQ   = e.target.closest('[data-ldelq]');
+    const addQ   = e.target.closest('[data-laddq]');
+    const delLv  = e.target.closest('[data-dellv]');
+    if (addOpt){ const [li,qi]=addOpt.dataset.laddopt.split(':').map(Number); draft.levels[li].questions[qi].options.push(''); renderLevels(); return; }
+    if (delOpt){
+      const [li,qi,oi]=delOpt.dataset.ldelopt.split(':').map(Number);
+      const q=draft.levels[li].questions[qi]; if (q.options.length<=2) return;
+      q.options.splice(oi,1); if (q.correct>=q.options.length) q.correct=0; renderLevels(); return;
+    }
+    if (delQ){
+      const [li,qi]=delQ.dataset.ldelq.split(':').map(Number);
+      const L=draft.levels[li]; if (L.questions.length<=1){ toast('У рівні має бути хоча б одне питання', true); return; }
+      L.questions.splice(qi,1); renderLevels(); return;
+    }
+    if (addQ){ const li=+addQ.dataset.laddq; draft.levels[li].questions.push(blankQuestion()); renderLevels(); return; }
+    if (delLv){
+      const li=+delLv.dataset.dellv;
+      if (draft.levels.length<=1){ toast('Має бути хоча б один рівень', true); return; }
+      draft.levels.splice(li,1); renderLevels(); return;
+    }
+  });
+
   // Імпорт JSON
   $('btnImport').onclick   = () => { $('importText').value=''; $('importModal').classList.add('open'); };
   $('importCancel').onclick= () => $('importModal').classList.remove('open');
@@ -677,7 +851,12 @@ async function doImport(){
 
 function normalizeImported(raw){
   if (!raw || typeof raw !== 'object' || !raw.title) return null;
-  return {
+  const normQ = (q) => ({
+    q: String(q.q || ''),
+    options: Array.isArray(q.options) ? q.options.map(String) : [],
+    correct: Number.isInteger(q.correct) ? q.correct : 0,
+  });
+  const base = {
     id: raw.id || null,
     title: String(raw.title),
     subject: raw.subject || '',
@@ -688,12 +867,24 @@ function normalizeImported(raw){
     statMode: raw.statMode === 'perCorrect' ? 'perCorrect' : 'fixed',
     statValue: Math.max(0, +raw.statValue || 0),
     active: raw.active !== false,
-    questions: Array.isArray(raw.questions) ? raw.questions.map(q => ({
-      q: String(q.q || ''),
-      options: Array.isArray(q.options) ? q.options.map(String) : [],
-      correct: Number.isInteger(q.correct) ? q.correct : 0,
-    })) : [],
   };
+  const asLevels = raw.format === 'levels' || (Array.isArray(raw.levels) && raw.levels.length);
+  if (asLevels){
+    base.format = 'levels';
+    base.levels = (Array.isArray(raw.levels) ? raw.levels : []).map((L, i) => ({
+      level: Number.isFinite(+L.level) ? +L.level : i+1,
+      name: String(L.name || ''),
+      questions: Array.isArray(L.questions) ? L.questions.map(normQ) : [],
+    })).filter(L => L.questions.length);
+    base.questions = [];
+    if (!base.levels.length) return null;
+  } else {
+    base.format = 'flat';
+    base.questions = Array.isArray(raw.questions) ? raw.questions.map(normQ) : [];
+    base.levels = [];
+    if (!base.questions.length) return null;
+  }
+  return base;
 }
 
 /* ============================================================
