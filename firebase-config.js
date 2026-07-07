@@ -33,7 +33,7 @@
 import { initializeApp, deleteApp }
   from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
 import {
-  getAuth, setPersistence, browserLocalPersistence,
+  getAuth, setPersistence, browserSessionPersistence,
   createUserWithEmailAndPassword, signInWithEmailAndPassword,
   signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
@@ -56,7 +56,9 @@ const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
-try { await setPersistence(auth, browserLocalPersistence); } catch (e) {}
+// Сесія живе лише до закриття вкладки/браузера (не «прилипає» між сеансами).
+// Зручно для тестування кількох акаунтів; при закритті вкладки — автоматичний вихід.
+try { await setPersistence(auth, browserSessionPersistence); } catch (e) {}
 
 try {
   const { getAnalytics, isSupported } =
@@ -366,6 +368,13 @@ const SK = {
       out.push(Object.assign({ id: d.id }, t));
     });
     return out;
+  },
+
+  // Один тест за id (для плеєра test.html). -> { id, ...test } | null
+  async getTest(id) {
+    if (!id) return null;
+    const s = await getDoc(doc(db, 'tests', id));
+    return s.exists() ? Object.assign({ id: s.id }, s.data()) : null;
   },
 
   // Створити (без id) або оновити (з id) тест. -> id
