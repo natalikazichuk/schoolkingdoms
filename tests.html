@@ -138,8 +138,8 @@
   <div class="page-head">
     <h1 class="page-title">📜 Тести</h1>
     <p class="page-sub">Дорожня карта знань Героя — від дошкільної підготовки до старшої школи.
-      Тести 1 класу готуються в окремій теці <b>tests_1/</b>. Кожен пройдений тест
-      зберігатиметься в базі та прокачуватиме характеристику предмета.</p>
+      Тести створюються в адмін-панелі та з'являються тут автоматично. Кожен пройдений тест
+      зберігається в базі та прокачує характеристику предмета.</p>
 
     <!-- смужка активного Героя -->
     <div class="hero-strip" id="heroStrip">
@@ -155,17 +155,19 @@
   <main class="wrap" id="root"></main>
 
   <div class="foot">
-    Тести 1 класу з'являтимуться у теці <code>tests_1/</code>.
-    Кожен додає <b>XP</b>, що підвищує характеристику предмета Героя.
+    Тести додаються в <b>адмін-панелі</b> й одразу з'являються тут.
+    Кожен пройдений тест додає <b>XP</b>, що підвищує характеристику предмета Героя.
     Схему впливу узгоджуємо окремо.
   </div>
 
 <script>
 /* ============================================================
-   ДОРОЖНЯ КАРТА. Поки БЕЗ посилань — тести 1 класу будуть у теці tests_1/.
-   Щоб «увімкнути» тему пізніше: у items постав status:'ready'
-   та href:'tests_1/<файл>.html'.
-   Предмет прив'язаний до характеристики Героя через поле stat.
+   ДОРОЖНЯ КАРТА — лише КІСТЯК (ступені/класи/предмети + оформлення).
+   Самі тести підтягуються з бази (SK.listActiveTests) і розкладаються
+   по предметах за полями grade + subject. Нічого не губиться:
+   несопоставлені тести потрапляють у предмет «Інші тести».
+     • keys[]   — підрядки, за якими subject тесту зіставляється з предметом
+     • gradeNum — номер класу для співставлення з полем grade тесту
    ============================================================ */
 const CURRICULUM = [
   {
@@ -175,20 +177,15 @@ const CURRICULUM = [
   },
   {
     id:'junior', icon:'🎓', name:'Молодша школа', status:'wip',
-    note:'1 клас — у розробці (тека tests_1/). 2–4 класи заплановано.',
+    note:'1 клас — активний. 2–4 класи заплановано.',
     grades:[
       {
-        id:'g1', name:'1 клас', status:'wip',
+        id:'g1', name:'1 клас', status:'wip', gradeNum:1,
         subjects:[
-          { id:'math', icon:'🧮', name:'Математика',        accent:'#5C6BC0', stat:'Точність 🎯',  items:[
-            { label:'Додавання в межах 10',  status:'ready', href:'tests_1/addition-test-10.html', xpKey:'sk_add_xp_v1' },
-            { label:'Віднімання в межах 10', status:'ready', href:'tests_1/subtraction-test-10.html', xpKey:'sk_sub_xp_v1' }
-          ] },
-          { id:'yads', icon:'🌍', name:'ЯДС · Я досліджую світ', accent:'#E0954E', stat:'Спритність 🏃', items:[] },
-          { id:'eng',  icon:'🔤', name:'English',            accent:'#3FB6A8', stat:'Мана 🔮',      items:[] },
-          { id:'ukr',  icon:'🌺', name:'Українська мова',    accent:'#D6577A', stat:'Здоров\u2019я \u2764\ufe0f', items:[
-            { label:'Голосні та приголосні', status:'ready', href:'test.html?id=ukr-holosni-1' }
-          ] }
+          { id:'math', icon:'🧮', name:'Математика',        accent:'#5C6BC0', stat:'Точність 🎯',  keys:['матем'], items:[] },
+          { id:'yads', icon:'🌍', name:'ЯДС · Я досліджую світ', accent:'#E0954E', stat:'Спритність 🏃', keys:['ядс','я досліджую світ','природознав','довкіл'], items:[] },
+          { id:'eng',  icon:'🔤', name:'English',            accent:'#3FB6A8', stat:'Мана 🔮',      keys:['english','англ'], items:[] },
+          { id:'ukr',  icon:'🌺', name:'Українська мова',    accent:'#D6577A', stat:'Здоров\u2019я \u2764\ufe0f', keys:['україн','укр мова','рідна мова'], items:[] }
         ]
       }
     ]
@@ -201,6 +198,7 @@ const CURRICULUM = [
 ];
 
 /* ── рендер ── */
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function pill(status){
   if(status==='ready') return '<span class="pill ready">✅ Доступно</span>';
   if(status==='wip')   return '<span class="pill wip">🔧 Готуємо</span>';
@@ -208,10 +206,13 @@ function pill(status){
 }
 function chip(it, accent){
   if(it.status==='ready' && it.href){
-    var xp = it.xpKey ? ' <span class="chip-xp" data-xpkey="'+it.xpKey+'">0 XP</span>' : '';
-    return '<a class="chip ready" href="'+it.href+'" target="_blank" rel="noopener" style="--accent:'+accent+'">▶ '+it.label+xp+'</a>';
+    var badge = it.levels
+      ? ' <span class="chip-xp">🧩 рівні</span>'
+      : (it.xpKey ? ' <span class="chip-xp" data-xpkey="'+it.xpKey+'">0 XP</span>' : '');
+    var tgt = it.db ? '' : ' target="_blank" rel="noopener"';
+    return '<a class="chip ready" href="'+it.href+'"'+tgt+' style="--accent:'+accent+'">▶ '+esc(it.label)+badge+'</a>';
   }
-  return '<span class="chip plan" style="--accent:'+accent+'"><span class="dot">•</span> '+it.label+'</span>';
+  return '<span class="chip plan" style="--accent:'+accent+'"><span class="dot">•</span> '+esc(it.label)+'</span>';
 }
 function subjectHtml(s){
   var accent = s.accent || '#5C6BC0';
@@ -230,7 +231,7 @@ function subjectHtml(s){
             }).join('') + '</div>';
   }
   if(!body){
-    body = '<p style="color:#9aa6c6;font-weight:600;font-size:.85rem;font-style:italic;margin:2px 0">Теми додамо згодом (tests_1/).</p>';
+    body = '<p style="color:#9aa6c6;font-weight:600;font-size:.85rem;font-style:italic;margin:2px 0">Тестів поки немає — додай їх в адмін-панелі.</p>';
   }
   return '<details class="subj" style="--accent:'+accent+'">'
     + '<summary><span class="subj-ic">'+s.icon+'</span>'
@@ -259,9 +260,87 @@ function tierHtml(t, openFirst){
     + '<span class="tier-arrow">▾</span></summary>'
     + '<div class="tier-body">'+inner+'</div></details>';
 }
+/* ── зіставлення тесту з предметом дорожньої карти ── */
+function norm(s){ return String(s==null?'':s).toLowerCase().replace(/[’'`]/g,'').replace(/\s+/g,' ').trim(); }
+function subjectMatches(subj, testSubject){
+  var t = norm(testSubject);
+  if(!t) return false;
+  if(norm(subj.name)===t) return true;
+  return (subj.keys||[]).some(function(k){ return t.indexOf(norm(k))!==-1; });
+}
+function isLevelsTest(t){ return !!(t && (t.format==='levels' || (Array.isArray(t.levels) && t.levels.length))); }
+function testChip(t){
+  return { db:true, status:'ready', label:t.title||'Тест',
+    href:'test.html?id='+encodeURIComponent(t.id),
+    levels:isLevelsTest(t), grade:t.grade };
+}
+
+/* ── розкласти тести з бази по предметах (мутуємо CURRICULUM.items) ── */
+function distribute(tests){
+  var index = []; // {gradeNum, subj}
+  CURRICULUM.forEach(function(tier){
+    (tier.grades||[]).forEach(function(g){
+      (g.subjects||[]).forEach(function(s){ s.items = []; index.push({gradeNum:g.gradeNum, subj:s}); });
+    });
+  });
+  var leftovers = [];
+  (tests||[]).forEach(function(t){
+    if(!t || !t.id) return;
+    var placed = false;
+    for(var i=0;i<index.length;i++){
+      var e = index[i];
+      if(Number(t.grade)===Number(e.gradeNum) && subjectMatches(e.subj, t.subject)){
+        e.subj.items.push(testChip(t)); placed = true; break;
+      }
+    }
+    if(!placed) leftovers.push(t);
+  });
+  // катч-ол: усе несопоставлене → «Інші тести» в 1 класі (нічого не губимо)
+  if(leftovers.length){
+    var g1 = null;
+    CURRICULUM.forEach(function(tier){ (tier.grades||[]).forEach(function(g){ if(g.gradeNum===1) g1 = g; }); });
+    if(g1){
+      g1.subjects.push({ id:'other', icon:'📦', name:'Інші тести', accent:'#8a8fb0',
+        stat:'—', keys:[], items: leftovers.map(function(t){
+          var c = testChip(t);
+          if(Number(t.grade) && Number(t.grade)!==1) c.label = '['+t.grade+' кл] ' + c.label;
+          return c;
+        }) });
+    }
+  }
+}
+
+/* ── рендер дорожньої карти ── */
+function render(){
+  document.getElementById('root').innerHTML =
+    CURRICULUM.map(function(t){ return tierHtml(t, t.id==='junior'); }).join('');
+}
+
+/* первинний стан — щоб не блимала порожня сторінка */
 document.getElementById('root').innerHTML =
-  CURRICULUM.map(function(t){ return tierHtml(t, t.id==='junior'); }).join('');
-</script>
+  '<p style="text-align:center;color:#c6d3ea;font-weight:600;padding:26px 10px">Завантаження тестів…</p>';
+
+/* дочекатись SK → підтягнути активні тести з бази → розкласти → відрендерити */
+(function loadFromDB(){
+  var tries = 0;
+  (function tick(){
+    if(window.SK && SK.ready){
+      SK.ready.then(function(){
+        SK.listActiveTests().then(function(list){
+          distribute(list || []);
+          render();
+        }).catch(function(){
+          // напр. гість без доступу до бази — показуємо кістяк (порожні предмети)
+          distribute([]);
+          render();
+        });
+      });
+      return;
+    }
+    if(tries++ < 100) setTimeout(tick, 50);
+    else { distribute([]); render(); }  // SK так і не з'явився — показуємо кістяк
+  })();
+})();</script>
 
 <!-- смужка характеристик активного Героя (читання з Firebase) -->
 <script type="module" src="firebase-config.js"></script>
