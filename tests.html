@@ -101,6 +101,13 @@
   .chip-xp{font-size:.72rem;font-weight:800;color:var(--gold);
     background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.18);
     padding:2px 8px;border-radius:999px;white-space:nowrap}
+  /* бейдж пройдених рівнів поруч із тестом, напр. «🧩 3/10 рівнів» */
+  .chip-lvprog{display:inline-flex;align-items:center;gap:6px;font-size:.74rem;font-weight:800;
+    color:#eaf1ff;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);
+    padding:7px 12px;border-radius:11px;white-space:nowrap}
+  .chip-lvprog b{color:var(--gold)}
+  .chip-lvprog.done{border-color:rgba(120,220,150,.5);color:#bff0cd;background:rgba(120,220,150,.1)}
+  .chip-lvprog.done b{color:#9be6b0}
   .chip.plan{background:rgba(255,255,255,.05);color:#aeb6d6;border:1px solid rgba(255,255,255,.14);cursor:default}
   .chip .num{opacity:.65;font-weight:800}
   .chip .dot{color:var(--accent,#8fa2e6);font-weight:900}
@@ -210,7 +217,13 @@ function chip(it, accent){
       ? ' <span class="chip-xp">🧩 рівні</span>'
       : (it.xpKey ? ' <span class="chip-xp" data-xpkey="'+it.xpKey+'">0 XP</span>' : '');
     var tgt = it.db ? '' : ' target="_blank" rel="noopener"';
-    return '<a class="chip ready" href="'+it.href+'"'+tgt+' style="--accent:'+accent+'">▶ '+esc(it.label)+badge+'</a>';
+    var html = '<a class="chip ready" href="'+it.href+'"'+tgt+' style="--accent:'+accent+'">▶ '+esc(it.label)+badge+'</a>';
+    // окремий бейдж прогресу рівнів поруч із тестом (для тестів формату «рівні»)
+    if(it.levels && it.testId){
+      var total = it.levelCount||0;
+      html += '<span class="chip-lvprog" data-lvkey="sk_lvtest_'+it.testId+'_done" data-lvtotal="'+total+'">🧩 <b>0</b>/'+total+' рівнів</span>';
+    }
+    return html;
   }
   return '<span class="chip plan" style="--accent:'+accent+'"><span class="dot">•</span> '+esc(it.label)+'</span>';
 }
@@ -237,7 +250,6 @@ function subjectHtml(s){
     + '<summary><span class="subj-ic">'+s.icon+'</span>'
     + '<span class="subj-tt"><span class="subj-name">'+s.name+'</span>'
     + '<span class="subj-stat">Прокачує: <b>'+s.stat+'</b></span></span>'
-    + (s.id==='math' ? '<span class="subj-prog" id="mathProg" hidden></span>' : '')
     + '<span class="subj-arrow">▾</span></summary>'
     + '<div class="subj-body">'+body+'</div></details>';
 }
@@ -270,9 +282,12 @@ function subjectMatches(subj, testSubject){
 }
 function isLevelsTest(t){ return !!(t && (t.format==='levels' || (Array.isArray(t.levels) && t.levels.length))); }
 function testChip(t){
+  var lv = isLevelsTest(t);
   return { db:true, status:'ready', label:t.title||'Тест',
     href:'test.html?id='+encodeURIComponent(t.id),
-    levels:isLevelsTest(t), grade:t.grade };
+    levels:lv, testId:t.id,
+    levelCount: lv ? (Array.isArray(t.levels)?t.levels.length:0) : 0,
+    grade:t.grade };
 }
 
 /* ── розкласти тести з бази по предметах (мутуємо CURRICULUM.items) ── */
@@ -310,10 +325,31 @@ function distribute(tests){
   }
 }
 
+/* ── підрахунок пройдених рівнів із збереженого стану ── */
+function countDoneLevels(v){
+  try{ var o=(typeof v==='string')?JSON.parse(v):v;
+    if(Array.isArray(o)) return o.length;
+    return (o && typeof o==='object') ? Object.keys(o).length : 0;
+  }catch(e){ return 0; }
+}
+/* заповнити бейджі «X/N рівнів» зі стану на цьому пристрої (localStorage) */
+function fillLevelProgress(){
+  document.querySelectorAll('.chip-lvprog[data-lvkey]').forEach(function(el){
+    var key   = el.getAttribute('data-lvkey');
+    var total = parseInt(el.getAttribute('data-lvtotal')||'0',10)||0;
+    var done  = 0;
+    try{ var ls=localStorage.getItem(key); if(ls) done=countDoneLevels(ls); }catch(e){}
+    if(total && done>total) done=total;
+    el.innerHTML = '🧩 <b>'+done+'</b>/'+total+' рівнів';
+    el.classList.toggle('done', !!(total && done>=total));
+  });
+}
+
 /* ── рендер дорожньої карти ── */
 function render(){
   document.getElementById('root').innerHTML =
     CURRICULUM.map(function(t){ return tierHtml(t, t.id==='junior'); }).join('');
+  fillLevelProgress();
 }
 
 /* первинний стан — щоб не блимала порожня сторінка */
@@ -378,7 +414,6 @@ document.getElementById('root').innerHTML =
               ['sk_add10_levels_v1','sk_sub10_levels_v1'].forEach(function(k){
                 if(prog[k]!=null) mathLevels += countSet(prog[k]);
               });
-              var mathXP = sumXP(function(kl){ return /(add|sub|mult|math|cifr|num)/.test(kl); });
               // усі предмети → загальний ХР (ті самі підрядки, що в sk-progress.js)
               var QP=['palace','rak','piven','druzhba','math','add','sub','mult','num','cifr',
                       'capital','geo','svit','world','yads','dovkil','eng','abc',
@@ -413,12 +448,18 @@ document.getElementById('root').innerHTML =
               }).join('');
               strip.classList.add('show');
 
-              /* ── бейдж «Математика»: лише загальний ХР (без рівня) ── */
-              var mp = document.getElementById('mathProg');
-              if(mp){
-                mp.innerHTML = '🎯 <span class="xp">'+mathXP+' XP</span>';
-                mp.hidden = false;
-              }
+              /* ── бейджі «X/N рівнів»: беремо максимум із локальним станом (Firebase може мати більше) ── */
+              document.querySelectorAll('.chip-lvprog[data-lvkey]').forEach(function(el){
+                var key   = el.getAttribute('data-lvkey');
+                var total = parseInt(el.getAttribute('data-lvtotal')||'0',10)||0;
+                var b     = el.querySelector('b');
+                var cur   = b ? (parseInt(b.textContent,10)||0) : 0;
+                var fromProg = (prog[key]!=null) ? countSet(prog[key]) : 0;
+                var done = Math.max(cur, fromProg);
+                if(total && done>total) done=total;
+                el.innerHTML = '🧩 <b>'+done+'</b>/'+total+' рівнів';
+                el.classList.toggle('done', !!(total && done>=total));
+              });
 
               /* ── ХР біля кожної теми (з progress відповідного тесту) ── */
               document.querySelectorAll('.chip-xp[data-xpkey]').forEach(function(el){
