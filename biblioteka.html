@@ -100,6 +100,25 @@
   .empty .big{font-size:2.6rem;margin-bottom:8px}
   .empty p{font-weight:700;margin:0;color:#f0e6cd}
 
+  /* ── полиця «Книги для читання» (читаються в застосунку) ── */
+  .read-intro{color:#e8dcc0;font-weight:600;font-size:.92rem;line-height:1.5;margin:0 4px 14px}
+  .read-shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+  .read-card{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;
+    background:linear-gradient(180deg,var(--paper),var(--paper-2));border:2px solid var(--gold-d);
+    border-radius:16px;padding:16px 12px 14px;text-decoration:none;color:var(--ink-warm);
+    box-shadow:0 8px 20px rgba(0,0,0,.3);transition:transform .15s,box-shadow .15s;position:relative}
+  .read-card:hover{transform:translateY(-3px);box-shadow:0 12px 26px rgba(0,0,0,.42)}
+  .read-cover{font-size:2.6rem;line-height:1}
+  .read-title{font-family:'Playfair Display',serif;font-weight:800;font-size:1.02rem;line-height:1.15;word-break:break-word}
+  .read-meta{font-size:.74rem;color:var(--ink-soft);font-weight:700}
+  .read-cta{margin-top:3px;font-weight:900;font-size:.78rem;color:var(--wine);background:rgba(138,47,59,.1);
+    border:1px solid rgba(138,47,59,.3);border-radius:999px;padding:4px 12px}
+  .read-card.done .read-cta{color:#2e7d32;background:rgba(76,175,80,.14);border-color:rgba(76,175,80,.45)}
+  .read-stamp{position:absolute;top:8px;right:8px;font-size:.7rem;font-weight:900;color:#2e7d32;
+    background:rgba(76,175,80,.16);border:1.5px solid rgba(76,175,80,.5);border-radius:8px;padding:2px 7px;transform:rotate(6deg)}
+  .read-loading,.read-empty{grid-column:1/-1;text-align:center;color:#e8dcc0;
+    background:rgba(251,239,208,.08);border:2px dashed rgba(242,199,92,.4);border-radius:16px;padding:26px 18px;font-weight:700}
+
   @media(max-width:560px){
     .nav-btn span{display:none}.nav-btn{padding:9px 12px}
     .row2{flex-direction:column;gap:0}
@@ -135,7 +154,16 @@
   </div>
 
   <main class="wrap">
+    <!-- КНИГИ ДЛЯ ЧИТАННЯ (з бази, читаються в застосунку) -->
+    <h2 class="shelf-title" style="margin-top:4px">📖 Книги для читання</h2>
+    <p class="read-intro">Обери книгу, прочитай сторінки та дай відповіді на прості питання — Герой отримає ❤️ здоров’я і монети.</p>
+    <div class="read-shelf" id="readShelf">
+      <div class="read-loading">Завантажуємо книги…</div>
+    </div>
+
     <!-- ФОРМА -->
+    <h2 class="shelf-title" style="margin-top:34px">✍️ Мій щоденник читання</h2>
+    <p class="read-intro">А сюди можна вручну записувати книги, які Герой прочитав удома чи в бібліотеці.</p>
     <section class="add-panel">
       <h2 class="add-title">✍️ Новий запис</h2>
       <div class="field">
@@ -165,6 +193,52 @@
     <h2 class="shelf-title">🏰 Моя полиця книг</h2>
     <div class="shelf" id="shelf"></div>
   </main>
+
+<!-- ── полиця «Книги для читання»: тягне активні книги з бази + позначки «прочитано» ── -->
+<script>
+(function(){
+  'use strict';
+  function esc(s){
+    return String(s==null?'':s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function setHost(html){ var h=document.getElementById('readShelf'); if(h) h.innerHTML=html; }
+  function render(books, lib){
+    if(!books || !books.length){
+      setHost('<div class="read-empty">📚 Поки що немає книг для читання. Загляни трохи пізніше!</div>');
+      return;
+    }
+    var read={};
+    (lib||[]).forEach(function(r){ if(r && r.bookId) read[r.bookId]=r; });
+    setHost(books.map(function(b){
+      var np=(b.pages||[]).length;
+      var done=!!read[b.id];
+      return '<a class="read-card'+(done?' done':'')+'" href="book.html?id='+encodeURIComponent(b.id)+'">'
+        +(done?'<span class="read-stamp">✅ прочитано</span>':'')
+        +'<span class="read-cover">'+esc(b.cover||'📕')+'</span>'
+        +'<span class="read-title">'+esc(b.title||'Книга')+'</span>'
+        +'<span class="read-meta">'+esc(b.subject||'Читання')+' · '+np+' стор.</span>'
+        +'<span class="read-cta">'+(done?'Читати ще ↻':'Читати →')+'</span>'
+        +'</a>';
+    }).join(''));
+  }
+  function boot(){
+    if(!(window.SK && SK.listActiveBooks)){ setHost('<div class="read-empty">Не вдалося підключитися до бази.</div>'); return; }
+    SK.listActiveBooks().then(function(books){
+      if(SK.isHeroSession && SK.isHeroSession() && SK.getLibrary){
+        SK.getLibrary().then(function(lib){ render(books, lib); }).catch(function(){ render(books, []); });
+      } else {
+        render(books, []);
+      }
+    }).catch(function(){ setHost('<div class="read-empty">Не вдалося завантажити книги.</div>'); });
+  }
+  var tries=0;
+  (function whenSK(){
+    if(window.SK && SK.ready){ SK.ready.then(boot).catch(boot); return; }
+    if(tries++<80) setTimeout(whenSK,50); else boot();
+  })();
+})();
+</script>
 
 <script>
 (function(){
