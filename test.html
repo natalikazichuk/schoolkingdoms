@@ -320,16 +320,28 @@ function answer(i){
   var btns=root.querySelectorAll('.opt');
   Array.prototype.forEach.call(btns,function(b){ b.disabled=true; });
   var fb=document.getElementById('fb');
-  if(i===correct){
+  var right=(i===correct);
+  if(right){
     ST.correct++;
     if(btns[i]) btns[i].classList.add('correct');
     if(fb){ fb.textContent='✅ Правильно!'; fb.style.color='#69DB7C'; }
   } else {
     if(btns[i]) btns[i].classList.add('wrong');
     if(correct>=0 && btns[correct]) btns[correct].classList.add('correct');
-    if(fb){ fb.textContent='❌ Правильна відповідь підсвічена'; fb.style.color='#ffb3b4'; }
+    // У режимі рівнів помилка повертає на початок рівня і обнуляє XP рівня.
+    if(IS_LEVELS){
+      if(fb){ fb.textContent='❌ Помилка! Рівень починається спочатку'; fb.style.color='#ffb3b4'; }
+    } else {
+      if(fb){ fb.textContent='❌ Правильна відповідь підсвічена'; fb.style.color='#ffb3b4'; }
+    }
   }
   setTimeout(function(){
+    // Неправильна відповідь у рівні → назад на 1-ше питання, лічильник/XP рівня = 0
+    if(!right && IS_LEVELS){
+      ST.idx=0; ST.correct=0; ST.answered=false;
+      renderQ();
+      return;
+    }
     ST.idx++;
     if(ST.idx>=QS.length){ IS_LEVELS ? finishLevel() : finish(); }
     else renderQ();
