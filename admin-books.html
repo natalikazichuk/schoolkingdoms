@@ -66,6 +66,10 @@ h1{font-family:'Fredoka One',cursive;font-size:1.5rem;color:var(--gold);margin:0
 .add-btn{background:rgba(255,213,74,.14);border:1px solid rgba(255,213,74,.4);color:var(--gold);border-radius:10px;padding:8px 12px;font-weight:800;font-size:.82rem;cursor:pointer}
 .add-btn:hover{background:rgba(255,213,74,.24)}
 
+.img-prev{margin-top:8px}
+.img-prev-el{max-height:130px;max-width:100%;border-radius:10px;display:block;border:1px solid rgba(255,255,255,.18)}
+.img-prev-err{display:none;color:#ffb3b4;font-weight:800;font-size:.82rem}
+.img-prev-emoji{font-size:2.6rem;line-height:1;display:block}
 .savebar{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
 .btn{border:none;border-radius:13px;padding:12px 20px;font-family:'Fredoka One',cursive;font-size:1rem;cursor:pointer;color:#1a1030;background:linear-gradient(180deg,#ffe07a,var(--gold));box-shadow:0 4px 0 rgba(180,140,0,.5)}
 .btn:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(180,140,0,.5)}
@@ -169,6 +173,17 @@ function qCard(pi,qi,q){
     +(q.options.length<4?'<div class="addrow"><button class="add-btn" data-act="addopt" data-p="'+pi+'" data-q="'+qi+'">+ варіант</button></div>':'')
     +'</div>';
 }
+function imgPrevHtml(val){
+  val=String(val==null?'':val).trim();
+  if(!val) return '';
+  if(/^https?:\/\//i.test(val)){
+    return '<img class="img-prev-el" src="'+esc(val)+'" alt="" '
+      +'onload="this.nextElementSibling.style.display=\'none\'" '
+      +'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'">'
+      +'<span class="img-prev-err">⚠️ Картинку не знайдено за цим посиланням</span>';
+  }
+  return '<span class="img-prev-emoji">'+esc(val)+'</span>';
+}
 function pageCard(pi,p){
   var qs=p.questions.map(function(q,qi){ return qCard(pi,qi,q); }).join('');
   return '<div class="page-card">'
@@ -176,8 +191,9 @@ function pageCard(pi,p){
       +(M.pages.length>1?'<button class="mini danger" data-act="delpage" data-p="'+pi+'">видалити сторінку</button>':'')+'</div>'
     +'<div class="field"><label>Текст сторінки (1–3 короткі речення)</label>'
       +'<textarea class="pg-text" data-p="'+pi+'" placeholder="Жив собі котик Мурчик. Він дуже любив молоко.">'+esc(p.text)+'</textarea></div>'
-    +'<div class="field"><label>Картинка (емодзі 🐱 або посилання, необов\u2019язково)</label>'
-      +'<input type="text" class="pg-image" data-p="'+pi+'" value="'+esc(p.image)+'" placeholder="🐱"></div>'
+    +'<div class="field" style="margin-bottom:8px"><label>Картинка (емодзі 🐱 або посилання, необов\u2019язково)</label>'
+      +'<input type="text" class="pg-image" data-p="'+pi+'" value="'+esc(p.image)+'" placeholder="🐱">'
+      +'<div class="img-prev" id="imgprev-'+pi+'">'+imgPrevHtml(p.image)+'</div></div>'
     +qs
     +'<div class="addrow" style="margin-top:10px"><button class="add-btn" data-act="addq" data-p="'+pi+'">+ питання до сторінки</button></div>'
     +'</div>';
@@ -290,6 +306,14 @@ function setMsg(text, ok){
 }
 
 /* ---------- дії ---------- */
+function editorInput(e){
+  var t=e.target;
+  if(t && t.classList && t.classList.contains('pg-image')){
+    var pi=t.getAttribute('data-p');
+    var box=document.getElementById('imgprev-'+pi);
+    if(box) box.innerHTML=imgPrevHtml(t.value);
+  }
+}
 function editorClick(e){
   var b=e.target.closest('[data-act]'); if(!b) return;
   var act=b.getAttribute('data-act');
@@ -411,6 +435,7 @@ function renderAdminUI(){
   renderList();
 
   el('#editor').addEventListener('click', editorClick);
+  el('#editor').addEventListener('input', editorInput);
   el('#bookList').addEventListener('click', listClick);
   el('#btnExport').addEventListener('click', exportJSON);
   el('#btnImport').addEventListener('click', importJSON);
