@@ -404,6 +404,136 @@ const SK = {
     });
   },
 
+  /* ===== КНИГИ / БІБЛІОТЕКА (читанки з міні-питаннями) =====
+     Схема документа books/{id}:
+       { title, cover (emoji), subject, grade, readLevel,
+         pages:[ { text, image, questions:[{q,options,correct}] } ],
+         xpMode:'fixed'|'perCorrect', xpValue,
+         statMode:'fixed'|'perCorrect', statValue, stat:'health',
+         coins, active }
+     Дзеркалить логіку тестів: читати можуть авторизовані, писати — admin. */
+
+  // Усі книги (для конструктора admin-books.html). -> [{ id, ...book }]
+  async listBooks() {
+    const snap = await getDocs(collection(db, 'books'));
+    const out = [];
+    snap.forEach(d => out.push(Object.assign({ id: d.id }, d.data())));
+    out.sort((a, b) =>
+      String(a.subject || '').localeCompare(String(b.subject || ''), 'uk') ||
+      String(a.title || '').localeCompare(String(b.title || ''), 'uk'));
+    return out;
+  },
+
+  // Лише активні книги (для biblioteka.html). grade — необов'язковий фільтр.
+  async listActiveBooks(grade) {
+    const snap = await getDocs(collection(db, 'books'));
+    const out = [];
+    snap.forEach(d => {
+      const b = d.data();
+      if (b.active === false) return;
+      if (grade != null && Number(b.grade) !== Number(grade)) return;
+      out.push(Object.assign({ id: d.id }, b));
+    });
+    out.sort((a, b) =>
+      String(a.title || '').localeCompare(String(b.title || ''), 'uk'));
+    return out;
+  },
+
+  // Одна книга за id (для плеєра book.html). -> { id, ...book } | null
+  async getBook(id) {
+    if (!id) return null;
+    const s = await getDoc(doc(db, 'books', id));
+    return s.exists() ? Object.assign({ id: s.id }, s.data()) : null;
+  },
+
+  // Створити (без id) або оновити (з id) книгу. -> id
+  async saveBook(book) {
+    if (!book || typeof book !== 'object') throw new Error('empty-book');
+    const { id, ...data } = book;
+    data.updatedAt = serverTimestamp();
+    if (id) {
+      await setDoc(doc(db, 'books', id), data, { merge: true });
+      return id;
+    }
+    data.createdAt = serverTimestamp();
+    const ref = await addDoc(collection(db, 'books'), data);
+    return ref.id;
+  },
+
+  async deleteBook(id) {
+    if (!id) return;
+    await deleteDoc(doc(db, 'books', id));
+  },
+
+  async setBookActive(id, active) {
+    if (!id) return;
+    await updateDoc(doc(db, 'books', id), {
+      active: !!active,
+      updatedAt: serverTimestamp()
+    });
+  },
+
+  /* ===== БІБЛІОТЕКА АКТИВНОГО ГЕРОЯ (heroes/{id}.library) =====
+     library = [ { bookId, title, correct, total, readAt, times } ] */
+
+  // Прочитані книги Героя. -> масив записів (порожній, якщо ще нічого).
+  async getLibrary() {
+    const heroId = SK._heroUid();
+    if (!heroId) return [];
+    const s = await getDoc(doc(db, 'heroes', heroId));
+    const data = s.exists() ? s.data() : {};
+    return Array.isArray(data.library) ? data.library : [];
+  },
+
+  // Відмітити книгу прочитаною + (опційно) додати монети — АТОМАРНО.
+  // Повторне читання не дублює запис, а нарощує times і зберігає кращий результат.
+  // entry = { bookId, title, correct, total, coins }
+  async recordBookRead(entry) {
+    const heroId = SK._heroUid();
+    if (!heroId || !entry || !entry.bookId) return false;
+    const coins = Number(entry.coins) || 0;
+    const ref = doc(db, 'heroes', heroId);
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref);
+      const data = snap.exists() ? snap.data() : {};
+      const lib = Array.isArray(data.library) ? data.library.slice() : [];
+      const idx = lib.findIndex(x => x && x.bookId === entry.bookId);
+      const rec = {
+        bookId: entry.bookId,
+        title: entry.title || '',
+        correct: Number(entry.correct) || 0,
+        total: Number(entry.total) || 0,
+        readAt: new Date().toISOString(),
+        times: 1
+      };
+      if (idx >= 0) {
+        rec.times = (Number(lib[idx].times) || 1) + 1;
+        rec.correct = Math.max(rec.correct, Number(lib[idx].correct) || 0);
+        lib[idx] = rec;
+      } else {
+        lib.push(rec);
+      }
+      const patch = { library: lib };
+      if (coins) patch.coins = (Number(data.coins) || 0) + coins;
+      tx.set(ref, patch, { merge: true });
+    });
+    return true;
+  },
+
+  // Додати монети Герою атомарно (для нагород, окремо від saveHeroStats).
+  async addCoins(n) {
+    const heroId = SK._heroUid();
+    n = Number(n) || 0;
+    if (!heroId || !n) return false;
+    const ref = doc(db, 'heroes', heroId);
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref);
+      const cur = snap.exists() ? (Number(snap.data().coins) || 0) : 0;
+      tx.set(ref, { coins: cur + n }, { merge: true });
+    });
+    return true;
+  },
+
   onUser(cb) { if (typeof cb === 'function') SK._userCbs.push(cb); }
 };
 
