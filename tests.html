@@ -108,6 +108,14 @@
   .chip-lvprog b{color:var(--gold)}
   .chip-lvprog.done{border-color:rgba(120,220,150,.5);color:#bff0cd;background:rgba(120,220,150,.1)}
   .chip-lvprog.done b{color:#9be6b0}
+  /* тест разом із бейджами тримаємо однією групою */
+  .chip-group{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+  /* заблокований тест: не клікається, приглушений */
+  .chip.ready.locked{pointer-events:none;opacity:.5;filter:grayscale(.45);box-shadow:none;cursor:not-allowed}
+  /* підказка-замок поруч із закритим тестом */
+  .chip-lock{display:inline-flex;align-items:center;gap:6px;font-size:.72rem;font-weight:800;
+    color:#f2d68a;background:rgba(242,199,92,.12);border:1px solid rgba(242,199,92,.4);
+    padding:7px 12px;border-radius:11px;white-space:nowrap}
   .chip.plan{background:rgba(255,255,255,.05);color:#aeb6d6;border:1px solid rgba(255,255,255,.14);cursor:default}
   .chip .num{opacity:.65;font-weight:800}
   .chip .dot{color:var(--accent,#8fa2e6);font-weight:900}
@@ -217,13 +225,20 @@ function chip(it, accent){
       ? ' <span class="chip-xp">🧩 рівні</span>'
       : (it.xpKey ? ' <span class="chip-xp" data-xpkey="'+it.xpKey+'">0 XP</span>' : '');
     var tgt = it.db ? '' : ' target="_blank" rel="noopener"';
-    var html = '<a class="chip ready" href="'+it.href+'"'+tgt+' style="--accent:'+accent+'">▶ '+esc(it.label)+badge+'</a>';
+    // замок: чіп починає життя заблокованим, applyLocks() відкриє його за умовою
+    var lockAttr = it.lockKey ? ' data-lock-key="'+it.lockKey+'" data-lock-need="'+it.lockNeed+'"' : '';
+    var lockCls  = it.lockKey ? ' locked' : '';
+    var parts = '<a class="chip ready'+lockCls+'" href="'+it.href+'"'+tgt+lockAttr+' style="--accent:'+accent+'">▶ '+esc(it.label)+badge+'</a>';
+    if(it.lockKey){
+      parts += '<span class="chip-lock">🔒 Відкриється після '+it.lockNeed+'-го рівня «'+esc(it.lockLabel||'')+'»</span>';
+    }
     // окремий бейдж прогресу рівнів поруч із тестом (для тестів формату «рівні»)
     if(it.levels && it.testId){
       var total = it.levelCount||0;
-      html += '<span class="chip-lvprog" data-lvkey="sk_lvtest_'+it.testId+'_done" data-lvtotal="'+total+'">🧩 <b>0</b>/'+total+' рівнів</span>';
+      var lvStyle = it.lockKey ? ' style="display:none"' : '';
+      parts += '<span class="chip-lvprog" data-lvkey="sk_lvtest_'+it.testId+'_done" data-lvtotal="'+total+'"'+lvStyle+'>🧩 <b>0</b>/'+total+' рівнів</span>';
     }
-    return html;
+    return '<span class="chip-group">'+parts+'</span>';
   }
   return '<span class="chip plan" style="--accent:'+accent+'"><span class="dot">•</span> '+esc(it.label)+'</span>';
 }
@@ -281,13 +296,25 @@ function subjectMatches(subj, testSubject){
   return (subj.keys||[]).some(function(k){ return t.indexOf(norm(k))!==-1; });
 }
 function isLevelsTest(t){ return !!(t && (t.format==='levels' || (Array.isArray(t.levels) && t.levels.length))); }
-function testChip(t){
+function testChip(t, byTitle){
   var lv = isLevelsTest(t);
-  return { db:true, status:'ready', label:t.title||'Тест',
+  var c = { db:true, status:'ready', label:t.title||'Тест',
     href:'test.html?id='+encodeURIComponent(t.id),
     levels:lv, testId:t.id,
     levelCount: lv ? (Array.isArray(t.levels)?t.levels.length:0) : 0,
     grade:t.grade };
+  // замок: відкривається лише коли в тесті-передумові пройдено N рівнів.
+  // Якщо передумову не знайдено серед активних тестів — не блокуємо (fail-open).
+  if(t.lockUntil && t.lockUntil.title && byTitle){
+    var pre  = byTitle[norm(t.lockUntil.title)];
+    var need = parseInt(t.lockUntil.levels,10)||0;
+    if(pre && pre.id && need>0){
+      c.lockKey   = 'sk_lvtest_'+pre.id+'_done';
+      c.lockNeed  = need;
+      c.lockLabel = pre.title;
+    }
+  }
+  return c;
 }
 
 /* ── розкласти тести з бази по предметах (мутуємо CURRICULUM.items) ── */
@@ -298,6 +325,9 @@ function distribute(tests){
       (g.subjects||[]).forEach(function(s){ s.items = []; index.push({gradeNum:g.gradeNum, subj:s}); });
     });
   });
+  // мапа назва→тест — для звʼязків-замків (lockUntil)
+  var byTitle = {};
+  (tests||[]).forEach(function(t){ if(t && t.id && t.title) byTitle[norm(t.title)] = t; });
   var leftovers = [];
   (tests||[]).forEach(function(t){
     if(!t || !t.id) return;
@@ -305,7 +335,7 @@ function distribute(tests){
     for(var i=0;i<index.length;i++){
       var e = index[i];
       if(Number(t.grade)===Number(e.gradeNum) && subjectMatches(e.subj, t.subject)){
-        e.subj.items.push(testChip(t)); placed = true; break;
+        e.subj.items.push(testChip(t, byTitle)); placed = true; break;
       }
     }
     if(!placed) leftovers.push(t);
@@ -317,7 +347,7 @@ function distribute(tests){
     if(g1){
       g1.subjects.push({ id:'other', icon:'📦', name:'Інші тести', accent:'#8a8fb0',
         stat:'—', keys:[], items: leftovers.map(function(t){
-          var c = testChip(t);
+          var c = testChip(t, byTitle);
           if(Number(t.grade) && Number(t.grade)!==1) c.label = '['+t.grade+' кл] ' + c.label;
           return c;
         }) });
@@ -344,12 +374,30 @@ function fillLevelProgress(){
     el.classList.toggle('done', !!(total && done>=total));
   });
 }
+/* відкрити/лишити закритими тести-замки. prog (Firebase) — необовʼязковий,
+   беремо максимум із локальним станом пристрою (localStorage) */
+function applyLocks(prog){
+  document.querySelectorAll('.chip-group').forEach(function(g){
+    var a = g.querySelector('.chip.ready[data-lock-key]');
+    if(!a) return;
+    var key  = a.getAttribute('data-lock-key');
+    var need = parseInt(a.getAttribute('data-lock-need')||'0',10)||0;
+    var done = 0;
+    try{ var ls=localStorage.getItem(key); if(ls) done=countDoneLevels(ls); }catch(e){}
+    if(prog && prog[key]!=null){ var p=countDoneLevels(prog[key]); if(p>done) done=p; }
+    var unlocked = need>0 ? (done>=need) : true;
+    a.classList.toggle('locked', !unlocked);
+    var lock = g.querySelector('.chip-lock');   if(lock) lock.style.display = unlocked ? 'none' : '';
+    var lv   = g.querySelector('.chip-lvprog'); if(lv)   lv.style.display   = unlocked ? '' : 'none';
+  });
+}
 
 /* ── рендер дорожньої карти ── */
 function render(){
   document.getElementById('root').innerHTML =
     CURRICULUM.map(function(t){ return tierHtml(t, t.id==='junior'); }).join('');
   fillLevelProgress();
+  applyLocks();
 }
 
 /* первинний стан — щоб не блимала порожня сторінка */
@@ -460,6 +508,9 @@ document.getElementById('root').innerHTML =
                 el.innerHTML = '🧩 <b>'+done+'</b>/'+total+' рівнів';
                 el.classList.toggle('done', !!(total && done>=total));
               });
+
+              /* ── замки: перерахувати з урахуванням прогресу з Firebase ── */
+              if(typeof applyLocks==='function') applyLocks(prog);
 
               /* ── ХР біля кожної теми (з progress відповідного тесту) ── */
               document.querySelectorAll('.chip-xp[data-xpkey]').forEach(function(el){
