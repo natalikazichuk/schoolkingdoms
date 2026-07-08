@@ -56,6 +56,15 @@ body{font-family:'Nunito',sans-serif;background:linear-gradient(160deg,var(--nav
 @keyframes pg{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}
 .feedback{text-align:center;font-weight:800;margin-top:14px;min-height:22px;font-size:.95rem}
 
+/* VISUAL (ілюстрація до питання) */
+.viz{margin:0 0 18px;display:flex;flex-wrap:wrap;justify-content:center;gap:6px;align-items:center}
+.nline .ncell{width:32px;height:32px;border-radius:9px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.95rem;color:#fff}
+.nline .ncell.hi{background:linear-gradient(180deg,#ffe07a,var(--gold));color:#3a2a00;border-color:var(--gold);box-shadow:0 4px 12px rgba(255,213,74,.35)}
+.blocks{gap:12px}
+.bgroup{display:inline-flex;flex-wrap:wrap;gap:6px;max-width:160px;justify-content:center;padding:8px 10px;border-radius:14px;background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.2)}
+.blocks .dot{width:20px;height:20px;border-radius:50%;box-shadow:inset 0 -3px 6px rgba(0,0,0,.25)}
+.bplus{font-family:'Fredoka One',cursive;font-size:1.5rem;color:var(--gold)}
+
 /* LEVEL MENU */
 .lv-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
 .lv-card{background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.12);border-radius:18px;padding:14px 12px;cursor:pointer;transition:.18s;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;position:relative;font-family:inherit;color:#fff}
@@ -241,6 +250,41 @@ function startLevel(i){
   renderQ();
 }
 
+/* ─── ВІЗУАЛ (ілюстрація до питання) ─── */
+function vizNumberLine(v){
+  var from=parseInt(v.from,10); if(isNaN(from)) from=1;
+  var to=parseInt(v.to,10);     if(isNaN(to))   to=10;
+  if(to<from){ var t=from; from=to; to=t; }
+  if(to-from>20) to=from+20;                         // запобіжник
+  var hi=Array.isArray(v.highlight)?v.highlight.map(Number):[];
+  var cells='';
+  for(var n=from;n<=to;n++){
+    cells+='<span class="ncell'+(hi.indexOf(n)>=0?' hi':'')+'">'+n+'</span>';
+  }
+  return '<div class="viz nline">'+cells+'</div>';
+}
+function vizBlocks(v){
+  var palette=['#ffd54a','#7cc4ff','#ff9db0','#9be29b'];
+  function cluster(count,ci){
+    var dots=''; count=Math.max(0,Math.min(40,count|0));
+    for(var i=0;i<count;i++){ dots+='<span class="dot" style="background:'+palette[ci%palette.length]+'"></span>'; }
+    return '<span class="bgroup">'+dots+'</span>';
+  }
+  var groups=(Array.isArray(v.groups)&&v.groups.length)
+    ? v.groups.map(function(x){ x=parseInt(x,10); return isNaN(x)?0:x; })
+    : null;
+  var html;
+  if(groups){ html=groups.map(function(c,i){ return cluster(c,i); }).join('<span class="bplus">+</span>'); }
+  else { var val=parseInt(v.value,10); if(isNaN(val)) val=0; html=cluster(val,0); }
+  return '<div class="viz blocks">'+html+'</div>';
+}
+function renderVisual(v){
+  if(!v || typeof v!=='object') return '';
+  if(v.type==='number-line')   return vizNumberLine(v);
+  if(v.type==='number-blocks') return vizBlocks(v);
+  return '';
+}
+
 function renderQ(){
   var q=QS[ST.idx];
   ST.answered=false;
@@ -259,6 +303,7 @@ function renderQ(){
     +'<div class="prog-track"><span class="prog-fill" style="width:'+pct+'%"></span></div>'
     +subCounter
     +'<div class="q-text">'+esc(q.q||'')+'</div>'
+    +renderVisual(q.visual)
     +'<div class="opts">'+opts+'</div>'
     +'<div class="feedback" id="fb"></div>'
     +'</div>';
