@@ -296,6 +296,22 @@ function subjectMatches(subj, testSubject){
   return (subj.keys||[]).some(function(k){ return t.indexOf(norm(k))!==-1; });
 }
 function isLevelsTest(t){ return !!(t && (t.format==='levels' || (Array.isArray(t.levels) && t.levels.length))); }
+/* Замки-передумови, задані в КОДІ (не залежать від полів у базі — адмінка при
+   імпорті відкидає нестандартні поля). Ключ — назва тесту (як у базі),
+   after — тест-передумова, levels — скільки її рівнів треба пройти. */
+var GATES = {
+  'Віднімання до 10': { after:'Додавання до 10', levels:6 }
+};
+/* правило-замок для тесту: спершу з поля lockUntil (якщо збереглося), інакше з GATES */
+function gateFor(t){
+  if(!t) return null;
+  if(t.lockUntil && t.lockUntil.title && parseInt(t.lockUntil.levels,10)>0)
+    return { title:t.lockUntil.title, levels:parseInt(t.lockUntil.levels,10) };
+  var g = null;
+  for(var k in GATES){ if(GATES.hasOwnProperty(k) && norm(k)===norm(t.title)){ g=GATES[k]; break; } }
+  return g ? { title:g.after, levels:g.levels } : null;
+}
+
 function testChip(t, byTitle){
   var lv = isLevelsTest(t);
   var c = { db:true, status:'ready', label:t.title||'Тест',
@@ -305,9 +321,10 @@ function testChip(t, byTitle){
     grade:t.grade };
   // замок: відкривається лише коли в тесті-передумові пройдено N рівнів.
   // Якщо передумову не знайдено серед активних тестів — не блокуємо (fail-open).
-  if(t.lockUntil && t.lockUntil.title && byTitle){
-    var pre  = byTitle[norm(t.lockUntil.title)];
-    var need = parseInt(t.lockUntil.levels,10)||0;
+  var lock = gateFor(t);
+  if(lock && byTitle){
+    var pre  = byTitle[norm(lock.title)];
+    var need = lock.levels||0;
     if(pre && pre.id && need>0){
       c.lockKey   = 'sk_lvtest_'+pre.id+'_done';
       c.lockNeed  = need;
@@ -329,7 +346,7 @@ function distribute(tests){
   var byTitle = {};
   (tests||[]).forEach(function(t){ if(t && t.id && t.title) byTitle[norm(t.title)] = t; });
   // тести-передумови показуємо раніше за залежні: із замком (lockUntil) — у кінець
-  tests = (tests||[]).slice().sort(function(a,b){ return (a&&a.lockUntil?1:0)-(b&&b.lockUntil?1:0); });
+  tests = (tests||[]).slice().sort(function(a,b){ return (gateFor(a)?1:0)-(gateFor(b)?1:0); });
   var leftovers = [];
   (tests||[]).forEach(function(t){
     if(!t || !t.id) return;

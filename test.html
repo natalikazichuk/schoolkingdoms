@@ -473,10 +473,22 @@ function lockedScreen(need, title){
     +'<p class="muted" style="margin:10px 0 4px">Спочатку пройди <b>'+need+'</b> рівнів тесту «'+esc(title)+'».</p>'
     +'<a class="btn ghost" href="tests.html">← До списку тестів</a></div>';
 }
+/* Замки-передумови у КОДІ (адмінка при імпорті відкидає нестандартні поля) */
+var LK_GATES = {
+  'Віднімання до 10': { after:'Додавання до 10', levels:6 }
+};
+function lkGate(t){
+  if(!t) return null;
+  if(t.lockUntil && t.lockUntil.title && parseInt(t.lockUntil.levels,10)>0)
+    return { title:t.lockUntil.title, levels:parseInt(t.lockUntil.levels,10) };
+  var g=null;
+  for(var k in LK_GATES){ if(LK_GATES.hasOwnProperty(k) && lkNorm(k)===lkNorm(t.title)){ g=LK_GATES[k]; break; } }
+  return g ? { title:g.after, levels:g.levels } : null;
+}
 /* onOk() — якщо доступ дозволено; інакше показуємо екран-замок.
    Передумову не знайдено / помилка запиту → fail-open (не блокуємо). */
 function checkLock(t, onOk){
-  var lu = t && t.lockUntil;
+  var lu = lkGate(t);
   var need = lu ? (parseInt(lu.levels,10)||0) : 0;
   if(!lu || !lu.title || need<=0){ onOk(); return; }
   if(!(SK.listActiveTests)){ onOk(); return; }
