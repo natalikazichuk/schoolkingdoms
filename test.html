@@ -463,6 +463,40 @@ function saveReward(xpGain, statGain){
   });
 }
 
+/* ─── Замок тесту: відкривається лише коли в тесті-передумові пройдено N рівнів ─── */
+function lkNorm(s){ return String(s==null?'':s).toLowerCase().replace(/[’'`]/g,'').replace(/\s+/g,' ').trim(); }
+function lkCount(v){ try{ var o=(typeof v==='string')?JSON.parse(v):v; if(Array.isArray(o))return o.length; return (o&&typeof o==='object')?Object.keys(o).length:0; }catch(e){ return 0; } }
+function lockedScreen(need, title){
+  root.innerHTML='<div class="card center">'
+    +'<div class="result-emoji">🔒</div>'
+    +'<div class="result-title">Тест ще закритий</div>'
+    +'<p class="muted" style="margin:10px 0 4px">Спочатку пройди <b>'+need+'</b> рівнів тесту «'+esc(title)+'».</p>'
+    +'<a class="btn ghost" href="tests.html">← До списку тестів</a></div>';
+}
+/* onOk() — якщо доступ дозволено; інакше показуємо екран-замок.
+   Передумову не знайдено / помилка запиту → fail-open (не блокуємо). */
+function checkLock(t, onOk){
+  var lu = t && t.lockUntil;
+  var need = lu ? (parseInt(lu.levels,10)||0) : 0;
+  if(!lu || !lu.title || need<=0){ onOk(); return; }
+  if(!(SK.listActiveTests)){ onOk(); return; }
+  SK.listActiveTests().then(function(list){
+    var pre=null, want=lkNorm(lu.title);
+    (list||[]).forEach(function(x){ if(x && x.id && x.title && lkNorm(x.title)===want) pre=x; });
+    if(!pre){ onOk(); return; }                 // передумову не знайдено → fail-open
+    var key='sk_lvtest_'+pre.id+'_done';
+    var done=0;
+    try{ var ls=localStorage.getItem(key); if(ls) done=lkCount(ls); }catch(e){}
+    function decide(){ if(done>=need) onOk(); else lockedScreen(need, pre.title); }
+    if(HERO_SESSION && SK.getHero){
+      SK.getHero().then(function(h){
+        try{ var p=(h&&h.progress)?h.progress[key]:null; if(p!=null){ var n=lkCount(p); if(n>done) done=n; } }catch(e){}
+        decide();
+      }).catch(decide);
+    } else decide();
+  }).catch(function(){ onOk(); });
+}
+
 /* старт: дочекатись SK, завантажити тест */
 (function whenSK(){
   var tries=0;
@@ -482,9 +516,11 @@ function saveReward(xpGain, statGain){
           } else {
             if(!Array.isArray(t.questions) || !t.questions.length){ errorScreen('У тесті поки немає питань.'); return; }
           }
-          TEST=t;
-          IS_LEVELS=isLevels(t);
-          intro();
+          checkLock(t, function(){
+            TEST=t;
+            IS_LEVELS=isLevels(t);
+            intro();
+          });
         }).catch(function(){ errorScreen('Помилка завантаження тесту.'); });
       });
       return;
