@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Читанка — Школа Королівство</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#0d1b3e;--indigo:#1a2a5e;--violet:#2d1b4e;--brand-red:#E5383B;--gold:#ffd54a;--green:#4CAF50;--red:#E5383B}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
+body{font-family:'Nunito',sans-serif;background:linear-gradient(160deg,var(--navy) 0%,var(--indigo) 50%,var(--violet) 100%);min-height:100vh;color:#fff;overflow-x:hidden;touch-action:manipulation}
+.stars-bg{position:fixed;inset:0;pointer-events:none;z-index:0}
+.star-dot{position:absolute;background:#fff;border-radius:50%;animation:tw var(--dur,3s) infinite ease-in-out}
+@keyframes tw{0%,100%{opacity:.2;transform:scale(1)}50%{opacity:1;transform:scale(1.5)}}
+#app{position:relative;z-index:1;max-width:560px;margin:0 auto;padding:14px 14px 28px;min-height:100vh;display:flex;flex-direction:column}
+
+/* TOPBAR */
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:14px}
+.brand{font-family:'Fredoka One',cursive;font-size:1.05rem;color:var(--gold);text-decoration:none}
+.back-btn{background:rgba(255,255,255,.1);border:none;color:#fff;font-family:'Nunito',sans-serif;font-weight:800;padding:8px 14px;border-radius:12px;font-size:.85rem;cursor:pointer;transition:.15s;text-decoration:none;display:inline-block}
+.back-btn:active{transform:scale(.95)}
+
+/* CARD */
+.card{background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.12);border-radius:22px;padding:20px 18px;margin-top:auto;margin-bottom:auto}
+.center{text-align:center}
+.muted{color:rgba(255,255,255,.55);font-size:.9rem}
+
+/* INTRO */
+.b-cover{font-size:3.4rem;text-align:center;line-height:1;margin-bottom:6px;filter:drop-shadow(0 6px 16px rgba(0,0,0,.4))}
+.b-title{font-family:'Fredoka One',cursive;font-size:1.7rem;color:var(--gold);text-shadow:0 0 26px rgba(255,213,74,.45);text-align:center;line-height:1.15}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:14px 0}
+.chip{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:6px 12px;font-weight:800;font-size:.82rem}
+.chip.gold{color:var(--gold);border-color:rgba(255,213,74,.4);background:rgba(255,213,74,.12)}
+.reward-line{text-align:center;font-weight:700;color:#cfe0ff;font-size:.95rem;margin:6px 0 4px}
+.warn{background:rgba(229,56,59,.14);border:1px solid rgba(229,56,59,.4);color:#ffc9ca;border-radius:14px;padding:10px 12px;font-size:.85rem;font-weight:700;text-align:center;margin-top:12px}
+.warn a{color:#fff;font-weight:900}
+
+/* BUTTONS */
+.btn{display:block;width:100%;border:none;border-radius:16px;padding:15px;font-family:'Fredoka One',cursive;font-size:1.05rem;cursor:pointer;transition:.15s;margin-top:14px;color:#1a1030;background:linear-gradient(180deg,#ffe07a,var(--gold));box-shadow:0 6px 0 rgba(180,140,0,.5)}
+.btn:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(180,140,0,.5)}
+.btn:disabled{opacity:.5;cursor:default;filter:grayscale(.4)}
+.btn.ghost{background:rgba(255,255,255,.1);color:#fff;box-shadow:none;font-family:'Nunito',sans-serif;font-weight:800;font-size:.95rem}
+.btn.ghost:active{transform:scale(.97)}
+
+/* READING */
+.page-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-weight:800;font-size:.85rem;color:rgba(255,255,255,.65)}
+.prog-track{height:8px;border-radius:999px;background:rgba(255,255,255,.12);overflow:hidden;margin-bottom:16px}
+.prog-fill{height:100%;background:linear-gradient(90deg,#ffe07a,var(--gold));border-radius:999px;transition:width .3s}
+.page-img{font-size:3rem;text-align:center;line-height:1;margin:2px 0 12px}
+.page-img img{max-width:100%;max-height:190px;border-radius:16px;display:block;margin:0 auto}
+/* Текст читанки — великий, легкочитабельний, широкий інтервал (1 клас) */
+.story{font-family:'Nunito',sans-serif;font-weight:800;font-size:1.5rem;line-height:1.7;letter-spacing:.01em;color:#fff;text-align:center;margin:2px 0 6px;-webkit-user-select:text;user-select:text}
+.story p{margin:0 0 12px}
+.story p:last-child{margin-bottom:0}
+
+/* QUESTIONS */
+.q-block{margin-top:18px;border-top:1px dashed rgba(255,255,255,.16);padding-top:16px}
+.q-block+.q-block{margin-top:14px}
+.q-label{font-weight:800;color:rgba(255,255,255,.6);font-size:.8rem;margin-bottom:6px;text-transform:uppercase;letter-spacing:.03em}
+.q-text{font-family:'Fredoka One',cursive;font-size:1.25rem;text-align:center;color:#fff;margin:2px 0 14px;line-height:1.25}
+.opts{display:flex;flex-direction:column;gap:10px}
+.opt{background:rgba(255,255,255,.09);border:2px solid rgba(255,255,255,.16);border-radius:16px;padding:15px;font-family:'Nunito',sans-serif;font-weight:800;font-size:1.15rem;color:#fff;cursor:pointer;transition:.15s;text-align:center}
+.opt:active{transform:scale(.98)}
+.opt:disabled{cursor:default}
+.opt.correct{background:rgba(76,175,80,.34);border-color:var(--green);animation:pg .35s ease}
+.opt.wrong{background:rgba(229,56,59,.3);border-color:var(--red)}
+@keyframes pg{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}
+.feedback{text-align:center;font-weight:800;margin-top:12px;min-height:20px;font-size:.95rem}
+
+/* RESULT */
+.result-emoji{font-size:3.4rem;text-align:center;margin-bottom:6px}
+.result-title{font-family:'Fredoka One',cursive;font-size:1.6rem;color:var(--gold);text-align:center}
+.stamp{display:inline-block;margin:10px auto 4px;border:3px solid var(--green);color:#8ff0a0;font-family:'Fredoka One',cursive;font-size:1.05rem;padding:6px 18px;border-radius:14px;transform:rotate(-6deg);text-shadow:0 1px 6px rgba(0,0,0,.4);background:rgba(76,175,80,.1)}
+.result-score{text-align:center;font-size:1.05rem;font-weight:800;margin:8px 0}
+.result-xp{text-align:center;font-size:1.15rem;font-weight:900;color:var(--gold);background:rgba(255,213,74,.12);border:1px solid rgba(255,213,74,.3);padding:8px 0;border-radius:14px;margin:6px 0}
+.spinner{width:34px;height:34px;border:4px solid rgba(255,255,255,.2);border-top-color:var(--gold);border-radius:50%;animation:sp .8s linear infinite;margin:16px auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="stars-bg" id="stars"></div>
+<div id="app">
+  <div class="topbar">
+    <a class="brand" href="index.html">📖 Школа Королівство</a>
+    <a class="back-btn" href="biblioteka.html">← Бібліотека</a>
+  </div>
+  <div id="root">
+    <div class="card center">
+      <div class="spinner"></div>
+      <p class="muted">Відкриваємо книгу…</p>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase API (window.SK) -->
+<script type="module" src="firebase-config.js"></script>
+
+<script>
+/* ============================================================
+   ПЛЕЄР-ЧИТАНКА. Книга з бази читається СТОРІНКА ЗА СТОРІНКОЮ:
+   текст (+картинка) → 0..N простих питань під ним. Дитина читає
+   сама й відповідає, поки розуміння свіже.
+   Нагорода (як у test.html):
+     xpMode/statMode: 'fixed' -> раз за книгу; 'perCorrect' -> за правильну
+     stat = 'health' (читання качає здоров'я — поки що).
+     coins -> нараховуються за дочитану книгу.
+   Захист від «фарму»: повторне читання дає пів-XP, 0 до стата й 0 монет
+   (маркер sk_dbbook_<id>), але факт прочитання все одно фіксується.
+   Прочитані книги пишуться у heroes/{id}.library (SK.recordBookRead).
+   Помилка у питанні НЕ карає (для 1 класу): підсвічуємо правильну й ідемо далі.
+   ============================================================ */
+
+/* нічне небо */
+(function(){
+  var box=document.getElementById('stars'); if(!box) return;
+  var html='';
+  for(var i=0;i<46;i++){
+    var s=(Math.random()*2+1).toFixed(1);
+    html+='<span class="star-dot" style="left:'+(Math.random()*100).toFixed(2)+'%;top:'+(Math.random()*100).toFixed(2)+'%;width:'+s+'px;height:'+s+'px;--dur:'+(Math.random()*3+2).toFixed(1)+'s"></span>';
+  }
+  box.innerHTML=html;
+})();
+
+var STAT_BASE={health:100,mana:20,agility:50,accuracy:50};
+var STAT_LABEL={health:"Здоров'я ❤️",accuracy:'Влучність 🎯',agility:'Спритність 🏃',mana:'Мана 🔮'};
+
+var root=document.getElementById('root');
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function fmt(v){return Number.isInteger(v)?String(v):String(v).replace('.',',');}
+function num(v){ v=parseFloat(v); return isNaN(v)?0:v; }
+
+var BOOK=null, ST=null, HERO_SESSION=false;
+var PAGES=[];
+
+function getId(){ try{ return new URLSearchParams(location.search).get('id'); }catch(e){ return null; } }
+function pages(){ return Array.isArray(BOOK.pages)?BOOK.pages:[]; }
+function pageQs(i){ var p=PAGES[i]; return (p&&Array.isArray(p.questions))?p.questions:[]; }
+function totalQs(){ return PAGES.reduce(function(s,p){ return s+((p&&Array.isArray(p.questions))?p.questions.length:0); },0); }
+
+function errorScreen(msg){
+  root.innerHTML='<div class="card center">'
+    +'<div class="result-emoji">🤔</div>'
+    +'<div class="result-title">Ой!</div>'
+    +'<p class="muted" style="margin:10px 0 4px">'+esc(msg)+'</p>'
+    +'<a class="btn ghost" href="biblioteka.html">← До бібліотеки</a></div>';
+}
+
+function rewardText(){
+  var xp = BOOK.xpMode==='perCorrect'
+    ? (num(BOOK.xpValue)+' XP за кожну правильну відповідь')
+    : ('+'+num(BOOK.xpValue)+' XP за книгу');
+  var sv = num(BOOK.statValue);
+  var st='';
+  if(sv>0){
+    var lbl=STAT_LABEL[BOOK.stat]||BOOK.stat;
+    st = BOOK.statMode==='perCorrect'
+      ? ('+'+sv+' до «'+lbl+'» за кожну правильну')
+      : ('+'+sv+' до «'+lbl+'» за книгу');
+  }
+  var coins=num(BOOK.coins);
+  return {xp:xp, st:st, coins:coins};
+}
+
+function intro(){
+  var r=rewardText();
+  var warn = HERO_SESSION ? '' :
+    '<div class="warn">Ти не увійшов як Герой — нагорода не збережеться. <a href="login.html?next=hero">Увійти Героєм</a></div>';
+  var nq=totalQs();
+  var chips = '<span class="chip">'+esc(BOOK.subject||'Читання')+'</span>'
+    +'<span class="chip">Клас '+(BOOK.grade!=null?esc(BOOK.grade):'1')+'</span>'
+    +'<span class="chip gold">'+PAGES.length+' стор.</span>'
+    +(nq?'<span class="chip">'+nq+' пит.</span>':'');
+  root.innerHTML='<div class="card">'
+    +'<div class="b-cover">'+esc(BOOK.cover||'📕')+'</div>'
+    +'<div class="b-title">'+esc(BOOK.title||'Книга')+'</div>'
+    +'<div class="chips">'+chips+'</div>'
+    +'<div class="reward-line">🎁 '+r.xp
+      +(r.st?('<br>✨ '+r.st):'')
+      +(r.coins>0?('<br>🪙 +'+fmt(r.coins)+' монет за дочитану книгу'):'')+'</div>'
+    +warn
+    +'<button class="btn" id="startBtn">▶ Читати</button>'
+    +'</div>';
+  document.getElementById('startBtn').onclick=startReading;
+}
+
+function startReading(){
+  ST={ page:0, correct:0, answered:{} };  // answered: 'pageIdx:qIdx' -> true
+  renderPage();
+}
+
+function pageImage(p){
+  if(!p || !p.image) return '';
+  var img=String(p.image).trim();
+  if(!img) return '';
+  if(/^https?:\/\//i.test(img)) return '<div class="page-img"><img src="'+esc(img)+'" alt=""></div>';
+  return '<div class="page-img">'+esc(img)+'</div>';   // емодзі / символ
+}
+function storyHtml(text){
+  var parts=String(text||'').split(/\n+/).filter(function(s){ return s.trim()!==''; });
+  if(!parts.length) return '';
+  return parts.map(function(s){ return '<p>'+esc(s.trim())+'</p>'; }).join('');
+}
+
+function allAnsweredOnPage(){
+  var qs=pageQs(ST.page);
+  for(var i=0;i<qs.length;i++){ if(!ST.answered[ST.page+':'+i]) return false; }
+  return true;
+}
+
+function renderPage(){
+  var i=ST.page;
+  var p=PAGES[i];
+  var qs=pageQs(i);
+  var pct=Math.round((i)/PAGES.length*100);
+  var isLast=(i>=PAGES.length-1);
+
+  var qHtml=qs.map(function(q,qi){
+    var key=i+':'+qi;
+    var done=!!ST.answered[key];
+    var opts=(q.options||[]).map(function(o,oi){
+      return '<button class="opt" data-q="'+qi+'" data-o="'+oi+'"'+(done?' disabled':'')+'>'+esc(o)+'</button>';
+    }).join('');
+    return '<div class="q-block" data-qi="'+qi+'">'
+      +'<div class="q-label">❓ Питання'+(qs.length>1?(' '+(qi+1)):'')+'</div>'
+      +'<div class="q-text">'+esc(q.q||'')+'</div>'
+      +'<div class="opts">'+opts+'</div>'
+      +'<div class="feedback" id="fb-'+qi+'"></div>'
+      +'</div>';
+  }).join('');
+
+  var ready=allAnsweredOnPage();
+  var nextLabel=isLast?'🏁 Завершити':'Далі →';
+
+  root.innerHTML='<div class="card">'
+    +'<div class="page-head"><span>Сторінка '+(i+1)+' з '+PAGES.length+'</span><span>✅ '+ST.correct+'</span></div>'
+    +'<div class="prog-track"><span class="prog-fill" style="width:'+pct+'%"></span></div>'
+    +pageImage(p)
+    +'<div class="story">'+storyHtml(p&&p.text)+'</div>'
+    +qHtml
+    +'<button class="btn" id="nextBtn"'+(ready?'':' disabled')+'>'+nextLabel+'</button>'
+    +(qs.length&&!ready?'<p class="muted center" style="margin-top:8px">Спочатку дай відповідь 🙂</p>':'')
+    +'</div>';
+
+  Array.prototype.forEach.call(root.querySelectorAll('.opt'),function(btn){
+    btn.onclick=function(){
+      answer(parseInt(btn.getAttribute('data-q'),10), parseInt(btn.getAttribute('data-o'),10));
+    };
+  });
+  var nb=document.getElementById('nextBtn');
+  if(nb) nb.onclick=function(){ if(!nb.disabled) nextPage(); };
+}
+
+function answer(qi, oi){
+  var key=ST.page+':'+qi;
+  if(ST.answered[key]) return;
+  ST.answered[key]=true;
+  var q=pageQs(ST.page)[qi];
+  var correct=parseInt(q.correct,10); if(isNaN(correct)) correct=-1;
+  var block=root.querySelector('.q-block[data-qi="'+qi+'"]');
+  if(!block) return;
+  var btns=block.querySelectorAll('.opt');
+  Array.prototype.forEach.call(btns,function(b){ b.disabled=true; });
+  var fb=block.querySelector('#fb-'+qi);
+  var right=(oi===correct);
+  if(right){
+    ST.correct++;
+    if(btns[oi]) btns[oi].classList.add('correct');
+    if(fb){ fb.textContent='✅ Правильно!'; fb.style.color='#69DB7C'; }
+  } else {
+    if(btns[oi]) btns[oi].classList.add('wrong');
+    if(correct>=0 && btns[correct]) btns[correct].classList.add('correct');
+    if(fb){ fb.textContent='❌ Правильна відповідь підсвічена'; fb.style.color='#ffb3b4'; }
+  }
+  // оновити лічильник ✅ у шапці й розблокувати «Далі», коли всі питання сторінки закриті
+  var head=root.querySelector('.page-head span:last-child');
+  if(head) head.textContent='✅ '+ST.correct;
+  if(allAnsweredOnPage()){
+    var nb=document.getElementById('nextBtn');
+    if(nb){ nb.disabled=false; }
+    var hint=root.querySelector('.card > .muted.center');
+    if(hint) hint.remove();
+  }
+}
+
+function nextPage(){
+  if(ST.page>=PAGES.length-1){ finish(); return; }
+  ST.page++;
+  renderPage();
+  try{ window.scrollTo(0,0); }catch(e){}
+}
+
+function finish(){
+  var total=totalQs();
+  var correct=ST.correct;
+  var id=BOOK.id;
+  var replay=false;
+  try{ replay = localStorage.getItem('sk_dbbook_'+id)==='1'; }catch(e){}
+
+  var xpGain = BOOK.xpMode==='perCorrect' ? num(BOOK.xpValue)*correct : num(BOOK.xpValue);
+  var statGain = BOOK.statMode==='perCorrect' ? num(BOOK.statValue)*correct : num(BOOK.statValue);
+  var coinGain = num(BOOK.coins);
+  if(replay){ xpGain=xpGain/2; statGain=0; coinGain=0; }
+
+  var lbl=STAT_LABEL[BOOK.stat]||BOOK.stat;
+  var statLine = statGain>0 ? '<div class="reward-line">✨ +'+fmt(statGain)+' до «'+esc(lbl)+'»</div>' : '';
+  var coinLine = coinGain>0 ? '<div class="reward-line">🪙 +'+fmt(coinGain)+' монет</div>' : '';
+  var scoreLine = total ? ('<div class="result-score">Питань правильно: '+correct+' з '+total+'</div>') : '';
+
+  root.innerHTML='<div class="card center">'
+    +'<div class="result-emoji">🏆</div>'
+    +'<div class="result-title">Книгу прочитано!</div>'
+    +'<div class="stamp">✅ ПРОЧИТАНО</div>'
+    +scoreLine
+    +'<div class="result-xp">+'+fmt(xpGain)+' XP'+(replay?' <span class="muted" style="font-size:.8rem">(повтор)</span>':'')+'</div>'
+    +statLine
+    +coinLine
+    +'<div id="saveNote" class="muted" style="margin:8px 0 2px">'+(HERO_SESSION?'💾 Зберігаємо…':'ℹ️ Увійди Героєм, щоб зберегти нагороду')+'</div>'
+    +'<button class="btn" onclick="location.reload()">↻ Прочитати ще раз</button>'
+    +'<a class="btn ghost" href="biblioteka.html">📖 До бібліотеки</a>'
+    +'<a class="btn ghost" href="hero.html">🦁 До Героя</a>'
+    +'</div>';
+
+  try{ localStorage.setItem('sk_dbbook_'+id,'1'); }catch(e){}
+  if(HERO_SESSION) saveReward(xpGain, statGain, coinGain, correct, total);
+}
+
+function saveReward(xpGain, statGain, coinGain, correct, total){
+  var done=0, need=2, failed=false;
+  function step(ok){
+    if(ok===false) failed=true;
+    done++;
+    if(done<need) return;
+    var n=document.getElementById('saveNote'); if(!n) return;
+    if(failed){ n.textContent='⚠️ Не вдалося зберегти. Спробуй ще раз пізніше.'; n.style.color='#ffb3b4'; }
+    else { n.textContent='✅ Збережено!'; n.style.color='#69DB7C'; }
+  }
+
+  // 1) XP + рівень + здоров'я (health) — як у test.html
+  SK.getHero().then(function(h){
+    h=h||{};
+    var curXp=num(h.xp);
+    var newXp=curXp+xpGain;
+    var curLevel=parseInt(h.level,10); if(isNaN(curLevel)) curLevel=1;
+    var newLevel=Math.max(curLevel, Math.floor(newXp/100)+1);
+    var patch={ xp:newXp, level:newLevel };
+    if(statGain>0 && BOOK.stat==='health'){
+      var cur=(h.health!=null)?num(h.health):(STAT_BASE.health||0);
+      patch.health=cur+statGain;
+    }
+    return SK.saveHeroStats(patch);
+  }).then(function(){ step(true); }).catch(function(){ step(false); });
+
+  // 2) Запис у бібліотеку Героя + монети (атомарно)
+  SK.recordBookRead({
+    bookId: BOOK.id, title: BOOK.title||'',
+    correct: correct, total: total, coins: coinGain
+  }).then(function(){ step(true); }).catch(function(){ step(false); });
+}
+
+/* старт: дочекатись SK, завантажити книгу */
+(function whenSK(){
+  var tries=0;
+  (function tick(){
+    if(window.SK && SK.ready){
+      SK.ready.then(function(){
+        HERO_SESSION = !!(SK.isHeroSession && SK.isHeroSession());
+        var id=getId();
+        if(!id){ errorScreen('Не вказано книгу (немає ?id у посиланні).'); return; }
+        SK.getBook(id).then(function(b){
+          if(!b){ errorScreen('Книгу не знайдено або її вимкнено.'); return; }
+          if(b.active===false){ errorScreen('Ця книга зараз неактивна.'); return; }
+          var ps=Array.isArray(b.pages)?b.pages:[];
+          var has=ps.some(function(p){ return p && String(p.text||'').trim(); });
+          if(!ps.length || !has){ errorScreen('У книзі поки немає сторінок із текстом.'); return; }
+          BOOK=b; PAGES=ps; intro();
+        }).catch(function(){ errorScreen('Помилка завантаження книги.'); });
+      });
+      return;
+    }
+    if(tries++<100) setTimeout(tick,50);
+    else errorScreen('Не вдалося підключитися до бази.');
+  })();
+})();
+</script>
+</body>
+</html>
