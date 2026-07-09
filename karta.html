@@ -97,33 +97,12 @@
   <div class="stars"></div>
   <div class="moon"></div>
 
-  <!-- ШАПКА -->
-  <header class="topbar">
-    <a class="brand" href="index.html">
-      <span class="crest">🛡️</span>
-      <span>
-        <span class="brand-name">School <b>Kingdoms</b></span>
-        <span class="brand-sub" style="display:block">Карта королівства</span>
-      </span>
-    </a>
-    <nav class="nav-links">
-      <a class="nav-btn" href="tests.html">📜 <span>Список тестів</span></a>
-      <a class="nav-btn" href="hero.html">🦁 <span>До Героя</span></a>
-    </nav>
-  </header>
+  <!-- СПІЛЬНИЙ ХЕДЕР (бренд + шкала Героя) вставляється через sk-header.js -->
 
-  <!-- ЗАГОЛОВОК + смужка Героя -->
+  <!-- ЗАГОЛОВОК -->
   <div class="page-head">
     <h1 class="page-title">Карта королівства</h1>
     <p class="page-sub">Обери землю й вирушай у пригоду — кожне королівство прокачує свою характеристику Героя.</p>
-
-    <div class="hero-strip" id="heroStrip">
-      <div class="hs-name" id="hsName">Твій Герой</div>
-      <div class="hs-stats" id="hsStats"></div>
-    </div>
-    <div class="hs-guest" id="hsGuest">
-      Увійди як <a href="login.html?next=hero">Герой</a>, щоб результати мандрівок зберігались і прокачували характеристики.
-    </div>
   </div>
 
   <!-- ═══════════════ КАРТА ═══════════════
@@ -334,42 +313,9 @@ renderCastle();
 renderLegend();
 </script>
 
-<!-- смужка характеристик активного Героя (читання з Firebase) -->
+<!-- Firebase + СПІЛЬНИЙ ХЕДЕР (бренд + шкала Героя) -->
 <script type="module" src="firebase-config.js"></script>
-<script>
-(function(){
-  var tries = 0;
-  (function whenSK(){
-    if(window.SK && SK.ready){
-      SK.ready.then(function(){
-        try{
-          if(SK.isHeroSession && SK.isHeroSession()){
-            SK.getHero().then(function(h){
-              if(!h) return;
-              document.getElementById('hsName').textContent =
-                '🦁 ' + (h.name || 'Герой') + ' · рівень ' + (h.level||1);
-              var stats = [
-                {k:'❤️ Здоров\u2019я', v:h.health},
-                {k:'🔮 Мана', v:h.mana},
-                {k:'🏃 Спритність', v:h.agility},
-                {k:'🎯 Точність', v:h.accuracy},
-                {k:'⭐ XP', v:h.xp}
-              ];
-              document.getElementById('hsStats').innerHTML = stats.map(function(s){
-                return '<span class="hs-stat">'+s.k+' <b>'+(s.v!=null?s.v:0)+'</b></span>';
-              }).join('');
-              document.getElementById('heroStrip').classList.add('show');
-            }).catch(function(){});
-          } else {
-            document.getElementById('hsGuest').classList.add('show');
-          }
-        }catch(e){}
-      });
-      return;
-    }
-    if(tries++ < 100) setTimeout(whenSK, 50);
-  })();
-})();
-</script>
+<script>window.SK_HEADER_SUB='Карта королівства';</script>
+<script src="sk-header.js"></script>
 </body>
 </html>
