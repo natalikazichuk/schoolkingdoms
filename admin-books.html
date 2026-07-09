@@ -132,6 +132,12 @@ function blankBook(){
   };
 }
 
+/* обкладинка у списку: емодзі або мініатюра-картинка за посиланням */
+function coverMini(c){
+  c=String(c==null?'':c).trim();
+  if(/^https?:\/\//i.test(c)) return '<img src="'+esc(c)+'" alt="" style="width:34px;height:34px;object-fit:cover;border-radius:8px;display:block" onerror="this.replaceWith(document.createTextNode(\'📕\'))">';
+  return esc(c||'📕');
+}
 /* ---------- рендер списку книг ---------- */
 function renderList(){
   var host=el('#bookList');
@@ -142,7 +148,7 @@ function renderList(){
     var nq=(b.pages||[]).reduce(function(s,p){ return s+((p&&p.questions)?p.questions.length:0); },0);
     var on=b.active!==false;
     return '<div class="brow">'
-      +'<span class="cv">'+esc(b.cover||'📕')+'</span>'
+      +'<span class="cv">'+coverMini(b.cover)+'</span>'
       +'<div class="info"><div class="bt">'+esc(b.title||'(без назви)')+'</div>'
         +'<div class="bm">'+esc(b.subject||'—')+' · клас '+esc(b.grade!=null?b.grade:'1')+' · '+np+' стор. · '+nq+' пит.</div></div>'
       +'<div class="acts">'
@@ -203,7 +209,7 @@ function renderEditor(){
   el('#editor').innerHTML=
      '<div class="grid">'
     +'  <div class="field"><label>Назва книги</label><input type="text" id="m_title" value="'+esc(M.title)+'" placeholder="Котик Мурчик"></div>'
-    +'  <div class="field"><label>Обкладинка (емодзі)</label><input type="text" id="m_cover" value="'+esc(M.cover)+'" placeholder="🐱"></div>'
+    +'  <div class="field"><label>Обкладинка (емодзі або посилання)</label><input type="text" id="m_cover" value="'+esc(M.cover)+'" placeholder="🐱 або https://…/cover.png"><div class="img-prev" id="coverprev">'+imgPrevHtml(M.cover)+'</div></div>'
     +'</div>'
     +'<div class="grid">'
     +'  <div class="field"><label>Предмет</label><select id="m_subject">'
@@ -308,6 +314,11 @@ function setMsg(text, ok){
 /* ---------- дії ---------- */
 function editorInput(e){
   var t=e.target;
+  if(t && t.id==='m_cover'){
+    var cp=document.getElementById('coverprev');
+    if(cp) cp.innerHTML=imgPrevHtml(t.value);
+    return;
+  }
   if(t && t.classList && t.classList.contains('pg-image')){
     var pi=t.getAttribute('data-p');
     var box=document.getElementById('imgprev-'+pi);
