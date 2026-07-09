@@ -87,6 +87,7 @@
   .subj-prog .xp{color:var(--gold)}
   .subj-body{padding:12px 16px 16px}
   .grp-title{font-weight:800;font-size:.72rem;letter-spacing:.05em;color:#c3c8f0;margin:2px 0 8px;text-transform:uppercase}
+  .grp-soon{color:#8a94b4;font-weight:600;font-size:.8rem;font-style:italic;margin:0 0 10px}
   .grp-title:not(:first-child){margin-top:14px}
 
   /* ── теми/тести (чіпи) ── */
@@ -218,16 +219,17 @@ function chip(it, accent){
       : (it.xpKey ? ' <span class="chip-xp" data-xpkey="'+it.xpKey+'">0 XP</span>' : '');
     var tgt = it.db ? '' : ' target="_blank" rel="noopener"';
     // замок: чіп починає життя заблокованим, applyLocks() відкриє його за умовою
-    var lockAttr = it.lockKey ? ' data-lock-key="'+it.lockKey+'" data-lock-need="'+it.lockNeed+'"' : '';
-    var lockCls  = it.lockKey ? ' locked' : '';
+    var locked   = !!it.lockPreId;
+    var lockAttr = locked ? ' data-lock-preid="'+it.lockPreId+'" data-lock-prelevels="'+(it.lockPreLevels||0)+'"' : '';
+    var lockCls  = locked ? ' locked' : '';
     var parts = '<a class="chip ready'+lockCls+'" href="'+it.href+'"'+tgt+lockAttr+' style="--accent:'+accent+'">▶ '+esc(it.label)+badge+'</a>';
-    if(it.lockKey){
-      parts += '<span class="chip-lock">🔒 Відкриється після '+it.lockNeed+'-го рівня «'+esc(it.lockLabel||'')+'»</span>';
+    if(locked){
+      parts += '<span class="chip-lock">🔒 Пройди «'+esc(it.lockPreTitle||'')+'» на 55%</span>';
     }
     // окремий бейдж прогресу рівнів поруч із тестом (для тестів формату «рівні»)
     if(it.levels && it.testId){
       var total = it.levelCount||0;
-      var lvStyle = it.lockKey ? ' style="display:none"' : '';
+      var lvStyle = locked ? ' style="display:none"' : '';
       parts += '<span class="chip-lvprog" data-lvkey="sk_lvtest_'+it.testId+'_done" data-lvtotal="'+total+'"'+lvStyle+'>🧩 <b>0</b>/'+total+' рівнів</span>';
     }
     return '<span class="chip-group">'+parts+'</span>';
@@ -239,8 +241,12 @@ function subjectHtml(s){
   var body = '';
   if(Array.isArray(s.groups)){
     s.groups.forEach(function(g){
-      body += '<div class="grp-title">'+g.title+'</div><div class="chips">'
-            + g.items.map(function(i){return chip(i,accent);}).join('') + '</div>';
+      body += '<div class="grp-title">'+g.title+'</div>';
+      if(g.items && g.items.length){
+        body += '<div class="chips">'+ g.items.map(function(i){return chip(i,accent);}).join('') +'</div>';
+      } else {
+        body += '<p class="grp-soon">🔜 Скоро — тести додаються</p>';
+      }
     });
   }
   if(Array.isArray(s.items) && s.items.length){
@@ -288,20 +294,53 @@ function subjectMatches(subj, testSubject){
   return (subj.keys||[]).some(function(k){ return t.indexOf(norm(k))!==-1; });
 }
 function isLevelsTest(t){ return !!(t && (t.format==='levels' || (Array.isArray(t.levels) && t.levels.length))); }
-/* Замки-передумови, задані в КОДІ (не залежать від полів у базі — адмінка при
-   імпорті відкидає нестандартні поля). Ключ — назва тесту (як у базі),
-   after — тест-передумова, levels — скільки її рівнів треба пройти. */
-var GATES = {
-  'Віднімання до 10': { after:'Додавання до 10', levels:6 }
-};
-/* правило-замок для тесту: спершу з поля lockUntil (якщо збереглося), інакше з GATES */
-function gateFor(t){
-  if(!t) return null;
-  if(t.lockUntil && t.lockUntil.title && parseInt(t.lockUntil.levels,10)>0)
-    return { title:t.lockUntil.title, levels:parseInt(t.lockUntil.levels,10) };
-  var g = null;
-  for(var k in GATES){ if(GATES.hasOwnProperty(k) && norm(k)===norm(t.title)){ g=GATES[k]; break; } }
-  return g ? { title:g.after, levels:g.levels } : null;
+/* ══ КАРТА ТЕМ МАТЕМАТИКИ (єдине джерело правди) ══
+   З цього масиву будується І групування тестів на сторінці, І порядок замків.
+   Як редагувати самостійно:
+     • додати тему        → додай {topic:'Назва', chain:false, tests:['Назва тесту']}
+     • додати тест у тему  → впиши його назву в масив tests
+                             (назва має ТОЧНО збігатися з назвою тесту в адмінці)
+     • порядок тестів      = порядок назв у tests
+     • chain:true  → тема в «ланцюгу»: кожен наступний тест ланцюга відкривається
+                     лише коли попередній пройдено на 55%
+     • chain:false → тема вільна: усі її тести доступні одразу
+   ⚠ Цей масив має бути ІДЕНТИЧНИМ у test.html. */
+var PASS_RATIO = 0.55;
+var MATH_CURRICULUM = [
+  { topic:'Числа в межах 10',      chain:true,  tests:['Додавання до 10','Віднімання до 10'] },
+  { topic:'Числа в межах 20',      chain:true,  tests:['Додавання до 20','Віднімання до 20'] },
+  { topic:'Числа в межах 100',     chain:true,  tests:['Додавання до 100','Віднімання до 100'] },
+  { topic:'Задачі',                chain:false, tests:['Задачі на додавання','Задачі на віднімання'] },
+  { topic:'Розрядність чисел',     chain:false, tests:['Десятки і одиниці'] },
+  { topic:'Вирази у три дії',      chain:false, tests:['Вирази у три дії'] },
+  { topic:'Назви компонентів дій', chain:false, tests:['Компоненти додавання','Компоненти віднімання'] },
+  { topic:'Величини (см, дм, м)',  chain:false, tests:['Одиниці довжини'] },
+  { topic:'Порівняння чисел',      chain:false, tests:['Порівняння чисел'] },
+  { topic:'Геометричні фігури',    chain:false, tests:['Геометричні фігури'] },
+  { topic:'Цікава математика',     chain:false, tests:['Логічні задачі'] }
+];
+/* «ланцюг» = усі тести тем із chain:true, по порядку */
+function mathChain(){
+  var arr=[];
+  MATH_CURRICULUM.forEach(function(t){ if(t.chain) (t.tests||[]).forEach(function(n){ arr.push(n); }); });
+  return arr;
+}
+/* назва попереднього тесту в ланцюгу (null, якщо тест не в ланцюгу або перший) */
+function chainPrevTitle(title){
+  var arr=mathChain(), w=norm(title);
+  for(var i=0;i<arr.length;i++){ if(norm(arr[i])===w) return i>0?arr[i-1]:null; }
+  return null;
+}
+/* чи «пройдено на 55%» тест pre. lookup(key)→значення (localStorage/Firebase) */
+function isTestPassed(pre, lookup){
+  if(!pre || !pre.id) return false;
+  var mark=lookup('sk_testpass_'+pre.id);
+  if(mark==='1'||mark===1||mark===true) return true;
+  if(pre.levels>0){
+    var done=countDoneLevels(lookup('sk_lvtest_'+pre.id+'_done'));
+    return (done/pre.levels)>=PASS_RATIO;
+  }
+  return false;
 }
 
 function testChip(t, byTitle){
@@ -311,47 +350,65 @@ function testChip(t, byTitle){
     levels:lv, testId:t.id,
     levelCount: lv ? (Array.isArray(t.levels)?t.levels.length:0) : 0,
     grade:t.grade };
-  // замок: відкривається лише коли в тесті-передумові пройдено N рівнів.
-  // Якщо передумову не знайдено серед активних тестів — не блокуємо (fail-open).
-  var lock = gateFor(t);
-  if(lock && byTitle){
-    var pre  = byTitle[norm(lock.title)];
-    var need = lock.levels||0;
-    if(pre && pre.id && need>0){
-      c.lockKey   = 'sk_lvtest_'+pre.id+'_done';
-      c.lockNeed  = need;
-      c.lockLabel = pre.title;
+  // замок лише для тестів у «ланцюгу»: відкривається, коли попередній тест
+  // ланцюга пройдено на 55%. Немає попереднього серед активних → fail-open.
+  var prevTitle = chainPrevTitle(t.title);
+  if(prevTitle && byTitle){
+    var pre = byTitle[norm(prevTitle)];
+    if(pre && pre.id){
+      c.lockPreId     = pre.id;
+      c.lockPreTitle  = pre.title;
+      c.lockPreLevels = isLevelsTest(pre) ? (Array.isArray(pre.levels)?pre.levels.length:0) : 0;
     }
   }
   return c;
 }
 
-/* ── розкласти тести з бази по предметах (мутуємо CURRICULUM.items) ── */
+/* ── розкласти тести з бази по предметах (мутуємо CURRICULUM) ── */
 function distribute(tests){
-  var index = []; // {gradeNum, subj}
+  var index = []; var mathSubj = null;
   CURRICULUM.forEach(function(tier){
     (tier.grades||[]).forEach(function(g){
-      (g.subjects||[]).forEach(function(s){ s.items = []; index.push({gradeNum:g.gradeNum, subj:s}); });
+      (g.subjects||[]).forEach(function(s){
+        s.items = []; s.groups = null;
+        index.push({gradeNum:g.gradeNum, subj:s});
+        if(g.gradeNum===1 && s.id==='math') mathSubj = s;
+      });
     });
   });
-  // мапа назва→тест — для звʼязків-замків (lockUntil)
   var byTitle = {};
   (tests||[]).forEach(function(t){ if(t && t.id && t.title) byTitle[norm(t.title)] = t; });
-  // тести-передумови показуємо раніше за залежні: із замком (lockUntil) — у кінець
-  tests = (tests||[]).slice().sort(function(a,b){ return (gateFor(a)?1:0)-(gateFor(b)?1:0); });
+
+  // 1) МАТЕМАТИКА → групи за темами (з MATH_CURRICULUM)
+  var mathTaken = {};   // назви тестів, уже показані в темах Математики
+  if(mathSubj){
+    mathSubj.groups = MATH_CURRICULUM.map(function(tp){
+      var items = [];
+      (tp.tests||[]).forEach(function(name){
+        var t = byTitle[norm(name)];
+        if(t && Number(t.grade||1)===1){ items.push(testChip(t, byTitle)); mathTaken[norm(name)] = true; }
+      });
+      return { title:(tp.chain?'🔗 ':'')+esc(tp.topic), items:items };
+    });
+  }
+
+  // 2) решта тестів → по предметах (як було), окрім уже показаних у Математиці
   var leftovers = [];
   (tests||[]).forEach(function(t){
     if(!t || !t.id) return;
+    if(mathTaken[norm(t.title)]) return;
     var placed = false;
     for(var i=0;i<index.length;i++){
       var e = index[i];
+      if(e.subj===mathSubj) continue;         // Математику вже зібрали групами
       if(Number(t.grade)===Number(e.gradeNum) && subjectMatches(e.subj, t.subject)){
         e.subj.items.push(testChip(t, byTitle)); placed = true; break;
       }
     }
     if(!placed) leftovers.push(t);
   });
-  // катч-ол: усе несопоставлене → «Інші тести» в 1 класі (нічого не губимо)
+
+  // 3) катч-ол: усе несопоставлене → «Інші тести» в 1 класі (нічого не губимо)
   if(leftovers.length){
     var g1 = null;
     CURRICULUM.forEach(function(tier){ (tier.grades||[]).forEach(function(g){ if(g.gradeNum===1) g1 = g; }); });
@@ -388,15 +445,15 @@ function fillLevelProgress(){
 /* відкрити/лишити закритими тести-замки. prog (Firebase) — необовʼязковий,
    беремо максимум із локальним станом пристрою (localStorage) */
 function applyLocks(prog){
+  function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+  function pgGet(k){ return (prog && prog[k]!=null) ? prog[k] : null; }
   document.querySelectorAll('.chip-group').forEach(function(g){
-    var a = g.querySelector('.chip.ready[data-lock-key]');
+    var a = g.querySelector('.chip.ready[data-lock-preid]');
     if(!a) return;
-    var key  = a.getAttribute('data-lock-key');
-    var need = parseInt(a.getAttribute('data-lock-need')||'0',10)||0;
-    var done = 0;
-    try{ var ls=localStorage.getItem(key); if(ls) done=countDoneLevels(ls); }catch(e){}
-    if(prog && prog[key]!=null){ var p=countDoneLevels(prog[key]); if(p>done) done=p; }
-    var unlocked = need>0 ? (done>=need) : true;
+    var pre = { id: a.getAttribute('data-lock-preid'),
+                levels: parseInt(a.getAttribute('data-lock-prelevels')||'0',10)||0 };
+    // пройдено на 55% локально АБО за даними Firebase → відкрито
+    var unlocked = isTestPassed(pre, lsGet) || isTestPassed(pre, pgGet);
     a.classList.toggle('locked', !unlocked);
     var lock = g.querySelector('.chip-lock');   if(lock) lock.style.display = unlocked ? 'none' : '';
     var lv   = g.querySelector('.chip-lvprog'); if(lv)   lv.style.display   = unlocked ? '' : 'none';

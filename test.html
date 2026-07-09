@@ -87,6 +87,15 @@ body{font-family:'Nunito',sans-serif;background:linear-gradient(160deg,var(--nav
 .result-xp{text-align:center;font-size:1.2rem;font-weight:900;color:var(--gold);background:rgba(255,213,74,.12);border:1px solid rgba(255,213,74,.3);padding:8px 0;border-radius:14px;margin:6px 0}
 .spinner{width:34px;height:34px;border:4px solid rgba(255,255,255,.2);border-top-color:var(--gold);border-radius:50%;animation:sp .8s linear infinite;margin:16px auto}
 @keyframes sp{to{transform:rotate(360deg)}}
+/* поп-ап розблокування наступного тренування */
+.unlock-ov{position:fixed;inset:0;background:rgba(6,12,28,.72);display:flex;align-items:center;justify-content:center;padding:20px;z-index:9999;animation:ufade .2s ease}
+@keyframes ufade{from{opacity:0}to{opacity:1}}
+.unlock-card{max-width:340px;width:100%;text-align:center;background:linear-gradient(180deg,#12223f,#0b1730);border:2px solid var(--gold);border-radius:20px;padding:22px 20px;box-shadow:0 18px 50px rgba(0,0,0,.55);animation:upop .28s cubic-bezier(.2,1.2,.3,1)}
+@keyframes upop{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+.unlock-emoji{font-size:3rem;line-height:1}
+.unlock-title{font-family:'Fredoka One',cursive;font-size:1.25rem;color:var(--gold);margin:8px 0 6px;line-height:1.2}
+.unlock-sub{color:#dce6f7;font-weight:600;font-size:.95rem;margin-bottom:14px}
+.unlock-card .btn{display:block;margin:8px auto 0}
 </style>
 </head>
 <body>
@@ -158,6 +167,16 @@ function loadDone(){ try{ var o=JSON.parse(localStorage.getItem(lvKey('done'))||
 function loadStars(){ try{ var o=JSON.parse(localStorage.getItem(lvKey('stars'))||'{}'); return (o&&typeof o==='object'&&!Array.isArray(o))?o:{}; }catch(e){ return {}; } }
 function saveJSON(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 function isUnlocked(i){ if(i<=0) return true; return !!loadDone()[levelId(i-1)]; }
+
+/* позначити ЦЕЙ тест як пройдений (≥55%); true — якщо це сталося вперше.
+   Ключ синхронізується у Firebase разом з рештою localStorage. */
+function markPassed(passed){
+  if(!TEST || !TEST.id) return false;
+  var key='sk_testpass_'+TEST.id, was=false;
+  try{ was = localStorage.getItem(key)==='1'; }catch(e){}
+  if(passed && !was){ try{ localStorage.setItem(key,'1'); }catch(e){} return true; }
+  return false;
+}
 
 function getId(){
   try{ return new URLSearchParams(location.search).get('id'); }catch(e){ return null; }
@@ -383,7 +402,9 @@ function finish(){
     +'</div>';
 
   try{ localStorage.setItem('sk_dbtest_'+id,'1'); }catch(e){}
+  var crossed = markPassed(pctScore>=55);   // ≥55% правильних → тест пройдено
   if(HERO_SESSION) saveReward(xpGain, statGain);
+  if(crossed) setTimeout(showUnlockPopup, 500);
 }
 
 /* ─── ПІДСУМОК: РІВЕНЬ ─── */
@@ -406,6 +427,9 @@ function finishLevel(){
   // зберігаємо зірки/пройдено/розблокування
   var starsMap=loadStars(); if((parseInt(starsMap[id],10)||0)<stars){ starsMap[id]=stars; saveJSON(lvKey('stars'),starsMap); }
   var doneMap=loadDone(); doneMap[id]=true; saveJSON(lvKey('done'),doneMap);
+  // тест вважається пройденим, коли завершено ≥55% його рівнів
+  var totalLevels=levelsArr().length;
+  var crossed = markPassed(totalLevels>0 && (Object.keys(doneMap).length/totalLevels)>=PASS_RATIO);
 
   var levels=levelsArr();
   var isLast=i>=levels.length-1;
@@ -437,6 +461,7 @@ function finishLevel(){
   var mb=document.getElementById('menuBtn'); if(mb) mb.onclick=levelMenu;
 
   if(HERO_SESSION) saveReward(xpGain, statGain);
+  if(crossed) setTimeout(showUnlockPopup, 500);
 }
 
 function saveReward(xpGain, statGain){
@@ -455,58 +480,123 @@ function saveReward(xpGain, statGain){
     }
     return SK.saveHeroStats(patch);
   }).then(function(){
-    // тягнемо прогрес рівнів у heroes/{id}.progress одразу (не чекаючи visibilitychange)
-    if(IS_LEVELS && SK.pushLocal) SK.pushLocal().catch(function(){});
+    // тягнемо прогрес (рівні + маркер «пройдено») у heroes/{id}.progress одразу
+    if(SK.pushLocal) SK.pushLocal().catch(function(){});
     var n=document.getElementById('saveNote'); if(n){ n.textContent='✅ Збережено!'; n.style.color='#69DB7C'; }
   }).catch(function(){
     var n=document.getElementById('saveNote'); if(n){ n.textContent='⚠️ Не вдалося зберегти. Спробуй ще раз пізніше.'; n.style.color='#ffb3b4'; }
   });
 }
 
-/* ─── Замок тесту: відкривається лише коли в тесті-передумові пройдено N рівнів ─── */
+/* ─── Послідовне відкриття: наступний тест предмета відкривається, коли
+       попередній пройдено щонайменше на 55% ─── */
 function lkNorm(s){ return String(s==null?'':s).toLowerCase().replace(/[’'`]/g,'').replace(/\s+/g,' ').trim(); }
 function lkCount(v){ try{ var o=(typeof v==='string')?JSON.parse(v):v; if(Array.isArray(o))return o.length; return (o&&typeof o==='object')?Object.keys(o).length:0; }catch(e){ return 0; } }
-function lockedScreen(need, title){
+
+var PASS_RATIO = 0.55;
+/* ══ КАРТА ТЕМ МАТЕМАТИКИ — має бути ІДЕНТИЧНОЮ до тієї, що в tests.html ══
+   chain:true → тема в «ланцюгу» (кожен наступний тест відкривається після
+   проходження попереднього на 55%); chain:false → тема вільна. */
+var MATH_CURRICULUM = [
+  { topic:'Числа в межах 10',      chain:true,  tests:['Додавання до 10','Віднімання до 10'] },
+  { topic:'Числа в межах 20',      chain:true,  tests:['Додавання до 20','Віднімання до 20'] },
+  { topic:'Числа в межах 100',     chain:true,  tests:['Додавання до 100','Віднімання до 100'] },
+  { topic:'Задачі',                chain:false, tests:['Задачі на додавання','Задачі на віднімання'] },
+  { topic:'Розрядність чисел',     chain:false, tests:['Десятки і одиниці'] },
+  { topic:'Вирази у три дії',      chain:false, tests:['Вирази у три дії'] },
+  { topic:'Назви компонентів дій', chain:false, tests:['Компоненти додавання','Компоненти віднімання'] },
+  { topic:'Величини (см, дм, м)',  chain:false, tests:['Одиниці довжини'] },
+  { topic:'Порівняння чисел',      chain:false, tests:['Порівняння чисел'] },
+  { topic:'Геометричні фігури',    chain:false, tests:['Геометричні фігури'] },
+  { topic:'Цікава математика',     chain:false, tests:['Логічні задачі'] }
+];
+function mathChain(){
+  var arr=[];
+  MATH_CURRICULUM.forEach(function(t){ if(t.chain) (t.tests||[]).forEach(function(n){ arr.push(n); }); });
+  return arr;
+}
+/* попередній / наступний тест у ланцюгу за назвою (або null) */
+function chainPrevTitle(title){
+  var arr=mathChain(), w=lkNorm(title);
+  for(var i=0;i<arr.length;i++){ if(lkNorm(arr[i])===w) return i>0?arr[i-1]:null; }
+  return null;
+}
+function chainNextTitle(title){
+  var arr=mathChain(), w=lkNorm(title);
+  for(var i=0;i<arr.length;i++){ if(lkNorm(arr[i])===w) return (i<arr.length-1)?arr[i+1]:null; }
+  return null;
+}
+
+/* «пройдено на 55%» для тесту pre. lookup(key)→значення (localStorage/Firebase) */
+function isTestPassed(pre, lookup){
+  if(!pre || !pre.id) return false;
+  var mark=lookup('sk_testpass_'+pre.id);
+  if(mark==='1'||mark===1||mark===true) return true;
+  if(isLevels(pre)){
+    var total=Array.isArray(pre.levels)?pre.levels.length:0;
+    var done=lkCount(lookup('sk_lvtest_'+pre.id+'_done'));
+    return total>0 && (done/total)>=PASS_RATIO;
+  }
+  return false;
+}
+
+function lockedScreen(title){
   root.innerHTML='<div class="card center">'
     +'<div class="result-emoji">🔒</div>'
     +'<div class="result-title">Тест ще закритий</div>'
-    +'<p class="muted" style="margin:10px 0 4px">Спочатку пройди <b>'+need+'</b> рівнів тесту «'+esc(title)+'».</p>'
+    +'<p class="muted" style="margin:10px 0 4px">Спочатку пройди тест «'+esc(title)+'» щонайменше на <b>55%</b>.</p>'
     +'<a class="btn ghost" href="tests.html">← До списку тестів</a></div>';
 }
-/* Замки-передумови у КОДІ (адмінка при імпорті відкидає нестандартні поля) */
-var LK_GATES = {
-  'Віднімання до 10': { after:'Додавання до 10', levels:6 }
-};
-function lkGate(t){
-  if(!t) return null;
-  if(t.lockUntil && t.lockUntil.title && parseInt(t.lockUntil.levels,10)>0)
-    return { title:t.lockUntil.title, levels:parseInt(t.lockUntil.levels,10) };
-  var g=null;
-  for(var k in LK_GATES){ if(LK_GATES.hasOwnProperty(k) && lkNorm(k)===lkNorm(t.title)){ g=LK_GATES[k]; break; } }
-  return g ? { title:g.after, levels:g.levels } : null;
-}
-/* onOk() — якщо доступ дозволено; інакше показуємо екран-замок.
-   Передумову не знайдено / помилка запиту → fail-open (не блокуємо). */
+/* onOk() — доступ дозволено; інакше екран-замок.
+   Попередній тест не знайдено / помилка запиту → fail-open (не блокуємо). */
 function checkLock(t, onOk){
-  var lu = lkGate(t);
-  var need = lu ? (parseInt(lu.levels,10)||0) : 0;
-  if(!lu || !lu.title || need<=0){ onOk(); return; }
+  var prevTitle = chainPrevTitle(t&&t.title);
+  if(!prevTitle){ onOk(); return; }
   if(!(SK.listActiveTests)){ onOk(); return; }
   SK.listActiveTests().then(function(list){
-    var pre=null, want=lkNorm(lu.title);
+    var pre=null, want=lkNorm(prevTitle);
     (list||[]).forEach(function(x){ if(x && x.id && x.title && lkNorm(x.title)===want) pre=x; });
-    if(!pre){ onOk(); return; }                 // передумову не знайдено → fail-open
-    var key='sk_lvtest_'+pre.id+'_done';
-    var done=0;
-    try{ var ls=localStorage.getItem(key); if(ls) done=lkCount(ls); }catch(e){}
-    function decide(){ if(done>=need) onOk(); else lockedScreen(need, pre.title); }
+    if(!pre){ onOk(); return; }                 // передумови немає серед активних → fail-open
+    function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+    function decide(prog){
+      var passed = isTestPassed(pre, lsGet)
+                || (prog && isTestPassed(pre, function(k){ return (prog[k]!=null)?prog[k]:null; }));
+      if(passed) onOk(); else lockedScreen(pre.title);
+    }
     if(HERO_SESSION && SK.getHero){
-      SK.getHero().then(function(h){
-        try{ var p=(h&&h.progress)?h.progress[key]:null; if(p!=null){ var n=lkCount(p); if(n>done) done=n; } }catch(e){}
-        decide();
-      }).catch(decide);
-    } else decide();
+      SK.getHero().then(function(h){ decide(h&&h.progress?h.progress:null); }).catch(function(){ decide(null); });
+    } else decide(null);
   }).catch(function(){ onOk(); });
+}
+
+/* ─── Поп-ап: розблоковано наступне тренування ─── */
+function showUnlockPopup(){
+  var nextTitle = chainNextTitle(TEST&&TEST.title);
+  if(!nextTitle) return;
+  function build(nextId){
+    var goBtn = nextId
+      ? '<a class="btn" href="test.html?id='+encodeURIComponent(nextId)+'">▶ До наступного тренування</a>'
+      : '<a class="btn" href="tests.html">▶ До тестів</a>';
+    var ov=document.createElement('div');
+    ov.className='unlock-ov';
+    ov.innerHTML='<div class="unlock-card">'
+      +'<div class="unlock-emoji">🎉</div>'
+      +'<div class="unlock-title">Герой, ти розблокував наступне тренування!</div>'
+      +'<div class="unlock-sub">«'+esc(nextTitle)+'» тепер відкрито.</div>'
+      +goBtn
+      +'<button class="btn ghost" id="unlockClose">Закрити</button>'
+      +'</div>';
+    document.body.appendChild(ov);
+    var c=document.getElementById('unlockClose'); if(c) c.onclick=function(){ ov.remove(); };
+    ov.addEventListener('click',function(e){ if(e.target===ov) ov.remove(); });
+  }
+  if(SK.listActiveTests){
+    SK.listActiveTests().then(function(list){
+      var want=lkNorm(nextTitle), id=null;
+      (list||[]).forEach(function(x){ if(x&&x.id&&x.title&&lkNorm(x.title)===want) id=x.id; });
+      build(id);
+    }).catch(function(){ build(null); });
+  } else build(null);
 }
 
 /* старт: дочекатись SK, завантажити тест */
