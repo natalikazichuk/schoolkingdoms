@@ -80,6 +80,33 @@ body{font-family:'Nunito',sans-serif;background:linear-gradient(160deg,var(--nav
 .result-xp{text-align:center;font-size:1.15rem;font-weight:900;color:var(--gold);background:rgba(255,213,74,.12);border:1px solid rgba(255,213,74,.3);padding:8px 0;border-radius:14px;margin:6px 0}
 .spinner{width:34px;height:34px;border:4px solid rgba(255,255,255,.2);border-top-color:var(--gold);border-radius:50%;animation:sp .8s linear infinite;margin:16px auto}
 @keyframes sp{to{transform:rotate(360deg)}}
+
+/* ── ДЕСКТОП / ШИРОКИЙ ЕКРАН: адаптивна розкладка ──
+   На вузьких екранах (телефон) усе лишається як було — одна колонка.
+   Від 820px: сторінка з ілюстрацією показує картинку ліворуч, текст праворуч,
+   тож сторінка вміщається на екран без зайвої прокрутки. Текст і питання
+   тримаємо у зручній для читання ширині, а не на всю карту. */
+@media (min-width:820px){
+  #app{max-width:900px;padding-top:22px;padding-bottom:34px}
+  /* обкладинка та результат лишаються компактними й по центру */
+  .card.intro,.card.center{max-width:560px;margin-left:auto;margin-right:auto}
+  .card.reading{max-width:900px}
+
+  /* сторінка З ілюстрацією → дві колонки: [картинка] [текст] */
+  .read-main.has-img{display:grid;grid-template-columns:minmax(240px,42%) 1fr;
+    gap:32px;align-items:center;margin-bottom:4px}
+  .read-main.has-img .page-img{margin:0}
+  .read-main.has-img .page-img img{max-width:100%;max-height:min(360px,64vh)}
+  .read-main.has-img .story{text-align:left;margin:0;font-size:1.42rem;line-height:1.6}
+
+  /* сторінка БЕЗ ілюстрації → не розтягуємо рядок на всю карту */
+  .read-main:not(.has-img){max-width:640px;margin:0 auto}
+
+  /* питання, кнопку й підказку тримаємо в читабельній колонці */
+  .card.reading .q-block{max-width:640px;margin-left:auto;margin-right:auto}
+  .card.reading > .btn,
+  .card.reading > .muted.center{max-width:640px;margin-left:auto;margin-right:auto}
+}
 </style>
 </head>
 <body>
@@ -180,7 +207,7 @@ function intro(){
     +'<span class="chip">Клас '+(BOOK.grade!=null?esc(BOOK.grade):'1')+'</span>'
     +'<span class="chip gold">'+PAGES.length+' стор.</span>'
     +(nq?'<span class="chip">'+nq+' пит.</span>':'');
-  root.innerHTML='<div class="card">'
+  root.innerHTML='<div class="card intro">'
     +'<div class="b-cover">'+coverInner(BOOK.cover)+'</div>'
     +'<div class="b-title">'+esc(BOOK.title||'Книга')+'</div>'
     +'<div class="chips">'+chips+'</div>'
@@ -241,11 +268,14 @@ function renderPage(){
   var ready=allAnsweredOnPage();
   var nextLabel=isLast?'🏁 Завершити':'Далі →';
 
-  root.innerHTML='<div class="card">'
+  var imgHtml=pageImage(p);
+  root.innerHTML='<div class="card reading">'
     +'<div class="page-head"><span>Сторінка '+(i+1)+' з '+PAGES.length+'</span><span>✅ '+ST.correct+'</span></div>'
     +'<div class="prog-track"><span class="prog-fill" style="width:'+pct+'%"></span></div>'
-    +pageImage(p)
+    +'<div class="read-main'+(imgHtml?' has-img':'')+'">'
+    +imgHtml
     +'<div class="story">'+storyHtml(p&&p.text)+'</div>'
+    +'</div>'
     +qHtml
     +'<button class="btn" id="nextBtn"'+(ready?'':' disabled')+'>'+nextLabel+'</button>'
     +(qs.length&&!ready?'<p class="muted center" style="margin-top:8px">Спочатку дай відповідь 🙂</p>':'')
