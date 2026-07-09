@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Карта королівства — School Kingdoms</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=Nunito:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="sk-styles.css">
+<style>
+  /* ── шапка (беремо .topbar зі sk-styles) ── */
+  .brand{display:flex;align-items:center;gap:12px;text-decoration:none}
+  .brand .crest{font-size:1.8rem;filter:drop-shadow(0 2px 4px rgba(0,0,0,.45))}
+  .brand-name{font-family:'Playfair Display',serif;font-weight:900;font-size:clamp(1.2rem,3vw,1.6rem);color:#fff;text-shadow:0 2px 5px rgba(0,0,0,.45)}
+  .brand-name b{color:var(--gold)}
+  .brand-sub{font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:#ffe9b8;font-weight:700;margin-top:2px}
+  .nav-links{display:flex;gap:10px;flex-wrap:wrap}
+  .nav-btn{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.08);
+    border:1.5px solid rgba(242,199,92,.5);color:#fff;text-decoration:none;border-radius:12px;
+    padding:9px 16px;font-weight:800;font-size:.85rem;transition:transform .15s,background .15s}
+  .nav-btn:hover{transform:translateY(-2px);background:rgba(255,255,255,.16)}
+
+  /* ── заголовок сторінки ── */
+  .page-head{max-width:940px;margin:0 auto;padding:clamp(16px,3.5vh,32px) 20px 4px;text-align:center}
+  .page-title{font-family:'Playfair Display',serif;font-weight:900;color:#FBEFD0;
+    font-size:clamp(1.8rem,5.5vw,3rem);line-height:1.05;text-shadow:0 2px 12px rgba(0,0,0,.55),0 0 26px rgba(124,99,255,.4)}
+  .page-sub{color:#dce6f7;font-weight:600;font-size:clamp(.9rem,2vw,1.1rem);margin:10px auto 0;max-width:620px;line-height:1.5;text-shadow:0 1px 8px rgba(0,0,0,.5)}
+
+  /* ── смужка активного Героя ── */
+  .hero-strip{max-width:720px;margin:16px auto 0;display:none;
+    background:linear-gradient(180deg,rgba(16,33,62,.85),rgba(10,22,46,.9));
+    border:2px solid var(--gold);border-radius:16px;padding:10px 16px;
+    box-shadow:0 10px 26px rgba(0,0,0,.4)}
+  .hero-strip.show{display:block}
+  .hs-name{font-family:'Playfair Display',serif;font-weight:800;color:#FBEFD0;font-size:1rem;margin-bottom:7px}
+  .hs-stats{display:flex;flex-wrap:wrap;gap:7px;justify-content:center}
+  .hs-stat{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.07);
+    border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:5px 11px;font-weight:800;font-size:.82rem;color:#eaf1ff}
+  .hs-stat b{color:var(--gold)}
+  .hs-guest{max-width:720px;margin:14px auto 0;text-align:center;color:#cdd8ef;font-weight:600;font-size:.88rem;
+    background:rgba(255,255,255,.05);border:1px dashed rgba(242,199,92,.45);border-radius:14px;padding:11px 15px;display:none}
+  .hs-guest.show{display:block}
+  .hs-guest a{color:var(--gold);font-weight:800}
+
+  /* ── полотно карти ── */
+  .map-wrap{max-width:1040px;margin:18px auto 0;padding:0 16px 60px}
+  .map-frame{position:relative;border-radius:26px;overflow:hidden;
+    border:3px solid rgba(242,199,92,.55);
+    box-shadow:0 20px 50px rgba(0,0,0,.5),inset 0 0 60px rgba(6,14,32,.6)}
+  .map-svg{display:block;width:100%;height:auto}
+
+  /* ── регіон (клікабельний) ── */
+  .region{cursor:pointer;transition:transform .18s ease}
+  .region .land{transition:filter .18s ease,stroke-width .18s ease}
+  .region:hover{transform:translateY(-4px)}
+  .region:hover .land{filter:brightness(1.14) drop-shadow(0 8px 18px rgba(0,0,0,.5))}
+  .region:focus{outline:none}
+  .region:focus-visible .land{stroke:#fff;stroke-width:4}
+  .region .r-name{font-family:'Playfair Display',serif;font-weight:800;fill:#fff;
+    paint-order:stroke;stroke:rgba(4,10,26,.85);stroke-width:4px;stroke-linejoin:round}
+  .region .r-sub{font-family:'Nunito',sans-serif;font-weight:800;fill:#f0e6c8;
+    paint-order:stroke;stroke:rgba(4,10,26,.8);stroke-width:3px;stroke-linejoin:round}
+  .region .r-ic{font-size:34px}
+
+  /* центральний замок */
+  .castle{cursor:pointer;transition:transform .18s ease}
+  .castle:hover{transform:translateY(-4px) scale(1.02)}
+  .castle:focus{outline:none}
+  .castle:focus-visible .keep{stroke:#fff;stroke-width:4}
+
+  /* дороги між локаціями */
+  .road{fill:none;stroke:rgba(242,199,92,.28);stroke-width:5;stroke-linecap:round;stroke-dasharray:2 16}
+
+  /* легенда під картою */
+  .legend{max-width:1040px;margin:16px auto 0;padding:0 16px;
+    display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+  .lg-item{display:inline-flex;align-items:center;gap:8px;background:rgba(9,20,42,.6);
+    border:1.5px solid rgba(255,255,255,.12);border-radius:12px;padding:8px 13px;
+    font-weight:700;font-size:.82rem;color:#dce6f7}
+  .lg-dot{width:13px;height:13px;border-radius:4px;flex-shrink:0;box-shadow:0 0 0 2px rgba(255,255,255,.12)}
+  .lg-item b{color:#fff}
+
+  .foot{max-width:940px;margin:0 auto;padding:26px 20px 40px;color:#a9b6d4;font-size:.82rem;text-align:center;line-height:1.6}
+  .foot b{color:var(--gold)}
+
+  @media(max-width:560px){
+    .nav-links .nav-btn span{display:none}
+    .nav-btn{padding:9px 12px}
+    .region .r-name{font-size:20px}
+    .region .r-sub{font-size:13px}
+  }
+</style>
+</head>
+<body>
+  <div class="bg-fallback"></div>
+  <div class="stars"></div>
+  <div class="moon"></div>
+
+  <!-- ШАПКА -->
+  <header class="topbar">
+    <a class="brand" href="index.html">
+      <span class="crest">🛡️</span>
+      <span>
+        <span class="brand-name">School <b>Kingdoms</b></span>
+        <span class="brand-sub" style="display:block">Карта королівства</span>
+      </span>
+    </a>
+    <nav class="nav-links">
+      <a class="nav-btn" href="tests.html">📜 <span>Список тестів</span></a>
+      <a class="nav-btn" href="hero.html">🦁 <span>До Героя</span></a>
+    </nav>
+  </header>
+
+  <!-- ЗАГОЛОВОК + смужка Героя -->
+  <div class="page-head">
+    <h1 class="page-title">Карта королівства</h1>
+    <p class="page-sub">Обери землю й вирушай у пригоду — кожне королівство прокачує свою характеристику Героя.</p>
+
+    <div class="hero-strip" id="heroStrip">
+      <div class="hs-name" id="hsName">Твій Герой</div>
+      <div class="hs-stats" id="hsStats"></div>
+    </div>
+    <div class="hs-guest" id="hsGuest">
+      Увійди як <a href="login.html?next=hero">Герой</a>, щоб результати мандрівок зберігались і прокачували характеристики.
+    </div>
+  </div>
+
+  <!-- ═══════════════ КАРТА ═══════════════
+       Шаблон. Регіони описані в масиві REGIONS нижче — там задаються
+       координати, назви, іконки, кольори й куди веде клік. Малюнок землі
+       (path у land()) — заглушка; згодом можна замінити на реальні контури
+       чи PNG-ілюстрації (як з аватарами). -->
+  <div class="map-wrap">
+    <div class="map-frame">
+      <svg class="map-svg" id="mapSvg" viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Карта королівства School Kingdoms">
+        <defs>
+          <!-- море/фон -->
+          <radialGradient id="sea" cx="50%" cy="42%" r="75%">
+            <stop offset="0%"  stop-color="#16305c"/>
+            <stop offset="60%" stop-color="#0d1f3f"/>
+            <stop offset="100%" stop-color="#081227"/>
+          </radialGradient>
+          <!-- легке світіння навколо замку -->
+          <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="rgba(242,199,92,.35)"/>
+            <stop offset="100%" stop-color="rgba(242,199,92,0)"/>
+          </radialGradient>
+        </defs>
+
+        <!-- море -->
+        <rect x="0" y="0" width="1000" height="700" fill="url(#sea)"/>
+
+        <!-- дороги від замку до земель (малюємо під регіонами) -->
+        <g id="roadsLayer"></g>
+        <!-- сяйво під замком -->
+        <circle cx="500" cy="350" r="180" fill="url(#glow)"/>
+        <!-- землі -->
+        <g id="regionsLayer"></g>
+        <!-- центральний замок Героя -->
+        <g id="castleLayer"></g>
+      </svg>
+    </div>
+
+    <!-- легенда -->
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <div class="foot">
+    Це <b>шаблон карти</b>: землі, кольори й переходи задаються в масиві <b>REGIONS</b> у коді.
+    Пізніше сюди підтягнемо живий прогрес Героя й реальні ілюстрації.
+  </div>
+
+<script>
+/* ============================================================
+   КАРТА КОРОЛІВСТВА — шаблон.
+   Кожен регіон = окреме «королівство» одного предмета. Мапінг
+   предмет→характеристика збігається з рештою застосунку:
+     Українська мова      → Здоров'я ❤️
+     Я досліджую світ (ЯДС)→ Спритність 🏃
+     Логіка/Пам'ять/Eng    → Мана 🔮
+     Математика            → Точність 🎯
+   Поля регіону:
+     id        — унікальний ключ
+     name      — назва землі (UI, укр.)
+     icon      — емодзі-мітка
+     stat      — яку характеристику прокачує (UI)
+     color     — колір землі
+     href      — куди веде клік (наразі — список тестів)
+     x,y       — центр землі на полотні 1000×700
+     w,h       — розмір «острова»
+   ============================================================ */
+var REGIONS = [
+  { id:'ukr',  name:'Ліс Слів',          icon:'🌺', stat:"Здоров'я ❤️",
+    color:'#D6577A', href:'tests.html', x:250, y:200, w:250, h:170 },
+  { id:'yads', name:'Долина Відкриттів', icon:'🌍', stat:'Спритність 🏃',
+    color:'#E0954E', href:'tests.html', x:750, y:200, w:250, h:170 },
+  { id:'mind', name:'Вежа Розуму',       icon:'🔮', stat:'Мана 🔮',
+    color:'#3FB6A8', href:'tests.html', x:250, y:520, w:250, h:170 },
+  { id:'math', name:'Гори Чисел',        icon:'🧮', stat:'Точність 🎯',
+    color:'#5C6BC0', href:'tests.html', x:750, y:520, w:250, h:170 }
+];
+
+/* центральний замок → профіль Героя */
+var CASTLE = { name:'Замок Героя', href:'hero.html', x:500, y:350 };
+
+var SVGNS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs){
+  var n = document.createElementNS(SVGNS, tag);
+  for(var k in attrs){ if(attrs.hasOwnProperty(k)) n.setAttribute(k, attrs[k]); }
+  return n;
+}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+
+/* контур «острова» — заглушка (заокруглений чотирикутник з нерівним верхом) */
+function landPath(x, y, w, h){
+  var l=x-w/2, r=x+w/2, t=y-h/2, b=y+h/2;
+  return 'M'+l+','+(t+18)
+    + ' Q'+(l+ w*0.18)+','+(t-6)+' '+(x - w*0.06)+','+(t+10)
+    + ' Q'+(x + w*0.20)+','+(t-4)+' '+(r-14)+','+(t+22)
+    + ' Q'+(r+8)+','+y+' '+(r-16)+','+(b-16)
+    + ' Q'+x+','+(b+10)+' '+(l+16)+','+(b-14)
+    + ' Q'+(l-8)+','+y+' '+l+','+(t+18) + ' Z';
+}
+
+/* навігація (клавіатура + миша) */
+function go(href){ if(href) window.location.href = href; }
+
+/* ── рендер регіонів ── */
+function renderRegions(){
+  var roads = document.getElementById('roadsLayer');
+  var layer = document.getElementById('regionsLayer');
+  roads.innerHTML = ''; layer.innerHTML = '';
+
+  REGIONS.forEach(function(reg){
+    // дорога від замку до землі
+    roads.appendChild(el('path', { 'class':'road',
+      d:'M'+CASTLE.x+','+CASTLE.y+' L'+reg.x+','+reg.y }));
+
+    // група-регіон
+    var g = el('g', { 'class':'region', tabindex:'0', role:'link',
+      'aria-label': reg.name + ', прокачує ' + reg.stat });
+
+    // земля
+    var land = el('path', { 'class':'land', d:landPath(reg.x, reg.y, reg.w, reg.h),
+      fill:reg.color, 'fill-opacity':'0.9',
+      stroke:'rgba(255,255,255,.35)', 'stroke-width':'2' });
+    g.appendChild(land);
+
+    // іконка
+    var ic = el('text', { 'class':'r-ic', x:reg.x, y:reg.y-14,
+      'text-anchor':'middle' });
+    ic.textContent = reg.icon;
+    g.appendChild(ic);
+
+    // назва
+    var nm = el('text', { 'class':'r-name', x:reg.x, y:reg.y+18,
+      'text-anchor':'middle', 'font-size':'26' });
+    nm.textContent = reg.name;
+    g.appendChild(nm);
+
+    // характеристика
+    var st = el('text', { 'class':'r-sub', x:reg.x, y:reg.y+42,
+      'text-anchor':'middle', 'font-size':'15' });
+    st.textContent = reg.stat;
+    g.appendChild(st);
+
+    // взаємодія
+    g.addEventListener('click', function(){ go(reg.href); });
+    g.addEventListener('keydown', function(e){
+      if(e.key==='Enter' || e.key===' '){ e.preventDefault(); go(reg.href); }
+    });
+
+    layer.appendChild(g);
+  });
+}
+
+/* ── рендер центрального замку ── */
+function renderCastle(){
+  var layer = document.getElementById('castleLayer');
+  layer.innerHTML = '';
+  var x = CASTLE.x, y = CASTLE.y;
+
+  var g = el('g', { 'class':'castle', tabindex:'0', role:'link',
+    'aria-label': CASTLE.name + ' — профіль Героя' });
+
+  // майданчик
+  g.appendChild(el('ellipse', { cx:x, cy:y+52, rx:96, ry:26,
+    fill:'rgba(6,14,32,.55)' }));
+
+  // головна вежа (keep)
+  g.appendChild(el('rect', { 'class':'keep', x:x-46, y:y-40, width:92, height:96,
+    rx:8, fill:'#3a4a7a', stroke:'var(--gold)', 'stroke-width':'2.5' }));
+  // бічні вежі
+  g.appendChild(el('rect', { x:x-76, y:y-14, width:34, height:70, rx:6,
+    fill:'#2f3d68', stroke:'var(--gold)', 'stroke-width':'2' }));
+  g.appendChild(el('rect', { x:x+42, y:y-14, width:34, height:70, rx:6,
+    fill:'#2f3d68', stroke:'var(--gold)', 'stroke-width':'2' }));
+  // дах-прапор
+  g.appendChild(el('path', { d:'M'+x+','+(y-78)+' L'+(x+10)+','+(y-58)+' L'+(x-2)+','+(y-58)+' Z',
+    fill:'var(--gold)' }));
+  g.appendChild(el('line', { x1:x, y1:(y-78), x2:x, y2:(y-40),
+    stroke:'var(--gold)', 'stroke-width':'2.5' }));
+  // ворота
+  g.appendChild(el('path', { d:'M'+(x-14)+','+(y+56)+' L'+(x-14)+','+(y+20)
+    +' Q'+x+','+(y+4)+' '+(x+14)+','+(y+20)+' L'+(x+14)+','+(y+56)+' Z',
+    fill:'#1a234a', stroke:'rgba(242,199,92,.6)', 'stroke-width':'2' }));
+
+  // підпис
+  var nm = el('text', { 'class':'r-name', x:x, y:y+92,
+    'text-anchor':'middle', 'font-size':'22' });
+  nm.textContent = CASTLE.name;
+  g.appendChild(nm);
+
+  g.addEventListener('click', function(){ go(CASTLE.href); });
+  g.addEventListener('keydown', function(e){
+    if(e.key==='Enter' || e.key===' '){ e.preventDefault(); go(CASTLE.href); }
+  });
+
+  layer.appendChild(g);
+}
+
+/* ── легенда ── */
+function renderLegend(){
+  var box = document.getElementById('legend');
+  box.innerHTML = REGIONS.map(function(r){
+    return '<span class="lg-item"><span class="lg-dot" style="background:'+r.color+'"></span>'
+      + '<b>'+esc(r.name)+'</b> · '+esc(r.stat)+'</span>';
+  }).join('');
+}
+
+renderRegions();
+renderCastle();
+renderLegend();
+</script>
+
+<!-- смужка характеристик активного Героя (читання з Firebase) -->
+<script type="module" src="firebase-config.js"></script>
+<script>
+(function(){
+  var tries = 0;
+  (function whenSK(){
+    if(window.SK && SK.ready){
+      SK.ready.then(function(){
+        try{
+          if(SK.isHeroSession && SK.isHeroSession()){
+            SK.getHero().then(function(h){
+              if(!h) return;
+              document.getElementById('hsName').textContent =
+                '🦁 ' + (h.name || 'Герой') + ' · рівень ' + (h.level||1);
+              var stats = [
+                {k:'❤️ Здоров\u2019я', v:h.health},
+                {k:'🔮 Мана', v:h.mana},
+                {k:'🏃 Спритність', v:h.agility},
+                {k:'🎯 Точність', v:h.accuracy},
+                {k:'⭐ XP', v:h.xp}
+              ];
+              document.getElementById('hsStats').innerHTML = stats.map(function(s){
+                return '<span class="hs-stat">'+s.k+' <b>'+(s.v!=null?s.v:0)+'</b></span>';
+              }).join('');
+              document.getElementById('heroStrip').classList.add('show');
+            }).catch(function(){});
+          } else {
+            document.getElementById('hsGuest').classList.add('show');
+          }
+        }catch(e){}
+      });
+      return;
+    }
+    if(tries++ < 100) setTimeout(whenSK, 50);
+  })();
+})();
+</script>
+</body>
+</html>

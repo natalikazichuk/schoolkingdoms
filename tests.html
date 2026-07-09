@@ -125,6 +125,20 @@
     .nav-links .nav-btn span{display:none}
     .nav-btn{padding:9px 12px}
   }
+
+  /* ───── BOTTOM NAV (як на сторінці Героя) ───── */
+  .botnav{position:sticky;bottom:0;z-index:30;margin-top:16px;
+    background:linear-gradient(180deg,#1e3a6b,#16294f);
+    border-top:3px solid #e0a42a;display:flex;align-items:center;
+    gap:2px;padding:6px 8px;overflow-x:auto;scrollbar-width:none}
+  .botnav::-webkit-scrollbar{display:none}
+  .botnav a,.botnav button{display:flex;flex-direction:column;align-items:center;gap:2px;
+    color:#cfe0f5;background:none;border:none;cursor:pointer;font-family:inherit;
+    font-weight:800;font-size:.66rem;padding:5px 12px;border-radius:12px;text-decoration:none;
+    white-space:nowrap;flex:1;min-width:64px;transition:.15s}
+  .botnav .ic{font-size:1.2rem}
+  .botnav a.active{background:linear-gradient(180deg,#f4c842,#e0a42a);color:#5a3d05;box-shadow:0 3px 10px rgba(0,0,0,.3)}
+  .botnav a:hover:not(.active){background:rgba(255,255,255,.1);color:#fff}
 </style>
 </head>
 <body>
@@ -165,6 +179,17 @@
     Кожен пройдений тест додає <b>XP</b>, що підвищує характеристику предмета Героя.
     Схему впливу узгоджуємо окремо.
   </div>
+
+<!-- BOTTOM NAV -->
+<nav class="botnav">
+  <a href="hero.html"><span class="ic">🏠</span>Головна</a>
+  <a class="active" href="tests.html"><span class="ic">📜</span>Тести</a>
+  <a href="biblioteka.html"><span class="ic">📚</span>Бібліотека</a>
+  <a href="learn_play_moi_svit.html"><span class="ic">🌍</span>Мій Світ</a>
+  <a href="karta.html"><span class="ic">🗺️</span>Карта</a>
+  <button id="settingsBtn"><span class="ic">⚙️</span>Налашт.</button>
+  <button id="heroLogoutBtn"><span class="ic">🚪</span>Вийти</button>
+</nav>
 
 <script>
 /* ============================================================
@@ -539,6 +564,28 @@ document.getElementById('root').innerHTML =
     }
     if(tries++ < 100) setTimeout(whenSK, 50);
   })();
+})();
+</script>
+<!-- нижня навігація: Налаштування + Вихід (самодостатньо, як на сторінці Героя) -->
+<script>
+(function(){
+  var PKEY='sk_hero_profile';
+  function loadP(){ try{ return JSON.parse(localStorage.getItem(PKEY)||'{}')||{}; }catch(e){ return {}; } }
+  function saveP(p){ try{ localStorage.setItem(PKEY, JSON.stringify(p)); }catch(e){} }
+  var setBtn=document.getElementById('settingsBtn');
+  if(setBtn) setBtn.addEventListener('click',function(){
+    var p=loadP();
+    var choice=prompt("Налаштування героя:\n1 — змінити ім'я\n2 — змінити титул\n3 — змінити опис\n4 — скинути профіль\n\nВведи номер:");
+    if(choice==='1'){ var v=prompt("Ім'я героя:",p.name||''); if(v&&v.trim()){p.name=v.trim().slice(0,16);saveP(p);} }
+    else if(choice==='2'){ var v=prompt("Титул:",p.title||''); if(v&&v.trim()){p.title=v.trim().slice(0,28);saveP(p);} }
+    else if(choice==='3'){ var v=prompt("Про героя:",p.about||''); if(v&&v.trim()){p.about=v.trim().slice(0,160);saveP(p);} }
+    else if(choice==='4'){ if(confirm("Скинути ім'я/титул/опис до початкових?")){ try{localStorage.removeItem(PKEY);}catch(e){} } }
+  });
+  var outBtn=document.getElementById('heroLogoutBtn');
+  if(outBtn) outBtn.addEventListener('click',async function(){
+    try{ if(window.SK && SK.logout) await SK.logout(); }catch(e){}
+    location.href='index.html';
+  });
 })();
 </script>
 </body>
