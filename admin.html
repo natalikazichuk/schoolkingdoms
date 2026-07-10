@@ -115,12 +115,13 @@
   .test-card .actions{display:flex;gap:8px;align-items:center}
 
   /* Перемикач "активний" */
-  .switch{position:relative;display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:.8rem;color:var(--muted);font-weight:700}
-  .switch input{position:absolute;opacity:0;width:0;height:0}
-  .track{width:40px;height:22px;flex:none;border-radius:999px;background:#2a3160;border:1px solid var(--border);position:relative;transition:.2s}
+  .switch{position:relative;display:inline-flex;align-items:center;gap:10px;cursor:pointer;font-size:.8rem;color:var(--muted);font-weight:700}
+  .switch input{position:absolute;opacity:0;width:0;height:0;pointer-events:none}
+  .track{width:42px;height:22px;flex:0 0 42px;border-radius:999px;background:#2a3160;border:1px solid var(--border);position:relative;transition:.2s}
   .track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--muted);transition:.2s}
   .switch input:checked + .track{background:rgba(88,214,141,.35);border-color:var(--ok)}
-  .switch input:checked + .track::after{transform:translateX(18px);background:var(--ok)}
+  .switch input:checked + .track::after{transform:translateX(20px);background:var(--ok)}
+  .switch .sw-txt{flex:1;min-width:0;line-height:1.25}
 
   /* Форми */
   .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
@@ -182,17 +183,18 @@
   .lv-qmeta{font-size:.75rem;color:var(--muted);font-weight:800;margin:4px 0 8px}
 
   /* Секції редактора */
-  .section-title{margin:22px 0 10px;font-size:1.05rem;color:var(--gold);display:flex;align-items:center;gap:8px}
-  .divider{height:1px;background:var(--border);margin:20px 0}
+  .section-title{margin:16px 0 8px;font-size:1.05rem;color:var(--gold);display:flex;align-items:center;gap:8px}
+  .divider{height:1px;background:var(--border);margin:14px 0}
 
   /* Редактор тесту: комфортна ширина читання (прибирає порожнечу праворуч) */
   #viewEdit .toolbar{max-width:820px;margin-left:auto;margin-right:auto}
-  #viewEdit > .panel{max-width:820px;margin:0 auto;padding:20px 22px}
+  #viewEdit > .panel{max-width:820px;margin:0 auto;padding:16px 20px}
   #viewEdit h2{font-size:1.2rem;margin-bottom:2px}
-  #viewEdit h2 + .section-title{margin-top:14px}
-  #viewEdit .section-title{margin:20px 0 10px;font-size:1rem}
-  #viewEdit .divider{margin:16px 0}
-  #viewEdit .form-grid{gap:12px 16px}
+  #viewEdit h2 + .section-title{margin-top:8px}
+  #viewEdit .section-title{margin:14px 0 8px;font-size:1rem}
+  #viewEdit .divider{margin:12px 0}
+  #viewEdit .form-grid{gap:10px 16px}
+  #viewEdit .hint{margin-top:2px}
 
   /* Модалка */
   .modal-bg{position:fixed;inset:0;background:rgba(4,6,20,.66);backdrop-filter:blur(3px);z-index:50;display:none;align-items:center;justify-content:center;padding:18px}
@@ -314,13 +316,19 @@
           <label for="fStat">Розвиває характеристику</label>
           <select id="fStat"></select>
         </div>
-        <div class="field full">
+        <div class="field">
           <label for="fFormat">Формат тесту</label>
           <select id="fFormat">
             <option value="flat">Звичайний — один список питань</option>
             <option value="levels">Рівні — кілька рівнів із різною к-стю питань</option>
           </select>
           <span class="hint" id="formatHint"></span>
+        </div>
+        <div class="field">
+          <label for="fTopic">Тема (для групування)</label>
+          <input type="text" id="fTopic" list="topicList" placeholder="напр. Числа в межах 20" />
+          <datalist id="topicList"></datalist>
+          <span class="hint">Обовʼязково для математики, щоб тест потрапив у групу.</span>
         </div>
       </div>
 
@@ -352,7 +360,7 @@
           <label class="switch" style="align-self:flex-start">
             <input type="checkbox" id="fActive" checked />
             <span class="track"></span>
-            <span>Активний (показувати в розділі «Тести»)</span>
+            <span class="sw-txt">Активний (показувати в розділі «Тести»)</span>
           </label>
         </div>
       </div>
@@ -439,6 +447,8 @@ const STATS = [
   { v:'charisma',     label:'Харизма',    note:'' },
 ];
 const SUBJECTS = ['Математика','Українська мова','ЯДС','Англійська','Логіка','Пам’ять','Творчість'];
+/* Теми математики — мають збігатися з MATH_CURRICULUM у tests.html / test.html */
+const TOPICS = ['Числа в межах 10','Числа в межах 20','Числа в межах 100','Задачі','Розрядність чисел','Вирази у три дії','Назви компонентів дій','Величини (см, дм, м)','Порівняння чисел','Геометричні фігури','Цікава математика'];
 const statLabel = v => (STATS.find(s => s.v === v)?.label) || v;
 
 /* ---- Паттерн whenSK: firebase-config.js — модуль (deferred) ---- */
@@ -499,6 +509,7 @@ function buildStaticControls(){
   $('fStat').innerHTML = STATS.map(s =>
     `<option value="${s.v}">${s.label}${s.note ? ` — ${s.note}` : ''}</option>`).join('');
   $('subjectList').innerHTML = SUBJECTS.map(s => `<option value="${s}">`).join('');
+  $('topicList').innerHTML = TOPICS.map(t => `<option value="${t}">`).join('');
   const filter = $('filterSubject');
   filter.innerHTML = '<option value="">Усі предмети</option>' +
     SUBJECTS.map(s => `<option value="${s}">${s}</option>`).join('');
@@ -554,7 +565,7 @@ function renderList(){
    РЕДАКТОР
    ============================================================ */
 function blankTest(){
-  return { id:null, title:'', subject:'', grade:1, stat:'accuracy', format:'flat',
+  return { id:null, title:'', subject:'', topic:'', grade:1, stat:'accuracy', format:'flat',
     xpMode:'fixed', xpValue:10, statMode:'fixed', statValue:1, active:true,
     questions:[ blankQuestion() ], levels:[] };
 }
@@ -573,6 +584,7 @@ function openEditor(test){
   $('editTitle').textContent = draft.id ? 'Редагування тесту' : 'Новий тест';
   $('fTitle').value    = draft.title;
   $('fSubject').value  = draft.subject;
+  $('fTopic').value    = draft.topic || '';
   $('fGrade').value    = draft.grade ?? 1;
   $('fStat').value     = draft.stat;
   $('fFormat').value   = draft.format;
@@ -771,6 +783,7 @@ function updateHints(){
 function collectForm(){
   draft.title     = $('fTitle').value.trim();
   draft.subject   = $('fSubject').value.trim();
+  draft.topic     = $('fTopic').value.trim();
   draft.grade     = +$('fGrade').value || 1;
   draft.stat      = $('fStat').value;
   draft.format    = $('fFormat').value === 'levels' ? 'levels' : 'flat';
@@ -994,6 +1007,7 @@ function normalizeImported(raw){
     id: raw.id || null,
     title: String(raw.title),
     subject: raw.subject || '',
+    topic: raw.topic || '',
     grade: +raw.grade || 1,
     stat: STATS.some(s => s.v === raw.stat) ? raw.stat : 'accuracy',
     xpMode: raw.xpMode === 'perCorrect' ? 'perCorrect' : 'fixed',
