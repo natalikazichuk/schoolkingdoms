@@ -380,13 +380,31 @@ function distribute(tests){
   (tests||[]).forEach(function(t){ if(t && t.id && t.title) byTitle[norm(t.title)] = t; });
 
   // 1) МАТЕМАТИКА → групи за темами (з MATH_CURRICULUM)
-  var mathTaken = {};   // назви тестів, уже показані в темах Математики
+  //    Тест потрапляє в тему, якщо: (а) його назва є в списку теми,
+  //    (б) у тесті задано поле topic == назва теми (керується з адмінки),
+  //    (в) назва тесту починається з назви теми (зручний префікс).
+  var mathTaken = {};    // назви тестів, уже показані в темах Математики
+  var mathUsedId = {};   // id тестів, уже доданих (щоб не дублювати)
   if(mathSubj){
     mathSubj.groups = MATH_CURRICULUM.map(function(tp){
       var items = [];
-      (tp.tests||[]).forEach(function(name){
-        var t = byTitle[norm(name)];
-        if(t && Number(t.grade||1)===1){ items.push(testChip(t, byTitle)); mathTaken[norm(name)] = true; }
+      var tpN = norm(tp.topic);
+      function addTest(t){
+        if(!t || !t.id || mathUsedId[t.id]) return;
+        if(Number(t.grade||1)!==1) return;
+        items.push(testChip(t, byTitle));
+        mathUsedId[t.id] = true;
+        mathTaken[norm(t.title)] = true;
+      }
+      // (а) явний список назв — сумісність зі старими темами
+      (tp.tests||[]).forEach(function(name){ addTest(byTitle[norm(name)]); });
+      // (б)+(в) поле topic або префікс назви — лише для математичних тестів
+      (tests||[]).forEach(function(t){
+        if(!t || !t.title) return;
+        if(!subjectMatches(mathSubj, t.subject)) return;
+        var byField  = t.topic && norm(t.topic)===tpN;
+        var byPrefix = norm(t.title).indexOf(tpN)===0;
+        if(byField || byPrefix) addTest(t);
       });
       return { title:(tp.chain?'🔗 ':'')+esc(tp.topic), items:items };
     });
