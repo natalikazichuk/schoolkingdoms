@@ -312,8 +312,13 @@ const SK = {
   async pushLocal(heroId) {
     const hid = heroId || SK._heroUid();
     if (!hid) return false;
+    // Захист від затирання: не заливаємо, поки localStorage не гідратовано
+    // під ЦЬОГО Героя (інакше порожній/чужий стан міг би перезаписати базу).
+    if (localStorage.getItem('sk_active_child') !== hid) return false;
     const progress = {};
-    progressKeys().forEach(k => { progress[k] = localStorage.getItem(k); });
+    progressKeys().forEach(k => { const v = localStorage.getItem(k); if (v != null) progress[k] = v; });
+    // Нема чого зберігати — не чіпаємо базу (щоб не занулити наявний прогрес).
+    if (!Object.keys(progress).length) return false;
     await setDoc(doc(db, 'heroes', hid), { progress }, { merge: true });
     return true;
   },
