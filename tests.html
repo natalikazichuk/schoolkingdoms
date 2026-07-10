@@ -534,6 +534,16 @@ document.getElementById('root').innerHTML =
                 }catch(e){ return 0; }
               }
 
+              /* Прогрес із Firebase застосовуємо ЛИШЕ коли плитки вже намальовані.
+                 Інакше цей блок (getHero — один документ) випереджає render()
+                 (listActiveTests — вся колекція), застосовується до порожнього
+                 DOM і мовчки нічого не робить → усе лишається замкненим. */
+              (function applyProg(tries){
+                tries = tries || 0;
+                if(!document.querySelector('.chip.ready') && tries < 120){
+                  return setTimeout(function(){ applyProg(tries + 1); }, 50);
+                }
+
               /* ── бейджі «X/N рівнів»: максимум із локальним станом ── */
               document.querySelectorAll('.chip-lvprog[data-lvkey]').forEach(function(el){
                 var key   = el.getAttribute('data-lvkey');
@@ -557,6 +567,7 @@ document.getElementById('root').innerHTML =
                 if(prog[key]!=null){ var n=parseFloat(prog[key]); if(!isNaN(n)) v=n; }
                 el.textContent = v + ' XP';
               });
+              })();   /* /applyProg */
             }).catch(function(){});
           }
         }catch(e){}
