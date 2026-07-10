@@ -101,11 +101,11 @@
               var who = document.getElementById('skHdWho');
               if(who) who.textContent = '🦁 ' + (h.name||'Герой') + ' · рівень ' + (h.level||1);
               var stats = [
-                {k:'❤️ Здоров\u2019я', v:h.health},
-                {k:'🔮 Мана',       v:h.mana},
-                {k:'🏃 Спритність',  v:h.agility},
-                {k:'🎯 Точність',    v:h.accuracy},
-                {k:'⭐ XP',          v:h.xp}
+                {k:'❤️', v:h.health},
+                {k:'🔮', v:h.mana},
+                {k:'🏃', v:h.agility},
+                {k:'🎯', v:h.accuracy},
+                {k:'⭐', v:h.xp}
               ];
               var box = document.getElementById('skHdStats');
               if(box) box.innerHTML = stats.map(function(s){
