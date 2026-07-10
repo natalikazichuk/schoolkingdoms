@@ -173,6 +173,9 @@
   .pv-group{display:inline-flex;flex-wrap:wrap;gap:5px;max-width:150px;justify-content:center;padding:6px 8px;border-radius:10px;background:rgba(255,255,255,.04);border:1px dashed var(--border)}
   .pv-dot{width:16px;height:16px;border-radius:50%}
   .pv-plus{font-family:'Fredoka One',cursive;color:var(--gold);font-size:1.1rem}
+  .pv-img{max-width:100%;max-height:180px;border-radius:12px;border:1px solid var(--border);object-fit:contain;background:rgba(255,255,255,.03)}
+  .pv-img.broken{min-width:120px;min-height:70px}
+  .pv-noimg{font-size:.78rem;color:var(--muted);font-style:italic}
 
   /* Рівні */
   .lv-list{display:grid;gap:16px}
@@ -684,12 +687,21 @@ function normVisual(v){
     if (Array.isArray(v.groups) && v.groups.length) out.groups = v.groups.map(n => Math.max(0, +n || 0));
     return out;
   }
+  if (v.type === 'image'){
+    const url = String(v.url || '').trim();
+    if (!url) return null;                 // без посилання — ілюстрації немає
+    const out = { type:'image', url };
+    const alt = String(v.alt || '').trim();
+    if (alt) out.alt = alt;
+    return out;
+  }
   return null;
 }
 
 function setVisualType(q, type){
   if (type === 'number-line')        q.visual = { type:'number-line', from:1, to:10, highlight:[] };
   else if (type === 'number-blocks') q.visual = { type:'number-blocks', value:6 };
+  else if (type === 'image')         q.visual = { type:'image', url:'', alt:'' };
   else delete q.visual;
 }
 
@@ -712,6 +724,11 @@ function vizPreview(v){
       return `<span class="pv-group">${dots}</span>`;
     }).join(`<span class="pv-plus">+</span>`) + `</div>`;
   }
+  if (v.type === 'image'){
+    const url = String(v.url||'').trim();
+    if (!url) return `<div class="pv-noimg">— вкажи посилання на картинку —</div>`;
+    return `<img class="pv-img" src="${esc(url)}" alt="${esc(v.alt||'')}" onerror="this.classList.add('broken')">`;
+  }
   return '';
 }
 
@@ -723,6 +740,7 @@ function vizEditorHTML(q, idxAttr){
       <option value="">— без ілюстрації —</option>
       <option value="number-line"   ${type==='number-line'?'selected':''}>Числовий промінь</option>
       <option value="number-blocks" ${type==='number-blocks'?'selected':''}>Кружечки (склад числа)</option>
+      <option value="image"         ${type==='image'?'selected':''}>Картинка (за посиланням)</option>
     </select>`;
   let params = '';
   if (type === 'number-line'){
@@ -735,6 +753,11 @@ function vizEditorHTML(q, idxAttr){
     params = `<div class="viz-params">
         <label class="viz-lbl">скільки <input type="number" class="viz-mini" data-vizval="${idxAttr}" value="${v.value ?? 6}"></label>
         <label class="viz-lbl" style="flex:1;min-width:180px">групи (через кому, необов'язково) <input type="text" data-vizgroups="${idxAttr}" value="${esc((v.groups||[]).join(', '))}" placeholder="напр. 2, 4"></label>
+      </div>`;
+  } else if (type === 'image'){
+    params = `<div class="viz-params">
+        <label class="viz-lbl" style="flex:1;min-width:240px">посилання на картинку <input type="text" data-vizurl="${idxAttr}" value="${esc(v.url||'')}" placeholder="https://…  або  img/apple.png"></label>
+        <label class="viz-lbl" style="flex:1;min-width:180px">підпис (alt, необов'язково) <input type="text" data-vizalt="${idxAttr}" value="${esc(v.alt||'')}" placeholder="напр. яблука"></label>
       </div>`;
   }
   const prev = type ? `<div class="viz-prev" id="vizprev-${idxAttr}">${vizPreview(v)}</div>` : '';
@@ -908,6 +931,8 @@ function bindEvents(){
     else if (el.dataset.vizhi     != null){ qi=+el.dataset.vizhi;     draft.questions[qi].visual.highlight = parseNumList(el.value); }
     else if (el.dataset.vizval    != null){ qi=+el.dataset.vizval;    draft.questions[qi].visual.value = parseIntOr(el.value,0); }
     else if (el.dataset.vizgroups != null){ qi=+el.dataset.vizgroups; const g=parseNumList(el.value); if (g.length) draft.questions[qi].visual.groups=g; else delete draft.questions[qi].visual.groups; }
+    else if (el.dataset.vizurl    != null){ qi=+el.dataset.vizurl;    draft.questions[qi].visual.url = el.value.trim(); }
+    else if (el.dataset.vizalt    != null){ qi=+el.dataset.vizalt;    draft.questions[qi].visual.alt = el.value; }
     if (qi != null){ const node=document.getElementById('vizprev-'+qi); if (node) node.innerHTML=vizPreview(draft.questions[qi].visual); }
   });
   $('qList').addEventListener('change', (e) => {
