@@ -193,15 +193,23 @@ function genDistractors(ans){
   while(ds.length<2){ var c=(Math.random()*(hi+1))|0; if(c!==ans && ds.indexOf(c)<0) ds.push(c); }
   return ds;
 }
+function shuffleArr(a){ for(var i=a.length-1;i>0;i--){ var j=(Math.random()*(i+1))|0, t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
 function genQuestions(count, levelNum){
   var g=TEST.generator||{};
   var type=(g.type==='sub'||g.op==='-'||g.op==='sub')?'sub':'add';
   var max=parseInt(g.max,10)||10;
   var frac=0.4+0.6*((levelNum-1)/9); if(frac>1) frac=1;          // рампа складності
   var cap=Math.max(5, Math.round(max*frac)); if(cap>max) cap=max;
-  var pairs=genPairs(type, cap), out=[];
+  var pairs=genPairs(type, cap);
+  // тягнемо приклади БЕЗ повторів: мішок перетасовуємо, коли вичерпався
+  var bag=shuffleArr(pairs.slice()), out=[], last=null;
   for(var k=0;k<count;k++){
-    var p=pairs[(Math.random()*pairs.length)|0], a=p[0], b=p[1];
+    if(!bag.length){
+      bag=shuffleArr(pairs.slice());
+      if(bag.length>1 && last && bag[bag.length-1][0]===last[0] && bag[bag.length-1][1]===last[1]) bag.unshift(bag.pop());
+    }
+    var p=bag.pop(); last=p;
+    var a=p[0], b=p[1];
     var ans=type==='sub'?a-b:a+b;
     var q=a+(type==='sub'?' - ':' + ')+b+' = ?';
     var ds=genDistractors(ans), pos=(Math.random()*3)|0;
