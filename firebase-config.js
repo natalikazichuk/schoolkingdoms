@@ -404,6 +404,101 @@ const SK = {
     });
   },
 
+  /* ===== КНИГИ / БІБЛІОТЕКА (адмінка + читання) ===== */
+
+  // Усі книги (для admin-books.html). -> [{ id, ...book }]
+  async listBooks() {
+    const snap = await getDocs(collection(db, 'books'));
+    const out = [];
+    snap.forEach(d => out.push(Object.assign({ id: d.id }, d.data())));
+    out.sort((a, b) =>
+      String(a.subject || '').localeCompare(String(b.subject || ''), 'uk') ||
+      String(a.title || '').localeCompare(String(b.title || ''), 'uk'));
+    return out;
+  },
+
+  // Лише активні книги (для biblioteka.html). grade — необов'язковий фільтр.
+  async listActiveBooks(grade) {
+    const snap = await getDocs(collection(db, 'books'));
+    const out = [];
+    snap.forEach(d => {
+      const b = d.data();
+      if (b.active === false) return;
+      if (grade != null && Number(b.grade) !== Number(grade)) return;
+      out.push(Object.assign({ id: d.id }, b));
+    });
+    return out;
+  },
+
+  // Одна книга за id (для book.html). -> { id, ...book } | null
+  async getBook(id) {
+    if (!id) return null;
+    const s = await getDoc(doc(db, 'books', id));
+    return s.exists() ? Object.assign({ id: s.id }, s.data()) : null;
+  },
+
+  // Створити (без id) або оновити (з id) книгу. -> id
+  async saveBook(book) {
+    if (!book || typeof book !== 'object') throw new Error('empty-book');
+    const { id, ...data } = book;
+    data.updatedAt = serverTimestamp();
+    if (id) {
+      await setDoc(doc(db, 'books', id), data, { merge: true });
+      return id;
+    }
+    data.createdAt = serverTimestamp();
+    const ref = await addDoc(collection(db, 'books'), data);
+    return ref.id;
+  },
+
+  async deleteBook(id) {
+    if (!id) return;
+    await deleteDoc(doc(db, 'books', id));
+  },
+
+  async setBookActive(id, active) {
+    if (!id) return;
+    await updateDoc(doc(db, 'books', id), {
+      active: !!active,
+      updatedAt: serverTimestamp()
+    });
+  },
+
+  /* ===== ЧИТАЦЬКА БІБЛІОТЕКА ГЕРОЯ (heroes/{id}.library) ===== */
+
+  // Прочитані книги активного Героя. -> [{ bookId, title, correct, total, readAt }]
+  async getLibrary() {
+    const heroId = SK._heroUid();
+    if (!heroId) return [];
+    const s = await getDoc(doc(db, 'heroes', heroId));
+    if (!s.exists()) return [];
+    const lib = s.data().library || {};
+    return Object.keys(lib).map(k => Object.assign({ bookId: k }, lib[k]));
+  },
+
+  // Записати прочитану книгу + нарахувати монети (атомарно, у heroes/{id}).
+  async recordBookRead({ bookId, title, correct, total, coins } = {}) {
+    const heroId = SK._heroUid();
+    if (!heroId || !bookId) return false;
+    const ref = doc(db, 'heroes', heroId);
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref);
+      const data = snap.exists() ? snap.data() : {};
+      const lib = data.library || {};
+      lib[bookId] = {
+        bookId: bookId,
+        title: title || '',
+        correct: (correct != null ? Number(correct) : 0),
+        total:   (total   != null ? Number(total)   : 0),
+        readAt:  Date.now()
+      };
+      const curCoins = Number(data.coins) || 0;
+      const addCoins = Number(coins) || 0;
+      tx.set(ref, { library: lib, coins: curCoins + addCoins }, { merge: true });
+    });
+    return true;
+  },
+
   onUser(cb) { if (typeof cb === 'function') SK._userCbs.push(cb); }
 };
 
