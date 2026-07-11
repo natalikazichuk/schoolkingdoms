@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Королівська Змійка</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-0:#0b1030; --navy-1:#141a44; --violet:#3a2b6e;
+    --gold:#ffcf4d; --gold-deep:#e0a92e; --ink:#0a0e26;
+    --text:#f4f1ff; --snake:#ffcf4d; --snake2:#b9f27b;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%; overflow:hidden;}
+  body{
+    font-family:"Fredoka",system-ui,sans-serif; background:var(--navy-0); color:var(--text);
+    user-select:none; -webkit-user-select:none; touch-action:none; overscroll-behavior:none;
+  }
+  #wrap{position:fixed; inset:0; display:flex; flex-direction:column;}
+
+  /* HUD */
+  #hud{
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:calc(env(safe-area-inset-top) + 10px) 14px 6px 14px;
+  }
+  .pill{
+    background:rgba(20,26,68,.72); border:1.5px solid rgba(255,207,77,.35);
+    border-radius:999px; padding:6px 14px; display:flex; align-items:center; gap:7px; font-size:15px; font-weight:600;
+  }
+  .pill .lbl{color:var(--gold); font-weight:700;}
+  #pauseBtn{
+    -webkit-appearance:none; appearance:none; cursor:pointer; font-family:inherit; font-weight:700;
+    background:rgba(20,26,68,.72); border:1.5px solid rgba(255,207,77,.35); color:var(--text);
+    border-radius:999px; padding:6px 16px; font-size:15px;
+  }
+
+  /* Board */
+  #boardWrap{flex:1 1 auto; display:flex; align-items:center; justify-content:center; padding:4px 10px;}
+  canvas{display:block; touch-action:none;
+    border-radius:16px; border:2px solid rgba(255,207,77,.45);
+    box-shadow:0 0 0 4px rgba(11,16,48,.6), 0 10px 30px rgba(0,0,0,.4);
+    background:#0e1338;
+  }
+
+  /* D-pad */
+  #pad{
+    display:grid; grid-template-columns:repeat(3,64px); grid-template-rows:repeat(3,64px);
+    gap:8px; justify-content:center; padding:6px 12px calc(env(safe-area-inset-bottom) + 14px);
+  }
+  .dbtn{
+    -webkit-appearance:none; appearance:none; border:none; cursor:pointer; font-family:inherit;
+    background:linear-gradient(180deg,var(--navy-1),var(--ink));
+    border:2px solid rgba(255,207,77,.4); color:var(--text);
+    border-radius:18px; font-size:26px; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 4px 0 rgba(0,0,0,.35); transition:transform .06s, box-shadow .06s;
+    touch-action:none;
+  }
+  .dbtn:active,.dbtn.down{transform:translateY(3px); box-shadow:0 1px 0 rgba(0,0,0,.35);}
+  .dbtn.up{grid-column:2; grid-row:1;}
+  .dbtn.left{grid-column:1; grid-row:2;}
+  .dbtn.right{grid-column:3; grid-row:2;}
+  .dbtn.down-b{grid-column:2; grid-row:3;}
+  .dcenter{grid-column:2; grid-row:2; display:flex; align-items:center; justify-content:center; font-size:22px; opacity:.5;}
+
+  /* Overlays */
+  .screen{
+    position:absolute; inset:0; z-index:20; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; padding:24px; gap:14px;
+    background:radial-gradient(120% 90% at 50% 25%,rgba(58,43,110,.55),rgba(11,16,48,.93));
+    backdrop-filter:blur(2px);
+  }
+  .screen.hidden{display:none;}
+  .crown{font-size:52px; filter:drop-shadow(0 4px 10px rgba(255,207,77,.4));}
+  .title{font-size:30px; font-weight:700; color:var(--gold); line-height:1.1;}
+  .sub{font-size:15px; opacity:.85; max-width:340px; line-height:1.45;}
+  .hint{font-size:13px; opacity:.7; max-width:320px; line-height:1.4;}
+  .bigscore{font-size:22px; font-weight:700;} .bigscore b{color:var(--gold);}
+  .cta{
+    margin-top:6px; border:none; cursor:pointer; font-family:inherit; font-weight:700;
+    background:linear-gradient(180deg,var(--gold),var(--gold-deep)); color:#3a2a00;
+    font-size:18px; padding:14px 34px; border-radius:999px; box-shadow:0 5px 0 rgba(0,0,0,.3); transition:transform .06s;
+  }
+  .cta:active{transform:translateY(3px); box-shadow:0 2px 0 rgba(0,0,0,.3);}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="hud">
+    <div class="pill"><span class="lbl">🍎</span> <span id="scoreVal">0</span></div>
+    <button id="pauseBtn">⏸ Пауза</button>
+    <div class="pill"><span class="lbl">Рекорд</span> <span id="bestVal">0</span></div>
+  </div>
+
+  <div id="boardWrap"><canvas id="board"></canvas></div>
+
+  <div id="pad">
+    <button class="dbtn up"     data-dir="up">⬆️</button>
+    <button class="dbtn left"   data-dir="left">⬅️</button>
+    <div class="dcenter">🐍</div>
+    <button class="dbtn right"  data-dir="right">➡️</button>
+    <button class="dbtn down-b" data-dir="down">⬇️</button>
+  </div>
+
+  <!-- Start -->
+  <div class="screen" id="startScreen">
+    <div class="crown">🐍</div>
+    <div class="title">Королівська Змійка</div>
+    <div class="sub">Веди змійку до яблучок 🍎. Кожне зʼїдене — це +1 і трохи довша змійка. Не вкуси сама себе!</div>
+    <button class="cta" id="startBtn">Почати</button>
+    <div class="hint">Керуй свайпом по полю або кнопками. На компʼютері — стрілки чи WASD, пробіл — пауза.</div>
+  </div>
+
+  <!-- Game over -->
+  <div class="screen hidden" id="overScreen">
+    <div class="crown">🙈</div>
+    <div class="title">Кінець!</div>
+    <div class="bigscore">Яблучок: <b id="finalScore">0</b></div>
+    <div class="sub">Рекорд: <span id="finalBest">0</span> · довжина <span id="finalLen">3</span></div>
+    <button class="cta" id="againBtn">Ще раз</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const cv=document.getElementById("board"), ctx=cv.getContext("2d");
+  const N=16;                          // grid cells per side
+  let cell=0, dpr=1;
+  let snake=[], dir={x:1,y:0}, queue=[], food={x:0,y:0};
+  let score=0, best=0, running=false, paused=false, over=false;
+  let stepMs=200, acc=0, lastT=0, raf=0;
+  const STEP_MIN=95;
+
+  // ---------- layout ----------
+  function resize(){
+    const wrap=document.getElementById("boardWrap").getBoundingClientRect();
+    const size=Math.floor(Math.min(wrap.width, wrap.height));
+    cell=Math.floor(size/N);
+    const px=cell*N;
+    dpr=Math.min(window.devicePixelRatio||1,2);
+    cv.style.width=px+"px"; cv.style.height=px+"px";
+    cv.width=Math.round(px*dpr); cv.height=Math.round(px*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    render();
+  }
+  window.addEventListener("resize", resize);
+
+  // ---------- game ----------
+  function reset(){
+    snake=[{x:8,y:8},{x:7,y:8},{x:6,y:8}];
+    dir={x:1,y:0}; queue=[]; score=0; stepMs=200; acc=0;
+    placeFood();
+    document.getElementById("scoreVal").textContent="0";
+  }
+  function placeFood(){
+    let p;
+    do{ p={x:(Math.random()*N)|0, y:(Math.random()*N)|0}; }
+    while(snake.some(s=>s.x===p.x && s.y===p.y));
+    food=p;
+  }
+  function setDir(nx,ny){
+    // ignore if it reverses the current heading (relative to last queued dir)
+    const cur=queue.length?queue[queue.length-1]:dir;
+    if(nx===-cur.x && ny===-cur.y) return;
+    if(nx===cur.x && ny===cur.y) return;
+    if(queue.length<2) queue.push({x:nx,y:ny});
+  }
+  const DIRS={up:{x:0,y:-1},down:{x:0,y:1},left:{x:-1,y:0},right:{x:1,y:0}};
+
+  function step(){
+    if(queue.length) dir=queue.shift();
+    let hx=snake[0].x+dir.x, hy=snake[0].y+dir.y;
+    hx=(hx+N)%N; hy=(hy+N)%N;               // wrap around walls (forgiving for kids)
+    // self collision
+    for(let i=0;i<snake.length-1;i++){ if(snake[i].x===hx && snake[i].y===hy){ return gameOver(); } }
+    snake.unshift({x:hx,y:hy});
+    if(hx===food.x && hy===food.y){
+      score++; document.getElementById("scoreVal").textContent=score;
+      stepMs=Math.max(STEP_MIN, stepMs-6);
+      placeFood(); beep(660,0.06); setTimeout(()=>beep(880,0.06),60);
+    } else {
+      snake.pop();
+    }
+  }
+
+  function loop(now){
+    if(!running){ return; }
+    const dt=now-lastT; lastT=now;
+    if(!paused){
+      acc+=dt;
+      while(acc>=stepMs){ acc-=stepMs; step(); if(!running) return; }
+    }
+    render();
+    raf=requestAnimationFrame(loop);
+  }
+
+  // ---------- render ----------
+  function render(){
+    const px=cell*N;
+    ctx.clearRect(0,0,px,px);
+    // board bg
+    ctx.fillStyle="#0e1338"; ctx.fillRect(0,0,px,px);
+    // subtle grid
+    ctx.strokeStyle="rgba(255,255,255,0.04)"; ctx.lineWidth=1;
+    for(let i=1;i<N;i++){ const p=i*cell+0.5;
+      ctx.beginPath(); ctx.moveTo(p,0); ctx.lineTo(p,px); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0,p); ctx.lineTo(px,p); ctx.stroke();
+    }
+    // food
+    drawEmoji("🍎", food.x, food.y, cell*0.82);
+    // snake body
+    for(let i=snake.length-1;i>=1;i--){
+      const s=snake[i]; const t=i/snake.length;
+      const col=mix("#b9f27b","#e0a92e",t);
+      roundCell(s.x,s.y,col);
+    }
+    // head
+    drawHead(snake[0]);
+  }
+  function roundCell(gx,gy,color){
+    const pad=Math.max(1,cell*0.10), r=cell*0.28;
+    const x=gx*cell+pad, y=gy*cell+pad, w=cell-pad*2, h=cell-pad*2;
+    ctx.fillStyle=color; rr(x,y,w,h,r); ctx.fill();
+  }
+  function drawHead(h){
+    const pad=Math.max(1,cell*0.06), r=cell*0.34;
+    const x=h.x*cell+pad, y=h.y*cell+pad, w=cell-pad*2, hh=cell-pad*2;
+    ctx.save();
+    ctx.fillStyle="#ffcf4d";
+    rr(x,y,w,hh,r); ctx.fill();
+    ctx.strokeStyle="#e0a92e"; ctx.lineWidth=Math.max(1,cell*0.05); ctx.stroke();
+    // eyes, facing dir
+    const cx=x+w/2, cy=y+hh/2, off=w*0.20, es=Math.max(2,cell*0.09);
+    const ox=dir.x*w*0.16, oy=dir.y*hh*0.16;
+    const perpx=dir.y!==0?off:0, perpy=dir.x!==0?off:0;
+    ctx.fillStyle="#12102e";
+    ctx.beginPath(); ctx.arc(cx+ox+perpx, cy+oy+perpy, es,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx+ox-perpx, cy+oy-perpy, es,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+  function drawEmoji(ch,gx,gy,size){
+    ctx.font=size+"px 'Fredoka', system-ui, sans-serif";
+    ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText(ch, gx*cell+cell/2, gy*cell+cell*0.56);
+  }
+  function rr(x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+  }
+  function mix(a,b,t){
+    const pa=hex(a),pb=hex(b);
+    const c=pa.map((v,i)=>Math.round(v+(pb[i]-v)*t));
+    return `rgb(${c[0]},${c[1]},${c[2]})`;
+  }
+  function hex(h){ h=h.replace("#",""); return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; }
+
+  // ---------- flow ----------
+  function start(){
+    reset();
+    document.getElementById("startScreen").classList.add("hidden");
+    document.getElementById("overScreen").classList.add("hidden");
+    running=true; paused=false; over=false; lastT=performance.now();
+    document.getElementById("pauseBtn").textContent="⏸ Пауза";
+    cancelAnimationFrame(raf); raf=requestAnimationFrame(loop);
+  }
+  function gameOver(){
+    running=false; over=true;
+    best=Math.max(best,score);
+    beep(220,0.16); setTimeout(()=>beep(160,0.2),110);
+    document.getElementById("finalScore").textContent=score;
+    document.getElementById("finalBest").textContent=best;
+    document.getElementById("finalLen").textContent=snake.length;
+    document.getElementById("bestVal").textContent=best;
+    document.getElementById("overScreen").classList.remove("hidden");
+  }
+  function togglePause(){
+    if(!running) return;
+    paused=!paused;
+    document.getElementById("pauseBtn").textContent = paused ? "▶ Далі" : "⏸ Пауза";
+  }
+
+  // ---------- sound ----------
+  let actx=null;
+  function beep(f,d){ try{
+    if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)();
+    const o=actx.createOscillator(),g=actx.createGain();
+    o.type="square"; o.frequency.value=f; g.gain.value=0.05;
+    o.connect(g); g.connect(actx.destination); o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime+d); o.stop(actx.currentTime+d+0.02);
+  }catch(e){} }
+
+  // ---------- input ----------
+  document.querySelectorAll(".dbtn").forEach(b=>{
+    const d=DIRS[b.dataset.dir];
+    b.addEventListener("pointerdown",e=>{ e.preventDefault(); b.classList.add("down"); setDir(d.x,d.y); });
+    const up=()=>b.classList.remove("down");
+    b.addEventListener("pointerup",up); b.addEventListener("pointerleave",up); b.addEventListener("pointercancel",up);
+  });
+  document.getElementById("startBtn").addEventListener("click", start);
+  document.getElementById("againBtn").addEventListener("click", start);
+  document.getElementById("pauseBtn").addEventListener("click", togglePause);
+
+  window.addEventListener("keydown", e=>{
+    const k=e.code;
+    if(!running && (k==="Space"||k==="Enter")){ start(); return; }
+    if(k==="Space"){ e.preventDefault(); togglePause(); return; }
+    if(k==="ArrowUp"||k==="KeyW"){ e.preventDefault(); setDir(0,-1); }
+    else if(k==="ArrowDown"||k==="KeyS"){ e.preventDefault(); setDir(0,1); }
+    else if(k==="ArrowLeft"||k==="KeyA"){ e.preventDefault(); setDir(-1,0); }
+    else if(k==="ArrowRight"||k==="KeyD"){ e.preventDefault(); setDir(1,0); }
+  });
+
+  // swipe on the board
+  let sx=0, sy=0, swiping=false;
+  cv.addEventListener("pointerdown", e=>{ swiping=true; sx=e.clientX; sy=e.clientY; });
+  cv.addEventListener("pointermove", e=>{
+    if(!swiping) return;
+    const dx=e.clientX-sx, dy=e.clientY-sy, th=22;
+    if(Math.abs(dx)<th && Math.abs(dy)<th) return;
+    if(Math.abs(dx)>Math.abs(dy)) setDir(dx>0?1:-1,0); else setDir(0,dy>0?1:-1);
+    sx=e.clientX; sy=e.clientY;             // allow chained swipes
+  });
+  const endSwipe=()=>swiping=false;
+  cv.addEventListener("pointerup",endSwipe); cv.addEventListener("pointercancel",endSwipe); cv.addEventListener("pointerleave",endSwipe);
+
+  // ---------- boot ----------
+  reset(); resize();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Хрестики-нулики</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-0:#0b1030; --navy-1:#141a44; --violet:#3a2b6e;
+    --gold:#ffcf4d; --gold-deep:#e0a92e; --ink:#0a0e26;
+    --text:#f4f1ff; --x:#ffcf4d; --o:#7fe0ff;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%; overflow:hidden;}
+  body{
+    font-family:"Fredoka",system-ui,sans-serif; background:var(--navy-0); color:var(--text);
+    user-select:none; -webkit-user-select:none; touch-action:manipulation; overscroll-behavior:none;
+  }
+  #wrap{position:fixed; inset:0; display:flex; flex-direction:column;}
+
+  /* Scoreboard */
+  #score{
+    display:flex; justify-content:center; align-items:stretch; gap:8px;
+    padding:calc(env(safe-area-inset-top) + 12px) 12px 4px;
+  }
+  .sc{
+    background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.3);
+    border-radius:16px; padding:8px 14px; text-align:center; min-width:78px;
+  }
+  .sc .who{font-size:13px; opacity:.8;} .sc .n{font-size:22px; font-weight:700;}
+  .sc.x{border-color:rgba(255,207,77,.6);} .sc.x .n{color:var(--x);}
+  .sc.o{border-color:rgba(127,224,255,.5);} .sc.o .n{color:var(--o);}
+  .sc.active{box-shadow:0 0 0 2px rgba(255,255,255,.15) inset; transform:translateY(-2px);}
+  .sc.d .n{color:#cfc9ff;}
+
+  #turn{text-align:center; font-weight:600; padding:2px 12px 6px; min-height:26px; font-size:15px;}
+  #turn b.x{color:var(--x);} #turn b.o{color:var(--o);}
+
+  /* Board */
+  #boardWrap{flex:1 1 auto; display:flex; align-items:center; justify-content:center; padding:6px 12px;}
+  #board{
+    display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr);
+    gap:10px; background:transparent;
+  }
+  .cell{
+    -webkit-appearance:none; appearance:none; cursor:pointer; font-family:inherit;
+    background:linear-gradient(180deg,var(--navy-1),var(--ink));
+    border:2px solid rgba(255,207,77,.35); border-radius:20px;
+    display:flex; align-items:center; justify-content:center; padding:0;
+    box-shadow:0 5px 0 rgba(0,0,0,.3); transition:transform .08s, box-shadow .08s, border-color .2s, background .2s;
+  }
+  .cell:active{transform:translateY(3px); box-shadow:0 2px 0 rgba(0,0,0,.3);}
+  .cell svg{width:64%; height:64%;}
+  .cell.win{background:linear-gradient(180deg,#2a2f66,#191a3e); border-color:#fff2c0; box-shadow:0 0 22px rgba(255,207,77,.5);}
+  .cell:disabled{cursor:default;}
+  .stroke{fill:none; stroke-width:11; stroke-linecap:round; stroke-linejoin:round;
+          stroke-dasharray:120; stroke-dashoffset:120; animation:draw .28s ease forwards;}
+  .stroke.s2{animation-delay:.14s;}
+  .x-mark .stroke{stroke:var(--x);}
+  .o-mark .stroke{stroke:var(--o); stroke-dasharray:210; stroke-dashoffset:210;}
+  @keyframes draw{to{stroke-dashoffset:0;}}
+
+  /* Bottom bar */
+  #bar{display:flex; justify-content:center; gap:10px; padding:8px 12px calc(env(safe-area-inset-bottom) + 14px);}
+  .barbtn{
+    -webkit-appearance:none; appearance:none; cursor:pointer; font-family:inherit; font-weight:700;
+    background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.4); color:var(--text);
+    border-radius:999px; padding:11px 20px; font-size:15px;
+  }
+  .barbtn.gold{background:linear-gradient(180deg,var(--gold),var(--gold-deep)); color:#3a2a00; border:none;}
+
+  /* Overlays */
+  .screen{
+    position:absolute; inset:0; z-index:20; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; padding:24px; gap:14px;
+    background:radial-gradient(120% 90% at 50% 25%,rgba(58,43,110,.6),rgba(11,16,48,.94)); backdrop-filter:blur(2px);
+  }
+  .screen.hidden{display:none;}
+  .crown{font-size:50px; filter:drop-shadow(0 4px 10px rgba(255,207,77,.4));}
+  .title{font-size:28px; font-weight:700; color:var(--gold); line-height:1.1;}
+  .sub{font-size:15px; opacity:.85; max-width:340px; line-height:1.4;}
+  .group{display:flex; flex-direction:column; gap:8px; width:min(320px,86vw);}
+  .glabel{font-size:13px; opacity:.7; margin-top:4px;}
+  .seg{display:flex; gap:8px;}
+  .opt{
+    flex:1; cursor:pointer; font-family:inherit; font-weight:600; font-size:15px;
+    background:rgba(20,26,68,.7); border:2px solid rgba(255,207,77,.3); color:var(--text);
+    border-radius:14px; padding:12px 8px;
+  }
+  .opt.sel{border-color:var(--gold); background:linear-gradient(180deg,#241c52,#12102e); box-shadow:0 0 14px rgba(255,207,77,.3);}
+  .cta{
+    margin-top:8px; border:none; cursor:pointer; font-family:inherit; font-weight:700;
+    background:linear-gradient(180deg,var(--gold),var(--gold-deep)); color:#3a2a00;
+    font-size:18px; padding:14px 40px; border-radius:999px; box-shadow:0 5px 0 rgba(0,0,0,.3); transition:transform .06s;
+  }
+  .cta:active{transform:translateY(3px); box-shadow:0 2px 0 rgba(0,0,0,.3);}
+  #diffGroup.hidden{display:none;}
+  .resultbig{font-size:34px; font-weight:700;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="score">
+    <div class="sc x" id="scX"><div class="who">Хрестики ✕</div><div class="n" id="nX">0</div></div>
+    <div class="sc d"><div class="who">Нічиї</div><div class="n" id="nD">0</div></div>
+    <div class="sc o" id="scO"><div class="who">Нулики ◯</div><div class="n" id="nO">0</div></div>
+  </div>
+  <div id="turn"></div>
+
+  <div id="boardWrap"><div id="board"></div></div>
+
+  <div id="bar">
+    <button class="barbtn" id="menuBtn">☰ Меню</button>
+    <button class="barbtn gold" id="newBtn">Нова гра</button>
+  </div>
+
+  <!-- Start / menu -->
+  <div class="screen" id="startScreen">
+    <div class="crown">✕◯</div>
+    <div class="title">Хрестики-нулики</div>
+    <div class="group">
+      <div class="glabel">З ким граємо?</div>
+      <div class="seg" id="modeSeg">
+        <button class="opt sel" data-mode="cpu">🤖 Проти компʼютера</button>
+        <button class="opt" data-mode="pvp">👫 Удвох</button>
+      </div>
+      <div id="diffGroup">
+        <div class="glabel">Складність</div>
+        <div class="seg" id="diffSeg">
+          <button class="opt sel" data-diff="easy">🙂 Легко</button>
+          <button class="opt" data-diff="hard">🧠 Складно</button>
+        </div>
+      </div>
+    </div>
+    <button class="cta" id="playBtn">Грати</button>
+    <div class="sub">Хрестики ✕ ходять першими. Збери три свої в ряд — по горизонталі, вертикалі чи діагоналі.</div>
+  </div>
+
+  <!-- Round result -->
+  <div class="screen hidden" id="overScreen">
+    <div class="resultbig" id="resultMark">✕</div>
+    <div class="title" id="resultText">Переміг!</div>
+    <button class="cta" id="nextBtn">Наступний раунд</button>
+    <button class="barbtn" id="backBtn" style="margin-top:2px;">☰ У меню</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const boardEl=document.getElementById("board");
+  const cells=[];
+  const WIN=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  const SVG_X='<svg viewBox="0 0 100 100" class="x-mark"><line class="stroke" x1="22" y1="22" x2="78" y2="78"/><line class="stroke s2" x1="78" y1="22" x2="22" y2="78"/></svg>';
+  const SVG_O='<svg viewBox="0 0 100 100" class="o-mark"><circle class="stroke" cx="50" cy="50" r="30"/></svg>';
+
+  let board, turn, mode="cpu", diff="easy", starter="X", locked=false, over=false;
+  let wins={X:0,O:0,D:0};
+
+  // build cells
+  for(let i=0;i<9;i++){
+    const b=document.createElement("button");
+    b.className="cell"; b.setAttribute("aria-label","клітинка "+(i+1));
+    b.addEventListener("click",()=>human(i));
+    boardEl.appendChild(b); cells.push(b);
+  }
+
+  function sizeBoard(){
+    const wrap=document.getElementById("boardWrap").getBoundingClientRect();
+    const s=Math.floor(Math.min(wrap.width, wrap.height));
+    boardEl.style.width=s+"px"; boardEl.style.height=s+"px";
+  }
+  window.addEventListener("resize", sizeBoard);
+
+  function newRound(){
+    board=Array(9).fill(""); over=false; locked=false;
+    turn=starter;
+    cells.forEach(c=>{ c.innerHTML=""; c.classList.remove("win"); c.disabled=false; });
+    document.getElementById("overScreen").classList.add("hidden");
+    updateTurn();
+    if(mode==="cpu" && turn==="O") aiMove();   // if computer is X-starter case not used, but safe
+  }
+
+  function updateTurn(){
+    const t=document.getElementById("turn");
+    if(over){ t.innerHTML=""; return; }
+    if(mode==="cpu"){
+      t.innerHTML = turn==="X" ? 'Твій хід — <b class="x">хрестик ✕</b>' : 'Компʼютер думає… <b class="o">◯</b>';
+    } else {
+      t.innerHTML = turn==="X" ? 'Хід гравця <b class="x">✕</b>' : 'Хід гравця <b class="o">◯</b>';
+    }
+    document.getElementById("scX").classList.toggle("active", turn==="X" && !over);
+    document.getElementById("scO").classList.toggle("active", turn==="O" && !over);
+  }
+
+  function place(i,player){
+    board[i]=player;
+    cells[i].innerHTML = player==="X" ? SVG_X : SVG_O;
+    cells[i].disabled=true;
+    beep(player==="X"?620:440,0.06);
+  }
+
+  function human(i){
+    if(locked||over||board[i]) return;
+    if(mode==="cpu" && turn!=="X") return;
+    place(i,turn);
+    if(finish()) return;
+    turn = turn==="X" ? "O" : "X";
+    updateTurn();
+    if(mode==="cpu" && turn==="O"){ locked=true; setTimeout(aiMove, 420); }
+  }
+
+  function aiMove(){
+    if(over) return;
+    const i = diff==="hard" ? bestMove("O") : easyMove();
+    place(i,"O");
+    locked=false;
+    if(finish()) return;
+    turn="X"; updateTurn();
+  }
+
+  function easyMove(){
+    // 55% smart (take win / block), else random — beatable, fun for kids
+    if(Math.random()<0.55){
+      let m=findLine("O"); if(m>=0) return m;      // win if possible
+      m=findLine("X"); if(m>=0) return m;          // block
+    }
+    const empty=board.map((v,i)=>v?null:i).filter(v=>v!==null);
+    return empty[(Math.random()*empty.length)|0];
+  }
+  function findLine(p){
+    for(const [a,b,c] of WIN){
+      const line=[board[a],board[b],board[c]], idx=[a,b,c];
+      if(line.filter(v=>v===p).length===2 && line.includes("")) return idx[line.indexOf("")];
+    }
+    return -1;
+  }
+  function bestMove(p){
+    let bs=-Infinity, mv=-1;
+    for(let i=0;i<9;i++){ if(!board[i]){ board[i]=p; const s=minimax(false,p); board[i]=""; if(s>bs){bs=s; mv=i;} } }
+    return mv;
+  }
+  function minimax(maxing, me){
+    const w=winnerOf(board);
+    if(w===me) return 10; if(w && w!=="D") return -10; if(w==="D") return 0;
+    const opp = me==="O"?"X":"O";
+    if(maxing){ let b=-Infinity; for(let i=0;i<9;i++){ if(!board[i]){ board[i]=me; b=Math.max(b,minimax(false,me)); board[i]=""; } } return b; }
+    else { let b=Infinity; for(let i=0;i<9;i++){ if(!board[i]){ board[i]=opp; b=Math.min(b,minimax(true,me)); board[i]=""; } } return b; }
+  }
+  function winnerOf(bd){
+    for(const [a,b,c] of WIN){ if(bd[a] && bd[a]===bd[b] && bd[b]===bd[c]) return bd[a]; }
+    return bd.every(v=>v) ? "D" : null;
+  }
+
+  function finish(){
+    let line=null, w=null;
+    for(const L of WIN){ const [a,b,c]=L; if(board[a] && board[a]===board[b] && board[b]===board[c]){ w=board[a]; line=L; break; } }
+    if(!w && board.every(v=>v)) w="D";
+    if(!w) return false;
+    over=true; locked=true;
+    cells.forEach(c=>c.disabled=true);
+    if(line) line.forEach(i=>cells[i].classList.add("win"));
+    wins[w]++; document.getElementById("nX").textContent=wins.X;
+    document.getElementById("nO").textContent=wins.O; document.getElementById("nD").textContent=wins.D;
+    updateTurn();
+    // alternate who starts next round
+    starter = starter==="X" ? "O" : "X";
+    setTimeout(()=>showResult(w), line?500:150);
+    return true;
+  }
+
+  function showResult(w){
+    const mark=document.getElementById("resultMark"), txt=document.getElementById("resultText");
+    if(w==="D"){ mark.textContent="🤝"; txt.textContent="Нічия!"; beep(300,0.15); }
+    else{
+      mark.textContent = w==="X" ? "✕" : "◯";
+      mark.style.color = w==="X" ? "var(--x)" : "var(--o)";
+      if(mode==="cpu") txt.textContent = w==="X" ? "Ти переміг! 🎉" : "Виграв компʼютер 🤖";
+      else txt.textContent = (w==="X"?"Хрестики":"Нулики")+" перемогли! 🎉";
+      beep(660,0.1); setTimeout(()=>beep(880,0.12),110); setTimeout(()=>beep(1040,0.14),230);
+    }
+    document.getElementById("overScreen").classList.remove("hidden");
+  }
+
+  // sound
+  let actx=null;
+  function beep(f,d){ try{
+    if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)();
+    const o=actx.createOscillator(),g=actx.createGain();
+    o.type="square"; o.frequency.value=f; g.gain.value=0.05; o.connect(g); g.connect(actx.destination);
+    o.start(); g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime+d); o.stop(actx.currentTime+d+0.02);
+  }catch(e){} }
+
+  // ---- menu wiring ----
+  document.querySelectorAll("#modeSeg .opt").forEach(o=>o.addEventListener("click",()=>{
+    document.querySelectorAll("#modeSeg .opt").forEach(x=>x.classList.remove("sel"));
+    o.classList.add("sel"); mode=o.dataset.mode;
+    document.getElementById("diffGroup").classList.toggle("hidden", mode!=="cpu");
+  }));
+  document.querySelectorAll("#diffSeg .opt").forEach(o=>o.addEventListener("click",()=>{
+    document.querySelectorAll("#diffSeg .opt").forEach(x=>x.classList.remove("sel"));
+    o.classList.add("sel"); diff=o.dataset.diff;
+  }));
+
+  function startFromMenu(){
+    wins={X:0,O:0,D:0};
+    document.getElementById("nX").textContent="0";
+    document.getElementById("nO").textContent="0";
+    document.getElementById("nD").textContent="0";
+    starter="X";
+    document.getElementById("startScreen").classList.add("hidden");
+    sizeBoard(); newRound();
+  }
+  document.getElementById("playBtn").addEventListener("click", startFromMenu);
+  document.getElementById("nextBtn").addEventListener("click", newRound);
+  document.getElementById("newBtn").addEventListener("click", ()=>{ starter="X"; newRound(); });
+  document.getElementById("menuBtn").addEventListener("click", ()=>document.getElementById("startScreen").classList.remove("hidden"));
+  document.getElementById("backBtn").addEventListener("click", ()=>{
+    document.getElementById("overScreen").classList.add("hidden");
+    document.getElementById("startScreen").classList.remove("hidden");
+  });
+
+  // boot
+  sizeBoard();
+})();
+</script>
+</body>
+</html>

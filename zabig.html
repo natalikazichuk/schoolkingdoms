@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Королівський Забіг</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-0:#0b1030;
+    --navy-1:#141a44;
+    --violet:#3a2b6e;
+    --gold:#ffcf4d;
+    --gold-deep:#e0a92e;
+    --ink:#0a0e26;
+    --text:#f4f1ff;
+    --good:#7be0a4;
+    --bad:#ff6b7a;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%; overflow:hidden;}
+  body{
+    font-family:"Fredoka",system-ui,sans-serif;
+    background:var(--navy-0);
+    color:var(--text);
+    user-select:none; -webkit-user-select:none;
+    touch-action:none; overscroll-behavior:none;
+  }
+  #wrap{position:fixed; inset:0; display:flex; flex-direction:column;}
+  canvas{display:block; width:100%; flex:1 1 auto; touch-action:none;}
+
+  /* ---- HUD ---- */
+  #hud{
+    position:absolute; top:0; left:0; right:0;
+    display:flex; justify-content:space-between; align-items:flex-start;
+    padding:calc(env(safe-area-inset-top) + 10px) 14px 0 14px;
+    pointer-events:none; font-weight:600;
+  }
+  .pill{
+    background:rgba(20,26,68,.72); border:1.5px solid rgba(255,207,77,.35);
+    border-radius:999px; padding:6px 14px; backdrop-filter:blur(4px);
+    display:flex; align-items:center; gap:7px; font-size:15px;
+  }
+  .pill .lbl{color:var(--gold); font-weight:700;}
+  #scorePill{flex-direction:column; align-items:flex-end; gap:0; padding:6px 14px;}
+  #scorePill .best{font-size:11px; opacity:.7;}
+
+  /* ---- Controls ---- */
+  #pad{
+    position:relative; z-index:5;
+    display:flex; gap:10px; justify-content:center; align-items:stretch;
+    padding:10px 12px calc(env(safe-area-inset-bottom) + 12px) 12px;
+  }
+  .btn{
+    -webkit-appearance:none; appearance:none; border:none; cursor:pointer;
+    flex:1 1 0; min-width:0; max-width:150px;
+    background:linear-gradient(180deg,var(--navy-1),var(--ink));
+    border:2px solid rgba(255,207,77,.4);
+    color:var(--text); border-radius:20px;
+    padding:12px 6px 10px; font-family:inherit; font-weight:600;
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+    box-shadow:0 4px 0 rgba(0,0,0,.35);
+    transition:transform .06s ease, box-shadow .06s ease, opacity .15s ease;
+    touch-action:none;
+  }
+  .btn .ico{font-size:26px; line-height:1;}
+  .btn .cap{font-size:12px; opacity:.85;}
+  .btn.big{border-color:var(--gold); background:linear-gradient(180deg,#241c52,#12102e);}
+  .btn:active,.btn.down{transform:translateY(3px); box-shadow:0 1px 0 rgba(0,0,0,.35);}
+  /* Locked buttons keep their slot but are dimmed & inactive, so no button ever moves. */
+  .btn.locked{opacity:.32; filter:grayscale(1); pointer-events:none;}
+  .btn.locked .lock{display:block;}
+  .btn .lock{display:none; position:absolute; top:6px; right:8px; font-size:13px;}
+  .btn{position:relative;}
+  .btn:disabled{opacity:.45;}
+  .btn.pop{animation:pop .5s ease;}
+  @keyframes pop{0%{transform:scale(.6);}60%{transform:scale(1.12);}100%{transform:scale(1);}}
+
+  /* ---- Overlays ---- */
+  .screen{
+    position:absolute; inset:0; z-index:20;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding:24px; gap:14px;
+    background:radial-gradient(120% 90% at 50% 20%,rgba(58,43,110,.55),rgba(11,16,48,.92));
+    backdrop-filter:blur(2px);
+  }
+  .screen.hidden{display:none;}
+  .crown{font-size:52px; filter:drop-shadow(0 4px 10px rgba(255,207,77,.4));}
+  .title{font-size:30px; font-weight:700; color:var(--gold); letter-spacing:.5px; line-height:1.1;}
+  .sub{font-size:15px; opacity:.85; max-width:340px; line-height:1.45;}
+  .hint{font-size:13px; opacity:.7; max-width:320px; line-height:1.4;}
+  .cta{
+    margin-top:6px; border:none; cursor:pointer; font-family:inherit; font-weight:700;
+    background:linear-gradient(180deg,var(--gold),var(--gold-deep));
+    color:#3a2a00; font-size:18px; padding:14px 34px; border-radius:999px;
+    box-shadow:0 5px 0 rgba(0,0,0,.3); transition:transform .06s;
+  }
+  .cta:active{transform:translateY(3px); box-shadow:0 2px 0 rgba(0,0,0,.3);}
+  .bigscore{font-size:22px; font-weight:700;}
+  .bigscore b{color:var(--gold);}
+
+  /* ---- Level-up toast ---- */
+  #toast{
+    position:absolute; z-index:15; left:50%; top:16%;
+    transform:translate(-50%,-24px); opacity:0; pointer-events:none;
+    background:rgba(20,26,68,.94); border:2px solid var(--gold);
+    border-radius:18px; padding:14px 20px; text-align:center;
+    box-shadow:0 8px 30px rgba(0,0,0,.5); max-width:88vw;
+    transition:transform .35s cubic-bezier(.2,1.3,.4,1), opacity .35s;
+  }
+  #toast.show{transform:translate(-50%,0); opacity:1;}
+  #toast .tbig{font-size:20px; font-weight:700; color:var(--gold);}
+  #toast .tsmall{font-size:14px; margin-top:4px; opacity:.92;}
+  #toast .tkey{margin-top:6px; font-size:14px;}
+  #toast .tkey b{color:var(--gold);}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game"></canvas>
+  <div id="hud">
+    <div class="pill" id="lvlPill"><span class="lbl">Рівень</span> <span id="lvlVal">1</span></div>
+    <div class="pill" id="scorePill"><span id="scoreVal">0</span><span class="best">рекорд <span id="bestVal">0</span></span></div>
+  </div>
+
+  <div id="pad">
+    <button class="btn locked" id="bDuck" data-hold="1"><span class="lock">🔒</span><span class="ico">⬇️</span><span class="cap">Пригнутись</span></button>
+    <button class="btn big" id="bJump"><span class="ico">⬆️</span><span class="cap">Стрибок</span></button>
+    <button class="btn locked" id="bHigh"><span class="lock">🔒</span><span class="ico">⏫</span><span class="cap">Високий</span></button>
+    <button class="btn locked" id="bDash"><span class="lock">🔒</span><span class="ico">💨</span><span class="cap">Ривок</span></button>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast"><div class="tbig"></div><div class="tsmall"></div><div class="tkey"></div></div>
+
+  <!-- Start screen -->
+  <div class="screen" id="startScreen">
+    <div class="crown">👑</div>
+    <div class="title">Королівський Забіг</div>
+    <div class="sub">Котик біжить сам! Тисни <b>⬆️ Стрибок</b>, щоб перестрибнути перешкоду. З кожним рівнем приєднується нова тваринка та нова кнопка.</div>
+    <button class="cta" id="startBtn">Почати</button>
+    <div class="hint">На комп'ютері: Пробіл — стрибок, ↑ — високий, ↓ — пригнутись, → — ривок.</div>
+  </div>
+
+  <!-- Game over screen -->
+  <div class="screen hidden" id="overScreen">
+    <div class="crown" id="overFace">🙀</div>
+    <div class="title">Ой!</div>
+    <div class="bigscore">Рахунок: <b id="finalScore">0</b></div>
+    <div class="sub">Рекорд: <span id="finalBest">0</span> · Рівень <span id="finalLvl">1</span></div>
+    <button class="cta" id="againBtn">Ще раз</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const cv = document.getElementById("game");
+  const ctx = cv.getContext("2d");
+
+  // ---------- config ----------
+  const REF = 620;                 // reference height for scaling physics
+  const GRAVITY = 2100;
+  const JUMP_V  = 590;
+  const HIGH_V  = 900;
+  const BASE_SPEED = 250;
+  const SPEED_PER_LVL = 42;
+
+  // Each level: which animal joins, which button unlocks, which obstacles appear.
+  const LEVELS = [
+    { need:0,   animal:"🐱", name:"Котик",   unlock:null,       obstacles:["ground"] },
+    { need:45,  animal:"🐶", name:"Песик",   unlock:"duck",     obstacles:["ground","fly"] },
+    { need:110, animal:"🐰", name:"Зайчик",  unlock:"high",     obstacles:["ground","fly","tall"] },
+    { need:190, animal:"🦊", name:"Лисичка", unlock:"dash",     obstacles:["ground","fly","tall","meteor"] },
+  ];
+  const UNLOCK_TEXT = {
+    duck: { btn:"⬇️ Пригнутись", why:"щоб пролетіла бджілка 🐝 — присядь!" },
+    high: { btn:"⏫ Високий",    why:"для високої стіни 🧱 — звичайного стрибка замало." },
+    dash: { btn:"💨 Ривок",     why:"пробий вогняну кулю ☄️ ривком!" },
+  };
+  const OBST = {
+    ground: { emoji:"🌵", w:34, h:44 },
+    fly:    { emoji:"🐝", w:40, h:34 },
+    tall:   { emoji:"🧱", w:40, h:116 },
+    meteor: { emoji:"☄️", w:46, h:160 },
+  };
+
+  // ---------- state ----------
+  let W=0, H=0, scale=1, dpr=1, groundY=0;
+  let running=false, over=false, raf=0, lastT=0;
+  let speed=0, score=0, scoreAcc=0, level=1, best=0;
+  const player = { x:0, feetY:0, vy:0, onGround:true, ducking:false,
+                   h:52, hDuck:30, w:46, dashT:0, dashCd:0 };
+  let obstacles=[];
+  let spawnT=1.2;
+  let pack=["🐱"];        // trailing animals (cosmetic, grows each level)
+  let stars=[], clouds=[];
+  let shakeT=0;
+
+  // input flags
+  let duckHeld=false;
+
+  // ---------- sizing ----------
+  function resize(){
+    const r = cv.getBoundingClientRect();
+    dpr = Math.min(window.devicePixelRatio||1, 2);
+    W = r.width; H = r.height;
+    cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    scale = H/REF;
+    groundY = H*0.80;
+    player.x = W*0.20;
+    // stars & clouds
+    stars = []; for(let i=0;i<60;i++) stars.push({x:Math.random()*W, y:Math.random()*groundY*0.9, r:(Math.random()*1.4+0.4)});
+    clouds = []; for(let i=0;i<4;i++) clouds.push({x:Math.random()*W, y:groundY*(0.15+Math.random()*0.4), s:(0.6+Math.random()*0.8)});
+    if(player.onGround) player.feetY = groundY;
+  }
+  window.addEventListener("resize", resize);
+
+  // ---------- helpers ----------
+  const S = v => v*scale;                       // scale a length
+  function curSpeed(){ return S(BASE_SPEED + (level-1)*SPEED_PER_LVL); }
+  function playerBox(){
+    const h = player.ducking ? S(player.hDuck) : S(player.h);
+    const w = S(player.w)*0.6;
+    return { x:player.x - w/2, y:player.feetY - h, w:w, h:h };
+  }
+  function obBox(o){
+    const d = OBST[o.type];
+    const w = S(d.w)*0.78, h = S(d.h)*0.82;
+    return { x:o.x - w/2, y:o.baseY - h, w:w, h:h };
+  }
+  function overlap(a,b){
+    return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
+  }
+
+  // ---------- actions ----------
+  const isLocked = id => document.getElementById(id).classList.contains("locked");
+  function jump(){ if(running && player.onGround){ player.vy = -S(JUMP_V); player.onGround=false; player.ducking=false; beep(560,0.07); } }
+  function highJump(){ if(running && !isLocked("bHigh") && player.onGround){ player.vy = -S(HIGH_V); player.onGround=false; player.ducking=false; beep(680,0.09); } }
+  function dash(){ if(running && !isLocked("bDash") && player.dashCd<=0){ player.dashT=0.65; player.dashCd=1.6; beep(300,0.12); } }
+
+  // ---------- spawning ----------
+  function spawn(){
+    const cfg = LEVELS[level-1];
+    const pool = cfg.obstacles;
+    const type = pool[(Math.random()*pool.length)|0];
+    obstacles.push({ type, x:W + S(40), baseY:groundY - baseYOffset(type) });
+  }
+  function baseYOffset(type){
+    // vertical offset of the obstacle's BASE (bottom of hitbox) above the ground line
+    if(type==="fly")   return S(58);   // hovers at head height
+    return 0;                          // ground / tall / meteor sit on the ground
+  }
+  function nextSpawnGap(){
+    // time-based, always solvable (max airtime ~0.86s). Shrinks slightly with level.
+    const base = 1.55 - (level-1)*0.08;
+    const min = 1.15;
+    const g = Math.max(min, base) + Math.random()*0.6;
+    return g;
+  }
+
+  // ---------- level up ----------
+  function checkLevelUp(){
+    const next = LEVELS[level]; // next level config
+    if(next && score >= next.need){
+      level++;
+      pack.push(next.animal);
+      if(next.unlock) unlockButton(next.unlock);
+      showToast(next);
+      beep(720,0.12); setTimeout(()=>beep(920,0.14),120);
+      document.getElementById("lvlVal").textContent = level;
+    }
+  }
+  function unlockButton(kind){
+    const map = { duck:"bDuck", high:"bHigh", dash:"bDash" };
+    const el = document.getElementById(map[kind]);
+    if(el){ el.classList.remove("locked"); el.classList.add("pop"); setTimeout(()=>el.classList.remove("pop"),600); }
+  }
+  const toast = document.getElementById("toast");
+  let toastTimer=0;
+  function showToast(cfg){
+    toast.querySelector(".tbig").textContent = `${cfg.animal} Рівень ${level}!`;
+    toast.querySelector(".tsmall").textContent = `${cfg.name} приєднався до забігу.`;
+    const u = cfg.unlock ? UNLOCK_TEXT[cfg.unlock] : null;
+    toast.querySelector(".tkey").innerHTML = u ? `Нова кнопка: <b>${u.btn}</b> — ${u.why}` : "Просто біжимо швидше! 🏃";
+    toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>toast.classList.remove("show"), 2600);
+  }
+
+  // ---------- game flow ----------
+  function reset(){
+    obstacles=[]; score=0; scoreAcc=0; level=1; pack=["🐱"];
+    player.feetY=groundY; player.vy=0; player.onGround=true; player.ducking=false;
+    player.dashT=0; player.dashCd=0; duckHeld=false; spawnT=1.4; shakeT=0;
+    document.getElementById("lvlVal").textContent="1";
+    document.getElementById("scoreVal").textContent="0";
+    ["bDuck","bHigh","bDash"].forEach(id=>document.getElementById(id).classList.add("locked"));
+    toast.classList.remove("show");
+  }
+  function startGame(){
+    reset();
+    document.getElementById("startScreen").classList.add("hidden");
+    document.getElementById("overScreen").classList.add("hidden");
+    running=true; over=false; lastT=performance.now();
+    cancelAnimationFrame(raf); raf=requestAnimationFrame(loop);
+  }
+  function gameOver(){
+    running=false; over=true;
+    best=Math.max(best,score);
+    beep(200,0.18); setTimeout(()=>beep(150,0.22),110);
+    document.getElementById("finalScore").textContent=score;
+    document.getElementById("finalBest").textContent=best;
+    document.getElementById("finalLvl").textContent=level;
+    document.getElementById("bestVal").textContent=best;
+    document.getElementById("overScreen").classList.remove("hidden");
+  }
+
+  // ---------- loop ----------
+  function loop(now){
+    if(!running) return;
+    let dt = (now-lastT)/1000; lastT=now;
+    if(dt>0.05) dt=0.05;               // clamp after tab switches
+    update(dt); render();
+    raf=requestAnimationFrame(loop);
+  }
+
+  function update(dt){
+    speed = curSpeed();
+
+    // ducking only counts on the ground
+    player.ducking = duckHeld && player.onGround;
+
+    // vertical physics
+    if(!player.onGround){
+      player.vy += S(GRAVITY)*dt;
+      player.feetY += player.vy*dt;
+      if(player.feetY >= groundY){ player.feetY=groundY; player.vy=0; player.onGround=true; }
+    }
+
+    // dash timers
+    if(player.dashT>0) player.dashT-=dt;
+    if(player.dashCd>0) player.dashCd-=dt;
+    document.getElementById("bDash").disabled = player.dashCd>0;
+
+    // spawn
+    spawnT -= dt;
+    if(spawnT<=0){ spawn(); spawnT = nextSpawnGap(); }
+
+    // move + collide + cleanup
+    const pbox = playerBox();
+    const invincible = player.dashT>0;
+    for(let i=obstacles.length-1;i>=0;i--){
+      const o=obstacles[i];
+      o.x -= speed*dt;
+      if(o.x < -S(60)){ obstacles.splice(i,1); continue; }
+      if(o.hit) continue;
+      if(overlap(pbox, obBox(o))){
+        if(invincible){ o.hit=true; o.pop=true; beep(880,0.05); continue; }
+        shakeT=0.35; gameOver(); return;
+      }
+    }
+
+    // scoring
+    scoreAcc += dt*14;
+    const s=Math.floor(scoreAcc);
+    if(s!==score){ score=s; document.getElementById("scoreVal").textContent=score; checkLevelUp(); }
+
+    // parallax
+    for(const c of clouds){ c.x -= speed*0.12*dt; if(c.x < -S(80)) c.x = W+S(60); }
+    if(shakeT>0) shakeT-=dt;
+  }
+
+  // ---------- render ----------
+  function render(){
+    ctx.save();
+    if(shakeT>0){ const m=S(6)*(shakeT/0.35); ctx.translate((Math.random()-0.5)*m,(Math.random()-0.5)*m); }
+
+    // sky
+    const g=ctx.createLinearGradient(0,0,0,groundY);
+    g.addColorStop(0,"#0b1030"); g.addColorStop(0.55,"#221a54"); g.addColorStop(1,"#3a2b6e");
+    ctx.fillStyle=g; ctx.fillRect(-20,-20,W+40,groundY+40);
+
+    // moon
+    ctx.globalAlpha=0.9; ctx.fillStyle="#fff4cf";
+    ctx.beginPath(); ctx.arc(W*0.82, groundY*0.24, S(26), 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle="#221a54";
+    ctx.beginPath(); ctx.arc(W*0.82+S(9), groundY*0.24-S(6), S(23), 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha=1;
+
+    // stars
+    ctx.fillStyle="#fff";
+    for(const st of stars){ ctx.globalAlpha=0.4+0.6*Math.abs(Math.sin((st.x+performance.now()*0.0004)*3)); ctx.beginPath(); ctx.arc(st.x,st.y,st.r,0,Math.PI*2); ctx.fill(); }
+    ctx.globalAlpha=1;
+
+    // clouds (soft)
+    ctx.fillStyle="rgba(255,255,255,0.07)";
+    for(const c of clouds){ const w=S(70)*c.s,h=S(22)*c.s; roundRect(c.x,c.y,w,h,h/2); ctx.fill(); }
+
+    // ground
+    ctx.fillStyle="#141a2e"; ctx.fillRect(0,groundY,W,H-groundY);
+    ctx.strokeStyle="#ffcf4d"; ctx.lineWidth=S(3); ctx.globalAlpha=0.9;
+    ctx.beginPath(); ctx.moveTo(0,groundY); ctx.lineTo(W,groundY); ctx.stroke(); ctx.globalAlpha=1;
+    // dashes on the road
+    ctx.strokeStyle="rgba(255,207,77,0.35)"; ctx.lineWidth=S(4);
+    const off=(performance.now()*0.001*speed)%S(60);
+    ctx.beginPath();
+    for(let x=-off; x<W; x+=S(60)){ ctx.moveTo(x,groundY+S(18)); ctx.lineTo(x+S(28),groundY+S(18)); }
+    ctx.stroke();
+
+    // obstacles
+    for(const o of obstacles){
+      if(o.hit) continue;
+      const d=OBST[o.type];
+      drawEmoji(d.emoji, o.x, o.baseY, S(d.h));
+    }
+
+    // pack (trailing animals) — behind hero
+    const bob=performance.now()*0.006;
+    for(let i=1;i<pack.length;i++){
+      const px = player.x - i*S(46);
+      const py = groundY + Math.sin(bob+i)*S(4);
+      drawEmoji(pack[i], px, py, S(38));
+    }
+
+    // hero
+    drawHero();
+
+    ctx.restore();
+  }
+
+  function drawHero(){
+    const h = player.ducking ? S(player.hDuck)*1.7 : S(player.h)*1.15;
+    const run = performance.now()*0.02;
+    const tilt = player.onGround ? Math.sin(run)*0.06 : -0.12;
+    ctx.save();
+    ctx.translate(player.x, player.feetY);
+    ctx.rotate(tilt);
+    if(player.dashT>0){
+      ctx.globalAlpha = 0.5+0.5*Math.abs(Math.sin(performance.now()*0.03));
+      // speed streaks
+      ctx.strokeStyle="rgba(255,207,77,0.8)"; ctx.lineWidth=S(3);
+      for(let k=1;k<=3;k++){ ctx.beginPath(); ctx.moveTo(-S(20)-k*S(14),-S(20)); ctx.lineTo(-S(6)-k*S(14),-S(20)); ctx.stroke(); }
+    }
+    drawEmoji(pack[0], 0, 0, h, true);
+    ctx.restore();
+  }
+
+  function drawEmoji(ch, cx, baseY, size, atOrigin){
+    ctx.font = size+"px 'Fredoka', system-ui, sans-serif";
+    ctx.textAlign="center"; ctx.textBaseline="alphabetic";
+    if(atOrigin){ ctx.fillText(ch, 0, size*0.10); }
+    else { ctx.fillText(ch, cx, baseY + size*0.10); }
+  }
+
+  function roundRect(x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+  }
+
+  // ---------- tiny sound ----------
+  let actx=null;
+  function beep(freq,dur){
+    try{
+      if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)();
+      const o=actx.createOscillator(), g=actx.createGain();
+      o.type="square"; o.frequency.value=freq;
+      g.gain.value=0.05; o.connect(g); g.connect(actx.destination);
+      o.start(); g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime+dur);
+      o.stop(actx.currentTime+dur+0.02);
+    }catch(e){}
+  }
+
+  // ---------- input wiring ----------
+  function bindTap(id, fn){
+    const el=document.getElementById(id);
+    const press=e=>{ e.preventDefault(); el.classList.add("down"); fn(); };
+    const release=()=>el.classList.remove("down");
+    el.addEventListener("pointerdown",press);
+    el.addEventListener("pointerup",release);
+    el.addEventListener("pointerleave",release);
+    el.addEventListener("pointercancel",release);
+  }
+  function bindHold(id, on, off){
+    const el=document.getElementById(id);
+    const down=e=>{ e.preventDefault(); el.classList.add("down"); on(); };
+    const up=e=>{ el.classList.remove("down"); off(); };
+    el.addEventListener("pointerdown",down);
+    el.addEventListener("pointerup",up);
+    el.addEventListener("pointerleave",up);
+    el.addEventListener("pointercancel",up);
+  }
+  bindTap("bJump", jump);
+  bindTap("bHigh", highJump);
+  bindTap("bDash", dash);
+  bindHold("bDuck", ()=>duckHeld=true, ()=>duckHeld=false);
+
+  document.getElementById("startBtn").addEventListener("click", startGame);
+  document.getElementById("againBtn").addEventListener("click", startGame);
+
+  // keyboard (desktop testing)
+  window.addEventListener("keydown", e=>{
+    if(e.repeat) return;
+    if(!running && (e.code==="Space"||e.code==="Enter")){ if(!over) startGame(); else startGame(); return; }
+    if(e.code==="Space") { e.preventDefault(); jump(); }
+    else if(e.code==="ArrowUp") { e.preventDefault(); highJump(); }
+    else if(e.code==="ArrowDown") { e.preventDefault(); if(!isLocked("bDuck")) duckHeld=true; }
+    else if(e.code==="ArrowRight") { e.preventDefault(); dash(); }
+  });
+  window.addEventListener("keyup", e=>{ if(e.code==="ArrowDown") duckHeld=false; });
+
+  // tap the canvas to jump too (kid-friendly)
+  cv.addEventListener("pointerdown", e=>{ if(running) jump(); });
+
+  // ---------- boot ----------
+  resize();
+  // idle backdrop behind the start screen
+  (function idle(){
+    if(running) return;
+    render();
+    requestAnimationFrame(idle);
+  })();
+})();
+</script>
+</body>
+</html>
