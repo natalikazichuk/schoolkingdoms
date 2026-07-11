@@ -1045,20 +1045,29 @@ function normalizeImported(raw){
     active: raw.active !== false,
   };
   const asLevels = raw.format === 'levels' || (Array.isArray(raw.levels) && raw.levels.length);
+  // ЗБЕРІГАЄМО генератор випадкових прикладів (інакше тести стають статичними!)
+  let gen = null;
+  if (raw.generator && typeof raw.generator === 'object'){
+    const g = raw.generator;
+    const gt = (g.type==='sub' || g.op==='-' || g.op==='sub') ? 'sub' : 'add';
+    gen = { type: gt, max: Math.max(1, +g.max || 10) };
+    base.generator = gen;
+  }
   if (asLevels){
     base.format = 'levels';
     base.levels = (Array.isArray(raw.levels) ? raw.levels : []).map((L, i) => ({
       level: Number.isFinite(+L.level) ? +L.level : i+1,
       name: String(L.name || ''),
+      count: Number.isFinite(+L.count) ? +L.count : (Array.isArray(L.questions) ? L.questions.length : 0),
       questions: Array.isArray(L.questions) ? L.questions.map(normQ) : [],
-    })).filter(L => L.questions.length);
+    })).filter(L => L.questions.length || (gen && L.count));
     base.questions = [];
     if (!base.levels.length) return null;
   } else {
     base.format = 'flat';
     base.questions = Array.isArray(raw.questions) ? raw.questions.map(normQ) : [];
     base.levels = [];
-    if (!base.questions.length) return null;
+    if (!base.questions.length && !gen) return null;
   }
   return base;
 }
