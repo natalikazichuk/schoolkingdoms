@@ -45,9 +45,8 @@
       +'.sk-hd__strip{flex:1 1 auto;min-width:240px;display:none;align-items:center;gap:10px 14px;'
         +'flex-wrap:wrap;justify-content:flex-end}'
       +'.sk-hd__strip.on{display:flex}'
-      +'.sk-hd__who{font-family:"Playfair Display",Georgia,serif;font-weight:800;color:#FBEFD0;'
-        +'font-size:.95rem;white-space:nowrap}'
-      +'.sk-hd__stats{display:flex;flex-wrap:wrap;gap:7px;justify-content:flex-end}'
+      +'.sk-hd__stats{display:flex;flex-wrap:nowrap;gap:6px;justify-content:flex-end;'
+        +'max-width:100%;overflow-x:auto}'
       +'.sk-hd__stat{display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.24);'
         +'border:1px solid rgba(242,199,92,.42);border-radius:999px;padding:4px 11px;'
         +'font-weight:800;font-size:.82rem;color:#eaf1ff;white-space:nowrap}'
@@ -74,7 +73,6 @@
       +'<span class="sk-hd__sub">'+esc(SUB)+'</span></span>'
     +'</a>'
     +'<div class="sk-hd__strip" id="skHdStrip">'
-      +'<span class="sk-hd__who" id="skHdWho">Герой</span>'
       +'<div class="sk-hd__stats" id="skHdStats"></div>'
     +'</div>'
     +'<span class="sk-hd__guest" id="skHdGuest">Увійди як '
@@ -98,8 +96,6 @@
           if(SK.isHeroSession && SK.isHeroSession() && SK.getHero){
             SK.getHero().then(function(h){
               if(!h){ showGuest(); return; }
-              var who = document.getElementById('skHdWho');
-              if(who) who.textContent = '🦁 ' + (h.name||'Герой') + ' · рівень ' + (h.level||1);
               var stats = [
                 {k:'❤️', v:h.health},
                 {k:'🔮', v:h.mana},
