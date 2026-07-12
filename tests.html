@@ -118,6 +118,24 @@
   .chip .num{opacity:.65;font-weight:800}
   .chip .dot{color:var(--accent,#8fa2e6);font-weight:900}
 
+  /* ── 🏆 Досягнення (завершені на 100% тести) ── */
+  .ach{max-width:940px;margin:0 auto;padding:22px 18px 0;display:none}
+  .ach.show{display:block}
+  .ach-card{border-radius:20px;padding:16px 18px 18px;
+    background:linear-gradient(165deg,rgba(74,58,18,.55),rgba(34,26,8,.55));
+    border:2px solid var(--gold);box-shadow:0 12px 30px rgba(0,0,0,.4)}
+  .ach-head{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .ach-ic{font-size:1.8rem;line-height:1;flex-shrink:0;filter:drop-shadow(0 2px 4px rgba(0,0,0,.4))}
+  .ach-tt{flex:1 1 auto;min-width:0}
+  .ach-name{font-family:'Playfair Display',serif;font-weight:800;font-size:clamp(1.15rem,3vw,1.5rem);color:var(--gold)}
+  .ach-sub{font-size:.8rem;color:#e8d9a6;font-weight:600;margin-top:2px}
+  .ach-count{flex-shrink:0;font-size:.72rem;font-weight:800;color:#ffe9b8;white-space:nowrap;
+    background:rgba(255,207,77,.14);border:1px solid rgba(255,207,77,.4);padding:5px 12px;border-radius:999px}
+  .ach-list{display:flex;flex-wrap:wrap;gap:8px}
+  .chip-passed{display:inline-flex;align-items:center;gap:6px;font-size:.74rem;font-weight:800;
+    color:#bff0cd;background:rgba(120,220,150,.14);border:1px solid rgba(120,220,150,.5);
+    padding:7px 12px;border-radius:11px;white-space:nowrap}
+
   .foot{max-width:940px;margin:0 auto;padding:0 20px 40px;color:#a9b6d4;font-size:.82rem;text-align:center;line-height:1.6}
   .foot b{color:var(--gold)}
   .foot code{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:1px 6px;color:#ffe9b8;font-size:.9em}
@@ -148,6 +166,21 @@
   <div class="moon"></div>
 
   <!-- СПІЛЬНИЙ ХЕДЕР (бренд + шкала Героя) вставляється через sk-header.js -->
+
+  <!-- 🏆 ДОСЯГНЕННЯ (тести, пройдені на 100% рівнів) — заповнюється з JS -->
+  <section class="ach" id="skAch">
+    <div class="ach-card">
+      <div class="ach-head">
+        <span class="ach-ic">🏆</span>
+        <span class="ach-tt">
+          <span class="ach-name">Досягнення</span>
+          <span class="ach-sub">Тести, пройдені на всі рівні</span>
+        </span>
+        <span class="ach-count" id="skAchCount">0 тестів</span>
+      </div>
+      <div class="ach-list" id="skAchList"></div>
+    </div>
+  </section>
 
   <!-- ДОРОЖНЯ КАРТА -->
   <main class="wrap" id="root"></main>
@@ -478,12 +511,71 @@ function applyLocks(prog){
   });
 }
 
+/* ── 🏆 Досягнення: тести, пройдені на 100% рівнів, переносяться сюди
+      (оригінал у рідній темі ховаємо, порожню тему теж) ── */
+function achPlural(n){
+  n=Math.abs(n)%100; var d=n%10;
+  if(n>10 && n<20) return 'тестів';
+  if(d===1) return 'тест';
+  if(d>=2 && d<=4) return 'тести';
+  return 'тестів';
+}
+function applyAchievements(){
+  var sec=document.getElementById('skAch');
+  var list=document.getElementById('skAchList');
+  if(!sec || !list) return;
+  list.innerHTML='';
+  var count=0;
+
+  /* 1) знайти завершені тести у дорожній карті, сховати оригінал, клон → Досягнення */
+  document.querySelectorAll('#root .chip-group').forEach(function(grp){
+    var lv=grp.querySelector('.chip-lvprog[data-lvtotal]');
+    if(!lv) return;                                   // не «рівневий» тест — пропускаємо
+    var total=parseInt(lv.getAttribute('data-lvtotal')||'0',10)||0;
+    var b=lv.querySelector('b');
+    var done=b ? (parseInt(b.textContent,10)||0) : 0;
+    if(!(total>0 && done>=total)){ grp.style.display=''; return; }  // ще не завершено
+
+    grp.style.display='none';                         // ховаємо у рідній темі
+    count++;
+    var link=grp.querySelector('.chip.ready');
+    var href=link ? link.getAttribute('href') : '#';
+    var accent=(link && link.style.getPropertyValue('--accent').trim()) || '#5C6BC0';
+    var name='';
+    if(link){
+      var tn=link.childNodes[0];
+      name=(tn && tn.nodeValue!=null ? tn.nodeValue : link.textContent||'').replace(/^\s*▶\s*/,'').trim();
+    }
+    var cg=document.createElement('span');
+    cg.className='chip-group';
+    cg.innerHTML='<a class="chip ready" href="'+href+'" style="--accent:'+accent+'">🏆 '+esc(name)+'</a>'
+               +'<span class="chip-passed">✅ Пройдено</span>';
+    list.appendChild(cg);
+  });
+
+  /* 2) сховати теми, що лишились без жодного видимого тесту */
+  document.querySelectorAll('#root .chips').forEach(function(ch){
+    var kids=ch.children, visible=0;
+    for(var i=0;i<kids.length;i++){ if(kids[i].style.display!=='none') visible++; }
+    var empty=(visible===0);
+    ch.style.display=empty ? 'none' : '';
+    var prev=ch.previousElementSibling;
+    if(prev && prev.classList.contains('grp-title')) prev.style.display=empty ? 'none' : '';
+  });
+
+  /* 3) сам блок Досягнень показуємо лише коли є що показати */
+  sec.classList.toggle('show', count>0);
+  var cnt=document.getElementById('skAchCount');
+  if(cnt) cnt.textContent=count+' '+achPlural(count);
+}
+
 /* ── рендер дорожньої карти ── */
 function render(){
   document.getElementById('root').innerHTML =
     CURRICULUM.map(function(t){ return tierHtml(t, t.id==='junior'); }).join('');
   fillLevelProgress();
   applyLocks();
+  applyAchievements();
 }
 
 /* первинний стан — щоб не блимала порожня сторінка */
@@ -567,6 +659,9 @@ document.getElementById('root').innerHTML =
                 if(prog[key]!=null){ var n=parseFloat(prog[key]); if(!isNaN(n)) v=n; }
                 el.textContent = v + ' XP';
               });
+
+              /* ── перенести завершені тести в 🏆 Досягнення (після оновлення бейджів) ── */
+              if(typeof applyAchievements==='function') applyAchievements();
               })();   /* /applyProg */
             }).catch(function(){});
           }
