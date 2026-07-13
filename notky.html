@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Нотна математика</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-0:#0b1030; --navy-1:#141a44; --violet:#3a2b6e;
+    --gold:#ffcf4d; --gold-deep:#e0a92e; --ink:#0a0e26;
+    --text:#f4f1ff; --green:#7be0a4; --cyan:#7fe0ff;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%; overflow:hidden;}
+  body{font-family:"Fredoka",system-ui,sans-serif; background:var(--navy-0); color:var(--text);
+    user-select:none; -webkit-user-select:none; touch-action:manipulation; overscroll-behavior:none;}
+  #wrap{position:fixed; inset:0; display:flex; flex-direction:column;
+    background:radial-gradient(120% 80% at 50% 0%,var(--violet),var(--navy-0) 60%);}
+
+  /* top bar */
+  #top{display:flex; align-items:center; gap:8px; padding:calc(env(safe-area-inset-top) + 10px) 12px 4px;}
+  .pill{background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35);
+    border-radius:14px; padding:7px 12px; font-weight:700; font-size:14px; white-space:nowrap;}
+  .pill .lab{opacity:.7; font-size:11px; display:block; line-height:1;}
+  .pill .val{font-size:18px; line-height:1.1;}
+  .pill.lvl .val{color:var(--gold);}
+  #spacer{flex:1;}
+  #menuBtn{cursor:pointer; font-family:inherit; font-weight:700; font-size:14px;
+    background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35); color:var(--text);
+    border-radius:14px; padding:8px 12px;}
+
+  /* melody staff */
+  #staffWrap{text-align:center; padding:8px 10px 2px;}
+  #staffLabel{font-size:12px; opacity:.7; font-weight:600; margin-bottom:6px;}
+  #staff{display:flex; justify-content:center; align-items:center; gap:6px; flex-wrap:wrap;}
+  .note{width:clamp(20px,6vw,28px); height:clamp(20px,6vw,28px); border-radius:50%;
+    display:flex; align-items:center; justify-content:center; font-size:13px;
+    background:rgba(255,255,255,.07); border:2px solid rgba(255,255,255,.14); color:#aeb8d6;
+    transition:transform .2s, background .3s, border-color .3s, box-shadow .3s;}
+  .note.done{background:linear-gradient(180deg,#FFE7A0,var(--gold-deep)); color:#5a3d05;
+    border-color:var(--gold); box-shadow:0 0 12px rgba(255,207,77,.45);}
+  .note.now{border-color:var(--cyan); box-shadow:0 0 12px rgba(127,224,255,.5); transform:scale(1.18);}
+  .note.play{transform:scale(1.3); box-shadow:0 0 16px rgba(255,207,77,.7);}
+
+  /* example */
+  #eqBar{text-align:center; padding:6px 12px 2px;}
+  #eq{font-weight:700; font-size:clamp(30px,10vw,52px); line-height:1; text-shadow:0 2px 8px rgba(0,0,0,.4);}
+  #eq b{color:var(--gold);}
+  #hint{font-weight:600; font-size:13px; opacity:.82; min-height:18px; margin-top:5px;}
+
+  /* xylophone */
+  #xylWrap{flex:1 1 auto; display:flex; align-items:flex-end; justify-content:center;
+    padding:6px 10px calc(env(safe-area-inset-bottom) + 14px);}
+  #xyl{display:flex; align-items:flex-end; justify-content:center; gap:clamp(4px,1.6vw,9px);
+    width:100%; max-width:560px; height:100%;}
+  .key{position:relative; flex:1 1 0; min-width:0; align-self:stretch; cursor:pointer;
+    display:flex; flex-direction:column; justify-content:flex-end; background:none; border:none;
+    padding:0; font-family:inherit;}
+  .bar{width:100%; border-radius:12px 12px 10px 10px; position:relative;
+    box-shadow:0 6px 0 rgba(0,0,0,.35), inset 0 3px 8px rgba(255,255,255,.35);
+    display:flex; align-items:flex-end; justify-content:center; padding-bottom:8px;
+    color:rgba(0,0,0,.55); font-weight:700; font-size:clamp(15px,4.5vw,22px);
+    transition:transform .08s, filter .12s, box-shadow .08s;}
+  .key:active .bar, .bar.hit{transform:translateY(5px); box-shadow:0 2px 0 rgba(0,0,0,.35), inset 0 3px 8px rgba(255,255,255,.35); filter:brightness(1.25);}
+  .bar.miss{animation:shake .3s;}
+  .bar::before{content:""; position:absolute; top:6px; left:50%; transform:translateX(-50%);
+    width:44%; height:7px; border-radius:6px; background:rgba(255,255,255,.4);}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}50%{transform:translateX(5px)}75%{transform:translateX(-3px)}}
+
+  /* overlays */
+  .screen{position:absolute; inset:0; z-index:60; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; padding:24px; gap:14px;
+    background:radial-gradient(120% 90% at 50% 25%,rgba(58,43,110,.72),rgba(11,16,48,.96)); backdrop-filter:blur(2px);}
+  .screen.hidden{display:none;}
+  .crown{font-size:52px; filter:drop-shadow(0 4px 12px rgba(255,207,77,.45));}
+  .title{font-size:28px; font-weight:700; color:var(--gold); line-height:1.12;}
+  .sub{font-size:15px; opacity:.86; max-width:340px; line-height:1.45;}
+  .group{display:flex; flex-direction:column; gap:8px; width:min(330px,88vw);}
+  .glabel{font-size:13px; opacity:.72; margin-top:2px;}
+  .seg{display:flex; gap:8px;}
+  .opt{flex:1; cursor:pointer; font-family:inherit; font-weight:600; font-size:14px;
+    background:rgba(20,26,68,.7); border:2px solid rgba(255,207,77,.3); color:var(--text);
+    border-radius:14px; padding:12px 6px;}
+  .opt.sel{border-color:var(--gold); background:linear-gradient(180deg,#241c52,#12102e); box-shadow:0 0 14px rgba(255,207,77,.3);}
+  .cta{margin-top:6px; border:none; cursor:pointer; font-family:inherit; font-weight:700;
+    background:linear-gradient(180deg,var(--gold),var(--gold-deep)); color:#3a2a00;
+    font-size:18px; padding:14px 42px; border-radius:999px; box-shadow:0 5px 0 rgba(0,0,0,.3); transition:transform .06s;}
+  .cta:active{transform:translateY(3px); box-shadow:0 2px 0 rgba(0,0,0,.3);}
+  .linkbtn{cursor:pointer; font-family:inherit; font-weight:700; font-size:14px; text-decoration:none;
+    background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35); color:var(--text);
+    border-radius:999px; padding:11px 22px;}
+  .stars{font-size:40px; letter-spacing:6px;}
+  .winrow{display:flex; gap:10px; flex-wrap:wrap; justify-content:center;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <div class="pill lvl"><span class="lab">Рівень</span><span class="val" id="lvlName">Легко</span></div>
+    <div class="pill"><span class="lab">Очки</span><span class="val" id="score">0</span></div>
+    <div id="spacer"></div>
+    <button id="menuBtn">☰ Меню</button>
+  </div>
+
+  <div id="staffWrap">
+    <div id="staffLabel">🎵 Збери мелодію</div>
+    <div id="staff"></div>
+  </div>
+
+  <div id="eqBar">
+    <div id="eq"></div>
+    <div id="hint">Порахуй і натисни нотку з відповіддю 🎶</div>
+  </div>
+
+  <div id="xylWrap"><div id="xyl"></div></div>
+
+  <!-- start / menu -->
+  <div class="screen" id="startScreen">
+    <div class="crown">🎵</div>
+    <div class="title">Нотна математика</div>
+    <div class="group">
+      <div class="glabel">Обери складність</div>
+      <div class="seg" id="diffSeg">
+        <button class="opt sel" data-diff="easy">🙂 Легко</button>
+        <button class="opt" data-diff="medium">🧠 Середньо</button>
+        <button class="opt" data-diff="hard">🔥 Складно</button>
+      </div>
+    </div>
+    <button class="cta" id="playBtn">Грати ▶</button>
+    <div class="sub">Розв'яжи приклад — відповідь від 1 до 8 підкаже, яку нотку зіграти на ксилофоні. Правильні нотки складуться у справжню мелодію! 🎶</div>
+    <a class="linkbtn" href="igry.html">← До ігор</a>
+  </div>
+
+  <!-- win -->
+  <div class="screen hidden" id="winScreen">
+    <div class="crown">🎶</div>
+    <div class="title" id="winTitle">Мелодію зіграно!</div>
+    <div class="stars" id="winStars">⭐⭐⭐</div>
+    <div class="sub" id="winSub"></div>
+    <div class="winrow">
+      <button class="linkbtn" id="replayBtn">▶ Послухати ще</button>
+    </div>
+    <div class="winrow"><button class="cta" id="nextBtn">Далі ▶</button></div>
+    <div class="winrow">
+      <button class="linkbtn" id="againBtn">↻ Нова мелодія</button>
+      <button class="linkbtn" id="toMenuBtn">☰ Меню</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var DIFFS=["easy","medium","hard"];
+  var LABELS={easy:"Легко", medium:"Середньо", hard:"Складно"};
+  // C-major scale, degrees 1..8
+  var FREQ=[261.63,293.66,329.63,349.23,392.00,440.00,493.88,523.25];
+  var HUE =[0,32,50,130,190,215,265,320];
+  var TUNES=[
+    {name:"Мерехтливі зорі", notes:[1,1,5,5,6,6,5]},
+    {name:"Ода до радості",  notes:[3,3,4,5,5,4,3,2]},
+    {name:"Пісенька гами",   notes:[1,2,3,4,5,4,3,2,1]},
+    {name:"Братик Яків",     notes:[1,2,3,1,1,2,3,1]},
+    {name:"Пісня ягнятка",   notes:[3,2,1,2,3,3,3]}
+  ];
+
+  var staffEl=document.getElementById("staff");
+  var xylEl  =document.getElementById("xyl");
+  var eqEl   =document.getElementById("eq");
+  var hintEl =document.getElementById("hint");
+  var scoreEl=document.getElementById("score");
+  var lvlEl  =document.getElementById("lvlName");
+  var labelEl=document.getElementById("staffLabel");
+
+  var diff="easy", score=0, streak=0, mistakes=0;
+  var tune=null, step=0, curEq=null, locked=false, over=false, noteEls=[];
+
+  function rnd(min,max){ return min+Math.floor(Math.random()*(max-min+1)); }
+  function pick(a){ return a[rnd(0,a.length-1)]; }
+
+  // ── example generators; answer always 1..8 ──
+  function exEasy(t){
+    if(t>=2 && Math.random()<0.5){ var a=rnd(1,t-1); return {text:a+" + "+(t-a), ans:t}; }
+    var b=rnd(1,Math.max(1,10-t)); return {text:(t+b)+" − "+b, ans:t};
+  }
+  function exMedium(t){
+    var r=Math.random();
+    if(r<0.5){ var b=rnd(2,Math.max(2,18-t)); return {text:(t+b)+" − "+b, ans:t}; }
+    if(t>=3 && r<0.82){ var a=rnd(1,t-2), b=rnd(1,t-a-1); return {text:a+" + "+b+" + "+(t-a-b), ans:t}; }
+    var b2=rnd(1,Math.max(1,12-t)); return {text:(t+b2)+" − "+b2, ans:t};
+  }
+  function exHard(t){
+    for(var i=0;i<200;i++){
+      if(Math.random()<0.5){                 // a + b − c = t
+        var a=rnd(1,12), b=rnd(1,12), s=a+b, c=s-t;
+        if(c>=1 && c<=12 && s<=20) return {text:a+" + "+b+" − "+c, ans:t};
+      } else {                                // a − b + c = t
+        var a2=rnd(t+1,20), b2=rnd(1,a2), mid=a2-b2, c2=t-mid;
+        if(c2>=1 && c2<=12 && mid>=0 && (mid+c2)<=20) return {text:a2+" − "+b2+" + "+c2, ans:t};
+      }
+    }
+    var b3=rnd(1,12); return {text:(t+b3)+" − "+b3, ans:t};
+  }
+  function genEq(target){
+    if(diff==="easy") return exEasy(target);
+    if(diff==="medium") return exMedium(target);
+    return exHard(target);
+  }
+
+  // ── build xylophone ──
+  function buildXyl(){
+    xylEl.innerHTML="";
+    for(var d=1; d<=8; d++){
+      (function(deg){
+        var key=document.createElement("button");
+        key.className="key"; key.dataset.deg=deg;
+        var bar=document.createElement("div");
+        bar.className="bar";
+        bar.style.height=(100-(deg-1)*6.5)+"%";
+        bar.style.background="linear-gradient(180deg,hsl("+HUE[deg-1]+",85%,68%),hsl("+HUE[deg-1]+",70%,50%))";
+        bar.textContent=deg;
+        key.appendChild(bar);
+        key.addEventListener("click", function(){ pressKey(deg, bar); });
+        xylEl.appendChild(key);
+      })(d);
+    }
+  }
+
+  function buildStaff(){
+    staffEl.innerHTML=""; noteEls=[];
+    tune.notes.forEach(function(_,i){
+      var n=document.createElement("div"); n.className="note"; n.textContent="♪";
+      staffEl.appendChild(n); noteEls.push(n);
+    });
+    refreshStaff();
+  }
+  function refreshStaff(){
+    noteEls.forEach(function(n,i){
+      n.classList.toggle("done", i<step);
+      n.classList.toggle("now", i===step && !over);
+      if(i<step) n.textContent=tune.notes[i];
+    });
+  }
+
+  // ── audio ──
+  var actx=null;
+  function ctx(){ if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)();
+    if(actx.state==="suspended"){ try{ actx.resume(); }catch(e){} } return actx; }
+  function noteAt(deg, when, dur){
+    try{
+      var c=ctx(), f=FREQ[deg-1]; dur=dur||0.65;
+      var o=c.createOscillator(), o2=c.createOscillator(), g=c.createGain(), g2=c.createGain();
+      o.type="sine"; o.frequency.value=f; o2.type="sine"; o2.frequency.value=f*2.01; g2.gain.value=0.28;
+      o.connect(g); o2.connect(g2); g2.connect(g); g.connect(c.destination);
+      g.gain.setValueAtTime(0.0001, when);
+      g.gain.exponentialRampToValueAtTime(0.5, when+0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, when+dur);
+      o.start(when); o2.start(when); o.stop(when+dur+0.05); o2.stop(when+dur+0.05);
+    }catch(e){}
+  }
+  function playNote(deg){ noteAt(deg, ctx().currentTime, 0.6); }
+  function blip(f,d,type){ try{ var c=ctx(),o=c.createOscillator(),g=c.createGain();
+    o.type=type||"square"; o.frequency.value=f; g.gain.value=0.05; o.connect(g); g.connect(c.destination);
+    o.start(); g.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+d); o.stop(c.currentTime+d+0.02);
+  }catch(e){} }
+  function wrongSound(){ blip(160,0.14,"sawtooth"); }
+  function buzz(v){ try{ if(navigator.vibrate) navigator.vibrate(v); }catch(e){} }
+
+  function playMelody(cb){
+    var c=ctx(), t0=c.currentTime+0.15, gap=0.36;
+    tune.notes.forEach(function(deg,i){
+      noteAt(deg, t0+i*gap, 0.5);
+      setTimeout(function(){
+        noteEls[i] && noteEls[i].classList.add("play");
+        setTimeout(function(){ noteEls[i] && noteEls[i].classList.remove("play"); }, 300);
+      }, (0.15+i*gap)*1000);
+    });
+    if(cb) setTimeout(cb, (0.15+tune.notes.length*gap)*1000 + 300);
+  }
+
+  // ── interaction ──
+  function nextEquation(){ curEq=genEq(tune.notes[step]); eqEl.innerHTML=curEq.text+" = <b>?</b>"; refreshStaff(); }
+
+  function pressKey(deg, bar){
+    if(over) return;
+    playNote(deg);
+    bar.classList.add("hit"); setTimeout(function(){ bar.classList.remove("hit"); }, 130);
+    if(locked) return;
+    if(deg===curEq.ans){
+      locked=true;
+      streak++; score += 10 + Math.min(streak-1,5)*2; scoreEl.textContent=score;
+      buzz(18);
+      step++; refreshStaff();
+      if(step>=tune.notes.length){ setTimeout(winRound, 420); return; }
+      setTimeout(function(){ nextEquation(); locked=false; }, 340);
+    } else {
+      streak=0; mistakes++; buzz([25,35,25]); wrongSound();
+      bar.classList.add("miss"); setTimeout(function(){ bar.classList.remove("miss"); }, 320);
+      hintEl.textContent="Не та нота 🎵 порахуй ще раз";
+      setTimeout(resetHint, 850);
+    }
+  }
+  function resetHint(){ hintEl.textContent="Порахуй і натисни нотку з відповіддю 🎶"; }
+
+  function winRound(){
+    over=true; locked=true; refreshStaff();
+    var stars = mistakes===0 ? "⭐⭐⭐" : (mistakes<=2 ? "⭐⭐" : "⭐");
+    document.getElementById("winStars").textContent=stars;
+    document.getElementById("winTitle").textContent="Ти зіграв мелодію!";
+    var idx=DIFFS.indexOf(diff), nextLabel;
+    nextLabel = idx<DIFFS.length-1 ? ("Далі: "+LABELS[DIFFS[idx+1]]+" ▶") : "Ще мелодія ▶";
+    document.getElementById("nextBtn").textContent=nextLabel;
+    document.getElementById("winSub").textContent='🎼 «'+tune.name+'» — помилок: '+mistakes;
+    document.getElementById("winScreen").classList.remove("hidden");
+    playMelody();
+  }
+
+  function startRound(keepScore){
+    if(!keepScore) score=0;
+    streak=0; mistakes=0; step=0; over=false; locked=false;
+    scoreEl.textContent=score; lvlEl.textContent=LABELS[diff];
+    labelEl.textContent="🎵 Збери мелодію"; resetHint();
+    tune=pick(TUNES);
+    document.getElementById("startScreen").classList.add("hidden");
+    document.getElementById("winScreen").classList.add("hidden");
+    buildStaff(); nextEquation();
+  }
+
+  // ── menu wiring ──
+  document.querySelectorAll("#diffSeg .opt").forEach(function(o){
+    o.addEventListener("click", function(){
+      document.querySelectorAll("#diffSeg .opt").forEach(function(x){x.classList.remove("sel");});
+      o.classList.add("sel"); diff=o.dataset.diff;
+    });
+  });
+  document.getElementById("playBtn").addEventListener("click", function(){ startRound(false); });
+  document.getElementById("menuBtn").addEventListener("click", function(){
+    document.getElementById("startScreen").classList.remove("hidden");
+  });
+  document.getElementById("replayBtn").addEventListener("click", function(){ playMelody(); });
+  document.getElementById("againBtn").addEventListener("click", function(){ startRound(false); });
+  document.getElementById("toMenuBtn").addEventListener("click", function(){
+    document.getElementById("winScreen").classList.add("hidden");
+    document.getElementById("startScreen").classList.remove("hidden");
+  });
+  document.getElementById("nextBtn").addEventListener("click", function(){
+    var idx=DIFFS.indexOf(diff);
+    if(idx<DIFFS.length-1) diff=DIFFS[idx+1];
+    document.querySelectorAll("#diffSeg .opt").forEach(function(x){
+      x.classList.toggle("sel", x.dataset.diff===diff);
+    });
+    startRound(true);
+  });
+
+  buildXyl();
+})();
+</script>
+</body>
+</html>

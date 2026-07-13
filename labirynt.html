@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Математичний лабіринт</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-0:#0b1030; --navy-1:#141a44; --violet:#3a2b6e;
+    --gold:#ffcf4d; --gold-deep:#e0a92e; --ink:#0a0e26;
+    --text:#f4f1ff; --green:#7be0a4; --green-d:#2e9e54; --red:#ff8b8b; --cyan:#7fe0ff;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%; overflow:hidden;}
+  body{
+    font-family:"Fredoka",system-ui,sans-serif; background:var(--navy-0); color:var(--text);
+    user-select:none; -webkit-user-select:none; touch-action:manipulation; overscroll-behavior:none;
+  }
+  #wrap{position:fixed; inset:0; display:flex; flex-direction:column;
+    background:radial-gradient(120% 80% at 50% 0%,var(--violet),var(--navy-0) 60%);}
+
+  /* ── top bar ── */
+  #top{display:flex; align-items:center; gap:8px;
+    padding:calc(env(safe-area-inset-top) + 10px) 12px 4px;}
+  .pill{background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35);
+    border-radius:14px; padding:7px 12px; font-weight:700; font-size:14px; white-space:nowrap;}
+  .pill .lab{opacity:.7; font-size:11px; display:block; line-height:1;}
+  .pill .val{font-size:18px; line-height:1.1;}
+  .pill.lvl .val{color:var(--gold);}
+  #spacer{flex:1;}
+  #menuBtn{cursor:pointer; font-family:inherit; font-weight:700; font-size:14px;
+    background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35); color:var(--text);
+    border-radius:14px; padding:8px 12px;}
+
+  /* ── equation ── */
+  #eqBar{text-align:center; padding:8px 12px 2px;}
+  #eq{font-weight:700; font-size:clamp(26px,8vw,40px); line-height:1;
+    text-shadow:0 2px 8px rgba(0,0,0,.4);}
+  #eq b{color:var(--gold);}
+  #hint{font-weight:600; font-size:13px; opacity:.8; min-height:18px; margin-top:4px;}
+
+  /* ── maze board ── */
+  #boardWrap{flex:1 1 auto; display:flex; align-items:center; justify-content:center; padding:6px 12px 2px;}
+  #board{position:relative; display:grid; background:rgba(10,14,38,.35);
+    border-radius:18px; padding:6px; gap:5px;
+    box-shadow:inset 0 0 24px rgba(0,0,0,.4), 0 10px 26px rgba(0,0,0,.4);}
+  .cell{position:relative; display:flex; align-items:center; justify-content:center;
+    font-weight:700; color:#d6def5; border-radius:12px;
+    background:linear-gradient(180deg,#20264f,#151a3b);
+    border:2px solid rgba(255,255,255,.05);
+    transition:background .2s, border-color .2s, transform .1s, box-shadow .2s;}
+  .cell.reach{cursor:pointer; border-color:rgba(127,224,255,.65); color:#fff;
+    background:linear-gradient(180deg,#26356f,#182150);
+    box-shadow:0 0 14px rgba(127,224,255,.28); animation:pulse 1.2s ease-in-out infinite;}
+  .cell.trail{background:linear-gradient(180deg,#3a2f12,#2a2208);
+    border-color:rgba(255,207,77,.45); color:rgba(255,207,77,.5);}
+  .cell.exitc{border-color:var(--gold);
+    box-shadow:0 0 16px rgba(255,207,77,.4); color:var(--gold);}
+  .cell.exitc::after{content:"🏰"; position:absolute; top:-2px; right:0px; font-size:.62em; filter:drop-shadow(0 1px 2px #000);}
+  .cell.wrong{animation:shake .34s;} 
+  @keyframes pulse{0%,100%{box-shadow:0 0 10px rgba(127,224,255,.22)}50%{box-shadow:0 0 20px rgba(127,224,255,.5)}}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}
+    40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+
+  #hero{position:absolute; z-index:5; display:flex; align-items:center; justify-content:center;
+    pointer-events:none; transform:translate(-50%,-50%);
+    transition:left .18s ease, top .18s ease; filter:drop-shadow(0 3px 6px rgba(0,0,0,.5));}
+
+  /* ── overlays ── */
+  .screen{position:absolute; inset:0; z-index:60; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; padding:24px; gap:14px;
+    background:radial-gradient(120% 90% at 50% 25%,rgba(58,43,110,.72),rgba(11,16,48,.96)); backdrop-filter:blur(2px);}
+  .screen.hidden{display:none;}
+  .crown{font-size:52px; filter:drop-shadow(0 4px 12px rgba(255,207,77,.45));}
+  .title{font-size:28px; font-weight:700; color:var(--gold); line-height:1.12;}
+  .sub{font-size:15px; opacity:.86; max-width:340px; line-height:1.45;}
+  .group{display:flex; flex-direction:column; gap:8px; width:min(330px,88vw);}
+  .glabel{font-size:13px; opacity:.72; margin-top:2px;}
+  .seg{display:flex; gap:8px;}
+  .opt{flex:1; cursor:pointer; font-family:inherit; font-weight:600; font-size:14px;
+    background:rgba(20,26,68,.7); border:2px solid rgba(255,207,77,.3); color:var(--text);
+    border-radius:14px; padding:12px 6px;}
+  .opt.sel{border-color:var(--gold); background:linear-gradient(180deg,#241c52,#12102e);
+    box-shadow:0 0 14px rgba(255,207,77,.3);}
+  .cta{margin-top:6px; border:none; cursor:pointer; font-family:inherit; font-weight:700;
+    background:linear-gradient(180deg,var(--gold),var(--gold-deep)); color:#3a2a00;
+    font-size:18px; padding:14px 42px; border-radius:999px;
+    box-shadow:0 5px 0 rgba(0,0,0,.3); transition:transform .06s;}
+  .cta:active{transform:translateY(3px); box-shadow:0 2px 0 rgba(0,0,0,.3);}
+  .linkbtn{cursor:pointer; font-family:inherit; font-weight:700; font-size:14px; text-decoration:none;
+    background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35); color:var(--text);
+    border-radius:999px; padding:11px 22px;}
+  .stars{font-size:40px; letter-spacing:6px;}
+  .winrow{display:flex; gap:10px; flex-wrap:wrap; justify-content:center;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <div class="pill lvl"><span class="lab">Рівень</span><span class="val" id="lvlName">Легко</span></div>
+    <div class="pill"><span class="lab">Очки</span><span class="val" id="score">0</span></div>
+    <div id="spacer"></div>
+    <button id="menuBtn">☰ Меню</button>
+  </div>
+
+  <div id="eqBar">
+    <div id="eq"></div>
+    <div id="hint">Розв'яжи приклад і крокни на клітинку з відповіддю 🦉</div>
+  </div>
+
+  <div id="boardWrap">
+    <div id="board"><div id="hero"></div></div>
+  </div>
+
+  <!-- start / menu -->
+  <div class="screen" id="startScreen">
+    <div class="crown">🌀</div>
+    <div class="title">Математичний лабіринт</div>
+    <div class="group">
+      <div class="glabel">Обери складність</div>
+      <div class="seg" id="diffSeg">
+        <button class="opt sel" data-diff="easy">🙂 Легко</button>
+        <button class="opt" data-diff="medium">🧠 Середньо</button>
+        <button class="opt" data-diff="hard">🔥 Складно</button>
+      </div>
+    </div>
+    <button class="cta" id="playBtn">Грати ▶</button>
+    <div class="sub">Розв'яжи приклад угорі, знайди сусідню клітинку з правильною відповіддю і крокни на неї. Прокладай шлях до замку 🏰!</div>
+    <a class="linkbtn" href="igry.html">← До ігор</a>
+  </div>
+
+  <!-- win -->
+  <div class="screen hidden" id="winScreen">
+    <div class="crown">🏰</div>
+    <div class="title">Ти дійшов до замку!</div>
+    <div class="stars" id="winStars">⭐⭐⭐</div>
+    <div class="sub" id="winSub">Чудова робота!</div>
+    <div class="winrow"><button class="cta" id="nextBtn">Далі ▶</button></div>
+    <div class="winrow">
+      <button class="linkbtn" id="againBtn">↻ Ще раз</button>
+      <button class="linkbtn" id="toMenuBtn">☰ Меню</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var DIFFS=["easy","medium","hard"];
+  var LABELS={easy:"Легко", medium:"Середньо", hard:"Складно"};
+  var CFG={
+    easy:  {N:5, len:7,  cap:10},
+    medium:{N:6, len:10, cap:20},
+    hard:  {N:7, len:13, cap:100}
+  };
+
+  var boardEl=document.getElementById("board");
+  var heroEl =document.getElementById("hero");
+  var eqEl   =document.getElementById("eq");
+  var hintEl =document.getElementById("hint");
+  var scoreEl=document.getElementById("score");
+  var lvlEl  =document.getElementById("lvlName");
+
+  var diff="easy", score=0, streak=0, mistakes=0;
+  var N=5, cap=10, value=[], visited=[], path=[], eqs=[], exitIdx=-1, step=0, heroIdx=0;
+  var cells=[], cellPx=0, locked=false, over=false;
+
+  function rnd(min,max){ return min+Math.floor(Math.random()*(max-min+1)); }
+  function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=rnd(0,i); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+  function rc(i){ return [Math.floor(i/N), i%N]; }
+  function id(r,c){ return r*N+c; }
+  function neighbors(i){
+    var p=rc(i), r=p[0], c=p[1], out=[];
+    if(r>0) out.push(id(r-1,c));
+    if(r<N-1) out.push(id(r+1,c));
+    if(c>0) out.push(id(r,c-1));
+    if(c<N-1) out.push(id(r,c+1));
+    return out;
+  }
+  function adjacent(a,b){ return neighbors(a).indexOf(b)>=0; }
+
+  // ── carve a self-avoiding, non-touching corridor of the wanted length ──
+  function carve(wantLen){
+    for(var attempt=0; attempt<600; attempt++){
+      var vis=new Array(N*N).fill(false);
+      var p=[0]; vis[0]=true;
+      var cur=0, ok=true;
+      while(p.length < wantLen+1){
+        var cand = neighbors(cur).filter(function(n){
+          if(vis[n]) return false;
+          // n may touch only "cur" among visited cells
+          var t=neighbors(n).filter(function(m){ return vis[m]; });
+          return t.length===1;
+        });
+        if(cand.length===0){ ok=false; break; }
+        var nx=cand[rnd(0,cand.length-1)];
+        vis[nx]=true; p.push(nx); cur=nx;
+      }
+      if(ok && p.length===wantLen+1) return p;
+    }
+    return null;
+  }
+
+  // ── equation whose answer is a fresh value within cap ──
+  function genEq(){
+    var op=Math.random()<0.5?"+":"-", a,b,ans;
+    if(op==="+"){ ans=rnd(2,cap); a=rnd(1,ans-1); b=ans-a; }
+    else { ans=rnd(1,cap-1); b=rnd(1,cap-ans); a=ans+b; }
+    return { op:op, a:a, b:b, ans:ans };
+  }
+
+  function buildLevel(){
+    var cfg=CFG[diff]; N=cfg.N; cap=cfg.cap;
+    var len=cfg.len, p=carve(len);
+    while(!p){ len--; p=carve(len); }        // fallback if unlucky
+    path=p; exitIdx=path[path.length-1];
+    value=new Array(N*N).fill(null);
+    visited=new Array(N*N).fill(false);
+    eqs=new Array(path.length).fill(null);
+
+    // path cells get equation answers as their numbers
+    for(var i=1;i<path.length;i++){
+      var e=genEq(); eqs[i]=e; value[path[i]]=e.ans;
+    }
+    // forbidden answers for each non-path cell (so the correct step is unique)
+    var forb={};
+    for(var k=0;k<path.length-1;k++){
+      var target=value[path[k+1]];
+      neighbors(path[k]).forEach(function(m){
+        if(value[m]===null && path.indexOf(m)<0){
+          (forb[m]=forb[m]||{})[target]=1;
+        }
+      });
+    }
+    // fill every remaining cell with a distractor number
+    for(var idx=0; idx<N*N; idx++){
+      if(path.indexOf(idx)>=0) continue;
+      var bad=forb[idx]||{}, v, guard=0;
+      do{ v=rnd(1,cap); guard++; } while(bad[v] && guard<200);
+      value[idx]=v;
+    }
+
+    visited[path[0]]=true; heroIdx=path[0]; step=0; over=false; locked=false;
+  }
+
+  // ── rendering ──
+  function layout(){
+    var wrap=boardEl.parentElement.getBoundingClientRect();
+    var maxS=Math.min(wrap.width, wrap.height);
+    var s=Math.floor(maxS);
+    cellPx=Math.floor((s-12-5*(N-1))/N);
+    if(cellPx<32) cellPx=32;
+    var total=cellPx*N + 5*(N-1) + 12;
+    boardEl.style.width=total+"px"; boardEl.style.height=total+"px";
+    boardEl.style.gridTemplateColumns="repeat("+N+","+cellPx+"px)";
+    boardEl.style.gridTemplateRows="repeat("+N+","+cellPx+"px)";
+    cells.forEach(function(c){ c.style.fontSize=Math.round(cellPx*0.34)+"px"; });
+    heroEl.style.width=cellPx+"px"; heroEl.style.height=cellPx+"px";
+    heroEl.style.fontSize=Math.round(cellPx*0.52)+"px";
+    positionHero(false);
+  }
+
+  function renderBoard(){
+    // remove old cells (keep hero token)
+    cells.forEach(function(c){ c.remove(); });
+    cells=[];
+    for(var i=0;i<N*N;i++){
+      var c=document.createElement("div");
+      c.className="cell"; c.dataset.idx=i;
+      if(i===exitIdx) c.classList.add("exitc");
+      if(visited[i] && i!==heroIdx) c.classList.add("trail");
+      c.textContent = (i===path[0]) ? "" : (value[i]===null? "" : value[i]);
+      boardEl.appendChild(c); cells.push(c);
+    }
+    heroEl.textContent="🦉";
+    markReach();
+    layout();
+  }
+
+  function markReach(){
+    cells.forEach(function(c){ c.classList.remove("reach"); });
+    if(over) return;
+    neighbors(heroIdx).forEach(function(n){
+      if(!visited[n]) cells[n].classList.add("reach");
+    });
+  }
+
+  function positionHero(animate){
+    var p=rc(heroIdx), pad=6;
+    var x=pad + p[1]*(cellPx+5) + cellPx/2;
+    var y=pad + p[0]*(cellPx+5) + cellPx/2;
+    if(!animate){ var old=heroEl.style.transition; heroEl.style.transition="none";
+      heroEl.style.left=x+"px"; heroEl.style.top=y+"px";
+      void heroEl.offsetWidth; heroEl.style.transition=old; return; }
+    heroEl.style.left=x+"px"; heroEl.style.top=y+"px";
+  }
+
+  function showEq(){
+    if(over || step>=path.length-1){ eqEl.innerHTML=""; return; }
+    var e=eqs[step+1];
+    var sign=e.op==="+"?"+":"−";
+    eqEl.innerHTML = e.a+" "+sign+" "+e.b+" = <b>?</b>";
+  }
+
+  // ── interaction ──
+  boardEl.addEventListener("click", function(ev){
+    var cell=ev.target.closest(".cell");
+    if(!cell || locked || over) return;
+    var idx=+cell.dataset.idx;
+    if(visited[idx]) return;
+    if(!adjacent(idx,heroIdx)){
+      hintEl.textContent="Крокуй лише на сусідню клітинку 🙂";
+      setTimeout(resetHint, 900); return;
+    }
+    var target=value[path[step+1]];
+    if(value[idx]===target){
+      // correct → advance
+      locked=true;
+      visited[idx]=true; heroIdx=idx; step++;
+      streak++; score += 10 + Math.min(streak-1,5)*2; scoreEl.textContent=score;
+      buzz(20); chime();
+      cells[idx].classList.remove("reach");
+      renderBoard(); positionHero(true); showEq();
+      if(heroIdx===exitIdx){ setTimeout(winRound, 380); return; }
+      setTimeout(function(){ locked=false; }, 200);
+    } else {
+      streak=0; mistakes++; buzz([30,40,30]); thud();
+      cell.classList.add("wrong");
+      hintEl.textContent="Це не та відповідь 🤔 порахуй ще раз";
+      setTimeout(function(){ cell.classList.remove("wrong"); resetHint(); }, 800);
+    }
+  });
+  function resetHint(){ hintEl.textContent="Розв'яжи приклад і крокни на клітинку з відповіддю 🦉"; }
+
+  // arrow keys (desktop bonus)
+  window.addEventListener("keydown", function(e){
+    if(locked||over) return;
+    var p=rc(heroIdx), r=p[0], c=p[1], t=-1;
+    if(e.key==="ArrowUp"&&r>0) t=id(r-1,c);
+    else if(e.key==="ArrowDown"&&r<N-1) t=id(r+1,c);
+    else if(e.key==="ArrowLeft"&&c>0) t=id(r,c-1);
+    else if(e.key==="ArrowRight"&&c<N-1) t=id(r,c+1);
+    if(t>=0 && cells[t]) cells[t].click();
+  });
+
+  // ── sound / haptics ──
+  var actx=null;
+  function tone(f,d,type){ try{
+    if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)();
+    var o=actx.createOscillator(), g=actx.createGain();
+    o.type=type||"triangle"; o.frequency.value=f; g.gain.value=0.06;
+    o.connect(g); g.connect(actx.destination); o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime+d); o.stop(actx.currentTime+d+0.02);
+  }catch(e){} }
+  function chime(){ tone(680,0.08); setTimeout(function(){tone(900,0.1);},80); }
+  function thud(){ tone(180,0.16,"sine"); }
+  function fanfare(){ tone(523,0.12); setTimeout(function(){tone(659,0.12);},120);
+    setTimeout(function(){tone(784,0.14);},240); setTimeout(function(){tone(1046,0.18);},380); }
+  function buzz(v){ try{ if(navigator.vibrate) navigator.vibrate(v); }catch(e){} }
+
+  // ── round end ──
+  function winRound(){
+    over=true; locked=true; markReach(); fanfare();
+    var stars = mistakes===0 ? "⭐⭐⭐" : (mistakes<=2 ? "⭐⭐" : "⭐");
+    document.getElementById("winStars").textContent=stars;
+    var idx=DIFFS.indexOf(diff), sub, nextLabel;
+    if(idx<DIFFS.length-1){
+      sub="Помилок: "+mistakes+". Спробуєш складніший лабіринт?";
+      nextLabel="Далі: "+LABELS[DIFFS[idx+1]]+" ▶";
+    } else {
+      sub="Помилок: "+mistakes+". Ти пройшов найскладніший лабіринт! 🎉";
+      nextLabel="Новий лабіринт ▶";
+    }
+    document.getElementById("winSub").textContent=sub;
+    document.getElementById("nextBtn").textContent=nextLabel;
+    document.getElementById("winScreen").classList.remove("hidden");
+  }
+
+  function startRound(keepScore){
+    if(!keepScore) score=0;
+    streak=0; mistakes=0; scoreEl.textContent=score; lvlEl.textContent=LABELS[diff];
+    resetHint();
+    document.getElementById("startScreen").classList.add("hidden");
+    document.getElementById("winScreen").classList.add("hidden");
+    buildLevel(); renderBoard(); positionHero(false); showEq();
+  }
+
+  // ── menu wiring ──
+  document.querySelectorAll("#diffSeg .opt").forEach(function(o){
+    o.addEventListener("click", function(){
+      document.querySelectorAll("#diffSeg .opt").forEach(function(x){x.classList.remove("sel");});
+      o.classList.add("sel"); diff=o.dataset.diff;
+    });
+  });
+  document.getElementById("playBtn").addEventListener("click", function(){ startRound(false); });
+  document.getElementById("menuBtn").addEventListener("click", function(){
+    document.getElementById("startScreen").classList.remove("hidden");
+  });
+  document.getElementById("againBtn").addEventListener("click", function(){ startRound(false); });
+  document.getElementById("toMenuBtn").addEventListener("click", function(){
+    document.getElementById("winScreen").classList.add("hidden");
+    document.getElementById("startScreen").classList.remove("hidden");
+  });
+  document.getElementById("nextBtn").addEventListener("click", function(){
+    var idx=DIFFS.indexOf(diff);
+    if(idx<DIFFS.length-1) diff=DIFFS[idx+1];
+    document.querySelectorAll("#diffSeg .opt").forEach(function(x){
+      x.classList.toggle("sel", x.dataset.diff===diff);
+    });
+    startRound(true);
+  });
+
+  window.addEventListener("resize", function(){ if(cells.length) layout(); });
+})();
+</script>
+</body>
+</html>
