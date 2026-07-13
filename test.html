@@ -64,6 +64,12 @@ body{font-family:'Nunito',sans-serif;background:linear-gradient(160deg,var(--nav
 .bgroup{display:inline-flex;flex-wrap:wrap;gap:6px;max-width:160px;justify-content:center;padding:8px 10px;border-radius:14px;background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.2)}
 .blocks .dot{width:20px;height:20px;border-radius:50%;box-shadow:inset 0 -3px 6px rgba(0,0,0,.25)}
 .bplus{font-family:'Fredoka One',cursive;font-size:1.5rem;color:var(--gold)}
+.shapes{gap:14px}
+.sgroup{display:inline-flex;flex-wrap:wrap;gap:8px;max-width:184px;justify-content:center;padding:10px 12px;border-radius:16px;background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.2)}
+.shapes .shape{width:30px;height:30px;filter:drop-shadow(0 3px 5px rgba(0,0,0,.35));animation:spop .3s ease both}
+.shapes .shape svg{width:100%;height:100%;display:block}
+.splus{font-family:'Fredoka One',cursive;font-size:1.7rem;color:var(--gold)}
+@keyframes spop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
 .vimg img{max-width:100%;max-height:220px;border-radius:14px;object-fit:contain;box-shadow:0 6px 18px rgba(0,0,0,.3)}
 
 /* LEVEL MENU */
@@ -221,7 +227,9 @@ function genQuestions(count, levelNum){
       attempts++;
     } while(key===prevKey && attempts<6);
     prevKey=key;
-    out.push({ q:q, options:options.map(String), correct:pos });
+    var item={ q:q, options:options.map(String), correct:pos };
+    if(type==='add' && max<=10 && (a+b)<=10) item.visual=makeShapeVisual(a,b);   // ілюстрація-лічилка для межі 10
+    out.push(item);
   }
   return out;
 }
@@ -366,10 +374,42 @@ function vizImage(v){
   var url=(v.url||'').trim(); if(!url) return '';
   return '<div class="viz vimg"><img src="'+esc(url)+'" alt="'+esc(v.alt||'')+'" loading="lazy"></div>';
 }
+/* ─── ФІГУРКИ (кружечки/зірочки/грибочки… різного кольору) ─── */
+var SHAPE_KINDS=['circle','star','heart','flower','triangle','square','mushroom'];
+var SHAPE_COLORS=['#ff5a5f','#ff9f1c','#ffd23f','#8ac926','#37c871','#3aaed8','#4d7cfe','#9b5de5','#ff6fb5','#ff8c42'];
+function randColors(n){ var out=[]; for(var i=0;i<n;i++){ out.push(SHAPE_COLORS[(Math.random()*SHAPE_COLORS.length)|0]); } return out; }
+function makeShapeVisual(a,b){
+  var kind=SHAPE_KINDS[(Math.random()*SHAPE_KINDS.length)|0];
+  return { type:'shapes', shape:kind, groups:[ randColors(a), randColors(b) ] };
+}
+function shapeSVG(kind,color){
+  var s='<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">';
+  switch(kind){
+    case 'star':     s+='<polygon points="12,1 15.09,8.26 22.9,9.27 17,14.14 18.9,21.5 12,17.5 5.1,21.5 7,14.14 1.1,9.27 8.91,8.26" fill="'+color+'"/>'; break;
+    case 'heart':    s+='<path d="M12 21C12 21 3 14.5 3 8.5C3 5.4 5.4 3 8.3 3C10 3 11.5 4 12 5.2C12.5 4 14 3 15.7 3C18.6 3 21 5.4 21 8.5C21 14.5 12 21 12 21Z" fill="'+color+'"/>'; break;
+    case 'flower':   s+='<g fill="'+color+'"><circle cx="12" cy="5" r="4.2"/><circle cx="12" cy="19" r="4.2"/><circle cx="5" cy="12" r="4.2"/><circle cx="19" cy="12" r="4.2"/><circle cx="6.9" cy="6.9" r="3.8"/><circle cx="17.1" cy="17.1" r="3.8"/><circle cx="6.9" cy="17.1" r="3.8"/><circle cx="17.1" cy="6.9" r="3.8"/></g><circle cx="12" cy="12" r="3.6" fill="#ffe07a"/>'; break;
+    case 'triangle': s+='<polygon points="12,2.5 22,21 2,21" fill="'+color+'"/>'; break;
+    case 'square':   s+='<rect x="3" y="3" width="18" height="18" rx="5" fill="'+color+'"/>'; break;
+    case 'mushroom': s+='<path d="M4 12.5C4 6.7 8 3 12 3C16 3 20 6.7 20 12.5Z" fill="'+color+'"/><rect x="9" y="11" width="6" height="9.5" rx="3" fill="#f3e2c7"/><circle cx="9.4" cy="8" r="1.4" fill="#fff8ee"/><circle cx="14" cy="7" r="1.1" fill="#fff8ee"/><circle cx="12" cy="10.2" r="1.2" fill="#fff8ee"/>'; break;
+    default:         s+='<circle cx="12" cy="12" r="10.5" fill="'+color+'"/>';
+  }
+  return s+'</svg>';
+}
+function vizShapes(v){
+  var kind=v.shape||'circle';
+  var groups=Array.isArray(v.groups)?v.groups:[];
+  function grp(colors){
+    var inner=(colors||[]).map(function(c){ return '<span class="shape">'+shapeSVG(kind,c)+'</span>'; }).join('');
+    return '<span class="sgroup">'+inner+'</span>';
+  }
+  var html=groups.map(grp).join('<span class="splus">+</span>');
+  return '<div class="viz shapes">'+html+'</div>';
+}
 function renderVisual(v){
   if(!v || typeof v!=='object') return '';
   if(v.type==='number-line')   return vizNumberLine(v);
   if(v.type==='number-blocks') return vizBlocks(v);
+  if(v.type==='shapes')        return vizShapes(v);
   if(v.type==='image')         return vizImage(v);
   return '';
 }
