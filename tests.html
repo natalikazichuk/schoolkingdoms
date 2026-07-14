@@ -341,7 +341,7 @@ function isLevelsTest(t){ return !!(t && (t.format==='levels' || (Array.isArray(
 var PASS_RATIO = 0.55;
 var MATH_CURRICULUM = [
   { topic:'Числа в межах 10',      chain:true,  tests:['Додавання до 10','Віднімання до 10'] },
-  { topic:'Числа в межах 20',      chain:true,  tests:['Додавання до 20','Віднімання до 20'] },
+  { topic:'Числа в межах 20',      chain:true,  tests:['Лічба вперед/назад','Додавання до 20','Віднімання до 20'] },
   { topic:'Числа в межах 100',     chain:true,  tests:['Додавання до 100','Віднімання до 100'] },
   { topic:'Задачі',                chain:false, tests:['Задачі на додавання','Задачі на віднімання'] },
   { topic:'Розрядність чисел',     chain:false, tests:['Десятки і одиниці'] },
@@ -527,29 +527,28 @@ function applyAchievements(){
   list.innerHTML='';
   var count=0;
 
-  /* 1) знайти завершені тести у дорожній карті, сховати оригінал, клон → Досягнення */
+  /* 1) знайти тести, ВИКОНАНІ на 100% (прапорець sk_test100_<id>) — будь-якого типу,
+        сховати оригінал у рідній темі, клон → Досягнення. Розблокування ланцюга — окремо, на 55%. */
   document.querySelectorAll('#root .chip-group').forEach(function(grp){
-    var lv=grp.querySelector('.chip-lvprog[data-lvtotal]');
-    if(!lv) return;                                   // не «рівневий» тест — пропускаємо
-    var total=parseInt(lv.getAttribute('data-lvtotal')||'0',10)||0;
-    var b=lv.querySelector('b');
-    var done=b ? (parseInt(b.textContent,10)||0) : 0;
-    if(!(total>0 && done>=total)){ grp.style.display=''; return; }  // ще не завершено
-
-    grp.style.display='none';                         // ховаємо у рідній темі
-    count++;
     var link=grp.querySelector('.chip.ready');
-    var href=link ? link.getAttribute('href') : '#';
-    var accent=(link && link.style.getPropertyValue('--accent').trim()) || '#5C6BC0';
-    var name='';
-    if(link){
-      var tn=link.childNodes[0];
-      name=(tn && tn.nodeValue!=null ? tn.nodeValue : link.textContent||'').replace(/^\s*▶\s*/,'').trim();
-    }
+    if(!link) return;                                 // не тест-посилання — пропускаємо
+    var href=link.getAttribute('href')||'';
+    var id='';
+    try{ id=new URL(href, location.href).searchParams.get('id')||''; }
+    catch(e){ var m=/[?&]id=([^&]+)/.exec(href); id=m?decodeURIComponent(m[1]):''; }
+    var full=false;
+    if(id){ try{ full = localStorage.getItem('sk_test100_'+id)==='1'; }catch(e){} }
+    if(!full){ grp.style.display=''; return; }         // ще не на 100%
+
+    grp.style.display='none';                          // ховаємо у рідній темі
+    count++;
+    var accent=(link.style.getPropertyValue('--accent').trim()) || '#5C6BC0';
+    var tn=link.childNodes[0];
+    var name=(tn && tn.nodeValue!=null ? tn.nodeValue : link.textContent||'').replace(/^\s*▶\s*/,'').trim();
     var cg=document.createElement('span');
     cg.className='chip-group';
     cg.innerHTML='<a class="chip ready" href="'+href+'" style="--accent:'+accent+'">🏆 '+esc(name)+'</a>'
-               +'<span class="chip-passed">✅ Пройдено</span>';
+               +'<span class="chip-passed">✅ 100%</span>';
     list.appendChild(cg);
   });
 
