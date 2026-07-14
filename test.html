@@ -213,56 +213,91 @@ function genDistractors(ans, minOpt){
   return [a1, a2];
 }
 function shuffleArr(a){ for(var i=a.length-1;i>0;i--){ var j=(Math.random()*(i+1))|0, t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+/* Вирази з кількома діями: послідовності з `terms` РІЗНИХ доданків (без 0),
+   для віднімання проміжний результат не спадає нижче 1; для додавання сума ≤ max */
+function buildExprSeqs(type, max, terms, minRes){
+  var res=[], mn=Math.max(1, minRes||1);
+  function rec(seq, running, used){
+    if(seq.length===terms){ if(running>=mn) res.push(seq.slice()); return; }
+    for(var v=1; v<=max; v++){
+      if(used[v]) continue;                              // усі доданки різні
+      var nr = seq.length===0 ? v : (type==='sub' ? running-v : running+v);
+      if(type==='sub'){ if(nr<1) continue; }             // без від'ємних/нульових проміжків
+      else { if(nr>max) continue; }                      // сума не більша за межу
+      used[v]=true; seq.push(v);
+      rec(seq, nr, used);
+      seq.pop(); used[v]=false;
+    }
+  }
+  rec([], 0, {});
+  return res;
+}
 function genQuestions(count, levelNum){
   var g=TEST.generator||{};
   var type=(g.type==='sub'||g.op==='-'||g.op==='sub')?'sub':'add';
   var max=parseInt(g.max,10)||10;
   var min=parseInt(g.min,10)||0;                                // мін. результат (віднімання: 1 = без нуля)
-  var frac=0.4+0.6*((levelNum-1)/9); if(frac>1) frac=1;          // рампа складності
-  var cap=Math.max(5, Math.round(max*frac)); if(cap>max) cap=max;
-  var pairs=genPairs(type, cap, min);
-  // перехід через десяток: 'staged' → рівні 1–5 без, 6–10 з; true/false → завжди/ніколи
-  var cross=g.cross, wantCarry=null;
-  if(cross==='staged') wantCarry=(levelNum>=6);
-  else if(cross===true) wantCarry=true;
-  else if(cross===false) wantCarry=false;
-  if(wantCarry!==null){
-    var filtered=pairs.filter(function(p){
-      var carry = type==='sub' ? ((p[0]%10) < (p[1]%10)) : ((p[0]%10 + p[1]%10) > 9);
-      return carry===wantCarry;
-    });
-    if(filtered.length) pairs=filtered;   // беремо відфільтровані, якщо не порожньо
+  var terms=parseInt(g.terms,10)||2;                            // 2 = звичайний приклад, ≥3 = вираз у кілька дій
+  var opsym = type==='sub' ? ' - ' : ' + ';
+  var units=[];                                                 // {q, ans, a?, b?}
+
+  if(terms>=3){
+    var seqs=buildExprSeqs(type, max, terms, Math.max(1,min||1));
+    if(!seqs.length){ seqs=[ type==='sub' ? [Math.min(max,6),2,1] : [1,2,3] ]; }
+    for(var si=0; si<seqs.length; si++){
+      var s=seqs[si];
+      var ans = s.reduce(function(acc,v,ix){ return ix===0 ? v : (type==='sub'?acc-v:acc+v); }, 0);
+      units.push({ q: s.join(opsym)+' = ?', ans: ans });
+    }
+  } else {
+    var frac=0.4+0.6*((levelNum-1)/9); if(frac>1) frac=1;        // рампа складності
+    var cap=Math.max(5, Math.round(max*frac)); if(cap>max) cap=max;
+    var pairs=genPairs(type, cap, min);
+    // перехід через десяток: 'staged' → рівні 1–5 без, 6–10 з; true/false → завжди/ніколи
+    var cross=g.cross, wantCarry=null;
+    if(cross==='staged') wantCarry=(levelNum>=6);
+    else if(cross===true) wantCarry=true;
+    else if(cross===false) wantCarry=false;
+    if(wantCarry!==null){
+      var filtered=pairs.filter(function(p){
+        var carry = type==='sub' ? ((p[0]%10) < (p[1]%10)) : ((p[0]%10 + p[1]%10) > 9);
+        return carry===wantCarry;
+      });
+      if(filtered.length) pairs=filtered;
+    }
+    for(var qi=0; qi<pairs.length; qi++){
+      var pp=pairs[qi], av=type==='sub'?pp[0]-pp[1]:pp[0]+pp[1];
+      units.push({ q: pp[0]+opsym+pp[1]+' = ?', ans: av, a:pp[0], b:pp[1] });
+    }
   }
-  // групуємо пари за ВІДПОВІДДЮ і тягнемо відповіді рівномірно —
-  // інакше у відніманні маленькі результати (1,2,3) переважають і йдуть поспіль
+
+  // групуємо за ВІДПОВІДДЮ і тягнемо відповіді рівномірно (щоб не переважали дрібні/однакові)
   var byAns={}, answers=[];
-  for(var pi=0; pi<pairs.length; pi++){
-    var pp=pairs[pi], av=type==='sub'?pp[0]-pp[1]:pp[0]+pp[1];
-    if(!byAns[av]){ byAns[av]=[]; answers.push(av); }
-    byAns[av].push(pp);
+  for(var ui=0; ui<units.length; ui++){
+    var u=units[ui];
+    if(!byAns[u.ans]){ byAns[u.ans]=[]; answers.push(u.ans); }
+    byAns[u.ans].push(u);
   }
+  var minOpt=(type==='sub' && min<1 && terms<3) ? 0 : 1;         // 0 дозволений лише коли можливий як відповідь
   var ansBag=[], out=[], lastAns=null, prevKey=null;
   for(var k=0;k<count;k++){
     if(!ansBag.length){
       ansBag=shuffleArr(answers.slice());
-      if(ansBag.length>1 && ansBag[ansBag.length-1]===lastAns) ansBag.unshift(ansBag.pop()); // не повторювати відповідь на стику
+      if(ansBag.length>1 && ansBag[ansBag.length-1]===lastAns) ansBag.unshift(ansBag.pop());
     }
     var ans=ansBag.pop(); lastAns=ans;
-    var plist=byAns[ans], p=plist[(Math.random()*plist.length)|0];
-    var a=p[0], b=p[1];
-    var q=a+(type==='sub'?' - ':' + ')+b+' = ?';
+    var lst=byAns[ans], it=lst[(Math.random()*lst.length)|0];
     var ds, pos, options, key, attempts=0;
-    var minOpt=(type==='sub' && min<1) ? 0 : 1;   // 0 дозволений лише коли він може бути правильною відповіддю
-    do {                                    // не повторювати ту саму трійку варіантів поспіль
+    do {
       ds=genDistractors(ans, minOpt); pos=(Math.random()*3)|0;
       options=ds.slice(); options.splice(pos,0,ans);
       key=options.slice().sort(function(x,y){return x-y;}).join(',');
       attempts++;
     } while(key===prevKey && attempts<6);
     prevKey=key;
-    var item={ q:q, options:options.map(String), correct:pos };
-    if(type==='add' && max<=10 && (a+b)<=10) item.visual=makeShapeVisual(a,b);   // ілюстрація-лічилка для межі 10
-    else if(type==='sub' && max<=10 && a<=10) item.visual=makeSubVisual(a,b);     // віднімання: закреслюємо b фігурок
+    var item={ q:it.q, options:options.map(String), correct:pos };
+    if(terms<3 && type==='add' && max<=10 && it.ans<=10 && it.a!=null) item.visual=makeShapeVisual(it.a,it.b);
+    else if(terms<3 && type==='sub' && max<=10 && it.a!=null && it.a<=10) item.visual=makeSubVisual(it.a,it.b);
     out.push(item);
   }
   return out;
@@ -718,6 +753,7 @@ var MATH_CURRICULUM = [
   { topic:'Числа в межах 100',     chain:true,  tests:['Додавання до 100','Віднімання до 100'] },
   { topic:'Задачі',                chain:false, tests:['Задачі на додавання','Задачі на віднімання'] },
   { topic:'Розрядність чисел',     chain:false, tests:['Десятки і одиниці'] },
+  { topic:'Вирази у дві дії',       chain:false, tests:['Вирази у дві дії: додавання','Вирази у дві дії: віднімання'] },
   { topic:'Вирази у три дії',      chain:false, tests:['Вирази у три дії: додавання','Вирази у три дії: віднімання'] },
   { topic:'Назви компонентів дій', chain:false, tests:['Компоненти додавання','Компоненти віднімання'] },
   { topic:'Величини (см, дм, м)',  chain:false, tests:['Одиниці довжини'] },
