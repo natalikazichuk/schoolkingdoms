@@ -221,6 +221,18 @@ function genQuestions(count, levelNum){
   var frac=0.4+0.6*((levelNum-1)/9); if(frac>1) frac=1;          // рампа складності
   var cap=Math.max(5, Math.round(max*frac)); if(cap>max) cap=max;
   var pairs=genPairs(type, cap, min);
+  // перехід через десяток: 'staged' → рівні 1–5 без, 6–10 з; true/false → завжди/ніколи
+  var cross=g.cross, wantCarry=null;
+  if(cross==='staged') wantCarry=(levelNum>=6);
+  else if(cross===true) wantCarry=true;
+  else if(cross===false) wantCarry=false;
+  if(wantCarry!==null){
+    var filtered=pairs.filter(function(p){
+      var carry = type==='sub' ? ((p[0]%10) < (p[1]%10)) : ((p[0]%10 + p[1]%10) > 9);
+      return carry===wantCarry;
+    });
+    if(filtered.length) pairs=filtered;   // беремо відфільтровані, якщо не порожньо
+  }
   // тягнемо приклади БЕЗ повторів: мішок перетасовуємо, коли вичерпався
   var bag=shuffleArr(pairs.slice()), out=[], last=null, prevKey=null;
   for(var k=0;k<count;k++){
