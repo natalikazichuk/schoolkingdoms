@@ -233,16 +233,23 @@ function genQuestions(count, levelNum){
     });
     if(filtered.length) pairs=filtered;   // беремо відфільтровані, якщо не порожньо
   }
-  // тягнемо приклади БЕЗ повторів: мішок перетасовуємо, коли вичерпався
-  var bag=shuffleArr(pairs.slice()), out=[], last=null, prevKey=null;
+  // групуємо пари за ВІДПОВІДДЮ і тягнемо відповіді рівномірно —
+  // інакше у відніманні маленькі результати (1,2,3) переважають і йдуть поспіль
+  var byAns={}, answers=[];
+  for(var pi=0; pi<pairs.length; pi++){
+    var pp=pairs[pi], av=type==='sub'?pp[0]-pp[1]:pp[0]+pp[1];
+    if(!byAns[av]){ byAns[av]=[]; answers.push(av); }
+    byAns[av].push(pp);
+  }
+  var ansBag=[], out=[], lastAns=null, prevKey=null;
   for(var k=0;k<count;k++){
-    if(!bag.length){
-      bag=shuffleArr(pairs.slice());
-      if(bag.length>1 && last && bag[bag.length-1][0]===last[0] && bag[bag.length-1][1]===last[1]) bag.unshift(bag.pop());
+    if(!ansBag.length){
+      ansBag=shuffleArr(answers.slice());
+      if(ansBag.length>1 && ansBag[ansBag.length-1]===lastAns) ansBag.unshift(ansBag.pop()); // не повторювати відповідь на стику
     }
-    var p=bag.pop(); last=p;
+    var ans=ansBag.pop(); lastAns=ans;
+    var plist=byAns[ans], p=plist[(Math.random()*plist.length)|0];
     var a=p[0], b=p[1];
-    var ans=type==='sub'?a-b:a+b;
     var q=a+(type==='sub'?' - ':' + ')+b+' = ?';
     var ds, pos, options, key, attempts=0;
     var minOpt=(type==='sub' && min<1) ? 0 : 1;   // 0 дозволений лише коли він може бути правильною відповіддю
