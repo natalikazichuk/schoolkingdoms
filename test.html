@@ -69,6 +69,8 @@ body{font-family:'Nunito',sans-serif;background:linear-gradient(160deg,var(--nav
 .shapes .shape{width:30px;height:30px;filter:drop-shadow(0 3px 5px rgba(0,0,0,.35));animation:spop .3s ease both}
 .shapes .shape svg{width:100%;height:100%;display:block}
 .splus{font-family:'Fredoka One',cursive;font-size:1.7rem;color:var(--gold)}
+.shapes .shape.taken{opacity:.4;filter:grayscale(.65);position:relative}
+.shapes .shape.taken::after{content:'';position:absolute;inset:-2px;background:linear-gradient(45deg,transparent 43%,#ff3b3b 43%,#ff3b3b 57%,transparent 57%),linear-gradient(-45deg,transparent 43%,#ff3b3b 43%,#ff3b3b 57%,transparent 57%)}
 @keyframes spop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
 .vimg img{max-width:100%;max-height:220px;border-radius:14px;object-fit:contain;box-shadow:0 6px 18px rgba(0,0,0,.3)}
 
@@ -181,10 +183,11 @@ function levelCount(i){
    слугують лише запасним варіантом і задають кількість питань у рівні.
    Складність плавно зростає з номером рівня (L1 — легші, L10 — до max). */
 function hasGen(){ return !!(TEST && TEST.generator && (TEST.generator.type||TEST.generator.op)); }
-function genPairs(type, cap){
+function genPairs(type, cap, min){
   var pairs=[], a, b;
   if(type==='sub'){
-    for(a=2;a<=cap;a++) for(b=1;b<=a;b++) pairs.push([a,b]);      // результат 0..a-1
+    var mn=parseInt(min,10)||0; if(mn<0) mn=0;                  // мінімальний результат (0 = як було)
+    for(a=Math.max(2,mn+1);a<=cap;a++) for(b=1;b<=a-mn;b++) pairs.push([a,b]);   // результат ≥ mn
   } else {
     for(a=1;a<cap;a++) for(b=1;b<cap;b++) if(a+b<=cap) pairs.push([a,b]);
   }
@@ -205,9 +208,10 @@ function genQuestions(count, levelNum){
   var g=TEST.generator||{};
   var type=(g.type==='sub'||g.op==='-'||g.op==='sub')?'sub':'add';
   var max=parseInt(g.max,10)||10;
+  var min=parseInt(g.min,10)||0;                                // мін. результат (віднімання: 1 = без нуля)
   var frac=0.4+0.6*((levelNum-1)/9); if(frac>1) frac=1;          // рампа складності
   var cap=Math.max(5, Math.round(max*frac)); if(cap>max) cap=max;
-  var pairs=genPairs(type, cap);
+  var pairs=genPairs(type, cap, min);
   // тягнемо приклади БЕЗ повторів: мішок перетасовуємо, коли вичерпався
   var bag=shuffleArr(pairs.slice()), out=[], last=null, prevKey=null;
   for(var k=0;k<count;k++){
@@ -229,6 +233,7 @@ function genQuestions(count, levelNum){
     prevKey=key;
     var item={ q:q, options:options.map(String), correct:pos };
     if(type==='add' && max<=10 && (a+b)<=10) item.visual=makeShapeVisual(a,b);   // ілюстрація-лічилка для межі 10
+    else if(type==='sub' && max<=10 && a<=10) item.visual=makeSubVisual(a,b);     // віднімання: закреслюємо b фігурок
     out.push(item);
   }
   return out;
@@ -382,6 +387,10 @@ function makeShapeVisual(a,b){
   var kind=SHAPE_KINDS[(Math.random()*SHAPE_KINDS.length)|0];
   return { type:'shapes', shape:kind, groups:[ randColors(a), randColors(b) ] };
 }
+function makeSubVisual(a,b){
+  var kind=SHAPE_KINDS[(Math.random()*SHAPE_KINDS.length)|0];
+  return { type:'shapes', shape:kind, groups:[ randColors(a) ], take:b };  // з a фігурок забираємо b (закреслені)
+}
 function shapeSVG(kind,color){
   var s='<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">';
   switch(kind){
@@ -398,11 +407,18 @@ function shapeSVG(kind,color){
 function vizShapes(v){
   var kind=v.shape||'circle';
   var groups=Array.isArray(v.groups)?v.groups:[];
-  function grp(colors){
-    var inner=(colors||[]).map(function(c){ return '<span class="shape">'+shapeSVG(kind,c)+'</span>'; }).join('');
+  var take=parseInt(v.take,10)||0;
+  function grp(colors,takeN){
+    var n=colors?colors.length:0, start=n-(takeN||0);
+    var inner=(colors||[]).map(function(c,i){
+      var cls='shape'+((takeN && i>=start)?' taken':'');
+      return '<span class="'+cls+'">'+shapeSVG(kind,c)+'</span>';
+    }).join('');
     return '<span class="sgroup">'+inner+'</span>';
   }
-  var html=groups.map(grp).join('<span class="splus">+</span>');
+  var html = take
+    ? groups.map(function(c){ return grp(c,take); }).join('')                       // віднімання: закреслюємо take штук
+    : groups.map(function(c){ return grp(c,0); }).join('<span class="splus">+</span>'); // додавання: групи через «+»
   return '<div class="viz shapes">'+html+'</div>';
 }
 function renderVisual(v){
