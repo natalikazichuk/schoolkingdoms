@@ -53,6 +53,14 @@ body{font-family:'Nunito',sans-serif;background:linear-gradient(160deg,var(--nav
 .opt:disabled{cursor:default}
 .opt.correct{background:rgba(76,175,80,.34);border-color:var(--green);animation:pg .35s ease}
 .opt.wrong{background:rgba(229,56,59,.3);border-color:var(--red)}
+.pick-hint{text-align:center;font-weight:800;color:var(--gold);margin:10px 0 2px}
+.nline.pick{gap:8px;margin-top:6px}
+.nline.pick .ncell{cursor:pointer;padding:0;font-family:'Nunito',sans-serif;-webkit-appearance:none;appearance:none;transition:transform .12s,background .15s,border-color .15s}
+.nline.pick .ncell:hover{border-color:var(--gold)}
+.nline.pick .ncell:active{transform:scale(.9)}
+.nline.pick .ncell:disabled{cursor:default}
+.nline .ncell.correct{background:linear-gradient(180deg,#8ff0a4,var(--green));color:#08320f;border-color:var(--green)}
+.nline .ncell.wrong{background:rgba(229,56,59,.42);border-color:var(--red);color:#fff}
 @keyframes pg{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}
 .feedback{text-align:center;font-weight:800;margin-top:14px;min-height:22px;font-size:.95rem}
 
@@ -362,6 +370,19 @@ function vizNumberLine(v){
   }
   return '<div class="viz nline">'+cells+'</div>';
 }
+/* Клікабельний числовий ряд: відповідь — натиснути потрібне число */
+function pickLine(v){
+  var from=parseInt(v.from,10); if(isNaN(from)) from=1;
+  var to=parseInt(v.to,10);     if(isNaN(to))   to=10;
+  if(to<from){ var t=from; from=to; to=t; }
+  if(to-from>20) to=from+20;
+  var hi=Array.isArray(v.highlight)?v.highlight.map(Number):[];
+  var cells='';
+  for(var n=from;n<=to;n++){
+    cells+='<button class="ncell npick'+(hi.indexOf(n)>=0?' hi':'')+'" data-n="'+n+'">'+n+'</button>';
+  }
+  return '<div class="viz nline pick">'+cells+'</div>';
+}
 function vizBlocks(v){
   var palette=['#ffd54a','#7cc4ff','#ff9db0','#9be29b'];
   function cluster(count,ci){
@@ -435,6 +456,7 @@ function renderVisual(v){
 function renderQ(){
   var q=QS[ST.idx];
   ST.answered=false;
+  var pick = !!(q.visual && q.visual.type==='number-line' && q.visual.pick);
   var pct=Math.round(ST.idx/QS.length*100);
   var opts=(q.options||[]).map(function(o,i){
     return '<button class="opt" data-i="'+i+'">'+esc(o)+'</button>';
@@ -450,13 +472,19 @@ function renderQ(){
     +'<div class="prog-track"><span class="prog-fill" style="width:'+pct+'%"></span></div>'
     +subCounter
     +'<div class="q-text">'+esc(q.q||'')+'</div>'
-    +'<div class="opts">'+opts+'</div>'
-    +renderVisual(q.visual)
+    +(pick ? '<p class="pick-hint">Натисни правильне число в ряду 👇</p>' : '<div class="opts">'+opts+'</div>')
+    +(pick ? pickLine(q.visual) : renderVisual(q.visual))
     +'<div class="feedback" id="fb"></div>'
     +'</div>';
-  Array.prototype.forEach.call(root.querySelectorAll('.opt'),function(btn){
-    btn.onclick=function(){ answer(parseInt(btn.getAttribute('data-i'),10)); };
-  });
+  if(pick){
+    Array.prototype.forEach.call(root.querySelectorAll('.npick'),function(btn){
+      btn.onclick=function(){ answerPick(parseInt(btn.getAttribute('data-n'),10)); };
+    });
+  } else {
+    Array.prototype.forEach.call(root.querySelectorAll('.opt'),function(btn){
+      btn.onclick=function(){ answer(parseInt(btn.getAttribute('data-i'),10)); };
+    });
+  }
 }
 
 function answer(i){
@@ -486,6 +514,42 @@ function answer(i){
     // Неправильна відповідь у рівні → назад на 1-ше питання, лічильник/XP рівня = 0
     if(!right && IS_LEVELS){
       if(hasGen() && ST.level!=null) QS = genQuestions(levelCount(ST.level), ST.level+1); // нові випадкові приклади
+      ST.idx=0; ST.correct=0; ST.answered=false;
+      renderQ();
+      return;
+    }
+    ST.idx++;
+    if(ST.idx>=QS.length){ IS_LEVELS ? finishLevel() : finish(); }
+    else renderQ();
+  }, 950);
+}
+
+/* Відповідь у режимі клікабельного ряду: правильне число = options[correct] */
+function answerPick(nClicked){
+  if(ST.answered) return;
+  ST.answered=true;
+  var q=QS[ST.idx];
+  var ansNum=parseInt((q.options||[])[parseInt(q.correct,10)||0],10);
+  var cells=root.querySelectorAll('.npick');
+  Array.prototype.forEach.call(cells,function(b){ b.disabled=true; });
+  var fb=document.getElementById('fb');
+  var right=(nClicked===ansNum);
+  Array.prototype.forEach.call(cells,function(b){
+    var bn=parseInt(b.getAttribute('data-n'),10);
+    if(bn===ansNum) b.classList.add('correct');
+    else if(bn===nClicked && !right) b.classList.add('wrong');
+  });
+  if(right){
+    ST.correct++;
+    if(fb){ fb.textContent='✅ Правильно!'; fb.style.color='#69DB7C'; }
+  } else if(IS_LEVELS){
+    if(fb){ fb.textContent='❌ Помилка! Рівень починається спочатку'; fb.style.color='#ffb3b4'; }
+  } else {
+    if(fb){ fb.textContent='❌ Правильна відповідь підсвічена'; fb.style.color='#ffb3b4'; }
+  }
+  setTimeout(function(){
+    if(!right && IS_LEVELS){
+      if(hasGen() && ST.level!=null) QS = genQuestions(levelCount(ST.level), ST.level+1);
       ST.idx=0; ST.correct=0; ST.answered=false;
       renderQ();
       return;
