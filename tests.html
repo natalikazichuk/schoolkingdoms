@@ -344,6 +344,7 @@ var MATH_CURRICULUM = [
   { topic:'Числа в межах 10',      chain:true,  tests:['Додавання до 10','Віднімання до 10'] },
   { topic:'Числа в межах 20',      chain:true,  tests:['Додавання до 20','Віднімання до 20'] },
   { topic:'Числа в межах 100',     chain:true,  tests:['Додавання до 100','Віднімання до 100'] },
+  { topic:'Знайди помилку',        chain:true,  chainGroup:'err', tests:['Знайди помилку до 10','Знайди помилку до 20'] },
   { topic:'Задачі',                chain:false, tests:['Задачі на додавання','Задачі на віднімання'] },
   { topic:'Розрядність чисел',     chain:false, tests:['Десятки і одиниці'] },
   { topic:'Вирази у дві дії',       chain:false, tests:['Вирази у дві дії: додавання','Вирази у дві дії: віднімання'] },
@@ -355,15 +356,23 @@ var MATH_CURRICULUM = [
   { topic:'Цікава математика',     chain:false, tests:['Логічні задачі'] }
 ];
 /* «ланцюг» = усі тести тем із chain:true, по порядку */
-function mathChain(){
-  var arr=[];
-  MATH_CURRICULUM.forEach(function(t){ if(t.chain) (t.tests||[]).forEach(function(n){ arr.push(n); }); });
-  return arr;
+function mathChains(){
+  var groups={}, order=[];
+  MATH_CURRICULUM.forEach(function(t){
+    if(!t.chain) return;
+    var g=t.chainGroup||'main';
+    if(!groups[g]){ groups[g]=[]; order.push(g); }
+    (t.tests||[]).forEach(function(n){ groups[g].push(n); });
+  });
+  return order.map(function(g){ return groups[g]; });
 }
+function mathChain(){ return mathChains()[0]||[]; }
 /* назва попереднього тесту в ланцюгу (null, якщо тест не в ланцюгу або перший) */
 function chainPrevTitle(title){
-  var arr=mathChain(), w=norm(title);
-  for(var i=0;i<arr.length;i++){ if(norm(arr[i])===w) return i>0?arr[i-1]:null; }
+  var gs=mathChains(), w=norm(title);
+  for(var g=0;g<gs.length;g++){ var arr=gs[g];
+    for(var i=0;i<arr.length;i++){ if(norm(arr[i])===w) return i>0?arr[i-1]:null; }
+  }
   return null;
 }
 /* чи «пройдено на 55%» тест pre. lookup(key)→значення (localStorage/Firebase) */
