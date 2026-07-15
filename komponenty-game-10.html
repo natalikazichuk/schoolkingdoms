@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Компоненти дій — 10 рівнів</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Manrope:wght@400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0F2038;
+  --ink-deep:#0A1526;
+  --grid:#1E3A5C;
+  --line:#4C7FB8;
+  --chalk:#E8F1FF;
+  --dim:#8FA9C7;
+  --amber:#FFC145;
+  --mint:#4FD6A4;
+  --coral:#FF6B6B;
+  --r:14px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--ink-deep);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size:28px 28px;
+  color:var(--chalk);
+  font-family:"Manrope",system-ui,sans-serif;
+  min-height:100vh;
+  padding:18px 16px calc(28px + env(safe-area-inset-bottom));
+}
+.wrap{max-width:520px;margin:0 auto}
+.eyebrow{
+  font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--line)
+}
+h1{font-family:"Unbounded",sans-serif;font-weight:800;font-size:23px;line-height:1.15;margin:6px 0 14px}
+.rule{height:1px;background:var(--line);opacity:.45;margin:14px 0}
+
+.hud{display:flex;gap:10px;margin-bottom:16px}
+.stat{flex:1;border:1px solid var(--grid);background:rgba(15,32,56,.75);border-radius:var(--r);padding:9px 11px}
+.stat b{display:block;font-family:"Unbounded",sans-serif;font-size:18px;margin-top:2px}
+.stat .k{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase}
+
+.map{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.lvl{
+  text-align:left;border:1px solid var(--grid);background:rgba(15,32,56,.75);
+  color:var(--chalk);border-radius:var(--r);padding:12px;cursor:pointer;
+  font-family:"Manrope",sans-serif;font-size:13px;font-weight:600;line-height:1.3;
+  transition:transform .12s ease, border-color .12s ease;
+}
+.lvl:hover{transform:translateY(-2px);border-color:var(--line)}
+.lvl .n{font-family:"JetBrains Mono",monospace;font-size:10px;color:var(--line);letter-spacing:.1em}
+.lvl.done{border-color:var(--mint)}
+.lvl.done .n{color:var(--mint)}
+.lvl.lock{opacity:.4;cursor:not-allowed}
+.lvl.lock:hover{transform:none}
+.lvl .tag{display:block;margin-top:7px;font-family:"JetBrains Mono",monospace;font-size:10px;color:var(--dim)}
+
+/* креслення рівності */
+.blueprint{
+  border:1px solid var(--line);border-radius:var(--r);
+  background:rgba(10,21,38,.85);padding:24px 10px 16px;margin:16px 0
+}
+.eq{display:flex;justify-content:center;align-items:flex-start;gap:4px}
+.slot{display:flex;flex-direction:column;align-items:center;flex:0 1 auto;min-width:0}
+.cell{
+  font-family:"Unbounded",sans-serif;font-weight:600;font-size:26px;
+  border:1px solid var(--grid);border-radius:10px;padding:8px 8px;min-width:46px;text-align:center;
+  color:var(--chalk);transition:all .15s ease
+}
+.cell.blank{border-style:dashed;color:var(--amber);border-color:var(--amber)}
+.cell.aim{border-color:var(--amber);color:var(--amber);box-shadow:0 0 0 3px rgba(255,193,69,.15)}
+.cell.ok{border-color:var(--mint);color:var(--mint)}
+.cell.no{border-color:var(--coral);color:var(--coral)}
+.op{font-family:"Unbounded",sans-serif;font-size:22px;color:var(--line);padding:10px 1px}
+.leader{width:1px;height:16px;background:var(--line);opacity:.5}
+.plate{
+  font-family:"JetBrains Mono",monospace;font-size:8px;letter-spacing:.04em;line-height:1.2;
+  min-height:26px;width:100%;max-width:76px;border-radius:6px;padding:4px 2px;text-align:center;
+  display:flex;align-items:center;justify-content:center;color:var(--dim);
+  border:1px dashed var(--grid);transition:all .15s ease
+}
+.plate.empty{color:transparent}
+.plate.aim{border-color:var(--amber);border-style:solid;color:var(--amber);animation:blink 1.1s ease infinite}
+.plate.set{border-style:solid;border-color:var(--mint);color:var(--mint);animation:snap .25s ease}
+.plate.miss{border-style:solid;border-color:var(--coral);color:var(--coral)}
+.plate.none{border-color:transparent}
+@keyframes blink{0%,100%{box-shadow:0 0 0 0 rgba(255,193,69,.35)}50%{box-shadow:0 0 0 4px rgba(255,193,69,0)}}
+@keyframes snap{from{transform:translateY(-8px) scale(.9);opacity:.3}to{transform:none;opacity:1}}
+
+.q{font-size:15px;font-weight:600;text-align:center;margin:4px 0 0}
+
+/* лоток з назвами */
+.tray{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:14px}
+.chip{
+  border:1px solid var(--grid);background:rgba(15,32,56,.85);color:var(--chalk);
+  border-radius:20px;padding:11px 15px;font-family:"Manrope",sans-serif;font-weight:700;font-size:13px;cursor:pointer;
+  transition:transform .1s ease, border-color .12s ease
+}
+.chip:hover{border-color:var(--line);transform:translateY(-1px)}
+.chip.used{opacity:.3;pointer-events:none}
+.chip.ok{border-color:var(--mint);color:var(--mint)}
+.chip.no{border-color:var(--coral);color:var(--coral)}
+.chip:disabled{cursor:default}
+
+.opts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.opt{
+  border:1px solid var(--grid);background:rgba(15,32,56,.75);color:var(--chalk);
+  border-radius:10px;padding:14px 8px;font-family:"Unbounded",sans-serif;font-weight:600;font-size:17px;cursor:pointer
+}
+.opt:hover{border-color:var(--line)}
+.opt.ok{border-color:var(--mint);color:var(--mint)}
+.opt.no{border-color:var(--coral);color:var(--coral)}
+.opt:disabled{cursor:default}
+
+.dots{display:flex;gap:5px;justify-content:center;margin:14px 0 0}
+.dot{width:22px;height:3px;border-radius:2px;background:var(--grid)}
+.dot.on{background:var(--amber)}
+.dot.hit{background:var(--mint)}
+
+.msg{text-align:center;font-size:14px;font-weight:600;margin-top:14px;min-height:20px}
+.msg.no{color:var(--coral)}
+.msg.ok{color:var(--mint)}
+.msg.hint{color:var(--amber)}
+
+.btn{
+  display:block;width:100%;margin-top:14px;padding:14px;border-radius:12px;
+  border:1px solid var(--line);background:var(--amber);color:var(--ink-deep);
+  font-family:"Unbounded",sans-serif;font-weight:600;font-size:14px;cursor:pointer
+}
+.btn.ghost{background:transparent;color:var(--chalk);border-color:var(--grid)}
+.hide{display:none}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="screen-map">
+    <div class="eyebrow">Математика · 10 рівнів</div>
+    <h1>Компоненти дій</h1>
+    <div class="hud">
+      <div class="stat"><span class="k">XP</span><b id="hud-xp">0</b></div>
+      <div class="stat"><span class="k">Точність</span><b id="hud-acc">—</b></div>
+      <div class="stat"><span class="k">Рівні</span><b id="hud-lv">0/10</b></div>
+    </div>
+    <div class="map" id="map"></div>
+    <div class="rule"></div>
+    <div class="eyebrow">Підпиши деталі рівності</div>
+  </div>
+
+  <div id="screen-play" class="hide">
+    <div class="eyebrow" id="p-eyebrow"></div>
+    <h1 id="p-title"></h1>
+    <div class="blueprint"><div class="eq" id="p-eq"></div></div>
+    <p class="q" id="p-q"></p>
+    <div class="tray" id="p-tray"></div>
+    <div class="opts hide" id="p-opts"></div>
+    <div class="dots" id="p-dots"></div>
+    <div class="msg" id="p-msg"></div>
+    <button class="btn ghost" id="p-back">До карти рівнів</button>
+  </div>
+
+  <div id="screen-done" class="hide">
+    <div class="eyebrow">Рівень пройдено</div>
+    <h1 id="d-title"></h1>
+    <div class="blueprint"><p class="q" id="d-text"></p></div>
+    <button class="btn" id="d-next">Наступний рівень</button>
+    <button class="btn ghost" id="d-map">До карти рівнів</button>
+  </div>
+
+</div>
+
+<script>
+const NAMES = {add:"Доданок", sum:"Сума", min:"Зменшуване", sub:"Від'ємник", dif:"Різниця"};
+const TRAY = ["add","sum","min","sub","dif"];
+
+const LEVELS = [
+  {t:"Доданок",            s:"Підпиши доданок",             kind:"lblAdd",   max:10},
+  {t:"Сума",               s:"Підпиши суму",                kind:"lblSum",   max:10},
+  {t:"Уся рівність",       s:"Підпиши три деталі додавання",kind:"lblAllAdd",max:20},
+  {t:"Зменшуване",         s:"Підпиши зменшуване",          kind:"lblMin",   max:10},
+  {t:"Від'ємник",          s:"Підпиши від'ємник",           kind:"lblSub",   max:20},
+  {t:"Різниця",            s:"Підпиши різницю",             kind:"lblDif",   max:20},
+  {t:"Уся різниця",        s:"Підпиши три деталі віднімання",kind:"lblAllSub",max:20},
+  {t:"Невідомий доданок",  s:"□ + b = c",                   kind:"unkAdd",   max:20},
+  {t:"Невідоме зменшуване",s:"□ − b = c та a − □ = c",      kind:"unkSub",   max:20},
+  {t:"Чемпіон компонентів",s:"Змішаний рівень",             kind:"mixed",    max:100},
+];
+const PER_LEVEL = 5, XP_FULL = 10, XP_REPLAY = 5;
+const MIXED = ["lblAllAdd","lblAllSub","lblSum","lblDif","unkAdd","unkSub"];
+
+const S = {xp:0, unlocked:0, done:Array(10).fill(false), asked:0, right:0};
+let L=0, qs=[], qi=0, levelXP=0, replay=false, busy=false, step=0;
+
+const $ = id => document.getElementById(id);
+const rnd = (a,b) => a + Math.floor(Math.random()*(b-a+1));
+const shuffle = a => a.map(v=>[Math.random(),v]).sort((x,y)=>x[0]-y[0]).map(p=>p[1]);
+
+/* ---------- питання ---------- */
+function make(kind, max){
+  if(kind==="mixed") kind = shuffle(MIXED)[0];
+  const a = rnd(2, Math.max(3, max-2)), b = rnd(2, Math.max(2, max-a)), c = a+b;
+  const eqAdd = [{v:a,k:"add"},{o:"+"},{v:b,k:"add"},{o:"="},{v:c,k:"sum"}];
+  const eqSub = [{v:c,k:"min"},{o:"−"},{v:b,k:"sub"},{o:"="},{v:a,k:"dif"}];
+
+  if(kind==="lblAdd")    return {eq:eqAdd, targets:[shuffle([0,2])[0]], q:"Підпиши доданок"};
+  if(kind==="lblSum")    return {eq:eqAdd, targets:[4], q:"Підпиши суму"};
+  if(kind==="lblAllAdd") return {eq:eqAdd, targets:[0,2,4], q:"Підпиши всі три деталі"};
+  if(kind==="lblMin")    return {eq:eqSub, targets:[0], q:"Підпиши зменшуване"};
+  if(kind==="lblSub")    return {eq:eqSub, targets:[2], q:"Підпиши від'ємник"};
+  if(kind==="lblDif")    return {eq:eqSub, targets:[4], q:"Підпиши різницю"};
+  if(kind==="lblAllSub") return {eq:eqSub, targets:[0,2,4], q:"Підпиши всі три деталі"};
+
+  // невідомий компонент
+  let eq, hole, q;
+  if(kind==="unkAdd"){ eq = eqAdd.map(x=>({...x})); hole = shuffle([0,2])[0]; q="Знайди невідомий доданок"; }
+  else{
+    eq = eqSub.map(x=>({...x}));
+    hole = shuffle([0,2])[0];
+    q = hole===0 ? "Знайди невідоме зменшуване" : "Знайди невідомий від'ємник";
+  }
+  const ans = eq[hole].v;
+  eq[hole].blank = true;
+  const set = new Set([ans]);
+  let guard=0;
+  while(set.size<3 && guard++<200){ const d = ans + rnd(-3,3); if(d>0 && d!==ans) set.add(d); }
+  return {eq, hole, q, opts:shuffle([...set]).map(String), ans:String(ans)};
+}
+function buildLevel(){
+  qs = Array.from({length:PER_LEVEL}, () => make(LEVELS[L].kind, LEVELS[L].max));
+  qi = 0; levelXP = 0;
+}
+
+/* ---------- рендер ---------- */
+function drawMap(){
+  $("hud-xp").textContent = S.xp;
+  $("hud-acc").textContent = S.asked ? Math.round(S.right/S.asked*100)+"%" : "—";
+  $("hud-lv").textContent = S.done.filter(Boolean).length + "/10";
+  $("map").innerHTML = "";
+  LEVELS.forEach((lv,i)=>{
+    const b = document.createElement("button");
+    const locked = i > S.unlocked;
+    b.className = "lvl" + (S.done[i]?" done":"") + (locked?" lock":"");
+    b.innerHTML = `<span class="n">РІВЕНЬ ${String(i+1).padStart(2,"0")}</span>${lv.t}
+      <span class="tag">${locked ? "зачинено" : (S.done[i] ? "пройдено · повтор ½ XP" : lv.s)}</span>`;
+    b.disabled = locked;
+    b.onclick = () => startLevel(i);
+    $("map").appendChild(b);
+  });
+}
+function show(id){ ["screen-map","screen-play","screen-done"].forEach(s=>$(s).classList.toggle("hide", s!==id)); }
+
+function drawQ(){
+  const q = qs[qi];
+  step = 0;
+  $("p-eyebrow").textContent = `РІВЕНЬ ${String(L+1).padStart(2,"0")} · ${replay ? "повтор · ½ XP" : "+"+XP_FULL+" XP за відповідь"}`;
+  $("p-title").textContent = LEVELS[L].t;
+  $("p-q").textContent = q.q;
+  $("p-msg").textContent = ""; $("p-msg").className = "msg";
+
+  $("p-eq").innerHTML = "";
+  q.eq.forEach((part,i)=>{
+    if(part.o){
+      const o = document.createElement("div"); o.className="op"; o.textContent=part.o;
+      $("p-eq").appendChild(o); return;
+    }
+    const slot = document.createElement("div"); slot.className="slot";
+    const cell = document.createElement("div");
+    cell.className = "cell" + (part.blank?" blank":"");
+    cell.textContent = part.blank ? "□" : part.v;
+    cell.dataset.cell = i;
+    slot.appendChild(cell);
+    const lead = document.createElement("div"); lead.className="leader";
+    const plate = document.createElement("div");
+    const needs = q.targets && q.targets.includes(i);
+    plate.className = "plate " + (needs ? "empty" : "none");
+    plate.dataset.plate = i;
+    plate.textContent = needs ? "?" : "";
+    slot.appendChild(lead); slot.appendChild(plate);
+    $("p-eq").appendChild(slot);
+  });
+
+  const labelMode = !!q.targets;
+  $("p-tray").classList.toggle("hide", !labelMode);
+  $("p-opts").classList.toggle("hide", labelMode);
+  $("p-tray").innerHTML = ""; $("p-opts").innerHTML = "";
+
+  if(labelMode){
+    aim();
+    shuffle(TRAY).forEach(k=>{
+      const b = document.createElement("button");
+      b.className = "chip"; b.textContent = NAMES[k]; b.dataset.k = k;
+      b.onclick = () => tapChip(b, k);
+      $("p-tray").appendChild(b);
+    });
+  }else{
+    q.opts.forEach(o=>{
+      const b = document.createElement("button");
+      b.className = "opt"; b.textContent = o;
+      b.onclick = () => tapOpt(b, o);
+      $("p-opts").appendChild(b);
+    });
+  }
+
+  $("p-dots").innerHTML = qs.map((_,i)=>`<span class="dot ${i<qi?"hit":i===qi?"on":""}"></span>`).join("");
+  busy = false;
+}
+function aim(){
+  const q = qs[qi];
+  document.querySelectorAll(".plate.aim").forEach(p=>p.classList.remove("aim"));
+  document.querySelectorAll(".cell.aim").forEach(c=>c.classList.remove("aim"));
+  const i = q.targets[step];
+  const plate = document.querySelector(`[data-plate="${i}"]`);
+  const cell  = document.querySelector(`[data-cell="${i}"]`);
+  if(plate){ plate.classList.add("aim"); plate.classList.remove("empty"); plate.textContent = "?"; }
+  if(cell) cell.classList.add("aim");
+}
+
+/* ---------- відповіді ---------- */
+function tapChip(btn, k){
+  if(busy) return;
+  const q = qs[qi], i = q.targets[step], want = q.eq[i].k;
+  const plate = document.querySelector(`[data-plate="${i}"]`);
+  const cell  = document.querySelector(`[data-cell="${i}"]`);
+  if(k === want){
+    plate.className = "plate set"; plate.textContent = NAMES[k].toUpperCase();
+    cell.classList.remove("aim"); cell.classList.add("ok");
+    step++;
+    if(step < q.targets.length){
+      aim();
+      $("p-msg").className = "msg hint";
+      $("p-msg").textContent = `Ще ${q.targets.length - step}`;
+    }else{
+      busy = true; finish(true);
+    }
+  }else{
+    busy = true;
+    btn.classList.add("no");
+    plate.className = "plate miss"; plate.textContent = NAMES[want].toUpperCase();
+    cell.classList.remove("aim"); cell.classList.add("no");
+    document.querySelectorAll(".chip").forEach(c=>{
+      c.disabled = true;
+      if(c.dataset.k === want) c.classList.add("ok");
+    });
+    finish(false);
+  }
+}
+function tapOpt(btn, val){
+  if(busy) return; busy = true;
+  const q = qs[qi], ok = val === q.ans;
+  btn.classList.add(ok?"ok":"no");
+  [...$("p-opts").children].forEach(b=>{ b.disabled = true; if(!ok && b.textContent === q.ans) b.classList.add("ok"); });
+  const cell = document.querySelector(`[data-cell="${q.hole}"]`);
+  cell.textContent = q.ans; cell.classList.remove("blank"); cell.classList.add(ok?"ok":"no");
+  finish(ok);
+}
+function finish(ok){
+  if(!replay){ S.asked++; if(ok) S.right++; }
+  const msg = $("p-msg");
+  if(ok){
+    levelXP += replay ? XP_REPLAY : XP_FULL;
+    msg.className = "msg ok"; msg.textContent = `Правильно · +${replay?XP_REPLAY:XP_FULL} XP`;
+    setTimeout(()=>{ qi++; qi < qs.length ? drawQ() : endLevel(); }, 950);
+  }else{
+    msg.className = "msg no"; msg.textContent = "Помилка. Рівень починається спочатку, XP рівня скидається";
+    setTimeout(()=>{ buildLevel(); drawQ(); }, 1700);
+  }
+}
+function startLevel(i){ L=i; replay=S.done[i]; buildLevel(); show("screen-play"); drawQ(); }
+function endLevel(){
+  S.xp += levelXP;
+  if(!S.done[L]){ S.done[L]=true; if(L===S.unlocked && L<9) S.unlocked=L+1; }
+  $("d-title").textContent = LEVELS[L].t;
+  $("d-text").textContent = `Зароблено ${levelXP} XP${replay?" (повтор — половина XP, точність не змінюється)":""}. Усього ${S.xp} XP.`;
+  $("d-next").classList.toggle("hide", L>=9);
+  show("screen-done");
+}
+
+$("p-back").onclick = ()=>{ drawMap(); show("screen-map"); };
+$("d-map").onclick  = ()=>{ drawMap(); show("screen-map"); };
+$("d-next").onclick = ()=> startLevel(Math.min(L+1,9));
+
+drawMap();
+</script>
+</body>
+</html>
