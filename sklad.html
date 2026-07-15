@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Склад числа — Будиночки чисел</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-0:#0b1030; --navy-1:#141a44; --violet:#3a2b6e;
+    --gold:#ffcf4d; --gold-deep:#e0a92e; --ink:#0a0e26;
+    --text:#f4f1ff; --green:#7be0a4; --green-d:#2e9e54; --red:#ff8b8b;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%; overflow:hidden;}
+  body{
+    font-family:"Fredoka",system-ui,sans-serif; background:var(--navy-0); color:var(--text);
+    user-select:none; -webkit-user-select:none; touch-action:manipulation; overscroll-behavior:none;
+  }
+  #wrap{position:fixed; inset:0; display:flex; flex-direction:column;
+    background:radial-gradient(120% 80% at 50% 0%,var(--violet),var(--navy-0) 60%);}
+
+  /* ── top bar ── */
+  #top{display:flex; align-items:center; gap:8px;
+    padding:calc(env(safe-area-inset-top) + 10px) 12px 4px;}
+  .pill{background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35);
+    border-radius:14px; padding:7px 12px; font-weight:700; font-size:14px; white-space:nowrap;}
+  .pill .lab{opacity:.7; font-size:11px; display:block; line-height:1;}
+  .pill .val{font-size:18px; line-height:1.1;}
+  .pill.h .val{color:var(--gold);}
+  #spacer{flex:1;}
+  #menuBtn{cursor:pointer; font-family:inherit; font-weight:700; font-size:14px;
+    background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35); color:var(--text);
+    border-radius:14px; padding:8px 12px;}
+
+  /* ── progress ── */
+  #barWrap{padding:8px 14px 2px;}
+  #bar{height:10px; border-radius:999px; background:rgba(255,255,255,.1);
+    border:1px solid rgba(255,207,77,.25); overflow:hidden;}
+  #barFill{height:100%; width:0%; border-radius:999px;
+    background:linear-gradient(90deg,#FFE7A0,var(--gold-deep));
+    box-shadow:0 0 12px rgba(255,207,77,.5); transition:width .35s;}
+
+  /* ── будиночок ── */
+  #houseWrap{flex:1 1 auto; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:6px; padding:4px 10px; min-height:0;}
+  #hint{font-weight:600; font-size:14px; opacity:.85; min-height:20px; text-align:center;}
+  #hint b{color:var(--gold);}
+
+  #house{display:flex; flex-direction:column; align-items:center;
+    width:clamp(190px,64vw,280px); max-height:100%;}
+
+  /* дах з числом */
+  #roof{position:relative; width:calc(100% + 22px); height:clamp(46px,8.4vh,72px);
+    background:linear-gradient(180deg,#FFE7A0,var(--gold-deep));
+    clip-path:polygon(50% 0%, 100% 100%, 0% 100%);
+    filter:drop-shadow(0 4px 8px rgba(0,0,0,.45));
+    display:flex; align-items:flex-end; justify-content:center;}
+  #roofNum{margin-bottom:4px; font-weight:700; color:#4a3300;
+    font-size:clamp(24px,4.6vh,38px); line-height:1;
+    text-shadow:0 1px 0 rgba(255,255,255,.5);}
+
+  #floors{width:100%; display:flex; flex-direction:column; gap:4px;
+    padding:8px; border-radius:0 0 16px 16px;
+    border:2px solid rgba(255,207,77,.35); border-top:none;
+    background:linear-gradient(180deg,rgba(38,48,107,.95),rgba(18,22,60,.95));
+    box-shadow:0 6px 0 rgba(0,0,0,.28), 0 10px 22px rgba(0,0,0,.4);}
+
+  .floor{display:flex; align-items:stretch; gap:4px;
+    height:clamp(30px,4.9vh,52px);}
+  .win{flex:1; display:flex; align-items:center; justify-content:center;
+    border-radius:8px; font-weight:700; line-height:1;
+    font-size:clamp(17px,3.4vh,28px);
+    border:2px solid rgba(255,207,77,.28);
+    background:linear-gradient(180deg,rgba(60,72,140,.75),rgba(28,34,80,.75));
+    color:var(--text); text-shadow:0 2px 5px rgba(0,0,0,.45);}
+  .win.socket{border:2px dashed rgba(255,207,77,.7); color:var(--gold);
+    background:rgba(255,207,77,.08);
+    box-shadow:inset 0 0 12px rgba(255,207,77,.14);
+    transition:box-shadow .15s, border-color .15s, background .2s, transform .15s;}
+  .win.socket.active{border-color:var(--gold); background:rgba(255,207,77,.16);}
+  .win.socket.hot{border-color:var(--gold); background:rgba(255,207,77,.24);
+    box-shadow:inset 0 0 16px rgba(255,207,77,.4), 0 0 14px rgba(255,207,77,.4);
+    transform:scale(1.06);}
+  .win.socket.good{border-style:solid; border-color:var(--green); color:var(--green);
+    background:rgba(123,224,164,.18); box-shadow:inset 0 0 14px rgba(123,224,164,.35);}
+  .win.socket.bad{animation:shake .34s;}
+  .win.pop{animation:pop .3s;}
+  @keyframes pop{0%{transform:scale(.6)}60%{transform:scale(1.12)}100%{transform:scale(1)}}
+  .plus{display:flex; align-items:center; justify-content:center; width:16px;
+    color:var(--gold); font-weight:700; font-size:clamp(13px,2.4vh,19px); opacity:.75;}
+
+  /* ── лоток з цифрами ── */
+  #tray{display:flex; align-items:center; justify-content:center; gap:clamp(5px,1.8vw,10px);
+    padding:6px 10px calc(env(safe-area-inset-bottom) + 12px); flex-wrap:wrap;}
+  .piece{position:relative; cursor:grab; touch-action:none; font-family:inherit; font-weight:700;
+    width:clamp(44px,12.6vw,66px); height:clamp(44px,12.6vw,66px);
+    font-size:clamp(20px,5.6vw,32px); color:#4a3300;
+    background:linear-gradient(180deg,#FFE7A0,var(--gold-deep));
+    border:none; border-radius:16px; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 5px 0 #a9761a, 0 9px 18px rgba(0,0,0,.4);
+    transition:transform .12s, box-shadow .12s; will-change:transform;}
+  .piece::before{content:""; position:absolute; top:-8px; left:50%; transform:translateX(-50%);
+    width:22px; height:14px; background:inherit; border-radius:50%;}
+  .piece:active{cursor:grabbing;}
+  .piece.dragging{transition:none; box-shadow:0 12px 26px rgba(0,0,0,.5); z-index:50; opacity:.96;}
+  .piece.flyto{transition:transform .2s cubic-bezier(.3,.9,.3,1.2);}
+  .piece.wrong{animation:shake .34s;}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-9px)}
+    40%{transform:translateX(9px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+
+  /* ── overlays ── */
+  .screen{position:absolute; inset:0; z-index:60; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; padding:22px; gap:12px;
+    background:radial-gradient(120% 90% at 50% 25%,rgba(58,43,110,.72),rgba(11,16,48,.96)); backdrop-filter:blur(2px);}
+  .screen.hidden{display:none;}
+  .crown{font-size:48px; filter:drop-shadow(0 4px 12px rgba(255,207,77,.45));}
+  .title{font-size:27px; font-weight:700; color:var(--gold); line-height:1.12;}
+  .sub{font-size:14.5px; opacity:.86; max-width:340px; line-height:1.45;}
+  .sub b{color:var(--gold);}
+  .group{display:flex; flex-direction:column; gap:8px; width:min(340px,92vw);}
+  .glabel{font-size:13px; opacity:.72;}
+  .pick{display:flex; gap:7px; flex-wrap:wrap; justify-content:center;}
+  .opt{cursor:pointer; font-family:inherit; font-weight:700; font-size:17px;
+    width:52px; height:52px; display:flex; align-items:center; justify-content:center;
+    background:rgba(20,26,68,.7); border:2px solid rgba(255,207,77,.3); color:var(--text);
+    border-radius:14px;}
+  .opt.sel{border-color:var(--gold); background:linear-gradient(180deg,#FFE7A0,var(--gold-deep));
+    color:#3a2a00; box-shadow:0 0 14px rgba(255,207,77,.35);}
+  .cta{margin-top:4px; border:none; cursor:pointer; font-family:inherit; font-weight:700;
+    background:linear-gradient(180deg,var(--gold),var(--gold-deep)); color:#3a2a00;
+    font-size:18px; padding:14px 42px; border-radius:999px;
+    box-shadow:0 5px 0 rgba(0,0,0,.3); transition:transform .06s;}
+  .cta:active{transform:translateY(3px); box-shadow:0 2px 0 rgba(0,0,0,.3);}
+  .linkbtn{cursor:pointer; font-family:inherit; font-weight:700; font-size:14px; text-decoration:none;
+    background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35); color:var(--text);
+    border-radius:999px; padding:11px 22px;}
+  .stars{font-size:40px; letter-spacing:6px;}
+  .winrow{display:flex; gap:10px; flex-wrap:wrap; justify-content:center;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <div class="pill h"><span class="lab">Будиночок</span><span class="val" id="hNum">10</span></div>
+    <div class="pill"><span class="lab">Очки</span><span class="val" id="score">0</span></div>
+    <div id="spacer"></div>
+    <button id="menuBtn">☰ Меню</button>
+  </div>
+
+  <div id="barWrap"><div id="bar"><div id="barFill"></div></div></div>
+
+  <div id="houseWrap">
+    <div id="hint">Засели будиночок</div>
+    <div id="house">
+      <div id="roof"><span id="roofNum">10</span></div>
+      <div id="floors"></div>
+    </div>
+  </div>
+
+  <div id="tray"></div>
+
+  <!-- start / menu -->
+  <div class="screen" id="startScreen">
+    <div class="crown">🏠</div>
+    <div class="title">Будиночки чисел</div>
+    <div class="sub">На кожному поверсі живуть <b>два числа разом</b>. Разом вони мають дати число з даху. Постав те, якого не вистачає.</div>
+    <div class="group">
+      <div class="glabel">Обери будиночок</div>
+      <div class="pick" id="pick"></div>
+    </div>
+    <button class="cta" id="playBtn">Грати ▶</button>
+    <a class="linkbtn" href="igry.html">← До ігор</a>
+  </div>
+
+  <!-- win -->
+  <div class="screen hidden" id="winScreen">
+    <div class="crown">🏡</div>
+    <div class="title" id="winTitle">Будиночок заселено!</div>
+    <div class="stars" id="winStars">⭐⭐⭐</div>
+    <div class="sub" id="winSub">Чудова робота!</div>
+    <div class="winrow">
+      <button class="cta" id="nextBtn">Далі ▶</button>
+    </div>
+    <div class="winrow">
+      <button class="linkbtn" id="againBtn">↻ Ще раз</button>
+      <a class="linkbtn" href="igry.html">← До ігор</a>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var HOUSES = [2,3,4,5,6,7,8,9,10];   // доступні будиночки
+
+  var floorsEl = document.getElementById("floors");
+  var trayEl   = document.getElementById("tray");
+  var hintEl   = document.getElementById("hint");
+  var scoreEl  = document.getElementById("score");
+  var hNumEl   = document.getElementById("hNum");
+  var roofEl   = document.getElementById("roofNum");
+  var fillEl   = document.getElementById("barFill");
+  var pickEl   = document.getElementById("pick");
+
+  var N = 10;                          // число на даху
+  var score=0, streak=0, mistakes=0;
+  var sockets=[], total=0, done=0, locked=false;
+
+  function rnd(min,max){ return min + Math.floor(Math.random()*(max-min+1)); }
+  function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=rnd(0,i); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+
+  // ── побудова будиночка ──
+  function buildHouse(){
+    roofEl.textContent = N;
+    hNumEl.textContent = N;
+
+    // поверхи: усі пари 1+(N-1) … (N-1)+1, у випадковому порядку
+    var pairs=[];
+    for(var a=1; a<=N-1; a++) pairs.push([a, N-a]);
+    shuffle(pairs);
+
+    floorsEl.innerHTML=""; sockets=[];
+    pairs.forEach(function(pair){
+      var hideRight = Math.random()<0.5;      // яке вікно ховаємо
+      var f=document.createElement("div"); f.className="floor";
+
+      var w1=document.createElement("div");
+      var plus=document.createElement("div"); plus.className="plus"; plus.textContent="+";
+      var w2=document.createElement("div");
+
+      if(hideRight){
+        w1.className="win"; w1.textContent=pair[0];
+        w2.className="win socket"; w2.textContent="?"; w2.dataset.answer=pair[1];
+        sockets.push(w2);
+      } else {
+        w1.className="win socket"; w1.textContent="?"; w1.dataset.answer=pair[0];
+        sockets.push(w1);
+        w2.className="win"; w2.textContent=pair[1];
+      }
+
+      f.appendChild(w1); f.appendChild(plus); f.appendChild(w2);
+      floorsEl.appendChild(f);
+    });
+
+    total = sockets.length; done = 0;
+    updateBar();
+    markActive();
+
+    // лоток: цифри 1 … N-1, багаторазові
+    trayEl.innerHTML="";
+    for(var d=1; d<=N-1; d++){
+      var p=document.createElement("button");
+      p.className="piece"; p.textContent=d; p.dataset.val=d;
+      attachDrag(p);
+      trayEl.appendChild(p);
+    }
+
+    hintEl.innerHTML="Скільки треба, щоб разом було <b>"+N+"</b>?";
+    locked=false;
+  }
+
+  function openSockets(){
+    return sockets.filter(function(s){ return !s.classList.contains("good"); });
+  }
+  function markActive(){
+    var open=openSockets();
+    sockets.forEach(function(s){ s.classList.remove("active"); });
+    if(open.length) open[0].classList.add("active");
+  }
+  function updateBar(){
+    fillEl.style.width = (total ? Math.round(done/total*100) : 0)+"%";
+  }
+
+  // ── взаємодія: перетягування + тап ──
+  function socketAt(x,y){
+    var pad=14, found=null;
+    openSockets().forEach(function(s){
+      var r=s.getBoundingClientRect();
+      if(x>=r.left-pad && x<=r.right+pad && y>=r.top-pad && y<=r.bottom+pad) found=s;
+    });
+    return found;
+  }
+
+  function attachDrag(p){
+    var startX=0, startY=0, dx=0, dy=0, moved=false, dragging=false, pid=null;
+
+    p.addEventListener("pointerdown", function(e){
+      if(locked) return;
+      dragging=true; moved=false; pid=e.pointerId;
+      startX=e.clientX; startY=e.clientY; dx=0; dy=0;
+      p.classList.add("dragging");
+      try{ p.setPointerCapture(pid); }catch(_){}
+    });
+
+    p.addEventListener("pointermove", function(e){
+      if(!dragging) return;
+      dx=e.clientX-startX; dy=e.clientY-startY;
+      if(Math.abs(dx)+Math.abs(dy)>6) moved=true;
+      p.style.transform="translate("+dx+"px,"+dy+"px)";
+      var hot=socketAt(e.clientX,e.clientY);
+      sockets.forEach(function(s){ s.classList.toggle("hot", s===hot); });
+    });
+
+    function endDrag(e){
+      if(!dragging) return;
+      dragging=false;
+      try{ p.releasePointerCapture(pid); }catch(_){}
+      p.classList.remove("dragging");
+      sockets.forEach(function(s){ s.classList.remove("hot"); });
+
+      if(!moved){                                   // тап → у активне вікно
+        var open=openSockets();
+        if(open.length) flyTo(p, open[0]);
+        else returnPiece(p);
+        return;
+      }
+      var target=socketAt(e.clientX, e.clientY);
+      if(target) resolve(p, target);
+      else returnPiece(p);
+    }
+    p.addEventListener("pointerup", endDrag);
+    p.addEventListener("pointercancel", endDrag);
+  }
+
+  function returnPiece(p){
+    p.classList.add("flyto"); p.style.transform="translate(0,0)";
+    setTimeout(function(){ p.classList.remove("flyto"); p.style.transform=""; }, 220);
+  }
+
+  function flyTo(p, target){
+    if(locked) return;
+    var pr=p.getBoundingClientRect(), sr=target.getBoundingClientRect();
+    var tx=(sr.left+sr.width/2)-(pr.left+pr.width/2);
+    var ty=(sr.top+sr.height/2)-(pr.top+pr.height/2);
+    p.classList.add("flyto");
+    p.style.transform="translate("+tx+"px,"+ty+"px)";
+    setTimeout(function(){ resolve(p, target); }, 190);
+  }
+
+  function resolve(p, target){
+    if(locked) return;
+    var correct = String(p.dataset.val) === String(target.dataset.answer);
+    if(correct){
+      target.classList.remove("active","hot");
+      target.classList.add("good","pop");
+      target.textContent = target.dataset.answer;
+      returnPiece(p);                               // цифра повертається у лоток
+      streak++; var gain=10+Math.min(streak-1,5)*2; score+=gain;
+      scoreEl.textContent=score;
+      done++; updateBar();
+      buzz(20); chime();
+      markActive();
+
+      if(openSockets().length===0){
+        locked=true;
+        hintEl.innerHTML="Будиночок <b>"+N+"</b> повний! 🎉";
+        setTimeout(finish, 700);
+      } else {
+        hintEl.innerHTML = streak>=3
+          ? ("Так тримати! "+streak+" поспіль 🔥")
+          : ("Скільки треба, щоб разом було <b>"+N+"</b>?");
+      }
+    } else {
+      streak=0; mistakes++;
+      buzz([30,40,30]); thud();
+      p.classList.remove("flyto"); p.style.transform="";
+      p.classList.add("wrong");
+      target.classList.add("bad");
+      hintEl.innerHTML="Порахуй ще: разом має вийти <b>"+N+"</b> 🤔";
+      setTimeout(function(){
+        p.classList.remove("wrong");
+        target.classList.remove("bad");
+        hintEl.innerHTML="Скільки треба, щоб разом було <b>"+N+"</b>?";
+      }, 900);
+    }
+  }
+
+  // ── звук ──
+  var actx=null;
+  function tone(f,d,type){ try{
+    if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)();
+    var o=actx.createOscillator(), g=actx.createGain();
+    o.type=type||"triangle"; o.frequency.value=f; g.gain.value=0.06;
+    o.connect(g); g.connect(actx.destination); o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime+d); o.stop(actx.currentTime+d+0.02);
+  }catch(e){} }
+  function chime(){ tone(660,0.09); setTimeout(function(){tone(880,0.11);},90); }
+  function thud(){ tone(180,0.16,"sine"); }
+  function fanfare(){ tone(523,0.12); setTimeout(function(){tone(659,0.12);},120);
+    setTimeout(function(){tone(784,0.14);},240); setTimeout(function(){tone(1046,0.18);},380); }
+  function buzz(v){ try{ if(navigator.vibrate) navigator.vibrate(v); }catch(e){} }
+
+  // ── фініш ──
+  function finish(){
+    fanfare();
+    var stars = mistakes===0 ? "⭐⭐⭐" : (mistakes<=2 ? "⭐⭐" : "⭐");
+    document.getElementById("winStars").textContent=stars;
+    document.getElementById("winTitle").textContent =
+      mistakes===0 ? "Бездоганно!" : "Будиночок заселено!";
+    document.getElementById("winSub").textContent =
+      "Будиночок "+N+" • Поверхів: "+total+" • Помилок: "+mistakes+" • Очки: "+score;
+    var idx=HOUSES.indexOf(N);
+    document.getElementById("nextBtn").textContent =
+      (idx<HOUSES.length-1) ? ("Будиночок "+HOUSES[idx+1]+" ▶") : "Ще один будиночок ▶";
+    document.getElementById("winScreen").classList.remove("hidden");
+  }
+
+  // ── меню ──
+  HOUSES.forEach(function(n){
+    var b=document.createElement("button");
+    b.className="opt"+(n===N?" sel":""); b.textContent=n; b.dataset.n=n;
+    b.addEventListener("click", function(){
+      pickEl.querySelectorAll(".opt").forEach(function(x){ x.classList.remove("sel"); });
+      b.classList.add("sel"); N=n;
+    });
+    pickEl.appendChild(b);
+  });
+  function syncPick(){
+    pickEl.querySelectorAll(".opt").forEach(function(x){
+      x.classList.toggle("sel", Number(x.dataset.n)===N);
+    });
+  }
+
+  function startHouse(keepScore){
+    if(!keepScore) score=0;
+    streak=0; mistakes=0;
+    scoreEl.textContent=score;
+    document.getElementById("startScreen").classList.add("hidden");
+    document.getElementById("winScreen").classList.add("hidden");
+    buildHouse();
+  }
+
+  document.getElementById("playBtn").addEventListener("click", function(){ startHouse(false); });
+  document.getElementById("againBtn").addEventListener("click", function(){ startHouse(false); });
+  document.getElementById("menuBtn").addEventListener("click", function(){
+    syncPick();
+    document.getElementById("startScreen").classList.remove("hidden");
+  });
+  document.getElementById("nextBtn").addEventListener("click", function(){
+    var idx=HOUSES.indexOf(N);
+    if(idx<HOUSES.length-1) N=HOUSES[idx+1];
+    syncPick();
+    startHouse(true);
+  });
+
+  buildHouse();
+})();
+</script>
+</body>
+</html>

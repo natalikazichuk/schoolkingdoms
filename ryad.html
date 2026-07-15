@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Числовий ряд — Знайди пропущене число</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-0:#0b1030; --navy-1:#141a44; --violet:#3a2b6e;
+    --gold:#ffcf4d; --gold-deep:#e0a92e; --ink:#0a0e26;
+    --text:#f4f1ff; --green:#7be0a4; --green-d:#2e9e54; --red:#ff8b8b;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%; overflow:hidden;}
+  body{
+    font-family:"Fredoka",system-ui,sans-serif; background:var(--navy-0); color:var(--text);
+    user-select:none; -webkit-user-select:none; touch-action:manipulation; overscroll-behavior:none;
+  }
+  #wrap{position:fixed; inset:0; display:flex; flex-direction:column;
+    background:radial-gradient(120% 80% at 50% 0%,var(--violet),var(--navy-0) 60%);}
+
+  /* ── top bar ── */
+  #top{display:flex; align-items:center; gap:8px;
+    padding:calc(env(safe-area-inset-top) + 10px) 12px 4px;}
+  .pill{background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35);
+    border-radius:14px; padding:7px 12px; font-weight:700; font-size:14px; white-space:nowrap;}
+  .pill .lab{opacity:.7; font-size:11px; display:block; line-height:1;}
+  .pill .val{font-size:18px; line-height:1.1;}
+  .pill.q .val{color:var(--gold);}
+  #spacer{flex:1;}
+  #menuBtn{cursor:pointer; font-family:inherit; font-weight:700; font-size:14px;
+    background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35); color:var(--text);
+    border-radius:14px; padding:8px 12px;}
+
+  /* ── progress ── */
+  #barWrap{padding:8px 14px 2px;}
+  #bar{height:10px; border-radius:999px; background:rgba(255,255,255,.1);
+    border:1px solid rgba(255,207,77,.25); overflow:hidden;}
+  #barFill{height:100%; width:0%; border-radius:999px;
+    background:linear-gradient(90deg,#FFE7A0,var(--gold-deep));
+    box-shadow:0 0 12px rgba(255,207,77,.5); transition:width .35s;}
+
+  /* ── ряд ── */
+  #rowWrap{flex:1 1 auto; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:12px; padding:6px 10px;}
+  #hint{font-weight:600; font-size:14px; opacity:.82; min-height:20px; text-align:center;}
+
+  #row{position:relative; display:flex; align-items:center; justify-content:center;
+    gap:clamp(5px,1.8vw,12px); max-width:100%;}
+  #row::before{content:""; position:absolute; left:4%; right:4%; top:50%;
+    height:6px; transform:translateY(-50%); border-radius:999px;
+    background:linear-gradient(90deg,rgba(255,207,77,0),rgba(255,207,77,.3),rgba(255,207,77,0));
+    z-index:0;}
+
+  .cell{position:relative; z-index:1; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:1px;
+    width:clamp(42px,13.2vw,74px); height:clamp(56px,17vw,96px);
+    border-radius:18px; border:2px solid rgba(255,207,77,.3);
+    background:linear-gradient(180deg,rgba(38,48,107,.95),rgba(18,22,60,.95));
+    box-shadow:0 5px 0 rgba(0,0,0,.28), 0 8px 18px rgba(0,0,0,.35);}
+  .cell .ico{font-size:clamp(17px,5vw,26px); line-height:1;
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,.45));}
+  .cell .val{font-size:clamp(20px,6.4vw,34px); font-weight:700; line-height:1.05;
+    color:var(--text); text-shadow:0 2px 6px rgba(0,0,0,.45);}
+
+  .cell.socket{border:3px dashed rgba(255,207,77,.65);
+    background:rgba(255,207,77,.07);
+    box-shadow:inset 0 0 18px rgba(255,207,77,.12);
+    transition:box-shadow .15s, border-color .15s, background .2s, transform .2s;}
+  .cell.socket .ico{opacity:.4; filter:grayscale(.5);}
+  .cell.socket .val{color:var(--gold);}
+  .cell.socket.hot{border-color:var(--gold); background:rgba(255,207,77,.18);
+    box-shadow:inset 0 0 22px rgba(255,207,77,.35), 0 0 16px rgba(255,207,77,.35);
+    transform:translateY(-3px);}
+  .cell.socket.good{border-style:solid; border-color:var(--green);
+    background:rgba(123,224,164,.18); box-shadow:inset 0 0 20px rgba(123,224,164,.35);}
+  .cell.socket.good .ico{opacity:1; filter:none;}
+  .cell.socket.good .val{color:var(--green);}
+  .cell.pop{animation:pop .34s;}
+  @keyframes pop{0%{transform:scale(.5)}60%{transform:scale(1.14)}100%{transform:scale(1)}}
+
+  /* ── лоток з цифрами ── */
+  #tray{display:flex; align-items:center; justify-content:center; gap:clamp(8px,3.2vw,16px);
+    padding:8px 12px calc(env(safe-area-inset-bottom) + 16px); flex-wrap:wrap;}
+  .piece{position:relative; cursor:grab; touch-action:none; font-family:inherit; font-weight:700;
+    width:clamp(58px,18vw,86px); height:clamp(58px,18vw,86px);
+    font-size:clamp(26px,8vw,40px); color:#4a3300;
+    background:linear-gradient(180deg,#FFE7A0,var(--gold-deep));
+    border:none; border-radius:20px; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 6px 0 #a9761a, 0 10px 20px rgba(0,0,0,.4);
+    transition:transform .12s, box-shadow .12s; will-change:transform;}
+  .piece::before{content:""; position:absolute; top:-9px; left:50%; transform:translateX(-50%);
+    width:26px; height:16px; background:inherit; border-radius:50%;}
+  .piece:active{cursor:grabbing;}
+  .piece.dragging{transition:none; box-shadow:0 12px 26px rgba(0,0,0,.5); z-index:50; opacity:.96;}
+  .piece.flyto{transition:transform .22s cubic-bezier(.3,.9,.3,1.2);}
+  .piece.wrong{animation:shake .34s;}
+  .piece.placed{opacity:0; transform:scale(.3); pointer-events:none;}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-9px)}
+    40%{transform:translateX(9px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+
+  /* ── overlays ── */
+  .screen{position:absolute; inset:0; z-index:60; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; padding:24px; gap:14px;
+    background:radial-gradient(120% 90% at 50% 25%,rgba(58,43,110,.72),rgba(11,16,48,.96)); backdrop-filter:blur(2px);}
+  .screen.hidden{display:none;}
+  .crown{font-size:52px; filter:drop-shadow(0 4px 12px rgba(255,207,77,.45));}
+  .title{font-size:28px; font-weight:700; color:var(--gold); line-height:1.12;}
+  .sub{font-size:15px; opacity:.86; max-width:340px; line-height:1.45;}
+  .cta{margin-top:6px; border:none; cursor:pointer; font-family:inherit; font-weight:700;
+    background:linear-gradient(180deg,var(--gold),var(--gold-deep)); color:#3a2a00;
+    font-size:18px; padding:14px 42px; border-radius:999px;
+    box-shadow:0 5px 0 rgba(0,0,0,.3); transition:transform .06s;}
+  .cta:active{transform:translateY(3px); box-shadow:0 2px 0 rgba(0,0,0,.3);}
+  .linkbtn{cursor:pointer; font-family:inherit; font-weight:700; font-size:14px; text-decoration:none;
+    background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35); color:var(--text);
+    border-radius:999px; padding:11px 22px;}
+  .stars{font-size:40px; letter-spacing:6px;}
+  .winrow{display:flex; gap:10px; flex-wrap:wrap; justify-content:center;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <div class="pill q"><span class="lab">Питання</span><span class="val" id="qNum">1/20</span></div>
+    <div class="pill"><span class="lab">Очки</span><span class="val" id="score">0</span></div>
+    <div id="spacer"></div>
+    <button id="menuBtn">☰ Меню</button>
+  </div>
+
+  <div id="barWrap"><div id="bar"><div id="barFill"></div></div></div>
+
+  <div id="rowWrap">
+    <div id="hint">Перетягни або торкнись потрібної цифри 🔢</div>
+    <div id="row"></div>
+  </div>
+
+  <div id="tray"></div>
+
+  <!-- start / menu -->
+  <div class="screen" id="startScreen">
+    <div class="crown">🔢</div>
+    <div class="title">Числовий ряд</div>
+    <div class="sub">Подивись на ряд і знайди, якого числа не вистачає. Перетягни цифру знизу на порожнє місце — або просто торкнись її. 20 питань, числа від 1 до 9.</div>
+    <button class="cta" id="playBtn">Грати ▶</button>
+    <a class="linkbtn" href="igry.html">← До ігор</a>
+  </div>
+
+  <!-- win -->
+  <div class="screen hidden" id="winScreen">
+    <div class="crown">👑</div>
+    <div class="title" id="winTitle">Ряд зібрано!</div>
+    <div class="stars" id="winStars">⭐⭐⭐</div>
+    <div class="sub" id="winSub">Чудова робота!</div>
+    <div class="winrow">
+      <button class="cta" id="againBtn">↻ Ще раз</button>
+    </div>
+    <div class="winrow">
+      <a class="linkbtn" href="igry.html">← До ігор</a>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var TOTAL = 20;          // питань у грі
+  var MIN = 1, MAX = 9;    // діапазон чисел
+
+  // ── теми оформлення ряду ──
+  var THEMES = ["⭐","❤️","🧁","🍎","🌸","🐝","🍄","🎈","🐟","🍓","🍪","🌟","🦋","🍋","🐞","🎀"];
+
+  var rowEl   = document.getElementById("row");
+  var trayEl  = document.getElementById("tray");
+  var hintEl  = document.getElementById("hint");
+  var scoreEl = document.getElementById("score");
+  var qNumEl  = document.getElementById("qNum");
+  var fillEl  = document.getElementById("barFill");
+
+  var score=0, streak=0, qIndex=0, mistakes=0;
+  var current=null, locked=false, socketEl=null;
+
+  function rnd(min,max){ return min + Math.floor(Math.random()*(max-min+1)); }
+  function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=rnd(0,i); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+
+  // ── генерація ряду ──
+  function makeOptions(ans){
+    var set={}; var list=[ans]; set[ans]=1;
+    var guard=0;
+    while(list.length<4 && guard++<200){
+      var d = rnd(1,3) * (Math.random()<0.5?-1:1);
+      var v = ans + d;
+      if(v<MIN || v>MAX) continue;
+      if(set[v]) continue;
+      set[v]=1; list.push(v);
+    }
+    // добираємо будь-якими вільними числами діапазону
+    guard=0;
+    while(list.length<4 && guard++<200){
+      var w = rnd(MIN,MAX);
+      if(set[w]) continue;
+      set[w]=1; list.push(w);
+    }
+    shuffle(list);
+    return { list:list, idx:list.indexOf(ans) };
+  }
+
+  var lastKey="", lastTheme="";
+  function genRow(){
+    for(var tries=0; tries<400; tries++){
+      var step = Math.random()<0.72 ? 1 : 2;                 // крок ряду
+      var dir  = Math.random()<0.72 ? 1 : -1;                // зростає / спадає
+      var len  = step===1 ? rnd(5,6) : 4;                    // довжина ряду
+      var span = step*(len-1);
+      if(span > MAX-MIN) continue;
+
+      var start;
+      if(dir===1) start = rnd(MIN, MAX-span);
+      else        start = rnd(MIN+span, MAX);
+
+      var vals=[], i;
+      for(i=0;i<len;i++) vals.push(start + dir*step*i);
+      if(vals.some(function(v){ return v<MIN || v>MAX; })) continue;
+
+      var hole = rnd(0, len-1);
+      var answer = vals[hole];
+
+      var key = vals.join(",")+"|"+hole;
+      if(key===lastKey) continue;
+
+      var theme;
+      do { theme = THEMES[rnd(0,THEMES.length-1)]; } while(theme===lastTheme && THEMES.length>1);
+
+      var opts = makeOptions(answer);
+      lastKey=key; lastTheme=theme;
+      return { vals:vals, hole:hole, answer:answer, theme:theme,
+               options:opts.list, correctIndex:opts.idx };
+    }
+    lastKey=""; lastTheme="";
+    var o = makeOptions(3);
+    return { vals:[1,2,3,4,5], hole:2, answer:3, theme:"⭐", options:o.list, correctIndex:o.idx };
+  }
+
+  // ── рендер ──
+  function renderRow(){
+    current = genRow();
+    rowEl.innerHTML=""; socketEl=null;
+
+    current.vals.forEach(function(v,i){
+      var c=document.createElement("div");
+      c.className="cell";
+      var ico=document.createElement("span");
+      ico.className="ico"; ico.textContent=current.theme;
+      var val=document.createElement("span");
+      val.className="val";
+      if(i===current.hole){ c.classList.add("socket"); val.textContent="?"; socketEl=c; }
+      else { val.textContent=v; }
+      c.appendChild(ico); c.appendChild(val);
+      rowEl.appendChild(c);
+    });
+
+    trayEl.innerHTML="";
+    current.options.forEach(function(val,i){
+      var p=document.createElement("button");
+      p.className="piece"; p.textContent=val;
+      p.dataset.correct = (i===current.correctIndex) ? "1" : "0";
+      attachDrag(p);
+      trayEl.appendChild(p);
+    });
+
+    qNumEl.textContent=(qIndex+1)+"/"+TOTAL;
+    fillEl.style.width = Math.round(qIndex/TOTAL*100)+"%";
+    locked=false;
+  }
+
+  // ── взаємодія: перетягування + тап ──
+  function socketRect(){ return socketEl ? socketEl.getBoundingClientRect() : null; }
+  function overSocket(x,y){
+    var r=socketRect(); if(!r) return false;
+    var pad=26;
+    return x>=r.left-pad && x<=r.right+pad && y>=r.top-pad && y<=r.bottom+pad;
+  }
+
+  function attachDrag(p){
+    var startX=0, startY=0, dx=0, dy=0, moved=false, dragging=false, pid=null;
+
+    p.addEventListener("pointerdown", function(e){
+      if(locked) return;
+      dragging=true; moved=false; pid=e.pointerId;
+      startX=e.clientX; startY=e.clientY; dx=0; dy=0;
+      p.classList.add("dragging");
+      try{ p.setPointerCapture(pid); }catch(_){}
+    });
+
+    p.addEventListener("pointermove", function(e){
+      if(!dragging) return;
+      dx=e.clientX-startX; dy=e.clientY-startY;
+      if(Math.abs(dx)+Math.abs(dy)>6) moved=true;
+      p.style.transform="translate("+dx+"px,"+dy+"px)";
+      if(socketEl) socketEl.classList.toggle("hot", overSocket(e.clientX,e.clientY));
+    });
+
+    function endDrag(e){
+      if(!dragging) return;
+      dragging=false;
+      try{ p.releasePointerCapture(pid); }catch(_){}
+      p.classList.remove("dragging");
+      if(socketEl) socketEl.classList.remove("hot");
+      if(!moved){ flyToSocket(p); return; }        // тап → летить у гніздо
+      if(overSocket(e.clientX, e.clientY)){ resolve(p); }
+      else { returnPiece(p); }
+    }
+    p.addEventListener("pointerup", endDrag);
+    p.addEventListener("pointercancel", endDrag);
+  }
+
+  function returnPiece(p){
+    p.classList.add("flyto"); p.style.transform="translate(0,0)";
+    setTimeout(function(){ p.classList.remove("flyto"); p.style.transform=""; }, 240);
+  }
+
+  function flyToSocket(p){
+    if(locked) return;
+    var pr=p.getBoundingClientRect(), sr=socketRect();
+    if(!sr){ resolve(p); return; }
+    var tx=(sr.left+sr.width/2)-(pr.left+pr.width/2);
+    var ty=(sr.top+sr.height/2)-(pr.top+pr.height/2);
+    p.classList.add("flyto");
+    p.style.transform="translate("+tx+"px,"+ty+"px)";
+    setTimeout(function(){ resolve(p); }, 210);
+  }
+
+  function resolve(p){
+    if(locked) return;
+    var correct = p.dataset.correct==="1";
+    if(correct){
+      locked=true;
+      p.classList.add("placed");
+      if(socketEl){
+        socketEl.classList.add("good","pop");
+        socketEl.querySelector(".val").textContent=current.answer;
+      }
+      streak++; var gain=10+Math.min(streak-1,5)*2; score+=gain;
+      scoreEl.textContent=score;
+      buzz(20); chime();
+      hintEl.textContent = streak>=3 ? ("Так тримати! "+streak+" поспіль 🔥") : "Правильно! 🎉";
+      qIndex++;
+      fillEl.style.width = Math.round(qIndex/TOTAL*100)+"%";
+      if(qIndex>=TOTAL){ setTimeout(finish, 620); return; }
+      setTimeout(function(){
+        hintEl.textContent="Перетягни або торкнись потрібної цифри 🔢";
+        renderRow();
+      }, 560);
+    } else {
+      streak=0; mistakes++;
+      buzz([30,40,30]); thud();
+      p.classList.remove("flyto"); p.style.transform="";
+      p.classList.add("wrong");
+      hintEl.textContent="Подивись, на скільки зростає ряд 🤔";
+      setTimeout(function(){
+        p.classList.remove("wrong");
+        hintEl.textContent="Перетягни або торкнись потрібної цифри 🔢";
+      }, 900);
+    }
+  }
+
+  // ── звук ──
+  var actx=null;
+  function tone(f,d,type){ try{
+    if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)();
+    var o=actx.createOscillator(), g=actx.createGain();
+    o.type=type||"triangle"; o.frequency.value=f; g.gain.value=0.06;
+    o.connect(g); g.connect(actx.destination); o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime+d); o.stop(actx.currentTime+d+0.02);
+  }catch(e){} }
+  function chime(){ tone(660,0.09); setTimeout(function(){tone(880,0.11);},90); }
+  function thud(){ tone(180,0.16,"sine"); }
+  function fanfare(){ tone(523,0.12); setTimeout(function(){tone(659,0.12);},120);
+    setTimeout(function(){tone(784,0.14);},240); setTimeout(function(){tone(1046,0.18);},380); }
+  function buzz(v){ try{ if(navigator.vibrate) navigator.vibrate(v); }catch(e){} }
+
+  // ── фініш ──
+  function finish(){
+    fanfare();
+    var stars = mistakes===0 ? "⭐⭐⭐" : (mistakes<=3 ? "⭐⭐" : "⭐");
+    document.getElementById("winStars").textContent=stars;
+    document.getElementById("winTitle").textContent =
+      mistakes===0 ? "Бездоганно!" : "Ряд зібрано!";
+    document.getElementById("winSub").textContent =
+      "Пройдено "+TOTAL+" з "+TOTAL+" • Помилок: "+mistakes+" • Очки: "+score;
+    document.getElementById("winScreen").classList.remove("hidden");
+  }
+
+  function startGame(){
+    score=0; streak=0; qIndex=0; mistakes=0;
+    lastKey=""; lastTheme="";
+    scoreEl.textContent=score;
+    hintEl.textContent="Перетягни або торкнись потрібної цифри 🔢";
+    document.getElementById("startScreen").classList.add("hidden");
+    document.getElementById("winScreen").classList.add("hidden");
+    renderRow();
+  }
+
+  document.getElementById("playBtn").addEventListener("click", startGame);
+  document.getElementById("againBtn").addEventListener("click", startGame);
+  document.getElementById("menuBtn").addEventListener("click", function(){
+    document.getElementById("startScreen").classList.remove("hidden");
+  });
+
+  renderRow();
+})();
+</script>
+</body>
+</html>
