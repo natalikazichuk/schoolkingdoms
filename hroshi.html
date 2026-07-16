@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Королівський гаманець</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+
+:root{
+  --navy-0:#0b1030; --navy-1:#141a44; --violet:#3a2b6e;
+  --ink:#141a44;
+  --ink-deep:#0b1030;
+  --grid:rgba(255,207,77,.28);
+  --line:#b9a8ff;
+  --chalk:#f4f1ff;
+  --dim:#b3aee0;
+  --amber:#ffcf4d;
+  --gold-deep:#e0a92e;
+  --mint:#7be0a4;
+  --coral:#ff8b8b;
+  --r:14px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background-color:var(--navy-0);
+  background-image:
+    linear-gradient(rgba(185,168,255,.10) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(185,168,255,.10) 1px, transparent 1px),
+    radial-gradient(120% 80% at 50% 0%, var(--violet), var(--navy-0) 60%);
+  background-size:28px 28px, 28px 28px, 100% 100%;
+  background-attachment:fixed;
+  color:var(--chalk);
+  font-family:"Fredoka",system-ui,sans-serif;
+  min-height:100vh;
+  padding:18px 16px calc(28px + env(safe-area-inset-bottom));
+}
+.wrap{max-width:520px;margin:0 auto}
+.eyebrow{
+  font-family:"Fredoka",sans-serif;font-size:11px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--line)
+}
+h1{font-family:"Fredoka",sans-serif;font-weight:800;font-size:23px;line-height:1.15;margin:6px 0 14px}
+.rule{height:1px;background:var(--line);opacity:.45;margin:14px 0}
+.sync{color:var(--dim)}
+.sync.ok{color:var(--mint)}
+.sync.no{color:var(--coral)}
+
+.hud{display:flex;gap:10px;margin-bottom:16px}
+.stat{flex:1;border:1px solid var(--grid);background:rgba(20,26,68,.72);border-radius:var(--r);padding:9px 11px}
+.stat b{display:block;font-family:"Fredoka",sans-serif;font-size:18px;margin-top:2px}
+.stat .k{font-family:"Fredoka",sans-serif;font-size:10px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase}
+
+.map{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.lvl{
+  text-align:left;border:1px solid var(--grid);background:rgba(20,26,68,.72);
+  color:var(--chalk);border-radius:var(--r);padding:12px;cursor:pointer;
+  font-family:"Fredoka",sans-serif;font-size:13px;font-weight:600;line-height:1.3;
+  transition:transform .12s ease, border-color .12s ease;
+}
+.lvl:hover{transform:translateY(-2px);border-color:var(--line)}
+.lvl .n{font-family:"Fredoka",sans-serif;font-size:10px;color:var(--line);letter-spacing:.1em}
+.lvl.done{border-color:var(--mint)}
+.lvl.done .n{color:var(--mint)}
+.lvl.lock{opacity:.4;cursor:not-allowed}
+.lvl.lock:hover{transform:none}
+.lvl .tag{display:block;margin-top:7px;font-family:"Fredoka",sans-serif;font-size:10px;color:var(--dim)}
+
+.q{font-size:15px;font-weight:600;text-align:center;margin:4px 0 0}
+
+.opts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.opts.wide{grid-template-columns:repeat(2,1fr)}
+.opt{
+  border:1px solid var(--grid);background:rgba(20,26,68,.72);color:var(--chalk);
+  border-radius:10px;padding:14px 8px;font-family:"Fredoka",sans-serif;font-weight:600;font-size:16px;cursor:pointer
+}
+.opt.word{font-family:"Fredoka",sans-serif;font-size:14px}
+.opt:hover{border-color:var(--line)}
+.opt.ok{border-color:var(--mint);color:var(--mint)}
+.opt.no{border-color:var(--coral);color:var(--coral)}
+.opt:disabled{cursor:default}
+
+.dots{display:flex;gap:5px;justify-content:center;margin:12px 0 0}
+.dot{width:22px;height:3px;border-radius:2px;background:var(--grid)}
+.dot.on{background:var(--amber)}
+.dot.hit{background:var(--mint)}
+
+.msg{text-align:center;font-size:14px;font-weight:600;margin-top:14px;min-height:20px}
+.msg.no{color:var(--coral)}
+.msg.ok{color:var(--mint)}
+.msg.hint{color:var(--amber)}
+
+.btn{
+  display:block;width:100%;margin-top:14px;padding:14px;border-radius:12px;
+  border:1px solid var(--line);background:linear-gradient(180deg,#FFE7A0,var(--gold-deep));color:#5a3d05;
+  font-family:"Fredoka",sans-serif;font-weight:600;font-size:14px;cursor:pointer
+}
+.btn.ghost{background:transparent;color:var(--chalk);border-color:var(--grid)}
+.backlink{
+  display:block;text-align:center;margin-top:16px;padding:12px;border-radius:12px;
+  border:2px solid rgba(255,207,77,.35);background:rgba(20,26,68,.72);
+  color:var(--chalk);text-decoration:none;font-weight:700;font-size:14px
+}
+.backlink:hover{border-color:var(--amber)}
+.hide{display:none}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+
+.panel{border:1px solid var(--grid);border-radius:var(--r);background:rgba(11,16,48,.7);margin:16px 0;overflow:hidden}
+.purse{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;align-items:center;
+  min-height:104px;padding:16px 10px}
+.coin{
+  width:44px;height:44px;border-radius:50%;display:grid;place-items:center;
+  font-weight:700;font-size:12px;line-height:1.05;text-align:center;
+  border:2px solid var(--gold-deep);color:#5a3d05;
+  background:radial-gradient(circle at 35% 30%, #FFE7A0, var(--gold-deep));
+  box-shadow:0 2px 0 rgba(0,0,0,.3);animation:drop .2s ease
+}
+.coin.kop{
+  border-color:#9aa6c9;color:#2b3350;
+  background:radial-gradient(circle at 35% 30%, #eef2ff, #9aa6c9)
+}
+.coin small{display:block;font-size:8px;font-weight:600;opacity:.75}
+@keyframes drop{from{transform:translateY(-10px) scale(.6);opacity:0}to{transform:none;opacity:1}}
+.readout{border-top:1px solid var(--grid);padding:9px;text-align:center;font-size:12px;color:var(--dim)}
+.readout b{font-size:18px;color:var(--chalk)}
+.price{
+  text-align:center;font-weight:700;font-size:15px;padding:14px 10px 4px;color:var(--chalk)
+}
+.price b{font-size:26px;color:var(--amber);display:block;margin-top:2px}
+.bank{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:14px}
+.pick{
+  border:none;background:none;padding:0;cursor:pointer;border-radius:50%;
+  transition:transform .1s ease
+}
+.pick:hover{transform:translateY(-2px)}
+.reset{
+  width:100%;margin-top:10px;padding:10px;border-radius:10px;border:1px solid var(--grid);
+  background:transparent;color:var(--dim);font-family:"Fredoka",sans-serif;font-size:12px;cursor:pointer
+}
+.opts{grid-template-columns:repeat(3,1fr)}
+.opts.wide{grid-template-columns:repeat(2,1fr)}
+.opt.word{font-size:13px}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="screen-map">
+    <div class="eyebrow">Математика · 10 рівнів · <span id="sync" class="sync">…</span></div>
+    <h1>Королівський гаманець</h1>
+    <div class="hud">
+      <div class="stat"><span class="k">XP</span><b id="hud-xp">0</b></div>
+      <div class="stat"><span class="k">Точність</span><b id="hud-acc">—</b></div>
+      <div class="stat"><span class="k">Рівні</span><b id="hud-lv">0/10</b></div>
+    </div>
+    <div class="map" id="map"></div>
+    <div class="rule"></div>
+    <div class="eyebrow">1 гривня = 100 копійок</div>
+    <a class="backlink" href="igry.html">← До ігор</a>
+  </div>
+
+  <div id="screen-play" class="hide">
+    <div class="eyebrow" id="p-eyebrow"></div>
+    <h1 id="p-title"></h1>
+    <div class="panel">
+      <div class="price hide" id="p-price"></div>
+      <div class="purse" id="purse"></div>
+      <div class="readout" id="readout"></div>
+    </div>
+    <p class="q" id="p-q"></p>
+    <div class="opts" id="p-opts"></div>
+    <div id="p-tools"></div>
+    <div class="dots" id="p-dots"></div>
+    <div class="msg" id="p-msg"></div>
+    <button class="btn ghost" id="p-back">До карти рівнів</button>
+  </div>
+
+  <div id="screen-done" class="hide">
+    <div class="eyebrow">Рівень пройдено</div>
+    <h1 id="d-title"></h1>
+    <div class="panel"><p class="q" id="d-text" style="padding:20px 12px"></p></div>
+    <button class="btn" id="d-next">Наступний рівень</button>
+    <button class="btn ghost" id="d-map">До карти рівнів</button>
+  </div>
+
+</div>
+
+<script type="module" src="firebase-config.js"></script>
+<script>
+
+const COINS = [
+  {v:1000, t:"10", s:"грн"},
+  {v:500,  t:"5",  s:"грн"},
+  {v:200,  t:"2",  s:"грн"},
+  {v:100,  t:"1",  s:"грн"},
+  {v:50,   t:"50", s:"коп", kop:true},
+  {v:10,   t:"10", s:"коп", kop:true},
+];
+const money = k => k % 100 === 0 ? `${k/100} грн` : (k < 100 ? `${k} коп` : `${Math.floor(k/100)} грн ${k%100} коп`);
+
+const LEVELS = [
+  {t:"Полічи монети",   s:"Скільки грошей у гаманці",  kind:"count"},
+  {t:"Збери суму",      s:"Виклади рівно стільки",     kind:"pay"},
+  {t:"Гривня і копійка",s:"1 грн = 100 коп",           kind:"conv"},
+  {t:"Копійки",         s:"Збери гривню з копійок",    kind:"payKop"},
+  {t:"Додай гроші",     s:"Скільки разом",             kind:"add"},
+  {t:"Решта",           s:"Скільки здачі",             kind:"change"},
+  {t:"Чи вистачить",    s:"Порівняй гроші й ціну",     kind:"enough"},
+  {t:"Купи товар",      s:"Заплати рівно за покупку",  kind:"buy"},
+  {t:"Дві покупки",     s:"Скільки коштує все разом",  kind:"two"},
+  {t:"Чемпіон гаманця", s:"Змішаний рівень",           kind:"mixed"},
+];
+const MIXED = ["count","pay","conv","add","change","enough","buy","two"];
+
+const GOODS = [
+  ["🍎 яблуко",2],["✏️ олівець",3],["📒 зошит",4],["🍬 цукерка",1],
+  ["🍦 морозиво",6],["🎈 кулька",5],["🧃 сік",8],["📕 книжка",9],
+  ["🧸 ведмедик",10],["⚽ м'яч",12],["🖍️ фломастери",7]
+];
+
+let purse = [];   // монети в гаманці (номінали в копійках)
+const sum = () => purse.reduce((a,b)=>a+b,0);
+
+function randCoins(n, pool){
+  const out = [];
+  for(let i=0;i<n;i++) out.push(pool[rnd(0,pool.length-1)]);
+  return out;
+}
+function make(kind){
+  if(kind==="mixed") kind = shuffle(MIXED)[0];
+
+  if(kind==="count"){
+    const pool = [100,200,500,1000];
+    const coins = randCoins(rnd(2,4), pool);
+    const total = coins.reduce((a,b)=>a+b,0);
+    return {kind, show:coins, q:"Скільки грошей у гаманці?",
+            opts:opts3(total/100,[total/100+1,total/100-1]).map(x=>x+" грн"), ans:(total/100)+" грн"};
+  }
+  if(kind==="pay" || kind==="buy"){
+    const [name, price] = GOODS[rnd(0,GOODS.length-1)];
+    const target = (kind==="buy" ? price : rnd(2,19)) * 100;
+    return {kind, build:true, target, bank:[100,200,500,1000],
+            label: kind==="buy" ? `${name} — ${money(target)}` : money(target),
+            q: kind==="buy" ? "Заплати рівно за товар" : "Виклади рівно цю суму"};
+  }
+  if(kind==="payKop"){
+    const target = rnd(1,2) * 100;
+    return {kind, build:true, target, bank:[10,50],
+            label: money(target), q:"Збери цю суму копійками"};
+  }
+  if(kind==="conv"){
+    const n = rnd(1,9);
+    const v = shuffle([
+      [`${n} грн = □ коп`, n*100, [n*10, 100+n], " коп"],
+      [`${n*100} коп = □ грн`, n, [n*10, n+100], " грн"],
+    ])[0];
+    return {kind, show:[100], q:v[0], opts:opts3(v[1],v[2]).map(x=>x+v[3]), ans:v[1]+v[3]};
+  }
+  if(kind==="add"){
+    const a = rnd(2,9), b = rnd(2,9);
+    return {kind, show:[a*100, b*100], q:`${a} грн + ${b} грн = □`,
+            opts:opts3(a+b,[Math.abs(a-b),a+b+1]).map(x=>x+" грн"), ans:(a+b)+" грн"};
+  }
+  if(kind==="change"){
+    const paid = shuffle([10,20])[0], price = rnd(2,paid-1);
+    return {kind, show:[paid*100], q:`Товар коштує ${price} грн. Дали ${paid} грн. Яка решта?`,
+            opts:opts3(paid-price,[paid+price,price]).map(x=>x+" грн"), ans:(paid-price)+" грн"};
+  }
+  if(kind==="enough"){
+    const [name, price] = GOODS[rnd(0,GOODS.length-1)];
+    const coins = randCoins(rnd(2,3), [100,200,500]);
+    const have = coins.reduce((a,b)=>a+b,0)/100;
+    const ans = have >= price ? "вистачить" : "не вистачить";
+    return {kind, show:coins, word:true, q:`${name} коштує ${price} грн. Чи вистачить?`,
+            opts:shuffle(["вистачить","не вистачить","не можна дізнатися"]), ans};
+  }
+  const i = rnd(0,GOODS.length-1);
+  let j = rnd(0,GOODS.length-1);
+  if(j===i) j = (i+1) % GOODS.length;
+  const t = GOODS[i][1] + GOODS[j][1];
+  return {kind:"two", show:[], q:`${GOODS[i][0]} — ${GOODS[i][1]} грн, ${GOODS[j][0]} — ${GOODS[j][1]} грн. Скільки разом?`,
+          opts:opts3(t,[Math.abs(GOODS[i][1]-GOODS[j][1]),t+1]).map(x=>x+" грн"), ans:t+" грн"};
+}
+
+/* ---------- гаманець ---------- */
+function coinHTML(v){
+  const c = COINS.find(c=>c.v===v);
+  return `<span class="coin${c.kop?" kop":""}">${c.t}<small>${c.s}</small></span>`;
+}
+function drawPurse(){
+  $("purse").innerHTML = purse.length ? purse.map(coinHTML).join("")
+    : '<span style="color:var(--dim);font-size:13px">гаманець порожній</span>';
+  $("readout").innerHTML = `у гаманці: <b>${money(sum())}</b>`;
+}
+function drop(v){
+  if(busy) return;
+  purse.push(v); drawPurse();
+  const q = qs[qi];
+  if(sum() === q.target){ busy = true; finish(true); }
+  else if(sum() > q.target){ busy = true; finish(false); }
+}
+function emptyPurse(){
+  if(busy) return;
+  purse = []; drawPurse();
+  $("p-msg").textContent = ""; $("p-msg").className = "msg";
+}
+function wrongMsg(){
+  const q = qs[qi];
+  return q.build ? `Забагато. Треба було рівно ${money(q.target)}. Рівень починається спочатку`
+                 : "Помилка. Рівень починається спочатку, XP рівня скидається";
+}
+
+function drawQ(){
+  const q = qs[qi];
+  $("p-eyebrow").textContent = `РІВЕНЬ ${String(L+1).padStart(2,"0")} · ${replay ? "повтор · ½ XP" : "+"+XP_FULL+" XP за відповідь"}`;
+  $("p-title").textContent = LEVELS[L].t;
+  $("p-q").textContent = q.q;
+  $("p-msg").textContent = ""; $("p-msg").className = "msg";
+
+  $("p-price").classList.toggle("hide", !q.build);
+  if(q.build) $("p-price").innerHTML = `треба зібрати<b>${q.label}</b>`;
+
+  purse = q.build ? [] : (q.show || []);
+  drawPurse();
+
+  $("p-opts").innerHTML = ""; $("p-tools").innerHTML = "";
+  $("p-opts").classList.toggle("hide", !!q.build);
+  $("p-opts").classList.toggle("wide", !!q.word);
+
+  if(q.build){
+    const bank = document.createElement("div"); bank.className = "bank";
+    q.bank.forEach(v=>{
+      const b = document.createElement("button");
+      b.className = "pick"; b.innerHTML = coinHTML(v);
+      b.onclick = () => drop(v);
+      bank.appendChild(b);
+    });
+    const r = document.createElement("button");
+    r.className = "reset"; r.textContent = "витрусити гаманець";
+    r.onclick = emptyPurse;
+    $("p-tools").appendChild(bank); $("p-tools").appendChild(r);
+  }else{
+    q.opts.forEach(o=>{
+      const b = document.createElement("button");
+      b.className = "opt" + (q.word ? " word" : ""); b.textContent = o;
+      b.onclick = () => answer(b, o);
+      $("p-opts").appendChild(b);
+    });
+  }
+  $("p-dots").innerHTML = qs.map((_,i)=>`<span class="dot ${i<qi?"hit":i===qi?"on":""}"></span>`).join("");
+  busy = false;
+}
+
+/* ---------- спільний рушій ---------- */
+const S = {xp:0, unlocked:0, done:Array(10).fill(false), asked:0, right:0};
+let L=0, qs=[], qi=0, levelXP=0, replay=false, busy=false;
+const PER_LEVEL = 5, XP_FULL = 10, XP_REPLAY = 5;
+
+const $ = id => document.getElementById(id);
+const rnd = (a,b) => a + Math.floor(Math.random()*(b-a+1));
+const shuffle = a => a.map(v=>[Math.random(),v]).sort((x,y)=>x[0]-y[0]).map(p=>p[1]);
+function opts3(ans, near){
+  const s = new Set([ans]);
+  (near||[]).forEach(n => { if(n>=0 && n!==ans && s.size<3) s.add(n); });
+  let g=0;
+  while(s.size<3 && g++<300){ const d = ans + rnd(-3,3); if(d>=0 && d!==ans) s.add(d); }
+  return shuffle([...s]).map(String);
+}
+function buildLevel(){
+  qs = Array.from({length:PER_LEVEL}, () => make(LEVELS[L].kind));
+  qi = 0; levelXP = 0;
+}
+function drawMap(){
+  $("hud-xp").textContent = S.xp;
+  $("hud-acc").textContent = S.asked ? Math.round(S.right/S.asked*100)+"%" : "—";
+  $("hud-lv").textContent = S.done.filter(Boolean).length + "/10";
+  $("map").innerHTML = "";
+  LEVELS.forEach((lv,i)=>{
+    const b = document.createElement("button");
+    const locked = i > S.unlocked;
+    b.className = "lvl" + (S.done[i]?" done":"") + (locked?" lock":"");
+    b.innerHTML = `<span class="n">РІВЕНЬ ${String(i+1).padStart(2,"0")}</span>${lv.t}
+      <span class="tag">${locked ? "зачинено" : (S.done[i] ? "пройдено · повтор ½ XP" : lv.s)}</span>`;
+    b.disabled = locked;
+    b.onclick = () => startLevel(i);
+    $("map").appendChild(b);
+  });
+}
+function show(id){ ["screen-map","screen-play","screen-done"].forEach(s=>$(s).classList.toggle("hide", s!==id)); }
+function answer(btn, val){
+  if(busy) return; busy = true;
+  const ok = val === qs[qi].ans;
+  btn.classList.add(ok?"ok":"no");
+  [...$("p-opts").children].forEach(b=>{ b.disabled=true; if(!ok && b.textContent===qs[qi].ans) b.classList.add("ok"); });
+  finish(ok);
+}
+function finish(ok){
+  if(typeof reveal === "function") reveal(ok);
+  if(!replay){ S.asked++; if(ok) S.right++; }
+  const msg = $("p-msg");
+  if(ok){
+    levelXP += replay ? XP_REPLAY : XP_FULL;
+    msg.className = "msg ok"; msg.textContent = `Правильно · +${replay?XP_REPLAY:XP_FULL} XP`;
+    setTimeout(()=>{ qi++; qi < qs.length ? drawQ() : endLevel(); }, 1200);
+  }else{
+    msg.className = "msg no"; msg.textContent = wrongMsg();
+    setTimeout(()=>{ buildLevel(); drawQ(); }, 1800);
+  }
+}
+function startLevel(i){ L=i; replay=S.done[i]; buildLevel(); show("screen-play"); drawQ(); }
+function endLevel(){
+  S.xp += levelXP;
+  if(!S.done[L]){ S.done[L]=true; if(L===S.unlocked && L<9) S.unlocked=L+1; }
+  $("d-title").textContent = LEVELS[L].t;
+  $("d-text").textContent = `Зароблено ${levelXP} XP${replay?" (повтор — половина XP, точність не змінюється)":""}. Усього ${S.xp} XP.`;
+  $("d-next").classList.toggle("hide", L>=9);
+  saveProgress();
+  show("screen-done");
+}
+$("p-back").onclick = ()=>{ drawMap(); show("screen-map"); };
+$("d-map").onclick  = ()=>{ drawMap(); show("screen-map"); };
+$("d-next").onclick = ()=> startLevel(Math.min(L+1,9));
+
+/* ---------- прогрес: localStorage (sk_*) + heroes/{id}.progress через SK ---------- */
+const LS_KEY = "sk_game_hroshi";
+const setSync = (t,c) => { const e=$("sync"); if(e){ e.textContent=t; e.className="sync "+(c||""); } };
+function readLS(){
+  try{
+    const o = JSON.parse(localStorage.getItem(LS_KEY) || "null");
+    if(o && typeof o === "object"){
+      S.xp = o.xp|0; S.unlocked = o.unlocked|0; S.asked = o.asked|0; S.right = o.right|0;
+      S.done = Array.isArray(o.done) && o.done.length===10 ? o.done : Array(10).fill(false);
+    }
+  }catch(e){}
+}
+function saveProgress(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){}
+  if(window.SK && SK.pushLocal){
+    SK.pushLocal().then(()=>setSync("збережено","ok")).catch(()=>setSync("локально","no"));
+  }
+}
+window.addEventListener("pagehide", saveProgress);
+function waitSK(cb){
+  let n = 0;
+  (function poll(){
+    if(window.SK && window.SK.ready) return cb(true);
+    if(++n > 60) return cb(false);
+    setTimeout(poll, 100);
+  })();
+}
+function boot(){
+  readLS(); drawMap(); setSync("з'єднання…");
+  waitSK(ok => {
+    if(!ok){ setSync("локально — без хмари","no"); return; }
+    SK.ready.then(async () => {
+      try{
+        if(!SK.isHeroSession || !SK.isHeroSession()){ setSync("увійди як Герой","no"); return; }
+        await SK.pullLocal();
+        readLS(); drawMap();
+        const hero = await SK.getActiveChild();
+        setSync(hero && hero.name ? hero.name : "прогрес у хмарі", "ok");
+      }catch(e){ setSync("локально","no"); }
+    });
+  });
+}
+boot();
+</script>
+</body>
+</html>
