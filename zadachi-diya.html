@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Вибери правильну дію — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-0:#0b1030; --navy-1:#141a44; --violet:#3a2b6e;
+    --gold:#ffcf4d; --gold-deep:#e0a92e; --ink:#0a0e26;
+    --text:#f4f1ff; --green:#7be0a4; --green-d:#2e9e54; --red:#ff8b8b;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%; overflow:hidden;}
+  body{font-family:"Fredoka",system-ui,sans-serif; background:var(--navy-0); color:var(--text);
+    user-select:none; -webkit-user-select:none; touch-action:manipulation; overscroll-behavior:none;}
+  #wrap{position:fixed; inset:0; display:flex; flex-direction:column;
+    background:radial-gradient(120% 80% at 50% 0%,var(--violet),var(--navy-0) 60%);}
+
+  #top{display:flex; align-items:center; gap:8px; padding:calc(env(safe-area-inset-top) + 10px) 12px 4px;}
+  .pill{background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35);
+    border-radius:14px; padding:7px 12px; font-weight:700; font-size:14px; white-space:nowrap;}
+  .pill .lab{opacity:.7; font-size:11px; display:block; line-height:1;}
+  .pill .val{font-size:18px; line-height:1.1;}
+  .pill.q .val{color:var(--gold);}
+  #spacer{flex:1;}
+  #menuBtn{cursor:pointer; font-family:inherit; font-weight:700; font-size:14px;
+    background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35); color:var(--text);
+    border-radius:14px; padding:8px 12px;}
+
+  #barWrap{padding:8px 14px 2px;}
+  #bar{height:10px; border-radius:999px; background:rgba(255,255,255,.1);
+    border:1px solid rgba(255,207,77,.25); overflow:hidden;}
+  #barFill{height:100%; width:0%; border-radius:999px;
+    background:linear-gradient(90deg,#FFE7A0,var(--gold-deep));
+    box-shadow:0 0 12px rgba(255,207,77,.5); transition:width .35s;}
+
+  #stage{flex:1 1 auto; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:12px; padding:8px 12px; overflow-y:auto;}
+
+  #story{max-width:520px; width:100%; border-radius:20px; padding:16px;
+    background:linear-gradient(180deg,rgba(38,48,107,.95),rgba(18,22,60,.95));
+    border:2px solid rgba(255,207,77,.3); box-shadow:0 5px 0 rgba(0,0,0,.28), 0 8px 18px rgba(0,0,0,.35);
+    font-size:clamp(16px,4.6vw,21px); line-height:1.45; text-align:center;}
+  #story .ico{font-size:30px; display:block; margin-bottom:6px;}
+
+  /* ── табло дії ── */
+  #board{display:flex; align-items:center; justify-content:center; gap:clamp(6px,2.4vw,14px);
+    font-size:clamp(28px,9vw,44px); font-weight:700; color:var(--gold);
+    text-shadow:0 2px 8px rgba(0,0,0,.5);}
+  #opSlot{min-width:clamp(52px,15vw,72px); height:clamp(52px,15vw,72px);
+    border-radius:16px; border:3px dashed rgba(255,207,77,.65); background:rgba(255,207,77,.08);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:inset 0 0 18px rgba(255,207,77,.12);
+    transition:border-color .15s, background .2s, transform .2s;}
+  #opSlot.filled{border-style:solid; border-color:var(--green); background:rgba(123,224,164,.18);
+    color:var(--green); box-shadow:inset 0 0 20px rgba(123,224,164,.3);}
+  #opSlot.pop{animation:pop .34s;}
+  #opSlot.wrong{animation:shake .34s; border-color:var(--red);}
+  @keyframes pop{0%{transform:scale(.5)}60%{transform:scale(1.14)}100%{transform:scale(1)}}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}
+    40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+
+  #hint{font-weight:600; font-size:13px; opacity:.82; min-height:18px; text-align:center;
+    max-width:420px; line-height:1.4;}
+
+  #tray{display:flex; align-items:center; justify-content:center; gap:clamp(10px,4vw,20px);
+    flex-wrap:wrap; padding:8px 12px calc(env(safe-area-inset-bottom) + 14px);}
+  .piece{cursor:pointer; font-family:inherit; font-weight:700; color:#4a3300;
+    min-width:clamp(64px,20vw,96px); height:clamp(64px,20vw,96px); padding:0 12px;
+    font-size:clamp(30px,9vw,44px);
+    background:linear-gradient(180deg,#FFE7A0,var(--gold-deep));
+    border:none; border-radius:22px; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 6px 0 #a9761a, 0 10px 20px rgba(0,0,0,.4); transition:transform .1s, opacity .2s;}
+  .piece:active{transform:translateY(3px); box-shadow:0 3px 0 #a9761a;}
+  .piece.wrong{animation:shake .34s;}
+  .piece.good{background:linear-gradient(180deg,#a8f0c6,var(--green-d)); color:#06371c;
+    box-shadow:0 6px 0 #1c6b38, 0 10px 20px rgba(0,0,0,.4);}
+  .piece.num{font-size:clamp(26px,8vw,38px); min-width:clamp(58px,18vw,84px); height:clamp(58px,18vw,84px);}
+
+  .screen{position:absolute; inset:0; z-index:60; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; padding:24px; gap:14px;
+    background:radial-gradient(120% 90% at 50% 25%,rgba(58,43,110,.72),rgba(11,16,48,.96)); backdrop-filter:blur(2px);}
+  .screen.hidden{display:none;}
+  .crown{font-size:52px; filter:drop-shadow(0 4px 12px rgba(255,207,77,.45));}
+  .title{font-size:26px; font-weight:700; color:var(--gold); line-height:1.12;}
+  .sub{font-size:15px; opacity:.86; max-width:360px; line-height:1.45;}
+  .cta{margin-top:6px; border:none; cursor:pointer; font-family:inherit; font-weight:700;
+    background:linear-gradient(180deg,var(--gold),var(--gold-deep)); color:#3a2a00;
+    font-size:18px; padding:14px 42px; border-radius:999px;
+    box-shadow:0 5px 0 rgba(0,0,0,.3); transition:transform .06s;}
+  .cta:active{transform:translateY(3px); box-shadow:0 2px 0 rgba(0,0,0,.3);}
+  .linkbtn{cursor:pointer; font-family:inherit; font-weight:700; font-size:14px; text-decoration:none;
+    background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35); color:var(--text);
+    border-radius:999px; padding:11px 22px;}
+  .stars{font-size:40px; letter-spacing:6px;}
+  .winrow{display:flex; gap:10px; flex-wrap:wrap; justify-content:center;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <div class="pill q"><span class="lab">Задача</span><span class="val" id="qNum">1/12</span></div>
+    <div class="pill"><span class="lab">Очки</span><span class="val" id="score">0</span></div>
+    <div id="spacer"></div>
+    <button id="menuBtn">☰ Меню</button>
+  </div>
+
+  <div id="barWrap"><div id="bar"><div id="barFill"></div></div></div>
+
+  <div id="stage">
+    <div id="story"><span class="ico">📜</span><span id="storyText"></span></div>
+    <div id="board">
+      <span id="numA">0</span>
+      <span id="opSlot">?</span>
+      <span id="numB">0</span>
+      <span>=</span>
+      <span id="res">?</span>
+    </div>
+    <div id="hint">Яку дію треба виконати?</div>
+  </div>
+
+  <div id="tray"></div>
+
+  <div class="screen" id="startScreen">
+    <div class="crown">➕</div>
+    <div class="title">Вибери правильну дію</div>
+    <div class="sub">Прочитай задачу й подумай: стало більше чи менше? Постав <b>+</b> або <b>−</b>, а тоді полічи. 12 задач.</div>
+    <button class="cta" id="playBtn">Грати ▶</button>
+    <a class="linkbtn" href="igry.html">← До ігор</a>
+  </div>
+
+  <div class="screen hidden" id="winScreen">
+    <div class="crown">👑</div>
+    <div class="title" id="winTitle">Усі дії правильні!</div>
+    <div class="stars" id="winStars">⭐⭐⭐</div>
+    <div class="sub" id="winSub">Чудова робота!</div>
+    <div class="winrow"><button class="cta" id="againBtn">↻ Ще раз</button></div>
+    <div class="winrow"><a class="linkbtn" href="igry.html">← До ігор</a></div>
+  </div>
+</div>
+
+<script src="sk-zadachi.js"></script>
+<script>
+(function(){
+  "use strict";
+  var TOTAL = 12;
+
+  var storyEl = document.getElementById("storyText");
+  var storyIco = document.querySelector("#story .ico");
+  var numAEl  = document.getElementById("numA");
+  var numBEl  = document.getElementById("numB");
+  var opSlot  = document.getElementById("opSlot");
+  var resEl   = document.getElementById("res");
+  var trayEl  = document.getElementById("tray");
+  var hintEl  = document.getElementById("hint");
+  var scoreEl = document.getElementById("score");
+  var qNumEl  = document.getElementById("qNum");
+  var fillEl  = document.getElementById("barFill");
+
+  var score = 0, qIndex = 0, mistakes = 0;
+  var task = null, phase = "op", locked = false;
+
+  function maxFor(i){ return i < 5 ? 10 : 20; }
+
+  /* підказка «чому саме ця дія» — головне, чого має навчити ця гра */
+  function why(){
+    return task.op === "add"
+      ? "Прибуло ще — стало більше, тому додаємо."
+      : "Частина пішла — стало менше, тому віднімаємо.";
+  }
+
+  function newTask(){
+    task = ZAD.makeTask({ max: maxFor(qIndex) });
+    phase = "op"; locked = false;
+    storyEl.textContent = task.text;
+    storyIco.textContent = task.emoji;
+    numAEl.textContent = task.a;
+    numBEl.textContent = task.b;
+    resEl.textContent = "?";
+    opSlot.textContent = "?";
+    opSlot.className = "";
+    hintEl.textContent = "Стало більше чи менше? Обери дію.";
+    qNumEl.textContent = (qIndex + 1) + "/" + TOTAL;
+    fillEl.style.width = (qIndex / TOTAL * 100) + "%";
+    buildTray();
+  }
+
+  function buildTray(){
+    if(phase === "op"){
+      trayEl.innerHTML =
+        '<button class="piece" data-op="add">+</button>' +
+        '<button class="piece" data-op="sub">−</button>';
+    } else {
+      var o = ZAD.answerOptions(task.answer, 4, maxFor(qIndex));
+      trayEl.innerHTML = o.options.map(function(v){
+        return '<button class="piece num" data-v="' + v + '">' + v + '</button>';
+      }).join("");
+    }
+  }
+
+  function onPiece(btn){
+    if(locked) return;
+
+    if(phase === "op"){
+      var op = btn.getAttribute("data-op");
+      if(op !== task.op){
+        btn.classList.add("wrong");
+        opSlot.classList.add("wrong");
+        setTimeout(function(){ btn.classList.remove("wrong"); opSlot.classList.remove("wrong"); }, 360);
+        mistakes++;
+        hintEl.textContent = task.op === "add"
+          ? "Подумай ще: у задачі щось прибуло чи зникло?"
+          : "Подумай ще: у задачі щось прибуло чи зникло?";
+        return;
+      }
+      opSlot.textContent = op === "add" ? "+" : "−";
+      opSlot.className = "filled pop";
+      setTimeout(function(){ opSlot.classList.remove("pop"); }, 350);
+      hintEl.textContent = why() + " Тепер полічи.";
+      phase = "num";
+      buildTray();
+      return;
+    }
+
+    var v = parseInt(btn.getAttribute("data-v"), 10);
+    if(v !== task.answer){
+      btn.classList.add("wrong");
+      setTimeout(function(){ btn.classList.remove("wrong"); }, 360);
+      mistakes++;
+      hintEl.textContent = "Ще раз: " + task.expr + " = ?";
+      return;
+    }
+    locked = true;
+    btn.classList.add("good");
+    resEl.textContent = task.answer;
+    score += 10;
+    scoreEl.textContent = score;
+    hintEl.textContent = "Правильно! 🎉";
+    setTimeout(next, 900);
+  }
+
+  function next(){
+    qIndex++;
+    if(qIndex >= TOTAL) return win();
+    newTask();
+  }
+
+  function win(){
+    fillEl.style.width = "100%";
+    var stars = mistakes === 0 ? 3 : (mistakes <= 3 ? 2 : 1);
+    document.getElementById("winStars").textContent = "⭐⭐⭐".slice(0, stars * 2);
+    document.getElementById("winSub").textContent =
+      mistakes === 0 ? "Жодної помилки — ти чудово бачиш, яка потрібна дія!" :
+      "Помилок: " + mistakes + ". Очки: " + score + ".";
+    document.getElementById("winScreen").classList.remove("hidden");
+  }
+
+  function start(){
+    score = 0; qIndex = 0; mistakes = 0;
+    scoreEl.textContent = "0";
+    document.getElementById("startScreen").classList.add("hidden");
+    document.getElementById("winScreen").classList.add("hidden");
+    newTask();
+  }
+
+  trayEl.addEventListener("click", function(e){
+    var b = e.target.closest(".piece");
+    if(b) onPiece(b);
+  });
+  document.getElementById("playBtn").addEventListener("click", start);
+  document.getElementById("againBtn").addEventListener("click", start);
+  document.getElementById("menuBtn").addEventListener("click", function(){
+    document.getElementById("startScreen").classList.remove("hidden");
+  });
+})();
+</script>
+</body>
+</html>

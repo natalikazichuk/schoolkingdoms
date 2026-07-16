@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Задачі за коротким записом — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-0:#0b1030; --navy-1:#141a44; --violet:#3a2b6e;
+    --gold:#ffcf4d; --gold-deep:#e0a92e; --ink:#0a0e26;
+    --text:#f4f1ff; --green:#7be0a4; --green-d:#2e9e54; --red:#ff8b8b;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%; overflow:hidden;}
+  body{font-family:"Fredoka",system-ui,sans-serif; background:var(--navy-0); color:var(--text);
+    user-select:none; -webkit-user-select:none; touch-action:manipulation; overscroll-behavior:none;}
+  #wrap{position:fixed; inset:0; display:flex; flex-direction:column;
+    background:radial-gradient(120% 80% at 50% 0%,var(--violet),var(--navy-0) 60%);}
+
+  #top{display:flex; align-items:center; gap:8px; padding:calc(env(safe-area-inset-top) + 10px) 12px 4px;}
+  .pill{background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35);
+    border-radius:14px; padding:7px 12px; font-weight:700; font-size:14px; white-space:nowrap;}
+  .pill .lab{opacity:.7; font-size:11px; display:block; line-height:1;}
+  .pill .val{font-size:18px; line-height:1.1;}
+  .pill.q .val{color:var(--gold);}
+  #spacer{flex:1;}
+  #menuBtn{cursor:pointer; font-family:inherit; font-weight:700; font-size:14px;
+    background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35); color:var(--text);
+    border-radius:14px; padding:8px 12px;}
+
+  #barWrap{padding:8px 14px 2px;}
+  #bar{height:10px; border-radius:999px; background:rgba(255,255,255,.1);
+    border:1px solid rgba(255,207,77,.25); overflow:hidden;}
+  #barFill{height:100%; width:0%; border-radius:999px;
+    background:linear-gradient(90deg,#FFE7A0,var(--gold-deep));
+    box-shadow:0 0 12px rgba(255,207,77,.5); transition:width .35s;}
+
+  #stage{flex:1 1 auto; display:flex; flex-direction:column; align-items:center;
+    justify-content:flex-start; gap:10px; padding:8px 12px; overflow-y:auto;}
+
+  /* ── картка з умовою ── */
+  #story{max-width:520px; width:100%; border-radius:18px; padding:14px 16px;
+    background:linear-gradient(180deg,rgba(38,48,107,.95),rgba(18,22,60,.95));
+    border:2px solid rgba(255,207,77,.3); box-shadow:0 5px 0 rgba(0,0,0,.28), 0 8px 18px rgba(0,0,0,.35);
+    font-size:clamp(15px,4.2vw,19px); line-height:1.45; text-align:center;}
+  #story .ico{font-size:26px; display:block; margin-bottom:4px;}
+
+  #hint{font-weight:600; font-size:13px; opacity:.8; min-height:18px; text-align:center;}
+
+  /* ── короткий запис ── */
+  #record{max-width:520px; width:100%; border-radius:18px; padding:12px 14px;
+    background:rgba(255,207,77,.06); border:3px dashed rgba(255,207,77,.45);
+    display:flex; flex-direction:column; gap:8px;}
+  .rline{display:flex; align-items:center; gap:8px; font-size:clamp(15px,4.2vw,19px);}
+  .rlab{flex:1 1 auto; text-align:left; font-weight:600; opacity:.95;}
+  .dots{flex:0 1 40px; border-bottom:2px dotted rgba(255,255,255,.28); height:1px; min-width:14px;}
+  .slot{flex:0 0 auto; min-width:74px; height:46px; border-radius:12px;
+    border:2px dashed rgba(255,207,77,.6); background:rgba(255,207,77,.08);
+    display:flex; align-items:center; justify-content:center; gap:4px;
+    font-size:20px; font-weight:700; color:var(--gold); padding:0 8px;
+    transition:border-color .15s, background .2s, transform .2s;}
+  .slot.filled{border-style:solid; border-color:var(--green); background:rgba(123,224,164,.16);
+    color:var(--green);}
+  .slot.pop{animation:pop .34s;}
+  .slot.wrong{animation:shake .34s; border-color:var(--red);}
+  .slot .unit{font-size:13px; opacity:.75; font-weight:600;}
+  .slot.qmark{color:var(--gold); border-style:solid; border-color:rgba(255,207,77,.5);}
+  @keyframes pop{0%{transform:scale(.5)}60%{transform:scale(1.14)}100%{transform:scale(1)}}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}
+    40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+
+  /* ── розвʼязок ── */
+  #solve{max-width:520px; width:100%; display:none; flex-direction:column; gap:8px; align-items:center;}
+  #solve.on{display:flex;}
+  #exprRow{font-size:clamp(22px,7vw,32px); font-weight:700; color:var(--gold);
+    text-shadow:0 2px 8px rgba(0,0,0,.45);}
+
+  /* ── лоток ── */
+  #tray{display:flex; align-items:center; justify-content:center; gap:clamp(8px,3vw,14px);
+    flex-wrap:wrap; padding:8px 12px calc(env(safe-area-inset-bottom) + 14px);}
+  .piece{cursor:pointer; font-family:inherit; font-weight:700; color:#4a3300;
+    min-width:clamp(56px,17vw,80px); height:clamp(56px,17vw,80px); padding:0 10px;
+    font-size:clamp(24px,7vw,36px);
+    background:linear-gradient(180deg,#FFE7A0,var(--gold-deep));
+    border:none; border-radius:20px; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 6px 0 #a9761a, 0 10px 20px rgba(0,0,0,.4); transition:transform .1s, opacity .2s;}
+  .piece:active{transform:translateY(3px); box-shadow:0 3px 0 #a9761a;}
+  .piece.wrong{animation:shake .34s;}
+  .piece.used{opacity:0; transform:scale(.3); pointer-events:none;}
+
+  .screen{position:absolute; inset:0; z-index:60; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; padding:24px; gap:14px;
+    background:radial-gradient(120% 90% at 50% 25%,rgba(58,43,110,.72),rgba(11,16,48,.96)); backdrop-filter:blur(2px);}
+  .screen.hidden{display:none;}
+  .crown{font-size:52px; filter:drop-shadow(0 4px 12px rgba(255,207,77,.45));}
+  .title{font-size:26px; font-weight:700; color:var(--gold); line-height:1.12;}
+  .sub{font-size:15px; opacity:.86; max-width:360px; line-height:1.45;}
+  .cta{margin-top:6px; border:none; cursor:pointer; font-family:inherit; font-weight:700;
+    background:linear-gradient(180deg,var(--gold),var(--gold-deep)); color:#3a2a00;
+    font-size:18px; padding:14px 42px; border-radius:999px;
+    box-shadow:0 5px 0 rgba(0,0,0,.3); transition:transform .06s;}
+  .cta:active{transform:translateY(3px); box-shadow:0 2px 0 rgba(0,0,0,.3);}
+  .linkbtn{cursor:pointer; font-family:inherit; font-weight:700; font-size:14px; text-decoration:none;
+    background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35); color:var(--text);
+    border-radius:999px; padding:11px 22px;}
+  .stars{font-size:40px; letter-spacing:6px;}
+  .winrow{display:flex; gap:10px; flex-wrap:wrap; justify-content:center;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <div class="pill q"><span class="lab">Задача</span><span class="val" id="qNum">1/10</span></div>
+    <div class="pill"><span class="lab">Очки</span><span class="val" id="score">0</span></div>
+    <div id="spacer"></div>
+    <button id="menuBtn">☰ Меню</button>
+  </div>
+
+  <div id="barWrap"><div id="bar"><div id="barFill"></div></div></div>
+
+  <div id="stage">
+    <div id="story"><span class="ico">📜</span><span id="storyText"></span></div>
+    <div id="hint">Заповни короткий запис 📝</div>
+    <div id="record"></div>
+    <div id="solve">
+      <div id="exprRow"></div>
+    </div>
+  </div>
+
+  <div id="tray"></div>
+
+  <div class="screen" id="startScreen">
+    <div class="crown">📝</div>
+    <div class="title">Задачі за коротким записом</div>
+    <div class="sub">Прочитай задачу й склади її короткий запис: постав числа у потрібні рядки. А тоді обчисли відповідь. 10 задач.</div>
+    <button class="cta" id="playBtn">Грати ▶</button>
+    <a class="linkbtn" href="igry.html">← До ігор</a>
+  </div>
+
+  <div class="screen hidden" id="winScreen">
+    <div class="crown">👑</div>
+    <div class="title" id="winTitle">Усі задачі записані!</div>
+    <div class="stars" id="winStars">⭐⭐⭐</div>
+    <div class="sub" id="winSub">Чудова робота!</div>
+    <div class="winrow"><button class="cta" id="againBtn">↻ Ще раз</button></div>
+    <div class="winrow"><a class="linkbtn" href="igry.html">← До ігор</a></div>
+  </div>
+</div>
+
+<script src="sk-zadachi.js"></script>
+<script>
+(function(){
+  "use strict";
+  var TOTAL = 10;
+
+  var storyEl = document.getElementById("storyText");
+  var recEl   = document.getElementById("record");
+  var trayEl  = document.getElementById("tray");
+  var hintEl  = document.getElementById("hint");
+  var solveEl = document.getElementById("solve");
+  var exprEl  = document.getElementById("exprRow");
+  var scoreEl = document.getElementById("score");
+  var qNumEl  = document.getElementById("qNum");
+  var fillEl  = document.getElementById("barFill");
+  var storyIco = document.querySelector("#story .ico");
+
+  var score = 0, qIndex = 0, mistakes = 0;
+  var task = null, phase = "record", locked = false, needed = [];
+
+  function maxFor(i){ return i < 4 ? 10 : 20; }   // перші задачі — до 10, далі до 20
+
+  function newTask(){
+    task = ZAD.makeTask({ max: maxFor(qIndex) });
+    phase = "record"; locked = false;
+    storyEl.textContent = task.text;
+    storyIco.textContent = task.emoji;
+    solveEl.classList.remove("on");
+    exprEl.textContent = "";
+    hintEl.textContent = "Заповни короткий запис 📝";
+    buildRecord();
+    buildTray();
+    qNumEl.textContent = (qIndex + 1) + "/" + TOTAL;
+    fillEl.style.width = (qIndex / TOTAL * 100) + "%";
+  }
+
+  /* короткий запис: рядок «було», рядок «змінилося», рядок «?» */
+  function buildRecord(){
+    var unit = shortUnit(task.noun);
+    var q3 = task.op === "add" ? "Стало" : "Залишилося";
+    recEl.innerHTML =
+      line(task.hadLabel, "a", unit) +
+      line(task.changedLabel, "b", unit) +
+      '<div class="rline"><span class="rlab">' + q3 + '</span><span class="dots"></span>' +
+        '<span class="slot qmark">?</span></div>';
+    needed = ["a", "b"];
+  }
+  function line(lab, key, unit){
+    return '<div class="rline"><span class="rlab">' + lab + '</span><span class="dots"></span>' +
+      '<span class="slot" data-k="' + key + '"><span class="v"></span>' +
+      '<span class="unit">' + unit + '</span></span></div>';
+  }
+  /* «яблуко» → «ябл.», «пташка» → «пт.» — скорочення, як у зошиті */
+  function shortUnit(nn){
+    var w = nn[0].replace(/ʼ/g, "");
+    return w.slice(0, 3) + ".";
+  }
+
+  function buildTray(){
+    var vals;
+    if(phase === "record"){
+      vals = [task.a, task.b];
+      // два числа-відволікачі, яких у задачі немає
+      var guard = 0;
+      while(vals.length < 4 && guard++ < 200){
+        var v = ZAD.rnd(1, maxFor(qIndex));
+        if(vals.indexOf(v) >= 0) continue;
+        vals.push(v);
+      }
+      vals = ZAD.shuffle(vals.slice());
+    } else {
+      var o = ZAD.answerOptions(task.answer, 4, maxFor(qIndex));
+      vals = o.options;
+    }
+    trayEl.innerHTML = vals.map(function(v){
+      return '<button class="piece" data-v="' + v + '">' + v + '</button>';
+    }).join("");
+  }
+
+  function slotFor(key){ return recEl.querySelector('.slot[data-k="' + key + '"]'); }
+
+  function onPiece(btn){
+    if(locked) return;
+    var v = parseInt(btn.getAttribute("data-v"), 10);
+
+    if(phase === "record"){
+      var want = needed[0];
+      var expect = want === "a" ? task.a : task.b;
+      if(v !== expect){
+        btn.classList.add("wrong");
+        var s = slotFor(want); if(s) s.classList.add("wrong");
+        setTimeout(function(){ btn.classList.remove("wrong"); if(s) s.classList.remove("wrong"); }, 360);
+        mistakes++;
+        hintEl.textContent = "Уважно: яке число у рядку «" + (want === "a" ? task.hadLabel : task.changedLabel) + "»?";
+        return;
+      }
+      var slot = slotFor(want);
+      slot.querySelector(".v").textContent = v;
+      slot.classList.add("filled", "pop");
+      setTimeout(function(){ slot.classList.remove("pop"); }, 350);
+      btn.classList.add("used");
+      needed.shift();
+      if(needed.length){
+        hintEl.textContent = "Тепер рядок «" + task.changedLabel + "»";
+      } else {
+        toSolve();
+      }
+      return;
+    }
+
+    // phase === "solve"
+    if(v !== task.answer){
+      btn.classList.add("wrong");
+      setTimeout(function(){ btn.classList.remove("wrong"); }, 360);
+      mistakes++;
+      hintEl.textContent = "Ще раз порахуй: " + task.expr;
+      return;
+    }
+    locked = true;
+    score += 10;
+    scoreEl.textContent = score;
+    exprEl.textContent = task.expr + " = " + task.answer;
+    var qm = recEl.querySelector(".slot.qmark");
+    if(qm){ qm.textContent = task.answer; qm.classList.add("filled", "pop"); }
+    hintEl.textContent = "Правильно! 🎉";
+    setTimeout(next, 900);
+  }
+
+  function toSolve(){
+    phase = "solve";
+    solveEl.classList.add("on");
+    exprEl.textContent = task.expr + " = ?";
+    hintEl.textContent = "Запис готовий. Тепер обчисли ✏️";
+    buildTray();
+  }
+
+  function next(){
+    qIndex++;
+    if(qIndex >= TOTAL) return win();
+    newTask();
+  }
+
+  function win(){
+    fillEl.style.width = "100%";
+    var stars = mistakes === 0 ? 3 : (mistakes <= 3 ? 2 : 1);
+    document.getElementById("winStars").textContent = "⭐⭐⭐".slice(0, stars * 2);
+    document.getElementById("winSub").textContent =
+      mistakes === 0 ? "Жодної помилки — справжній магістр задач!" :
+      "Помилок: " + mistakes + ". Очки: " + score + ".";
+    document.getElementById("winScreen").classList.remove("hidden");
+  }
+
+  function start(){
+    score = 0; qIndex = 0; mistakes = 0;
+    scoreEl.textContent = "0";
+    document.getElementById("startScreen").classList.add("hidden");
+    document.getElementById("winScreen").classList.add("hidden");
+    newTask();
+  }
+
+  trayEl.addEventListener("click", function(e){
+    var b = e.target.closest(".piece");
+    if(b) onPiece(b);
+  });
+  document.getElementById("playBtn").addEventListener("click", start);
+  document.getElementById("againBtn").addEventListener("click", start);
+  document.getElementById("menuBtn").addEventListener("click", function(){
+    document.getElementById("startScreen").classList.remove("hidden");
+  });
+})();
+</script>
+</body>
+</html>

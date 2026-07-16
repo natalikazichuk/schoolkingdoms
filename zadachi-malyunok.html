@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Задачі за малюнком — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-0:#0b1030; --navy-1:#141a44; --violet:#3a2b6e;
+    --gold:#ffcf4d; --gold-deep:#e0a92e; --ink:#0a0e26;
+    --text:#f4f1ff; --green:#7be0a4; --green-d:#2e9e54; --red:#ff8b8b;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%; overflow:hidden;}
+  body{font-family:"Fredoka",system-ui,sans-serif; background:var(--navy-0); color:var(--text);
+    user-select:none; -webkit-user-select:none; touch-action:manipulation; overscroll-behavior:none;}
+  #wrap{position:fixed; inset:0; display:flex; flex-direction:column;
+    background:radial-gradient(120% 80% at 50% 0%,var(--violet),var(--navy-0) 60%);}
+
+  #top{display:flex; align-items:center; gap:8px; padding:calc(env(safe-area-inset-top) + 10px) 12px 4px;}
+  .pill{background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35);
+    border-radius:14px; padding:7px 12px; font-weight:700; font-size:14px; white-space:nowrap;}
+  .pill .lab{opacity:.7; font-size:11px; display:block; line-height:1;}
+  .pill .val{font-size:18px; line-height:1.1;}
+  .pill.q .val{color:var(--gold);}
+  #spacer{flex:1;}
+  #menuBtn{cursor:pointer; font-family:inherit; font-weight:700; font-size:14px;
+    background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35); color:var(--text);
+    border-radius:14px; padding:8px 12px;}
+
+  #barWrap{padding:8px 14px 2px;}
+  #bar{height:10px; border-radius:999px; background:rgba(255,255,255,.1);
+    border:1px solid rgba(255,207,77,.25); overflow:hidden;}
+  #barFill{height:100%; width:0%; border-radius:999px;
+    background:linear-gradient(90deg,#FFE7A0,var(--gold-deep));
+    box-shadow:0 0 12px rgba(255,207,77,.5); transition:width .35s;}
+
+  #stage{flex:1 1 auto; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:10px; padding:6px 10px; overflow-y:auto;}
+
+  /* ── сцена з малюнком ── */
+  #scene{max-width:560px; width:100%; border-radius:20px; padding:12px;
+    background:linear-gradient(180deg,rgba(38,48,107,.95),rgba(18,22,60,.95));
+    border:2px solid rgba(255,207,77,.3); box-shadow:0 5px 0 rgba(0,0,0,.28), 0 8px 18px rgba(0,0,0,.35);
+    display:flex; align-items:center; justify-content:center; gap:6px; min-height:112px; flex-wrap:nowrap;}
+  .grp{display:flex; flex-wrap:wrap; align-content:center; justify-content:center;
+    gap:clamp(3px,1.2vw,7px); padding:8px; border-radius:14px; flex:1 1 0; min-width:0;
+    background:rgba(255,255,255,.05); border:2px solid rgba(255,255,255,.1);}
+  .grp.gone{background:rgba(255,139,139,.08); border-color:rgba(255,139,139,.35); border-style:dashed;}
+  .thing{width:clamp(24px,7vw,40px); height:clamp(24px,7vw,40px);
+    display:flex; align-items:center; justify-content:center;
+    font-size:clamp(20px,6vw,34px); line-height:1;
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,.45)); animation:pop .3s backwards;}
+  .thing img{width:100%; height:100%; object-fit:contain; display:block;}
+  .grp.gone .thing{opacity:.42; filter:grayscale(.85); position:relative;}
+  .grp.gone .thing::after{content:"✕"; position:absolute; inset:0; display:flex;
+    align-items:center; justify-content:center; color:var(--red); font-size:.85em; opacity:.9;
+    filter:none; text-shadow:0 1px 3px rgba(0,0,0,.7);}
+  .sign{flex:0 0 auto; font-size:clamp(24px,7vw,38px); font-weight:700; color:var(--gold);
+    text-shadow:0 2px 8px rgba(0,0,0,.5); padding:0 2px;}
+  @keyframes pop{0%{transform:scale(.3); opacity:0}70%{transform:scale(1.12)}100%{transform:scale(1); opacity:1}}
+
+  #question{max-width:560px; width:100%; text-align:center; font-size:clamp(15px,4.2vw,19px);
+    line-height:1.4; padding:0 4px;}
+  #hint{font-weight:600; font-size:13px; opacity:.8; min-height:18px; text-align:center;}
+
+  #tray{display:flex; align-items:center; justify-content:center; gap:clamp(8px,3vw,16px);
+    flex-wrap:wrap; padding:8px 12px calc(env(safe-area-inset-bottom) + 14px);}
+  .piece{cursor:pointer; font-family:inherit; font-weight:700; color:#4a3300;
+    width:clamp(58px,18vw,84px); height:clamp(58px,18vw,84px); font-size:clamp(26px,8vw,38px);
+    background:linear-gradient(180deg,#FFE7A0,var(--gold-deep));
+    border:none; border-radius:20px; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 6px 0 #a9761a, 0 10px 20px rgba(0,0,0,.4); transition:transform .1s, opacity .2s;}
+  .piece:active{transform:translateY(3px); box-shadow:0 3px 0 #a9761a;}
+  .piece.wrong{animation:shake .34s;}
+  .piece.good{background:linear-gradient(180deg,#a8f0c6,var(--green-d)); color:#06371c;
+    box-shadow:0 6px 0 #1c6b38, 0 10px 20px rgba(0,0,0,.4);}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}
+    40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+
+  .screen{position:absolute; inset:0; z-index:60; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; padding:24px; gap:14px;
+    background:radial-gradient(120% 90% at 50% 25%,rgba(58,43,110,.72),rgba(11,16,48,.96)); backdrop-filter:blur(2px);}
+  .screen.hidden{display:none;}
+  .crown{font-size:52px; filter:drop-shadow(0 4px 12px rgba(255,207,77,.45));}
+  .title{font-size:26px; font-weight:700; color:var(--gold); line-height:1.12;}
+  .sub{font-size:15px; opacity:.86; max-width:360px; line-height:1.45;}
+  .cta{margin-top:6px; border:none; cursor:pointer; font-family:inherit; font-weight:700;
+    background:linear-gradient(180deg,var(--gold),var(--gold-deep)); color:#3a2a00;
+    font-size:18px; padding:14px 42px; border-radius:999px;
+    box-shadow:0 5px 0 rgba(0,0,0,.3); transition:transform .06s;}
+  .cta:active{transform:translateY(3px); box-shadow:0 2px 0 rgba(0,0,0,.3);}
+  .linkbtn{cursor:pointer; font-family:inherit; font-weight:700; font-size:14px; text-decoration:none;
+    background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35); color:var(--text);
+    border-radius:999px; padding:11px 22px;}
+  .stars{font-size:40px; letter-spacing:6px;}
+  .winrow{display:flex; gap:10px; flex-wrap:wrap; justify-content:center;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <div class="pill q"><span class="lab">Задача</span><span class="val" id="qNum">1/12</span></div>
+    <div class="pill"><span class="lab">Очки</span><span class="val" id="score">0</span></div>
+    <div id="spacer"></div>
+    <button id="menuBtn">☰ Меню</button>
+  </div>
+
+  <div id="barWrap"><div id="bar"><div id="barFill"></div></div></div>
+
+  <div id="stage">
+    <div id="scene"></div>
+    <div id="question"></div>
+    <div id="hint">Порахуй на малюнку 👀</div>
+  </div>
+
+  <div id="tray"></div>
+
+  <div class="screen" id="startScreen">
+    <div class="crown">🖼️</div>
+    <div class="title">Задачі за малюнком</div>
+    <div class="sub">Подивись на малюнок, прочитай запитання й вибери правильну відповідь. Перекреслені — це ті, що пішли. 12 задач.</div>
+    <button class="cta" id="playBtn">Грати ▶</button>
+    <a class="linkbtn" href="igry.html">← До ігор</a>
+  </div>
+
+  <div class="screen hidden" id="winScreen">
+    <div class="crown">👑</div>
+    <div class="title" id="winTitle">Усі малюнки розгадано!</div>
+    <div class="stars" id="winStars">⭐⭐⭐</div>
+    <div class="sub" id="winSub">Чудова робота!</div>
+    <div class="winrow"><button class="cta" id="againBtn">↻ Ще раз</button></div>
+    <div class="winrow"><a class="linkbtn" href="igry.html">← До ігор</a></div>
+  </div>
+</div>
+
+<script src="sk-zadachi.js"></script>
+<script>
+(function(){
+  "use strict";
+  var TOTAL = 12;
+
+  /* ── МАЛЮНКИ ──
+     Спрайти шукаються за шляхом img/<sprite>.png (див. sk-zadachi.js, поле sprite).
+     Поки файлу немає — автоматично показується емодзі. Тобто гра працює вже зараз,
+     а щойно ти покладеш png у img/ — картинки підхопляться самі, без правок коду.
+     Потрібні файли: img/zad-apple.png, zad-pear.png, zad-candy.png, zad-flower.png,
+     zad-mushroom.png, zad-ball.png, zad-star.png, zad-nut.png, zad-balloon.png,
+     zad-book.png, zad-bird.png, zad-fish.png, zad-butterfly.png, zad-bunny.png
+     Формат: квадрат ~200×200, прозорий фон, один предмет по центру. */
+  var SPRITE_OK = {};   // sprite -> true/false (перевіряється один раз)
+
+  var sceneEl = document.getElementById("scene");
+  var qEl     = document.getElementById("question");
+  var trayEl  = document.getElementById("tray");
+  var hintEl  = document.getElementById("hint");
+  var scoreEl = document.getElementById("score");
+  var qNumEl  = document.getElementById("qNum");
+  var fillEl  = document.getElementById("barFill");
+
+  var score = 0, qIndex = 0, mistakes = 0;
+  var task = null, locked = false;
+
+  function maxFor(i){ return i < 5 ? 8 : 12; }   // на малюнку багато предметів не вміститься
+
+  function thingHTML(task, i){
+    var delay = 'style="animation-delay:' + (i * 40) + 'ms"';
+    if(SPRITE_OK[task.sprite]){
+      return '<span class="thing" ' + delay + '><img src="img/' + task.sprite +
+             '.png" alt="" draggable="false"></span>';
+    }
+    return '<span class="thing" ' + delay + '>' + task.emoji + '</span>';
+  }
+
+  function probeSprite(sprite, done){
+    if(SPRITE_OK.hasOwnProperty(sprite)) return done();
+    var im = new Image();
+    im.onload  = function(){ SPRITE_OK[sprite] = true;  done(); };
+    im.onerror = function(){ SPRITE_OK[sprite] = false; done(); };
+    im.src = "img/" + sprite + ".png";
+  }
+
+  function drawScene(){
+    var i, html = "";
+    var g1 = "", g2 = "";
+    for(i = 0; i < task.a; i++) g1 += thingHTML(task, i);
+    if(task.op === "add"){
+      for(i = 0; i < task.b; i++) g2 += thingHTML(task, task.a + i);
+      html = '<div class="grp">' + g1 + '</div><span class="sign">+</span>' +
+             '<div class="grp">' + g2 + '</div>';
+    } else {
+      // залишилися + перекреслені (ті, що пішли) — разом дають початкове число
+      var stay = "", gone = "";
+      for(i = 0; i < task.a - task.b; i++) stay += thingHTML(task, i);
+      for(i = 0; i < task.b; i++) gone += thingHTML(task, task.a - task.b + i);
+      html = '<div class="grp">' + stay + '</div><span class="sign">−</span>' +
+             '<div class="grp gone">' + gone + '</div>';
+    }
+    sceneEl.innerHTML = html;
+  }
+
+  function questionText(){
+    var m = task.many;
+    if(task.op === "add") return "Скільки " + m + " разом?";
+    return "Скільки " + m + " залишилося?";
+  }
+
+  function newTask(){
+    task = ZAD.makeTask({ max: maxFor(qIndex) });
+    if(task.op === "sub" && task.a - task.b < 1) task.b = task.a - 1;
+    locked = false;
+    qEl.textContent = questionText();
+    hintEl.textContent = task.op === "add"
+      ? "Порахуй обидві купки 👀"
+      : "Перекреслені вже пішли — рахуй решту 👀";
+    qNumEl.textContent = (qIndex + 1) + "/" + TOTAL;
+    fillEl.style.width = (qIndex / TOTAL * 100) + "%";
+    probeSprite(task.sprite, function(){
+      drawScene();
+      buildTray();
+    });
+  }
+
+  function buildTray(){
+    var o = ZAD.answerOptions(task.answer, 4, maxFor(qIndex));
+    trayEl.innerHTML = o.options.map(function(v){
+      return '<button class="piece" data-v="' + v + '">' + v + '</button>';
+    }).join("");
+  }
+
+  function onPiece(btn){
+    if(locked) return;
+    var v = parseInt(btn.getAttribute("data-v"), 10);
+    if(v !== task.answer){
+      btn.classList.add("wrong");
+      setTimeout(function(){ btn.classList.remove("wrong"); }, 360);
+      mistakes++;
+      hintEl.textContent = "Ще раз порахуй уважно 🔎";
+      return;
+    }
+    locked = true;
+    btn.classList.add("good");
+    score += 10;
+    scoreEl.textContent = score;
+    hintEl.textContent = task.expr + " = " + task.answer + " 🎉";
+    setTimeout(next, 900);
+  }
+
+  function next(){
+    qIndex++;
+    if(qIndex >= TOTAL) return win();
+    newTask();
+  }
+
+  function win(){
+    fillEl.style.width = "100%";
+    var stars = mistakes === 0 ? 3 : (mistakes <= 3 ? 2 : 1);
+    document.getElementById("winStars").textContent = "⭐⭐⭐".slice(0, stars * 2);
+    document.getElementById("winSub").textContent =
+      mistakes === 0 ? "Жодної помилки — гостре око!" :
+      "Помилок: " + mistakes + ". Очки: " + score + ".";
+    document.getElementById("winScreen").classList.remove("hidden");
+  }
+
+  function start(){
+    score = 0; qIndex = 0; mistakes = 0;
+    scoreEl.textContent = "0";
+    document.getElementById("startScreen").classList.add("hidden");
+    document.getElementById("winScreen").classList.add("hidden");
+    newTask();
+  }
+
+  trayEl.addEventListener("click", function(e){
+    var b = e.target.closest(".piece");
+    if(b) onPiece(b);
+  });
+  document.getElementById("playBtn").addEventListener("click", start);
+  document.getElementById("againBtn").addEventListener("click", start);
+  document.getElementById("menuBtn").addEventListener("click", function(){
+    document.getElementById("startScreen").classList.remove("hidden");
+  });
+})();
+</script>
+</body>
+</html>
