@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Вежа Логіки — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-0:#0b1030; --navy-1:#141a44; --violet:#3a2b6e;
+    --gold:#ffcf4d; --gold-deep:#e0a92e; --ink:#0a0e26;
+    --text:#f4f1ff; --green:#7be0a4; --green-d:#2e9e54; --red:#ff8b8b;
+    --mana:#8ab6ff;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%; overflow:hidden;}
+  body{
+    font-family:"Fredoka",system-ui,sans-serif; background:var(--navy-0); color:var(--text);
+    user-select:none; -webkit-user-select:none; touch-action:manipulation; overscroll-behavior:none;
+  }
+  #wrap{position:fixed; inset:0; display:flex; flex-direction:column;
+    background:radial-gradient(120% 80% at 50% 0%,var(--violet),var(--navy-0) 60%);}
+
+  /* ── top ── */
+  #top{display:flex; align-items:center; gap:8px;
+    padding:calc(env(safe-area-inset-top) + 10px) 12px 4px;}
+  .pill{background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35);
+    border-radius:14px; padding:7px 12px; font-weight:700; font-size:14px; white-space:nowrap;}
+  .pill .lab{opacity:.7; font-size:11px; display:block; line-height:1;}
+  .pill .val{font-size:18px; line-height:1.1;}
+  .pill.q .val{color:var(--gold);}
+  #spacer{flex:1;}
+  #menuBtn{cursor:pointer; font-family:inherit; font-weight:700; font-size:14px;
+    background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35); color:var(--text);
+    border-radius:14px; padding:8px 12px;}
+
+  #barWrap{padding:8px 14px 2px;}
+  #bar{height:10px; border-radius:999px; background:rgba(255,255,255,.1);
+    border:1px solid rgba(255,207,77,.25); overflow:hidden;}
+  #barFill{height:100%; width:0%; border-radius:999px;
+    background:linear-gradient(90deg,#FFE7A0,var(--gold-deep));
+    box-shadow:0 0 12px rgba(255,207,77,.5); transition:width .35s;}
+
+  /* ── сцена ── */
+  #main{flex:1 1 auto; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:10px; padding:6px 12px; min-height:0;}
+  #kicker{font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--mana); opacity:.85;}
+  #hint{font-weight:600; font-size:15px; opacity:.92; min-height:22px; text-align:center; line-height:1.35;}
+  #hint b{color:var(--gold);}
+  #hint.bad{color:var(--red);}
+  #hint.good{color:var(--green);}
+  #stage{position:relative; width:100%; max-width:440px; flex:1 1 auto; min-height:0;
+    display:flex; align-items:center; justify-content:center;}
+
+  .board{position:relative; max-width:100%; max-height:100%;
+    border-radius:22px; border:2px solid rgba(255,207,77,.32); padding:12px;
+    background:
+      linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px) 0 0/26px 26px,
+      linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px) 0 0/26px 26px,
+      linear-gradient(180deg, rgba(38,48,107,.7), rgba(14,18,52,.85));
+    box-shadow:inset 0 0 40px rgba(0,0,0,.45), 0 10px 26px rgba(0,0,0,.4);
+    display:flex; align-items:center; justify-content:center;}
+
+  /* ── стрічка закономірності / ряду ── */
+  .strip{display:flex; flex-wrap:wrap; gap:7px; justify-content:center; align-items:center;}
+  .cell{display:flex; align-items:center; justify-content:center;
+    width:clamp(38px,11vw,56px); height:clamp(38px,11vw,56px);
+    border-radius:13px; border:2px solid rgba(255,255,255,.14);
+    background:rgba(255,255,255,.05);
+    font-size:clamp(19px,5.6vw,28px); font-weight:700; line-height:1;}
+  .cell.num{font-size:clamp(17px,4.6vw,24px); color:var(--text);}
+  .cell.gap{border:2px dashed var(--gold); background:rgba(255,207,77,.1);
+    color:var(--gold); animation:pulse 1.4s infinite;}
+  .cell.filled{border-color:var(--green); background:rgba(123,224,164,.18); color:var(--green);}
+  .cell.pop{animation:pop .4s;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,207,77,.35)}50%{box-shadow:0 0 0 8px rgba(255,207,77,0)}}
+  @keyframes pop{0%{transform:scale(.5)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}
+    40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+
+  /* ── «знайди зайве» ── */
+  .quad{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .card4{cursor:pointer; display:flex; align-items:center; justify-content:center;
+    width:clamp(74px,22vw,104px); height:clamp(74px,22vw,104px);
+    border-radius:18px; border:2px solid rgba(255,207,77,.3);
+    background:linear-gradient(180deg, rgba(38,48,107,.8), rgba(14,18,52,.9));
+    box-shadow:0 6px 16px rgba(0,0,0,.35);
+    font-size:clamp(32px,9vw,46px); line-height:1; transition:transform .12s, border-color .12s;}
+  .card4.num{font-size:clamp(28px,8vw,40px); font-weight:700; color:var(--gold);}
+  .card4:active{transform:scale(.95);}
+  .card4.good{border-color:var(--green); box-shadow:0 0 22px rgba(123,224,164,.5);}
+  .card4.bad{border-color:var(--red); animation:shake .34s;}
+  .card4.dim{opacity:.4;}
+
+  /* ── магічний квадрат / судоку ── */
+  .gridwrap{display:flex; flex-direction:column; align-items:center; gap:6px;}
+  .g3{display:grid; gap:6px;}
+  .gcell{display:flex; align-items:center; justify-content:center;
+    width:clamp(46px,13vw,62px); height:clamp(46px,13vw,62px);
+    border-radius:12px; border:2px solid rgba(255,255,255,.16);
+    background:rgba(255,255,255,.06); font-weight:700;
+    font-size:clamp(20px,5.6vw,28px); line-height:1;}
+  .gcell.given{color:var(--text);}
+  .gcell.hole{cursor:pointer; border:2px dashed rgba(255,207,77,.75); background:rgba(255,207,77,.08);}
+  .gcell.hole.sel{border-style:solid; border-color:var(--gold); background:rgba(255,207,77,.22);
+    box-shadow:0 0 16px rgba(255,207,77,.45);}
+  .gcell.done{border-color:var(--green); border-style:solid;
+    background:rgba(123,224,164,.18); color:var(--green); animation:pop .35s;}
+  .gcell.bad{border-color:var(--red); animation:shake .34s;}
+  .gcell.bx{box-shadow:inset 0 0 0 2px rgba(138,182,255,.32);}
+  .sumtag{font-size:11px; font-weight:700; color:var(--mana); opacity:.9;}
+
+  /* ── лабіринт ── */
+  .maze{width:min(78vw,300px); height:min(78vw,300px); touch-action:none;}
+  .maze svg{display:block; width:100%; height:100%;}
+  .wall{stroke:rgba(255,207,77,.55); stroke-width:4; stroke-linecap:round;}
+  .trail{fill:none; stroke:rgba(255,207,77,.85); stroke-width:5; stroke-linecap:round; stroke-linejoin:round;
+    filter:drop-shadow(0 0 6px rgba(255,207,77,.6));}
+  .hero{font-size:24px; transition:transform .16s ease-out;}
+  .goal{font-size:22px;}
+
+  /* ── нижня панель: варіанти / фішки / D-pad ── */
+  #answers{display:flex; gap:8px; flex-wrap:wrap; justify-content:center;
+    padding:2px 8px calc(env(safe-area-inset-bottom) + 12px);}
+  #answers:empty{padding:0;}
+  .ans{cursor:pointer; font-family:inherit; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+    min-width:64px; height:56px; padding:0 16px; font-size:clamp(20px,5.6vw,26px);
+    color:#4a3300; background:linear-gradient(180deg,#FFE7A0,var(--gold-deep));
+    border:none; border-radius:16px;
+    box-shadow:0 5px 0 #a9761a, 0 9px 18px rgba(0,0,0,.38);
+    transition:transform .1s, box-shadow .1s, filter .15s;}
+  .ans:active{transform:translateY(3px); box-shadow:0 2px 0 #a9761a, 0 5px 12px rgba(0,0,0,.38);}
+  .ans.sel{filter:brightness(1.15); transform:translateY(3px);
+    box-shadow:0 2px 0 #a9761a, 0 0 0 3px #fff inset;}
+  .ans.good{background:linear-gradient(180deg,#B6F3CE,var(--green-d)); box-shadow:0 5px 0 #1c6d38;}
+  .ans.bad{background:linear-gradient(180deg,#FFC9C9,#c94b4b); box-shadow:0 5px 0 #8a2b2b; animation:shake .34s;}
+  .ans.dim{filter:grayscale(.7); opacity:.45;}
+  .ans.used{opacity:0; pointer-events:none;}
+
+  #answers.dpad{display:grid; grid-template-columns:repeat(3,60px); grid-template-rows:repeat(2,52px);
+    gap:6px; justify-content:center;}
+  .dbtn{cursor:pointer; font-family:inherit; font-weight:700; font-size:22px; color:var(--text);
+    background:rgba(20,26,68,.8); border:2px solid rgba(255,207,77,.4); border-radius:14px;}
+  .dbtn:active{background:rgba(255,207,77,.25);}
+  .dbtn.spacer{visibility:hidden;}
+
+  /* ── overlays ── */
+  .screen{position:absolute; inset:0; z-index:60; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; padding:24px; gap:14px; overflow-y:auto;
+    background:radial-gradient(120% 90% at 50% 25%,rgba(58,43,110,.72),rgba(11,16,48,.96)); backdrop-filter:blur(2px);}
+  .screen.hidden{display:none;}
+  .crown{font-size:52px; filter:drop-shadow(0 4px 12px rgba(255,207,77,.45));}
+  .title{font-size:28px; font-weight:700; color:var(--gold); line-height:1.12;}
+  .sub{font-size:15px; opacity:.86; max-width:360px; line-height:1.45;}
+  .cta{margin-top:6px; border:none; cursor:pointer; font-family:inherit; font-weight:700;
+    background:linear-gradient(180deg,var(--gold),var(--gold-deep)); color:#3a2a00;
+    font-size:18px; padding:14px 42px; border-radius:999px;
+    box-shadow:0 5px 0 rgba(0,0,0,.3); transition:transform .06s;}
+  .cta:active{transform:translateY(3px); box-shadow:0 2px 0 rgba(0,0,0,.3);}
+  .linkbtn{cursor:pointer; font-family:inherit; font-weight:700; font-size:14px; text-decoration:none;
+    background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35); color:var(--text);
+    border-radius:999px; padding:11px 22px;}
+  .stars{font-size:40px; letter-spacing:6px;}
+  .winrow{display:flex; gap:10px; flex-wrap:wrap; justify-content:center;}
+  .legend{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; max-width:360px;}
+  .legend span{font-size:12px; font-weight:600; background:rgba(138,182,255,.14);
+    border:1px solid rgba(138,182,255,.35); border-radius:999px; padding:5px 10px;}
+  :focus-visible{outline:3px solid #fff; outline-offset:2px;}
+
+  @media (prefers-reduced-motion: reduce){
+    .cell.gap{animation:none;}
+    .hero{transition:none;}
+    .pop,.gcell.done{animation:none;}
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <div class="pill q"><span class="lab">Завдання</span><span class="val" id="qNum">1/12</span></div>
+    <div class="pill"><span class="lab">Очки</span><span class="val" id="score">0</span></div>
+    <div id="spacer"></div>
+    <button id="menuBtn">☰ Меню</button>
+  </div>
+
+  <div id="barWrap"><div id="bar"><div id="barFill"></div></div></div>
+
+  <div id="main">
+    <div id="kicker">Вежа Логіки</div>
+    <div id="hint">Готуємо загадку…</div>
+    <div id="stage"></div>
+  </div>
+
+  <div id="answers"></div>
+
+  <div class="screen" id="startScreen">
+    <div class="crown">🧠</div>
+    <div class="title">Вежа Логіки</div>
+    <div class="sub">Шість поверхів загадок: знайди закономірність, продовж ряд, вистеж зайве, збери магічний квадрат, розгадай судоку і вибрися з лабіринту. 12 завдань.</div>
+    <div class="legend">
+      <span>Закономірності</span><span>Продовж ряд</span><span>Знайди зайве</span>
+      <span>Магічні квадрати</span><span>Судоку</span><span>Лабіринти</span>
+    </div>
+    <button class="cta" id="playBtn">Грати ▶</button>
+    <a class="linkbtn" href="igry.html">← До ігор</a>
+  </div>
+
+  <div class="screen hidden" id="winScreen">
+    <div class="crown">👑</div>
+    <div class="title" id="winTitle">Вежу пройдено!</div>
+    <div class="stars" id="winStars">⭐⭐⭐</div>
+    <div class="sub" id="winSub">Чудова робота!</div>
+    <div class="winrow"><button class="cta" id="againBtn">↻ Ще раз</button></div>
+    <div class="winrow"><a class="linkbtn" href="igry.html">← До ігор</a></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* порядок поверхів вежі — кожен режим по два рази */
+  var PLAN = ["pattern","odd","series","maze","magic","sudoku",
+              "pattern","odd","series","magic","sudoku","maze"];
+  var TOTAL = PLAN.length;
+
+  var stageEl = document.getElementById("stage");
+  var ansEl   = document.getElementById("answers");
+  var hintEl  = document.getElementById("hint");
+  var kickEl  = document.getElementById("kicker");
+  var scoreEl = document.getElementById("score");
+  var qNumEl  = document.getElementById("qNum");
+  var fillEl  = document.getElementById("barFill");
+
+  var score=0, streak=0, qIndex=0, mistakes=0, locked=true, cur=null;
+
+  function rnd(a,b){ return a + Math.floor(Math.random()*(b-a+1)); }
+  function pick(a){ return a[rnd(0,a.length-1)]; }
+  function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=rnd(0,i); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+  function uniq(a){ return a.filter(function(v,i){ return a.indexOf(v)===i; }); }
+  function div(cls,txt){ var d=document.createElement("div"); d.className=cls; if(txt!=null) d.textContent=txt; return d; }
+  function board(){ var b=div("board"); stageEl.innerHTML=""; stageEl.appendChild(b); return b; }
+  function say(txt,cls){ hintEl.className=cls||""; hintEl.innerHTML=txt; }
+
+  /* ═════════════ 1. ЗАКОНОМІРНОСТІ ═════════════ */
+  var ICONS = ["⭐","🌙","🍎","🍐","🐞","🦋","🌸","🍄","🎈","🐟","🍓","🧁","🐝","🔴","🔵","🟡","🟢","❤️"];
+  var CYCLES = [ [0,1], [0,0,1], [0,1,2], [0,1,1], [0,0,1,1], [0,1,0,2] ];
+
+  function roundPattern(){
+    var cyc = pick(CYCLES);
+    var need = Math.max.apply(null, cyc) + 1;
+    var pool = shuffle(ICONS.slice()).slice(0, Math.max(need,3));
+    var map = pool.slice(0, need);
+    var shown = cyc.length * 2 + rnd(1, cyc.length);      // скільки видно до знака «?»
+    if(shown > 9) shown = 9;
+    var answer = map[cyc[shown % cyc.length]];
+
+    cur = { mode:"pattern", answer:answer };
+    kickEl.textContent = "Закономірності";
+    say("Що буде далі в ряду?");
+
+    var b = board();
+    var strip = div("strip");
+    for(var i=0;i<shown;i++) strip.appendChild(div("cell", map[cyc[i % cyc.length]]));
+    var gap = div("cell gap","?");
+    cur.gapEl = gap;
+    strip.appendChild(gap);
+    b.appendChild(strip);
+
+    var opts = uniq([answer].concat(shuffle(map.slice())));
+    var j=0;
+    while(opts.length<3 && j<pool.length){ if(opts.indexOf(pool[j])<0) opts.push(pool[j]); j++; }
+    opts = shuffle(opts.slice(0,3));
+    optionButtons(opts, function(v){ return v===answer; },
+      "Придивись: візерунок повторюється по колу.");
+  }
+
+  /* ═════════════ 2. ПРОДОВЖ РЯД ═════════════ */
+  function makeSeries(){
+    var kind = pick(["add","sub","x2","alt"]);
+    var a=[], i, start, step;
+    if(kind==="add"){
+      step = pick([1,2,3,4,5,10]);
+      start = rnd(0, Math.max(1, 40-step*5));
+      for(i=0;i<6;i++) a.push(start+step*i);
+      return { seq:a, why:"Кожне наступне число більше на "+step+"." };
+    }
+    if(kind==="sub"){
+      step = pick([1,2,3,5,10]);
+      start = rnd(step*5, 99);
+      for(i=0;i<6;i++) a.push(start-step*i);
+      return { seq:a, why:"Кожне наступне число менше на "+step+"." };
+    }
+    if(kind==="x2"){
+      start = pick([1,2,3]);
+      for(i=0;i<6;i++) a.push(start*Math.pow(2,i));
+      return { seq:a, why:"Кожне наступне число вдвічі більше." };
+    }
+    var up, down;
+    do { up = pick([3,4,5]); down = pick([1,2]); } while(up === down*2);   // інакше число повториться в ряду
+    start = rnd(2, 30);
+    var v = start;
+    for(i=0;i<6;i++){ a.push(v); v += (i%2===0 ? up : -down); }
+    return { seq:a, why:"Ряд стрибає: то +"+up+", то −"+down+"." };
+  }
+
+  function roundSeries(){
+    var s = makeSeries();
+    var hideLast = Math.random() < 0.6;
+    var hi = hideLast ? s.seq.length-1 : rnd(2, s.seq.length-2);
+    var answer = s.seq[hi];
+
+    cur = { mode:"series", answer:answer };
+    kickEl.textContent = "Продовж ряд";
+    say(hideLast ? "Яке число буде наступним?" : "Яке число сховалося в ряду?");
+
+    var b = board();
+    var strip = div("strip");
+    s.seq.forEach(function(v,i){
+      if(i===hi){ var g=div("cell gap","?"); cur.gapEl=g; strip.appendChild(g); }
+      else strip.appendChild(div("cell num", v));
+    });
+    b.appendChild(strip);
+
+    var opts=[answer], guard=0;
+    while(opts.length<3 && guard++<200){
+      var d = pick([-10,-5,-3,-2,-1,1,2,3,5,10]);
+      var v2 = answer + d;
+      if(v2 < 0 || opts.indexOf(v2)>=0 || s.seq.indexOf(v2)>=0) continue;
+      opts.push(v2);
+    }
+    while(opts.length<3){ var w=rnd(0,99); if(opts.indexOf(w)<0) opts.push(w); }
+    optionButtons(shuffle(opts), function(v){ return +v===answer; }, s.why);
+  }
+
+  /* спільні кнопки-варіанти для «закономірностей» і «ряду» */
+  function optionButtons(opts, isRight, why){
+    ansEl.className = "";
+    ansEl.innerHTML = "";
+    opts.forEach(function(v){
+      var b=document.createElement("button");
+      b.className="ans"; b.textContent=v;
+      b.addEventListener("click", function(){
+        if(locked) return;
+        if(isRight(v)){
+          locked = true;
+          b.classList.add("good");
+          if(cur.gapEl){ cur.gapEl.className="cell filled pop"; cur.gapEl.textContent=v; }
+          say(why,"good"); gain(); setTimeout(nextRound, 1350);
+        } else {
+          miss();
+          b.classList.add("bad");
+          setTimeout(function(){ b.classList.remove("bad"); b.classList.add("dim"); b.disabled=true; }, 340);
+          say("Ще не те. Порівняй сусідні клітинки — що змінюється щоразу?","bad");
+        }
+      });
+      ansEl.appendChild(b);
+    });
+    setTimeout(function(){ locked=false; }, 350);
+  }
+
+  /* ═════════════ 3. ЗНАЙДИ ЗАЙВЕ ═════════════ */
+  var ODD_SETS = [
+    { keep:["🍎","🍇","🍌"], odd:"🚌", why:"Це фрукти, а автобус — транспорт." },
+    { keep:["🐕","🐈","🐄"], odd:"🌻", why:"Це тварини, а соняшник — рослина." },
+    { keep:["🚗","🚌","🚲"], odd:"🍏", why:"Це транспорт, а яблуко — фрукт." },
+    { keep:["🔵","🔷","🫐"], odd:"🔴", why:"Усі сині, а цей — червоний." },
+    { keep:["🍓","🍒","🍎"], odd:"🥦", why:"Усе червоне, а броколі — зелена." },
+    { keep:["🐟","🐙","🦈"], odd:"🐦", why:"Усі живуть у воді, а пташка літає." },
+    { keep:["🦋","🐝","🐞"], odd:"🐌", why:"Усі мають крила, а равлик — ні." },
+    { keep:["👟","👞","🥾"], odd:"🧤", why:"Це взуття, а рукавичка — на руку." },
+    { keep:["☀️","🌙","⭐"], odd:"🌵", why:"Це на небі, а кактус — на землі." },
+    { keep:["🎸","🥁","🎺"], odd:"🧹", why:"Це музичні інструменти, а мітла — ні." },
+    { keep:["🍞","🧀","🥕"], odd:"✏️", why:"Це їжа, а олівець — ні." },
+    { keep:["🌧️","❄️","⛈️"], odd:"🎩", why:"Це погода, а капелюх — одяг." },
+    { keep:["2","4","6"],    odd:"7",  why:"Ці числа парні, а 7 — непарне.", num:true },
+    { keep:["1","3","5"],    odd:"8",  why:"Ці числа непарні, а 8 — парне.", num:true },
+    { keep:["3","5","9"],    odd:"12", why:"Ці числа одноцифрові, а 12 — двоцифрове.", num:true },
+    { keep:["10","20","30"], odd:"25", why:"Це круглі десятки, а 25 — ні.", num:true }
+  ];
+  var oddBag = [];
+
+  function roundOdd(){
+    if(!oddBag.length) oddBag = shuffle(ODD_SETS.slice());
+    var s = oddBag.pop();
+    var items = shuffle(s.keep.concat([s.odd]));
+    cur = { mode:"odd", odd:s.odd };
+
+    kickEl.textContent = "Знайди зайве";
+    say("Одне тут зайве. Яке?");
+
+    var b = board();
+    var quad = div("quad");
+    items.forEach(function(v){
+      var c = div("card4"+(s.num?" num":""), v);
+      c.addEventListener("click", function(){
+        if(locked) return;
+        if(v === s.odd){
+          locked = true;
+          c.classList.add("good");
+          Array.prototype.forEach.call(quad.children, function(o){ if(o!==c) o.classList.add("dim"); });
+          say(s.why,"good"); gain(); setTimeout(nextRound, 1450);
+        } else {
+          miss();
+          c.classList.add("bad");
+          setTimeout(function(){ c.classList.remove("bad"); }, 360);
+          say("Ні. Подумай, що спільного у трьох інших.","bad");
+        }
+      });
+      quad.appendChild(c);
+    });
+    b.appendChild(quad);
+    ansEl.className=""; ansEl.innerHTML="";
+    setTimeout(function(){ locked=false; }, 350);
+  }
+
+  /* ═════════════ 4. МАГІЧНИЙ КВАДРАТ ═════════════ */
+  var MAGIC_BASE = [8,1,6, 3,5,7, 4,9,2];       // сума 15 у кожному напрямку
+
+  function rot90(g){ return [g[6],g[3],g[0], g[7],g[4],g[1], g[8],g[5],g[2]]; }
+  function mirror(g){ return [g[2],g[1],g[0], g[5],g[4],g[3], g[8],g[7],g[6]]; }
+  function magicGrid(){
+    var g = MAGIC_BASE.slice(), n = rnd(0,3), i;
+    for(i=0;i<n;i++) g = rot90(g);
+    if(Math.random()<0.5) g = mirror(g);
+    return g;
+  }
+
+  function roundMagic(){
+    var g = magicGrid();
+    var holes = shuffle([0,1,2,3,4,5,6,7,8]).slice(0,2);
+    var need = holes.map(function(i){ return g[i]; });
+    var distractor;
+    do { distractor = rnd(1,9); } while(need.indexOf(distractor)>=0);
+
+    cur = { mode:"magic", grid:g, holes:holes, left:2, sel:null };
+    kickEl.textContent = "Магічні квадрати";
+    say("У кожному рядку, стовпчику й по діагоналі сума однакова — <b>15</b>. Обери число внизу, тоді торкнись клітинки.");
+
+    var b = board();
+    var wrapEl = div("gridwrap");
+    var grid = div("g3");
+    grid.style.gridTemplateColumns = "repeat(3, auto)";
+    for(var i=0;i<9;i++){
+      var isHole = holes.indexOf(i)>=0;
+      var c = div("gcell "+(isHole?"hole":"given"), isHole ? "" : g[i]);
+      c.dataset.i = i;
+      if(isHole) c.addEventListener("click", magicTap);
+      grid.appendChild(c);
+    }
+    wrapEl.appendChild(grid);
+    wrapEl.appendChild(div("sumtag","кожен рядок і стовпчик = 15"));
+    b.appendChild(wrapEl);
+    cur.gridEl = grid;
+
+    chipTray(shuffle(need.concat([distractor])));
+    setTimeout(function(){ locked=false; }, 300);
+  }
+
+  function magicTap(e){
+    if(locked) return;
+    var c = e.currentTarget, i = +c.dataset.i;
+    if(cur.sel == null){ say("Спочатку обери число внизу.","bad"); return; }
+    if(+cur.sel.textContent === cur.grid[i]){
+      c.className = "gcell done"; c.textContent = cur.grid[i];
+      c.removeEventListener("click", magicTap);
+      cur.sel.classList.add("used"); cur.sel.disabled = true; cur.sel = null;
+      cur.left--; tick();
+      if(cur.left === 0){
+        locked = true;
+        say("Магія працює: усюди виходить 15.","good");
+        gain(); setTimeout(nextRound, 1400);
+      } else {
+        say("Є! Тепер друга клітинка.");
+      }
+    } else {
+      miss();
+      c.classList.add("bad");
+      setTimeout(function(){ c.classList.remove("bad"); }, 360);
+      var need15 = rowHint(i);
+      say("Не сходиться. "+need15,"bad");
+    }
+  }
+  function rowHint(i){
+    var r = Math.floor(i/3), known=0, cnt=0;
+    for(var k=0;k<3;k++){ var j=r*3+k; if(cur.holes.indexOf(j)<0){ known+=cur.grid[j]; cnt++; } }
+    if(cnt===2) return "Порахуй цей рядок: 15 − "+known+".";
+    return "Порахуй рядок або стовпчик, де відомі два числа.";
+  }
+
+  /* фішки-числа знизу (магічний квадрат) */
+  function chipTray(values){
+    ansEl.className=""; ansEl.innerHTML="";
+    values.forEach(function(v){
+      var b=document.createElement("button");
+      b.className="ans"; b.textContent=v;
+      b.addEventListener("click", function(){
+        if(locked) return;
+        if(cur.sel) cur.sel.classList.remove("sel");
+        cur.sel = (cur.sel===b) ? null : b;
+        if(cur.sel) cur.sel.classList.add("sel");
+        hintEl.className="";
+      });
+      ansEl.appendChild(b);
+    });
+  }
+
+  /* ═════════════ 5. СУДОКУ ДЛЯ ДІТЕЙ (4×4) ═════════════ */
+  var SUDOKU_SETS = [ ["🍎","🍐","🍒","🍌"], ["⭐","🌙","☀️","☁️"], ["🐞","🦋","🐝","🐌"],
+                      ["🔴","🔵","🟡","🟢"], ["🌸","🍄","🌵","🍀"] ];
+
+  function sudokuFull(){
+    var g = [1,2,3,4, 3,4,1,2, 2,1,4,3, 4,3,2,1], i;
+    var perm = shuffle([1,2,3,4]);
+    g = g.map(function(v){ return perm[v-1]; });
+    function swapRows(a,b){ for(i=0;i<4;i++){ var t=g[a*4+i]; g[a*4+i]=g[b*4+i]; g[b*4+i]=t; } }
+    function swapCols(a,b){ for(i=0;i<4;i++){ var t=g[i*4+a]; g[i*4+a]=g[i*4+b]; g[i*4+b]=t; } }
+    if(Math.random()<0.5) swapRows(0,1);
+    if(Math.random()<0.5) swapRows(2,3);
+    if(Math.random()<0.5){ swapRows(0,2); swapRows(1,3); }
+    if(Math.random()<0.5) swapCols(0,1);
+    if(Math.random()<0.5) swapCols(2,3);
+    if(Math.random()<0.5){ swapCols(0,2); swapCols(1,3); }
+    if(Math.random()<0.5){ var t2=[]; for(var r=0;r<4;r++) for(var c=0;c<4;c++) t2[r*4+c]=g[c*4+r]; g=t2; }
+    return g;
+  }
+  function okAt(g,i,v){
+    var r=Math.floor(i/4), c=i%4, k;
+    for(k=0;k<4;k++){ if(k!==c && g[r*4+k]===v) return false; }
+    for(k=0;k<4;k++){ if(k!==r && g[k*4+c]===v) return false; }
+    var br=r-r%2, bc=c-c%2;
+    for(var a=0;a<2;a++) for(var b2=0;b2<2;b2++){
+      var j=(br+a)*4+(bc+b2); if(j!==i && g[j]===v) return false;
+    }
+    return true;
+  }
+  function countSolutions(g, limit){
+    var i = g.indexOf(0);
+    if(i < 0) return 1;
+    var n = 0;
+    for(var v=1; v<=4; v++){
+      if(!okAt(g,i,v)) continue;
+      g[i]=v; n += countSolutions(g, limit-n); g[i]=0;
+      if(n >= limit) return n;
+    }
+    return n;
+  }
+  function sudokuPuzzle(target){
+    var full = sudokuFull();
+    var puz = full.slice();
+    var order = shuffle([0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]);
+    var removed = 0;
+    for(var k=0; k<order.length && removed<target; k++){
+      var i = order[k], keep = puz[i];
+      puz[i] = 0;
+      if(countSolutions(puz.slice(), 2) !== 1){ puz[i] = keep; }
+      else removed++;
+    }
+    return { full:full, puz:puz };
+  }
+
+  function roundSudoku(){
+    var p = sudokuPuzzle(6);
+    var set = pick(SUDOKU_SETS);
+    var holes = [];
+    for(var i=0;i<16;i++) if(p.puz[i]===0) holes.push(i);
+
+    cur = { mode:"sudoku", full:p.full, set:set, left:holes.length, sel:null };
+    kickEl.textContent = "Судоку для дітей";
+    say("У кожному рядку, стовпчику й кожному квадратику 2×2 — усі чотири різні. Обери фішку, тоді клітинку.");
+
+    var b = board();
+    var wrapEl = div("gridwrap");
+    var grid = div("g3");
+    grid.style.gridTemplateColumns = "repeat(4, auto)";
+    for(i=0;i<16;i++){
+      var r=Math.floor(i/4), c=i%4;
+      var boxA = (Math.floor(r/2)+Math.floor(c/2)) % 2 === 0;
+      var isHole = p.puz[i]===0;
+      var cell = div("gcell "+(isHole?"hole":"given")+(boxA?" bx":""), isHole?"":set[p.puz[i]-1]);
+      cell.dataset.i = i;
+      if(isHole) cell.addEventListener("click", sudokuTap);
+      grid.appendChild(cell);
+    }
+    wrapEl.appendChild(grid);
+    wrapEl.appendChild(div("sumtag","4 різні фішки в кожному рядку, стовпчику і квадратику"));
+    b.appendChild(wrapEl);
+
+    ansEl.className=""; ansEl.innerHTML="";
+    set.forEach(function(icon, idx){
+      var bt=document.createElement("button");
+      bt.className="ans"; bt.textContent=icon; bt.dataset.v = idx+1;
+      bt.addEventListener("click", function(){
+        if(locked) return;
+        if(cur.sel) cur.sel.classList.remove("sel");
+        cur.sel = (cur.sel===bt) ? null : bt;
+        if(cur.sel) cur.sel.classList.add("sel");
+        hintEl.className="";
+      });
+      ansEl.appendChild(bt);
+    });
+    setTimeout(function(){ locked=false; }, 300);
+  }
+
+  function sudokuTap(e){
+    if(locked) return;
+    var c = e.currentTarget, i = +c.dataset.i;
+    if(!cur.sel){ say("Спочатку обери фішку внизу.","bad"); return; }
+    var v = +cur.sel.dataset.v;
+    if(v === cur.full[i]){
+      c.className = "gcell done" + (c.classList.contains("bx") ? " bx" : "");
+      c.textContent = cur.set[v-1];
+      c.removeEventListener("click", sudokuTap);
+      cur.left--; tick();
+      if(cur.left === 0){
+        locked = true;
+        say("Судоку розгадано!","good");
+        gain(); setTimeout(nextRound, 1400);
+      } else {
+        say("Правильно! Лишилось клітинок: <b>"+cur.left+"</b>.");
+      }
+    } else {
+      miss();
+      c.classList.add("bad");
+      setTimeout(function(){ c.classList.remove("bad"); }, 360);
+      say("Така сама фішка вже є поруч — у рядку, стовпчику або квадратику.","bad");
+    }
+  }
+
+  /* ═════════════ 6. ЛАБІРИНТ ═════════════ */
+  var MC=7, MR=7, CS=38, PAD=14;
+  var SVGNS = "http://www.w3.org/2000/svg";
+  function sel(tag,attrs){
+    var e=document.createElementNS(SVGNS,tag);
+    for(var k in attrs){ if(Object.prototype.hasOwnProperty.call(attrs,k)) e.setAttribute(k,attrs[k]); }
+    return e;
+  }
+  var DIRS = [{dx:0,dy:-1,w:0,o:2},{dx:1,dy:0,w:1,o:3},{dx:0,dy:1,w:2,o:0},{dx:-1,dy:0,w:3,o:1}];
+
+  function genMaze(){
+    var cells=[], i;
+    for(i=0;i<MC*MR;i++) cells.push({v:false, w:[true,true,true,true]});
+    var stack=[0]; cells[0].v=true;
+    while(stack.length){
+      var idx = stack[stack.length-1];
+      var cx = idx%MC, cy = Math.floor(idx/MC);
+      var opts = [];
+      for(i=0;i<4;i++){
+        var nx=cx+DIRS[i].dx, ny=cy+DIRS[i].dy;
+        if(nx<0||ny<0||nx>=MC||ny>=MR) continue;
+        var ni=ny*MC+nx;
+        if(cells[ni].v) continue;
+        opts.push({d:i, ni:ni});
+      }
+      if(!opts.length){ stack.pop(); continue; }
+      var ch = pick(opts);
+      cells[idx].w[DIRS[ch.d].w] = false;
+      cells[ch.ni].w[DIRS[ch.d].o] = false;
+      cells[ch.ni].v = true;
+      stack.push(ch.ni);
+    }
+    return cells;
+  }
+  function cxp(x){ return PAD + x*CS + CS/2; }
+  function cyp(y){ return PAD + y*CS + CS/2; }
+
+  function roundMaze(){
+    var cells = genMaze();
+    cur = { mode:"maze", cells:cells, x:0, y:0, path:[[0,0]] };
+    kickEl.textContent = "Лабіринти";
+    say("Проведи мага до замку. Свайп по лабіринту або стрілки внизу.");
+
+    var b = board();
+    var box = div("maze");
+    var W = PAD*2 + MC*CS, H = PAD*2 + MR*CS;
+    var svg = sel("svg",{viewBox:"0 0 "+W+" "+H});
+
+    var trail = sel("path",{ class:"trail", d:"M "+cxp(0)+" "+cyp(0) });
+    svg.appendChild(trail);
+    cur.trail = trail;
+
+    var g = sel("g",{});
+    for(var y=0;y<MR;y++) for(var x=0;x<MC;x++){
+      var c = cells[y*MC+x];
+      var x0=PAD+x*CS, y0=PAD+y*CS, x1=x0+CS, y1=y0+CS;
+      if(c.w[0]) g.appendChild(sel("line",{class:"wall",x1:x0,y1:y0,x2:x1,y2:y0}));
+      if(c.w[3]) g.appendChild(sel("line",{class:"wall",x1:x0,y1:y0,x2:x0,y2:y1}));
+      if(x===MC-1 && c.w[1]) g.appendChild(sel("line",{class:"wall",x1:x1,y1:y0,x2:x1,y2:y1}));
+      if(y===MR-1 && c.w[2]) g.appendChild(sel("line",{class:"wall",x1:x0,y1:y1,x2:x1,y2:y1}));
+    }
+    svg.appendChild(g);
+
+    var goal = sel("text",{ class:"goal", x:cxp(MC-1), y:cyp(MR-1),
+      "text-anchor":"middle", "dominant-baseline":"central" });
+    goal.textContent = "🏰";
+    svg.appendChild(goal);
+
+    var hero = sel("text",{ class:"hero", x:0, y:0,
+      "text-anchor":"middle", "dominant-baseline":"central" });
+    hero.textContent = "🧙";
+    hero.setAttribute("transform","translate("+cxp(0)+","+cyp(0)+")");
+    svg.appendChild(hero);
+    cur.hero = hero;
+
+    box.appendChild(svg);
+    b.appendChild(box);
+    attachSwipe(box);
+    dpad();
+    locked = false;
+  }
+
+  function moveHero(d){
+    if(locked || !cur || cur.mode!=="maze") return;
+    var c = cur.cells[cur.y*MC + cur.x];
+    if(c.w[DIRS[d].w]){ buzz(15); tone(150,0.06,"sine"); return; }
+    cur.x += DIRS[d].dx; cur.y += DIRS[d].dy;
+    cur.path.push([cur.x, cur.y]);
+    cur.hero.setAttribute("transform","translate("+cxp(cur.x)+","+cyp(cur.y)+")");
+    var dstr = "M " + cur.path.map(function(p){ return cxp(p[0])+" "+cyp(p[1]); }).join(" L ");
+    cur.trail.setAttribute("d", dstr);
+    tick();
+    if(cur.x===MC-1 && cur.y===MR-1){
+      locked = true;
+      say("Замок знайдено! Кроків: <b>"+(cur.path.length-1)+"</b>.","good");
+      gain(); setTimeout(nextRound, 1400);
+    }
+  }
+
+  function attachSwipe(box){
+    var sx=0, sy=0, on=false;
+    box.addEventListener("pointerdown", function(e){ on=true; sx=e.clientX; sy=e.clientY; });
+    box.addEventListener("pointerup", function(e){
+      if(!on) return; on=false;
+      var dx=e.clientX-sx, dy=e.clientY-sy;
+      if(Math.abs(dx)<16 && Math.abs(dy)<16) return;
+      if(Math.abs(dx) > Math.abs(dy)) moveHero(dx>0 ? 1 : 3);
+      else moveHero(dy>0 ? 2 : 0);
+    });
+    box.addEventListener("pointercancel", function(){ on=false; });
+  }
+
+  function dpad(){
+    ansEl.className = "dpad";
+    ansEl.innerHTML = "";
+    var layout = [ {t:"◀",d:3}, {t:"▲",d:0}, {t:"▶",d:1}, null, {t:"▼",d:2}, null ];
+    layout.forEach(function(item){
+      var b=document.createElement("button");
+      b.className = "dbtn" + (item?"":" spacer");
+      if(item){
+        b.textContent = item.t;
+        b.addEventListener("click", function(){ moveHero(item.d); });
+      }
+      ansEl.appendChild(b);
+    });
+  }
+
+  document.addEventListener("keydown", function(e){
+    var m = {ArrowUp:0, ArrowRight:1, ArrowDown:2, ArrowLeft:3}[e.key];
+    if(m===undefined) return;
+    if(cur && cur.mode==="maze"){ e.preventDefault(); moveHero(m); }
+  });
+
+  /* ═════════════ очки / хід гри ═════════════ */
+  function gain(){
+    streak++;
+    score += 10 + Math.min(streak-1,5)*2;
+    scoreEl.textContent = score;
+    buzz(20); chime();
+  }
+  function miss(){ streak=0; mistakes++; buzz([30,40,30]); thud(); }
+  function tick(){ buzz(10); tone(760,0.05); }
+
+  function nextRound(){
+    qIndex++;
+    fillEl.style.width = Math.round(qIndex/TOTAL*100)+"%";
+    if(qIndex >= TOTAL){ finish(); return; }
+    renderRound();
+  }
+
+  function renderRound(){
+    locked = true;
+    qNumEl.textContent = (qIndex+1)+"/"+TOTAL;
+    fillEl.style.width = Math.round(qIndex/TOTAL*100)+"%";
+    var m = PLAN[qIndex % PLAN.length];
+    if(m==="pattern") roundPattern();
+    else if(m==="series") roundSeries();
+    else if(m==="odd") roundOdd();
+    else if(m==="magic") roundMagic();
+    else if(m==="sudoku") roundSudoku();
+    else roundMaze();
+  }
+
+  /* ═════════════ звук ═════════════ */
+  var actx=null;
+  function tone(f,d,type){ try{
+    if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)();
+    var o=actx.createOscillator(), g=actx.createGain();
+    o.type=type||"triangle"; o.frequency.value=f; g.gain.value=0.06;
+    o.connect(g); g.connect(actx.destination); o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime+d); o.stop(actx.currentTime+d+0.02);
+  }catch(e){} }
+  function chime(){ tone(660,0.09); setTimeout(function(){ tone(880,0.11); },90); }
+  function thud(){ tone(180,0.16,"sine"); }
+  function fanfare(){ tone(523,0.12); setTimeout(function(){ tone(659,0.12); },120);
+    setTimeout(function(){ tone(784,0.14); },240); setTimeout(function(){ tone(1046,0.18); },380); }
+  function buzz(v){ try{ if(navigator.vibrate) navigator.vibrate(v); }catch(e){} }
+
+  /* ═════════════ фініш ═════════════ */
+  function finish(){
+    locked = true;
+    fanfare();
+    var stars = mistakes===0 ? "⭐⭐⭐" : (mistakes<=3 ? "⭐⭐" : "⭐");
+    document.getElementById("winStars").textContent = stars;
+    document.getElementById("winTitle").textContent = mistakes===0 ? "Вежа підкорена без жодної помилки!" : "Вежу пройдено!";
+    document.getElementById("winSub").textContent =
+      "Пройдено "+TOTAL+" з "+TOTAL+" • Помилок: "+mistakes+" • Очки: "+score;
+    document.getElementById("winScreen").classList.remove("hidden");
+  }
+
+  function startGame(){
+    score=0; streak=0; qIndex=0; mistakes=0; oddBag=[];
+    scoreEl.textContent = score;
+    document.getElementById("startScreen").classList.add("hidden");
+    document.getElementById("winScreen").classList.add("hidden");
+    renderRound();
+  }
+
+  document.getElementById("playBtn").addEventListener("click", startGame);
+  document.getElementById("againBtn").addEventListener("click", startGame);
+  document.getElementById("menuBtn").addEventListener("click", function(){
+    document.getElementById("startScreen").classList.remove("hidden");
+  });
+
+  renderRound();
+})();
+</script>
+</body>
+</html>
