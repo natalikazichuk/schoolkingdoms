@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Компоненти дій — 10 рівнів</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy-0:#0b1030; --navy-1:#141a44; --violet:#3a2b6e;
+  --ink:#141a44;
+  --ink-deep:#0b1030;
+  --grid:rgba(255,207,77,.28);
+  --line:#b9a8ff;
+  --chalk:#f4f1ff;
+  --dim:#b3aee0;
+  --amber:#ffcf4d;
+  --gold-deep:#e0a92e;
+  --mint:#7be0a4;
+  --coral:#ff8b8b;
+  --r:14px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background-color:var(--navy-0);
+  background-image:
+    linear-gradient(rgba(185,168,255,.10) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(185,168,255,.10) 1px, transparent 1px),
+    radial-gradient(120% 80% at 50% 0%, var(--violet), var(--navy-0) 60%);
+  background-size:28px 28px, 28px 28px, 100% 100%;
+  background-attachment:fixed;
+  color:var(--chalk);
+  font-family:"Fredoka",system-ui,sans-serif;
+  min-height:100vh;
+  padding:18px 16px calc(28px + env(safe-area-inset-bottom));
+}
+.wrap{max-width:520px;margin:0 auto}
+.eyebrow{
+  font-family:"Fredoka",sans-serif;font-size:11px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--line)
+}
+h1{font-family:"Fredoka",sans-serif;font-weight:800;font-size:23px;line-height:1.15;margin:6px 0 14px}
+.rule{height:1px;background:var(--line);opacity:.45;margin:14px 0}
+.sync{color:var(--dim)}
+.sync.ok{color:var(--mint)}
+.sync.no{color:var(--coral)}
+
+.hud{display:flex;gap:10px;margin-bottom:16px}
+.stat{flex:1;border:1px solid var(--grid);background:rgba(20,26,68,.72);border-radius:var(--r);padding:9px 11px}
+.stat b{display:block;font-family:"Fredoka",sans-serif;font-size:18px;margin-top:2px}
+.stat .k{font-family:"Fredoka",sans-serif;font-size:10px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase}
+
+.map{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.lvl{
+  text-align:left;border:1px solid var(--grid);background:rgba(20,26,68,.72);
+  color:var(--chalk);border-radius:var(--r);padding:12px;cursor:pointer;
+  font-family:"Fredoka",sans-serif;font-size:13px;font-weight:600;line-height:1.3;
+  transition:transform .12s ease, border-color .12s ease;
+}
+.lvl:hover{transform:translateY(-2px);border-color:var(--line)}
+.lvl .n{font-family:"Fredoka",sans-serif;font-size:10px;color:var(--line);letter-spacing:.1em}
+.lvl.done{border-color:var(--mint)}
+.lvl.done .n{color:var(--mint)}
+.lvl.lock{opacity:.4;cursor:not-allowed}
+.lvl.lock:hover{transform:none}
+.lvl .tag{display:block;margin-top:7px;font-family:"Fredoka",sans-serif;font-size:10px;color:var(--dim)}
+
+/* креслення рівності */
+.blueprint{
+  border:1px solid var(--line);border-radius:var(--r);
+  background:rgba(11,16,48,.7);padding:24px 6px 16px;margin:16px 0
+}
+.eq{display:flex;justify-content:center;align-items:flex-start;gap:2px}
+.slot{display:flex;flex-direction:column;align-items:center;flex:1 1 0;min-width:0;max-width:92px}
+.cell{
+  font-family:"Fredoka",sans-serif;font-weight:600;font-size:clamp(19px,5.6vw,26px);
+  border:1px solid var(--grid);border-radius:10px;padding:8px 4px;width:100%;text-align:center;
+  color:var(--chalk);transition:all .15s ease
+}
+.cell.blank{border-style:dashed;color:var(--amber);border-color:var(--amber)}
+.cell.aim{border-color:var(--amber);color:var(--amber);box-shadow:0 0 0 3px rgba(255,193,69,.15)}
+.cell.ok{border-color:var(--mint);color:var(--mint)}
+.cell.no{border-color:var(--coral);color:var(--coral)}
+.op{font-family:"Fredoka",sans-serif;font-size:clamp(16px,4.4vw,22px);color:var(--line);padding:10px 0;flex:0 0 auto}
+.leader{width:1px;height:16px;background:var(--line);opacity:.5}
+.plate{
+  font-family:"Fredoka",sans-serif;font-size:clamp(7px,2.2vw,9px);letter-spacing:0;line-height:1.15;
+  min-height:28px;width:100%;border-radius:6px;padding:4px 1px;text-align:center;
+  display:grid;place-items:center;color:var(--dim);
+  overflow-wrap:anywhere;word-break:break-word;hyphens:auto;
+  border:1px dashed var(--grid);transition:all .15s ease
+}
+.plate.empty{color:transparent}
+.plate.aim{border-color:var(--amber);border-style:solid;color:var(--amber);animation:blink 1.1s ease infinite}
+.plate.set{border-style:solid;border-color:var(--mint);color:var(--mint);animation:snap .25s ease}
+.plate.miss{border-style:solid;border-color:var(--coral);color:var(--coral)}
+.plate.none{border-color:transparent}
+.plate.info{border-color:transparent;color:var(--dim);animation:snap .25s ease}
+@keyframes blink{0%,100%{box-shadow:0 0 0 0 rgba(255,193,69,.35)}50%{box-shadow:0 0 0 4px rgba(255,193,69,0)}}
+@keyframes snap{from{transform:translateY(-8px) scale(.9);opacity:.3}to{transform:none;opacity:1}}
+
+.q{font-size:15px;font-weight:600;text-align:center;margin:4px 0 0}
+
+/* лоток з назвами */
+.tray{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:14px}
+.chip{
+  border:1px solid var(--grid);background:rgba(20,26,68,.82);color:var(--chalk);
+  border-radius:20px;padding:11px 15px;font-family:"Fredoka",sans-serif;font-weight:700;font-size:13px;cursor:pointer;
+  transition:transform .1s ease, border-color .12s ease
+}
+.chip:hover{border-color:var(--line);transform:translateY(-1px)}
+.chip.used{opacity:.3;pointer-events:none}
+.chip.ok{border-color:var(--mint);color:var(--mint)}
+.chip.no{border-color:var(--coral);color:var(--coral)}
+.chip:disabled{cursor:default}
+
+.opts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.opt{
+  border:1px solid var(--grid);background:rgba(20,26,68,.72);color:var(--chalk);
+  border-radius:10px;padding:14px 8px;font-family:"Fredoka",sans-serif;font-weight:600;font-size:17px;cursor:pointer
+}
+.opt:hover{border-color:var(--line)}
+.opt.ok{border-color:var(--mint);color:var(--mint)}
+.opt.no{border-color:var(--coral);color:var(--coral)}
+.opt:disabled{cursor:default}
+
+.dots{display:flex;gap:5px;justify-content:center;margin:14px 0 0}
+.dot{width:22px;height:3px;border-radius:2px;background:var(--grid)}
+.dot.on{background:var(--amber)}
+.dot.hit{background:var(--mint)}
+
+.msg{text-align:center;font-size:14px;font-weight:600;margin-top:14px;min-height:20px}
+.msg.no{color:var(--coral)}
+.msg.ok{color:var(--mint)}
+.msg.hint{color:var(--amber)}
+
+.btn{
+  display:block;width:100%;margin-top:14px;padding:14px;border-radius:12px;
+  border:1px solid var(--line);background:linear-gradient(180deg,#FFE7A0,var(--gold-deep));color:#5a3d05;
+  font-family:"Fredoka",sans-serif;font-weight:600;font-size:14px;cursor:pointer
+}
+.btn.ghost{background:transparent;color:var(--chalk);border-color:var(--grid)}
+.backlink{
+  display:block;text-align:center;margin-top:16px;padding:12px;border-radius:12px;
+  border:2px solid rgba(255,207,77,.35);background:rgba(20,26,68,.72);
+  color:var(--chalk);text-decoration:none;font-weight:700;font-size:14px
+}
+.backlink:hover{border-color:var(--amber)}
+.hide{display:none}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="screen-map">
+    <div class="eyebrow">Математика · 10 рівнів · <span id="sync" class="sync">…</span></div>
+    <h1>Компоненти дій</h1>
+    <div class="hud">
+      <div class="stat"><span class="k">XP</span><b id="hud-xp">0</b></div>
+      <div class="stat"><span class="k">Точність</span><b id="hud-acc">—</b></div>
+      <div class="stat"><span class="k">Рівні</span><b id="hud-lv">0/10</b></div>
+    </div>
+    <div class="map" id="map"></div>
+    <div class="rule"></div>
+    <div class="eyebrow">Підпиши деталі рівності</div>
+    <a class="backlink" href="igry.html">← До ігор</a>
+  </div>
+
+  <div id="screen-play" class="hide">
+    <div class="eyebrow" id="p-eyebrow"></div>
+    <h1 id="p-title"></h1>
+    <div class="blueprint"><div class="eq" id="p-eq"></div></div>
+    <p class="q" id="p-q"></p>
+    <div class="tray" id="p-tray"></div>
+    <div class="opts hide" id="p-opts"></div>
+    <div class="dots" id="p-dots"></div>
+    <div class="msg" id="p-msg"></div>
+    <button class="btn ghost" id="p-back">До карти рівнів</button>
+  </div>
+
+  <div id="screen-done" class="hide">
+    <div class="eyebrow">Рівень пройдено</div>
+    <h1 id="d-title"></h1>
+    <div class="blueprint"><p class="q" id="d-text"></p></div>
+    <button class="btn" id="d-next">Наступний рівень</button>
+    <button class="btn ghost" id="d-map">До карти рівнів</button>
+  </div>
+
+</div>
+
+<script type="module" src="firebase-config.js"></script>
+<script>
+const NAMES = {add:"Доданок", sum:"Сума", min:"Зменшуване", sub:"Від'ємник", dif:"Різниця"};
+const TRAY = ["add","sum","min","sub","dif"];
+
+const LEVELS = [
+  {t:"Доданок",            s:"Підпиши доданок",             kind:"lblAdd",   max:10},
+  {t:"Сума",               s:"Підпиши суму",                kind:"lblSum",   max:10},
+  {t:"Уся рівність",       s:"Підпиши три деталі додавання",kind:"lblAllAdd",max:20},
+  {t:"Зменшуване",         s:"Підпиши зменшуване",          kind:"lblMin",   max:10},
+  {t:"Від'ємник",          s:"Підпиши від'ємник",           kind:"lblSub",   max:20},
+  {t:"Різниця",            s:"Підпиши різницю",             kind:"lblDif",   max:20},
+  {t:"Уся різниця",        s:"Підпиши три деталі віднімання",kind:"lblAllSub",max:20},
+  {t:"Невідомий доданок",  s:"□ + b = c",                   kind:"unkAdd",   max:20},
+  {t:"Невідоме зменшуване",s:"□ − b = c та a − □ = c",      kind:"unkSub",   max:20},
+  {t:"Чемпіон компонентів",s:"Змішаний рівень",             kind:"mixed",    max:100},
+];
+const PER_LEVEL = 5, XP_FULL = 10, XP_REPLAY = 5;
+const MIXED = ["lblAllAdd","lblAllSub","lblSum","lblDif","unkAdd","unkSub"];
+
+const S = {xp:0, unlocked:0, done:Array(10).fill(false), asked:0, right:0};
+let L=0, qs=[], qi=0, levelXP=0, replay=false, busy=false, step=0;
+
+const $ = id => document.getElementById(id);
+const rnd = (a,b) => a + Math.floor(Math.random()*(b-a+1));
+const shuffle = a => a.map(v=>[Math.random(),v]).sort((x,y)=>x[0]-y[0]).map(p=>p[1]);
+
+/* ---------- питання ---------- */
+function make(kind, max){
+  if(kind==="mixed") kind = shuffle(MIXED)[0];
+  const a = rnd(2, Math.max(3, max-2)), b = rnd(2, Math.max(2, max-a)), c = a+b;
+  const eqAdd = [{v:a,k:"add"},{o:"+"},{v:b,k:"add"},{o:"="},{v:c,k:"sum"}];
+  const eqSub = [{v:c,k:"min"},{o:"−"},{v:b,k:"sub"},{o:"="},{v:a,k:"dif"}];
+
+  if(kind==="lblAdd")    return {eq:eqAdd, targets:[shuffle([0,2])[0]], q:"Підпиши доданок"};
+  if(kind==="lblSum")    return {eq:eqAdd, targets:[4], q:"Підпиши суму"};
+  if(kind==="lblAllAdd") return {eq:eqAdd, targets:[0,2,4], q:"Підпиши всі три деталі"};
+  if(kind==="lblMin")    return {eq:eqSub, targets:[0], q:"Підпиши зменшуване"};
+  if(kind==="lblSub")    return {eq:eqSub, targets:[2], q:"Підпиши від'ємник"};
+  if(kind==="lblDif")    return {eq:eqSub, targets:[4], q:"Підпиши різницю"};
+  if(kind==="lblAllSub") return {eq:eqSub, targets:[0,2,4], q:"Підпиши всі три деталі"};
+
+  // невідомий компонент
+  let eq, hole, q;
+  if(kind==="unkAdd"){ eq = eqAdd.map(x=>({...x})); hole = shuffle([0,2])[0]; q="Знайди невідомий доданок"; }
+  else{
+    eq = eqSub.map(x=>({...x}));
+    hole = shuffle([0,2])[0];
+    q = hole===0 ? "Знайди невідоме зменшуване" : "Знайди невідомий від'ємник";
+  }
+  const ans = eq[hole].v;
+  eq[hole].blank = true;
+  const set = new Set([ans]);
+  let guard=0;
+  while(set.size<3 && guard++<200){ const d = ans + rnd(-3,3); if(d>0 && d!==ans) set.add(d); }
+  return {eq, hole, q, opts:shuffle([...set]).map(String), ans:String(ans)};
+}
+function buildLevel(){
+  qs = Array.from({length:PER_LEVEL}, () => make(LEVELS[L].kind, LEVELS[L].max));
+  qi = 0; levelXP = 0;
+}
+
+/* ---------- рендер ---------- */
+function drawMap(){
+  $("hud-xp").textContent = S.xp;
+  $("hud-acc").textContent = S.asked ? Math.round(S.right/S.asked*100)+"%" : "—";
+  $("hud-lv").textContent = S.done.filter(Boolean).length + "/10";
+  $("map").innerHTML = "";
+  LEVELS.forEach((lv,i)=>{
+    const b = document.createElement("button");
+    const locked = i > S.unlocked;
+    b.className = "lvl" + (S.done[i]?" done":"") + (locked?" lock":"");
+    b.innerHTML = `<span class="n">РІВЕНЬ ${String(i+1).padStart(2,"0")}</span>${lv.t}
+      <span class="tag">${locked ? "зачинено" : (S.done[i] ? "пройдено · повтор ½ XP" : lv.s)}</span>`;
+    b.disabled = locked;
+    b.onclick = () => startLevel(i);
+    $("map").appendChild(b);
+  });
+}
+function show(id){ ["screen-map","screen-play","screen-done"].forEach(s=>$(s).classList.toggle("hide", s!==id)); }
+
+function drawQ(){
+  const q = qs[qi];
+  step = 0;
+  $("p-eyebrow").textContent = `РІВЕНЬ ${String(L+1).padStart(2,"0")} · ${replay ? "повтор · ½ XP" : "+"+XP_FULL+" XP за відповідь"}`;
+  $("p-title").textContent = LEVELS[L].t;
+  $("p-q").textContent = q.q;
+  $("p-msg").textContent = ""; $("p-msg").className = "msg";
+
+  $("p-eq").innerHTML = "";
+  q.eq.forEach((part,i)=>{
+    if(part.o){
+      const o = document.createElement("div"); o.className="op"; o.textContent=part.o;
+      $("p-eq").appendChild(o); return;
+    }
+    const slot = document.createElement("div"); slot.className="slot";
+    const cell = document.createElement("div");
+    cell.className = "cell" + (part.blank?" blank":"");
+    cell.textContent = part.blank ? "□" : part.v;
+    cell.dataset.cell = i;
+    slot.appendChild(cell);
+    const lead = document.createElement("div"); lead.className="leader";
+    const plate = document.createElement("div");
+    const needs = q.targets && q.targets.includes(i);
+    plate.className = "plate " + (needs ? "empty" : "none");
+    plate.dataset.plate = i;
+    plate.textContent = needs ? "?" : "";
+    slot.appendChild(lead); slot.appendChild(plate);
+    $("p-eq").appendChild(slot);
+  });
+
+  const labelMode = !!q.targets;
+  $("p-tray").classList.toggle("hide", !labelMode);
+  $("p-opts").classList.toggle("hide", labelMode);
+  $("p-tray").innerHTML = ""; $("p-opts").innerHTML = "";
+
+  if(labelMode){
+    aim();
+    shuffle(TRAY).forEach(k=>{
+      const b = document.createElement("button");
+      b.className = "chip"; b.textContent = NAMES[k]; b.dataset.k = k;
+      b.onclick = () => tapChip(b, k);
+      $("p-tray").appendChild(b);
+    });
+  }else{
+    q.opts.forEach(o=>{
+      const b = document.createElement("button");
+      b.className = "opt"; b.textContent = o;
+      b.onclick = () => tapOpt(b, o);
+      $("p-opts").appendChild(b);
+    });
+  }
+
+  $("p-dots").innerHTML = qs.map((_,i)=>`<span class="dot ${i<qi?"hit":i===qi?"on":""}"></span>`).join("");
+  busy = false;
+}
+function aim(){
+  const q = qs[qi];
+  document.querySelectorAll(".plate.aim").forEach(p=>p.classList.remove("aim"));
+  document.querySelectorAll(".cell.aim").forEach(c=>c.classList.remove("aim"));
+  const i = q.targets[step];
+  const plate = document.querySelector(`[data-plate="${i}"]`);
+  const cell  = document.querySelector(`[data-cell="${i}"]`);
+  if(plate){ plate.classList.add("aim"); plate.classList.remove("empty"); plate.textContent = "?"; }
+  if(cell) cell.classList.add("aim");
+}
+
+/* ---------- відповіді ---------- */
+function tapChip(btn, k){
+  if(busy) return;
+  const q = qs[qi], i = q.targets[step], want = q.eq[i].k;
+  const plate = document.querySelector(`[data-plate="${i}"]`);
+  const cell  = document.querySelector(`[data-cell="${i}"]`);
+  if(k === want){
+    plate.className = "plate set"; plate.textContent = NAMES[k].toUpperCase();
+    cell.classList.remove("aim"); cell.classList.add("ok");
+    step++;
+    if(step < q.targets.length){
+      aim();
+      $("p-msg").className = "msg hint";
+      $("p-msg").textContent = `Ще ${q.targets.length - step}`;
+    }else{
+      busy = true; finish(true);
+    }
+  }else{
+    busy = true;
+    btn.classList.add("no");
+    plate.className = "plate miss"; plate.textContent = NAMES[want].toUpperCase();
+    cell.classList.remove("aim"); cell.classList.add("no");
+    document.querySelectorAll(".chip").forEach(c=>{
+      c.disabled = true;
+      if(c.dataset.k === want) c.classList.add("ok");
+    });
+    finish(false);
+  }
+}
+function tapOpt(btn, val){
+  if(busy) return; busy = true;
+  const q = qs[qi], ok = val === q.ans;
+  btn.classList.add(ok?"ok":"no");
+  [...$("p-opts").children].forEach(b=>{ b.disabled = true; if(!ok && b.textContent === q.ans) b.classList.add("ok"); });
+  const cell = document.querySelector(`[data-cell="${q.hole}"]`);
+  cell.textContent = q.ans; cell.classList.remove("blank"); cell.classList.add(ok?"ok":"no");
+  finish(ok);
+}
+function revealAll(){
+  qs[qi].eq.forEach((part,i)=>{
+    if(!part.k) return;
+    const plate = document.querySelector(`[data-plate="${i}"]`);
+    if(!plate) return;
+    if(plate.classList.contains("set") || plate.classList.contains("miss")) return;
+    plate.className = "plate info";
+    plate.textContent = NAMES[part.k].toUpperCase();
+  });
+}
+function finish(ok){
+  revealAll();
+  if(!replay){ S.asked++; if(ok) S.right++; }
+  const msg = $("p-msg");
+  if(ok){
+    levelXP += replay ? XP_REPLAY : XP_FULL;
+    msg.className = "msg ok"; msg.textContent = `Правильно · +${replay?XP_REPLAY:XP_FULL} XP`;
+    setTimeout(()=>{ qi++; qi < qs.length ? drawQ() : endLevel(); }, 1500);
+  }else{
+    msg.className = "msg no"; msg.textContent = "Помилка. Рівень починається спочатку, XP рівня скидається";
+    setTimeout(()=>{ buildLevel(); drawQ(); }, 1700);
+  }
+}
+function startLevel(i){ L=i; replay=S.done[i]; buildLevel(); show("screen-play"); drawQ(); }
+function endLevel(){
+  S.xp += levelXP;
+  if(!S.done[L]){ S.done[L]=true; if(L===S.unlocked && L<9) S.unlocked=L+1; }
+  $("d-title").textContent = LEVELS[L].t;
+  $("d-text").textContent = `Зароблено ${levelXP} XP${replay?" (повтор — половина XP, точність не змінюється)":""}. Усього ${S.xp} XP.`;
+  $("d-next").classList.toggle("hide", L>=9);
+  saveProgress();
+  show("screen-done");
+}
+
+$("p-back").onclick = ()=>{ drawMap(); show("screen-map"); };
+$("d-map").onclick  = ()=>{ drawMap(); show("screen-map"); };
+$("d-next").onclick = ()=> startLevel(Math.min(L+1,9));
+
+
+/* ---------- прогрес: localStorage (ключі sk_*) + heroes/{id}.progress через SK ---------- */
+const LS_KEY = "sk_game_komponenty";
+const setSync = (t,c) => { const e=$("sync"); if(e){ e.textContent=t; e.className="sync "+(c||""); } };
+
+function readLS(){
+  try{
+    const o = JSON.parse(localStorage.getItem(LS_KEY) || "null");
+    if(o && typeof o === "object"){
+      S.xp = o.xp|0; S.unlocked = o.unlocked|0; S.asked = o.asked|0; S.right = o.right|0;
+      S.done = Array.isArray(o.done) && o.done.length===10 ? o.done : Array(10).fill(false);
+    }
+  }catch(e){}
+}
+function saveProgress(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){}
+  if(window.SK && SK.pushLocal){
+    SK.pushLocal().then(()=>setSync("збережено","ok")).catch(()=>setSync("локально","no"));
+  }
+}
+window.addEventListener("pagehide", saveProgress);
+
+function waitSK(cb){
+  let n = 0;
+  (function poll(){
+    if(window.SK && window.SK.ready) return cb();
+    if(++n > 60) return cb(null);           // ~6 с — firebase-config.js не піднявся
+    setTimeout(poll, 100);
+  })();
+}
+function boot(){
+  readLS(); drawMap(); setSync("з'єднання…");
+  waitSK(ok => {
+    if(!ok){ setSync("локально — без хмари","no"); return; }
+    SK.ready.then(async () => {
+      try{
+        if(!SK.isHeroSession || !SK.isHeroSession()){ setSync("увійди як Герой","no"); return; }
+        await SK.pullLocal();               // хмара → localStorage
+        readLS(); drawMap();
+        const hero = await SK.getActiveChild();
+        setSync(hero && hero.name ? hero.name : "прогрес у хмарі", "ok");
+      }catch(e){ setSync("локально","no"); }
+    });
+  });
+}
+boot();
+</script>
+</body>
+</html>
