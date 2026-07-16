@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Королівська геометрія — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-0:#0b1030; --navy-1:#141a44; --violet:#3a2b6e;
+    --gold:#ffcf4d; --gold-deep:#e0a92e; --ink:#0a0e26;
+    --text:#f4f1ff; --green:#7be0a4; --green-d:#2e9e54; --red:#ff8b8b;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%; overflow:hidden;}
+  body{
+    font-family:"Fredoka",system-ui,sans-serif; background:var(--navy-0); color:var(--text);
+    user-select:none; -webkit-user-select:none; touch-action:manipulation; overscroll-behavior:none;
+  }
+  #wrap{position:fixed; inset:0; display:flex; flex-direction:column;
+    background:radial-gradient(120% 80% at 50% 0%,var(--violet),var(--navy-0) 60%);}
+
+  /* ── top bar ── */
+  #top{display:flex; align-items:center; gap:8px;
+    padding:calc(env(safe-area-inset-top) + 10px) 12px 4px;}
+  .pill{background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35);
+    border-radius:14px; padding:7px 12px; font-weight:700; font-size:14px; white-space:nowrap;}
+  .pill .lab{opacity:.7; font-size:11px; display:block; line-height:1;}
+  .pill .val{font-size:18px; line-height:1.1;}
+  .pill.q .val{color:var(--gold);}
+  #spacer{flex:1;}
+  #menuBtn{cursor:pointer; font-family:inherit; font-weight:700; font-size:14px;
+    background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35); color:var(--text);
+    border-radius:14px; padding:8px 12px;}
+
+  /* ── progress ── */
+  #barWrap{padding:8px 14px 2px;}
+  #bar{height:10px; border-radius:999px; background:rgba(255,255,255,.1);
+    border:1px solid rgba(255,207,77,.25); overflow:hidden;}
+  #barFill{height:100%; width:0%; border-radius:999px;
+    background:linear-gradient(90deg,#FFE7A0,var(--gold-deep));
+    box-shadow:0 0 12px rgba(255,207,77,.5); transition:width .35s;}
+
+  /* ── сцена ── */
+  #main{flex:1 1 auto; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:10px; padding:6px 12px; min-height:0;}
+  #hint{font-weight:600; font-size:15px; opacity:.92; min-height:22px; text-align:center; line-height:1.35;}
+  #hint b{color:var(--gold);}
+  #hint.bad{color:var(--red);}
+  #hint.good{color:var(--green);}
+
+  #stage{position:relative; width:100%; max-width:460px; flex:1 1 auto; min-height:0;
+    display:flex; align-items:center; justify-content:center;}
+
+  /* дошка, на якій «малює» королівська крейда */
+  .board{position:relative; width:100%; height:100%; max-height:100%;
+    border-radius:22px; border:2px solid rgba(255,207,77,.32);
+    background:
+      linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px) 0 0/28px 28px,
+      linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px) 0 0/28px 28px,
+      linear-gradient(180deg, rgba(38,48,107,.7), rgba(14,18,52,.85));
+    box-shadow:inset 0 0 40px rgba(0,0,0,.45), 0 10px 26px rgba(0,0,0,.4);
+    overflow:hidden;}
+  .board svg{display:block; width:100%; height:100%;}
+
+  .ink{fill:none; stroke:var(--gold); stroke-width:5; stroke-linecap:round; stroke-linejoin:round;
+    filter:drop-shadow(0 0 6px rgba(255,207,77,.55));}
+  .ink.draw{transition:stroke-dashoffset .9s cubic-bezier(.35,.85,.35,1);}
+  .ink.solid{fill:rgba(255,207,77,.42);}
+  .dot{fill:var(--gold); stroke:none; filter:drop-shadow(0 0 8px rgba(255,207,77,.8));}
+  .tip{fill:#fff; filter:drop-shadow(0 0 7px rgba(255,255,255,.9));}
+  .popin{animation:popin .5s cubic-bezier(.3,1.4,.4,1);}
+  @keyframes popin{0%{transform:scale(0); opacity:0}70%{transform:scale(1.25)}100%{transform:scale(1); opacity:1}}
+
+  /* ── сітка «Знайди фігуру» ── */
+  #stage.find{align-items:stretch;}
+  .find-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; width:100%; height:100%;}
+  .tile{position:relative; cursor:pointer; border-radius:18px; border:2px solid rgba(255,207,77,.3);
+    background:linear-gradient(180deg, rgba(38,48,107,.72), rgba(14,18,52,.85));
+    box-shadow:inset 0 0 26px rgba(0,0,0,.4), 0 6px 16px rgba(0,0,0,.35);
+    overflow:hidden; transition:transform .12s, border-color .12s, box-shadow .12s;}
+  .tile svg{display:block; width:100%; height:100%;}
+  .tile:active{transform:scale(.97);}
+  .tile.good{border-color:var(--green); box-shadow:inset 0 0 26px rgba(123,224,164,.3), 0 0 20px rgba(123,224,164,.45);}
+  .tile.good .ink{stroke:var(--green); filter:drop-shadow(0 0 8px rgba(123,224,164,.7));}
+  .tile.good .ink.solid{fill:rgba(123,224,164,.4);}
+  .tile.good .dot{fill:var(--green);}
+  .tile.bad{border-color:var(--red); animation:shake .34s;}
+
+  /* ── відповіді (назви фігур) ── */
+  #answers{display:flex; gap:8px; flex-wrap:wrap; justify-content:center;
+    padding:2px 8px calc(env(safe-area-inset-bottom) + 12px);}
+  #answers:empty{padding:0;}
+  .ans{cursor:pointer; font-family:inherit; font-weight:700; font-size:clamp(15px,4.2vw,18px);
+    color:#4a3300; background:linear-gradient(180deg,#FFE7A0,var(--gold-deep));
+    border:none; border-radius:16px; padding:13px 20px; min-width:104px;
+    box-shadow:0 5px 0 #a9761a, 0 9px 18px rgba(0,0,0,.38);
+    transition:transform .1s, box-shadow .1s, filter .15s;}
+  .ans:active{transform:translateY(3px); box-shadow:0 2px 0 #a9761a, 0 5px 12px rgba(0,0,0,.38);}
+  .ans.good{background:linear-gradient(180deg,#B6F3CE,var(--green-d)); box-shadow:0 5px 0 #1c6d38, 0 9px 18px rgba(0,0,0,.38);}
+  .ans.bad{background:linear-gradient(180deg,#FFC9C9,#c94b4b); box-shadow:0 5px 0 #8a2b2b; animation:shake .34s;}
+  .ans.dim{filter:grayscale(.7); opacity:.5;}
+
+  /* ── точки для побудови ── */
+  .node{cursor:pointer; fill:rgba(255,255,255,.22); stroke:rgba(255,255,255,.5); stroke-width:2;
+    transition:fill .15s, stroke .15s, r .15s;}
+  .node.start{fill:rgba(255,207,77,.35); stroke:var(--gold); animation:pulse 1.3s infinite;}
+  .node.used{fill:var(--gold); stroke:var(--gold); filter:drop-shadow(0 0 7px rgba(255,207,77,.8));}
+  .node.bad{fill:rgba(255,139,139,.6); stroke:var(--red);}
+  @keyframes pulse{0%,100%{stroke-opacity:1}50%{stroke-opacity:.25}}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-9px)}
+    40%{transform:translateX(9px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+
+  /* ── overlays ── */
+  .screen{position:absolute; inset:0; z-index:60; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; padding:24px; gap:14px; overflow-y:auto;
+    background:radial-gradient(120% 90% at 50% 25%,rgba(58,43,110,.72),rgba(11,16,48,.96)); backdrop-filter:blur(2px);}
+  .screen.hidden{display:none;}
+  .crown{font-size:52px; filter:drop-shadow(0 4px 12px rgba(255,207,77,.45));}
+  .title{font-size:28px; font-weight:700; color:var(--gold); line-height:1.12;}
+  .sub{font-size:15px; opacity:.86; max-width:360px; line-height:1.45;}
+  .cta{margin-top:6px; border:none; cursor:pointer; font-family:inherit; font-weight:700;
+    background:linear-gradient(180deg,var(--gold),var(--gold-deep)); color:#3a2a00;
+    font-size:18px; padding:14px 42px; border-radius:999px;
+    box-shadow:0 5px 0 rgba(0,0,0,.3); transition:transform .06s;}
+  .cta:active{transform:translateY(3px); box-shadow:0 2px 0 rgba(0,0,0,.3);}
+  .linkbtn{cursor:pointer; font-family:inherit; font-weight:700; font-size:14px; text-decoration:none;
+    background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35); color:var(--text);
+    border-radius:999px; padding:11px 22px;}
+  .stars{font-size:40px; letter-spacing:6px;}
+  .winrow{display:flex; gap:10px; flex-wrap:wrap; justify-content:center;}
+  .legend{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; max-width:360px;}
+  .legend span{font-size:12px; font-weight:600; background:rgba(255,207,77,.12);
+    border:1px solid rgba(255,207,77,.3); border-radius:999px; padding:5px 10px;}
+
+  :focus-visible{outline:3px solid #fff; outline-offset:2px;}
+
+  @media (max-width:380px){ .ans{min-width:92px; padding:11px 14px;} }
+  @media (prefers-reduced-motion: reduce){
+    .ink.draw{transition:none !important;}
+    .node.start{animation:none;}
+    .popin{animation:none;}
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <div class="pill q"><span class="lab">Завдання</span><span class="val" id="qNum">1/15</span></div>
+    <div class="pill"><span class="lab">Очки</span><span class="val" id="score">0</span></div>
+    <div id="spacer"></div>
+    <button id="menuBtn">☰ Меню</button>
+  </div>
+
+  <div id="barWrap"><div id="bar"><div id="barFill"></div></div></div>
+
+  <div id="main">
+    <div id="hint">Королівська крейда малює…</div>
+    <div id="stage"></div>
+  </div>
+
+  <div id="answers"></div>
+
+  <!-- start / menu -->
+  <div class="screen" id="startScreen">
+    <div class="crown">📐</div>
+    <div class="title">Королівська геометрія</div>
+    <div class="sub">Королівська крейда малює фігури просто в тебе на очах. Впізнавай їх, знаходь серед інших і будуй сам — зʼєднуй точки лініями. 15 завдань.</div>
+    <div class="legend">
+      <span>Точка</span><span>Відрізок</span><span>Ламана</span><span>Коло</span>
+      <span>Круг</span><span>Трикутник</span><span>Квадрат</span><span>Прямокутник</span>
+    </div>
+    <button class="cta" id="playBtn">Грати ▶</button>
+    <a class="linkbtn" href="igry.html">← До ігор</a>
+  </div>
+
+  <!-- win -->
+  <div class="screen hidden" id="winScreen">
+    <div class="crown">👑</div>
+    <div class="title" id="winTitle">Креслення готове!</div>
+    <div class="stars" id="winStars">⭐⭐⭐</div>
+    <div class="sub" id="winSub">Чудова робота!</div>
+    <div class="winrow">
+      <button class="cta" id="againBtn">↻ Ще раз</button>
+    </div>
+    <div class="winrow">
+      <a class="linkbtn" href="igry.html">← До ігор</a>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var TOTAL = 15;
+  var SVGNS = "http://www.w3.org/2000/svg";
+
+  /* ═════════ каталог фігур ═════════ */
+  var SHAPES = {
+    tochka:      { name:"Точка",        why:"Точка — це просто позначка на аркуші. У неї немає ні довжини, ні сторін." },
+    vidrizok:    { name:"Відрізок",     why:"Відрізок — пряма лінія, у якої два кінці.",
+                   how:"зʼєднай дві точки прямою лінією." },
+    lamana:      { name:"Ламана",       why:"Ламана — кілька відрізків, зʼєднаних кінцями, як зламана паличка.",
+                   how:"веди лінію від точки до точки — вийде зламана доріжка." },
+    kolo:        { name:"Коло",         why:"Коло — це тільки кругла лінія. Усередині порожньо." },
+    kruh:        { name:"Круг",         why:"Круг — це коло разом з усім, що всередині. Він зафарбований." },
+    trykutnyk:   { name:"Трикутник",    why:"Трикутник має 3 сторони і 3 кути.",
+                   how:"обійди 3 точки — вийде 3 сторони і 3 кути." },
+    kvadrat:     { name:"Квадрат",      why:"У квадрата 4 сторони — і всі однакові.",
+                   how:"обійди 4 точки так, щоб усі сторони були однакові." },
+    pryamokutnyk:{ name:"Прямокутник",  why:"У прямокутника 4 кути, а протилежні сторони однакові.",
+                   how:"обійди 4 кути — протилежні сторони мають бути однакові." }
+  };
+  var KEYS = Object.keys(SHAPES);
+
+  /* хто з ким плутається — саме з цього робимо варіанти відповідей */
+  var CONFUSE = {
+    kolo:        ["kruh","tochka"],
+    kruh:        ["kolo","tochka"],
+    kvadrat:     ["pryamokutnyk","trykutnyk"],
+    pryamokutnyk:["kvadrat","trykutnyk"],
+    trykutnyk:   ["kvadrat","lamana"],
+    vidrizok:    ["lamana","tochka"],
+    lamana:      ["vidrizok","trykutnyk"],
+    tochka:      ["kolo","vidrizok"]
+  };
+
+  /* фігури, які можна побудувати з точок */
+  var BUILDABLE = ["vidrizok","lamana","trykutnyk","kvadrat","pryamokutnyk"];
+
+  var stageEl  = document.getElementById("stage");
+  var ansEl    = document.getElementById("answers");
+  var hintEl   = document.getElementById("hint");
+  var scoreEl  = document.getElementById("score");
+  var qNumEl   = document.getElementById("qNum");
+  var fillEl   = document.getElementById("barFill");
+
+  var score=0, streak=0, qIndex=0, mistakes=0, locked=true, current=null;
+
+  function rnd(min,max){ return min + Math.floor(Math.random()*(max-min+1)); }
+  function pick(a){ return a[rnd(0,a.length-1)]; }
+  function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=rnd(0,i); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+  function el(tag,attrs){
+    var e=document.createElementNS(SVGNS,tag);
+    for(var k in attrs){ if(Object.prototype.hasOwnProperty.call(attrs,k)) e.setAttribute(k,attrs[k]); }
+    return e;
+  }
+
+  /* ═════════ малюнок фігури (viewBox 0 0 240 200) ═════════ */
+  /* повертає {d, closed, fill, dot} */
+  function shapeGeom(key){
+    var cx=120, cy=100, r, s, w, h, i, pts;
+    if(key==="tochka")  return { dot:true, cx:cx, cy:cy, r:10 };
+    if(key==="kolo" || key==="kruh"){
+      r = rnd(52,70);
+      return { d:"M "+(cx-r)+" "+cy+" a "+r+" "+r+" 0 1 0 "+(2*r)+" 0 a "+r+" "+r+" 0 1 0 "+(-2*r)+" 0",
+               closed:true, fill:(key==="kruh") };
+    }
+    if(key==="kvadrat"){
+      s = rnd(96,126);
+      pts=[[cx-s/2,cy-s/2],[cx+s/2,cy-s/2],[cx+s/2,cy+s/2],[cx-s/2,cy+s/2]];
+      return { d:poly(pts,true), closed:true, rot:rnd(-7,7) };
+    }
+    if(key==="pryamokutnyk"){
+      w = rnd(130,180); h = rnd(62,88);
+      if(Math.random()<0.35){ var t=w; w=h; h=t; }          // іноді «стояча» — вужча, ніж вища
+      pts=[[cx-w/2,cy-h/2],[cx+w/2,cy-h/2],[cx+w/2,cy+h/2],[cx-w/2,cy+h/2]];
+      return { d:poly(pts,true), closed:true, rot:rnd(-5,5) };
+    }
+    if(key==="trykutnyk"){
+      var bw=rnd(110,158), bh=rnd(84,116), ax=rnd(-38,38);
+      pts=[[cx-bw/2,cy+bh/2],[cx+bw/2,cy+bh/2],[cx+ax,cy-bh/2]];
+      return { d:poly(pts,true), closed:true, rot:rnd(-6,6) };
+    }
+    if(key==="vidrizok"){
+      var len=rnd(120,170), ang=rnd(-38,38)*Math.PI/180;
+      var dx=Math.cos(ang)*len/2, dy=Math.sin(ang)*len/2;
+      return { d:"M "+(cx-dx)+" "+(cy-dy)+" L "+(cx+dx)+" "+(cy+dy),
+               closed:false, ends:[[cx-dx,cy-dy],[cx+dx,cy+dy]] };
+    }
+    /* ламана */
+    var n=rnd(3,4), x=rnd(28,58), y=rnd(40,160), lastDir=99;
+    pts=[[x,y]];
+    for(i=0;i<n;i++){
+      var dir, guard=0;
+      do { dir=rnd(0,3); } while(dir===lastDir && guard++<20);
+      lastDir=dir;
+      x += rnd(42,66);
+      y += (dir<2 ? -1 : 1) * rnd(38,64);
+      y = Math.max(28, Math.min(172, y));
+      x = Math.min(214, x);
+      pts.push([x,y]);
+    }
+    return { d:poly(pts,false), closed:false, ends:[pts[0],pts[pts.length-1]] };
+  }
+
+  function poly(pts,close){
+    var d="M "+r2(pts[0][0])+" "+r2(pts[0][1]);
+    for(var i=1;i<pts.length;i++) d+=" L "+r2(pts[i][0])+" "+r2(pts[i][1]);
+    if(close) d+=" Z";
+    return d;
+  }
+  function r2(v){ return Math.round(v*10)/10; }
+
+  /* малює фігуру в новий <svg>; animate=true → крейда веде лінію */
+  var uid=0;
+  function drawShape(key, animate){
+    var g = shapeGeom(key);
+    var svg = el("svg",{viewBox:"0 0 240 200"});
+    var root = el("g",{});
+    if(g.rot) root.setAttribute("transform","rotate("+g.rot+" 120 100)");
+    svg.appendChild(root);
+
+    if(g.dot){
+      var c = el("circle",{cx:g.cx, cy:g.cy, r:g.r, class:"dot"});
+      c.style.transformOrigin = "50% 50%";
+      if(animate) c.setAttribute("class","dot popin");
+      root.appendChild(c);
+      return svg;
+    }
+
+    var id = "gp"+(++uid);
+    var p = el("path",{ id:id, d:g.d, class:"ink"+(g.fill?" solid":"") });
+    root.appendChild(p);
+
+    /* кінцеві крапочки — щоб було видно, що у відрізка/ламаної є кінці */
+    if(g.ends){
+      g.ends.forEach(function(pt){
+        root.appendChild(el("circle",{cx:pt[0], cy:pt[1], r:5, class:"dot"}));
+      });
+    }
+
+    if(animate){
+      /* фарбу заливаємо тільки після того, як лінію дописано */
+      if(g.fill) p.style.fill = "transparent";
+      /* вимірювати довжину можна лише коли <path> уже в документі */
+      requestAnimationFrame(function(){
+        var len;
+        try { len = p.getTotalLength(); } catch(e){ len = 0; }
+        if(!len){ if(g.fill) p.style.fill=""; return; }
+        p.style.strokeDasharray = len;
+        p.style.strokeDashoffset = len;
+        var tip = el("circle",{r:5, class:"tip"});
+        var am  = el("animateMotion",{dur:"0.9s", fill:"freeze"});
+        var mp  = el("mpath",{});
+        mp.setAttribute("href","#"+id);
+        am.appendChild(mp); tip.appendChild(am); root.appendChild(tip);
+        requestAnimationFrame(function(){
+          p.classList.add("draw");
+          p.style.strokeDashoffset = 0;
+        });
+        setTimeout(function(){
+          if(tip.parentNode) tip.parentNode.removeChild(tip);
+          if(g.fill){ p.style.transition="fill .45s"; p.style.fill=""; }
+        }, 920);
+      });
+    } else if(g.fill){
+      /* без анімації — просто зафарбовано */
+    }
+    return svg;
+  }
+
+  /* ═════════ режим 1: ВПІЗНАЙ ═════════ */
+  function roundIdentify(){
+    var key = pick(KEYS);
+    current = { mode:1, key:key };
+
+    stageEl.className = "";
+    stageEl.innerHTML = "";
+    var board = document.createElement("div");
+    board.className = "board";
+    board.appendChild(drawShape(key, true));
+    stageEl.appendChild(board);
+
+    hintEl.className = "";
+    hintEl.textContent = "Що намалювала крейда?";
+
+    var opts = shuffle([key].concat(CONFUSE[key].slice(0,2)));
+    ansEl.innerHTML = "";
+    opts.forEach(function(k){
+      var b=document.createElement("button");
+      b.className="ans"; b.textContent=SHAPES[k].name; b.dataset.key=k;
+      b.addEventListener("click", function(){ answerIdentify(b, k); });
+      ansEl.appendChild(b);
+    });
+    setTimeout(function(){ locked=false; }, 500);
+  }
+
+  function answerIdentify(btn, k){
+    if(locked) return;
+    if(k === current.key){
+      locked = true;
+      btn.classList.add("good");
+      hintEl.className="good";
+      hintEl.textContent = SHAPES[k].why;
+      gain();
+      setTimeout(nextRound, 1300);
+    } else {
+      miss();
+      btn.classList.add("bad");
+      setTimeout(function(){ btn.classList.remove("bad"); btn.classList.add("dim"); btn.disabled=true; }, 340);
+      hintEl.className="bad";
+      hintEl.textContent = "Ні. " + SHAPES[k].why + " Спробуй ще.";
+    }
+  }
+
+  /* ═════════ режим 2: ЗНАЙДИ ═════════ */
+  function roundFind(){
+    var key = pick(KEYS);
+    var pool = shuffle(CONFUSE[key].concat(KEYS.filter(function(k){
+      return k!==key && CONFUSE[key].indexOf(k)<0;
+    })));
+    var others=[], i=0;
+    while(others.length<3 && i<pool.length){ others.push(pool[i++]); }
+    var tiles = shuffle([key].concat(others));
+    current = { mode:2, key:key };
+
+    stageEl.className = "find";
+    stageEl.innerHTML = "";
+    var grid = document.createElement("div");
+    grid.className = "find-grid";
+    tiles.forEach(function(k, idx){
+      var t=document.createElement("div");
+      t.className="tile"; t.dataset.key=k;
+      t.appendChild(drawShape(k, false));
+      t.addEventListener("click", function(){ answerFind(t, k); });
+      grid.appendChild(t);
+      /* короткий сходинковий вихід плиток */
+      t.style.opacity="0"; t.style.transform="scale(.9)";
+      setTimeout(function(){
+        t.style.transition="opacity .3s, transform .3s";
+        t.style.opacity="1"; t.style.transform="scale(1)";
+      }, 60*idx+40);
+    });
+    stageEl.appendChild(grid);
+
+    hintEl.className="";
+    hintEl.innerHTML = "Торкнись: <b>"+SHAPES[key].name+"</b>";
+    ansEl.innerHTML = "";
+    setTimeout(function(){ locked=false; }, 400);
+  }
+
+  function answerFind(tile, k){
+    if(locked) return;
+    if(k === current.key){
+      locked = true;
+      tile.classList.add("good");
+      hintEl.className="good";
+      hintEl.textContent = SHAPES[k].why;
+      gain();
+      setTimeout(nextRound, 1300);
+    } else {
+      miss();
+      tile.classList.add("bad");
+      setTimeout(function(){ tile.classList.remove("bad"); }, 360);
+      hintEl.className="bad";
+      hintEl.textContent = "Це " + SHAPES[k].name.toLowerCase() + ". " + SHAPES[current.key].why;
+    }
+  }
+
+  /* ═════════ режим 3: ПОБУДУЙ ═════════ */
+  /* сітка 5×4, крок 60 → viewBox 320×260 */
+  var GC=5, GR=4, STEP=60, OX=40, OY=40;
+  function gx(c){ return OX + c*STEP; }
+  function gy(r){ return OY + r*STEP; }
+
+  function buildTarget(key){
+    var c, r, s, w, h, pts;
+    if(key==="kvadrat"){
+      s = rnd(2,3);
+      c = rnd(0, GC-1-s); r = rnd(0, GR-1-s);
+      pts=[[c,r],[c+s,r],[c+s,r+s],[c,r+s]];
+      return { pts:pts, closed:true };
+    }
+    if(key==="pryamokutnyk"){
+      do { w=rnd(2,4); h=rnd(1,3); } while(w===h);
+      c = rnd(0, GC-1-w); r = rnd(0, GR-1-h);
+      pts=[[c,r],[c+w,r],[c+w,r+h],[c,r+h]];
+      return { pts:pts, closed:true };
+    }
+    if(key==="trykutnyk"){
+      w = rnd(2,4);
+      c = rnd(0, GC-1-w); r = rnd(2, GR-1);
+      var top = rnd(0, r-2);
+      pts=[[c,r],[c+w,r],[c+rnd(0,w),top]];
+      return { pts:pts, closed:true };
+    }
+    if(key==="vidrizok"){
+      var horiz = Math.random()<0.5;
+      if(horiz){ var L=rnd(2,4); c=rnd(0,GC-1-L); r=rnd(0,GR-1); pts=[[c,r],[c+L,r]]; }
+      else     { var V=rnd(2,3); c=rnd(0,GC-1);   r=rnd(0,GR-1-V); pts=[[c,r],[c,r+V]]; }
+      return { pts:pts, closed:false };
+    }
+    /* ламана: 4 точки, відкрита */
+    var guard=0;
+    while(guard++<400){
+      c = rnd(0,1); r = rnd(0,GR-1);
+      pts=[[c,r]]; var ok=true, pc=c, pr=r;
+      for(var i=0;i<3;i++){
+        pc += rnd(1,2);
+        pr += (Math.random()<0.5?-1:1) * rnd(1,2);
+        if(pc>GC-1 || pr<0 || pr>GR-1){ ok=false; break; }
+        pts.push([pc,pr]);
+      }
+      if(ok && !hasDup(pts)) return { pts:pts, closed:false };
+    }
+    return { pts:[[0,0],[2,1],[3,3],[4,1]], closed:false };
+  }
+  function hasDup(pts){
+    for(var i=0;i<pts.length;i++) for(var j=i+1;j<pts.length;j++)
+      if(pts[i][0]===pts[j][0] && pts[i][1]===pts[j][1]) return true;
+    return false;
+  }
+  /* точка лежить на відрізку? (щоб зайві точки не сідали на лінію) */
+  function onSeg(p,a,b){
+    var cross=(b[0]-a[0])*(p[1]-a[1]) - (b[1]-a[1])*(p[0]-a[0]);
+    if(cross!==0) return false;
+    return Math.min(a[0],b[0])<=p[0] && p[0]<=Math.max(a[0],b[0]) &&
+           Math.min(a[1],b[1])<=p[1] && p[1]<=Math.max(a[1],b[1]);
+  }
+  function onShape(p, t){
+    for(var i=0;i<t.pts.length;i++){
+      var a=t.pts[i], b=t.pts[(i+1)%t.pts.length];
+      if(!t.closed && i===t.pts.length-1) break;
+      if(onSeg(p,a,b)) return true;
+    }
+    return false;
+  }
+
+  function roundBuild(){
+    var key = pick(BUILDABLE);
+    var t = buildTarget(key);
+
+    /* зайві точки */
+    var extras=[], guard=0;
+    while(extras.length<2 && guard++<500){
+      var p=[rnd(0,GC-1), rnd(0,GR-1)];
+      if(onShape(p,t)) continue;
+      if(extras.some(function(e){ return e[0]===p[0] && e[1]===p[1]; })) continue;
+      extras.push(p);
+    }
+    var all = t.pts.map(function(p,i){ return {p:p, idx:i}; })
+      .concat(extras.map(function(p){ return {p:p, idx:-1}; }));
+    shuffle(all);
+
+    current = { mode:3, key:key, target:t, chain:[], nodes:[] };
+
+    stageEl.className = "";
+    stageEl.innerHTML = "";
+    var board = document.createElement("div");
+    board.className = "board";
+    var svg = el("svg",{viewBox:"0 0 320 260"});
+    var lines = el("g",{}); svg.appendChild(lines);
+    current.lines = lines;
+
+    all.forEach(function(n){
+      var c = el("circle",{ cx:gx(n.p[0]), cy:gy(n.p[1]), r:11, class:"node" });
+      c.dataset.idx = n.idx;
+      c.addEventListener("click", function(){ tapNode(c, n.idx); });
+      svg.appendChild(c);
+      current.nodes.push(c);
+    });
+    board.appendChild(svg);
+    stageEl.appendChild(board);
+    markStarts();
+
+    hintEl.className="";
+    hintEl.innerHTML = "Побудуй <b>"+SHAPES[key].name.toLowerCase()+"</b> — "+SHAPES[key].how;
+    ansEl.innerHTML = "";
+    locked = false;
+  }
+
+  function markStarts(){
+    var t=current.target, n=t.pts.length, chain=current.chain;
+    current.nodes.forEach(function(c){ c.classList.remove("start"); });
+    if(chain.length) return;
+    current.nodes.forEach(function(c){
+      var i = +c.dataset.idx;
+      if(i<0) return;
+      if(t.closed || i===0 || i===n-1) c.classList.add("start");
+    });
+  }
+
+  function allowedNext(i){
+    var t=current.target, n=t.pts.length, chain=current.chain;
+    if(i<0) return false;
+    if(chain.indexOf(i)>=0) return false;
+    if(!chain.length) return t.closed ? true : (i===0 || i===n-1);
+    var last = chain[chain.length-1];
+    if(t.closed) return i===(last+1)%n || i===(last-1+n)%n;
+    return i===last+1 || i===last-1;
+  }
+
+  function segLine(a,b,cls){
+    var p = el("path",{ d:"M "+gx(a[0])+" "+gy(a[1])+" L "+gx(b[0])+" "+gy(b[1]),
+                        class:"ink"+(cls?" "+cls:"") });
+    current.lines.appendChild(p);
+    var len = Math.hypot(gx(b[0])-gx(a[0]), gy(b[1])-gy(a[1]));
+    p.style.strokeDasharray = len;
+    p.style.strokeDashoffset = len;
+    requestAnimationFrame(function(){
+      p.style.transition="stroke-dashoffset .25s linear";
+      p.style.strokeDashoffset = 0;
+    });
+    return p;
+  }
+
+  function tapNode(c, i){
+    if(locked) return;
+    if(!allowedNext(i)){
+      miss();
+      c.classList.add("bad");
+      setTimeout(function(){ c.classList.remove("bad"); }, 380);
+      hintEl.className="bad";
+      hintEl.textContent = current.chain.length
+        ? "Веди лінію далі — до сусідньої точки фігури."
+        : "Почни з іншої точки.";
+      return;
+    }
+    var t=current.target, chain=current.chain;
+    if(chain.length) segLine(t.pts[chain[chain.length-1]], t.pts[i]);
+    chain.push(i);
+    c.classList.remove("start");
+    c.classList.add("used");
+    tick();
+    markStarts();
+
+    if(chain.length === t.pts.length){
+      locked = true;
+      if(t.closed){
+        segLine(t.pts[chain[chain.length-1]], t.pts[chain[0]]);
+        setTimeout(function(){
+          var f = el("path",{ d:poly(t.pts.map(function(p){ return [gx(p[0]),gy(p[1])]; }), true),
+                              class:"ink solid" });
+          f.style.fill="transparent";
+          current.lines.appendChild(f);
+          requestAnimationFrame(function(){ f.style.transition="fill .5s"; f.style.fill=""; });
+        }, 280);
+      }
+      hintEl.className="good";
+      hintEl.textContent = SHAPES[current.key].why;
+      gain();
+      setTimeout(nextRound, 1500);
+    } else {
+      hintEl.className="";
+      hintEl.innerHTML = "Далі — наступна точка. Будуєш <b>"+SHAPES[current.key].name.toLowerCase()+"</b>.";
+    }
+  }
+
+  /* ═════════ очки / хід гри ═════════ */
+  function gain(){
+    streak++;
+    score += 10 + Math.min(streak-1,5)*2;
+    scoreEl.textContent = score;
+    buzz(20); chime();
+  }
+  function miss(){
+    streak = 0; mistakes++;
+    buzz([30,40,30]); thud();
+  }
+  function tick(){ buzz(12); tone(760,0.05); }
+
+  var MODES = [1,2,3];
+  var lastMode = 0;
+  function nextRound(){
+    qIndex++;
+    fillEl.style.width = Math.round(qIndex/TOTAL*100)+"%";
+    if(qIndex >= TOTAL){ finish(); return; }
+    renderRound();
+  }
+
+  function renderRound(){
+    locked = true;
+    qNumEl.textContent = (qIndex+1)+"/"+TOTAL;
+    fillEl.style.width = Math.round(qIndex/TOTAL*100)+"%";
+    var m;
+    if(qIndex===0) m=1;
+    else { var guard=0; do { m=pick(MODES); } while(m===lastMode && guard++<10); }
+    lastMode = m;
+    if(m===1) roundIdentify();
+    else if(m===2) roundFind();
+    else roundBuild();
+  }
+
+  /* ═════════ звук ═════════ */
+  var actx=null;
+  function tone(f,d,type){ try{
+    if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)();
+    var o=actx.createOscillator(), g=actx.createGain();
+    o.type=type||"triangle"; o.frequency.value=f; g.gain.value=0.06;
+    o.connect(g); g.connect(actx.destination); o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime+d); o.stop(actx.currentTime+d+0.02);
+  }catch(e){} }
+  function chime(){ tone(660,0.09); setTimeout(function(){ tone(880,0.11); },90); }
+  function thud(){ tone(180,0.16,"sine"); }
+  function fanfare(){ tone(523,0.12); setTimeout(function(){ tone(659,0.12); },120);
+    setTimeout(function(){ tone(784,0.14); },240); setTimeout(function(){ tone(1046,0.18); },380); }
+  function buzz(v){ try{ if(navigator.vibrate) navigator.vibrate(v); }catch(e){} }
+
+  /* ═════════ фініш ═════════ */
+  function finish(){
+    locked = true;
+    fanfare();
+    var stars = mistakes===0 ? "⭐⭐⭐" : (mistakes<=3 ? "⭐⭐" : "⭐");
+    document.getElementById("winStars").textContent = stars;
+    document.getElementById("winTitle").textContent = mistakes===0 ? "Бездоганне креслення!" : "Креслення готове!";
+    document.getElementById("winSub").textContent =
+      "Пройдено "+TOTAL+" з "+TOTAL+" • Помилок: "+mistakes+" • Очки: "+score;
+    document.getElementById("winScreen").classList.remove("hidden");
+  }
+
+  function startGame(){
+    score=0; streak=0; qIndex=0; mistakes=0; lastMode=0;
+    scoreEl.textContent = score;
+    document.getElementById("startScreen").classList.add("hidden");
+    document.getElementById("winScreen").classList.add("hidden");
+    renderRound();
+  }
+
+  document.getElementById("playBtn").addEventListener("click", startGame);
+  document.getElementById("againBtn").addEventListener("click", startGame);
+  document.getElementById("menuBtn").addEventListener("click", function(){
+    document.getElementById("startScreen").classList.remove("hidden");
+  });
+
+  renderRound();   // фонове креслення під стартовим екраном
+})();
+</script>
+</body>
+</html>
