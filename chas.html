@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Годинник королівства</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+
+:root{
+  --navy-0:#0b1030; --navy-1:#141a44; --violet:#3a2b6e;
+  --ink:#141a44;
+  --ink-deep:#0b1030;
+  --grid:rgba(255,207,77,.28);
+  --line:#b9a8ff;
+  --chalk:#f4f1ff;
+  --dim:#b3aee0;
+  --amber:#ffcf4d;
+  --gold-deep:#e0a92e;
+  --mint:#7be0a4;
+  --coral:#ff8b8b;
+  --r:14px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background-color:var(--navy-0);
+  background-image:
+    linear-gradient(rgba(185,168,255,.10) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(185,168,255,.10) 1px, transparent 1px),
+    radial-gradient(120% 80% at 50% 0%, var(--violet), var(--navy-0) 60%);
+  background-size:28px 28px, 28px 28px, 100% 100%;
+  background-attachment:fixed;
+  color:var(--chalk);
+  font-family:"Fredoka",system-ui,sans-serif;
+  min-height:100vh;
+  padding:18px 16px calc(28px + env(safe-area-inset-bottom));
+}
+.wrap{max-width:520px;margin:0 auto}
+.eyebrow{
+  font-family:"Fredoka",sans-serif;font-size:11px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--line)
+}
+h1{font-family:"Fredoka",sans-serif;font-weight:800;font-size:23px;line-height:1.15;margin:6px 0 14px}
+.rule{height:1px;background:var(--line);opacity:.45;margin:14px 0}
+.sync{color:var(--dim)}
+.sync.ok{color:var(--mint)}
+.sync.no{color:var(--coral)}
+
+.hud{display:flex;gap:10px;margin-bottom:16px}
+.stat{flex:1;border:1px solid var(--grid);background:rgba(20,26,68,.72);border-radius:var(--r);padding:9px 11px}
+.stat b{display:block;font-family:"Fredoka",sans-serif;font-size:18px;margin-top:2px}
+.stat .k{font-family:"Fredoka",sans-serif;font-size:10px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase}
+
+.map{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.lvl{
+  text-align:left;border:1px solid var(--grid);background:rgba(20,26,68,.72);
+  color:var(--chalk);border-radius:var(--r);padding:12px;cursor:pointer;
+  font-family:"Fredoka",sans-serif;font-size:13px;font-weight:600;line-height:1.3;
+  transition:transform .12s ease, border-color .12s ease;
+}
+.lvl:hover{transform:translateY(-2px);border-color:var(--line)}
+.lvl .n{font-family:"Fredoka",sans-serif;font-size:10px;color:var(--line);letter-spacing:.1em}
+.lvl.done{border-color:var(--mint)}
+.lvl.done .n{color:var(--mint)}
+.lvl.lock{opacity:.4;cursor:not-allowed}
+.lvl.lock:hover{transform:none}
+.lvl .tag{display:block;margin-top:7px;font-family:"Fredoka",sans-serif;font-size:10px;color:var(--dim)}
+
+.q{font-size:15px;font-weight:600;text-align:center;margin:4px 0 0}
+
+.opts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.opts.wide{grid-template-columns:repeat(2,1fr)}
+.opt{
+  border:1px solid var(--grid);background:rgba(20,26,68,.72);color:var(--chalk);
+  border-radius:10px;padding:14px 8px;font-family:"Fredoka",sans-serif;font-weight:600;font-size:16px;cursor:pointer
+}
+.opt.word{font-family:"Fredoka",sans-serif;font-size:14px}
+.opt:hover{border-color:var(--line)}
+.opt.ok{border-color:var(--mint);color:var(--mint)}
+.opt.no{border-color:var(--coral);color:var(--coral)}
+.opt:disabled{cursor:default}
+
+.dots{display:flex;gap:5px;justify-content:center;margin:12px 0 0}
+.dot{width:22px;height:3px;border-radius:2px;background:var(--grid)}
+.dot.on{background:var(--amber)}
+.dot.hit{background:var(--mint)}
+
+.msg{text-align:center;font-size:14px;font-weight:600;margin-top:14px;min-height:20px}
+.msg.no{color:var(--coral)}
+.msg.ok{color:var(--mint)}
+.msg.hint{color:var(--amber)}
+
+.btn{
+  display:block;width:100%;margin-top:14px;padding:14px;border-radius:12px;
+  border:1px solid var(--line);background:linear-gradient(180deg,#FFE7A0,var(--gold-deep));color:#5a3d05;
+  font-family:"Fredoka",sans-serif;font-weight:600;font-size:14px;cursor:pointer
+}
+.btn.ghost{background:transparent;color:var(--chalk);border-color:var(--grid)}
+.backlink{
+  display:block;text-align:center;margin-top:16px;padding:12px;border-radius:12px;
+  border:2px solid rgba(255,207,77,.35);background:rgba(20,26,68,.72);
+  color:var(--chalk);text-decoration:none;font-weight:700;font-size:14px
+}
+.backlink:hover{border-color:var(--amber)}
+.hide{display:none}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+
+.panel{border:1px solid var(--grid);border-radius:var(--r);background:rgba(11,16,48,.7);margin:16px 0}
+.clockbox{display:flex;justify-content:center;padding:16px 10px 10px}
+svg.clock{width:min(230px,62vw);height:auto;display:block}
+.face{fill:rgba(20,26,68,.9);stroke:var(--amber);stroke-width:3}
+.tick{stroke:var(--dim);stroke-width:2;stroke-linecap:round}
+.tick.big{stroke:var(--amber);stroke-width:3}
+.numh{fill:var(--chalk);font-family:"Fredoka",sans-serif;font-size:11px;text-anchor:middle;dominant-baseline:central}
+.hand-h{stroke:var(--amber);stroke-width:6;stroke-linecap:round;transition:transform .45s cubic-bezier(.4,1.6,.5,1);transform-origin:60px 60px}
+.hand-m{stroke:var(--chalk);stroke-width:3.5;stroke-linecap:round;transition:transform .45s cubic-bezier(.4,1.6,.5,1);transform-origin:60px 60px}
+.pin{fill:var(--gold-deep)}
+.digital{
+  text-align:center;font-weight:700;font-size:19px;color:var(--amber);
+  border-top:1px solid var(--grid);padding:9px
+}
+.week{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;padding:16px 10px}
+.day{
+  border:1px solid var(--grid);background:rgba(20,26,68,.72);border-radius:10px;
+  padding:9px 10px;font-weight:600;font-size:12px;color:var(--dim)
+}
+.day.hi{border-color:var(--amber);color:var(--amber)}
+.tools{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.tool{
+  border-radius:10px;padding:14px 8px;cursor:pointer;font-family:"Fredoka",sans-serif;
+  font-weight:700;font-size:14px;border:1px solid var(--amber);background:rgba(20,26,68,.72);color:var(--amber)
+}
+.tool:hover{filter:brightness(1.25)}
+.opts{grid-template-columns:repeat(3,1fr)}
+.opts.wide{grid-template-columns:repeat(2,1fr)}
+.opt.word{font-size:13px}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="screen-map">
+    <div class="eyebrow">Математика · 10 рівнів · <span id="sync" class="sync">…</span></div>
+    <h1>Годинник королівства</h1>
+    <div class="hud">
+      <div class="stat"><span class="k">XP</span><b id="hud-xp">0</b></div>
+      <div class="stat"><span class="k">Точність</span><b id="hud-acc">—</b></div>
+      <div class="stat"><span class="k">Рівні</span><b id="hud-lv">0/10</b></div>
+    </div>
+    <div class="map" id="map"></div>
+    <div class="rule"></div>
+    <div class="eyebrow">Година · доба · тиждень</div>
+    <a class="backlink" href="igry.html">← До ігор</a>
+  </div>
+
+  <div id="screen-play" class="hide">
+    <div class="eyebrow" id="p-eyebrow"></div>
+    <h1 id="p-title"></h1>
+    <div class="panel">
+      <div class="clockbox" id="clockbox">
+        <svg class="clock" viewBox="0 0 120 120" aria-hidden="true">
+          <circle class="face" cx="60" cy="60" r="55"></circle>
+          <g id="ticks"></g>
+          <g id="nums"></g>
+          <line class="hand-h" id="hh" x1="60" y1="60" x2="60" y2="32"></line>
+          <line class="hand-m" id="mh" x1="60" y1="60" x2="60" y2="20"></line>
+          <circle class="pin" cx="60" cy="60" r="4"></circle>
+        </svg>
+      </div>
+      <div class="week hide" id="week"></div>
+      <div class="digital" id="digital"></div>
+    </div>
+    <p class="q" id="p-q"></p>
+    <div class="opts" id="p-opts"></div>
+    <div id="p-tools"></div>
+    <div class="dots" id="p-dots"></div>
+    <div class="msg" id="p-msg"></div>
+    <button class="btn ghost" id="p-back">До карти рівнів</button>
+  </div>
+
+  <div id="screen-done" class="hide">
+    <div class="eyebrow">Рівень пройдено</div>
+    <h1 id="d-title"></h1>
+    <div class="panel"><p class="q" id="d-text" style="padding:20px 12px"></p></div>
+    <button class="btn" id="d-next">Наступний рівень</button>
+    <button class="btn ghost" id="d-map">До карти рівнів</button>
+  </div>
+
+</div>
+
+<script type="module" src="firebase-config.js"></script>
+<script>
+
+const DAYS = ["понеділок","вівторок","середа","четвер","п'ятниця","субота","неділя"];
+const DAYS_ACC = ["понеділка","вівторка","середи","четверга","п'ятниці","суботи","неділі"];
+const PARTS = ["ранок","день","вечір","ніч"];
+const ACTS = [
+  ["сніданок","ранок"],["прокидаємось","ранок"],["сонце сходить","ранок"],
+  ["обід","день"],["уроки в школі","день"],["сонце найвище","день"],
+  ["вечеря","вечір"],["сонце сідає","вечір"],["готуємось до сну","вечір"],
+  ["бачимо зорі","ніч"],["усі сплять","ніч"],["найтемніше надворі","ніч"]
+];
+
+const LEVELS = [
+  {t:"Котра година",     s:"Читай стрілки: рівна година", kind:"readHour"},
+  {t:"Пів на",           s:"Хвилинна стрілка на 6",       kind:"readHalf"},
+  {t:"Постав годину",    s:"Крути стрілку до потрібної",  kind:"setHour"},
+  {t:"Постав пів на",    s:"Крути по півгодини",          kind:"setHalf"},
+  {t:"Через скільки",    s:"Котра буде за 2 години",      kind:"shift"},
+  {t:"Доба",             s:"24 години",                   kind:"day"},
+  {t:"Тиждень",          s:"7 днів",                      kind:"week"},
+  {t:"Дні тижня",        s:"Який після, який перед",      kind:"dayName"},
+  {t:"Частини доби",     s:"Ранок, день, вечір, ніч",     kind:"part"},
+  {t:"Чемпіон часу",     s:"Змішаний рівень",             kind:"mixed"},
+];
+const MIXED = ["readHour","readHalf","shift","day","week","dayName","part"];
+
+let dial = 0;          // поточний стан циферблата у півгодинах (0..23)
+const hhOf = v => Math.floor(v/2) % 12 || 12;
+const isHalf = v => v % 2 === 1;
+const timeText = v => isHalf(v) ? `пів на ${hhOf(v)%12+1}` : `${hhOf(v)} година`;
+
+function make(kind){
+  if(kind==="mixed") kind = shuffle(MIXED)[0];
+  if(kind==="readHour"){
+    const h = rnd(1,12);
+    return {kind, dial:h*2%24, q:"Котра година?", opts:opts3(h,[h+1,h-1]).map(x=>x+" год"), ans:h+" год"};
+  }
+  if(kind==="readHalf"){
+    const h = rnd(1,12), nxt = h%12+1;
+    const wrong = [`${h} година`, `${nxt} година`, `пів на ${h}`];
+    const opts = shuffle([`пів на ${nxt}`, ...shuffle(wrong).slice(0,2)]);
+    return {kind, dial:(h*2+1)%24, q:"Котра година?", opts, ans:`пів на ${nxt}`, word:true};
+  }
+  if(kind==="setHour" || kind==="setHalf"){
+    const half = kind==="setHalf";
+    const start = half ? 0 : 2;
+    let target = start;
+    let guard = 0;
+    while(target === start && guard++ < 50){
+      target = half ? rnd(0,23) : rnd(1,12)*2%24;
+      if(half && !isHalf(target)) target = (target+1)%24;
+    }
+    return {kind, set:true, step: half?1:2, target,
+            q:`Постав на годиннику: ${timeText(target)}`, start};
+  }
+  if(kind==="shift"){
+    const h = rnd(1,9), k = rnd(1,3);
+    return {kind, dial:h*2, q:`Зараз ${h} година. Котра буде через ${k} год?`,
+            opts:opts3(h+k,[h-k,h+k+1]).map(x=>x+" год"), ans:(h+k)+" год"};
+  }
+  if(kind==="day"){
+    const v = shuffle([["Скільки годин у добі?",24,[12,7]],
+                       ["Скільки годин у половині доби?",12,[24,6]],
+                       [`${rnd(2,3)} доби = □ год`,0,[]]])[0];
+    if(v[1]===0){ const n = +v[0][0]; return {kind, dial:24, q:v[0], opts:opts3(n*24,[24+n,n*12]).map(String), ans:String(n*24)}; }
+    return {kind, dial:24, q:v[0], opts:opts3(v[1],v[2]).map(String), ans:String(v[1])};
+  }
+  if(kind==="week"){
+    const n = rnd(2,4);
+    const v = shuffle([["Скільки днів у тижні?",7,[5,24]], [`${n} тижні = □ днів`,n*7,[7+n,n*5]]])[0];
+    return {kind, showWeek:true, q:v[0], opts:opts3(v[1],v[2]).map(String), ans:String(v[1])};
+  }
+  if(kind==="dayName"){
+    const i = rnd(0,6), after = Math.random()<.5;
+    const ans = DAYS[(after ? i+1 : i+6) % 7];
+    const opts = shuffle([ans, ...shuffle(DAYS.filter(d=>d!==ans)).slice(0,2)]);
+    return {kind, showWeek:true, hiDay:i, word:true,
+            q:`Який день ${after?"після":"перед"} ${DAYS_ACC[i]}?`, opts, ans};
+  }
+  const [act, part] = ACTS[rnd(0,ACTS.length-1)];
+  const opts = shuffle([part, ...shuffle(PARTS.filter(p=>p!==part)).slice(0,2)]);
+  return {kind:"part", word:true, q:`Коли це буває: ${act}?`, opts, ans:part};
+}
+
+/* ---------- циферблат ---------- */
+(function initFace(){
+  let t = "", n = "";
+  for(let i=0;i<12;i++){
+    const a = i*30*Math.PI/180;
+    const x1 = 60+Math.sin(a)*49, y1 = 60-Math.cos(a)*49;
+    const x2 = 60+Math.sin(a)*44, y2 = 60-Math.cos(a)*44;
+    t += `<line class="tick big" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"></line>`;
+    const nx = 60+Math.sin(a)*37, ny = 60-Math.cos(a)*37;
+    n += `<text class="numh" x="${nx.toFixed(1)}" y="${ny.toFixed(1)}">${i===0?12:i}</text>`;
+  }
+  document.getElementById("ticks").innerHTML = t;
+  document.getElementById("nums").innerHTML = n;
+})();
+function drawClock(v){
+  dial = ((v % 24) + 24) % 24;
+  const hDeg = dial * 15 % 360;
+  const mDeg = isHalf(dial) ? 180 : 0;
+  $("hh").style.transform = `rotate(${hDeg}deg)`;
+  $("mh").style.transform = `rotate(${mDeg}deg)`;
+  $("digital").textContent = timeText(dial);
+}
+function drawWeek(hi){
+  $("week").innerHTML = DAYS.map((d,i)=>`<span class="day${i===hi?" hi":""}">${d}</span>`).join("");
+}
+function stepDial(k){
+  if(busy) return;
+  drawClock(dial + k * qs[qi].step);
+  if(dial === qs[qi].target){ busy = true; finish(true); }
+}
+function reveal(ok){
+  const q = qs[qi];
+  if(q.set) return;
+  if(q.dial !== undefined && !ok) drawClock(q.dial);
+}
+function wrongMsg(){
+  const q = qs[qi];
+  return q.set ? `Правильно було ${timeText(q.target)}. Рівень починається спочатку`
+               : "Помилка. Рівень починається спочатку, XP рівня скидається";
+}
+
+function drawQ(){
+  const q = qs[qi];
+  $("p-eyebrow").textContent = `РІВЕНЬ ${String(L+1).padStart(2,"0")} · ${replay ? "повтор · ½ XP" : "+"+XP_FULL+" XP за відповідь"}`;
+  $("p-title").textContent = LEVELS[L].t;
+  $("p-q").textContent = q.q;
+  $("p-msg").textContent = ""; $("p-msg").className = "msg";
+
+  $("week").classList.toggle("hide", !q.showWeek);
+  $("clockbox").classList.toggle("hide", !!q.showWeek);
+  $("digital").classList.toggle("hide", !!q.showWeek);
+  if(q.showWeek) drawWeek(q.hiDay);
+  else drawClock(q.set ? q.start : q.dial);
+
+  $("p-opts").innerHTML = ""; $("p-tools").innerHTML = "";
+  $("p-opts").classList.toggle("hide", !!q.set);
+  $("p-opts").classList.toggle("wide", !!q.word);
+
+  if(q.set){
+    const box = document.createElement("div"); box.className = "tools";
+    const back = document.createElement("button");
+    back.className = "tool"; back.textContent = q.step===1 ? "◀ пів години" : "◀ година";
+    back.onclick = () => stepDial(-1);
+    const fwd = document.createElement("button");
+    fwd.className = "tool"; fwd.textContent = q.step===1 ? "пів години ▶" : "година ▶";
+    fwd.onclick = () => stepDial(1);
+    box.appendChild(back); box.appendChild(fwd);
+    $("p-tools").appendChild(box);
+  }else{
+    q.opts.forEach(o=>{
+      const b = document.createElement("button");
+      b.className = "opt" + (q.word ? " word" : ""); b.textContent = o;
+      b.onclick = () => answer(b, o);
+      $("p-opts").appendChild(b);
+    });
+  }
+  $("p-dots").innerHTML = qs.map((_,i)=>`<span class="dot ${i<qi?"hit":i===qi?"on":""}"></span>`).join("");
+  busy = false;
+}
+
+/* ---------- спільний рушій ---------- */
+const S = {xp:0, unlocked:0, done:Array(10).fill(false), asked:0, right:0};
+let L=0, qs=[], qi=0, levelXP=0, replay=false, busy=false;
+const PER_LEVEL = 5, XP_FULL = 10, XP_REPLAY = 5;
+
+const $ = id => document.getElementById(id);
+const rnd = (a,b) => a + Math.floor(Math.random()*(b-a+1));
+const shuffle = a => a.map(v=>[Math.random(),v]).sort((x,y)=>x[0]-y[0]).map(p=>p[1]);
+function opts3(ans, near){
+  const s = new Set([ans]);
+  (near||[]).forEach(n => { if(n>=0 && n!==ans && s.size<3) s.add(n); });
+  let g=0;
+  while(s.size<3 && g++<300){ const d = ans + rnd(-3,3); if(d>=0 && d!==ans) s.add(d); }
+  return shuffle([...s]).map(String);
+}
+function buildLevel(){
+  qs = Array.from({length:PER_LEVEL}, () => make(LEVELS[L].kind));
+  qi = 0; levelXP = 0;
+}
+function drawMap(){
+  $("hud-xp").textContent = S.xp;
+  $("hud-acc").textContent = S.asked ? Math.round(S.right/S.asked*100)+"%" : "—";
+  $("hud-lv").textContent = S.done.filter(Boolean).length + "/10";
+  $("map").innerHTML = "";
+  LEVELS.forEach((lv,i)=>{
+    const b = document.createElement("button");
+    const locked = i > S.unlocked;
+    b.className = "lvl" + (S.done[i]?" done":"") + (locked?" lock":"");
+    b.innerHTML = `<span class="n">РІВЕНЬ ${String(i+1).padStart(2,"0")}</span>${lv.t}
+      <span class="tag">${locked ? "зачинено" : (S.done[i] ? "пройдено · повтор ½ XP" : lv.s)}</span>`;
+    b.disabled = locked;
+    b.onclick = () => startLevel(i);
+    $("map").appendChild(b);
+  });
+}
+function show(id){ ["screen-map","screen-play","screen-done"].forEach(s=>$(s).classList.toggle("hide", s!==id)); }
+function answer(btn, val){
+  if(busy) return; busy = true;
+  const ok = val === qs[qi].ans;
+  btn.classList.add(ok?"ok":"no");
+  [...$("p-opts").children].forEach(b=>{ b.disabled=true; if(!ok && b.textContent===qs[qi].ans) b.classList.add("ok"); });
+  finish(ok);
+}
+function finish(ok){
+  if(typeof reveal === "function") reveal(ok);
+  if(!replay){ S.asked++; if(ok) S.right++; }
+  const msg = $("p-msg");
+  if(ok){
+    levelXP += replay ? XP_REPLAY : XP_FULL;
+    msg.className = "msg ok"; msg.textContent = `Правильно · +${replay?XP_REPLAY:XP_FULL} XP`;
+    setTimeout(()=>{ qi++; qi < qs.length ? drawQ() : endLevel(); }, 1200);
+  }else{
+    msg.className = "msg no"; msg.textContent = wrongMsg();
+    setTimeout(()=>{ buildLevel(); drawQ(); }, 1800);
+  }
+}
+function startLevel(i){ L=i; replay=S.done[i]; buildLevel(); show("screen-play"); drawQ(); }
+function endLevel(){
+  S.xp += levelXP;
+  if(!S.done[L]){ S.done[L]=true; if(L===S.unlocked && L<9) S.unlocked=L+1; }
+  $("d-title").textContent = LEVELS[L].t;
+  $("d-text").textContent = `Зароблено ${levelXP} XP${replay?" (повтор — половина XP, точність не змінюється)":""}. Усього ${S.xp} XP.`;
+  $("d-next").classList.toggle("hide", L>=9);
+  saveProgress();
+  show("screen-done");
+}
+$("p-back").onclick = ()=>{ drawMap(); show("screen-map"); };
+$("d-map").onclick  = ()=>{ drawMap(); show("screen-map"); };
+$("d-next").onclick = ()=> startLevel(Math.min(L+1,9));
+
+/* ---------- прогрес: localStorage (sk_*) + heroes/{id}.progress через SK ---------- */
+const LS_KEY = "sk_game_chas";
+const setSync = (t,c) => { const e=$("sync"); if(e){ e.textContent=t; e.className="sync "+(c||""); } };
+function readLS(){
+  try{
+    const o = JSON.parse(localStorage.getItem(LS_KEY) || "null");
+    if(o && typeof o === "object"){
+      S.xp = o.xp|0; S.unlocked = o.unlocked|0; S.asked = o.asked|0; S.right = o.right|0;
+      S.done = Array.isArray(o.done) && o.done.length===10 ? o.done : Array(10).fill(false);
+    }
+  }catch(e){}
+}
+function saveProgress(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){}
+  if(window.SK && SK.pushLocal){
+    SK.pushLocal().then(()=>setSync("збережено","ok")).catch(()=>setSync("локально","no"));
+  }
+}
+window.addEventListener("pagehide", saveProgress);
+function waitSK(cb){
+  let n = 0;
+  (function poll(){
+    if(window.SK && window.SK.ready) return cb(true);
+    if(++n > 60) return cb(false);
+    setTimeout(poll, 100);
+  })();
+}
+function boot(){
+  readLS(); drawMap(); setSync("з'єднання…");
+  waitSK(ok => {
+    if(!ok){ setSync("локально — без хмари","no"); return; }
+    SK.ready.then(async () => {
+      try{
+        if(!SK.isHeroSession || !SK.isHeroSession()){ setSync("увійди як Герой","no"); return; }
+        await SK.pullLocal();
+        readLS(); drawMap();
+        const hero = await SK.getActiveChild();
+        setSync(hero && hero.name ? hero.name : "прогрес у хмарі", "ok");
+      }catch(e){ setSync("локально","no"); }
+    });
+  });
+}
+boot();
+</script>
+</body>
+</html>
