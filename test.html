@@ -227,12 +227,21 @@ function shuffleQs(list){
   });
 }
 function totalQs(){ return levelsArr().reduce(function(s,L,i){ return s+levelCount(i); },0); }
-/* кількість питань у рівні: із статичних questions[] або з поля count */
+/* Скільки питань у рівні.
+   Якщо рівень має і questions[], і count — count МЕНШИЙ за пул означає:
+   «показати випадкову вибірку з пулу». Так статичний тест перестає бути
+   тим самим набором прикладів при кожній спробі: у рівні лежить, скажімо,
+   24 приклади, а дитина щоразу бачить інші 12.
+   Без count або якщо count ≥ пулу — показуємо всі, як і раніше. */
 function levelCount(i){
   var L=levelsArr()[i]||{};
-  if(Array.isArray(L.questions) && L.questions.length) return L.questions.length;
-  var c=parseInt(L.count,10); return isNaN(c)?5:c;
+  var pool=(Array.isArray(L.questions) && L.questions.length) ? L.questions.length : 0;
+  var c=parseInt(L.count,10);
+  if(pool){ return (!isNaN(c) && c>0 && c<pool) ? c : pool; }
+  return isNaN(c)?5:c;
 }
+/* Питання рівня: перемішати пул і взяти скільки треба. */
+function pickLevelQs(i){ return shuffleQs(levelQs(i)).slice(0, levelCount(i)); }
 
 /* ─── Генератор ВИПАДКОВИХ прикладів ───
    Якщо у тесті задано поле "generator" ({type:'add'|'sub', max:N}),
@@ -454,7 +463,7 @@ function startQuiz(){
 }
 
 function startLevel(i){
-  QS = hasGen() ? genQuestions(levelCount(i), i+1) : shuffleQs(levelQs(i));
+  QS = hasGen() ? genQuestions(levelCount(i), i+1) : pickLevelQs(i);
   var already=!!loadDone()[levelId(i)];   // рівень уже пройдено → повтор
   ST={idx:0, correct:0, answered:false, level:i, isReplay:already};
   renderQ();
@@ -618,7 +627,7 @@ function answer(i){
     if(!right && IS_LEVELS){
       // нова спроба — новий порядок, інакше вивчається послідовність
       if(ST.level!=null){
-        QS = hasGen() ? genQuestions(levelCount(ST.level), ST.level+1) : shuffleQs(levelQs(ST.level));
+        QS = hasGen() ? genQuestions(levelCount(ST.level), ST.level+1) : pickLevelQs(ST.level);
       }
       ST.idx=0; ST.correct=0; ST.answered=false;
       renderQ();
@@ -656,7 +665,7 @@ function answerPick(nClicked){
   setTimeout(function(){
     if(!right && IS_LEVELS){
       if(ST.level!=null){
-        QS = hasGen() ? genQuestions(levelCount(ST.level), ST.level+1) : shuffleQs(levelQs(ST.level));
+        QS = hasGen() ? genQuestions(levelCount(ST.level), ST.level+1) : pickLevelQs(ST.level);
       }
       ST.idx=0; ST.correct=0; ST.answered=false;
       renderQ();
