@@ -131,6 +131,8 @@ body{font-family:'Nunito',sans-serif;background:linear-gradient(160deg,var(--nav
 </div>
 
 <!-- Firebase API (window.SK) -->
+<!-- Спільна карта: має бути ДО інлайн-скрипта — той читає SKCUR при парсингу -->
+<script src="sk-curriculum.js"></script>
 <script type="module" src="firebase-config.js"></script>
 
 <script>
@@ -742,51 +744,13 @@ function lkNorm(s){ return String(s==null?'':s).toLowerCase().replace(/[’'`]/g
 function lkCount(v){ try{ var o=(typeof v==='string')?JSON.parse(v):v; if(Array.isArray(o))return o.length; return (o&&typeof o==='object')?Object.keys(o).length:0; }catch(e){ return 0; } }
 
 var PASS_RATIO = 0.55;
-/* ══ КАРТА ТЕМ МАТЕМАТИКИ — має бути ІДЕНТИЧНОЮ до тієї, що в tests.html ══
-   chain:true → тема в «ланцюгу» (кожен наступний тест відкривається після
-   проходження попереднього на 55%); chain:false → тема вільна. */
-var MATH_CURRICULUM = [
-  { topic:'Лічба',                chain:false, tests:['Лічба вперед/назад'] },
-  { topic:'Числа в межах 10',      chain:true,  tests:['Додавання до 10','Віднімання до 10'] },
-  { topic:'Числа в межах 20',      chain:true,  tests:['Додавання до 20','Віднімання до 20'] },
-  { topic:'Числа в межах 100',     chain:true,  tests:['Додавання до 100','Віднімання до 100'] },
-  { topic:'Знайди помилку',        chain:true,  chainGroup:'err', tests:['Знайди помилку до 10','Знайди помилку до 20','Знайди помилку до 100'] },
-  { topic:'Задачі',                chain:false, tests:['Задачі на додавання','Задачі на віднімання','Задачі на невідомий компонент'] },
-  { topic:'Розрядність чисел',     chain:false, tests:['Десятки і одиниці'] },
-  { topic:'Вирази у дві дії',       chain:false, tests:['Вирази у дві дії: додавання','Вирази у дві дії: віднімання'] },
-  { topic:'Вирази у три дії',      chain:false, tests:['Вирази у три дії: додавання','Вирази у три дії: віднімання'] },
-  { topic:'Назви компонентів дій', chain:false, tests:['Компоненти додавання','Компоненти віднімання'] },
-  { topic:'Величини (см, дм, м)',  chain:false, tests:['Одиниці довжини'] },
-  { topic:'Порівняння чисел',      chain:false, tests:['Порівняння чисел'] },
-  { topic:'Геометричні фігури',    chain:false, tests:['Геометричні фігури'] },
-  { topic:'Цікава математика',     chain:false, tests:['Логічні задачі'] }
-];
-function mathChains(){
-  var groups={}, order=[];
-  MATH_CURRICULUM.forEach(function(t){
-    if(!t.chain) return;
-    var g=t.chainGroup||'main';
-    if(!groups[g]){ groups[g]=[]; order.push(g); }
-    (t.tests||[]).forEach(function(n){ groups[g].push(n); });
-  });
-  return order.map(function(g){ return groups[g]; });
-}
-function mathChain(){ return mathChains()[0]||[]; }
-/* попередній / наступний тест у ланцюгу за назвою (або null) */
-function chainPrevTitle(title){
-  var gs=mathChains(), w=lkNorm(title);
-  for(var g=0;g<gs.length;g++){ var arr=gs[g];
-    for(var i=0;i<arr.length;i++){ if(lkNorm(arr[i])===w) return i>0?arr[i-1]:null; }
-  }
-  return null;
-}
-function chainNextTitle(title){
-  var gs=mathChains(), w=lkNorm(title);
-  for(var g=0;g<gs.length;g++){ var arr=gs[g];
-    for(var i=0;i<arr.length;i++){ if(lkNorm(arr[i])===w) return (i<arr.length-1)?arr[i+1]:null; }
-  }
-  return null;
-}
+/* ══ ЛАНЦЮГИ — зі спільної карти (sk-curriculum.js) ══
+   Раніше тут лежала копія MATH_CURRICULUM, яка мусила збігатися з tests.html
+   символ-у-символ — і одного разу вже розійшлася. Тепер джерело одне:
+   документ curriculum/map у базі (запасна карта — у sk-curriculum.js). */
+var PASS_RATIO = SKCUR.PASS_RATIO;
+function chainPrevTitle(title){ return SKCUR.chainPrevTitle(SKCUR.map, title); }
+function chainNextTitle(title){ return SKCUR.chainNextTitle(SKCUR.map, title); }
 
 /* «пройдено на 55%» для тесту pre. lookup(key)→значення (localStorage/Firebase) */
 function isTestPassed(pre, lookup){
@@ -811,6 +775,10 @@ function lockedScreen(title){
 /* onOk() — доступ дозволено; інакше екран-замок.
    Попередній тест не знайдено / помилка запиту → fail-open (не блокуємо). */
 function checkLock(t, onOk){
+  // спершу дочекатись карти з бази — інакше ланцюг рахувався б по запасній
+  SKCUR.ready.then(function(){ checkLockNow(t, onOk); }, function(){ checkLockNow(t, onOk); });
+}
+function checkLockNow(t, onOk){
   var prevTitle = chainPrevTitle(t&&t.title);
   if(!prevTitle){ onOk(); return; }
   if(!(SK.listActiveTests)){ onOk(); return; }

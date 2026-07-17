@@ -346,6 +346,24 @@ const SK = {
     } catch (e) { return false; }
   },
 
+  // ── КАРТА КОРОЛІВСТВА (ступені → класи → предмети → розділи → тести) ──
+  // Один документ curriculum/map. Читають tests.html / test.html, пише адмінка.
+  // Немає документа → null, і сторінки беруть запасну карту з sk-curriculum.js.
+  async getCurriculum() {
+    try {
+      const s = await getDoc(doc(db, 'curriculum', 'map'));
+      return s.exists() ? s.data() : null;
+    } catch (e) { return null; }
+  },
+
+  async saveCurriculum(map) {
+    if (!map || typeof map !== 'object') throw new Error('empty-curriculum');
+    const data = Object.assign({}, map);
+    data.updatedAt = serverTimestamp();
+    await setDoc(doc(db, 'curriculum', 'map'), data);
+    return true;
+  },
+
   // Усі тести (для адмінки). -> [{ id, ...test }]
   async listTests() {
     const snap = await getDocs(collection(db, 'tests'));

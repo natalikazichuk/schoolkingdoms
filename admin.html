@@ -126,6 +126,29 @@
   .switch input:checked + .track::after{transform:translateX(20px);background:var(--ok)}
   .switch .sw-txt{flex:1;min-width:0;line-height:1.25}
 
+  /* Редактор карти */
+  #viewMap > .panel{max-width:980px;margin:0 auto}
+  .map-tier{border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px;
+    background:rgba(9,13,35,.35)}
+  .map-grade{border:1px solid var(--border);border-radius:10px;padding:10px;margin:10px 0 0 14px;
+    background:rgba(9,13,35,.45)}
+  .map-subj{border:1px solid var(--border);border-radius:10px;padding:10px;margin:8px 0 0 14px;
+    background:rgba(9,13,35,.55);border-left:4px solid var(--accent,#5C6BC0)}
+  .map-topic{border:1px dashed var(--border);border-radius:8px;padding:8px;margin:6px 0 0 14px}
+  .map-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .map-head .grow{flex:1;min-width:120px}
+  .map-head input[type=text]{padding:6px 9px;font-size:.88rem}
+  .map-head input.w-ic{width:52px;text-align:center}
+  .map-head input.w-sm{width:70px}
+  .map-head input.w-color{width:52px;padding:2px;height:32px}
+  .btn.xs{padding:5px 9px;font-size:.75rem;border-radius:8px}
+  .map-lvl{font-size:.68rem;font-weight:900;letter-spacing:.04em;color:var(--muted);
+    border:1px solid var(--border);border-radius:6px;padding:2px 6px;white-space:nowrap}
+  .test-row{display:flex;align-items:center;gap:6px;margin-top:5px}
+  .test-row select{padding:6px 9px;font-size:.85rem}
+  .map-warn{color:#ffb0b0;font-size:.78rem;font-weight:700;margin-top:6px}
+  .map-ok{color:#8fe3ad;font-size:.78rem;font-weight:700;margin-top:6px}
+
   /* Форми */
   .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
   .field{display:flex;flex-direction:column;gap:6px}
@@ -266,6 +289,7 @@
     </div>
     <div class="spacer"></div>
     <div class="who">Ви: <b id="adminEmail">—</b></div>
+    <button class="btn ghost sm" id="btnMap">🗺 Карта</button>
     <a class="btn ghost sm" href="admin-books.html">📖 Книги</a>
     <a class="btn ghost sm" href="index.html">← Вихід у гру</a>
   </header>
@@ -394,6 +418,33 @@
   </section>
 </div>
 
+<!-- ---- ВИД: РЕДАКТОР КАРТИ ---- -->
+  <section id="viewMap" class="hidden">
+    <div class="toolbar">
+      <button class="btn ghost" id="mapBack">← Назад до списку</button>
+      <div class="spacer"></div>
+      <button class="btn ghost" id="mapReset">↺ Запасна карта</button>
+      <button class="btn" id="mapCheck">🔍 Перевірити</button>
+      <button class="btn gold" id="mapSave">💾 Зберегти карту</button>
+    </div>
+    <div class="panel">
+      <h2>🗺 Карта королівства</h2>
+      <p class="hint" style="margin:8px 0 14px">
+        Ступінь → клас → предмет → розділ → тести. Саме це бачить дитина на сторінці «Тести».
+        Тест потрапляє в розділ, якщо його обрано у списку нижче <b>або</b> якщо в тесті
+        заповнено поле «Розділ (topic)» такою самою назвою.
+        <br>🔗 <b>Ланцюг</b> — тести розділу відкриваються по черзі, кожен наступний після 55% попереднього.
+        Розділи з однаковою <b>групою ланцюга</b> зчіплюються в один спільний ланцюг.
+      </p>
+      <div id="mapTree"></div>
+      <div class="toolbar" style="margin-top:12px">
+        <button class="btn xs" id="mapAddTier">＋ Ступінь</button>
+        <div class="spacer"></div>
+      </div>
+      <div id="mapMsg"></div>
+    </div>
+  </section>
+
 <!-- ===== МОДАЛКА ІМПОРТУ JSON ===== -->
 <div class="modal-bg" id="importModal">
   <div class="panel modal">
@@ -417,6 +468,9 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- Спільна карта королівства (звичайний скрипт — до інлайну нижче) -->
+<script src="sk-curriculum.js"></script>
 
 <!-- Firebase / SK API (модуль, deferred) -->
 <script type="module" src="firebase-config.js"></script>
@@ -474,7 +528,306 @@ const SK_API = {
   save:        (t) => window.SK.saveTest(t),
   remove:      (id)=> window.SK.deleteTest(id),
   setActive:   (id,a)=> window.SK.setTestActive(id, a),
+  getMap:      ()  => window.SK.getCurriculum(),
+  saveMap:     (m) => window.SK.saveCurriculum(m),
 };
+
+
+/* ============================================================
+   РЕДАКТОР КАРТИ (🗺 Карта)
+   Карта = документ curriculum/map. Її читають tests.html і test.html
+   через sk-curriculum.js. Раніше цей масив був зашитий у двох файлах
+   і копії розходилися — тепер джерело одне.
+   ============================================================ */
+let MAP = null;                       // редагована карта (чернетка)
+
+const EMPTY_TOPIC   = () => ({ topic:'Новий розділ', chain:false, chainGroup:'', tests:[] });
+const EMPTY_SUBJECT = () => ({ id:'s'+Date.now().toString(36), icon:'📘', name:'Новий предмет',
+                               accent:'#5C6BC0', stat:'—', keys:[], topics:[] });
+const EMPTY_GRADE   = (n) => ({ id:'g'+n, name:n+' клас', status:'wip', gradeNum:n, subjects:[] });
+const EMPTY_TIER    = () => ({ id:'t'+Date.now().toString(36), icon:'📚', name:'Новий ступінь',
+                               status:'soon', note:'', grades:[] });
+
+function mapPath(el){                 // читає data-p="0.1.2.3" → масив індексів
+  return (el.dataset.p || '').split('.').filter(x => x !== '').map(Number);
+}
+function tierAt(p){ return MAP.tiers[p[0]]; }
+function gradeAt(p){ return tierAt(p).grades[p[1]]; }
+function subjAt(p){ return gradeAt(p).subjects[p[2]]; }
+function topicAt(p){ return subjAt(p).topics[p[3]]; }
+
+function move(arr, i, d){
+  const j = i + d;
+  if(j < 0 || j >= arr.length) return false;
+  const t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+  return true;
+}
+
+/* назви всіх тестів у базі — для випадаючих списків */
+function testOptions(selected, grade, subjName){
+  const norm = window.SKCUR.norm;
+  const pool = TESTS.filter(t => t && t.title);
+  const fit = pool.filter(t => Number(t.grade || 1) === Number(grade));
+  const list = (fit.length ? fit : pool).slice()
+    .sort((a,b) => String(a.title).localeCompare(String(b.title), 'uk'));
+  let html = '<option value="">— обери тест —</option>';
+  let found = false;
+  list.forEach(t => {
+    const sel = norm(t.title) === norm(selected);
+    if(sel) found = true;
+    html += '<option value="' + esc(t.title) + '"' + (sel ? ' selected' : '') + '>'
+          + esc(t.title) + (t.active === false ? ' (вимкнено)' : '') + '</option>';
+  });
+  // назва є в карті, але такого тесту в базі немає — не втрачаємо її мовчки
+  if(selected && !found){
+    html += '<option value="' + esc(selected) + '" selected>⚠ ' + esc(selected) + ' — немає в базі</option>';
+  }
+  return html;
+}
+
+function renderMap(){
+  if(!MAP){ $('mapTree').innerHTML = ''; return; }
+  let html = '';
+  MAP.tiers.forEach((tier, ti) => {
+    const pT = ti;
+    html += '<div class="map-tier">'
+      + '<div class="map-head">'
+        + '<span class="map-lvl">СТУПІНЬ</span>'
+        + '<input type="text" class="w-ic" data-f="tier.icon" data-p="' + pT + '" value="' + esc(tier.icon) + '">'
+        + '<input type="text" class="grow" data-f="tier.name" data-p="' + pT + '" value="' + esc(tier.name) + '">'
+        + '<select data-f="tier.status" data-p="' + pT + '" style="width:auto">'
+          + statusOpts(tier.status)
+        + '</select>'
+        + '<button class="btn xs" data-a="tier.up" data-p="' + pT + '">↑</button>'
+        + '<button class="btn xs" data-a="tier.down" data-p="' + pT + '">↓</button>'
+        + '<button class="btn xs" data-a="tier.del" data-p="' + pT + '">✕</button>'
+      + '</div>'
+      + '<div class="map-head" style="margin-top:6px">'
+        + '<input type="text" class="grow" data-f="tier.note" data-p="' + pT + '" placeholder="Підпис (необовʼязково)" value="' + esc(tier.note) + '">'
+      + '</div>';
+
+    (tier.grades || []).forEach((g, gi) => {
+      const pG = ti + '.' + gi;
+      html += '<div class="map-grade">'
+        + '<div class="map-head">'
+          + '<span class="map-lvl">КЛАС</span>'
+          + '<input type="text" class="grow" data-f="grade.name" data-p="' + pG + '" value="' + esc(g.name) + '">'
+          + '<input type="number" class="w-sm" data-f="grade.num" data-p="' + pG + '" value="' + g.gradeNum + '" title="Номер класу — зіставляється з полем grade тесту">'
+          + '<select data-f="grade.status" data-p="' + pG + '" style="width:auto">' + statusOpts(g.status) + '</select>'
+          + '<button class="btn xs" data-a="grade.up" data-p="' + pG + '">↑</button>'
+          + '<button class="btn xs" data-a="grade.down" data-p="' + pG + '">↓</button>'
+          + '<button class="btn xs" data-a="grade.del" data-p="' + pG + '">✕</button>'
+        + '</div>';
+
+      (g.subjects || []).forEach((sj, si) => {
+        const pS = ti + '.' + gi + '.' + si;
+        html += '<div class="map-subj" style="--accent:' + esc(sj.accent) + '">'
+          + '<div class="map-head">'
+            + '<span class="map-lvl">ПРЕДМЕТ</span>'
+            + '<input type="text" class="w-ic" data-f="subj.icon" data-p="' + pS + '" value="' + esc(sj.icon) + '">'
+            + '<input type="text" class="grow" data-f="subj.name" data-p="' + pS + '" value="' + esc(sj.name) + '">'
+            + '<input type="color" class="w-color" data-f="subj.accent" data-p="' + pS + '" value="' + esc(sj.accent) + '">'
+            + '<button class="btn xs" data-a="subj.up" data-p="' + pS + '">↑</button>'
+            + '<button class="btn xs" data-a="subj.down" data-p="' + pS + '">↓</button>'
+            + '<button class="btn xs" data-a="subj.del" data-p="' + pS + '">✕</button>'
+          + '</div>'
+          + '<div class="map-head" style="margin-top:6px">'
+            + '<input type="text" class="grow" data-f="subj.stat" data-p="' + pS + '" placeholder="Стат, напр. Точність 🎯" value="' + esc(sj.stat) + '">'
+            + '<input type="text" class="grow" data-f="subj.keys" data-p="' + pS + '" placeholder="ключі: матем, математика" value="' + esc((sj.keys || []).join(', ')) + '" title="Підрядки, за якими поле subject тесту зіставляється з цим предметом">'
+          + '</div>';
+
+        (sj.topics || []).forEach((tp, pi) => {
+          const pP = ti + '.' + gi + '.' + si + '.' + pi;
+          html += '<div class="map-topic">'
+            + '<div class="map-head">'
+              + '<span class="map-lvl">РОЗДІЛ</span>'
+              + '<input type="text" class="grow" data-f="topic.name" data-p="' + pP + '" value="' + esc(tp.topic) + '">'
+              + '<label class="switch" style="flex:0 0 auto">'
+                + '<input type="checkbox" data-f="topic.chain" data-p="' + pP + '"' + (tp.chain ? ' checked' : '') + '>'
+                + '<span class="track"></span><span class="sw-txt">🔗 Ланцюг</span>'
+              + '</label>'
+              + '<input type="text" class="w-sm" data-f="topic.group" data-p="' + pP + '" placeholder="група" value="' + esc(tp.chainGroup) + '" title="Розділи з однаковою групою зчіплюються в один ланцюг">'
+              + '<button class="btn xs" data-a="topic.up" data-p="' + pP + '">↑</button>'
+              + '<button class="btn xs" data-a="topic.down" data-p="' + pP + '">↓</button>'
+              + '<button class="btn xs" data-a="topic.del" data-p="' + pP + '">✕</button>'
+            + '</div>';
+          (tp.tests || []).forEach((name, xi) => {
+            html += '<div class="test-row">'
+              + '<select class="grow" data-f="test.name" data-p="' + pP + '.' + xi + '">'
+                + testOptions(name, g.gradeNum, sj.name)
+              + '</select>'
+              + '<button class="btn xs" data-a="test.up" data-p="' + pP + '.' + xi + '">↑</button>'
+              + '<button class="btn xs" data-a="test.down" data-p="' + pP + '.' + xi + '">↓</button>'
+              + '<button class="btn xs" data-a="test.del" data-p="' + pP + '.' + xi + '">✕</button>'
+            + '</div>';
+          });
+          html += '<button class="btn xs" data-a="test.add" data-p="' + pP + '" style="margin-top:6px">＋ Тест</button>'
+            + '</div>';
+        });
+        html += '<button class="btn xs" data-a="topic.add" data-p="' + pS + '" style="margin-top:8px">＋ Розділ</button>'
+          + '</div>';
+      });
+      html += '<button class="btn xs" data-a="subj.add" data-p="' + pG + '" style="margin-top:8px">＋ Предмет</button>'
+        + '</div>';
+    });
+    html += '<button class="btn xs" data-a="grade.add" data-p="' + pT + '" style="margin-top:8px">＋ Клас</button>'
+      + '</div>';
+  });
+  $('mapTree').innerHTML = html;
+}
+
+function statusOpts(v){
+  return ['ready','wip','soon'].map(k => {
+    const lab = { ready:'✅ Доступно', wip:'🔧 Готуємо', soon:'🔜 Скоро' }[k];
+    return '<option value="' + k + '"' + (v === k ? ' selected' : '') + '>' + lab + '</option>';
+  }).join('');
+}
+
+/* ── правки полів ── */
+function onMapInput(e){
+  const el = e.target;
+  const f = el.dataset.f;
+  if(!f || !MAP) return;
+  const p = mapPath(el);
+  const v = el.type === 'checkbox' ? el.checked : el.value;
+  switch(f){
+    case 'tier.icon':   tierAt(p).icon = v; break;
+    case 'tier.name':   tierAt(p).name = v; break;
+    case 'tier.note':   tierAt(p).note = v; break;
+    case 'tier.status': tierAt(p).status = v; break;
+    case 'grade.name':  gradeAt(p).name = v; break;
+    case 'grade.num':   gradeAt(p).gradeNum = Math.max(0, parseInt(v, 10) || 0); break;
+    case 'grade.status':gradeAt(p).status = v; break;
+    case 'subj.icon':   subjAt(p).icon = v; break;
+    case 'subj.name':   subjAt(p).name = v; break;
+    case 'subj.accent': subjAt(p).accent = v; renderMap(); return;
+    case 'subj.stat':   subjAt(p).stat = v; break;
+    case 'subj.keys':   subjAt(p).keys = v.split(',').map(x => x.trim()).filter(Boolean); break;
+    case 'topic.name':  topicAt(p).topic = v; break;
+    case 'topic.chain': topicAt(p).chain = !!v; break;
+    case 'topic.group': topicAt(p).chainGroup = v; break;
+    case 'test.name': {
+      const tp = subjAt(p).topics[p[3]];
+      if(v) tp.tests[p[4]] = v; else tp.tests.splice(p[4], 1);
+      renderMap();
+      return;
+    }
+  }
+}
+
+/* ── кнопки ── */
+function onMapClick(e){
+  const b = e.target.closest('button[data-a]');
+  if(!b || !MAP) return;
+  const a = b.dataset.a;
+  const p = mapPath(b);
+  let redraw = true;
+  switch(a){
+    case 'tier.up':   move(MAP.tiers, p[0], -1); break;
+    case 'tier.down': move(MAP.tiers, p[0], +1); break;
+    case 'tier.del':
+      if(!confirm('Видалити ступінь «' + tierAt(p).name + '» разом з усіма класами?')) return;
+      MAP.tiers.splice(p[0], 1); break;
+
+    case 'grade.add':  tierAt(p).grades.push(EMPTY_GRADE(tierAt(p).grades.length + 1)); break;
+    case 'grade.up':   move(tierAt(p).grades, p[1], -1); break;
+    case 'grade.down': move(tierAt(p).grades, p[1], +1); break;
+    case 'grade.del':
+      if(!confirm('Видалити «' + gradeAt(p).name + '» разом з предметами?')) return;
+      tierAt(p).grades.splice(p[1], 1); break;
+
+    case 'subj.add':  gradeAt(p).subjects.push(EMPTY_SUBJECT()); break;
+    case 'subj.up':   move(gradeAt(p).subjects, p[2], -1); break;
+    case 'subj.down': move(gradeAt(p).subjects, p[2], +1); break;
+    case 'subj.del':
+      if(!confirm('Видалити предмет «' + subjAt(p).name + '»? Тести не зникнуть — вони переїдуть у «Інші тести».')) return;
+      gradeAt(p).subjects.splice(p[2], 1); break;
+
+    case 'topic.add':  subjAt(p).topics.push(EMPTY_TOPIC()); break;
+    case 'topic.up':   move(subjAt(p).topics, p[3], -1); break;
+    case 'topic.down': move(subjAt(p).topics, p[3], +1); break;
+    case 'topic.del':
+      if(!confirm('Видалити розділ «' + topicAt(p).topic + '»?')) return;
+      subjAt(p).topics.splice(p[3], 1); break;
+
+    case 'test.add':  topicAt(p).tests.push(''); break;
+    case 'test.up':   move(subjAt(p).topics[p[3]].tests, p[4], -1); break;
+    case 'test.down': move(subjAt(p).topics[p[3]].tests, p[4], +1); break;
+    case 'test.del':  subjAt(p).topics[p[3]].tests.splice(p[4], 1); break;
+    default: redraw = false;
+  }
+  if(redraw) renderMap();
+}
+
+/* ── перевірка карти перед збереженням ── */
+function checkMap(){
+  const norm = window.SKCUR.norm;
+  const errs = [], warns = [];
+  const seenTest = {};
+  const titles = {};
+  TESTS.forEach(t => { if(t && t.title) titles[norm(t.title)] = t; });
+
+  MAP.tiers.forEach(tier => {
+    if(!String(tier.name || '').trim()) errs.push('Ступінь без назви');
+    (tier.grades || []).forEach(g => {
+      if(!g.gradeNum) errs.push('Клас «' + g.name + '» без номера — тести не зіставляться');
+      (g.subjects || []).forEach(sj => {
+        if(!String(sj.name || '').trim()) errs.push('Предмет без назви у «' + g.name + '»');
+        if(!(sj.keys || []).length) warns.push('Предмет «' + sj.name + '» без ключів — тести підуть у «Інші тести»');
+        (sj.topics || []).forEach(tp => {
+          if(!String(tp.topic || '').trim()) errs.push('Розділ без назви у «' + sj.name + '»');
+          (tp.tests || []).forEach(n => {
+            const k = norm(n);
+            if(!titles[k]) warns.push('Тесту «' + n + '» немає в базі (розділ «' + tp.topic + '»)');
+            if(seenTest[k]) errs.push('Тест «' + n + '» стоїть у двох розділах: «' + seenTest[k] + '» і «' + tp.topic + '»');
+            else seenTest[k] = tp.topic;
+          });
+        });
+      });
+    });
+  });
+
+  // тести з бази, які нікуди не потрапили
+  const orphans = TESTS.filter(t => t && t.title && t.active !== false && !seenTest[norm(t.title)]);
+
+  let html = '';
+  if(errs.length)  html += '<div class="map-warn">✘ ' + errs.map(esc).join('<br>✘ ') + '</div>';
+  if(warns.length) html += '<div class="map-warn" style="color:#ffd98f">⚠ ' + warns.map(esc).join('<br>⚠ ') + '</div>';
+  if(orphans.length) html += '<div class="map-warn" style="color:#ffd98f">⚠ Не в жодному розділі (підуть у предмет за ключами або в «Інші тести»): '
+    + orphans.map(t => esc(t.title)).join(', ') + '</div>';
+  if(!html) html = '<div class="map-ok">✔ Карта чиста: усі розділи названі, дублів немає, усі тести на місці.</div>';
+  $('mapMsg').innerHTML = html;
+  return errs.length === 0;
+}
+
+/* ── відкриття / збереження ── */
+async function openMap(){
+  $('viewList').classList.add('hidden');
+  $('viewEdit').classList.add('hidden');
+  $('viewMap').classList.remove('hidden');
+  $('mapMsg').innerHTML = '';
+  if(!MAP){
+    let doc = null;
+    try { doc = await SK_API.getMap(); } catch(e){ doc = null; }
+    MAP = window.SKCUR.normalize(doc && doc.tiers ? doc : window.SKCUR.DEFAULT_MAP);
+    if(!doc) toast('Карти в базі ще немає — відкрито запасну. Збережи, щоб закріпити.');
+  }
+  renderMap();
+}
+
+async function saveMap(){
+  if(!checkMap()){ toast('Спершу виправ помилки ✘'); return; }
+  try {
+    const clean = window.SKCUR.normalize(MAP);
+    await SK_API.saveMap(clean);
+    MAP = clean;
+    renderMap();
+    toast('Карту збережено ✔');
+  } catch(e){
+    console.error(e);
+    toast('Не вдалося зберегти карту');
+  }
+}
 
 /* ---- Стан ---- */
 let TESTS = [];
@@ -890,6 +1243,26 @@ function bindEvents(){
   $('btnBack').onclick       = closeEditor;
   $('btnSave').onclick       = saveDraft;
   $('filterSubject').onchange= renderList;
+
+  // ---- Редактор карти ----
+  $('btnMap').onclick   = openMap;
+  $('mapSave').onclick  = saveMap;
+  $('mapCheck').onclick = () => { checkMap(); };
+  $('mapBack').onclick  = () => {
+    $('viewMap').classList.add('hidden');
+    $('viewEdit').classList.add('hidden');
+    $('viewList').classList.remove('hidden');
+  };
+  $('mapReset').onclick = () => {
+    if(!confirm('Замінити чернетку карти на запасну (ту, що в sk-curriculum.js)? Збережена в базі карта не зміниться, доки не натиснеш «Зберегти карту».')) return;
+    MAP = window.SKCUR.normalize(window.SKCUR.DEFAULT_MAP);
+    renderMap(); $('mapMsg').innerHTML = '';
+    toast('Відновлено запасну карту (ще не збережено)');
+  };
+  $('mapAddTier').onclick = () => { if(MAP){ MAP.tiers.push(EMPTY_TIER()); renderMap(); } };
+  $('mapTree').addEventListener('input',  onMapInput);
+  $('mapTree').addEventListener('change', onMapInput);
+  $('mapTree').addEventListener('click',  onMapClick);
   $('btnExportAll').onclick  = () => download('tests.json', JSON.stringify(stripIds(TESTS), null, 2));
   $('btnExportOne').onclick  = () => { collectForm(); download((draft.title||'test')+'.json', JSON.stringify(stripIds([draft])[0], null, 2)); };
 

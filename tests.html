@@ -201,42 +201,21 @@
   <button id="heroLogoutBtn"><span class="ic">🚪</span>Вийти</button>
 </nav>
 
+<!-- Спільна карта королівства. МАЄ йти перед інлайн-скриптом нижче:
+     той читає SKCUR під час парсингу. Звичайний (не module) скрипт —
+     тож виконується синхронно й SKCUR гарантовано вже існує. -->
+<script src="sk-curriculum.js"></script>
 <script>
 /* ============================================================
-   ДОРОЖНЯ КАРТА — лише КІСТЯК (ступені/класи/предмети + оформлення).
-   Самі тести підтягуються з бази (SK.listActiveTests) і розкладаються
-   по предметах за полями grade + subject. Нічого не губиться:
-   несопоставлені тести потрапляють у предмет «Інші тести».
-     • keys[]   — підрядки, за якими subject тесту зіставляється з предметом
-     • gradeNum — номер класу для співставлення з полем grade тесту
+   ДОРОЖНЯ КАРТА
+   Кістяк (ступені/класи/предмети/розділи) БІЛЬШЕ НЕ ЗАШИТИЙ ТУТ —
+   він приходить із sk-curriculum.js (документ curriculum/map у базі,
+   редагується в адмінці → «🗺 Карта»). Запасна карта — у тому ж файлі.
+   Тести підтягуються з бази (SK.listActiveTests) і розкладаються
+   по предметах за полями grade + subject, а всередині предмета —
+   по розділах. Несопоставлені тести йдуть у «Інші тести».
    ============================================================ */
-const CURRICULUM = [
-  {
-    id:'preschool', icon:'🌱', name:'Дошкільна підготовка', status:'soon',
-    note:'Готуємо майбутнього першачка. Заплановано.',
-    grades:[]
-  },
-  {
-    id:'junior', icon:'🎓', name:'Молодша школа', status:'wip',
-    note:'1 клас — активний. 2–4 класи заплановано.',
-    grades:[
-      {
-        id:'g1', name:'1 клас', status:'wip', gradeNum:1,
-        subjects:[
-          { id:'math', icon:'🧮', name:'Математика',        accent:'#5C6BC0', stat:'Точність 🎯',  keys:['матем'], items:[] },
-          { id:'yads', icon:'🌍', name:'ЯДС · Я досліджую світ', accent:'#E0954E', stat:'Спритність 🏃', keys:['ядс','я досліджую світ','природознав','довкіл'], items:[] },
-          { id:'eng',  icon:'🔤', name:'English',            accent:'#3FB6A8', stat:'Мана 🔮',      keys:['english','англ'], items:[] },
-          { id:'ukr',  icon:'🌺', name:'Українська мова',    accent:'#D6577A', stat:'Здоров\u2019я \u2764\ufe0f', keys:['україн','укр мова','рідна мова'], items:[] }
-        ]
-      }
-    ]
-  },
-  {
-    id:'senior', icon:'🏰', name:'Старша школа', status:'soon',
-    note:'5–11 класи. Заплановано.',
-    grades:[]
-  }
-];
+var CURRICULUM = [];        // заповнюється у loadFromDB() з SKCUR.map
 
 /* ── рендер ── */
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
@@ -319,63 +298,14 @@ function tierHtml(t, openFirst){
     + '<div class="tier-body">'+inner+'</div></details>';
 }
 /* ── зіставлення тесту з предметом дорожньої карти ── */
-function norm(s){ return String(s==null?'':s).toLowerCase().replace(/[’'`]/g,'').replace(/\s+/g,' ').trim(); }
-function subjectMatches(subj, testSubject){
-  var t = norm(testSubject);
-  if(!t) return false;
-  if(norm(subj.name)===t) return true;
-  return (subj.keys||[]).some(function(k){ return t.indexOf(norm(k))!==-1; });
-}
+var norm = SKCUR.norm;
+var subjectMatches = SKCUR.subjectMatches;
 function isLevelsTest(t){ return !!(t && (t.format==='levels' || (Array.isArray(t.levels) && t.levels.length))); }
-/* ══ КАРТА ТЕМ МАТЕМАТИКИ (єдине джерело правди) ══
-   З цього масиву будується І групування тестів на сторінці, І порядок замків.
-   Як редагувати самостійно:
-     • додати тему        → додай {topic:'Назва', chain:false, tests:['Назва тесту']}
-     • додати тест у тему  → впиши його назву в масив tests
-                             (назва має ТОЧНО збігатися з назвою тесту в адмінці)
-     • порядок тестів      = порядок назв у tests
-     • chain:true  → тема в «ланцюгу»: кожен наступний тест ланцюга відкривається
-                     лише коли попередній пройдено на 55%
-     • chain:false → тема вільна: усі її тести доступні одразу
-   ⚠ Цей масив має бути ІДЕНТИЧНИМ у test.html. */
-var PASS_RATIO = 0.55;
-var MATH_CURRICULUM = [
-  { topic:'Лічба',                chain:false, tests:['Лічба вперед/назад'] },
-  { topic:'Числа в межах 10',      chain:true,  tests:['Додавання до 10','Віднімання до 10'] },
-  { topic:'Числа в межах 20',      chain:true,  tests:['Додавання до 20','Віднімання до 20'] },
-  { topic:'Числа в межах 100',     chain:true,  tests:['Додавання до 100','Віднімання до 100'] },
-  { topic:'Знайди помилку',        chain:true,  chainGroup:'err', tests:['Знайди помилку до 10','Знайди помилку до 20','Знайди помилку до 100'] },
-  { topic:'Задачі',                chain:false, tests:['Задачі на додавання','Задачі на віднімання','Задачі на невідомий компонент'] },
-  { topic:'Розрядність чисел',     chain:false, tests:['Десятки і одиниці'] },
-  { topic:'Вирази у дві дії',       chain:false, tests:['Вирази у дві дії: додавання','Вирази у дві дії: віднімання'] },
-  { topic:'Вирази у три дії',      chain:false, tests:['Вирази у три дії: додавання','Вирази у три дії: віднімання'] },
-  { topic:'Назви компонентів дій', chain:false, tests:['Компоненти додавання','Компоненти віднімання'] },
-  { topic:'Величини (см, дм, м)',  chain:false, tests:['Одиниці довжини'] },
-  { topic:'Порівняння чисел',      chain:false, tests:['Порівняння чисел'] },
-  { topic:'Геометричні фігури',    chain:false, tests:['Геометричні фігури'] },
-  { topic:'Цікава математика',     chain:false, tests:['Логічні задачі'] }
-];
-/* «ланцюг» = усі тести тем із chain:true, по порядку */
-function mathChains(){
-  var groups={}, order=[];
-  MATH_CURRICULUM.forEach(function(t){
-    if(!t.chain) return;
-    var g=t.chainGroup||'main';
-    if(!groups[g]){ groups[g]=[]; order.push(g); }
-    (t.tests||[]).forEach(function(n){ groups[g].push(n); });
-  });
-  return order.map(function(g){ return groups[g]; });
-}
-function mathChain(){ return mathChains()[0]||[]; }
-/* назва попереднього тесту в ланцюгу (null, якщо тест не в ланцюгу або перший) */
-function chainPrevTitle(title){
-  var gs=mathChains(), w=norm(title);
-  for(var g=0;g<gs.length;g++){ var arr=gs[g];
-    for(var i=0;i<arr.length;i++){ if(norm(arr[i])===w) return i>0?arr[i-1]:null; }
-  }
-  return null;
-}
-/* чи «пройдено на 55%» тест pre. lookup(key)→значення (localStorage/Firebase) */
+
+var PASS_RATIO = SKCUR.PASS_RATIO;
+/* Ланцюги й «пройдено на 55%» рахує спільний модуль sk-curriculum.js —
+   тож tests.html і test.html фізично не можуть розійтися. */
+function chainPrevTitle(title){ return SKCUR.chainPrevTitle(SKCUR.map, title); }
 function isTestPassed(pre, lookup){
   if(!pre || !pre.id) return false;
   var mark=lookup('sk_testpass_'+pre.id);
@@ -408,77 +338,85 @@ function testChip(t, byTitle){
   return c;
 }
 
-/* ── розкласти тести з бази по предметах (мутуємо CURRICULUM) ── */
+/* ── розкласти тести з бази по предметах і розділах (мутуємо CURRICULUM) ──
+   Раніше розділи вміла лише Математика 1 класу. Тепер їх має будь-який
+   предмет будь-якого класу — вони просто беруться з карти.
+   Тест потрапляє в розділ, якщо: (а) його назва є у списку розділу,
+   (б) поле topic тесту == назва розділу, (в) назва тесту починається з назви розділу. */
 function distribute(tests){
-  var index = []; var mathSubj = null;
+  var index = [];
   CURRICULUM.forEach(function(tier){
     (tier.grades||[]).forEach(function(g){
       (g.subjects||[]).forEach(function(s){
         s.items = []; s.groups = null;
-        index.push({gradeNum:g.gradeNum, subj:s});
-        if(g.gradeNum===1 && s.id==='math') mathSubj = s;
+        index.push({ gradeNum:g.gradeNum, subj:s });
       });
     });
   });
+
   var byTitle = {};
   (tests||[]).forEach(function(t){ if(t && t.id && t.title) byTitle[norm(t.title)] = t; });
 
-  // 1) МАТЕМАТИКА → групи за темами (з MATH_CURRICULUM)
-  //    Тест потрапляє в тему, якщо: (а) його назва є в списку теми,
-  //    (б) у тесті задано поле topic == назва теми (керується з адмінки),
-  //    (в) назва тесту починається з назви теми (зручний префікс).
-  var mathTaken = {};    // назви тестів, уже показані в темах Математики
-  var mathUsedId = {};   // id тестів, уже доданих (щоб не дублювати)
-  if(mathSubj){
-    mathSubj.groups = MATH_CURRICULUM.map(function(tp){
-      var items = [];
-      var tpN = norm(tp.topic);
+  var usedId = {};        // тест уже показаний десь у розділі
+  var takenTitle = {};    // його назва — щоб не продублювати нижче
+
+  // 1) предмети з розділами → групи
+  index.forEach(function(e){
+    var subj = e.subj;
+    if(!subj.topics || !subj.topics.length) return;
+    subj.groups = subj.topics.map(function(tp){
+      var items = [], tpN = norm(tp.topic);
       function addTest(t){
-        if(!t || !t.id || mathUsedId[t.id]) return;
-        if(Number(t.grade||1)!==1) return;
+        if(!t || !t.id || usedId[t.id]) return;
+        if(Number(t.grade||1) !== Number(e.gradeNum)) return;
         items.push(testChip(t, byTitle));
-        mathUsedId[t.id] = true;
-        mathTaken[norm(t.title)] = true;
+        usedId[t.id] = true;
+        takenTitle[norm(t.title)] = true;
       }
-      // (а) явний список назв — сумісність зі старими темами
+      // (а) явний список назв у розділі
       (tp.tests||[]).forEach(function(name){ addTest(byTitle[norm(name)]); });
-      // (б)+(в) поле topic або префікс назви — лише для математичних тестів
+      // (б)+(в) поле topic або префікс назви — лише в межах свого предмета
       (tests||[]).forEach(function(t){
         if(!t || !t.title) return;
-        if(!subjectMatches(mathSubj, t.subject)) return;
-        var byField  = t.topic && norm(t.topic)===tpN;
-        var byPrefix = norm(t.title).indexOf(tpN)===0;
+        if(!subjectMatches(subj, t.subject)) return;
+        var byField  = t.topic && norm(t.topic) === tpN;
+        var byPrefix = norm(t.title).indexOf(tpN) === 0;
         if(byField || byPrefix) addTest(t);
       });
-      return { title:(tp.chain?'🔗 ':'')+esc(tp.topic), items:items };
+      return { title:(tp.chain?'🔗 ':'') + esc(tp.topic), items:items };
     });
-  }
+  });
 
-  // 2) решта тестів → по предметах (як було), окрім уже показаних у Математиці
+  // 2) решта тестів → у предмет за grade + subject (без розділів)
   var leftovers = [];
   (tests||[]).forEach(function(t){
     if(!t || !t.id) return;
-    if(mathTaken[norm(t.title)]) return;
+    if(usedId[t.id] || takenTitle[norm(t.title)]) return;
     var placed = false;
     for(var i=0;i<index.length;i++){
       var e = index[i];
-      if(e.subj===mathSubj) continue;         // Математику вже зібрали групами
-      if(Number(t.grade)===Number(e.gradeNum) && subjectMatches(e.subj, t.subject)){
-        e.subj.items.push(testChip(t, byTitle)); placed = true; break;
+      if(Number(t.grade) === Number(e.gradeNum) && subjectMatches(e.subj, t.subject)){
+        e.subj.items.push(testChip(t, byTitle));
+        usedId[t.id] = true; placed = true; break;
       }
     }
     if(!placed) leftovers.push(t);
   });
 
-  // 3) катч-ол: усе несопоставлене → «Інші тести» в 1 класі (нічого не губимо)
+  // 3) катч-ол: нічого не губимо — усе несопоставлене йде в «Інші тести»
+  //    до найпершого класу, що є на карті
   if(leftovers.length){
-    var g1 = null;
-    CURRICULUM.forEach(function(tier){ (tier.grades||[]).forEach(function(g){ if(g.gradeNum===1) g1 = g; }); });
-    if(g1){
-      g1.subjects.push({ id:'other', icon:'📦', name:'Інші тести', accent:'#8a8fb0',
-        stat:'—', keys:[], items: leftovers.map(function(t){
+    var firstGrade = null;
+    CURRICULUM.forEach(function(tier){
+      (tier.grades||[]).forEach(function(g){ if(!firstGrade) firstGrade = g; });
+    });
+    if(firstGrade){
+      firstGrade.subjects.push({ id:'other', icon:'📦', name:'Інші тести', accent:'#8a8fb0',
+        stat:'—', keys:[], topics:[], items: leftovers.map(function(t){
           var c = testChip(t, byTitle);
-          if(Number(t.grade) && Number(t.grade)!==1) c.label = '['+t.grade+' кл] ' + c.label;
+          if(Number(t.grade) && Number(t.grade) !== Number(firstGrade.gradeNum)){
+            c.label = '['+t.grade+' кл] ' + c.label;
+          }
           return c;
         }) });
     }
@@ -597,20 +535,22 @@ document.getElementById('root').innerHTML =
   var tries = 0;
   (function tick(){
     if(window.SK && SK.ready){
-      SK.ready.then(function(){
-        SK.listActiveTests().then(function(list){
-          distribute(list || []);
-          render();
-        }).catch(function(){
-          // напр. гість без доступу до бази — показуємо кістяк (порожні предмети)
-          distribute([]);
-          render();
-        });
+      // карта (curriculum/map або запасна) + активні тести — паралельно
+      Promise.all([
+        SKCUR.ready,
+        SK.ready.then(function(){ return SK.listActiveTests(); }).catch(function(){ return []; })
+      ]).then(function(res){
+        CURRICULUM = SKCUR.clone(res[0].tiers);
+        distribute(res[1] || []);
+        render();
+      }).catch(function(){
+        CURRICULUM = SKCUR.clone(SKCUR.map.tiers);
+        distribute([]); render();
       });
       return;
     }
     if(tries++ < 100) setTimeout(tick, 50);
-    else { distribute([]); render(); }  // SK так і не з'явився — показуємо кістяк
+    else { CURRICULUM = SKCUR.clone(SKCUR.map.tiers); distribute([]); render(); }
   })();
 })();</script>
 
