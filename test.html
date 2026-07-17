@@ -202,6 +202,30 @@ function isLevels(t){ return !!(t && (t.format==='levels' || (Array.isArray(t.le
 function levelsArr(){ return (TEST && Array.isArray(TEST.levels)) ? TEST.levels : []; }
 function levelId(i){ var L=levelsArr()[i]; return String((L&&L.level!=null)?L.level:(i+1)); }
 function levelQs(i){ var L=levelsArr()[i]; return (L&&Array.isArray(L.questions))?L.questions:[]; }
+
+/* Перемішати питання і варіанти всередині кожного.
+   Навіщо: після помилки рівень починається спочатку, і без перемішування
+   дитина бачила ТУ САМУ послідовність — з третьої спроби вивчається порядок,
+   а не матеріал. Рантайм-генератор (hasGen) робить це сам, статичні тести — ні.
+
+   Працюємо з КОПІЯМИ: TEST.questions чіпати не можна, на нього спираються
+   повторні входи в рівень і підрахунок кількості питань.
+   Індекси, а не текст: якщо в тесті трапляться два однакові варіанти,
+   пошук за текстом дав би не ту правильну відповідь. */
+function shuffleQs(list){
+  return shuffleArr((list||[]).slice()).map(function(q){
+    var src = q.options || [];
+    var order = src.map(function(_, i){ return i; });
+    shuffleArr(order);
+    var was = parseInt(q.correct, 10); if(isNaN(was)) was = 0;
+    var copy = {};
+    for(var k in q){ if(Object.prototype.hasOwnProperty.call(q, k)) copy[k] = q[k]; }
+    copy.options = order.map(function(i){ return src[i]; });
+    var now = order.indexOf(was);
+    copy.correct = now >= 0 ? now : 0;
+    return copy;
+  });
+}
 function totalQs(){ return levelsArr().reduce(function(s,L,i){ return s+levelCount(i); },0); }
 /* кількість питань у рівні: із статичних questions[] або з поля count */
 function levelCount(i){
@@ -424,13 +448,13 @@ function levelMenu(){
 }
 
 function startQuiz(){
-  QS = hasGen() ? genQuestions(num(TEST.count)||(TEST.questions||[]).length||10, 1) : (TEST.questions||[]);
+  QS = hasGen() ? genQuestions(num(TEST.count)||(TEST.questions||[]).length||10, 1) : shuffleQs(TEST.questions);
   ST={idx:0, correct:0, answered:false};
   renderQ();
 }
 
 function startLevel(i){
-  QS = hasGen() ? genQuestions(levelCount(i), i+1) : levelQs(i);
+  QS = hasGen() ? genQuestions(levelCount(i), i+1) : shuffleQs(levelQs(i));
   var already=!!loadDone()[levelId(i)];   // рівень уже пройдено → повтор
   ST={idx:0, correct:0, answered:false, level:i, isReplay:already};
   renderQ();
@@ -592,7 +616,10 @@ function answer(i){
   setTimeout(function(){
     // Неправильна відповідь у рівні → назад на 1-ше питання, лічильник/XP рівня = 0
     if(!right && IS_LEVELS){
-      if(hasGen() && ST.level!=null) QS = genQuestions(levelCount(ST.level), ST.level+1); // нові випадкові приклади
+      // нова спроба — новий порядок, інакше вивчається послідовність
+      if(ST.level!=null){
+        QS = hasGen() ? genQuestions(levelCount(ST.level), ST.level+1) : shuffleQs(levelQs(ST.level));
+      }
       ST.idx=0; ST.correct=0; ST.answered=false;
       renderQ();
       return;
@@ -628,7 +655,9 @@ function answerPick(nClicked){
   }
   setTimeout(function(){
     if(!right && IS_LEVELS){
-      if(hasGen() && ST.level!=null) QS = genQuestions(levelCount(ST.level), ST.level+1);
+      if(ST.level!=null){
+        QS = hasGen() ? genQuestions(levelCount(ST.level), ST.level+1) : shuffleQs(levelQs(ST.level));
+      }
       ST.idx=0; ST.correct=0; ST.answered=false;
       renderQ();
       return;
