@@ -136,6 +136,30 @@ body{font-family:'Nunito',sans-serif;background:linear-gradient(160deg,var(--nav
 <script type="module" src="firebase-config.js"></script>
 
 <script>
+/* ── Запобіжник: sk-curriculum.js має бути завантажений і не старіший за потрібний.
+   Без нього рядки нижче (var norm = SKCUR.norm) кинули б ReferenceError і
+   сторінка лишилась би порожньою без пояснень. throw зупиняє лише цей скрипт. */
+(function(){
+  var need = 3;
+  var uses = ['chainPrevTitle','chainNextTitle','PASS_RATIO','ready','map'];
+  var bad = null;
+  if(!window.SKCUR) bad = 'Файл sk-curriculum.js не завантажився.';
+  else {
+    var miss = uses.filter(function(k){ return window.SKCUR[k] == null; });
+    if(miss.length) bad = 'Файл sk-curriculum.js застарілий — немає: ' + miss.join(', ') + '.';
+    else if((Number(window.SKCUR.API_VERSION)||0) < need)
+      bad = 'Файл sk-curriculum.js застарілий (версія ' + (window.SKCUR.API_VERSION||'?') + ', потрібна ' + need + ').';
+  }
+  if(!bad) return;
+  console.error('[School Kingdoms] ' + bad + ' Залий свіжий sk-curriculum.js поруч із цією сторінкою.');
+  var r = document.getElementById('root');
+  if(r) r.innerHTML = '<p style="text-align:center;color:#ffd7db;font-weight:700;padding:26px 14px;line-height:1.6">'
+    + '😔 Королівство лагодиться. Спробуй трохи згодом!'
+    + '<br><span style="color:#9aa6c6;font-size:.8rem;font-weight:600">' + bad + '</span></p>';
+  throw new Error('SKCUR: ' + bad);
+})();
+
+
 /* ============================================================
    ПЛЕЄР ТЕСТІВ З БАЗИ. Читає heroes/{id} через SK, тест — через
    SK.getTest(id). Нагороду (XP + характеристика) нараховує сам:
@@ -161,7 +185,7 @@ body{font-family:'Nunito',sans-serif;background:linear-gradient(160deg,var(--nav
 
 var ACTIVE_STATS={health:1,mana:1,agility:1,accuracy:1};
 var STAT_BASE={health:100,mana:20,agility:50,accuracy:50};
-var STAT_LABEL={health:"Здоров'я ❤️",accuracy:'Влучність 🎯',agility:'Спритність 🏃',mana:'Мана 🔮',
+var STAT_LABEL={health:"Здоров'я ❤️",accuracy:'Точність 🎯',agility:'Спритність 🏃',mana:'Мана 🔮',
   strength:'Сила',defense:'Захист',intelligence:'Інтелект',wisdom:'Мудрість',luck:'Удача',memory:'Пам’ять',charisma:'Харизма'};
 
 var root=document.getElementById('root');

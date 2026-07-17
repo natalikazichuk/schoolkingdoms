@@ -10,7 +10,59 @@
 (function(){
 "use strict";
 
+/* ВЕРСІЯ API МОДУЛЯ.
+   Інкрементуй щоразу, коли додаєш або міняєш експорт у window.SKCUR.
+   Сторінки перевіряють це число й кажуть «онови sk-curriculum.js»,
+   замість того щоб мовчки падати з порожнім екраном.
+     1 — перша версія (карта, ланцюги)
+     2 — normalize/statKey-неутральна
+     3 — + STATS, statLabel, statKeyFrom, statKey у предметах */
+var API_VERSION = 3;
+
 var PASS_RATIO = 0.55;
+
+/* ─── СТАТИ ───
+   Єдиний список на все королівство. Раніше назви жили в трьох місцях і
+   розійшлися: hero.html казав «Точність», test.html і admin.html —
+   «Влучність». Тут — канон; предмет на карті обирає стат зі списку,
+   а не набирає текст руками.
+   active:false — стат ще без формули (заглушка на майбутнє). */
+var STATS = [
+  { key:'health',       label:"Здоров'я",   emoji:'❤️', active:true,  note:'Українська мова, читання' },
+  { key:'accuracy',     label:'Точність',   emoji:'🎯', active:true,  note:'Математика' },
+  { key:'agility',      label:'Спритність', emoji:'🏃', active:true,  note:'ЯДС' },
+  { key:'mana',         label:'Мана',       emoji:'🔮', active:true,  note:'Англійська, логіка, памʼять' },
+  { key:'strength',     label:'Сила',       emoji:'💪', active:false, note:'' },
+  { key:'defense',      label:'Захист',     emoji:'🛡️', active:false, note:'' },
+  { key:'intelligence', label:'Інтелект',   emoji:'🧠', active:false, note:'' },
+  { key:'wisdom',       label:'Мудрість',   emoji:'📖', active:false, note:'' },
+  { key:'luck',         label:'Удача',      emoji:'🍀', active:false, note:'' },
+  { key:'memory',       label:'Памʼять',    emoji:'🧩', active:false, note:'' },
+  { key:'charisma',     label:'Харизма',    emoji:'✨', active:false, note:'' }
+];
+
+function statByKey(key){
+  for(var i = 0; i < STATS.length; i++) if(STATS[i].key === key) return STATS[i];
+  return null;
+}
+/* 'accuracy' → 'Точність 🎯' (саме це видно дитині на карті) */
+function statLabel(key){
+  var s = statByKey(key);
+  return s ? (s.label + ' ' + s.emoji) : '';
+}
+/* Зворотне: старі карти зберігали лише підпис. Впізнаємо і ключ, і будь-який
+   із підписів — включно зі старим «Влучність», щоб нічого не загубилось. */
+var STAT_ALIASES = { 'влучність':'accuracy', 'точність':'accuracy', 'здоровя':'health' };
+function statKeyFrom(v){
+  var raw = String(v == null ? '' : v);
+  if(statByKey(raw)) return raw;                       // це вже ключ
+  var n = norm(raw).replace(/[^а-яіїєґa-z ]/gi, '').trim();
+  if(!n) return '';
+  for(var i = 0; i < STATS.length; i++){
+    if(norm(STATS[i].label).replace(/[^а-яіїєґa-z ]/gi,'').trim() === n) return STATS[i].key;
+  }
+  return STAT_ALIASES[n] || '';
+}
 
 /* ─── Запасна карта = те, що було зашито в код ─── */
 var DEFAULT_MAP = {
@@ -23,7 +75,7 @@ var DEFAULT_MAP = {
       grades:[
         { id:'g1', name:'1 клас', status:'wip', gradeNum:1,
           subjects:[
-            { id:'math', icon:'🧮', name:'Математика', accent:'#5C6BC0', stat:'Точність 🎯',
+            { id:'math', icon:'🧮', name:'Математика', accent:'#5C6BC0', statKey:'accuracy', stat:'Точність 🎯',
               keys:['матем'],
               topics:[
                 { topic:'Лічба',                chain:false, tests:['Лічба вперед/назад'] },
@@ -46,11 +98,11 @@ var DEFAULT_MAP = {
                 { topic:'Геометричні фігури',   chain:false, tests:['Геометричні фігури'] },
                 { topic:'Цікава математика',    chain:false, tests:['Логічні задачі','Нестандартні задачі'] }
               ] },
-            { id:'yads', icon:'🌍', name:'ЯДС · Я досліджую світ', accent:'#E0954E', stat:'Спритність 🏃',
+            { id:'yads', icon:'🌍', name:'ЯДС · Я досліджую світ', accent:'#E0954E', statKey:'agility', stat:'Спритність 🏃',
               keys:['ядс','я досліджую світ','природознав','довкіл'], topics:[] },
-            { id:'eng',  icon:'🔤', name:'English', accent:'#3FB6A8', stat:'Мана 🔮',
+            { id:'eng',  icon:'🔤', name:'English', accent:'#3FB6A8', statKey:'mana', stat:'Мана 🔮',
               keys:['english','англ'], topics:[] },
-            { id:'ukr',  icon:'🌺', name:'Українська мова', accent:'#D6577A', stat:'Здоровʼя ❤️',
+            { id:'ukr',  icon:'🌺', name:'Українська мова', accent:'#D6577A', statKey:'health', stat:'Здоровʼя ❤️',
               keys:['україн','укр мова','рідна мова'], topics:[] }
           ] }
       ] },
@@ -104,12 +156,16 @@ function normalize(map){
           status:   (g.status === 'ready' || g.status === 'wip' || g.status === 'soon') ? g.status : 'wip',
           gradeNum: Number(g.gradeNum) || (gi + 1),
           subjects: (Array.isArray(g.subjects) ? g.subjects : []).map(function(s, si){
+            // Стат: джерело істини — statKey. Старі карти мали лише підпис —
+            // впізнаємо його і піднімаємо до ключа, щоб нічого не загубилось.
+            var sKey = statKeyFrom(s.statKey) || statKeyFrom(s.stat);
             return {
               id:     String(s.id || ('s' + si)),
               icon:   String(s.icon || '📘'),
               name:   String(s.name || 'Предмет'),
               accent: String(s.accent || '#5C6BC0'),
-              stat:   String(s.stat || '—'),
+              statKey: sKey,
+              stat:   sKey ? statLabel(sKey) : String(s.stat || '—'),
               keys:   (Array.isArray(s.keys) ? s.keys : []).filter(nonEmpty).map(trimStr),
               topics: (Array.isArray(s.topics) ? s.topics : []).map(function(tp){
                 return {
@@ -174,10 +230,12 @@ function chainNextTitle(map, title){ return neighbourTitle(map, title, +1); }
    SKCUR.map   — поточна карта; до завантаження = DEFAULT_MAP, тож синхронний
                  код нічого не ламає навіть до приходу відповіді з бази. */
 var API = {
+  API_VERSION: API_VERSION,
   PASS_RATIO: PASS_RATIO,
   DEFAULT_MAP: DEFAULT_MAP,
   map: normalize(DEFAULT_MAP),
   norm: norm, esc: esc, clone: clone,
+  STATS: STATS, statByKey: statByKey, statLabel: statLabel, statKeyFrom: statKeyFrom,
   normalize: normalize,
   subjectMatches: subjectMatches,
   eachSubject: eachSubject,

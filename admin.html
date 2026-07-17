@@ -126,6 +126,12 @@
   .switch input:checked + .track::after{transform:translateX(20px);background:var(--ok)}
   .switch .sw-txt{flex:1;min-width:0;line-height:1.25}
 
+  /* Банер «онови файл» */
+  .dep-warn{border:2px solid var(--danger);background:rgba(255,107,122,.1);border-radius:12px;
+    padding:12px 14px;margin:4px 0 10px;color:#ffd7db;font-weight:700;font-size:.88rem;line-height:1.55}
+  .dep-warn b{color:#fff}
+  .dep-warn code{color:var(--gold);font-family:ui-monospace,Menlo,monospace}
+
   /* Редактор карти */
   #viewMap > .panel{max-width:980px;margin:0 auto}
   .map-tier{border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px;
@@ -551,6 +557,37 @@ const SK_API = {
    ============================================================ */
 let MAP = null;                       // редагована карта (чернетка)
 
+/* ── Контракт із sk-curriculum.js ──
+   Одного разу залили новий admin.html і старий sk-curriculum.js: SKCUR.STATS
+   був undefined, renderMap() падав на першому предметі, і редактор показував
+   порожній екран без жодного слова. Тепер невідповідність видно одразу.
+   Перевіряємо і версію, і кожен потрібний експорт — на випадок, якщо версію
+   забули підняти. Оновлюючи цей список, підніми API_VERSION у модулі. */
+const SKCUR_NEEDS = 3;
+const SKCUR_USES = ['DEFAULT_MAP','normalize','chains','norm','clone',
+                    'STATS','statLabel','statKeyFrom'];
+
+function skcurProblem(){
+  if(!window.SKCUR){
+    return 'Файл <code>sk-curriculum.js</code> не завантажився. Перевір, чи він лежить у репозиторії поруч із <code>admin.html</code>.';
+  }
+  const miss = SKCUR_USES.filter(k => window.SKCUR[k] == null);
+  if(miss.length){
+    return 'Файл <code>sk-curriculum.js</code> застарілий — у ньому немає: <b>' + miss.join(', ') + '</b>.';
+  }
+  const v = Number(window.SKCUR.API_VERSION) || 0;
+  if(v < SKCUR_NEEDS){
+    return 'Файл <code>sk-curriculum.js</code> застарілий: версія <b>' + (v || 'невідома')
+         + '</b>, а ця адмінка потребує <b>' + SKCUR_NEEDS + '</b>.';
+  }
+  return null;
+}
+function depWarnHtml(msg){
+  return '<div class="dep-warn">⚠ <b>Карту не показано.</b><br>' + msg
+    + '<br><br><code>admin.html</code> і <code>sk-curriculum.js</code> — комплект, їх треба заливати разом. '
+    + 'Після заливки онови сторінку через <b>Ctrl+Shift+R</b>.</div>';
+}
+
 const EMPTY_TOPIC   = () => ({ topic:'Новий розділ', chain:false, chainGroup:'', tests:[] });
 const EMPTY_SUBJECT = () => ({ id:'s'+Date.now().toString(36), icon:'📘', name:'Новий предмет',
                                accent:'#5C6BC0', stat:'—', keys:[], topics:[] });
@@ -596,6 +633,8 @@ function testOptions(selected, grade, subjName){
 }
 
 function renderMap(){
+  const problem = skcurProblem();
+  if(problem){ $('mapTree').innerHTML = depWarnHtml(problem); return; }
   if(!MAP){ $('mapTree').innerHTML = ''; return; }
   let html = '';
   MAP.tiers.forEach((tier, ti) => {
@@ -850,8 +889,19 @@ async function openMap(){
   $('viewEdit').classList.add('hidden');
   $('viewMap').classList.remove('hidden');
   $('mapMsg').innerHTML = '';
+
+  // спершу контракт: ensureMap() кличе window.SKCUR.normalize і без модуля впаде
+  const problem = skcurProblem();
+  if(problem){ $('mapTree').innerHTML = depWarnHtml(problem); toast('Онови sk-curriculum.js', true); return; }
+
   const had = !!MAP;
-  await ensureMap();
+  try {
+    await ensureMap();
+  } catch(e){
+    console.error(e);
+    $('mapTree').innerHTML = depWarnHtml('Не вдалося зібрати карту: ' + (e && e.message ? esc(e.message) : 'невідома помилка') + '.');
+    return;
+  }
   if(!had && !MAP_FROM_DB) toast('Карти в базі ще немає — відкрито запасну. Збережи, щоб закріпити.');
   renderMap();
 }
