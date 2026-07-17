@@ -135,17 +135,26 @@
   .map-subj{border:1px solid var(--border);border-radius:10px;padding:10px;margin:8px 0 0 14px;
     background:rgba(9,13,35,.55);border-left:4px solid var(--accent,#5C6BC0)}
   .map-topic{border:1px dashed var(--border);border-radius:8px;padding:8px;margin:6px 0 0 14px}
-  .map-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .map-head{display:flex;align-items:center;gap:8px;flex-wrap:nowrap}
+  /* Глобальне правило input/select{width:100%} робить поля flex-базою на всю
+     ширину — рядок розпирало й кнопки зривало на власні рядки. Гасимо тут. */
+  .map-head input,.map-head select{width:auto;min-width:0}
+  .map-head .grow{flex:1 1 auto;min-width:60px}
+  /* Кнопки ↑ ↓ ✕ — одна нерозривна група праворуч, поруч зі статусом */
+  .map-btns{display:flex;gap:4px;flex:0 0 auto;margin-left:auto}
+  .map-btns .btn{flex:0 0 auto;padding:5px 8px;min-width:30px;justify-content:center}
   .map-head .grow{flex:1;min-width:120px}
   .map-head input[type=text]{padding:6px 9px;font-size:.88rem}
   .map-head input.w-ic{width:52px;text-align:center}
   .map-head input.w-sm{width:70px}
   .map-head input.w-color{width:52px;padding:2px;height:32px}
-  .btn.xs{padding:5px 9px;font-size:.75rem;border-radius:8px}
+  .btn.xs{padding:5px 9px;font-size:.75rem;border-radius:8px;flex:0 0 auto;white-space:nowrap}
   .map-lvl{font-size:.68rem;font-weight:900;letter-spacing:.04em;color:var(--muted);
     border:1px solid var(--border);border-radius:6px;padding:2px 6px;white-space:nowrap}
   .test-row{display:flex;align-items:center;gap:6px;margin-top:5px}
-  .test-row select{padding:6px 9px;font-size:.85rem}
+  .test-row select{padding:6px 9px;font-size:.85rem;width:auto;min-width:0}
+  .test-row .grow{flex:1 1 auto;min-width:60px}
+  .map-head .switch{flex:0 0 auto;white-space:nowrap}
   .map-warn{color:#ffb0b0;font-size:.78rem;font-weight:700;margin-top:6px}
   .map-ok{color:#8fe3ad;font-size:.78rem;font-weight:700;margin-top:6px}
 
@@ -345,6 +354,7 @@
         <div class="field">
           <label for="fStat">Розвиває характеристику</label>
           <select id="fStat"></select>
+          <span class="hint" id="statHint"></span>
         </div>
         <div class="field">
           <label for="fFormat">Формат тесту</label>
@@ -416,7 +426,6 @@
       </div>
     </div>
   </section>
-</div>
 
 <!-- ---- ВИД: РЕДАКТОР КАРТИ ---- -->
   <section id="viewMap" class="hidden">
@@ -444,6 +453,7 @@
       <div id="mapMsg"></div>
     </div>
   </section>
+</div>
 
 <!-- ===== МОДАЛКА ІМПОРТУ JSON ===== -->
 <div class="modal-bg" id="importModal">
@@ -495,7 +505,7 @@
 /* ---- Довідники ---- */
 const STATS = [
   { v:'health',       label:"Здоров'я",   note:'Українська мова' },
-  { v:'accuracy',     label:'Влучність',  note:'Математика' },
+  { v:'accuracy',     label:'Точність',   note:'Математика' },
   { v:'agility',      label:'Спритність', note:'ЯДС' },
   { v:'mana',         label:'Мана',       note:'Англійська / Логіка / Пам’ять' },
   { v:'strength',     label:'Сила',       note:'' },
@@ -598,9 +608,11 @@ function renderMap(){
         + '<select data-f="tier.status" data-p="' + pT + '" style="width:auto">'
           + statusOpts(tier.status)
         + '</select>'
-        + '<button class="btn xs" data-a="tier.up" data-p="' + pT + '">↑</button>'
-        + '<button class="btn xs" data-a="tier.down" data-p="' + pT + '">↓</button>'
-        + '<button class="btn xs" data-a="tier.del" data-p="' + pT + '">✕</button>'
+            + '<span class="map-btns">'
+              + '<button class="btn xs" data-a="tier.up" data-p="' + pT + '" title="Вище">↑</button>'
+              + '<button class="btn xs" data-a="tier.down" data-p="' + pT + '" title="Нижче">↓</button>'
+              + '<button class="btn xs" data-a="tier.del" data-p="' + pT + '" title="Видалити">✕</button>'
+            + '</span>'
       + '</div>'
       + '<div class="map-head" style="margin-top:6px">'
         + '<input type="text" class="grow" data-f="tier.note" data-p="' + pT + '" placeholder="Підпис (необовʼязково)" value="' + esc(tier.note) + '">'
@@ -614,9 +626,11 @@ function renderMap(){
           + '<input type="text" class="grow" data-f="grade.name" data-p="' + pG + '" value="' + esc(g.name) + '">'
           + '<input type="number" class="w-sm" data-f="grade.num" data-p="' + pG + '" value="' + g.gradeNum + '" title="Номер класу — зіставляється з полем grade тесту">'
           + '<select data-f="grade.status" data-p="' + pG + '" style="width:auto">' + statusOpts(g.status) + '</select>'
-          + '<button class="btn xs" data-a="grade.up" data-p="' + pG + '">↑</button>'
-          + '<button class="btn xs" data-a="grade.down" data-p="' + pG + '">↓</button>'
-          + '<button class="btn xs" data-a="grade.del" data-p="' + pG + '">✕</button>'
+            + '<span class="map-btns">'
+              + '<button class="btn xs" data-a="grade.up" data-p="' + pG + '" title="Вище">↑</button>'
+              + '<button class="btn xs" data-a="grade.down" data-p="' + pG + '" title="Нижче">↓</button>'
+              + '<button class="btn xs" data-a="grade.del" data-p="' + pG + '" title="Видалити">✕</button>'
+            + '</span>'
         + '</div>';
 
       (g.subjects || []).forEach((sj, si) => {
@@ -627,12 +641,15 @@ function renderMap(){
             + '<input type="text" class="w-ic" data-f="subj.icon" data-p="' + pS + '" value="' + esc(sj.icon) + '">'
             + '<input type="text" class="grow" data-f="subj.name" data-p="' + pS + '" value="' + esc(sj.name) + '">'
             + '<input type="color" class="w-color" data-f="subj.accent" data-p="' + pS + '" value="' + esc(sj.accent) + '">'
-            + '<button class="btn xs" data-a="subj.up" data-p="' + pS + '">↑</button>'
-            + '<button class="btn xs" data-a="subj.down" data-p="' + pS + '">↓</button>'
-            + '<button class="btn xs" data-a="subj.del" data-p="' + pS + '">✕</button>'
+            + '<span class="map-btns">'
+              + '<button class="btn xs" data-a="subj.up" data-p="' + pS + '" title="Вище">↑</button>'
+              + '<button class="btn xs" data-a="subj.down" data-p="' + pS + '" title="Нижче">↓</button>'
+              + '<button class="btn xs" data-a="subj.del" data-p="' + pS + '" title="Видалити">✕</button>'
+            + '</span>'
           + '</div>'
           + '<div class="map-head" style="margin-top:6px">'
-            + '<input type="text" class="grow" data-f="subj.stat" data-p="' + pS + '" placeholder="Стат, напр. Точність 🎯" value="' + esc(sj.stat) + '">'
+            + '<span class="map-lvl">РОЗВИВАЄ</span>'
+            + '<select class="grow" data-f="subj.statKey" data-p="' + pS + '">' + statMapOpts(sj.statKey) + '</select>'
             + '<input type="text" class="grow" data-f="subj.keys" data-p="' + pS + '" placeholder="ключі: матем, математика" value="' + esc((sj.keys || []).join(', ')) + '" title="Підрядки, за якими поле subject тесту зіставляється з цим предметом">'
           + '</div>';
 
@@ -647,18 +664,22 @@ function renderMap(){
                 + '<span class="track"></span><span class="sw-txt">🔗 Ланцюг</span>'
               + '</label>'
               + '<input type="text" class="w-sm" data-f="topic.group" data-p="' + pP + '" placeholder="група" value="' + esc(tp.chainGroup) + '" title="Розділи з однаковою групою зчіплюються в один ланцюг">'
-              + '<button class="btn xs" data-a="topic.up" data-p="' + pP + '">↑</button>'
-              + '<button class="btn xs" data-a="topic.down" data-p="' + pP + '">↓</button>'
-              + '<button class="btn xs" data-a="topic.del" data-p="' + pP + '">✕</button>'
+            + '<span class="map-btns">'
+              + '<button class="btn xs" data-a="topic.up" data-p="' + pP + '" title="Вище">↑</button>'
+              + '<button class="btn xs" data-a="topic.down" data-p="' + pP + '" title="Нижче">↓</button>'
+              + '<button class="btn xs" data-a="topic.del" data-p="' + pP + '" title="Видалити">✕</button>'
+            + '</span>'
             + '</div>';
           (tp.tests || []).forEach((name, xi) => {
             html += '<div class="test-row">'
               + '<select class="grow" data-f="test.name" data-p="' + pP + '.' + xi + '">'
                 + testOptions(name, g.gradeNum, sj.name)
               + '</select>'
-              + '<button class="btn xs" data-a="test.up" data-p="' + pP + '.' + xi + '">↑</button>'
-              + '<button class="btn xs" data-a="test.down" data-p="' + pP + '.' + xi + '">↓</button>'
-              + '<button class="btn xs" data-a="test.del" data-p="' + pP + '.' + xi + '">✕</button>'
+              + '<span class="map-btns">'
+                + '<button class="btn xs" data-a="test.up" data-p="' + pP + '.' + xi + '" title="Вище">↑</button>'
+                + '<button class="btn xs" data-a="test.down" data-p="' + pP + '.' + xi + '" title="Нижче">↓</button>'
+                + '<button class="btn xs" data-a="test.del" data-p="' + pP + '.' + xi + '" title="Прибрати з розділу">✕</button>'
+              + '</span>'
             + '</div>';
           });
           html += '<button class="btn xs" data-a="test.add" data-p="' + pP + '" style="margin-top:6px">＋ Тест</button>'
@@ -674,6 +695,23 @@ function renderMap(){
       + '</div>';
   });
   $('mapTree').innerHTML = html;
+}
+
+/* Стати — зі спільного списку SKCUR.STATS, того самого, що бачить дитина.
+   Ті, що ще без формули, лишаються в списку, але явно підписані. */
+function statMapOpts(v){
+  const S = window.SKCUR.STATS;
+  let html = '<option value="">— не вказано —</option>';
+  let known = false;
+  S.forEach(st => {
+    if(st.key === v) known = true;
+    html += '<option value="' + st.key + '"' + (st.key === v ? ' selected' : '') + '>'
+          + esc(st.emoji + ' ' + st.label)
+          + (st.active ? (st.note ? ' — ' + esc(st.note) : '') : ' (поки без формули)')
+          + '</option>';
+  });
+  if(v && !known) html += '<option value="' + esc(v) + '" selected>⚠ ' + esc(v) + ' — невідомий стат</option>';
+  return html;
 }
 
 function statusOpts(v){
@@ -701,7 +739,13 @@ function onMapInput(e){
     case 'subj.icon':   subjAt(p).icon = v; break;
     case 'subj.name':   subjAt(p).name = v; break;
     case 'subj.accent': subjAt(p).accent = v; renderMap(); return;
-    case 'subj.stat':   subjAt(p).stat = v; break;
+    case 'subj.statKey': {
+      const sj = subjAt(p);
+      sj.statKey = v;
+      sj.stat = v ? window.SKCUR.statLabel(v) : '—';   // підпис — похідне від ключа
+      renderMap();
+      return;
+    }
     case 'subj.keys':   subjAt(p).keys = v.split(',').map(x => x.trim()).filter(Boolean); break;
     case 'topic.name':  topicAt(p).topic = v; break;
     case 'topic.chain': topicAt(p).chain = !!v; break;
@@ -806,12 +850,9 @@ async function openMap(){
   $('viewEdit').classList.add('hidden');
   $('viewMap').classList.remove('hidden');
   $('mapMsg').innerHTML = '';
-  if(!MAP){
-    let doc = null;
-    try { doc = await SK_API.getMap(); } catch(e){ doc = null; }
-    MAP = window.SKCUR.normalize(doc && doc.tiers ? doc : window.SKCUR.DEFAULT_MAP);
-    if(!doc) toast('Карти в базі ще немає — відкрито запасну. Збережи, щоб закріпити.');
-  }
+  const had = !!MAP;
+  await ensureMap();
+  if(!had && !MAP_FROM_DB) toast('Карти в базі ще немає — відкрито запасну. Збережи, щоб закріпити.');
   renderMap();
 }
 
@@ -821,6 +862,7 @@ async function saveMap(){
     const clean = window.SKCUR.normalize(MAP);
     await SK_API.saveMap(clean);
     MAP = clean;
+    MAP_FROM_DB = true;
     renderMap();
     toast('Карту збережено ✔');
   } catch(e){
@@ -881,6 +923,64 @@ async function loadTests(){
   try { TESTS = await SK_API.list() || []; }
   catch(e){ console.error(e); TESTS = []; toast('Не вдалося завантажити тести', true); }
   renderList();
+}
+
+/* Карта потрібна не лише редактору карти, а й редактору тесту —
+   щоб тест сам підхоплював стат свого предмета. Вантажимо один раз;
+   не вийшло — просто працюємо із запасною, нічого не ламається. */
+let MAP_FROM_DB = false;      // карта справді прийшла з бази (а не запасна)
+async function ensureMap(){
+  if(MAP) return MAP;
+  let d = null;
+  try { d = await SK_API.getMap(); } catch(e){ d = null; }
+  MAP_FROM_DB = !!(d && Array.isArray(d.tiers) && d.tiers.length);
+  MAP = window.SKCUR.normalize(MAP_FROM_DB ? d : window.SKCUR.DEFAULT_MAP);
+  return MAP;
+}
+
+/* Який стат розвиває предмет за назвою+класом (за картою). '' — не знайдено. */
+function statForSubject(subjectName, grade){
+  if(!MAP || !String(subjectName || '').trim()) return '';
+  let hit = '';
+  window.SKCUR.eachSubject(MAP, (subj, g) => {
+    if(hit) return;
+    if(Number(g.gradeNum) !== Number(grade || 1)) return;
+    if(window.SKCUR.subjectMatches(subj, subjectName) && subj.statKey) hit = subj.statKey;
+  });
+  // того самого предмета в цьому класі немає — пробуємо будь-який клас
+  if(!hit){
+    window.SKCUR.eachSubject(MAP, (subj) => {
+      if(hit) return;
+      if(window.SKCUR.subjectMatches(subj, subjectName) && subj.statKey) hit = subj.statKey;
+    });
+  }
+  return hit;
+}
+
+/* Підказка під селектом стата + автопідхоплення.
+   Автоматично ставимо лише поки користувач не чіпав стат руками —
+   інакше редагування чужого тесту мовчки перезаписало б налаштоване. */
+let statTouched = false;
+
+function applySubjectStat(){
+  const want = statForSubject($('fSubject').value, +$('fGrade').value || 1);
+  const hint = $('statHint');
+  if(!want){
+    if(hint) hint.innerHTML = 'Предмета немає на карті — стат обери вручну.';
+    return;
+  }
+  if(!statTouched && $('fStat').value !== want){
+    $('fStat').value = want;
+    draft.stat = want;
+  }
+  const lbl = window.SKCUR.statLabel(want);
+  if(!hint) return;
+  if($('fStat').value === want){
+    hint.innerHTML = 'За картою предмет розвиває <b>' + esc(lbl) + '</b> — підхоплено автоматично.';
+  } else {
+    hint.innerHTML = 'За картою предмет розвиває <b>' + esc(lbl) + '</b>. '
+      + '<a href="#" id="statApply" style="color:var(--gold)">Застосувати</a>';
+  }
 }
 
 function renderList(){
@@ -952,6 +1052,9 @@ function openEditor(test){
   $('fStatMode').value = draft.statMode;
   $('fStatValue').value= draft.statValue;
   $('fActive').checked = !!draft.active;
+  // новий тест — стат вільно підхоплюється; наявний — поважаємо збережене
+  statTouched = !!draft.id;
+  ensureMap().then(applySubjectStat);
   renderEditor();
   $('viewList').classList.add('hidden');
   $('viewEdit').classList.remove('hidden');
@@ -1243,6 +1346,19 @@ function bindEvents(){
   $('btnBack').onclick       = closeEditor;
   $('btnSave').onclick       = saveDraft;
   $('filterSubject').onchange= renderList;
+
+  // ---- Стат із предмета ----
+  $('fSubject').addEventListener('input',  applySubjectStat);
+  $('fSubject').addEventListener('change', applySubjectStat);
+  $('fGrade').addEventListener('change',   applySubjectStat);
+  $('fStat').addEventListener('change', () => { statTouched = true; applySubjectStat(); });
+  $('statHint').addEventListener('click', (e) => {
+    const a = e.target.closest('#statApply');
+    if(!a) return;
+    e.preventDefault();
+    const want = statForSubject($('fSubject').value, +$('fGrade').value || 1);
+    if(want){ $('fStat').value = want; draft.stat = want; statTouched = false; applySubjectStat(); }
+  });
 
   // ---- Редактор карти ----
   $('btnMap').onclick   = openMap;
