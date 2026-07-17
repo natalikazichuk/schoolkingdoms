@@ -16,8 +16,10 @@
    замість того щоб мовчки падати з порожнім екраном.
      1 — перша версія (карта, ланцюги)
      2 — normalize/statKey-неутральна
-     3 — + STATS, statLabel, statKeyFrom, statKey у предметах */
-var API_VERSION = 3;
+     3 — + STATS, statLabel, statKeyFrom, statKey у предметах
+     4 — ланцюги на id тестів: chains(map,tests), chainIndex, chainPrev/chainNext
+         замість chainPrevTitle/chainNextTitle (назва більше не ідентифікатор) */
+var API_VERSION = 4;
 
 var PASS_RATIO = 0.55;
 
@@ -185,10 +187,35 @@ function normalize(map){
   return out;
 }
 
-/* ─── ланцюги: масиви назв тестів, що відкриваються по черзі ───
-   Групуються за предметом + chainGroup, тож ланцюги різних предметів
-   і різних класів ніколи не перетинаються. */
-function chains(map){
+/* ─── ЛАНЦЮГИ ───
+   У карті розділ зберігає посилання на тести. Раніше це були НАЗВИ, і назва
+   де-факто працювала ідентифікатором: перейменував тест — ланцюг тихо розсипався.
+   Тепер канон — id тесту. Старі карти з назвами теж читаються (findTest пробує
+   спершу id, потім назву), тож нічого не ламається до міграції.
+
+   Групуються за ступенем+класом+предметом+chainGroup, тож ланцюги різних
+   класів і предметів ніколи не перетинаються. */
+
+function indexTests(tests){
+  var byId = {}, byTitle = {};
+  (tests || []).forEach(function(t){
+    if(!t || !t.id) return;
+    byId[String(t.id)] = t;
+    if(t.title) byTitle[norm(t.title)] = t;
+  });
+  return { byId: byId, byTitle: byTitle };
+}
+
+/* Посилання з карти → тест. Приймає і id (нове), і назву (старі карти). */
+function findTest(ref, idx){
+  if(ref == null || !idx) return null;
+  var r = String(ref).trim();
+  if(!r) return null;
+  return idx.byId[r] || idx.byTitle[norm(r)] || null;
+}
+
+/* Сирі посилання ланцюгів — як вони лежать у карті. */
+function chainRefs(map){
   var groups = {}, order = [];
   eachSubject(map, function(subj, grade, tier){
     (subj.topics || []).forEach(function(tp){
@@ -201,6 +228,35 @@ function chains(map){
   return order.map(function(k){ return groups[k]; });
 }
 
+/* Ланцюги, розвʼязані в об'єкти тестів.
+   Нерозпізнані посилання відкидаємо: «дірка» в ланцюгу не повинна замикати
+   все, що далі. Адмінка про такі посилання попереджає окремо. */
+function chains(map, tests){
+  var idx = indexTests(tests);
+  return chainRefs(map).map(function(arr){
+    var seen = {};
+    return arr.map(function(ref){ return findTest(ref, idx); })
+      .filter(function(t){
+        if(!t || !t.id || seen[t.id]) return false;   // дубль у ланцюгу — теж пропускаємо
+        seen[t.id] = 1; return true;
+      });
+  }).filter(function(a){ return a.length > 0; });
+}
+
+/* Готова таблиця сусідів: { [testId]: {prev, next} }. Будується один раз. */
+function chainIndex(map, tests){
+  var out = {};
+  chains(map, tests).forEach(function(arr){
+    arr.forEach(function(t, i){
+      out[t.id] = {
+        prev: i > 0 ? arr[i - 1] : null,
+        next: i < arr.length - 1 ? arr[i + 1] : null
+      };
+    });
+  });
+  return out;
+}
+
 function eachSubject(map, cb){
   (map.tiers || []).forEach(function(tier){
     (tier.grades || []).forEach(function(grade){
@@ -209,21 +265,33 @@ function eachSubject(map, cb){
   });
 }
 
-function neighbourTitle(map, title, dir){
-  var gs = chains(map), w = norm(title);
-  if(!w) return null;
-  for(var g = 0; g < gs.length; g++){
-    var arr = gs[g];
-    for(var i = 0; i < arr.length; i++){
-      if(norm(arr[i]) !== w) continue;
-      var j = i + dir;
-      return (j >= 0 && j < arr.length) ? arr[j] : null;
-    }
-  }
-  return null;
+/* Сусід у ланцюгу. Поточний тест шукаємо за id — назва більше ні на що не впливає. */
+function chainNeighbour(map, tests, test, dir){
+  if(!test || !test.id) return null;
+  var e = chainIndex(map, tests)[String(test.id)];
+  if(!e) return null;
+  return (dir < 0 ? e.prev : e.next) || null;
 }
-function chainPrevTitle(map, title){ return neighbourTitle(map, title, -1); }
-function chainNextTitle(map, title){ return neighbourTitle(map, title, +1); }
+function chainPrev(map, tests, test){ return chainNeighbour(map, tests, test, -1); }
+function chainNext(map, tests, test){ return chainNeighbour(map, tests, test, +1); }
+
+/* Міграція карти: назви → id. Повертає {map, changed, unresolved[]}.
+   Те, що не розпізналось, лишаємо як є — краще видимий брак, ніж тихо стерте. */
+function migrateRefs(map, tests){
+  var idx = indexTests(tests), changed = 0, unresolved = [];
+  var out = clone(map);
+  eachSubject(out, function(subj){
+    (subj.topics || []).forEach(function(tp){
+      tp.tests = (tp.tests || []).map(function(ref){
+        var t = findTest(ref, idx);
+        if(!t){ unresolved.push(String(ref)); return ref; }
+        if(String(ref) !== String(t.id)) changed++;
+        return String(t.id);
+      });
+    });
+  });
+  return { map: out, changed: changed, unresolved: unresolved };
+}
 
 /* ─── завантаження ───
    SKCUR.ready — Promise, який ЗАВЖДИ резолвиться картою (ніколи не падає).
@@ -240,8 +308,13 @@ var API = {
   subjectMatches: subjectMatches,
   eachSubject: eachSubject,
   chains: chains,
-  chainPrevTitle: chainPrevTitle,
-  chainNextTitle: chainNextTitle,
+  chainRefs: chainRefs,
+  chainIndex: chainIndex,
+  chainPrev: chainPrev,
+  chainNext: chainNext,
+  indexTests: indexTests,
+  findTest: findTest,
+  migrateRefs: migrateRefs,
   ready: null,
   loaded: false      // true = карта прийшла з бази, false = запасна
 };
