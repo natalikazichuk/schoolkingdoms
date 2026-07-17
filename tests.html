@@ -210,8 +210,8 @@
    Без нього рядки нижче (var norm = SKCUR.norm) кинули б ReferenceError і
    сторінка лишилась би порожньою без пояснень. throw зупиняє лише цей скрипт. */
 (function(){
-  var need = 3;
-  var uses = ['norm','clone','chains','chainPrevTitle','subjectMatches','PASS_RATIO','ready','map'];
+  var need = 4;
+  var uses = ['norm','clone','chains','chainIndex','chainPrev','findTest','indexTests','subjectMatches','PASS_RATIO','ready','map'];
   var bad = null;
   if(!window.SKCUR) bad = 'Файл sk-curriculum.js не завантажився.';
   else {
@@ -328,7 +328,9 @@ function isLevelsTest(t){ return !!(t && (t.format==='levels' || (Array.isArray(
 var PASS_RATIO = SKCUR.PASS_RATIO;
 /* Ланцюги й «пройдено на 55%» рахує спільний модуль sk-curriculum.js —
    тож tests.html і test.html фізично не можуть розійтися. */
-function chainPrevTitle(title){ return SKCUR.chainPrevTitle(SKCUR.map, title); }
+/* Ланцюги рахуються на id тестів (див. sk-curriculum.js).
+   CHAINX — готова таблиця сусідів { [id]: {prev,next} }, будується раз у distribute(). */
+var CHAINX = {};
 function isTestPassed(pre, lookup){
   if(!pre || !pre.id) return false;
   var mark=lookup('sk_testpass_'+pre.id);
@@ -340,7 +342,7 @@ function isTestPassed(pre, lookup){
   return false;
 }
 
-function testChip(t, byTitle){
+function testChip(t){
   var lv = isLevelsTest(t);
   var c = { db:true, status:'ready', label:t.title||'Тест',
     href:'test.html?id='+encodeURIComponent(t.id),
@@ -349,14 +351,11 @@ function testChip(t, byTitle){
     grade:t.grade };
   // замок лише для тестів у «ланцюгу»: відкривається, коли попередній тест
   // ланцюга пройдено на 55%. Немає попереднього серед активних → fail-open.
-  var prevTitle = chainPrevTitle(t.title);
-  if(prevTitle && byTitle){
-    var pre = byTitle[norm(prevTitle)];
-    if(pre && pre.id){
-      c.lockPreId     = pre.id;
-      c.lockPreTitle  = pre.title;
-      c.lockPreLevels = isLevelsTest(pre) ? (Array.isArray(pre.levels)?pre.levels.length:0) : 0;
-    }
+  var pre = (CHAINX[t.id] || {}).prev;
+  if(pre && pre.id){
+    c.lockPreId     = pre.id;
+    c.lockPreTitle  = pre.title;
+    c.lockPreLevels = isLevelsTest(pre) ? (Array.isArray(pre.levels)?pre.levels.length:0) : 0;
   }
   return c;
 }
@@ -377,8 +376,10 @@ function distribute(tests){
     });
   });
 
-  var byTitle = {};
-  (tests||[]).forEach(function(t){ if(t && t.id && t.title) byTitle[norm(t.title)] = t; });
+  // Індекс тестів і таблиця ланцюгів — рахуємо один раз на весь рендер,
+  // а не в кожному testChip (інакше O(n²) на кожне перемальовування).
+  var TIDX = SKCUR.indexTests(tests);
+  CHAINX = SKCUR.chainIndex(SKCUR.map, tests);
 
   var usedId = {};        // тест уже показаний десь у розділі
   var takenTitle = {};    // його назва — щоб не продублювати нижче
@@ -392,12 +393,13 @@ function distribute(tests){
       function addTest(t){
         if(!t || !t.id || usedId[t.id]) return;
         if(Number(t.grade||1) !== Number(e.gradeNum)) return;
-        items.push(testChip(t, byTitle));
+        items.push(testChip(t));
         usedId[t.id] = true;
         takenTitle[norm(t.title)] = true;
       }
       // (а) явний список назв у розділі
-      (tp.tests||[]).forEach(function(name){ addTest(byTitle[norm(name)]); });
+      // посилання розділу — id (нове) або назва (старі карти)
+      (tp.tests||[]).forEach(function(ref){ addTest(SKCUR.findTest(ref, TIDX)); });
       // (б)+(в) поле topic або префікс назви — лише в межах свого предмета
       (tests||[]).forEach(function(t){
         if(!t || !t.title) return;
@@ -419,7 +421,7 @@ function distribute(tests){
     for(var i=0;i<index.length;i++){
       var e = index[i];
       if(Number(t.grade) === Number(e.gradeNum) && subjectMatches(e.subj, t.subject)){
-        e.subj.items.push(testChip(t, byTitle));
+        e.subj.items.push(testChip(t));
         usedId[t.id] = true; placed = true; break;
       }
     }
@@ -436,7 +438,7 @@ function distribute(tests){
     if(firstGrade){
       firstGrade.subjects.push({ id:'other', icon:'📦', name:'Інші тести', accent:'#8a8fb0',
         stat:'—', keys:[], topics:[], items: leftovers.map(function(t){
-          var c = testChip(t, byTitle);
+          var c = testChip(t);
           if(Number(t.grade) && Number(t.grade) !== Number(firstGrade.gradeNum)){
             c.label = '['+t.grade+' кл] ' + c.label;
           }

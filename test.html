@@ -140,8 +140,8 @@ body{font-family:'Nunito',sans-serif;background:linear-gradient(160deg,var(--nav
    Без нього рядки нижче (var norm = SKCUR.norm) кинули б ReferenceError і
    сторінка лишилась би порожньою без пояснень. throw зупиняє лише цей скрипт. */
 (function(){
-  var need = 3;
-  var uses = ['chainPrevTitle','chainNextTitle','PASS_RATIO','ready','map'];
+  var need = 4;
+  var uses = ['chainPrev','chainNext','PASS_RATIO','ready','map'];
   var bad = null;
   if(!window.SKCUR) bad = 'Файл sk-curriculum.js не завантажився.';
   else {
@@ -764,7 +764,6 @@ function saveReward(xpGain, statGain){
 
 /* ─── Послідовне відкриття: наступний тест предмета відкривається, коли
        попередній пройдено щонайменше на 55% ─── */
-function lkNorm(s){ return String(s==null?'':s).toLowerCase().replace(/[’'`]/g,'').replace(/\s+/g,' ').trim(); }
 function lkCount(v){ try{ var o=(typeof v==='string')?JSON.parse(v):v; if(Array.isArray(o))return o.length; return (o&&typeof o==='object')?Object.keys(o).length:0; }catch(e){ return 0; } }
 
 var PASS_RATIO = 0.55;
@@ -773,8 +772,10 @@ var PASS_RATIO = 0.55;
    символ-у-символ — і одного разу вже розійшлася. Тепер джерело одне:
    документ curriculum/map у базі (запасна карта — у sk-curriculum.js). */
 var PASS_RATIO = SKCUR.PASS_RATIO;
-function chainPrevTitle(title){ return SKCUR.chainPrevTitle(SKCUR.map, title); }
-function chainNextTitle(title){ return SKCUR.chainNextTitle(SKCUR.map, title); }
+/* Ланцюги — на id тестів. Потрібен список активних тестів, тож обидві
+   функції приймають його ззовні (див. sk-curriculum.js). */
+function chainPrevTest(list, t){ return SKCUR.chainPrev(SKCUR.map, list, t); }
+function chainNextTest(list, t){ return SKCUR.chainNext(SKCUR.map, list, t); }
 
 /* «пройдено на 55%» для тесту pre. lookup(key)→значення (localStorage/Firebase) */
 function isTestPassed(pre, lookup){
@@ -803,12 +804,11 @@ function checkLock(t, onOk){
   SKCUR.ready.then(function(){ checkLockNow(t, onOk); }, function(){ checkLockNow(t, onOk); });
 }
 function checkLockNow(t, onOk){
-  var prevTitle = chainPrevTitle(t&&t.title);
-  if(!prevTitle){ onOk(); return; }
+  if(!(t && t.id)){ onOk(); return; }
   if(!(SK.listActiveTests)){ onOk(); return; }
   SK.listActiveTests().then(function(list){
-    var pre=null, want=lkNorm(prevTitle);
-    (list||[]).forEach(function(x){ if(x && x.id && x.title && lkNorm(x.title)===want) pre=x; });
+    // попередній у ланцюгу шукаємо за id: перейменування тесту нічого не ламає
+    var pre = chainPrevTest(list||[], t);
     if(!pre){ onOk(); return; }                 // передумови немає серед активних → fail-open
     function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
     function decide(prog){
@@ -824,9 +824,10 @@ function checkLockNow(t, onOk){
 
 /* ─── Поп-ап: розблоковано наступне тренування ─── */
 function showUnlockPopup(){
-  var nextTitle = chainNextTitle(TEST&&TEST.title);
-  if(!nextTitle) return;
-  function build(nextId){
+  if(!(TEST && TEST.id)) return;
+  if(!SK.listActiveTests) return;
+  function build(next){
+    var nextId = next && next.id, nextTitle = (next && next.title) || '';
     var goBtn = nextId
       ? '<a class="btn" href="test.html?id='+encodeURIComponent(nextId)+'">▶ До наступного тренування</a>'
       : '<a class="btn" href="tests.html">▶ До тестів</a>';
@@ -843,13 +844,11 @@ function showUnlockPopup(){
     var c=document.getElementById('unlockClose'); if(c) c.onclick=function(){ ov.remove(); };
     ov.addEventListener('click',function(e){ if(e.target===ov) ov.remove(); });
   }
-  if(SK.listActiveTests){
-    SK.listActiveTests().then(function(list){
-      var want=lkNorm(nextTitle), id=null;
-      (list||[]).forEach(function(x){ if(x&&x.id&&x.title&&lkNorm(x.title)===want) id=x.id; });
-      build(id);
-    }).catch(function(){ build(null); });
-  } else build(null);
+  // наступний у ланцюгу — за id; поп-ап показуємо, лише якщо він справді є
+  SK.listActiveTests().then(function(list){
+    var next = chainNextTest(list||[], TEST);
+    if(next) build(next);
+  }).catch(function(){});
 }
 
 /* старт: дочекатись SK, завантажити тест */

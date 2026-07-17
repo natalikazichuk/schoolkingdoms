@@ -590,9 +590,10 @@ let MAP = null;                       // редагована карта (чер
    порожній екран без жодного слова. Тепер невідповідність видно одразу.
    Перевіряємо і версію, і кожен потрібний експорт — на випадок, якщо версію
    забули підняти. Оновлюючи цей список, підніми API_VERSION у модулі. */
-const SKCUR_NEEDS = 3;
+const SKCUR_NEEDS = 4;
 const SKCUR_USES = ['DEFAULT_MAP','normalize','chains','norm','clone',
-                    'STATS','statLabel','statKeyFrom'];
+                    'STATS','statLabel','statKeyFrom',
+                    'indexTests','findTest','migrateRefs','chainIndex'];
 
 function skcurProblem(){
   if(!window.SKCUR){
@@ -639,21 +640,23 @@ function move(arr, i, d){
 
 /* назви всіх тестів у базі — для випадаючих списків */
 function testOptions(selected, grade, subjName){
-  const norm = window.SKCUR.norm;
+  // Значення <option> — це id тесту, а не назва: перейменування тесту більше
+  // не рве ланцюг. Старі карти зберігали назви — findTest їх ще розпізнає,
+  // а міграція при відкритті замінює на id.
+  const idx = window.SKCUR.indexTests(TESTS);
+  const cur = window.SKCUR.findTest(selected, idx);
   const pool = TESTS.filter(t => t && t.title);
   const fit = pool.filter(t => Number(t.grade || 1) === Number(grade));
   const list = (fit.length ? fit : pool).slice()
-    .sort((a,b) => String(a.title).localeCompare(String(b.title), 'uk'));
+    .sort((a, b) => String(a.title).localeCompare(String(b.title), 'uk'));
+
   let html = '<option value="">— обери тест —</option>';
-  let found = false;
   list.forEach(t => {
-    const sel = norm(t.title) === norm(selected);
-    if(sel) found = true;
-    html += '<option value="' + esc(t.title) + '"' + (sel ? ' selected' : '') + '>'
+    html += '<option value="' + esc(t.id) + '"' + (cur && cur.id === t.id ? ' selected' : '') + '>'
           + esc(t.title) + (t.active === false ? ' (вимкнено)' : '') + '</option>';
   });
-  // назва є в карті, але такого тесту в базі немає — не втрачаємо її мовчки
-  if(selected && !found){
+  // посилання є в карті, але такого тесту в базі немає — показуємо, не ховаємо
+  if(selected && !cur){
     html += '<option value="' + esc(selected) + '" selected>⚠ ' + esc(selected) + ' — немає в базі</option>';
   }
   return html;
@@ -871,11 +874,9 @@ function onMapClick(e){
 
 /* ── перевірка карти перед збереженням ── */
 function checkMap(){
-  const norm = window.SKCUR.norm;
   const errs = [], warns = [];
-  const seenTest = {};
-  const titles = {};
-  TESTS.forEach(t => { if(t && t.title) titles[norm(t.title)] = t; });
+  const seenTest = {};                       // id тесту → назва розділу
+  const idx = window.SKCUR.indexTests(TESTS);
 
   MAP.tiers.forEach(tier => {
     if(!String(tier.name || '').trim()) errs.push('Ступінь без назви');
@@ -886,11 +887,14 @@ function checkMap(){
         if(!(sj.keys || []).length) warns.push('Предмет «' + sj.name + '» без ключів — тести підуть у «Інші тести»');
         (sj.topics || []).forEach(tp => {
           if(!String(tp.topic || '').trim()) errs.push('Розділ без назви у «' + sj.name + '»');
-          (tp.tests || []).forEach(n => {
-            const k = norm(n);
-            if(!titles[k]) warns.push('Тесту «' + n + '» немає в базі (розділ «' + tp.topic + '»)');
-            if(seenTest[k]) errs.push('Тест «' + n + '» стоїть у двох розділах: «' + seenTest[k] + '» і «' + tp.topic + '»');
-            else seenTest[k] = tp.topic;
+          (tp.tests || []).forEach(ref => {
+            const t = window.SKCUR.findTest(ref, idx);
+            if(!t){
+              warns.push('Посилання «' + ref + '» ні на що не вказує (розділ «' + tp.topic + '»)');
+              return;
+            }
+            if(seenTest[t.id]) errs.push('Тест «' + t.title + '» стоїть у двох розділах: «' + seenTest[t.id] + '» і «' + tp.topic + '»');
+            else seenTest[t.id] = tp.topic;
           });
         });
       });
@@ -898,7 +902,7 @@ function checkMap(){
   });
 
   // тести з бази, які нікуди не потрапили
-  const orphans = TESTS.filter(t => t && t.title && t.active !== false && !seenTest[norm(t.title)]);
+  const orphans = TESTS.filter(t => t && t.title && t.active !== false && !seenTest[t.id]);
 
   let html = '';
   if(errs.length)  html += '<div class="map-warn">✘ ' + errs.map(esc).join('<br>✘ ') + '</div>';
@@ -931,6 +935,15 @@ async function openMap(){
   }
   if(!had && !MAP_FROM_DB) toast('Карти в базі ще немає — відкрито запасну. Збережи, щоб закріпити.');
   renderMap();
+  if(MAP_MIGRATED){
+    $('mapMsg').innerHTML = '<div class="map-ok">↻ Посилань на тести переведено з назв на id: <b>'
+      + MAP_MIGRATED + '</b>. Натисни «Зберегти карту», щоб закріпити — після цього '
+      + 'перейменування тесту більше не розірве ланцюг.</div>'
+      + (MAP_UNRESOLVED.length
+          ? '<div class="map-warn" style="color:#ffd98f">⚠ Ні на що не вказують: '
+            + MAP_UNRESOLVED.map(esc).join(', ') + '</div>'
+          : '');
+  }
 }
 
 async function saveMap(){
@@ -1006,12 +1019,22 @@ async function loadTests(){
    щоб тест сам підхоплював стат свого предмета. Вантажимо один раз;
    не вийшло — просто працюємо із запасною, нічого не ламається. */
 let MAP_FROM_DB = false;      // карта справді прийшла з бази (а не запасна)
+let MAP_MIGRATED = 0;         // скільки посилань «назва → id» замінила міграція
+let MAP_UNRESOLVED = [];      // посилання, які ні на що не вказують
 async function ensureMap(){
   if(MAP) return MAP;
   let d = null;
   try { d = await SK_API.getMap(); } catch(e){ d = null; }
   MAP_FROM_DB = !!(d && Array.isArray(d.tiers) && d.tiers.length);
   MAP = window.SKCUR.normalize(MAP_FROM_DB ? d : window.SKCUR.DEFAULT_MAP);
+
+  // Міграція: старі карти посилалися на тести за НАЗВОЮ. Переводимо на id,
+  // щоб перейменування тесту більше не рвало ланцюг. Що не розпізналось —
+  // лишаємо як є: краще видимий брак, ніж тихо стерте посилання.
+  const m = window.SKCUR.migrateRefs(MAP, TESTS);
+  MAP = m.map;
+  MAP_MIGRATED = m.changed;
+  MAP_UNRESOLVED = m.unresolved;
   return MAP;
 }
 
