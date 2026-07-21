@@ -517,6 +517,29 @@ const SK = {
     return true;
   },
 
+  /* ===== ДИНАСТІЯ / РОДОВІД (users/{uid}.dynasty) ===== */
+
+  // Дерево роду поточного user. -> [{ id, rel, name, ... }] | []
+  async getDynasty() {
+    const u = auth.currentUser;
+    if (!u || SK.isHeroSession()) return [];
+    const s = await getDoc(doc(db, 'users', u.uid));
+    if (!s.exists()) return [];
+    const d = s.data().dynasty;
+    return Array.isArray(d) ? d : [];
+  },
+
+  // Зберегти дерево роду (перезаписує масив у документі user).
+  async saveDynasty(members) {
+    const u = auth.currentUser;
+    if (!u || SK.isHeroSession()) return false;
+    await setDoc(doc(db, 'users', u.uid), {
+      dynasty: Array.isArray(members) ? members : [],
+      dynastyUpdatedAt: serverTimestamp()
+    }, { merge: true });
+    return true;
+  },
+
   onUser(cb) { if (typeof cb === 'function') SK._userCbs.push(cb); }
 };
 
