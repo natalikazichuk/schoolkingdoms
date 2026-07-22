@@ -6,28 +6,17 @@
 <title>Королівський Забіг</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="sk-game.css">
 <style>
-  :root{
-    --navy-0:#0b1030;
-    --navy-1:#141a44;
-    --violet:#3a2b6e;
-    --gold:#ffcf4d;
-    --gold-deep:#e0a92e;
-    --ink:#0a0e26;
-    --text:#f4f1ff;
-    --good:#7be0a4;
-    --bad:#ff6b7a;
-  }
-  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
-  html,body{height:100%; overflow:hidden;}
+  :root{ --good:#7be0a4; --bad:#ff6b7a; }
+
   body{
     font-family:"Fredoka",system-ui,sans-serif;
-    background:var(--navy-0);
     color:var(--text);
     user-select:none; -webkit-user-select:none;
     touch-action:none; overscroll-behavior:none;
   }
-  #wrap{position:fixed; inset:0; display:flex; flex-direction:column;}
+  #wrap{position:fixed; inset:0; display:flex; flex-direction:column; background:none;}
   canvas{display:block; width:100%; flex:1 1 auto; touch-action:none;}
 
   /* ---- HUD ---- */
@@ -40,8 +29,7 @@
   .pill{
     background:rgba(20,26,68,.72); border:1.5px solid rgba(255,207,77,.35);
     border-radius:999px; padding:6px 14px; backdrop-filter:blur(4px);
-    display:flex; align-items:center; gap:7px; font-size:15px;
-  }
+    display:flex; align-items:center; gap:7px; font-size:15px; font-weight:400; white-space:nowrap;}
   .pill .lbl{color:var(--gold); font-weight:700;}
   #scorePill{flex-direction:column; align-items:flex-end; gap:0; padding:6px 14px;}
   #scorePill .best{font-size:11px; opacity:.7;}
@@ -82,10 +70,10 @@
     position:absolute; inset:0; z-index:20;
     display:flex; flex-direction:column; align-items:center; justify-content:center;
     text-align:center; padding:24px; gap:14px;
-    background:radial-gradient(120% 90% at 50% 20%,rgba(58,43,110,.55),rgba(11,16,48,.92));
+    background:var(--sky-veil);
     backdrop-filter:blur(2px);
   }
-  .screen.hidden{display:none;}
+
   .crown{font-size:52px; filter:drop-shadow(0 4px 10px rgba(255,207,77,.4));}
   .title{font-size:30px; font-weight:700; color:var(--gold); letter-spacing:.5px; line-height:1.1;}
   .sub{font-size:15px; opacity:.85; max-width:340px; line-height:1.45;}
@@ -96,7 +84,7 @@
     color:#3a2a00; font-size:18px; padding:14px 34px; border-radius:999px;
     box-shadow:0 5px 0 rgba(0,0,0,.3); transition:transform .06s;
   }
-  .cta:active{transform:translateY(3px); box-shadow:0 2px 0 rgba(0,0,0,.3);}
+
   .bigscore{font-size:22px; font-weight:700;}
   .bigscore b{color:var(--gold);}
 
@@ -380,28 +368,28 @@
 
     // sky
     const g=ctx.createLinearGradient(0,0,0,groundY);
-    g.addColorStop(0,"#0b1030"); g.addColorStop(0.55,"#221a54"); g.addColorStop(1,"#3a2b6e");
+    g.addColorStop(0,"#9ad6f5"); g.addColorStop(0.55,"#5aa3e6"); g.addColorStop(1,"#2f74c8");
     ctx.fillStyle=g; ctx.fillRect(-20,-20,W+40,groundY+40);
 
-    // moon
-    ctx.globalAlpha=0.9; ctx.fillStyle="#fff4cf";
+    // sun
+    ctx.globalAlpha=0.28; ctx.fillStyle="#fff4cf";
+    ctx.beginPath(); ctx.arc(W*0.82, groundY*0.24, S(40), 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha=0.95; ctx.fillStyle="#ffe08a";
     ctx.beginPath(); ctx.arc(W*0.82, groundY*0.24, S(26), 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle="#221a54";
-    ctx.beginPath(); ctx.arc(W*0.82+S(9), groundY*0.24-S(6), S(23), 0, Math.PI*2); ctx.fill();
     ctx.globalAlpha=1;
 
-    // stars
-    ctx.fillStyle="#fff";
-    for(const st of stars){ ctx.globalAlpha=0.4+0.6*Math.abs(Math.sin((st.x+performance.now()*0.0004)*3)); ctx.beginPath(); ctx.arc(st.x,st.y,st.r,0,Math.PI*2); ctx.fill(); }
+    // sparkles (легкі блищики замість зірок)
+    ctx.fillStyle="#ffffff";
+    for(const st of stars){ ctx.globalAlpha=0.10+0.14*Math.abs(Math.sin((st.x+performance.now()*0.0004)*3)); ctx.beginPath(); ctx.arc(st.x,st.y,st.r,0,Math.PI*2); ctx.fill(); }
     ctx.globalAlpha=1;
 
     // clouds (soft)
-    ctx.fillStyle="rgba(255,255,255,0.07)";
+    ctx.fillStyle="rgba(255,255,255,0.62)";
     for(const c of clouds){ const w=S(70)*c.s,h=S(22)*c.s; roundRect(c.x,c.y,w,h,h/2); ctx.fill(); }
 
     // ground
-    ctx.fillStyle="#141a2e"; ctx.fillRect(0,groundY,W,H-groundY);
-    ctx.strokeStyle="#ffcf4d"; ctx.lineWidth=S(3); ctx.globalAlpha=0.9;
+    ctx.fillStyle="#5fa84e"; ctx.fillRect(0,groundY,W,H-groundY);
+    ctx.strokeStyle="#7cc35a"; ctx.lineWidth=S(3); ctx.globalAlpha=0.9;
     ctx.beginPath(); ctx.moveTo(0,groundY); ctx.lineTo(W,groundY); ctx.stroke(); ctx.globalAlpha=1;
     // dashes on the road
     ctx.strokeStyle="rgba(255,207,77,0.35)"; ctx.lineWidth=S(4);
