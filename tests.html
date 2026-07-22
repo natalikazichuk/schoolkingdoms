@@ -132,6 +132,25 @@
   .ach-count{flex-shrink:0;font-size:.72rem;font-weight:800;color:#ffe9b8;white-space:nowrap;
     background:rgba(255,207,77,.14);border:1px solid rgba(255,207,77,.4);padding:5px 12px;border-radius:999px}
   .ach-list{display:flex;flex-wrap:wrap;gap:8px}
+  /* картка стала кнопкою: показує лише лічильник, повний список — у модалці */
+  .ach-card{cursor:pointer;transition:transform .14s,border-color .14s}
+  .ach-card:hover{transform:translateY(-2px);border-color:var(--gold)}
+  .ach-card:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+  .ach-more{flex-shrink:0;font-size:1.2rem;color:var(--gold);margin-left:6px}
+  /* модалка з повним списком */
+  .achm{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;
+    padding:18px;background:rgba(8,20,44,.72);backdrop-filter:blur(3px)}
+  .achm.show{display:flex}
+  .achm-box{width:100%;max-width:640px;max-height:82vh;overflow:auto;border-radius:20px;padding:18px;
+    background:linear-gradient(165deg,rgba(39,81,140,.96),rgba(16,40,82,.98));
+    border:2px solid rgba(242,199,92,.75);box-shadow:0 18px 44px rgba(0,0,0,.5)}
+  .achm-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .achm-title{flex:1 1 auto;font-family:'Playfair Display',serif;font-weight:800;
+    font-size:clamp(1.1rem,3vw,1.4rem);color:var(--gold)}
+  .achm-x{flex-shrink:0;cursor:pointer;font-family:inherit;font-weight:800;font-size:1rem;
+    background:rgba(0,0,0,.24);border:1px solid rgba(242,199,92,.42);color:#fff;
+    border-radius:999px;padding:7px 14px}
+  .achm-empty{color:#cdd9ef;font-weight:600;text-align:center;padding:18px 6px}
   .chip-passed{display:inline-flex;align-items:center;gap:6px;font-size:.74rem;font-weight:800;
     color:#bff0cd;background:rgba(120,220,150,.14);border:1px solid rgba(120,220,150,.5);
     padding:7px 12px;border-radius:11px;white-space:nowrap}
@@ -169,7 +188,8 @@
 
   <!-- 🏆 ДОСЯГНЕННЯ (тести, пройдені на 100% рівнів) — заповнюється з JS -->
   <section class="ach" id="skAch">
-    <div class="ach-card">
+    <div class="ach-card" id="skAchCard" role="button" tabindex="0"
+         aria-label="Показати повний список досягнень">
       <div class="ach-head">
         <span class="ach-ic">🏆</span>
         <span class="ach-tt">
@@ -178,9 +198,22 @@
         </span>
         <span class="ach-count" id="skAchCount">0 тестів</span>
       </div>
-      <div class="ach-list" id="skAchList"></div>
+      <span class="ach-more" aria-hidden="true">→</span>
     </div>
   </section>
+
+  <!-- 🏆 ПОВНИЙ СПИСОК ДОСЯГНЕНЬ -->
+  <div class="achm" id="skAchModal" role="dialog" aria-modal="true" aria-labelledby="skAchmTitle">
+    <div class="achm-box">
+      <div class="achm-head">
+        <span class="ach-ic">🏆</span>
+        <span class="achm-title" id="skAchmTitle">Досягнення</span>
+        <button class="achm-x" id="skAchClose">Закрити</button>
+      </div>
+      <div class="ach-list" id="skAchList"></div>
+      <div class="achm-empty hidden" id="skAchEmpty">Поки порожньо. Пройди тест на всі рівні — і він зʼявиться тут.</div>
+    </div>
+  </div>
 
   <!-- ДОРОЖНЯ КАРТА -->
   <main class="wrap" id="root"></main>
@@ -510,8 +543,25 @@ function applyAchievements(){
     var id='';
     try{ id=new URL(href, location.href).searchParams.get('id')||''; }
     catch(e){ var m=/[?&]id=([^&]+)/.exec(href); id=m?decodeURIComponent(m[1]):''; }
+    /* Тест вважається виконаним на 100%, якщо є ПРАПОРЕЦЬ sk_test100_<id>
+       АБО (для тестів-рівнів) у прогресі пройдено всі рівні. Одного прапорця
+       мало: він пишеться лише в мить ідеального фінішу, тож усе, що пройдене
+       раніше за появу прапорця, або дописане з іншого пристрою, губилось.
+       isTestPassed() поруч уже давно читає два джерела — робимо так само. */
     var full=false;
     if(id){ try{ full = localStorage.getItem('sk_test100_'+id)==='1'; }catch(e){} }
+    if(!full){
+      var lp=grp.querySelector('.chip-lvprog');
+      if(lp){
+        var tot=parseInt(lp.getAttribute('data-lvtotal'),10)||0;
+        var done=0;
+        try{ done=countDoneLevels(localStorage.getItem(lp.getAttribute('data-lvkey'))); }catch(e){}
+        if(tot>0 && done>=tot){
+          full=true;
+          try{ localStorage.setItem('sk_test100_'+id,'1'); }catch(e){}   // дописуємо, щоб синхронізувалось
+        }
+      }
+    }
     if(!full){ grp.style.display=''; return; }         // ще не на 100%
 
     grp.style.display='none';                          // ховаємо у рідній темі
@@ -540,7 +590,28 @@ function applyAchievements(){
   sec.classList.toggle('show', count>0);
   var cnt=document.getElementById('skAchCount');
   if(cnt) cnt.textContent=count+' '+achPlural(count);
+  var emp=document.getElementById('skAchEmpty');
+  if(emp) emp.classList.toggle('hidden', count>0);
 }
+
+/* ── модалка з повним списком ── */
+(function achModal(){
+  var card=document.getElementById('skAchCard');
+  var box =document.getElementById('skAchModal');
+  var x   =document.getElementById('skAchClose');
+  if(!card || !box) return;
+  function open(){ box.classList.add('show'); if(x) x.focus(); }
+  function close(){ box.classList.remove('show'); card.focus(); }
+  card.addEventListener('click', open);
+  card.addEventListener('keydown', function(e){
+    if(e.key==='Enter' || e.key===' '){ e.preventDefault(); open(); }
+  });
+  if(x) x.addEventListener('click', close);
+  box.addEventListener('click', function(e){ if(e.target===box) close(); });
+  document.addEventListener('keydown', function(e){
+    if(e.key==='Escape' && box.classList.contains('show')) close();
+  });
+})();
 
 /* ── рендер дорожньої карти ── */
 function render(){
