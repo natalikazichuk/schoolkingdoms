@@ -16,7 +16,7 @@
   if (window.__skHeaderMounted) return;         // не дублювати
   window.__skHeaderMounted = true;
 
-  var SUB = (window.SK_HEADER_SUB || 'My Skills Kingdom');
+  var SUB = (window.SK_HEADER_SUB || 'Вивчай, грай, досягай');
 
   /* Базовий шлях беремо з src самого скрипта, щоб логотип знаходився
      і з кореня, і з підпапки (../sk-header.js). */
@@ -46,16 +46,17 @@
         +'justify-content:space-between;padding:10px 18px;'
         +'background:linear-gradient(180deg,#1e3a6b,#16294f);border-bottom:3px solid #e0a42a;'
         +'box-shadow:0 6px 20px rgba(0,0,0,.35)}'
-      +'.sk-hd__brand{display:flex;align-items:center;gap:11px;text-decoration:none;flex-shrink:0}'
+      +'.sk-hd__brand{display:flex;align-items:center;gap:11px;text-decoration:none;min-width:0;flex:0 1 auto}'
       +'.sk-hd__brand:hover .sk-hd__name{filter:brightness(1.08)}'
-      +'.sk-hd__logo{width:clamp(38px,5vw,52px);height:auto;display:block;flex-shrink:0;'
+      +'.sk-hd__logo{width:clamp(58px,9vw,76px);height:auto;display:block;flex-shrink:0;'
         +'filter:drop-shadow(0 3px 6px rgba(0,0,0,.4))}'
       +'.sk-hd__crest{font-size:1.7rem;filter:drop-shadow(0 2px 4px rgba(0,0,0,.45))}'
       +'.sk-hd__name{font-family:"Playfair Display",Georgia,serif;font-weight:900;line-height:1.05;'
-        +'font-size:clamp(1.1rem,2.6vw,1.5rem);color:#fff;text-shadow:0 2px 5px rgba(0,0,0,.45)}'
+        +'white-space:nowrap;font-size:clamp(1.05rem,3.4vw,1.5rem);color:#fff;'
+        +'text-shadow:0 2px 5px rgba(0,0,0,.45)}'
       +'.sk-hd__name b{color:#F2C75C}'
       +'.sk-hd__sub{display:block;font-size:.64rem;letter-spacing:.13em;text-transform:uppercase;'
-        +'color:#ffe9b8;font-weight:800;margin-top:2px}'
+        +'white-space:nowrap;color:#ffe9b8;font-weight:800;margin-top:3px}'
       /* шкала Героя */
       +'.sk-hd__strip{flex:1 1 auto;min-width:240px;display:none;align-items:center;gap:10px 14px;'
         +'flex-wrap:wrap;justify-content:flex-end}'
@@ -82,11 +83,11 @@
   var hd = document.createElement('header');
   hd.className = 'sk-hd';
   hd.innerHTML =
-    '<a class="sk-hd__brand" href="hero.html" aria-label="School Kingdoms — до Героя">'
+    '<a class="sk-hd__brand" href="hero.html" aria-label="SchoolKingdoms — до Героя">'
       +'<img class="sk-hd__logo" src="'+BASE+'logo-small.png" alt="" '
         +'onerror="this.style.display=&#39;none&#39;;this.nextElementSibling.style.display=&#39;inline-block&#39;">'
       +'<span class="sk-hd__crest" style="display:none">🛡️</span>'
-      +'<span><span class="sk-hd__name">School <b>Kingdoms</b></span>'
+      +'<span><span class="sk-hd__name">School<b>Kingdoms</b></span>'
       +'<span class="sk-hd__sub">'+esc(SUB)+'</span></span>'
     +'</a>'
     +'<div class="sk-hd__strip" id="skHdStrip">'
