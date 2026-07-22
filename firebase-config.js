@@ -540,6 +540,158 @@ const SK = {
     return true;
   },
 
+  /* ===== КОМАНДА: БРАТИ/СЕСТРИ ТА ДРУЗІ ===== */
+
+  // Публічна картка Героя — лише ім'я, аватар, рівень (жодних особистих даних).
+  async publishHeroCard(hero) {
+    const u = auth.currentUser;
+    if (!u) return false;
+    const heroId = await SK._resolveHero();
+    if (!heroId) return false;
+    let h = hero;
+    if (!h) { const s = await getDoc(doc(db, 'heroes', heroId)); h = s.exists() ? s.data() : null; }
+    if (!h || !h.parentUid) return false;
+    await setDoc(doc(db, 'heroCards', heroId), {
+      name: h.name || '',
+      avatar: h.avatar || '🧒',
+      level: h.level != null ? h.level : 1,
+      grade: h.grade != null ? h.grade : null,
+      parentUid: h.parentUid,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    return true;
+  },
+
+  // Брати/сестри — Герої тієї самої родини (без себе).
+  async getSiblings() {
+    const u = auth.currentUser;
+    if (!u) return [];
+    const meId = await SK._resolveHero();
+    if (!meId) return [];
+    const meSnap = await getDoc(doc(db, 'heroes', meId));
+    if (!meSnap.exists()) return [];
+    const parentUid = meSnap.data().parentUid;
+    if (!parentUid) return [];
+    const snap = await getDocs(query(collection(db, 'heroes'), where('parentUid', '==', parentUid)));
+    const out = [];
+    snap.forEach(d => {
+      if (d.id === meId) return;
+      const x = d.data();
+      out.push({ id: d.id, name: x.name || '', avatar: x.avatar || '🧒',
+                 level: x.level != null ? x.level : 1, grade: x.grade != null ? x.grade : null });
+    });
+    out.sort((a, b) => (b.level - a.level) || String(a.name).localeCompare(String(b.name), 'uk'));
+    return out;
+  },
+
+  // Підтверджені друзі з інших родин (читаємо лише їхні публічні картки).
+  async getFriends() {
+    const u = auth.currentUser;
+    if (!u) return [];
+    const meId = await SK._resolveHero();
+    if (!meId) return [];
+    const snap = await getDocs(query(
+      collection(db, 'friendships'),
+      where('heroes', 'array-contains', meId)
+    ));
+    const ids = [];
+    snap.forEach(d => {
+      const x = d.data();
+      if (x.status !== 'approved') return;
+      (x.heroes || []).forEach(h => { if (h !== meId) ids.push(h); });
+    });
+    const cards = [];
+    for (const id of ids) {
+      try {
+        const c = await getDoc(doc(db, 'heroCards', id));
+        if (c.exists()) {
+          const x = c.data();
+          cards.push({ id, name: x.name || '', avatar: x.avatar || '🧒',
+                       level: x.level != null ? x.level : 1 });
+        }
+      } catch (e) { /* немає доступу — пропускаємо */ }
+    }
+    cards.sort((a, b) => (b.level - a.level) || String(a.name).localeCompare(String(b.name), 'uk'));
+    return cards;
+  },
+
+  /* ===== ДРУЖБА: КЕРУЄ ЛИШЕ ДОРОСЛИЙ (батьківський акаунт) ===== */
+
+  _pairId(a, b) { return a < b ? `${a}__${b}` : `${b}__${a}`; },
+
+  // Батьки створюють код-запрошення для свого Героя. Код передається іншій родині.
+  async createFriendInvite(heroId) {
+    const u = auth.currentUser;
+    if (!u || SK.isHeroSession()) return null;
+    const s = await getDoc(doc(db, 'heroes', heroId));
+    if (!s.exists() || s.data().parentUid !== u.uid) return null;
+    const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 8; i++) code += abc[Math.floor(Math.random() * abc.length)];
+    await setDoc(doc(db, 'inviteCodes', code), {
+      heroId, parentUid: u.uid, createdAt: serverTimestamp()
+    });
+    return code;
+  },
+
+  // Інші батьки вводять код і обирають, хто з їхніх Героїв додається у друзі.
+  async redeemFriendInvite(code, myHeroId) {
+    const u = auth.currentUser;
+    if (!u || SK.isHeroSession()) return { ok: false, error: 'Потрібен акаунт дорослого' };
+    const inv = await getDoc(doc(db, 'inviteCodes', String(code || '').trim().toUpperCase()));
+    if (!inv.exists()) return { ok: false, error: 'Код не знайдено' };
+    const { heroId: otherHero, parentUid: otherParent } = inv.data();
+    if (otherParent === u.uid) return { ok: false, error: 'Це код вашої ж родини' };
+    const mine = await getDoc(doc(db, 'heroes', myHeroId));
+    if (!mine.exists() || mine.data().parentUid !== u.uid) return { ok: false, error: 'Це не ваш Герой' };
+    const pair = SK._pairId(myHeroId, otherHero);
+    await setDoc(doc(db, 'friendships', pair), {
+      heroes: [myHeroId, otherHero],
+      parents: [u.uid, otherParent],
+      status: 'pending',
+      approvedBy: [u.uid],
+      createdAt: serverTimestamp()
+    }, { merge: true });
+    return { ok: true, pair };
+  },
+
+  // Список дружб, що стосуються родини (для підтвердження другим із батьків).
+  async listFriendships() {
+    const u = auth.currentUser;
+    if (!u || SK.isHeroSession()) return [];
+    const snap = await getDocs(query(
+      collection(db, 'friendships'),
+      where('parents', 'array-contains', u.uid)
+    ));
+    const out = [];
+    snap.forEach(d => out.push({ pair: d.id, ...d.data() }));
+    return out;
+  },
+
+  // Другий із батьків підтверджує — лише після цього діти бачать одне одного.
+  async approveFriendship(pair) {
+    const u = auth.currentUser;
+    if (!u || SK.isHeroSession()) return false;
+    const ref = doc(db, 'friendships', pair);
+    const s = await getDoc(ref);
+    if (!s.exists()) return false;
+    const d = s.data();
+    if (!(d.parents || []).includes(u.uid)) return false;
+    const approved = Array.from(new Set([...(d.approvedBy || []), u.uid]));
+    await setDoc(ref, {
+      approvedBy: approved,
+      status: approved.length >= 2 ? 'approved' : 'pending'
+    }, { merge: true });
+    return true;
+  },
+
+  async removeFriendship(pair) {
+    const u = auth.currentUser;
+    if (!u || SK.isHeroSession()) return false;
+    await deleteDoc(doc(db, 'friendships', pair));
+    return true;
+  },
+
   onUser(cb) { if (typeof cb === 'function') SK._userCbs.push(cb); }
 };
 

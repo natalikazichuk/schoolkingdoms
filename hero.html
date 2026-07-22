@@ -116,6 +116,20 @@
     </a>
 
 
+    <!-- МОЯ КОМАНДА: брати/сестри та друзі -->
+    <h2 class="sec-title" style="margin-top:18px">Моя команда</h2>
+    <div class="team-wrap">
+      <div class="team-block">
+        <div class="team-h"><span class="ic">👧👦</span>Брати і сестри</div>
+        <div class="team-row" id="sibRow"><div class="team-empty">Завантаження…</div></div>
+      </div>
+      <div class="team-block">
+        <div class="team-h"><span class="ic">🤝</span>Друзі з інших родин</div>
+        <div class="team-row" id="friendRow"><div class="team-empty">Завантаження…</div></div>
+        <div class="team-note">🔒 Друзів додають дорослі — за кодом і підтвердженням з обох сторін. Видно лише ім'я, аватар і рівень.</div>
+      </div>
+    </div>
+
     <div class="lower">
       <div>
         <h2 class="sec-title" style="font-size:1.05rem;margin:0 0 10px">Характеристики Героя <span class="sec-sub">(тисни, щоб перейти до тестів)</span></h2>
@@ -266,6 +280,45 @@ function renderLoadingStats(){
 }
 
 
+/* ── Моя команда: брати/сестри та друзі ──
+   Показуємо лише ім'я, аватар і рівень. Друзі з інших родин зʼявляються
+   тут ЛИШЕ після того, як дорослі з обох боків підтвердили дружбу. */
+function teamCard(x, isMe){
+  const av = String(x.avatar || '🧒');
+  const nm = String(x.name || 'Герой');
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  return '<div class="team-card'+(isMe?' me':'')+'">'
+    + '<span class="av">'+esc(av)+'</span>'
+    + '<span class="tx"><span class="nm">'+esc(nm)+'</span>'
+    + '<span class="lv">🆙 рівень '+(x.level!=null?x.level:1)+'</span></span></div>';
+}
+async function loadTeam(h){
+  const sibRow = $('sibRow'), friendRow = $('friendRow');
+  if(!sibRow || !friendRow) return;
+  // публікуємо власну картку (ім'я/аватар/рівень), щоб рідні та друзі бачили актуальний рівень
+  try{ if(window.SK && window.SK.publishHeroCard) await window.SK.publishHeroCard(h); }catch(e){}
+
+  try{
+    const sibs = (window.SK && window.SK.getSiblings) ? await window.SK.getSiblings() : [];
+    sibRow.innerHTML = sibs.length
+      ? sibs.map(s => teamCard(s,false)).join('')
+      : '<div class="team-empty">Поки що ти єдиний Герой у родині 👑</div>';
+  }catch(e){
+    console.warn('[hero.html] не вдалося завантажити братів/сестер:', e);
+    sibRow.innerHTML = '<div class="team-empty">Не вдалося завантажити</div>';
+  }
+
+  try{
+    const fr = (window.SK && window.SK.getFriends) ? await window.SK.getFriends() : [];
+    friendRow.innerHTML = fr.length
+      ? fr.map(f => teamCard(f,false)).join('')
+      : '<div class="team-empty">Друзів ще немає. Попроси дорослих додати друга за кодом 🤝</div>';
+  }catch(e){
+    console.warn('[hero.html] не вдалося завантажити друзів:', e);
+    friendRow.innerHTML = '<div class="team-empty">Друзів ще немає</div>';
+  }
+}
+
 // заповнює всі активні бойові стати ВИКЛЮЧНО з документа heroes/{heroId}
 function renderHeroStats(h){
   if(!h) return;
@@ -346,6 +399,7 @@ render();
         if(h.name){ $('heroName').textContent=h.name; setTxt('avatarMini',(h.name||'🧒').trim().charAt(0).toUpperCase()||'🧒'); }
       }
       if(h.title) $('heroTitle').textContent=h.title;
+      loadTeam(h);
     }catch(e){
       console.error('[hero.html] не вдалося завантажити дані героя з Firebase:', e);
     }
