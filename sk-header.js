@@ -18,6 +18,19 @@
 
   var SUB = (window.SK_HEADER_SUB || 'My Skills Kingdom');
 
+  /* Базовий шлях беремо з src самого скрипта, щоб логотип знаходився
+     і з кореня, і з підпапки (../sk-header.js). */
+  var BASE = (function(){
+    var cur = document.currentScript;
+    if(!cur){
+      var ss = document.getElementsByTagName('script');
+      for(var i=ss.length-1;i>=0;i--){
+        if((ss[i].getAttribute('src')||'').indexOf('sk-header.js') > -1){ cur = ss[i]; break; }
+      }
+    }
+    return ((cur && cur.getAttribute('src')) || '').replace(/sk-header\.js.*$/, '');
+  })();
+
   function esc(s){
     return String(s==null?'':s).replace(/[&<>"']/g,function(c){
       return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
@@ -35,6 +48,8 @@
         +'box-shadow:0 6px 20px rgba(0,0,0,.35)}'
       +'.sk-hd__brand{display:flex;align-items:center;gap:11px;text-decoration:none;flex-shrink:0}'
       +'.sk-hd__brand:hover .sk-hd__name{filter:brightness(1.08)}'
+      +'.sk-hd__logo{width:clamp(38px,5vw,52px);height:auto;display:block;flex-shrink:0;'
+        +'filter:drop-shadow(0 3px 6px rgba(0,0,0,.4))}'
       +'.sk-hd__crest{font-size:1.7rem;filter:drop-shadow(0 2px 4px rgba(0,0,0,.45))}'
       +'.sk-hd__name{font-family:"Playfair Display",Georgia,serif;font-weight:900;line-height:1.05;'
         +'font-size:clamp(1.1rem,2.6vw,1.5rem);color:#fff;text-shadow:0 2px 5px rgba(0,0,0,.45)}'
@@ -68,7 +83,9 @@
   hd.className = 'sk-hd';
   hd.innerHTML =
     '<a class="sk-hd__brand" href="hero.html" aria-label="School Kingdoms — до Героя">'
-      +'<span class="sk-hd__crest">🛡️</span>'
+      +'<img class="sk-hd__logo" src="'+BASE+'logo-small.png" alt="" '
+        +'onerror="this.style.display=&#39;none&#39;;this.nextElementSibling.style.display=&#39;inline-block&#39;">'
+      +'<span class="sk-hd__crest" style="display:none">🛡️</span>'
       +'<span><span class="sk-hd__name">School <b>Kingdoms</b></span>'
       +'<span class="sk-hd__sub">'+esc(SUB)+'</span></span>'
     +'</a>'
