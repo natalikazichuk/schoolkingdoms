@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Королівські шашки</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="sk-game.css">
+<style>
+  :root{ --lite:#ecdcb4; --dark:#8a6b46; --pl:#fdf6e6; --pd:#242a63; }
+
+  #wrap{position:fixed; inset:0; display:flex; flex-direction:column; background:none;}
+
+  /* верх */
+  #top{display:flex; align-items:center; gap:8px; justify-content:space-between;
+    padding:calc(env(safe-area-inset-top) + 10px) 12px 4px;}
+  #top .exit{pointer-events:auto; text-decoration:none; color:var(--text); font-weight:700; padding:7px 14px; line-height:1;}
+  #turn{text-align:center; font-weight:600; padding:2px 12px 6px; min-height:24px; font-size:15px;}
+  #turn b{color:var(--gold);}
+
+  /* дошка */
+  #boardWrap{flex:1 1 auto; display:flex; align-items:center; justify-content:center; padding:4px 10px; min-height:0;}
+  #board{width:min(94vw, 100%); max-width:520px; aspect-ratio:1/1; display:grid;
+    grid-template-columns:repeat(8,1fr); grid-template-rows:repeat(8,1fr);
+    border:5px solid rgba(20,26,68,.85); border-radius:14px; overflow:hidden;
+    box-shadow:0 12px 28px rgba(6,16,44,.5);}
+  .sq{position:relative; display:flex; align-items:center; justify-content:center;}
+  .sq.l{background:var(--lite);} .sq.d{background:var(--dark);}
+  .sq.sel::after{content:""; position:absolute; inset:4%; border-radius:12px;
+    border:3px solid var(--gold); box-shadow:0 0 14px rgba(255,207,77,.7);}
+  .sq.hint::before{content:""; position:absolute; width:30%; height:30%; border-radius:50%;
+    background:rgba(255,207,77,.85); box-shadow:0 0 12px rgba(255,207,77,.8);}
+  .sq.eat::before{background:#ff9d7a; box-shadow:0 0 14px rgba(255,120,80,.9);}
+  .sq.must::after{content:""; position:absolute; inset:6%; border-radius:12px; border:2px dashed rgba(255,157,122,.9);}
+
+  .pc{width:78%; height:78%; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:min(4.6vw,26px); line-height:1; box-shadow:0 4px 0 rgba(0,0,0,.35), inset 0 -4px 8px rgba(0,0,0,.25);
+    animation:pop .18s ease both;}
+  .pc.lt{background:radial-gradient(circle at 35% 30%,#fff,var(--pl) 60%,#d9c69b);
+    border:2px solid #b9a172; color:#8a6b16;}
+  .pc.dk{background:radial-gradient(circle at 35% 30%,#4b539d,var(--pd) 62%,#141a44);
+    border:2px solid #5b63b0; color:var(--gold);}
+  @keyframes pop{from{transform:scale(.6); opacity:0} to{transform:scale(1); opacity:1}}
+
+  /* нижня панель */
+  #bar{display:flex; flex-wrap:wrap; justify-content:center; gap:10px;
+    padding:8px 12px calc(env(safe-area-inset-bottom) + 14px);}
+  .barbtn{-webkit-appearance:none; appearance:none; cursor:pointer; font-family:inherit; font-weight:700;
+    background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.4); color:var(--text);
+    border-radius:14px; padding:11px 16px; font-size:15px; text-decoration:none;
+    display:inline-flex; align-items:center; justify-content:center;}
+  .barbtn.gold{background:linear-gradient(180deg,var(--gold),var(--gold-deep)); color:#3a2a00; border:none;}
+
+  /* екрани */
+  .group{display:flex; flex-direction:column; gap:8px; align-items:center;}
+  .glabel{font-size:14px; opacity:.85;}
+  .seg{display:flex; gap:8px; flex-wrap:wrap; justify-content:center;}
+  .opt{-webkit-appearance:none; appearance:none; cursor:pointer; font-family:inherit; font-weight:600;
+    background:rgba(20,26,68,.6); border:2px solid rgba(255,207,77,.3); color:var(--text);
+    border-radius:14px; padding:10px 14px; font-size:15px;}
+  .opt.sel{border-color:var(--gold); background:rgba(255,207,77,.18);}
+  .resultbig{font-size:56px;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <a class="pill exit" href="igry.html" aria-label="До ігор">←</a>
+    <div class="pill" id="scL"><span class="lbl">Ти</span> <span id="nL">12</span></div>
+    <div class="pill" id="scD"><span class="lbl">Суперник</span> <span id="nD">12</span></div>
+  </div>
+
+  <div id="turn"></div>
+
+  <div id="boardWrap"><div id="board"></div></div>
+
+  <div id="bar">
+    <a class="barbtn" href="igry.html">← Ігри</a>
+    <button class="barbtn" id="menuBtn">☰ Меню</button>
+    <button class="barbtn gold" id="newBtn">Нова гра</button>
+  </div>
+
+  <!-- Старт -->
+  <div class="screen" id="startScreen">
+    <div class="crown">🔴⚪</div>
+    <div class="title">Королівські шашки</div>
+    <div class="group">
+      <div class="glabel">З ким граємо?</div>
+      <div class="seg" id="modeSeg">
+        <button class="opt sel" data-mode="cpu">🤖 Проти компʼютера</button>
+        <button class="opt" data-mode="pvp">👫 Удвох</button>
+      </div>
+      <div id="diffGroup">
+        <div class="glabel">Складність</div>
+        <div class="seg" id="diffSeg">
+          <button class="opt sel" data-diff="easy">🙂 Легко</button>
+          <button class="opt" data-diff="hard">🧠 Складно</button>
+        </div>
+      </div>
+    </div>
+    <button class="cta" id="playBtn">Грати</button>
+    <div class="sub">Світлі починають. Бити обовʼязково. Шашка бʼє і вперед, і назад. Дійшла до кінця — стала дамкою 👑 і ходить на будь-яку відстань.</div>
+    <a class="linkbtn" href="igry.html">← До ігор</a>
+  </div>
+
+  <!-- Результат -->
+  <div class="screen hidden" id="overScreen">
+    <div class="resultbig" id="resultMark">🏆</div>
+    <div class="title" id="resultText">Перемога!</div>
+    <div class="sub" id="resultSub"></div>
+    <button class="cta" id="againBtn">Ще раз</button>
+    <div class="winrow">
+      <button class="barbtn" id="backBtn">☰ У меню</button>
+      <a class="barbtn" href="igry.html">← До ігор</a>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ═══ РУШІЙ ═══
+     Дошка: масив 64, індекс r*8+c. Фішка {s:1|-1, k:0|1}
+     s=1 — світлі (гравець, ідуть угору), s=-1 — темні. Бити обовʼязково, дамка літає. */
+  var DIRS=[[-1,-1],[-1,1],[1,-1],[1,1]];
+  function inB(r,c){ return r>=0&&r<8&&c>=0&&c<8; }
+
+  function newBoard(){
+    var b=new Array(64).fill(null);
+    for(var r=0;r<8;r++)for(var c=0;c<8;c++){
+      if((r+c)%2===0) continue;
+      if(r<3) b[r*8+c]={s:-1,k:0};
+      if(r>4) b[r*8+c]={s:1,k:0};
+    }
+    return b;
+  }
+
+  function capsFrom(b, idx, s, k, dead, startIdx){
+    var res=[], r=(idx/8)|0, c=idx%8, d;
+    for(d=0; d<4; d++){
+      var dr=DIRS[d][0], dc=DIRS[d][1];
+      if(!k){
+        var mr=r+dr, mc=c+dc, tr=r+2*dr, tc=c+2*dc;
+        if(!inB(tr,tc)) continue;
+        var mi=mr*8+mc, ti=tr*8+tc, victim=b[mi];
+        if(!victim || victim.s===s || dead.indexOf(mi)>=0) continue;
+        if(b[ti] && ti!==startIdx) continue;
+        var becameK = ((s===1 ? tr===0 : tr===7) ? 1 : 0);
+        var sub=capsFrom(b, ti, s, k||becameK, dead.concat([mi]), startIdx);
+        if(sub.length) sub.forEach(function(m){ res.push({to:m.to, caps:[mi].concat(m.caps), path:[ti].concat(m.path)}); });
+        else res.push({to:ti, caps:[mi], path:[ti]});
+      } else {
+        var i=1, vi=-1;
+        while(true){
+          var rr=r+dr*i, cc=c+dc*i; if(!inB(rr,cc)) break;
+          var ii=rr*8+cc, p=b[ii];
+          if(p && ii!==startIdx){
+            if(p.s===s || dead.indexOf(ii)>=0) break;
+            vi=ii; break;
+          }
+          i++;
+        }
+        if(vi<0) continue;
+        var j=1;
+        while(true){
+          var lr=((vi/8)|0)+dr*j, lc=(vi%8)+dc*j; if(!inB(lr,lc)) break;
+          var li=lr*8+lc;
+          if(b[li] && li!==startIdx) break;
+          if(dead.indexOf(li)>=0) break;
+          var sub2=capsFrom(b, li, s, 1, dead.concat([vi]), startIdx);
+          if(sub2.length) sub2.forEach(function(m){ res.push({to:m.to, caps:[vi].concat(m.caps), path:[li].concat(m.path)}); });
+          else res.push({to:li, caps:[vi], path:[li]});
+          j++;
+        }
+      }
+    }
+    return res;
+  }
+
+  function legalMoves(b, side){
+    var caps=[], quiet=[], i;
+    for(i=0;i<64;i++){
+      var p=b[i]; if(!p||p.s!==side) continue;
+      capsFrom(b, i, side, p.k, [], i).forEach(function(m){
+        caps.push({from:i,to:m.to,caps:m.caps,path:m.path});
+      });
+    }
+    if(caps.length) return caps;
+    for(i=0;i<64;i++){
+      var q=b[i]; if(!q||q.s!==side) continue;
+      var r=(i/8)|0, c=i%8;
+      if(!q.k){
+        var dr=side===1?-1:1;
+        [[dr,-1],[dr,1]].forEach(function(d){
+          var rr=r+d[0], cc=c+d[1];
+          if(inB(rr,cc) && !b[rr*8+cc]) quiet.push({from:i,to:rr*8+cc,caps:[],path:[rr*8+cc]});
+        });
+      } else {
+        DIRS.forEach(function(d){
+          var s2=1;
+          while(true){
+            var rr=r+d[0]*s2, cc=c+d[1]*s2; if(!inB(rr,cc)) break;
+            var ii=rr*8+cc; if(b[ii]) break;
+            quiet.push({from:i,to:ii,caps:[],path:[ii]});
+            s2++;
+          }
+        });
+      }
+    }
+    return quiet;
+  }
+
+  function applyMove(b, m){
+    var nb=b.slice(), p=nb[m.from];
+    nb[m.from]=null;
+    m.caps.forEach(function(i){ nb[i]=null; });
+    var r=(m.to/8)|0;
+    var k=p.k || (((p.s===1 && r===0) || (p.s===-1 && r===7)) ? 1 : 0);
+    nb[m.to]={s:p.s,k:k};
+    return nb;
+  }
+  function count(b, side){ var n=0; for(var i=0;i<64;i++) if(b[i]&&b[i].s===side) n++; return n; }
+
+  function evaluate(b, side){
+    var sc=0;
+    for(var i=0;i<64;i++){
+      var p=b[i]; if(!p) continue;
+      var r=(i/8)|0, c=i%8;
+      var v = p.k ? 340 : 100 + (p.s===1 ? (7-r) : r)*6;
+      if(!p.k && (c===0||c===7)) v+=8;
+      sc += p.s===side ? v : -v;
+    }
+    return sc;
+  }
+  function negamax(b, side, depth, alpha, beta){
+    var moves=legalMoves(b, side);
+    if(!moves.length) return -100000-depth;
+    if(depth<=0) return evaluate(b, side);
+    moves.sort(function(x,y){ return y.caps.length-x.caps.length; });
+    for(var i=0;i<moves.length;i++){
+      var sc=-negamax(applyMove(b,moves[i]), -side, depth-1, -beta, -alpha);
+      if(sc>alpha) alpha=sc;
+      if(alpha>=beta) break;
+    }
+    return alpha;
+  }
+  function bestMove(b, side, depth){
+    var moves=legalMoves(b, side);
+    if(!moves.length) return null;
+    if(moves.length===1) return moves[0];
+    if(depth<=1) return moves[(Math.random()*moves.length)|0];
+    moves.sort(function(x,y){ return y.caps.length-x.caps.length; });
+    var best=null, bs=-1e9;
+    for(var i=0;i<moves.length;i++){
+      var sc=-negamax(applyMove(b,moves[i]), -side, depth-1, -1e9, -bs+1);
+      if(sc>bs){ bs=sc; best=moves[i]; }
+    }
+    return best||moves[0];
+  }
+
+  /* ═══ СТАН ГРИ ═══ */
+  var board, side=1, mode="cpu", diff="easy", busy=false, over=false;
+  var sel=-1, step=0, chains=[], hopBoard=null;   // хід ланцюгом по кроках
+
+  var boardEl=document.getElementById("board");
+  var turnEl=document.getElementById("turn");
+
+  var CELLS=[];
+  (function build(){
+    var html="";
+    for(var r=0;r<8;r++)for(var c=0;c<8;c++){
+      html+='<div class="sq '+(((r+c)%2)?'d':'l')+'" data-i="'+(r*8+c)+'"></div>';
+    }
+    boardEl.innerHTML=html;
+    CELLS=Array.prototype.slice.call(boardEl.children);
+    CELLS.forEach(function(el){
+      el.addEventListener("click", function(){ tap(parseInt(el.getAttribute("data-i"),10)); });
+    });
+  })();
+
+  function view(){ return hopBoard || board; }
+
+  function render(){
+    var b=view();
+    var moves = over ? [] : legalMoves(board, side);
+    var mustCap = moves.length>0 && moves[0].caps.length>0;
+    var targets={}, sources={};
+    if(sel>=0){
+      chains.forEach(function(m){
+        if(m.path.length>step) targets[m.path[step]] = m.caps.length>0;
+      });
+    } else if(!busy && !over && playersTurn()){
+      moves.forEach(function(m){ sources[m.from]=true; });
+    }
+
+    for(var i=0;i<64;i++){
+      var el=CELLS[i], p=b[i];
+      el.className="sq "+((((i/8)|0)+(i%8))%2 ? "d":"l");
+      if(i===sel) el.classList.add("sel");
+      if(i in targets){ el.classList.add("hint"); if(targets[i]) el.classList.add("eat"); }
+      if(mustCap && sources[i]) el.classList.add("must");
+      el.innerHTML = p ? '<div class="pc '+(p.s===1?"lt":"dk")+'">'+(p.k?"👑":"")+'</div>' : "";
+    }
+    document.getElementById("nL").textContent=count(board,1);
+    document.getElementById("nD").textContent=count(board,-1);
+
+    if(over) return;
+    if(busy) turnEl.innerHTML='Компʼютер думає…';
+    else if(mode==="pvp") turnEl.innerHTML= side===1 ? 'Хід <b>світлих</b>' : 'Хід <b>темних</b>';
+    else turnEl.innerHTML= side===1 ? (mustCap?'Твій хід — <b>треба бити!</b>':'Твій хід') : 'Хід компʼютера';
+  }
+
+  function playersTurn(){ return mode==="pvp" || side===1; }
+
+  function tap(i){
+    if(busy || over || !playersTurn()) return;
+    var b=view();
+
+    if(sel>=0){
+      var picked=chains.filter(function(m){ return m.path.length>step && m.path[step]===i; });
+      if(picked.length){
+        hop(i, picked);
+        return;
+      }
+      if(step>0) return;                      // посеред бою міняти шашку не можна
+    }
+
+    var p=board[i];
+    if(p && p.s===side){
+      var ms=legalMoves(board, side).filter(function(m){ return m.from===i; });
+      if(!ms.length){ sel=-1; chains=[]; render(); return; }
+      sel=i; step=0; chains=ms; hopBoard=null;
+      render();
+      return;
+    }
+    sel=-1; chains=[]; hopBoard=null; render();
+  }
+
+  function hop(to, picked){
+    step++;
+    // проміжна картинка: пересунути фішку з ПОЧАТКОВОЇ клітини й прибрати вже збите
+    var tmp=board.slice(), m0=picked[0], from=m0.from;
+    var pc=tmp[from]; tmp[from]=null;
+    for(var k=0;k<step;k++){ if(m0.caps[k]!=null) tmp[m0.caps[k]]=null; }
+    var r=(to/8)|0;
+    var kingNow = pc.k || (((pc.s===1&&r===0)||(pc.s===-1&&r===7))?1:0);
+    tmp[to]={s:pc.s,k:kingNow};
+    hopBoard=tmp;
+
+    var done=picked.filter(function(m){ return m.path.length===step; });
+    if(done.length){
+      finishMove(done[0]);
+    } else {
+      chains=picked;
+      sel=to;                                  // виділяємо нову клітину, бій триває
+      // виправлення: шляхи зберігають повний ланцюг, тож крок не скидаємо
+      render();
+    }
+  }
+
+  function finishMove(m){
+    board=applyMove(board, m);
+    hopBoard=null; sel=-1; step=0; chains=[];
+    side=-side;
+    render();
+    checkEnd();
+    if(!over && mode==="cpu" && side===-1) cpuTurn();
+  }
+
+  function checkEnd(){
+    if(count(board,1)===0 || legalMoves(board,1).length===0){ finish(false); return true; }
+    if(count(board,-1)===0 || legalMoves(board,-1).length===0){ finish(true); return true; }
+    return false;
+  }
+
+  function finish(playerWon){
+    over=true; busy=false;
+    var win = mode==="pvp"
+      ? (playerWon ? "Перемогли світлі!" : "Перемогли темні!")
+      : (playerWon ? "Перемога!" : "Цього разу програш");
+    document.getElementById("resultMark").textContent = (mode==="pvp") ? "🏁" : (playerWon?"🏆":"🙃");
+    document.getElementById("resultText").textContent = win;
+    document.getElementById("resultSub").textContent =
+      "Світлих: "+count(board,1)+" · темних: "+count(board,-1);
+    document.getElementById("overScreen").classList.remove("hidden");
+    turnEl.textContent="";
+  }
+
+  function cpuTurn(){
+    busy=true; render();
+    setTimeout(function(){
+      var m=bestMove(board, -1, diff==="hard"?6:2);
+      busy=false;
+      if(!m){ finish(true); return; }
+      board=applyMove(board,m);
+      side=1;
+      render();
+      checkEnd();
+    }, 260);
+  }
+
+  /* ═══ ЕКРАНИ ═══ */
+  function startGame(){
+    board=newBoard(); side=1; over=false; busy=false;
+    sel=-1; step=0; chains=[]; hopBoard=null;
+    document.getElementById("startScreen").classList.add("hidden");
+    document.getElementById("overScreen").classList.add("hidden");
+    document.getElementById("scL").querySelector(".lbl").textContent = mode==="pvp" ? "Світлі" : "Ти";
+    document.getElementById("scD").querySelector(".lbl").textContent = mode==="pvp" ? "Темні" : "Суперник";
+    render();
+  }
+
+  document.getElementById("modeSeg").addEventListener("click", function(e){
+    var b=e.target.closest(".opt"); if(!b) return;
+    mode=b.getAttribute("data-mode");
+    Array.prototype.forEach.call(this.children,function(x){ x.classList.toggle("sel", x===b); });
+    document.getElementById("diffGroup").style.display = mode==="cpu" ? "" : "none";
+  });
+  document.getElementById("diffSeg").addEventListener("click", function(e){
+    var b=e.target.closest(".opt"); if(!b) return;
+    diff=b.getAttribute("data-diff");
+    Array.prototype.forEach.call(this.children,function(x){ x.classList.toggle("sel", x===b); });
+  });
+
+  document.getElementById("playBtn").addEventListener("click", startGame);
+  document.getElementById("againBtn").addEventListener("click", startGame);
+  document.getElementById("newBtn").addEventListener("click", startGame);
+  document.getElementById("menuBtn").addEventListener("click", function(){
+    document.getElementById("startScreen").classList.remove("hidden");
+  });
+  document.getElementById("backBtn").addEventListener("click", function(){
+    document.getElementById("overScreen").classList.add("hidden");
+    document.getElementById("startScreen").classList.remove("hidden");
+  });
+
+  board=newBoard(); render();
+})();
+</script>
+</body>
+</html>

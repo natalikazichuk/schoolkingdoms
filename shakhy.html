@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Королівські шахи</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="sk-game.css">
+<style>
+  :root{ --lite:#ecdcb4; --dark:#8a6b46; }
+
+  #wrap{position:fixed; inset:0; display:flex; flex-direction:column; background:none;}
+
+  #top{display:flex; align-items:center; gap:8px; justify-content:space-between;
+    padding:calc(env(safe-area-inset-top) + 10px) 12px 4px;}
+  #top .exit{pointer-events:auto; text-decoration:none; color:var(--text); font-weight:700; padding:7px 14px; line-height:1;}
+  .taken{font-size:15px; letter-spacing:-2px; min-height:20px; opacity:.9; max-width:44vw; overflow:hidden; white-space:nowrap;}
+  #turn{text-align:center; font-weight:600; padding:2px 12px 6px; min-height:24px; font-size:15px;}
+  #turn b{color:var(--gold);} #turn .chk{color:#ff9d7a;}
+
+  #boardWrap{flex:1 1 auto; display:flex; align-items:center; justify-content:center; padding:4px 10px; min-height:0;}
+  #board{width:min(94vw,100%); max-width:520px; aspect-ratio:1/1; display:grid;
+    grid-template-columns:repeat(8,1fr); grid-template-rows:repeat(8,1fr);
+    border:5px solid rgba(20,26,68,.85); border-radius:14px; overflow:hidden;
+    box-shadow:0 12px 28px rgba(6,16,44,.5);}
+  .sq{position:relative; display:flex; align-items:center; justify-content:center; cursor:pointer;}
+  .sq.l{background:var(--lite);} .sq.d{background:var(--dark);}
+  .sq.last{box-shadow:inset 0 0 0 100px rgba(255,207,77,.18);}
+  .sq.sel::after{content:""; position:absolute; inset:3%; border:3px solid var(--gold);
+    border-radius:8px; box-shadow:0 0 14px rgba(255,207,77,.7);}
+  .sq.hint::before{content:""; position:absolute; width:28%; height:28%; border-radius:50%;
+    background:rgba(255,207,77,.85); box-shadow:0 0 12px rgba(255,207,77,.75);}
+  .sq.eat::before{width:76%; height:76%; background:transparent; border:4px solid #ff9d7a;
+    box-shadow:0 0 14px rgba(255,120,80,.7);}
+  .sq.check{background:#c9564f !important;}
+
+  .pcs{font-size:min(9vw,46px); line-height:1; user-select:none;}
+  .pcs.w{color:#fffaf0; text-shadow:0 0 2px #6b5a2a, 0 2px 3px rgba(0,0,0,.55),
+    1px 0 0 #8a6b16,-1px 0 0 #8a6b16,0 1px 0 #8a6b16,0 -1px 0 #8a6b16;}
+  .pcs.b{color:#1b2050; text-shadow:0 2px 3px rgba(0,0,0,.45),
+    1px 0 0 rgba(255,255,255,.55),-1px 0 0 rgba(255,255,255,.55),
+    0 1px 0 rgba(255,255,255,.55),0 -1px 0 rgba(255,255,255,.55);}
+
+  #bar{display:flex; flex-wrap:wrap; justify-content:center; gap:10px;
+    padding:8px 12px calc(env(safe-area-inset-bottom) + 14px);}
+  .barbtn{-webkit-appearance:none; appearance:none; cursor:pointer; font-family:inherit; font-weight:700;
+    background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.4); color:var(--text);
+    border-radius:14px; padding:11px 15px; font-size:15px; text-decoration:none;
+    display:inline-flex; align-items:center; justify-content:center;}
+  .barbtn.gold{background:linear-gradient(180deg,var(--gold),var(--gold-deep)); color:#3a2a00; border:none;}
+  .barbtn:disabled{opacity:.4;}
+
+  .group{display:flex; flex-direction:column; gap:8px; align-items:center;}
+  .glabel{font-size:14px; opacity:.85;}
+  .seg{display:flex; gap:8px; flex-wrap:wrap; justify-content:center;}
+  .opt{-webkit-appearance:none; appearance:none; cursor:pointer; font-family:inherit; font-weight:600;
+    background:rgba(20,26,68,.6); border:2px solid rgba(255,207,77,.3); color:var(--text);
+    border-radius:14px; padding:10px 14px; font-size:15px;}
+  .opt.sel{border-color:var(--gold); background:rgba(255,207,77,.18);}
+  .resultbig{font-size:56px;}
+
+  /* вибір фігури при перетворенні пішака */
+  #promo{position:absolute; inset:0; z-index:70; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:14px; background:var(--sky-veil);}
+  #promo.hidden{display:none;}
+  #promoRow{display:flex; gap:10px;}
+  .prbtn{-webkit-appearance:none; appearance:none; cursor:pointer; font-family:inherit;
+    background:var(--lite); border:3px solid var(--gold); border-radius:16px;
+    width:64px; height:64px; font-size:38px; line-height:1; color:#1b2050;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <a class="pill exit" href="igry.html" aria-label="До ігор">←</a>
+    <div class="taken" id="takenB"></div>
+    <div class="taken" id="takenW" style="text-align:right"></div>
+  </div>
+
+  <div id="turn"></div>
+
+  <div id="boardWrap"><div id="board"></div></div>
+
+  <div id="bar">
+    <a class="barbtn" href="igry.html">← Ігри</a>
+    <button class="barbtn" id="undoBtn">↶ Назад</button>
+    <button class="barbtn" id="menuBtn">☰ Меню</button>
+    <button class="barbtn gold" id="newBtn">Нова</button>
+  </div>
+
+  <!-- вибір фігури -->
+  <div id="promo" class="hidden">
+    <div class="title" style="font-size:22px">Пішак дійшов до кінця!</div>
+    <div class="sub">Кого з нього зробимо?</div>
+    <div id="promoRow"></div>
+  </div>
+
+  <!-- Старт -->
+  <div class="screen" id="startScreen">
+    <div class="crown">♔♞</div>
+    <div class="title">Королівські шахи</div>
+    <div class="group">
+      <div class="glabel">З ким граємо?</div>
+      <div class="seg" id="modeSeg">
+        <button class="opt sel" data-mode="cpu">🤖 Проти компʼютера</button>
+        <button class="opt" data-mode="pvp">👫 Удвох</button>
+      </div>
+      <div id="diffGroup">
+        <div class="glabel">Складність</div>
+        <div class="seg" id="diffSeg">
+          <button class="opt sel" data-diff="easy">🙂 Легко</button>
+          <button class="opt" data-diff="hard">🧠 Складно</button>
+        </div>
+      </div>
+    </div>
+    <button class="cta" id="playBtn">Грати</button>
+    <div class="sub">Білі починають. Тисни на свою фігуру — покажуться всі її ходи. Рокіровка, взяття на проході й перетворення пішака працюють за правилами.</div>
+    <a class="linkbtn" href="igry.html">← До ігор</a>
+  </div>
+
+  <!-- Результат -->
+  <div class="screen hidden" id="overScreen">
+    <div class="resultbig" id="resultMark">🏆</div>
+    <div class="title" id="resultText">Мат!</div>
+    <div class="sub" id="resultSub"></div>
+    <button class="cta" id="againBtn">Ще раз</button>
+    <div class="winrow">
+      <button class="barbtn" id="backBtn">☰ У меню</button>
+      <a class="barbtn" href="igry.html">← До ігор</a>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ═══ РУШІЙ ═══
+     Дошка 0x88: індекс r*16+c, r=0 — восьма горизонталь. Великі літери — білі. */
+  var EMPTY=0;
+  function isW(p){ return p!==EMPTY && p===p.toUpperCase(); }
+  function own(p,w){ return p!==EMPTY && (w ? isW(p) : !isW(p)); }
+  function off(i){ return (i & 0x88)!==0; }
+
+  var N_DIRS=[-33,-31,-18,-14,14,18,31,33];
+  var B_DIRS=[-17,-15,15,17];
+  var R_DIRS=[-16,-1,1,16];
+  var K_DIRS=[-17,-16,-15,-1,1,15,16,17];
+
+  function initPos(){
+    var b=new Array(128).fill(EMPTY), back="rnbqkbnr";
+    for(var c=0;c<8;c++){
+      b[0*16+c]=back[c]; b[1*16+c]="p";
+      b[6*16+c]="P";     b[7*16+c]=back[c].toUpperCase();
+    }
+    return {b:b, w:true, cast:{K:true,Q:true,k:true,q:true}, ep:-1, half:0};
+  }
+
+  function attacked(S, sq, byWhite){
+    var b=S.b, i, d, t;
+    var pd = byWhite ? [17,15] : [-17,-15];
+    for(i=0;i<2;i++){ t=sq+pd[i]; if(!off(t) && b[t]===(byWhite?"P":"p")) return true; }
+    for(d=0;d<8;d++){ t=sq+N_DIRS[d]; if(!off(t) && b[t]===(byWhite?"N":"n")) return true; }
+    for(d=0;d<8;d++){ t=sq+K_DIRS[d]; if(!off(t) && b[t]===(byWhite?"K":"k")) return true; }
+    for(d=0;d<4;d++){ t=sq+B_DIRS[d];
+      while(!off(t)){ var p=b[t];
+        if(p!==EMPTY){ if(p===(byWhite?"B":"b")||p===(byWhite?"Q":"q")) return true; break; }
+        t+=B_DIRS[d]; } }
+    for(d=0;d<4;d++){ t=sq+R_DIRS[d];
+      while(!off(t)){ var q=b[t];
+        if(q!==EMPTY){ if(q===(byWhite?"R":"r")||q===(byWhite?"Q":"q")) return true; break; }
+        t+=R_DIRS[d]; } }
+    return false;
+  }
+  function kingSq(S,white){ var k=white?"K":"k";
+    for(var i=0;i<128;i++){ if(!off(i) && S.b[i]===k) return i; } return -1; }
+  function inCheck(S,white){ var k=kingSq(S,white); return k<0?false:attacked(S,k,!white); }
+
+  function pushPawn(out,from,to,w,last){
+    if(((to/16)|0)===last){
+      ["Q","R","B","N"].forEach(function(pr){ out.push({from:from,to:to,promo:w?pr:pr.toLowerCase()}); });
+    } else out.push({from:from,to:to});
+  }
+
+  function genMoves(S){
+    var b=S.b, w=S.w, out=[], i, d, t;
+    for(i=0;i<128;i++){
+      if(off(i)) continue;
+      var p=b[i]; if(p===EMPTY || !own(p,w)) continue;
+      var u=p.toUpperCase();
+      if(u==="P"){
+        var fwd=w?-16:16, start=w?6:1, last=w?0:7;
+        t=i+fwd;
+        if(!off(t) && b[t]===EMPTY){
+          pushPawn(out,i,t,w,last);
+          var t2=i+2*fwd;
+          if(((i/16)|0)===start && b[t2]===EMPTY) out.push({from:i,to:t2,dbl:true});
+        }
+        var caps=[fwd-1,fwd+1];
+        for(d=0;d<2;d++){
+          t=i+caps[d]; if(off(t)) continue;
+          if(b[t]!==EMPTY && own(b[t],!w)) pushPawn(out,i,t,w,last);
+          else if(t===S.ep) out.push({from:i,to:t,ep:true});
+        }
+      } else if(u==="N"){
+        for(d=0;d<8;d++){ t=i+N_DIRS[d]; if(off(t)) continue;
+          if(b[t]===EMPTY || own(b[t],!w)) out.push({from:i,to:t}); }
+      } else if(u==="K"){
+        for(d=0;d<8;d++){ t=i+K_DIRS[d]; if(off(t)) continue;
+          if(b[t]===EMPTY || own(b[t],!w)) out.push({from:i,to:t}); }
+        var home=w?7*16:0;
+        if(i===home+4 && !attacked(S,i,!w)){
+          var kOK=w?S.cast.K:S.cast.k, qOK=w?S.cast.Q:S.cast.q;
+          if(kOK && b[home+5]===EMPTY && b[home+6]===EMPTY &&
+             !attacked(S,home+5,!w) && !attacked(S,home+6,!w))
+            out.push({from:i,to:home+6,castle:"K"});
+          if(qOK && b[home+3]===EMPTY && b[home+2]===EMPTY && b[home+1]===EMPTY &&
+             !attacked(S,home+3,!w) && !attacked(S,home+2,!w))
+            out.push({from:i,to:home+2,castle:"Q"});
+        }
+      } else {
+        var dirs = u==="B"?B_DIRS : u==="R"?R_DIRS : K_DIRS;
+        var nd = u==="Q"?8:4;
+        for(d=0;d<nd;d++){
+          t=i+dirs[d];
+          while(!off(t)){
+            if(b[t]===EMPTY) out.push({from:i,to:t});
+            else { if(own(b[t],!w)) out.push({from:i,to:t}); break; }
+            t+=dirs[d];
+          }
+        }
+      }
+    }
+    return out;
+  }
+
+  function make(S,m){
+    var b=S.b.slice(), cast={K:S.cast.K,Q:S.cast.Q,k:S.cast.k,q:S.cast.q};
+    var p=b[m.from], w=S.w, capt=b[m.to];
+    b[m.to]=m.promo?m.promo:p; b[m.from]=EMPTY;
+    if(m.ep){ b[m.to+(w?16:-16)]=EMPTY; capt=w?"p":"P"; }
+    if(m.castle){
+      var home=w?7*16:0;
+      if(m.castle==="K"){ b[home+5]=b[home+7]; b[home+7]=EMPTY; }
+      else { b[home+3]=b[home+0]; b[home+0]=EMPTY; }
+    }
+    if(p==="K"){ cast.K=cast.Q=false; }
+    if(p==="k"){ cast.k=cast.q=false; }
+    if(m.from===7*16+0 || m.to===7*16+0) cast.Q=false;
+    if(m.from===7*16+7 || m.to===7*16+7) cast.K=false;
+    if(m.from===0     || m.to===0)       cast.q=false;
+    if(m.from===7     || m.to===7)       cast.k=false;
+    return {b:b, w:!w, cast:cast, ep:(m.dbl ? m.from+(w?-16:16) : -1),
+      half:(p.toUpperCase()==="P"||capt!==EMPTY)?0:S.half+1, cap:capt};
+  }
+
+  function legalMoves(S){
+    var ms=genMoves(S), out=[];
+    for(var i=0;i<ms.length;i++){
+      if(!inCheck(make(S,ms[i]), S.w)) out.push(ms[i]);
+    }
+    return out;
+  }
+
+  var VAL={P:100,N:320,B:330,R:500,Q:900,K:20000};
+  var PST={
+   P:[0,0,0,0,0,0,0,0, 50,50,50,50,50,50,50,50, 10,10,20,30,30,20,10,10,
+      5,5,10,25,25,10,5,5, 0,0,0,20,20,0,0,0, 5,-5,-10,0,0,-10,-5,5,
+      5,10,10,-20,-20,10,10,5, 0,0,0,0,0,0,0,0],
+   N:[-50,-40,-30,-30,-30,-30,-40,-50, -40,-20,0,0,0,0,-20,-40, -30,0,10,15,15,10,0,-30,
+      -30,5,15,20,20,15,5,-30, -30,0,15,20,20,15,0,-30, -30,5,10,15,15,10,5,-30,
+      -40,-20,0,5,5,0,-20,-40, -50,-40,-30,-30,-30,-30,-40,-50],
+   B:[-20,-10,-10,-10,-10,-10,-10,-20, -10,0,0,0,0,0,0,-10, -10,0,5,10,10,5,0,-10,
+      -10,5,5,10,10,5,5,-10, -10,0,10,10,10,10,0,-10, -10,10,10,10,10,10,10,-10,
+      -10,5,0,0,0,0,5,-10, -20,-10,-10,-10,-10,-10,-10,-20],
+   R:[0,0,0,0,0,0,0,0, 5,10,10,10,10,10,10,5, -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5,
+      -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5, 0,0,0,5,5,0,0,0],
+   Q:[-20,-10,-10,-5,-5,-10,-10,-20, -10,0,0,0,0,0,0,-10, -10,0,5,5,5,5,0,-10,
+      -5,0,5,5,5,5,0,-5, 0,0,5,5,5,5,0,-5, -10,5,5,5,5,5,0,-10,
+      -10,0,5,0,0,0,0,-10, -20,-10,-10,-5,-5,-10,-10,-20],
+   K:[-30,-40,-40,-50,-50,-40,-40,-30, -30,-40,-40,-50,-50,-40,-40,-30,
+      -30,-40,-40,-50,-50,-40,-40,-30, -30,-40,-40,-50,-50,-40,-40,-30,
+      -20,-30,-30,-40,-40,-30,-30,-20, -10,-20,-20,-20,-20,-20,-20,-10,
+      20,20,0,0,0,0,20,20, 20,30,10,0,0,10,30,20]
+  };
+  function evaluate(S){
+    var sc=0;
+    for(var i=0;i<128;i++){
+      if(off(i)) continue;
+      var p=S.b[i]; if(p===EMPTY) continue;
+      var u=p.toUpperCase(), r=(i/16)|0, c=i%16;
+      var v=VAL[u] + PST[u][isW(p) ? r*8+c : (7-r)*8+c];
+      sc += isW(p) ? v : -v;
+    }
+    return S.w ? sc : -sc;
+  }
+  function order(S,ms){
+    ms.forEach(function(m){
+      var v=S.b[m.to];
+      m._s=(v!==EMPTY ? 10*VAL[v.toUpperCase()] - VAL[S.b[m.from].toUpperCase()] : 0) + (m.promo?800:0);
+    });
+    ms.sort(function(a,b){ return b._s-a._s; });
+  }
+  function search(S,depth,alpha,beta){
+    var ms=legalMoves(S);
+    if(!ms.length) return inCheck(S,S.w) ? -90000-depth : 0;
+    if(depth<=0) return evaluate(S);
+    order(S,ms);
+    for(var i=0;i<ms.length;i++){
+      var sc=-search(make(S,ms[i]), depth-1, -beta, -alpha);
+      if(sc>alpha) alpha=sc;
+      if(alpha>=beta) break;
+    }
+    return alpha;
+  }
+  function bestMove(S,depth,blunder){
+    var ms=legalMoves(S);
+    if(!ms.length) return null;
+    if(blunder && Math.random()<blunder) return ms[(Math.random()*ms.length)|0];
+    order(S,ms);
+    var best=null, bs=-1e9;
+    for(var i=0;i<ms.length;i++){
+      var sc=-search(make(S,ms[i]), depth-1, -1e9, -bs);
+      if(sc>bs){ bs=sc; best=ms[i]; }
+    }
+    return best||ms[0];
+  }
+
+  /* ═══ ГРА ═══ */
+  var GLYPH={K:"♚",Q:"♛",R:"♜",B:"♝",N:"♞",P:"♟"};
+  var NAME={Q:"ферзя",R:"туру",B:"слона",N:"коня"};
+  var S, mode="cpu", diff="easy", busy=false, over=false;
+  var sel=-1, opts=[], last=null, hist=[], taken={w:[],b:[]}, pendingPromo=null;
+
+  var boardEl=document.getElementById("board");
+  var turnEl=document.getElementById("turn");
+  var CELLS={};
+
+  (function build(){
+    var html="";
+    for(var r=0;r<8;r++)for(var c=0;c<8;c++){
+      html+='<div class="sq '+(((r+c)%2)?"d":"l")+'" data-i="'+(r*16+c)+'"></div>';
+    }
+    boardEl.innerHTML=html;
+    Array.prototype.forEach.call(boardEl.children,function(el){
+      var i=parseInt(el.getAttribute("data-i"),10);
+      CELLS[i]=el;
+      el.addEventListener("click", function(){ tap(i); });
+    });
+  })();
+
+  function render(){
+    var checkSq=-1;
+    if(!over && inCheck(S,S.w)) checkSq=kingSq(S,S.w);
+    for(var r=0;r<8;r++)for(var c=0;c<8;c++){
+      var i=r*16+c, el=CELLS[i], p=S.b[i];
+      el.className="sq "+(((r+c)%2)?"d":"l");
+      if(last && (i===last.from || i===last.to)) el.classList.add("last");
+      if(i===sel) el.classList.add("sel");
+      if(i===checkSq) el.classList.add("check");
+      if(opts.indexOf(i)>=0){ el.classList.add("hint"); if(p!==EMPTY) el.classList.add("eat"); }
+      el.innerHTML = p===EMPTY ? "" :
+        '<span class="pcs '+(isW(p)?"w":"b")+'">'+GLYPH[p.toUpperCase()]+'</span>';
+    }
+    document.getElementById("takenW").textContent=taken.w.join("");
+    document.getElementById("takenB").textContent=taken.b.join("");
+    document.getElementById("undoBtn").disabled = busy || over || !hist.length;
+    if(over) return;
+    var chk = inCheck(S,S.w) ? ' <span class="chk">ШАХ!</span>' : "";
+    if(busy) turnEl.innerHTML="Компʼютер думає…";
+    else if(mode==="pvp") turnEl.innerHTML=(S.w?"Хід <b>білих</b>":"Хід <b>чорних</b>")+chk;
+    else turnEl.innerHTML=(S.w?"Твій хід":"Хід компʼютера")+chk;
+  }
+
+  function playersTurn(){ return mode==="pvp" || S.w; }
+
+  function tap(i){
+    if(busy || over || pendingPromo || !playersTurn()) return;
+    if(sel>=0 && opts.indexOf(i)>=0){
+      var ms=legalMoves(S).filter(function(m){ return m.from===sel && m.to===i; });
+      if(ms.length>1 && ms[0].promo){ askPromo(ms); return; }
+      doMove(ms[0]);
+      return;
+    }
+    var p=S.b[i];
+    if(p!==EMPTY && own(p,S.w)){
+      sel=i;
+      opts=legalMoves(S).filter(function(m){ return m.from===i; }).map(function(m){ return m.to; });
+      opts=opts.filter(function(v,k){ return opts.indexOf(v)===k; });
+    } else { sel=-1; opts=[]; }
+    render();
+  }
+
+  function askPromo(ms){
+    pendingPromo=ms;
+    var row=document.getElementById("promoRow");
+    row.innerHTML="";
+    ["Q","R","B","N"].forEach(function(u){
+      var b=document.createElement("button");
+      b.className="prbtn"; b.textContent=GLYPH[u];
+      b.setAttribute("aria-label", NAME[u]);
+      b.addEventListener("click", function(){
+        var want = S.w ? u : u.toLowerCase();
+        var m = pendingPromo.filter(function(x){ return x.promo===want; })[0];
+        pendingPromo=null;
+        document.getElementById("promo").classList.add("hidden");
+        doMove(m);
+      });
+      row.appendChild(b);
+    });
+    document.getElementById("promo").classList.remove("hidden");
+  }
+
+  function doMove(m){
+    if(!m) return;
+    hist.push({S:S, last:last, tw:taken.w.slice(), tb:taken.b.slice()});
+    var n=make(S,m);
+    if(n.cap && n.cap!==EMPTY){
+      var g=GLYPH[n.cap.toUpperCase()];
+      if(isW(n.cap)) taken.w.push(g); else taken.b.push(g);
+    }
+    S=n; last={from:m.from,to:m.to};
+    sel=-1; opts=[];
+    render();
+    if(checkEnd()) return;
+    if(mode==="cpu" && !S.w) cpuTurn();
+  }
+
+  function material(){
+    var pcs=[];
+    for(var i=0;i<128;i++){ if(!off(i) && S.b[i]!==EMPTY) pcs.push(S.b[i]); }
+    return pcs;
+  }
+  function insufficient(){
+    var p=material().filter(function(x){ return x.toUpperCase()!=="K"; });
+    if(!p.length) return true;                                    // К проти К
+    if(p.length===1 && "BN".indexOf(p[0].toUpperCase())>=0) return true;  // К+слон/кінь
+    return false;
+  }
+
+  function checkEnd(){
+    var ms=legalMoves(S);
+    if(!ms.length){
+      if(inCheck(S,S.w)) finish("mate", !S.w);      // виграв той, хто щойно ходив
+      else finish("stale");
+      return true;
+    }
+    if(S.half>=100){ finish("50"); return true; }
+    if(insufficient()){ finish("mat"); return true; }
+    return false;
+  }
+
+  function finish(kind, whiteWon){
+    over=true; busy=false; sel=-1; opts=[];
+    var mark="🏁", title="", sub="";
+    if(kind==="mate"){
+      var winner = whiteWon ? "білі" : "чорні";
+      if(mode==="pvp"){ mark="🏆"; title="Мат! Перемогли "+winner; }
+      else if(whiteWon){ mark="🏆"; title="Мат! Перемога 🎉"; }
+      else { mark="🙃"; title="Мат. Цього разу програш"; }
+      sub="Королю нема куди тікати.";
+    } else if(kind==="stale"){
+      mark="🤝"; title="Пат — нічия"; sub="Ходів немає, але шаху теж немає.";
+    } else if(kind==="50"){
+      mark="🤝"; title="Нічия"; sub="50 ходів без взяття і без ходу пішака.";
+    } else {
+      mark="🤝"; title="Нічия"; sub="Фігур замало, щоб поставити мат.";
+    }
+    document.getElementById("resultMark").textContent=mark;
+    document.getElementById("resultText").textContent=title;
+    document.getElementById("resultSub").textContent=sub;
+    document.getElementById("overScreen").classList.remove("hidden");
+    turnEl.textContent="";
+    render();
+  }
+
+  function cpuTurn(){
+    busy=true; render();
+    setTimeout(function(){
+      var m = diff==="hard" ? bestMove(S,3,0) : bestMove(S,2,0.3);
+      busy=false;
+      if(!m){ checkEnd(); return; }
+      var n=make(S,m);
+      if(n.cap && n.cap!==EMPTY){
+        var g=GLYPH[n.cap.toUpperCase()];
+        if(isW(n.cap)) taken.w.push(g); else taken.b.push(g);
+      }
+      S=n; last={from:m.from,to:m.to};
+      render();
+      checkEnd();
+    }, 240);
+  }
+
+  function undo(){
+    if(busy || over || !hist.length) return;
+    var back=hist.pop();
+    // ходи компʼютера в історію не пишуться, тож один крок назад = обидва півходи
+    S=back.S; last=back.last; taken.w=back.tw; taken.b=back.tb;
+    sel=-1; opts=[]; over=false;
+    document.getElementById("overScreen").classList.add("hidden");
+    render();
+  }
+
+  function startGame(){
+    S=initPos(); over=false; busy=false; sel=-1; opts=[];
+    last=null; hist=[]; taken={w:[],b:[]}; pendingPromo=null;
+    document.getElementById("promo").classList.add("hidden");
+    document.getElementById("startScreen").classList.add("hidden");
+    document.getElementById("overScreen").classList.add("hidden");
+    render();
+  }
+
+  document.getElementById("modeSeg").addEventListener("click", function(e){
+    var b=e.target.closest(".opt"); if(!b) return;
+    mode=b.getAttribute("data-mode");
+    Array.prototype.forEach.call(this.children,function(x){ x.classList.toggle("sel", x===b); });
+    document.getElementById("diffGroup").style.display = mode==="cpu" ? "" : "none";
+  });
+  document.getElementById("diffSeg").addEventListener("click", function(e){
+    var b=e.target.closest(".opt"); if(!b) return;
+    diff=b.getAttribute("data-diff");
+    Array.prototype.forEach.call(this.children,function(x){ x.classList.toggle("sel", x===b); });
+  });
+  document.getElementById("playBtn").addEventListener("click", startGame);
+  document.getElementById("againBtn").addEventListener("click", startGame);
+  document.getElementById("newBtn").addEventListener("click", startGame);
+  document.getElementById("undoBtn").addEventListener("click", undo);
+  document.getElementById("menuBtn").addEventListener("click", function(){
+    document.getElementById("startScreen").classList.remove("hidden");
+  });
+  document.getElementById("backBtn").addEventListener("click", function(){
+    document.getElementById("overScreen").classList.add("hidden");
+    document.getElementById("startScreen").classList.remove("hidden");
+  });
+
+  S=initPos(); render();
+})();
+</script>
+</body>
+</html>
