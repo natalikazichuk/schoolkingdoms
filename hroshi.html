@@ -352,7 +352,9 @@ function readLS(){
 function saveProgress(){
   try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){}
   if(window.SK && SK.pushLocal){
-    SK.pushLocal().then(()=>setSync("збережено","ok")).catch(()=>setSync("локально","no"));
+    // pushLocal тепер повертає false, якщо localStorage належить іншому Герою
+    // (guard проти гонки при зміні акаунта) — тоді це НЕ «збережено».
+    SK.pushLocal().then(ok=>setSync(ok?"збережено":"локально",ok?"ok":"no")).catch(()=>setSync("локально","no"));
   }
 }
 window.addEventListener("pagehide", saveProgress);

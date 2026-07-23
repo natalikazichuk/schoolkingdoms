@@ -220,9 +220,13 @@
 
         <div class="field">
           <label for="hLogin">Логін Героя</label>
-          <input id="hLogin" type="text" autocapitalize="none" spellcheck="false" placeholder="латиниця, цифри: lev2024">
+          <input id="hLogin" type="text" autocapitalize="none" spellcheck="false" inputmode="latin" placeholder="латиниця, цифри: lev2024" oninput="updateLoginPreview()">
         </div>
         <div class="hint">Логін має бути унікальним. Дозволені: латинські літери, цифри, крапка, дефіс, підкреслення.</div>
+        <!-- Живий прев'ю: показуємо, ЩО саме стане логіном після очищення.
+             Без нього батько вводив «оля», бачив «мінімум 3 символи» і не
+             розумів, що кирилицю вирізано повністю. -->
+        <div class="hint" id="loginPreview" style="display:none"></div>
 
         <div class="field">
           <label for="hPass">Пароль Героя</label>
@@ -392,12 +396,71 @@
     function friendlyAuthError(e){
       const c = (e && e.code) || '';
       if (c.includes('email-already-in-use')) return 'цей логін уже зайнятий — оберіть інший';
-      if (c.includes('sk/login-too-short'))   return 'логін має бути від 3 символів';
+      if (c.includes('sk/login-too-short'))   return 'логін — від 3 символів латиницею';
       if (c.includes('weak-password'))         return 'пароль закороткий (мінімум 6 символів)';
-      if (c.includes('invalid-email'))         return 'логін містить недопустимі символи';
+      if (c.includes('invalid-email'))         return 'логін містить недопустимі символи (дозволені лише латиниця, цифри, . - _)';
       if (c.includes('network'))               return 'немає зв\'язку з мережею';
       return 'спробуйте ще раз';
     }
+    /* ── Логін Героя: очищення, підказка, прев'ю ──
+       Джерело істини — SK.sanitizeLogin (той самий код, що й у createHero).
+       Локальна копія регулярки лишається запасним шляхом на випадок, коли
+       firebase-config.js ще не завантажився: інакше прев'ю мовчки збрехало б. */
+    function cleanLoginOf(v){
+      if (window.SK && SK.sanitizeLogin) return SK.sanitizeLogin(v);
+      return String(v || '').trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
+    }
+
+    // Транслітерація для підказки — щоб батько побачив робочий приклад,
+    // а не просто «введіть латиницею».
+    const TRANSLIT = {
+      а:'a', б:'b', в:'v', г:'h', ґ:'g', д:'d', е:'e', є:'ie', ж:'zh', з:'z',
+      и:'y', і:'i', ї:'i', й:'i', к:'k', л:'l', м:'m', н:'n', о:'o', п:'p',
+      р:'r', с:'s', т:'t', у:'u', ф:'f', х:'kh', ц:'ts', ч:'ch', ш:'sh',
+      щ:'shch', ь:'', ю:'iu', я:'ia', ы:'y', э:'e', ё:'e', ъ:''
+    };
+    function translit(v){
+      return String(v || '').toLowerCase().split('')
+        .map(ch => (ch in TRANSLIT) ? TRANSLIT[ch] : ch).join('');
+    }
+    function suggestLogin(name){
+      const base = cleanLoginOf(translit(name)) || 'hero';
+      return (base + new Date().getFullYear()).slice(0, 20);
+    }
+
+    function updateLoginPreview(){
+      const box = $('loginPreview');
+      if (!box) return;
+      const raw   = $('hLogin').value;
+      const clean = cleanLoginOf(raw);
+
+      if (!raw.trim()) { box.style.display = 'none'; return; }
+      box.style.display = '';
+
+      // Чи ВИЛУЧЕНО символи (а не просто змінено регістр/пробіли по краях).
+      const stripped = clean !== raw.trim().toLowerCase();
+
+      if (!clean) {
+        box.innerHTML = '⚠️ Кирилиця й пробіли не дозволені. Спробуйте «<b>'
+          + escapeHtml(suggestLogin($("hName").value || raw)) + '</b>».';
+        box.style.color = '#ffb4a2';
+      } else if (clean.length < 3) {
+        box.innerHTML = 'Замало символів: <b>' + escapeHtml(clean) + '</b> — потрібно щонайменше 3.';
+        box.style.color = '#ffb4a2';
+      } else if (stripped) {
+        /* Окремий випадок, який інакше кусає мовчки: «оля123» і «іра123»
+           обидва перетворюються на «123». Валідацію вони проходять, але
+           другий Герой упаде з «логін уже зайнятий». Тому показуємо
+           результат жовтим — щоб батько побачив, що лишилося. */
+        box.innerHTML = '⚠️ Недозволені символи вилучено. Логін Героя буде: <b>'
+          + escapeHtml(clean) + '</b>';
+        box.style.color = '#ffd479';
+      } else {
+        box.innerHTML = 'Логін Героя буде: <b>' + escapeHtml(clean) + '</b>';
+        box.style.color = '#9fe3c0';
+      }
+    }
+
     function gradeLabel(g){
       const n = Number(g);
       return n ? (n + ' клас') : '—';
@@ -592,17 +655,32 @@
       const login = $('hLogin').value.trim();
       const pass  = $('hPass').value;
 
-      if (!name)            { toast('⚠️ Введіть ім\'я Героя'); return; }
-      if (login.length < 3) { toast('⚠️ Логін — мінімум 3 символи'); return; }
-      if (pass.length < 6)  { toast('⚠️ Пароль — мінімум 6 символів'); return; }
-      if (!window.SK)       { toast('⚠️ Зачекайте, ще завантажується…'); return; }
+      if (!name)      { toast('⚠️ Введіть ім\'я Героя'); return; }
+      if (!window.SK) { toast('⚠️ Зачекайте, ще завантажується…'); return; }
+
+      /* Перевіряємо ОЧИЩЕНИЙ логін, а не сирий.
+         Раніше перевірка йшла по сирому рядку: «оля» — три символи, вона
+         проходила, далі sanitizeLogin вирізав кирилицю в порожній рядок, і
+         createHero кидав sk/login-too-short. Батько бачив «мінімум 3 символи»
+         рівно на трьох символах — глухий кут без жодної підказки. */
+      const cleanLogin = cleanLoginOf(login);
+      if (!cleanLogin) {
+        toast('⚠️ Логін — лише латиниця. Спробуйте, напр., «' + suggestLogin(name) + '»');
+        return;
+      }
+      if (cleanLogin.length < 3) {
+        toast('⚠️ Логін — мінімум 3 символи латиницею (вийшло «' + cleanLogin + '»)');
+        return;
+      }
+      if (pass.length < 6) { toast('⚠️ Пароль — мінімум 6 символів'); return; }
 
       const btn = $('btnCreateHero');
       btn.disabled = true; btn.textContent = 'Створюємо…';
       try{
-        await SK.createHero({ name, avatar: selectedAvatar, login, password: pass, grade });
+        await SK.createHero({ name, avatar: selectedAvatar, login: cleanLogin, password: pass, grade });
         toast('🎉 Героя створено!');
         $('hName').value = ''; $('hLogin').value = ''; $('hPass').value = '';
+        updateLoginPreview();
         toggleForm(false);
         loadHeroes();
       }catch(e){
