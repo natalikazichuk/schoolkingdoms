@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Пам'ять королівства</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="sk-game.css">
+<style>
+  #wrap{position:fixed; inset:0; display:flex; flex-direction:column; background:none;}
+
+  #top{display:flex; align-items:center; gap:8px; justify-content:space-between;
+    padding:calc(env(safe-area-inset-top) + 10px) 12px 4px;}
+  #top .exit{text-decoration:none; color:var(--text); font-weight:700; padding:7px 14px; line-height:1;}
+  #hint{text-align:center; font-weight:600; padding:2px 12px 6px; min-height:22px; font-size:15px;}
+
+  #boardWrap{flex:1 1 auto; display:flex; align-items:center; justify-content:center; padding:4px 10px; min-height:0;}
+  #board{display:grid; gap:8px; width:100%; max-width:460px;}
+
+  .card{position:relative; aspect-ratio:3/4; perspective:600px; cursor:pointer;
+    -webkit-appearance:none; appearance:none; background:none; border:none; padding:0; font-family:inherit;}
+  .inner{position:absolute; inset:0; transform-style:preserve-3d; transition:transform .32s;
+    border-radius:14px;}
+  .card.open .inner, .card.done .inner{transform:rotateY(180deg);}
+  .face{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    border-radius:14px; backface-visibility:hidden; -webkit-backface-visibility:hidden;}
+  .back{background:linear-gradient(160deg,#2b3373,#141a44); border:2px solid rgba(255,207,77,.45);
+    color:rgba(255,207,77,.75); font-size:min(7vw,26px); box-shadow:0 4px 0 rgba(0,0,0,.32);}
+  .front{background:linear-gradient(160deg,#fdf6e6,#e6d5ae); border:2px solid var(--gold-deep);
+    transform:rotateY(180deg); font-size:min(9vw,34px); box-shadow:0 4px 0 rgba(0,0,0,.28);}
+  .card.done .front{border-color:#7be0a4; box-shadow:0 0 16px rgba(123,224,164,.6); }
+  .card.done{animation:found .4s ease;}
+  @keyframes found{0%{transform:scale(1)}45%{transform:scale(1.08)}100%{transform:scale(1)}}
+
+  #bar{display:flex; flex-wrap:wrap; justify-content:center; gap:10px;
+    padding:8px 12px calc(env(safe-area-inset-bottom) + 14px);}
+  .barbtn{-webkit-appearance:none; appearance:none; cursor:pointer; font-family:inherit; font-weight:700;
+    background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.4); color:var(--text);
+    border-radius:14px; padding:11px 16px; font-size:15px; text-decoration:none;
+    display:inline-flex; align-items:center; justify-content:center;}
+  .barbtn.gold{background:linear-gradient(180deg,var(--gold),var(--gold-deep)); color:#3a2a00; border:none;}
+
+  .group{display:flex; flex-direction:column; gap:8px; align-items:center;}
+  .glabel{font-size:14px; opacity:.85;}
+  .seg{display:flex; gap:8px; flex-wrap:wrap; justify-content:center;}
+  .opt{-webkit-appearance:none; appearance:none; cursor:pointer; font-family:inherit; font-weight:600;
+    background:rgba(20,26,68,.6); border:2px solid rgba(255,207,77,.3); color:var(--text);
+    border-radius:14px; padding:10px 14px; font-size:15px;}
+  .opt.sel{border-color:var(--gold); background:rgba(255,207,77,.18);}
+  .resultbig{font-size:56px;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <a class="pill exit" href="igry.html" aria-label="До ігор">←</a>
+    <div class="pill"><span class="lbl">Пари</span> <span id="pairsVal">0/6</span></div>
+    <div class="pill"><span class="lbl">Ходи</span> <span id="movesVal">0</span></div>
+  </div>
+
+  <div id="hint">Знайди дві однакові картки</div>
+
+  <div id="boardWrap"><div id="board"></div></div>
+
+  <div id="bar">
+    <a class="barbtn" href="igry.html">← Ігри</a>
+    <button class="barbtn" id="menuBtn">☰ Меню</button>
+    <button class="barbtn gold" id="newBtn">Нова гра</button>
+  </div>
+
+  <div class="screen" id="startScreen">
+    <div class="crown">🧠</div>
+    <div class="title">Пам'ять королівства</div>
+    <div class="group">
+      <div class="glabel">Скільки карток?</div>
+      <div class="seg" id="sizeSeg">
+        <button class="opt sel" data-size="6">🙂 12 карток</button>
+        <button class="opt" data-size="8">😃 16 карток</button>
+        <button class="opt" data-size="10">🧠 20 карток</button>
+      </div>
+    </div>
+    <button class="cta" id="playBtn">Грати</button>
+    <div class="sub">Перевертай по дві картки. Однакові — залишаються відкритими. Відкрий усі пари за якнайменше ходів!</div>
+    <a class="linkbtn" href="igry.html">← До ігор</a>
+  </div>
+
+  <div class="screen hidden" id="overScreen">
+    <div class="resultbig">🏆</div>
+    <div class="title">Усі пари знайдено!</div>
+    <div class="sub" id="resultSub"></div>
+    <button class="cta" id="againBtn">Ще раз</button>
+    <div class="winrow">
+      <button class="barbtn" id="backBtn">☰ У меню</button>
+      <a class="barbtn" href="igry.html">← До ігор</a>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var ICONS=["🦊","🐸","🐝","🦉","🐙","🦄","🐢","🦋","🐧","🦁","🐬","🦔","🐨","🦜","🐳","🦖","🐞","🦩"];
+
+  var pairs=6, deck=[], open=[], found=0, moves=0, busy=false, best={};
+  var boardEl=document.getElementById("board");
+  var hintEl=document.getElementById("hint");
+
+  function shuffle(a){
+    for(var i=a.length-1;i>0;i--){ var j=(Math.random()*(i+1))|0; var t=a[i]; a[i]=a[j]; a[j]=t; }
+    return a;
+  }
+
+  function cols(){
+    // 12 карток → 3×4, 16 → 4×4, 20 → 4×5
+    return pairs<=6 ? 3 : 4;
+  }
+
+  function build(){
+    var icons=shuffle(ICONS.slice()).slice(0,pairs);
+    deck=shuffle(icons.concat(icons)).map(function(ic,i){ return {i:i, ic:ic, state:"closed"}; });
+    boardEl.style.gridTemplateColumns="repeat("+cols()+",1fr)";
+    boardEl.innerHTML=deck.map(function(c){
+      return '<button class="card" data-i="'+c.i+'" aria-label="картка">'
+        +'<span class="inner">'
+          +'<span class="face back">👑</span>'
+          +'<span class="face front">'+c.ic+'</span>'
+        +'</span></button>';
+    }).join("");
+    Array.prototype.forEach.call(boardEl.children,function(el){
+      el.addEventListener("click", function(){ flip(parseInt(el.getAttribute("data-i"),10)); });
+    });
+  }
+
+  function el(i){ return boardEl.children[i]; }
+
+  function flip(i){
+    if(busy) return;
+    var c=deck[i];
+    if(!c || c.state!=="closed") return;
+    c.state="open"; el(i).classList.add("open");
+    open.push(i);
+    if(open.length<2) return;
+
+    moves++;
+    document.getElementById("movesVal").textContent=moves;
+    var a=deck[open[0]], b=deck[open[1]];
+    if(a.ic===b.ic){
+      a.state=b.state="done";
+      el(a.i).classList.add("done"); el(b.i).classList.add("done");
+      open=[]; found++;
+      document.getElementById("pairsVal").textContent=found+"/"+pairs;
+      hintEl.textContent = found===pairs ? "Готово!" : "Пара! Шукай далі 🎉";
+      if(found===pairs) setTimeout(win, 450);
+    } else {
+      busy=true;
+      hintEl.textContent="Не пара — запамʼятай, де що лежить";
+      setTimeout(function(){
+        a.state=b.state="closed";
+        el(a.i).classList.remove("open"); el(b.i).classList.remove("open");
+        open=[]; busy=false;
+      }, 780);
+    }
+  }
+
+  function win(){
+    var key="p"+pairs;
+    var isBest = best[key]==null || moves<best[key];
+    if(isBest) best[key]=moves;
+    document.getElementById("resultSub").textContent =
+      "Ходів: "+moves+" · найкраще за цю гру: "+best[key]+(isBest?" 🥇 новий рекорд!":"");
+    document.getElementById("overScreen").classList.remove("hidden");
+  }
+
+  function startGame(){
+    open=[]; found=0; moves=0; busy=false;
+    document.getElementById("movesVal").textContent="0";
+    document.getElementById("pairsVal").textContent="0/"+pairs;
+    hintEl.textContent="Знайди дві однакові картки";
+    document.getElementById("startScreen").classList.add("hidden");
+    document.getElementById("overScreen").classList.add("hidden");
+    build();
+  }
+
+  document.getElementById("sizeSeg").addEventListener("click", function(e){
+    var b=e.target.closest(".opt"); if(!b) return;
+    pairs=parseInt(b.getAttribute("data-size"),10);
+    Array.prototype.forEach.call(this.children,function(x){ x.classList.toggle("sel", x===b); });
+  });
+  document.getElementById("playBtn").addEventListener("click", startGame);
+  document.getElementById("againBtn").addEventListener("click", startGame);
+  document.getElementById("newBtn").addEventListener("click", startGame);
+  document.getElementById("menuBtn").addEventListener("click", function(){
+    document.getElementById("startScreen").classList.remove("hidden");
+  });
+  document.getElementById("backBtn").addEventListener("click", function(){
+    document.getElementById("overScreen").classList.add("hidden");
+    document.getElementById("startScreen").classList.remove("hidden");
+  });
+
+  build();
+})();
+</script>
+</body>
+</html>

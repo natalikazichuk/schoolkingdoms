@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Вгадай слово</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="sk-game.css">
+<style>
+  #wrap{position:fixed; inset:0; display:flex; flex-direction:column; background:none;}
+
+  #top{display:flex; align-items:center; gap:8px; justify-content:space-between;
+    padding:calc(env(safe-area-inset-top) + 10px) 12px 4px;}
+  #top .exit{text-decoration:none; color:var(--text); font-weight:700; padding:7px 14px; line-height:1;}
+  #lives{font-size:18px; letter-spacing:1px; min-width:96px; text-align:right;}
+
+  #mid{flex:1 1 auto; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:10px; padding:6px 12px; min-height:0;}
+  #cat{font-size:14px; opacity:.85;}
+  #cat b{color:var(--gold);}
+  #clue{font-size:16px; text-align:center; max-width:360px; line-height:1.35;}
+  #wordRow{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-top:2px;}
+  .slot{width:min(9.5vw,42px); height:min(12vw,52px); border-radius:10px;
+    background:rgba(20,26,68,.6); border:2px solid rgba(255,207,77,.35);
+    display:flex; align-items:center; justify-content:center;
+    font-size:min(6.5vw,28px); font-weight:700; color:var(--gold);}
+  .slot.filled{background:linear-gradient(180deg,#fdf6e6,#e6d5ae); color:#3a2a00; border-color:var(--gold-deep);
+    animation:pop .22s ease both;}
+  .slot.miss{color:#ff9d7a; border-color:#ff9d7a;}
+  @keyframes pop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+  #msg{min-height:22px; font-weight:600; font-size:15px; text-align:center;}
+  #msg.good{color:#7be0a4;} #msg.bad{color:#ff9d7a;}
+
+  #keys{display:grid; grid-template-columns:repeat(8,1fr); gap:5px;
+    padding:4px 10px calc(env(safe-area-inset-bottom) + 6px); max-width:520px; width:100%; margin:0 auto;}
+  .key{-webkit-appearance:none; appearance:none; cursor:pointer; font-family:inherit; font-weight:700;
+    background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35); color:var(--text);
+    border-radius:10px; padding:9px 0; font-size:16px;}
+  .key:disabled{opacity:.3;}
+  .key.hit{background:rgba(123,224,164,.28); border-color:#7be0a4;}
+  .key.no{background:rgba(255,139,139,.22); border-color:#ff8b8b;}
+
+  #bar{display:flex; flex-wrap:wrap; justify-content:center; gap:10px;
+    padding:2px 12px calc(env(safe-area-inset-bottom) + 12px);}
+  .barbtn{-webkit-appearance:none; appearance:none; cursor:pointer; font-family:inherit; font-weight:700;
+    background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.4); color:var(--text);
+    border-radius:14px; padding:10px 15px; font-size:14px; text-decoration:none;
+    display:inline-flex; align-items:center; justify-content:center;}
+  .barbtn.gold{background:linear-gradient(180deg,var(--gold),var(--gold-deep)); color:#3a2a00; border:none;}
+
+  .group{display:flex; flex-direction:column; gap:8px; align-items:center;}
+  .glabel{font-size:14px; opacity:.85;}
+  .seg{display:flex; gap:8px; flex-wrap:wrap; justify-content:center;}
+  .opt{-webkit-appearance:none; appearance:none; cursor:pointer; font-family:inherit; font-weight:600;
+    background:rgba(20,26,68,.6); border:2px solid rgba(255,207,77,.3); color:var(--text);
+    border-radius:14px; padding:10px 14px; font-size:15px;}
+  .opt.sel{border-color:var(--gold); background:rgba(255,207,77,.18);}
+  .resultbig{font-size:56px;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <a class="pill exit" href="igry.html" aria-label="До ігор">←</a>
+    <div class="pill"><span class="lbl">Слово</span> <span id="scoreVal">1</span></div>
+    <div id="lives">❤️❤️❤️❤️❤️❤️</div>
+  </div>
+
+  <div id="mid">
+    <div id="cat"></div>
+    <div id="clue"></div>
+    <div id="wordRow"></div>
+    <div id="msg"></div>
+  </div>
+
+  <div id="keys"></div>
+
+  <div id="bar">
+    <a class="barbtn" href="igry.html">← Ігри</a>
+    <button class="barbtn" id="menuBtn">☰ Меню</button>
+    <button class="barbtn gold" id="skipBtn">Інше слово</button>
+  </div>
+
+  <div class="screen" id="startScreen">
+    <div class="crown">🔤</div>
+    <div class="title">Вгадай слово</div>
+    <div class="group">
+      <div class="glabel">Скільки помилок можна?</div>
+      <div class="seg" id="diffSeg">
+        <button class="opt sel" data-lives="6">🙂 Шість</button>
+        <button class="opt" data-lives="4">😃 Чотири</button>
+        <button class="opt" data-lives="3">🧠 Три</button>
+      </div>
+      <div class="glabel">Підказка про слово</div>
+      <div class="seg" id="clueSeg">
+        <button class="opt sel" data-clue="1">💡 Показувати</button>
+        <button class="opt" data-clue="0">🤫 Без підказки</button>
+      </div>
+    </div>
+    <button class="cta" id="playBtn">Грати</button>
+    <div class="sub">Тисни букви й відгадай слово. Кожна невірна буква забирає сердечко. Відгадав — беремо наступне слово!</div>
+    <a class="linkbtn" href="igry.html">← До ігор</a>
+  </div>
+
+  <div class="screen hidden" id="overScreen">
+    <div class="resultbig" id="resultMark">🙃</div>
+    <div class="title" id="resultText">Слово було…</div>
+    <div class="sub" id="resultSub"></div>
+    <button class="cta" id="againBtn">Ще раз</button>
+    <div class="winrow">
+      <button class="barbtn" id="backBtn">☰ У меню</button>
+      <a class="barbtn" href="igry.html">← До ігор</a>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var ABC="АБВГҐДЕЄЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЬЮЯ".split("");
+
+  var WORDS=[
+    ["КІТ","Тварини","Муркоче й ловить мишей"],
+    ["СОБАКА","Тварини","Гавкає і стереже двір"],
+    ["КОРОВА","Тварини","Дає молоко й каже «му»"],
+    ["КІНЬ","Тварини","На ньому їздять верхи"],
+    ["ЛИСИЦЯ","Тварини","Руда, з пухнастим хвостом"],
+    ["ВЕДМІДЬ","Тварини","Взимку спить у барлозі"],
+    ["ЗАЄЦЬ","Тварини","Довгі вуха, любить моркву"],
+    ["ЇЖАК","Тварини","Увесь у голках"],
+    ["БІЛКА","Тварини","Стрибає по гілках і гризе горішки"],
+    ["ВОВК","Тварини","Сірий, виє на місяць"],
+    ["МИША","Тварини","Маленька, сіра, пищить"],
+    ["ЖАБА","Тварини","Квакає біля води"],
+    ["БДЖОЛА","Тварини","Робить мед"],
+    ["МЕТЕЛИК","Тварини","Має гарні кольорові крильця"],
+    ["ПІВЕНЬ","Тварини","Будить усіх уранці"],
+    ["КУРКА","Тварини","Несе яйця"],
+    ["КОЗА","Тварини","З ріжками, любить капусту"],
+    ["ЛЕЛЕКА","Тварини","Білий птах із довгими ногами"],
+    ["СОВА","Тварини","Не спить уночі, великі очі"],
+    ["РИБА","Тварини","Живе у воді й має луску"],
+    ["СЛОН","Тварини","Найбільший, із хоботом"],
+    ["ЛЕВ","Тварини","Цар звірів із гривою"],
+    ["ТИГР","Тварини","Смугастий великий кіт"],
+    ["ЗЕБРА","Тварини","У чорно-білу смужку"],
+    ["ЖИРАФ","Тварини","Найдовша шия"],
+    ["МАВПА","Тварини","Лазить по деревах, любить банани"],
+
+    ["ДЕРЕВО","Рослини","Має стовбур, гілки й листя"],
+    ["КВІТКА","Рослини","Гарно пахне на клумбі"],
+    ["ТРАВА","Рослини","Зелена, росте на галявині"],
+    ["ГРИБ","Рослини","Має ніжку й капелюшок"],
+    ["ЯБЛУКО","Рослини","Червоне чи зелене, росте на дереві"],
+    ["ГРУША","Рослини","Солодка, схожа на лампочку"],
+    ["ВИШНЯ","Рослини","Червона ягідка з кісточкою"],
+    ["МАЛИНА","Рослини","З неї варять смачне варення"],
+    ["ОГІРОК","Рослини","Зелений, хрумкий, з грядки"],
+    ["ПОМІДОР","Рослини","Червоний і соковитий"],
+    ["МОРКВА","Рослини","Помаранчева, любить зайчик"],
+    ["КАПУСТА","Рослини","Багато листочків одне на одному"],
+    ["ЦИБУЛЯ","Рослини","Від неї плачуть"],
+    ["ГАРБУЗ","Рослини","Великий і жовтогарячий"],
+    ["СОНЯШНИК","Рослини","Дивиться на сонце, дає насіння"],
+    ["ДУБ","Рослини","Міцне дерево з жолудями"],
+    ["КЛЕН","Рослини","Восени листя стає червоним"],
+    ["БЕРЕЗА","Рослини","Дерево з білою корою"],
+    ["КАЛИНА","Рослини","Червоні грона, символ України"],
+    ["РОМАШКА","Рослини","Біла квітка з жовтою серединкою"],
+
+    ["ШКОЛА","Школа","Сюди ходять учитися"],
+    ["ЗОШИТ","Школа","У ньому пишуть у клітинку"],
+    ["ОЛІВЕЦЬ","Школа","Ним малюють і стирають гумкою"],
+    ["РУЧКА","Школа","Пише синім"],
+    ["КНИГА","Школа","Її читають сторінка за сторінкою"],
+    ["ПАРТА","Школа","За нею сидить учень"],
+    ["ДОШКА","Школа","На ній пише вчитель"],
+    ["ЛІНІЙКА","Школа","Нею міряють і креслять рівно"],
+    ["ФАРБИ","Школа","Ними малюють пензликом"],
+    ["ПЕНАЛ","Школа","Тут живуть олівці"],
+    ["УРОК","Школа","Триває, поки не задзвенить дзвоник"],
+
+    ["СТІЛ","Дім","За ним обідають"],
+    ["ЛІЖКО","Дім","На ньому сплять"],
+    ["ВІКНО","Дім","Через нього дивляться надвір"],
+    ["ЛАМПА","Дім","Світить увечері"],
+    ["КЛЮЧ","Дім","Ним відмикають двері"],
+    ["ЧАШКА","Дім","З неї пʼють чай"],
+    ["ЛОЖКА","Дім","Нею їдять суп"],
+    ["ТАРІЛКА","Дім","У неї накладають кашу"],
+    ["ГОДИННИК","Дім","Показує, котра година"],
+    ["ДЗЕРКАЛО","Дім","У ньому бачиш себе"],
+
+    ["СОНЦЕ","Природа","Світить удень і гріє"],
+    ["МІСЯЦЬ","Природа","Світить уночі"],
+    ["ЗІРКА","Природа","Маленький вогник у нічному небі"],
+    ["ХМАРА","Природа","Пливе небом, з неї йде дощ"],
+    ["СНІГ","Природа","Білий і холодний, узимку"],
+    ["ВІТЕР","Природа","Його не видно, але він хитає дерева"],
+    ["ВЕСЕЛКА","Природа","Сім кольорів після дощу"],
+    ["РІЧКА","Природа","Тече й впадає в море"],
+    ["МОРЕ","Природа","Багато солоної води"],
+    ["ГОРА","Природа","Дуже висока, аж до хмар"],
+    ["ОЗЕРО","Природа","Вода з усіх боків береги"],
+    ["НЕБО","Природа","Над головою, синє"],
+
+    ["МАШИНА","Транспорт","Має чотири колеса й кермо"],
+    ["АВТОБУС","Транспорт","Возить багато людей зупинками"],
+    ["ПОТЯГ","Транспорт","Їде рейками й гуде"],
+    ["ЛІТАК","Транспорт","Літає високо в небі"],
+    ["РАКЕТА","Транспорт","Летить аж у космос"],
+    ["ТРАМВАЙ","Транспорт","Їде рейками просто вулицею"],
+
+    ["ХЛІБ","Їжа","Його печуть із борошна"],
+    ["МОЛОКО","Їжа","Біле, дає корова"],
+    ["СИР","Їжа","Роблять із молока, любить миша"],
+    ["КАША","Їжа","Її варять на сніданок"],
+    ["МЕД","Їжа","Солодкий, від бджілок"],
+    ["ЦУКЕРКА","Їжа","Солодка, у гарній обгортці"],
+    ["ТОРТ","Їжа","Він на святі, зі свічками"],
+    ["ЯЙЦЕ","Їжа","Біле, з нього вилуплюється курча"]
+  ];
+
+  var maxLives=6, showClue=true;
+  var word="", cat="", clue="", got={}, lives=6, solved=0, done=false, pool=[];
+
+  var wordRow=document.getElementById("wordRow");
+  var keysEl=document.getElementById("keys");
+  var msgEl=document.getElementById("msg");
+
+  (function buildKeys(){
+    keysEl.innerHTML=ABC.map(function(l){
+      return '<button class="key" data-l="'+l+'">'+l+'</button>';
+    }).join("");
+    Array.prototype.forEach.call(keysEl.children,function(b){
+      b.addEventListener("click", function(){ guess(b.getAttribute("data-l")); });
+    });
+  })();
+
+  function nextWord(){
+    if(!pool.length){
+      pool=WORDS.slice();
+      for(var i=pool.length-1;i>0;i--){ var j=(Math.random()*(i+1))|0; var t=pool[i]; pool[i]=pool[j]; pool[j]=t; }
+    }
+    var w=pool.pop();
+    word=w[0]; cat=w[1]; clue=w[2];
+    got={}; done=false;
+    document.getElementById("cat").innerHTML='Це <b>'+cat.toLowerCase()+'</b> · '+word.length+' букв';
+    document.getElementById("clue").textContent = showClue ? "💡 "+clue : "";
+    msgEl.textContent=""; msgEl.className="";
+    Array.prototype.forEach.call(keysEl.children,function(b){
+      b.disabled=false; b.className="key";
+    });
+    drawWord();
+  }
+
+  function drawWord(){
+    wordRow.innerHTML=word.split("").map(function(ch){
+      var open = !!got[ch];
+      return '<div class="slot'+(open?" filled":"")+'">'+(open?ch:"")+'</div>';
+    }).join("");
+  }
+
+  function guess(l){
+    if(done) return;
+    var btn=keysEl.querySelector('[data-l="'+l+'"]');
+    if(!btn || btn.disabled) return;
+    btn.disabled=true;
+    if(word.indexOf(l)>=0){
+      got[l]=true;
+      btn.classList.add("hit");
+      drawWord();
+      msgEl.textContent="Є така буква!"; msgEl.className="good";
+      if(word.split("").every(function(ch){ return got[ch]; })) win();
+    } else {
+      btn.classList.add("no");
+      lives--;
+      paintLives();
+      msgEl.textContent="Такої букви немає"; msgEl.className="bad";
+      if(lives<=0) lose();
+    }
+  }
+
+  function paintLives(){
+    document.getElementById("lives").textContent =
+      "❤️".repeat(Math.max(0,lives)) + "🖤".repeat(Math.max(0,maxLives-Math.max(0,lives)));
+  }
+
+  function win(){
+    done=true; solved++;
+    document.getElementById("scoreVal").textContent=solved+1;
+    msgEl.textContent="Правильно! 🎉 Наступне слово…"; msgEl.className="good";
+    setTimeout(function(){ if(lives>0) nextWord(); }, 1100);
+  }
+
+  function lose(){
+    done=true;
+    wordRow.innerHTML=word.split("").map(function(ch){
+      return '<div class="slot'+(got[ch]?" filled":" miss")+'">'+ch+'</div>';
+    }).join("");
+    document.getElementById("resultMark").textContent = solved>0 ? "🙂" : "🙃";
+    document.getElementById("resultText").textContent = "Слово було: "+word;
+    document.getElementById("resultSub").textContent =
+      solved>0 ? ("Відгадано слів: "+solved+". Це добре!") : ("Підказка: "+clue);
+    document.getElementById("overScreen").classList.remove("hidden");
+  }
+
+  function startGame(){
+    lives=maxLives; solved=0; pool=[];
+    document.getElementById("scoreVal").textContent="1";
+    paintLives();
+    document.getElementById("startScreen").classList.add("hidden");
+    document.getElementById("overScreen").classList.add("hidden");
+    nextWord();
+  }
+
+  document.getElementById("diffSeg").addEventListener("click", function(e){
+    var b=e.target.closest(".opt"); if(!b) return;
+    maxLives=parseInt(b.getAttribute("data-lives"),10);
+    Array.prototype.forEach.call(this.children,function(x){ x.classList.toggle("sel", x===b); });
+  });
+  document.getElementById("clueSeg").addEventListener("click", function(e){
+    var b=e.target.closest(".opt"); if(!b) return;
+    showClue = b.getAttribute("data-clue")==="1";
+    Array.prototype.forEach.call(this.children,function(x){ x.classList.toggle("sel", x===b); });
+  });
+  document.getElementById("playBtn").addEventListener("click", startGame);
+  document.getElementById("againBtn").addEventListener("click", startGame);
+  document.getElementById("skipBtn").addEventListener("click", function(){
+    if(lives>0) nextWord();
+  });
+  document.getElementById("menuBtn").addEventListener("click", function(){
+    document.getElementById("startScreen").classList.remove("hidden");
+  });
+  document.getElementById("backBtn").addEventListener("click", function(){
+    document.getElementById("overScreen").classList.add("hidden");
+    document.getElementById("startScreen").classList.remove("hidden");
+  });
+
+  paintLives(); nextWord();
+})();
+</script>
+</body>
+</html>
