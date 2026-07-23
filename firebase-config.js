@@ -70,13 +70,40 @@ try {
 const HERO_EMAIL_DOMAIN = 'hero.schoolkingdom.app';
 
 /* ---------- допоміжне ---------- */
+/* ─── Ключі прогресу Героя ───────────────────────────────────────────────
+   ⚠ Раніше сюди потрапляв УВЕСЬ localStorage, крім двох службових ключів.
+   Наслідки:
+     1) pullLocal() стирав дані інших сайтів на тому самому origin —
+        на github.io localStorage спільний для ВСІХ проєктів акаунта;
+     2) pushLocal() заливав усе стороннє в heroes/{id}.progress, а документ
+        Firestore має ліміт 1 MiB.
+   Тепер синхронізуємо лише свій простір імен sk_*.
+
+   Беремо ШИРОКИЙ префікс, а не список відомих ключів: прогрес пишуть і
+   тести (sk_dbtest_, sk_test100_, sk_testpass_, sk_lvtest_), і книжки
+   (sk_dbbook_), і ігри (sk_game_*), і квести з тренуваннями (sk_spell_pts_v1,
+   sk_train_ukrabc_pts_v1 та інші, які sk-progress.js підбирає за шаблонами).
+   Білий список тут мовчки губив би прогрес кожного нового квесту. */
+
+// Ключі, які НІКОЛИ не синхронізуються.
+const PROGRESS_SKIP = [
+  'sk_active_family',  // прив'язка до пристрою
+  'sk_active_child',   // прив'язка до пристрою
+  'sk_hero_avatar'     // base64-фото з камери: 1–3 МБ, вб'є ліміт документа
+];
+
+// Один запис прогресу не має бути більшим за це (захист від роздування).
+const PROGRESS_MAX_VALUE = 64 * 1024;
+
+function isProgressKey(k) {
+  return !!k && k.startsWith('sk_') && PROGRESS_SKIP.indexOf(k) === -1;
+}
+
 function progressKeys() {
   const keys = [];
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
-    if (!k) continue;
-    if (k === 'sk_active_family' || k === 'sk_active_child') continue;
-    keys.push(k);
+    if (isProgressKey(k)) keys.push(k);
   }
   return keys;
 }
@@ -309,11 +336,29 @@ const SK = {
 
   /* ===== ПРОГРЕС localStorage ↔ heroes/{id}.progress ===== */
 
+  /* ⚠ GUARD на активного Героя — обов'язковий.
+     Гідратація в onAuthStateChanged асинхронна: між входом другого Героя і
+     завершенням pullLocal() у localStorage ще лежить прогрес ПЕРШОГО. Якщо в
+     цей момент спрацює visibilitychange (дитина згорнула вкладку), pushLocal
+     візьме uid нового Героя і запише йому чужий прогрес. Один телефон на двох
+     дітей — типова ситуація, тож вікно реальне. Помилку раніше ковтав
+     .catch(() => {}), тому баг був би невидимий. */
   async pushLocal(heroId) {
     const hid = heroId || SK._heroUid();
     if (!hid) return false;
+
+    // localStorage вже належить іншому Герою (або ще не гідратований) — мовчимо.
+    const owner = localStorage.getItem('sk_active_child');
+    if (owner !== hid) return false;
+
     const progress = {};
-    progressKeys().forEach(k => { progress[k] = localStorage.getItem(k); });
+    progressKeys().forEach(k => {
+      const v = localStorage.getItem(k);
+      if (v == null) return;                       // null не має затирати базу
+      if (v.length > PROGRESS_MAX_VALUE) return;   // аномально велике — не жену в базу
+      progress[k] = v;
+    });
+
     await setDoc(doc(db, 'heroes', hid), { progress }, { merge: true });
     return true;
   },
@@ -321,13 +366,22 @@ const SK = {
   async pullLocal(heroId) {
     const hid = heroId || SK._heroUid();
     if (!hid) return false;
+
     const snap = await getDoc(doc(db, 'heroes', hid));
-    if (!snap.exists()) return false;
-    const progress = snap.data().progress || {};
+    const progress = (snap.exists() && snap.data().progress) || {};
+
+    /* Чистимо ДО перевірки на існування документа. Інакше в Героя без поля
+       progress (щойно створений) у localStorage лишався б прогрес попередньої
+       дитини на цьому пристрої — і перший же pushLocal записав би його йому. */
     progressKeys().forEach(k => localStorage.removeItem(k));
     Object.entries(progress).forEach(([k, v]) => {
-      if (v != null) localStorage.setItem(k, v);
+      if (v != null && isProgressKey(k)) localStorage.setItem(k, v);
     });
+
+    /* Позначаємо власника localStorage одразу тут, а не лише в
+       onAuthStateChanged: guard у pushLocal спирається на цей ключ, і
+       інваріант має триматися незалежно від того, звідки покликали pullLocal. */
+    localStorage.setItem('sk_active_child', hid);
     return true;
   },
 
@@ -709,8 +763,10 @@ onAuthStateChanged(auth, async (user) => {
     // порожнього localStorage → перетікання між Героями чи затирання статів.
     try {
       if (localStorage.getItem('sk_active_child') !== user.uid) {
+        // pullLocal сам виставить sk_active_child — і зробить це ЛИШЕ після
+        // успішної гідратації. Якщо мережа впала, ключ лишається чужим,
+        // pushLocal мовчки відмовиться писати, і чужий прогрес не поїде в базу.
         await SK.pullLocal(user.uid);
-        localStorage.setItem('sk_active_child', user.uid);
       }
     } catch (e) {}
   } else if (!user) {
