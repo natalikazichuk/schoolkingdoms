@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Читанка — Школа Королівство</title>
+<title>Читанка — SchoolKingdoms</title>
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -23,11 +23,14 @@ body{font-family:'Nunito',sans-serif;background:linear-gradient(180deg,var(--sky
 /* сонце у правому верхньому куті */
 .stars-bg::before{content:'';position:absolute;top:6%;right:9%;width:150px;height:150px;border-radius:50%;
   background:radial-gradient(circle at 42% 42%,#fff9dc 0%,#ffe27a 46%,rgba(255,226,122,0) 72%)}
-/* хмаринки (клас .star-dot збережено — розмітку й JS-хук не чіпаємо) */
-.star-dot{position:absolute;border-radius:999px;background:rgba(255,255,255,.92);
-  box-shadow:0 10px 24px rgba(120,170,220,.28);animation:tw var(--dur,60s) linear infinite}
-@keyframes tw{from{transform:translateX(-16vw)}to{transform:translateX(116vw)}}
-@media(prefers-reduced-motion:reduce){.star-dot{animation:none}}
+/* хмари: SVG-силует із пласким низом; паралакс — менші пливуть вище й повільніше */
+.cloud{position:absolute;left:calc(-1 * var(--w,180px));width:var(--w,180px);opacity:var(--op,.9);
+  filter:drop-shadow(0 10px 16px rgba(86,140,196,.20));will-change:transform;
+  animation:drift var(--dur,150s) linear infinite;animation-delay:var(--delay,0s)}
+.cloud svg{display:block;width:100%;height:auto}
+@keyframes drift{from{transform:translateX(0) scaleX(var(--fx,1))}
+  to{transform:translateX(calc(100vw + var(--w,180px))) scaleX(var(--fx,1))}}
+@media(prefers-reduced-motion:reduce){.cloud{animation:none;transform:translateX(var(--x0,40vw)) scaleX(var(--fx,1))}}
 #app{position:relative;z-index:1;width:100%;max-width:560px;margin:0 auto;padding:14px 14px 28px;flex:1;min-height:0;display:flex;flex-direction:column}
 
 /* TOPBAR */
@@ -61,7 +64,7 @@ body{font-family:'Nunito',sans-serif;background:linear-gradient(180deg,var(--sky
 
 /* READING */
 .page-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-weight:800;font-size:.85rem;color:var(--muted)}
-.prog-track{height:8px;border-radius:999px;background:rgba(255,255,255,.8);overflow:hidden;margin-bottom:16px}
+.prog-track{height:10px;border-radius:999px;background:#dbe9fa;border:1px solid var(--line-2);overflow:hidden;margin-bottom:16px;box-shadow:inset 0 2px 4px rgba(19,63,120,.14)}
 .prog-fill{height:100%;background:linear-gradient(90deg,var(--gold-soft),var(--gold));border-radius:999px;transition:width .3s}
 .page-img{font-size:3rem;text-align:center;line-height:1;margin:2px 0 16px}
 .page-img img{width:auto;max-width:92%;max-height:340px;display:block;margin:0 auto;
@@ -188,13 +191,29 @@ body{font-family:'Nunito',sans-serif;background:linear-gradient(180deg,var(--sky
    Помилка у питанні НЕ карає (для 1 класу): підсвічуємо правильну й ідемо далі.
    ============================================================ */
 
-/* денне небо: хмаринки, що повільно пливуть */
+/* денне небо: хмари, що повільно пливуть */
 (function(){
   var box=document.getElementById('stars'); if(!box) return;
+  var SHAPE='<path d="M40 96 Q30 96 30 88 Q30 80 40 80 L200 80 Q210 80 210 88 Q210 96 200 96 Z"/>'
+    +'<circle cx="62" cy="74" r="22"/><circle cx="100" cy="56" r="32"/>'
+    +'<circle cx="146" cy="48" r="28"/><circle cx="154" cy="70" r="26"/>'
+    +'<circle cx="192" cy="74" r="20"/>';
   var html='';
-  for(var i=0;i<6;i++){
-    var w=(Math.random()*90+70).toFixed(0), h=(Math.random()*14+18).toFixed(0);
-    html+='<span class="star-dot" style="left:'+(Math.random()*80-10).toFixed(2)+'%;top:'+(Math.random()*70+4).toFixed(2)+'%;width:'+w+'px;height:'+h+'px;--dur:'+(Math.random()*50+70).toFixed(0)+'s"></span>';
+  for(var i=0;i<5;i++){
+    var d=Math.random();                                  // 0 — далеко, 1 — близько
+    var w=Math.round(110+d*140);                          // ширина 110–250px
+    var top=Math.round(3+(1-d)*30+Math.random()*28);      // дальні — вище
+    var op=(0.5+d*0.42).toFixed(2);                       // дальні — блідіші
+    var dur=Math.round(215-d*95);                         // ближчі — швидші
+    var gid='cloudg'+i;
+    html+='<span class="cloud" style="top:'+top+'%;--w:'+w+'px;--op:'+op+';--dur:'+dur+'s'
+      +';--delay:-'+Math.round(Math.random()*dur)+'s;--fx:'+(i%2?-1:1)
+      +';--x0:'+Math.round(10+Math.random()*70)+'vw">'
+      +'<svg viewBox="0 0 240 112" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
+      +'<defs><linearGradient id="'+gid+'" x1="0" y1="10" x2="0" y2="100" gradientUnits="userSpaceOnUse">'
+      +'<stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#f3f9ff"/>'
+      +'<stop offset="1" stop-color="#cfe2f5"/></linearGradient></defs>'
+      +'<g fill="url(#'+gid+')">'+SHAPE+'</g></svg></span>';
   }
   box.innerHTML=html;
 })();
