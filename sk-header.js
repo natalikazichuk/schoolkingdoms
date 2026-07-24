@@ -64,8 +64,10 @@
       +'.sk-hd__strip{flex:1 1 auto;min-width:240px;display:none;align-items:center;gap:10px 14px;'
         +'flex-wrap:wrap;justify-content:flex-end}'
       +'.sk-hd__strip.on{display:flex}'
-      +'.sk-hd__stats{display:flex;flex-wrap:nowrap;gap:6px;justify-content:flex-end;'
-        +'max-width:100%;overflow-x:auto}'
+      /* wrap, а НЕ overflow-x:auto — інакше на телефоні 5 плашок не влазять
+         у рядок і крайні просто обрізаються (було видно лише частину шкали). */
+      +'.sk-hd__stats{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;'
+        +'max-width:100%}'
       +'.sk-hd__stat{display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.24);'
         +'border:1px solid rgba(242,199,92,.42);border-radius:999px;padding:4px 11px;'
         +'font-weight:800;font-size:.82rem;color:#eaf1ff;white-space:nowrap}'
@@ -75,9 +77,15 @@
       +'.sk-hd__guest.on{display:inline-block}'
       +'.sk-hd__guest a{color:#F2C75C;font-weight:800}'
       +'@media(max-width:640px){'
-        +'.sk-hd{justify-content:center;text-align:center}'
+        +'.sk-hd{justify-content:center;text-align:center;padding:10px 10px 8px}'
         +'.sk-hd__strip{min-width:0;width:100%;justify-content:center}'
-        +'.sk-hd__stats{justify-content:center}'
+        +'.sk-hd__stats{justify-content:center;gap:5px}'
+        +'.sk-hd__stat{padding:3px 9px;font-size:.76rem;gap:4px}'
+      +'}'
+      /* дуже вузькі екрани — ще менше, решта переноситься на другий рядок */
+      +'@media(max-width:360px){'
+        +'.sk-hd__stat{padding:3px 7px;font-size:.72rem;gap:3px}'
+        +'.sk-hd__stats{gap:4px}'
       +'}';
     document.head.appendChild(css);
   }
