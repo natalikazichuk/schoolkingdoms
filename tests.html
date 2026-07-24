@@ -243,8 +243,8 @@
    Без нього рядки нижче (var norm = SKCUR.norm) кинули б ReferenceError і
    сторінка лишилась би порожньою без пояснень. throw зупиняє лише цей скрипт. */
 (function(){
-  var need = 4;
-  var uses = ['norm','clone','chains','chainIndex','chainPrev','findTest','indexTests','subjectMatches','PASS_RATIO','ready','map'];
+  var need = 5;
+  var uses = ['norm','clone','chains','chainIndex','chainPrev','findTest','indexTests','subjectMatches','placeTests','PASS_RATIO','ready','map'];
   var bad = null;
   if(!window.SKCUR) bad = 'Файл sk-curriculum.js не завантажився.';
   else {
@@ -394,75 +394,42 @@ function testChip(t){
 }
 
 /* ── розкласти тести з бази по предметах і розділах (мутуємо CURRICULUM) ──
-   Раніше розділи вміла лише Математика 1 класу. Тепер їх має будь-який
-   предмет будь-якого класу — вони просто беруться з карти.
-   Тест потрапляє в розділ, якщо: (а) його назва є у списку розділу,
-   (б) поле topic тесту == назва розділу, (в) назва тесту починається з назви розділу. */
+   Правила розкладки — у SKCUR.placeTests (sk-curriculum.js), спільні з
+   перевіркою карти в адмінці. Коротко: тест потрапляє в розділ, якщо
+   (а) його id/назва є у списку розділу, (б) поле topic тесту == назва розділу,
+   (в) назва тесту починається з назви розділу — і в усіх трьох випадках
+   клас тесту має збігатися з класом на карті. */
 function distribute(tests){
-  var index = [];
   CURRICULUM.forEach(function(tier){
     (tier.grades||[]).forEach(function(g){
-      (g.subjects||[]).forEach(function(s){
-        s.items = []; s.groups = null;
-        index.push({ gradeNum:g.gradeNum, subj:s });
-      });
+      (g.subjects||[]).forEach(function(s){ s.items = []; s.groups = null; });
     });
   });
 
-  // Індекс тестів і таблиця ланцюгів — рахуємо один раз на весь рендер,
-  // а не в кожному testChip (інакше O(n²) на кожне перемальовування).
-  var TIDX = SKCUR.indexTests(tests);
+  // Таблиця ланцюгів — рахуємо один раз на весь рендер, а не в кожному
+  // testChip (інакше O(n²) на кожне перемальовування).
   CHAINX = SKCUR.chainIndex(SKCUR.map, tests);
 
-  var usedId = {};        // тест уже показаний десь у розділі
-  var takenTitle = {};    // його назва — щоб не продублювати нижче
+  // САМА РОЗКЛАДКА — у sk-curriculum.js. Тут лишається тільки перетворення
+  // тестів на плитки. Так адмінка при перевірці карти бачить рівно ту саму
+  // картину, що й дитина: раніше це були дві різні функції, і вони розійшлися.
+  var P = SKCUR.placeTests(CURRICULUM, tests);
 
-  // 1) предмети з розділами → групи
-  index.forEach(function(e){
-    var subj = e.subj;
-    if(!subj.topics || !subj.topics.length) return;
-    subj.groups = subj.topics.map(function(tp){
-      var items = [], tpN = norm(tp.topic);
-      function addTest(t){
-        if(!t || !t.id || usedId[t.id]) return;
-        if(Number(t.grade||1) !== Number(e.gradeNum)) return;
-        items.push(testChip(t));
-        usedId[t.id] = true;
-        takenTitle[norm(t.title)] = true;
-      }
-      // (а) явний список назв у розділі
-      // посилання розділу — id (нове) або назва (старі карти)
-      (tp.tests||[]).forEach(function(ref){ addTest(SKCUR.findTest(ref, TIDX)); });
-      // (б)+(в) поле topic або префікс назви — лише в межах свого предмета
-      (tests||[]).forEach(function(t){
-        if(!t || !t.title) return;
-        if(!subjectMatches(subj, t.subject)) return;
-        var byField  = t.topic && norm(t.topic) === tpN;
-        var byPrefix = norm(t.title).indexOf(tpN) === 0;
-        if(byField || byPrefix) addTest(t);
-      });
-      return { title:(tp.chain?'🔗 ':'') + esc(tp.topic), items:items };
+  // 1) предмети з розділами → групи (по одній на КОЖЕН розділ, у порядку карти)
+  P.topics.forEach(function(b){
+    if(!b.subj.groups) b.subj.groups = [];
+    b.subj.groups.push({
+      title: (b.topic.chain ? '🔗 ' : '') + esc(b.topic.topic),
+      items: b.tests.map(testChip)
     });
   });
 
   // 2) решта тестів → у предмет за grade + subject (без розділів)
-  var leftovers = [];
-  (tests||[]).forEach(function(t){
-    if(!t || !t.id) return;
-    if(usedId[t.id] || takenTitle[norm(t.title)]) return;
-    var placed = false;
-    for(var i=0;i<index.length;i++){
-      var e = index[i];
-      if(Number(t.grade) === Number(e.gradeNum) && subjectMatches(e.subj, t.subject)){
-        e.subj.items.push(testChip(t));
-        usedId[t.id] = true; placed = true; break;
-      }
-    }
-    if(!placed) leftovers.push(t);
-  });
+  P.subjects.forEach(function(b){ b.subj.items = b.tests.map(testChip); });
 
   // 3) катч-ол: нічого не губимо — усе несопоставлене йде в «Інші тести»
   //    до найпершого класу, що є на карті
+  var leftovers = P.leftovers;
   if(leftovers.length){
     var firstGrade = null;
     CURRICULUM.forEach(function(tier){

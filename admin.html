@@ -610,10 +610,10 @@ let MAP = null;                       // редагована карта (чер
    порожній екран без жодного слова. Тепер невідповідність видно одразу.
    Перевіряємо і версію, і кожен потрібний експорт — на випадок, якщо версію
    забули підняти. Оновлюючи цей список, підніми API_VERSION у модулі. */
-const SKCUR_NEEDS = 4;
+const SKCUR_NEEDS = 5;
 const SKCUR_USES = ['DEFAULT_MAP','normalize','chains','norm','clone',
                     'STATS','statLabel','statKeyFrom',
-                    'indexTests','findTest','migrateRefs','chainIndex'];
+                    'indexTests','findTest','migrateRefs','chainIndex','placeTests'];
 
 function skcurProblem(){
   if(!window.SKCUR){
@@ -892,11 +892,17 @@ function onMapClick(e){
   if(redraw) renderMap();
 }
 
-/* ── перевірка карти перед збереженням ── */
+/* ── перевірка карти перед збереженням ──
+   Розкладку НЕ рахуємо тут: її робить SKCUR.placeTests — та сама функція, якою
+   tests.html будує сторінку для дитини. Доти перевірка знала лише правило «є в
+   списку розділу», тому кричала про тести, які дитина бачить нормально (вони
+   потрапляють за полем topic або за префіксом назви), і мовчала про ті, що
+   реально випадають — через чужий клас, чужий предмет або однакову назву.
+
+   Поділ на ✘ і ⚠ простий: ✘ — те, що виправляється тут, у редакторі карти
+   (і тому блокує збереження); ⚠ — те, що виправляється в картці тесту. */
 function checkMap(){
   const errs = [], warns = [];
-  const seenTest = {};                       // id тесту → назва розділу
-  const idx = window.SKCUR.indexTests(TESTS);
 
   MAP.tiers.forEach(tier => {
     if(!String(tier.name || '').trim()) errs.push('Ступінь без назви');
@@ -907,29 +913,41 @@ function checkMap(){
         if(!(sj.keys || []).length) warns.push('Предмет «' + sj.name + '» без ключів — тести підуть у «Інші тести»');
         (sj.topics || []).forEach(tp => {
           if(!String(tp.topic || '').trim()) errs.push('Розділ без назви у «' + sj.name + '»');
-          (tp.tests || []).forEach(ref => {
-            const t = window.SKCUR.findTest(ref, idx);
-            if(!t){
-              warns.push('Посилання «' + ref + '» ні на що не вказує (розділ «' + tp.topic + '»)');
-              return;
-            }
-            if(seenTest[t.id]) errs.push('Тест «' + t.title + '» стоїть у двох розділах: «' + seenTest[t.id] + '» і «' + tp.topic + '»');
-            else seenTest[t.id] = tp.topic;
-          });
         });
       });
     });
   });
 
-  // тести з бази, які нікуди не потрапили
-  const orphans = TESTS.filter(t => t && t.title && t.active !== false && !seenTest[t.id]);
+  // Активні тести — рівно те, що бачить дитина (tests.html бере listActiveTests).
+  const live = (TESTS || []).filter(t => t && t.id && t.title && t.active !== false);
+  const P = window.SKCUR.placeTests(MAP, live);
+
+  P.unresolved.forEach(u => {
+    warns.push('Посилання «' + u.ref + '» ні на що не вказує (розділ «' + u.topic + '»)');
+  });
+
+  P.dropped.forEach(d => {
+    const nm = d.test.title;
+    if(d.reason === 'duplicate'){
+      errs.push('Тест «' + nm + '» стоїть у двох розділах: «' + d.first.topic + '» і «' + d.topic + '» — показується лише в першому');
+    } else if(d.reason === 'grade'){
+      warns.push('Тест «' + nm + '» вписано в розділ «' + d.topic + '» (' + d.expected + ' кл), '
+        + 'а в самій картці тесту клас — ' + (d.got ? d.got : 'не вказано')
+        + '. У розділі його не буде: виправ клас у тесті.');
+    } else if(d.reason === 'sameTitle'){
+      warns.push('Тест «' + nm + '» має таку саму назву, як інший тест, і не показується ніде. Перейменуй один із них.');
+    }
+  });
+
+  if(P.leftovers.length){
+    warns.push('Не в жодному розділі (підуть у предмет за ключами або в «Інші тести»): '
+      + P.leftovers.map(t => t.title).join(', '));
+  }
 
   let html = '';
   if(errs.length)  html += '<div class="map-warn">✘ ' + errs.map(esc).join('<br>✘ ') + '</div>';
   if(warns.length) html += '<div class="map-warn" style="color:#ffd98f">⚠ ' + warns.map(esc).join('<br>⚠ ') + '</div>';
-  if(orphans.length) html += '<div class="map-warn" style="color:#ffd98f">⚠ Не в жодному розділі (підуть у предмет за ключами або в «Інші тести»): '
-    + orphans.map(t => esc(t.title)).join(', ') + '</div>';
-  if(!html) html = '<div class="map-ok">✔ Карта чиста: усі розділи названі, дублів немає, усі тести на місці.</div>';
+  if(!html) html = '<div class="map-ok">✔ Карта чиста: усі розділи названі, дублів немає, кожен активний тест лежить там, де його побачить дитина.</div>';
   $('mapMsg').innerHTML = html;
   return errs.length === 0;
 }

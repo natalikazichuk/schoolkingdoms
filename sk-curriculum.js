@@ -18,8 +18,13 @@
      2 — normalize/statKey-неутральна
      3 — + STATS, statLabel, statKeyFrom, statKey у предметах
      4 — ланцюги на id тестів: chains(map,tests), chainIndex, chainPrev/chainNext
-         замість chainPrevTitle/chainNextTitle (назва більше не ідентифікатор) */
-var API_VERSION = 4;
+         замість chainPrevTitle/chainNextTitle (назва більше не ідентифікатор)
+     5 — + placeTests(map,tests): розкладка тестів по розділах живе тут.
+         Раніше вона була написана двічі — у tests.html (три правила) і в
+         admin.html/checkMap (одне правило), і копії розійшлися: перевірка
+         звітувала про «сиріт», яких у дитини видно нормально, і мовчала про
+         тести, що реально випадали через клас/предмет/однакову назву. */
+var API_VERSION = 5;
 
 var PASS_RATIO = 0.55;
 
@@ -293,6 +298,131 @@ function migrateRefs(map, tests){
   return { map: out, changed: changed, unresolved: unresolved };
 }
 
+/* ─── РОЗКЛАДКА ТЕСТІВ ПО КАРТІ ───
+   ЄДИНЕ місце, де вирішується «який тест у якому розділі». Раніше це саме
+   рішення ухвалювали дві різні функції: distribute() у tests.html (те, що
+   бачить дитина) і checkMap() в admin.html (те, що бачить дорослий). Вони
+   розійшлися, і перевірка карти показувала не ту картину, що сайт.
+
+   Правила потрапляння тесту в розділ (порядок важливий):
+     (а) id або назва тесту стоїть у списку розділу (tp.tests);
+     (б) поле topic тесту дорівнює назві розділу;
+     (в) назва тесту починається з назви розділу.
+   Правила (б) і (в) працюють лише в межах свого предмета (subjectMatches),
+   і БУДЬ-ЯКЕ правило вимагає збігу класу: t.grade === grade.gradeNum.
+
+   Приймає map як {tiers:[…]} або як сам масив tiers (tests.html тримає клон
+   саме масиву). Нічого не мутує — повертає результат.
+
+   Повертає:
+     topics    [{tier,grade,subj,topic,tests[]}]  — по одному запису на КОЖЕН
+                                                    розділ карти, навіть порожній
+     subjects  [{tier,grade,subj,tests[]}]        — тести, що лягли в предмет
+                                                    повз розділи
+     leftovers [test]                             — нікуди не лягли → «Інші тести»
+     dropped   [{test,reason,…}]                  — випали, хоч мали лягти:
+                   reason:'grade'     — вписаний у розділ чужого класу
+                   reason:'duplicate' — той самий тест стоїть у двох розділах
+                   reason:'sameTitle' — інший тест із такою самою назвою вже
+                                        показаний, цей не показується ніде
+     unresolved[{ref,topic,subject}]              — посилання ні на що не вказує
+     byId      {testId:{subject,topic}}           — де саме опинився тест      */
+function placeTests(map, tests){
+  var tiers = Array.isArray(map) ? map : ((map && map.tiers) || []);
+  var all   = (tests || []).filter(function(t){ return t && t.id; });
+  var idx   = indexTests(all);
+
+  var usedId = {}, takenTitle = {};
+  var topics = [], subjects = [], leftovers = [], dropped = [], unresolved = [];
+  var byId = {};
+
+  var slots = [];
+  tiers.forEach(function(tier){
+    (tier.grades || []).forEach(function(grade){
+      (grade.subjects || []).forEach(function(subj){
+        slots.push({ tier: tier, grade: grade, subj: subj });
+      });
+    });
+  });
+
+  /* 1) розділи */
+  slots.forEach(function(e){
+    if(!(e.subj.topics || []).length) return;
+    (e.subj.topics || []).forEach(function(tp){
+      var bucket = { tier: e.tier, grade: e.grade, subj: e.subj, topic: tp, tests: [] };
+      var tpN = norm(tp.topic);
+
+      // via: 'ref' — явне посилання, 'auto' — правило (б)/(в).
+      // Про мовчазну втрату звітуємо лише для явних посилань: перекриття за
+      // префіксом («Задачі» і «Задачі у дві дії») — нормальне явище, перший
+      // розділ у порядку карти забирає тест, і це не помилка.
+      function add(t, via){
+        if(!t || !t.title) return;
+        if(usedId[t.id]){
+          if(via === 'ref' && byId[t.id] && byId[t.id].topic !== tp.topic){
+            dropped.push({ test: t, reason: 'duplicate', topic: tp.topic,
+                           subject: e.subj.name, first: byId[t.id] });
+          }
+          return;
+        }
+        if(Number(t.grade || 1) !== Number(e.grade.gradeNum)){
+          if(via === 'ref'){
+            dropped.push({ test: t, reason: 'grade', topic: tp.topic, subject: e.subj.name,
+                           expected: e.grade.gradeNum, got: t.grade });
+          }
+          return;
+        }
+        bucket.tests.push(t);
+        usedId[t.id] = true;
+        takenTitle[norm(t.title)] = true;
+        byId[t.id] = { subject: e.subj.name, topic: tp.topic };
+      }
+
+      (tp.tests || []).forEach(function(ref){
+        var t = findTest(ref, idx);
+        if(!t){ unresolved.push({ ref: String(ref), topic: tp.topic, subject: e.subj.name }); return; }
+        add(t, 'ref');
+      });
+      all.forEach(function(t){
+        if(!t.title) return;
+        if(!subjectMatches(e.subj, t.subject)) return;
+        var byField  = t.topic && norm(t.topic) === tpN;
+        var byPrefix = norm(t.title).indexOf(tpN) === 0;
+        if(byField || byPrefix) add(t, 'auto');
+      });
+
+      topics.push(bucket);
+    });
+  });
+
+  /* 2) решта → у предмет за класом і предметом (без розділів) */
+  var extra = [];
+  slots.forEach(function(e){ extra.push({ tier: e.tier, grade: e.grade, subj: e.subj, tests: [] }); });
+
+  all.forEach(function(t){
+    if(usedId[t.id]) return;
+    if(t.title && takenTitle[norm(t.title)]){
+      dropped.push({ test: t, reason: 'sameTitle' });
+      return;
+    }
+    for(var i = 0; i < slots.length; i++){
+      var e = slots[i];
+      if(Number(t.grade) === Number(e.grade.gradeNum) && subjectMatches(e.subj, t.subject)){
+        extra[i].tests.push(t);
+        usedId[t.id] = true;
+        byId[t.id] = { subject: e.subj.name, topic: null };
+        return;
+      }
+    }
+    leftovers.push(t);
+  });
+
+  extra.forEach(function(b){ if(b.tests.length) subjects.push(b); });
+
+  return { topics: topics, subjects: subjects, leftovers: leftovers,
+           dropped: dropped, unresolved: unresolved, byId: byId };
+}
+
 /* ─── завантаження ───
    SKCUR.ready — Promise, який ЗАВЖДИ резолвиться картою (ніколи не падає).
    SKCUR.map   — поточна карта; до завантаження = DEFAULT_MAP, тож синхронний
@@ -314,6 +444,7 @@ var API = {
   chainNext: chainNext,
   indexTests: indexTests,
   findTest: findTest,
+  placeTests: placeTests,
   migrateRefs: migrateRefs,
   ready: null,
   loaded: false      // true = карта прийшла з бази, false = запасна
