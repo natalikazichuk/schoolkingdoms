@@ -37,7 +37,10 @@
     });
   }
 
-  /* ── стилі (додаємо один раз) ── */
+  /* ── стилі (додаємо один раз) ──
+     ЄДИНИЙ СТАНДАРТ ХЕДЕРА. Ті самі значення продубльовані в sk-styles.css
+     (.topbar / .brand / .brand-name / .brand-sub / .logo-img) для сторінок,
+     які не використовують sk-header.js. Міняєш тут — міняй і там. */
   if(!document.getElementById('sk-hd-css')){
     var css = document.createElement('style');
     css.id = 'sk-hd-css';
@@ -48,7 +51,7 @@
         +'box-shadow:0 6px 20px rgba(0,0,0,.35)}'
       +'.sk-hd__brand{display:flex;align-items:center;gap:11px;text-decoration:none;min-width:0;flex:0 1 auto}'
       +'.sk-hd__brand:hover .sk-hd__name{filter:brightness(1.08)}'
-      +'.sk-hd__logo{width:clamp(58px,9vw,76px);height:auto;display:block;flex-shrink:0;'
+      +'.sk-hd__logo{width:clamp(86px,14vw,112px);height:auto;display:block;flex-shrink:0;'
         +'filter:drop-shadow(0 3px 6px rgba(0,0,0,.4))}'
       +'.sk-hd__crest{font-size:1.7rem;filter:drop-shadow(0 2px 4px rgba(0,0,0,.45))}'
       +'.sk-hd__name{font-family:"Playfair Display",Georgia,serif;font-weight:900;line-height:1.05;'
