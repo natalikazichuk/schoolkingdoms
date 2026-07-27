@@ -313,12 +313,12 @@ function chip(it, accent){
   }
   return '<span class="chip plan" style="--accent:'+accent+'"><span class="dot">•</span> '+esc(it.label)+'</span>';
 }
-function subjectHtml(s){
+function subjectHtml(s, tier){
   var accent = s.accent || '#5C6BC0';
   var body = '';
   // тренажери-сторінки предмета (з SUBJECT_LINKS) — показуємо першими
-  var slinks = SUBJECT_LINKS[s.id] || SUBJECT_LINKS[s.name];
-  if(slinks && slinks.length){
+  var slinks = subjectLinksFor(s, tier);
+  if(slinks.length){
     body += '<div class="grp-title">🎮 Тренажери</div><div class="chips">'
           + slinks.map(function(l){
               return '<span class="chip-group"><a class="chip ready" href="'+l.href+'" style="--accent:'+accent+'">'
@@ -357,7 +357,7 @@ function tierHtml(t, openFirst){
   if(Array.isArray(t.grades) && t.grades.length){
     t.grades.forEach(function(g){
       inner += '<div class="grade-name">📖 '+g.name+'</div>';
-      inner += (g.subjects||[]).map(subjectHtml).join('');
+      inner += (g.subjects||[]).map(function(s){ return subjectHtml(s, t); }).join('');
     });
   } else {
     inner = '<p style="color:#c6d3ea;font-weight:600;font-size:.9rem;padding:6px 4px 4px">'
@@ -405,9 +405,38 @@ var LEARN_LINKS = {
    його назва. Щоб додати новий тренажер — допиши сюди рядок.
    ВАЖЛИВО: тут, а не в даних карти, бо normalize() лишає у предметі лише
    id/icon/name/accent/statKey/stat/keys/topics — кастомне поле було б відрізане. */
-var SUBJECT_LINKS = {
-  eng: [ { href:'english-reading.html', icon:'📖', label:'Вчимось читати!' } ]
-};
+var SUBJECT_LINKS = [
+  { subject:'eng', href:'english-reading.html', icon:'📖', label:'Вчимось читати!' },
+  // абетка — це дошкільна підготовка, тож привʼязуємо до ступеня «Дошкільна…», а не до 1 класу.
+  // subject:'україн' зловить назву «Українська мова» / ключ «україн» незалежно від id з адмінки.
+  { tier:'Дошкільн', subject:'україн', href:'ukrainian-abetka.html', icon:'🔤', label:'Українська абетка' }
+];
+/* Зіставлення посилання з предметом/ступенем. subject зіставляється за id (точно)
+   або входженням у назву/keys[] — тож не залежимо від id, що згенерувала адмінка,
+   і від точного написання назви. tier у записі — необовʼязковий фільтр (id точно
+   або входження в назву ступеня). */
+function slNorm(s){ return String(s==null?'':s).toLowerCase().replace(/[’'`ʼ]/g,'').replace(/\s+/g,' ').trim(); }
+function slSubjMatch(s, sel){
+  if(!sel) return true;
+  var n = slNorm(sel);
+  if(slNorm(s.id) === n) return true;
+  if(slNorm(s.name).indexOf(n) >= 0) return true;
+  var keys = s.keys || [];
+  for(var i=0;i<keys.length;i++){ if(slNorm(keys[i]).indexOf(n) >= 0) return true; }
+  return false;
+}
+function slTierMatch(t, sel){
+  if(!sel) return true;
+  if(!t) return false;
+  var n = slNorm(sel);
+  if(slNorm(t.id) === n) return true;
+  return slNorm(t.name).indexOf(n) >= 0;
+}
+function subjectLinksFor(s, tier){
+  return SUBJECT_LINKS.filter(function(l){
+    return slSubjMatch(s, l.subject) && (l.tier ? slTierMatch(tier, l.tier) : true);
+  });
+}
 
 function testChip(t){
   var lv = isLevelsTest(t);
