@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Вивчаємо: Комп'ютер і його частини</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --sky-top:#AEE3F4; --sky-mid:#CDEEF0; --sky-bottom:#EAF7DD;
+    --parchment:#FBEFD0; --parchment-edge:#E3CB8E;
+    --wood:#7C4A26; --wood-dark:#5E371C;
+    --ink:#3A2A1E; --muted:#7a6a58;
+    --gold:#FFC94A; --gold-dark:#E0A93B;
+    --mint:#4Fb477; --mint-soft:#e4f6ea;
+    --coral:#E0684F; --coral-soft:#fbe6e0;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    min-height:100vh;display:flex;flex-direction:column;
+    background:linear-gradient(180deg,var(--sky-top) 0%,var(--sky-mid) 42%,var(--sky-bottom) 100%);
+    font-family:'Nunito',sans-serif;color:var(--ink);
+    overflow-x:hidden;
+  }
+
+  /* ── Верхня смужка ── */
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:10px 18px;background:rgba(255,255,255,.4);backdrop-filter:blur(6px);
+    border-bottom:2px solid var(--parchment-edge);flex-shrink:0;
+  }
+  .topbar-title{font-family:'Fredoka',sans-serif;font-size:1.25rem;font-weight:700;
+    color:var(--wood-dark);text-shadow:1px 1px 0 rgba(255,255,255,.55)}
+  .btn-back{display:inline-flex;align-items:center;gap:6px;background:var(--wood);color:#fff;
+    border:none;border-radius:10px;padding:8px 14px;font:700 .85rem 'Nunito',sans-serif;
+    cursor:pointer;text-decoration:none;transition:background .15s}
+  .btn-back:hover{background:var(--wood-dark)}
+
+  /* ── Прогрес ── */
+  .progress{height:8px;background:rgba(255,255,255,.5);flex-shrink:0}
+  .progress-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-dark));
+    width:0;transition:width .35s ease;box-shadow:0 0 8px rgba(255,201,74,.6)}
+
+  /* ── Сцена ── */
+  .stage{flex:1;display:flex;align-items:center;justify-content:center;padding:18px;position:relative}
+
+  .card{
+    width:min(560px,100%);background:var(--parchment);
+    border:3px solid var(--parchment-edge);border-radius:26px;
+    box-shadow:0 18px 40px rgba(94,55,28,.22),inset 0 2px 0 rgba(255,255,255,.6);
+    padding:22px 22px 26px;text-align:center;position:relative;
+  }
+  .badge{
+    display:inline-block;font:700 .78rem 'Nunito',sans-serif;letter-spacing:.4px;
+    text-transform:uppercase;padding:5px 14px;border-radius:999px;margin-bottom:14px;
+  }
+  .badge.part{background:#e7f0ff;color:#2f5aa8;border:2px solid #b9d0f5}
+  .badge.rule{background:var(--mint-soft);color:#2f7a4e;border:2px solid #b7e3c6}
+  .badge.intro,.badge.end{background:#fff2cf;color:var(--wood-dark);border:2px solid var(--gold)}
+
+  .photo-wrap{
+    background:#fff;border:3px solid #fff;border-radius:20px;overflow:hidden;
+    box-shadow:0 8px 18px rgba(0,0,0,.14);margin:0 auto 18px;
+    width:min(300px,80%);aspect-ratio:5/4;display:flex;align-items:center;justify-content:center;
+  }
+  .photo-wrap img{width:100%;height:100%;object-fit:contain;background:#fff}
+
+  .slide-title{font-family:'Fredoka',sans-serif;font-weight:700;font-size:1.9rem;
+    line-height:1.1;color:var(--wood-dark);margin-bottom:8px}
+  .slide-text{font-size:1.12rem;font-weight:600;color:var(--ink);line-height:1.35;max-width:420px;margin:0 auto}
+  .slide-text .hl{color:var(--gold-dark)}
+  .rule-yes{color:#2f7a4e} .rule-no{color:var(--coral)}
+
+  .speak{position:absolute;top:16px;right:16px;width:44px;height:44px;border-radius:50%;
+    border:2px solid var(--gold);background:#fff;font-size:1.25rem;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 3px 8px rgba(0,0,0,.12);
+    transition:transform .12s,background .12s}
+  .speak:hover{background:#fff8e6}
+  .speak:active{transform:scale(.92)}
+  .speak.on{background:var(--gold);animation:pulse 1s infinite}
+
+  /* Слайд-переходи */
+  .card{animation:slideIn .4s cubic-bezier(.2,.7,.3,1) both}
+  .card .photo-wrap{animation:pop .5s .08s both}
+  .card .slide-title{animation:rise .45s .14s both}
+  .card .slide-text{animation:rise .45s .2s both}
+
+  @keyframes slideIn{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}
+  @keyframes pop{from{opacity:0;transform:scale(.86)}60%{transform:scale(1.03)}to{opacity:1;transform:scale(1)}}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,201,74,.55)}50%{box-shadow:0 0 0 8px rgba(255,201,74,0)}}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+
+  /* ── Нижня панель ── */
+  .controls{flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:10px;
+    padding:14px 18px 22px;background:rgba(255,255,255,.32);border-top:2px solid var(--parchment-edge)}
+  .dots{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;max-width:520px}
+  .dot{width:11px;height:11px;border-radius:50%;background:rgba(124,74,38,.28);border:none;cursor:pointer;
+    padding:0;transition:transform .15s,background .15s}
+  .dot.active{background:var(--gold-dark);transform:scale(1.35)}
+  .dot.seen{background:var(--gold)}
+
+  .nav{display:flex;gap:12px;align-items:center;width:min(520px,100%)}
+  .btn{flex:1;font-family:'Fredoka',sans-serif;font-weight:600;font-size:1.05rem;
+    border:none;border-radius:16px;padding:14px 18px;cursor:pointer;transition:transform .12s,filter .12s}
+  .btn:active{transform:translateY(2px)}
+  .btn:disabled{opacity:.4;cursor:default}
+  .btn-prev{background:#fff;color:var(--wood-dark);border:2px solid var(--parchment-edge);flex:0 0 96px}
+  .btn-next{background:linear-gradient(180deg,#FFE7A0,var(--gold-dark));color:#5a3d08;
+    border:2px solid var(--gold-dark);box-shadow:0 4px 0 #b9812a}
+  .btn-next:hover{filter:brightness(1.04)}
+  .btn-test{background:linear-gradient(180deg,#7BD79A,var(--mint));color:#0f3d22;
+    border:2px solid #2f7a4e;box-shadow:0 4px 0 #2f7a4e;text-decoration:none;
+    display:flex;align-items:center;justify-content:center}
+
+.voice-row{display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--wood-dark);
+    background:rgba(255,255,255,.55);border:2px solid var(--parchment-edge);border-radius:12px;
+    padding:6px 10px;max-width:min(520px,100%)}
+  .voice-row.hidden{display:none}
+  .voice-row select{font:600 .85rem 'Nunito',sans-serif;color:var(--ink);border:none;background:transparent;
+    max-width:230px;cursor:pointer}
+  .voice-row select:focus{outline:2px solid var(--gold)}
+
+  @media (max-width:480px){
+    .slide-title{font-size:1.55rem} .slide-text{font-size:1.02rem}
+    .card{padding:20px 16px 22px}
+    .btn-prev{flex:0 0 80px;font-size:.95rem}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbar-title">💻 Комп'ютер і його частини</div>
+    <a class="btn-back" href="../igry.html">← Назад</a>
+  </div>
+
+  <div class="progress"><div class="progress-fill" id="progressFill"></div></div>
+
+  <div class="stage" id="stage"><!-- слайд рендериться сюди --></div>
+
+  <div class="controls">
+    <div class="voice-row hidden" id="voiceRow">
+      <span>🔈 Голос:</span>
+      <select id="voiceSel" aria-label="Вибір голосу"></select>
+    </div>
+    <div class="dots" id="dots"></div>
+    <div class="nav">
+      <button class="btn btn-prev" id="prevBtn">← Назад</button>
+      <button class="btn btn-next" id="nextBtn">Далі →</button>
+    </div>
+  </div>
+
+<script>
+/* Куди веде кнопка «Пройти тест» на останньому слайді.
+   Постав сюди test.html?id=<id-цього-тесту-у-Firestore>, коли знатимеш id.
+   За замовчуванням — список тестів. */
+const TEST_URL = '../tests.html';
+
+/* ── Дані слайдів ── */
+const SLIDES = [
+  { kind:'intro', img:'../img/infcomp_1.jpg', title:'Знайомся — комп\u2019ютер!',
+    speak:'Це комп\u2019ютер. Він складається з кількох частин. Зараз ми їх вивчимо.',
+    html:'Він допомагає нам <span class="hl">вчитися, малювати й гратися</span>. Погляньмо, з яких частин він складається.' },
+
+  { kind:'part', img:'../img/infcomp_2.jpg', title:'Монітор',
+    speak:'Монітор — це екран. Він показує зображення.',
+    html:'<span class="hl">Екран</span>, на якому ми бачимо зображення.' },
+
+  { kind:'part', img:'../img/infcomp_5.jpg', title:'Системний блок',
+    speak:'Системний блок — це мозок комп\u2019ютера. Він обробляє інформацію.',
+    html:'Це <span class="hl">мозок</span> комп\u2019ютера — він усе обробляє.' },
+
+  { kind:'part', img:'../img/infcomp_3.jpg', title:'Клавіатура',
+    speak:'Клавіатурою ми вводимо літери й цифри.',
+    html:'Нею ми вводимо <span class="hl">літери та цифри</span>.' },
+
+  { kind:'part', img:'../img/infcomp_4.jpg', title:'Миша',
+    speak:'Мишею ми керуємо стрілкою на екрані.',
+    html:'Керує <span class="hl">стрілкою</span> на екрані.' },
+
+  { kind:'part', img:'../img/infcomp_6.jpg', title:'Принтер',
+    speak:'Принтер друкує малюнки й документи на папері.',
+    html:'Друкує малюнки й тексти <span class="hl">на папері</span>.' },
+
+  { kind:'part', img:'../img/infcomp_7.jpg', title:'Колонки',
+    speak:'Через колонки ми чуємо звук і музику.',
+    html:'Через них ми <span class="hl">чуємо звук</span> і музику.' },
+
+  { kind:'part', img:'../img/infcomp_8.jpg', title:'Ноутбук',
+    speak:'Ноутбук — це маленький комп\u2019ютер, який можна брати із собою.',
+    html:'Маленький комп\u2019ютер, який можна <span class="hl">брати із собою</span>.' },
+
+  { kind:'part', img:'../img/infcomp_9.jpg', title:'Планшет',
+    speak:'Планшет має сенсорний екран. Ним керують пальцем.',
+    html:'Має <span class="hl">сенсорний екран</span> — керуємо пальцем.' },
+
+  { kind:'part', img:'../img/infcomp_10.jpg', title:'Навіщо комп\u2019ютер?',
+    speak:'Комп\u2019ютер потрібен для навчання та роботи.',
+    html:'Він потрібен для <span class="hl">навчання та роботи</span>.' },
+
+  { kind:'rule', img:'../img/infcomp_15.jpg', title:'Спочатку — руки',
+    speak:'Перед роботою за комп\u2019ютером треба помити руки.',
+    html:'<span class="rule-yes">✔ Перед роботою</span> завжди мий руки.' },
+
+  { kind:'rule', img:'../img/infcomp_16.jpg', title:'Сиди рівно',
+    speak:'За комп\u2019ютером треба сидіти рівно.',
+    html:'<span class="rule-yes">✔ Сиди рівно</span> — спинка пряма.' },
+
+  { kind:'rule', img:'../img/infcomp_17.jpg', title:'Не їж за комп\u2019ютером',
+    speak:'За комп\u2019ютером не можна їсти.',
+    html:'<span class="rule-no">✘ Не їж</span> і не пий біля комп\u2019ютера.' },
+
+  { kind:'rule', img:'../img/infcomp_18.jpg', title:'Бережи очі',
+    speak:'Якщо очі втомилися — зроби перерву.',
+    html:'Втомилися очі? <span class="rule-yes">✔ Зроби перерву</span>.' },
+
+  { kind:'rule', img:'../img/infcomp_19.jpg', title:'Клич дорослого',
+    speak:'Якщо виникла проблема — поклич дорослого або вчителя.',
+    html:'Щось не так? <span class="rule-yes">✔ Поклич дорослого</span>.' },
+
+  { kind:'end', img:'../img/infcomp_20.jpg', title:'Молодець! 🎉',
+    speak:'Ти вивчив частини комп\u2019ютера і правила. Тепер спробуй пройти тест!',
+    html:'Ти знаєш частини комп\u2019ютера та правила. Час <span class="hl">пройти тест</span>!' },
+];
+
+const BADGE = { intro:'Початок', part:'Частина', rule:'Правило', end:'Готово' };
+
+let idx = 0;
+const seen = new Set([0]);
+const stage = document.getElementById('stage');
+const fill  = document.getElementById('progressFill');
+const dotsEl= document.getElementById('dots');
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+
+/* дотики */
+dotsEl.innerHTML = SLIDES.map((_, i) =>
+  `<button class="dot" data-i="${i}" aria-label="Слайд ${i+1}"></button>`).join('');
+dotsEl.querySelectorAll('.dot').forEach(d =>
+  d.addEventListener('click', () => go(+d.dataset.i)));
+
+function render(){
+  const s = SLIDES[idx];
+  const isEnd = s.kind === 'end';
+  stage.innerHTML =
+    `<div class="card" role="group" aria-label="${s.title}">
+       <button class="speak" id="speakBtn" aria-label="Прослухати" title="Прослухати">🔊</button>
+       <span class="badge ${s.kind}">${BADGE[s.kind]} ${idx+1} / ${SLIDES.length}</span>
+       <div class="photo-wrap"><img src="${s.img}" alt="${s.title}"
+            onerror="this.parentNode.style.background='#f3ead0';this.style.display='none'"></div>
+       <h1 class="slide-title">${s.title}</h1>
+       <p class="slide-text">${s.html}</p>
+     </div>`;
+
+  document.getElementById('speakBtn').addEventListener('click', () => playSlide(s, false));
+
+  // прогрес і крапки
+  fill.style.width = ((idx+1) / SLIDES.length * 100) + '%';
+  dotsEl.querySelectorAll('.dot').forEach((d,i) => {
+    d.classList.toggle('active', i === idx);
+    d.classList.toggle('seen', seen.has(i) && i !== idx);
+  });
+
+  // навігація
+  prevBtn.disabled = idx === 0;
+  if(isEnd){
+    nextBtn.outerHTML = `<a class="btn btn-test" id="nextBtn" href="${TEST_URL}">Пройти тест ✅</a>`;
+  }else{
+    // якщо попередній слайд був кінцевий — повертаємо звичайну кнопку
+    if(!document.getElementById('nextBtn').classList.contains('btn-next')){
+      document.querySelector('.nav').lastElementChild.outerHTML =
+        `<button class="btn btn-next" id="nextBtn">Далі →</button>`;
+    }
+    const nb = document.getElementById('nextBtn');
+    nb.textContent = 'Далі →';
+    nb.onclick = () => go(idx+1);
+  }
+  // автозвук нового слайда (браузер може заблокувати до першої взаємодії — це нормально)
+  playSlide(s, true);
+}
+
+function go(n){
+  if(n < 0 || n >= SLIDES.length) return;
+  stopAudio();
+  idx = n; seen.add(n);
+  render();
+}
+
+/* ── Аудіо: спершу готовий mp3, інакше — синтез кращим голосом ──
+   Поклади студійні записи у audio/infcomp_N.mp3 (номер = з imgʼу слайда),
+   і вони гратимуть замість синтезу без жодних змін коду. */
+
+let curAudio = null;          // поточний <audio> (для mp3)
+let ukVoices = [];            // відсортовані українські голоси
+let chosenVoice = null;       // обраний голос синтезу
+
+function audioUrlFor(slide){
+  // img/infcomp_5.jpg -> audio/infcomp_5.mp3
+  return slide.img.replace(/img\//,'audio/').replace(/\.(jpe?g|png|webp)$/i,'.mp3');
+}
+
+function rankVoices(){
+  const vs = (window.speechSynthesis ? speechSynthesis.getVoices() : []) || [];
+  const uk = vs.filter(v => /uk|ukrain/i.test(v.lang) || /україн|ukrain/i.test(v.name));
+  // краще звучать нейронні/онлайн-голоси — ставимо їх першими
+  const score = v => (/natural|neural|online|premium|enhanced/i.test(v.name) ? 3
+                    : /google/i.test(v.name) ? 2 : 1);
+  uk.sort((a,b) => score(b) - score(a));
+  ukVoices = uk;
+  // зберегти вибір користувача, якщо є
+  const saved = localStorage.getItem('sk_learn_voice');
+  chosenVoice = uk.find(v => v.name === saved) || uk[0] || null;
+  buildVoicePicker();
+}
+
+function buildVoicePicker(){
+  const row = document.getElementById('voiceRow');
+  const sel = document.getElementById('voiceSel');
+  if(!row || !sel) return;
+  if(ukVoices.length < 2){ row.classList.add('hidden'); return; }
+  row.classList.remove('hidden');
+  sel.innerHTML = ukVoices.map(v =>
+    `<option value="${v.name}">${v.name.replace(/\s*\(.*?\)\s*$/, '')}</option>`).join('');
+  if(chosenVoice) sel.value = chosenVoice.name;
+  sel.onchange = () => {
+    chosenVoice = ukVoices.find(v => v.name === sel.value) || null;
+    if(chosenVoice) localStorage.setItem('sk_learn_voice', chosenVoice.name);
+    const cur = SLIDES[idx]; if(cur) speakTTS(cur.speak); // одразу показати новий голос
+  };
+}
+
+function playSlide(slide, auto){
+  stopAudio();
+  const url = audioUrlFor(slide);
+  const a = new Audio();
+  let usedTTS = false;
+  a.src = url;
+  a.onplaying = () => setSpeakOn(true);
+  a.onended  = () => setSpeakOn(false);
+  a.onerror  = () => { if(!usedTTS){ usedTTS = true; speakTTS(slide.speak); } };
+  curAudio = a;
+  const pr = a.play();
+  if(pr && pr.catch) pr.catch(() => { if(!usedTTS){ usedTTS = true; speakTTS(slide.speak); } });
+}
+
+function speakTTS(text){
+  if(!('speechSynthesis' in window) || !text) return;
+  try{ speechSynthesis.cancel(); }catch(e){}
+  const u = new SpeechSynthesisUtterance(text);
+  if(chosenVoice){ u.voice = chosenVoice; u.lang = chosenVoice.lang; }
+  else{ u.lang = 'uk-UA'; }        // без відкату на інші мови
+  u.rate = 0.9; u.pitch = 1.0;
+  u.onstart = () => setSpeakOn(true);
+  u.onend   = () => setSpeakOn(false);
+  try{ speechSynthesis.speak(u); }catch(e){}
+}
+
+function stopAudio(){
+  if(curAudio){ try{ curAudio.pause(); curAudio.currentTime = 0; }catch(e){} curAudio = null; }
+  if('speechSynthesis' in window){ try{ speechSynthesis.cancel(); }catch(e){} }
+  setSpeakOn(false);
+}
+function setSpeakOn(on){
+  const btn = document.getElementById('speakBtn');
+  if(btn) btn.classList.toggle('on', !!on);
+}
+
+// голоси часто підвантажуються асинхронно
+rankVoices();
+if('speechSynthesis' in window) speechSynthesis.onvoiceschanged = rankVoices;
+
+/* ── Клавіатура ── */
+document.addEventListener('keydown', e => {
+  if(e.key === 'ArrowRight') go(idx+1);
+  else if(e.key === 'ArrowLeft') go(idx-1);
+});
+prevBtn.addEventListener('click', () => go(idx-1));
+
+/* ── Свайп на телефоні ── */
+let tx = 0;
+stage.addEventListener('touchstart', e => { tx = e.changedTouches[0].clientX; }, {passive:true});
+stage.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - tx;
+  if(Math.abs(dx) > 50) go(dx < 0 ? idx+1 : idx-1);
+}, {passive:true});
+
+render();
+</script>
+</body>
+</html>

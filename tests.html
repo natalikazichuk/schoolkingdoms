@@ -108,6 +108,12 @@
   .chip-lvprog.done b{color:#9be6b0}
   /* тест разом із бейджами тримаємо однією групою */
   .chip-group{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+  /* посилання на навчальний ролик — окремим рядком під тестом */
+  .chip-learn{flex-basis:100%;width:fit-content;display:inline-flex;align-items:center;gap:6px;
+    font-size:.8rem;font-weight:700;color:#ffe08a;text-decoration:none;
+    background:rgba(255,201,74,.12);border:1px solid rgba(255,201,74,.42);
+    border-radius:10px;padding:4px 12px;transition:background .15s,transform .12s}
+  .chip-learn:hover{background:rgba(255,201,74,.22);transform:translateY(-1px)}
   /* заблокований тест: не клікається, приглушений */
   .chip.ready.locked{pointer-events:none;opacity:.5;filter:grayscale(.45);box-shadow:none;cursor:not-allowed}
   /* підказка-замок поруч із закритим тестом */
@@ -300,6 +306,9 @@ function chip(it, accent){
       var lvStyle = locked ? ' style="display:none"' : '';
       parts += '<span class="chip-lvprog" data-lvkey="sk_lvtest_'+it.testId+'_done" data-lvtotal="'+total+'"'+lvStyle+'>🧩 <b>0</b>/'+total+' рівнів</span>';
     }
+    if(it.learn){
+      parts += '<a class="chip-learn" href="'+it.learn+'">🎬 Подивись тут!</a>';
+    }
     return '<span class="chip-group">'+parts+'</span>';
   }
   return '<span class="chip plan" style="--accent:'+accent+'"><span class="dot">•</span> '+esc(it.label)+'</span>';
@@ -375,12 +384,20 @@ function isTestPassed(pre, lookup){
   return false;
 }
 
+/* Навчальні ролики під тестами. Ключ — назва тесту або його id.
+   Найпростіше додати нове відео: допиши сюди рядок "Назва тесту": "learn/файл.html".
+   Якщо в самому тесті задано поле learnUrl — воно має пріоритет над цим списком. */
+var LEARN_LINKS = {
+  "Комп'ютер і його частини": "learn/learn_kompyuter.html"
+};
+
 function testChip(t){
   var lv = isLevelsTest(t);
   var c = { db:true, status:'ready', label:t.title||'Тест',
     href:'test.html?id='+encodeURIComponent(t.id),
     levels:lv, testId:t.id,
     levelCount: lv ? (Array.isArray(t.levels)?t.levels.length:0) : 0,
+    learn: t.learnUrl || LEARN_LINKS[t.id] || LEARN_LINKS[t.title] || '',
     grade:t.grade };
   // замок лише для тестів у «ланцюгу»: відкривається, коли попередній тест
   // ланцюга пройдено на 55%. Немає попереднього серед активних → fail-open.
