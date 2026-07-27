@@ -1046,9 +1046,22 @@ function buildStaticControls(){
     `<option value="${s.v}">${s.label}${s.note ? ` — ${s.note}` : ''}</option>`).join('');
   $('subjectList').innerHTML = SUBJECTS.map(s => `<option value="${s}">`).join('');
   $('topicList').innerHTML = TOPICS.map(t => `<option value="${t}">`).join('');
+  buildSubjectFilter();
+}
+
+/* Список предметів у фільтрі = статичні SUBJECTS ∪ реальні предмети наявних
+   тестів (наприклад «Інформатика», доданий через Карту). Так будь-який новий
+   предмет з'являється у фільтрі автоматично, щойно за ним є хоч один тест. */
+function buildSubjectFilter(){
   const filter = $('filterSubject');
+  if(!filter) return;
+  const cur = filter.value;
+  const fromTests = (TESTS || []).map(t => String(t.subject || '').trim()).filter(Boolean);
+  const all = [...new Set([...SUBJECTS, ...fromTests])]
+    .sort((a, b) => a.localeCompare(b, 'uk'));
   filter.innerHTML = '<option value="">Усі предмети</option>' +
-    SUBJECTS.map(s => `<option value="${s}">${s}</option>`).join('');
+    all.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  if(cur && all.includes(cur)) filter.value = cur;
 }
 
 /* ============================================================
@@ -1057,6 +1070,7 @@ function buildStaticControls(){
 async function loadTests(){
   try { TESTS = await SK_API.list() || []; }
   catch(e){ console.error(e); TESTS = []; toast('Не вдалося завантажити тести', true); }
+  buildSubjectFilter();
   renderList();
 }
 
