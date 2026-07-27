@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Комп'ютерний детектив — тренажер</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg1:#1e345c; --bg2:#0c1c36; --panel:rgba(20,32,68,.72); --panel-edge:rgba(255,255,255,.12);
+    --gold:#FFC94A; --gold-d:#E0A93A; --chalk:#eaf1ff; --muted:#a9b8db;
+    --green:#5BD48A; --green-d:#2f7a4e; --red:#E0684F;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{min-height:100vh;display:flex;flex-direction:column;color:var(--chalk);
+    font-family:'Nunito',sans-serif;
+    background:radial-gradient(120% 90% at 50% 0%,var(--bg1),var(--bg2));
+    overflow-x:hidden}
+
+  header{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:12px 16px;border-bottom:1px solid var(--panel-edge)}
+  .title{font-family:'Fredoka',sans-serif;font-weight:700;font-size:1.2rem;color:#fff}
+  .title b{color:var(--gold)}
+  .top-btn{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.08);
+    border:1px solid var(--panel-edge);color:var(--chalk);border-radius:10px;padding:8px 12px;
+    font:700 .82rem 'Nunito',sans-serif;cursor:pointer;text-decoration:none}
+  .top-btn:hover{background:rgba(255,255,255,.15)}
+
+  /* HUD */
+  .hud{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:10px 16px;flex-wrap:wrap}
+  .hearts{font-size:1.3rem;letter-spacing:2px}
+  .hud-box{display:flex;align-items:center;gap:6px;font-weight:800;font-size:.95rem;color:var(--chalk)}
+  .hud-box .val{color:var(--gold);font-family:'Fredoka',sans-serif;font-size:1.15rem}
+  .combo{opacity:0;transition:opacity .2s;color:var(--green);font-weight:800}
+  .combo.show{opacity:1}
+  .roundbar{height:7px;background:rgba(255,255,255,.1);border-radius:99px;overflow:hidden;
+    margin:2px 16px 0}
+  .roundbar > i{display:block;height:100%;width:0;border-radius:99px;
+    background:linear-gradient(90deg,var(--gold),var(--gold-d));transition:width .3s}
+
+  /* Сцена */
+  .wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:22px;padding:18px;width:100%;max-width:640px;margin:0 auto}
+
+  .ask{display:flex;align-items:center;gap:12px;background:var(--panel);
+    border:1px solid var(--panel-edge);border-radius:18px;padding:16px 20px;text-align:center;
+    box-shadow:0 10px 26px rgba(0,0,0,.28)}
+  .ask h2{font-family:'Fredoka',sans-serif;font-weight:600;font-size:1.35rem;color:#fff;line-height:1.15}
+  .ask .spk{flex-shrink:0;width:46px;height:46px;border-radius:50%;border:2px solid var(--gold);
+    background:rgba(255,201,74,.14);color:var(--gold);font-size:1.3rem;cursor:pointer;
+    display:flex;align-items:center;justify-content:center}
+  .ask .spk:active{transform:scale(.9)}
+  .ask .spk.on{animation:pulse 1s infinite}
+
+  .options{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:100%}
+  @media(max-width:520px){.options{gap:8px}.ask h2{font-size:1.12rem}}
+  .opt{background:#fff;border:3px solid #fff;border-radius:16px;padding:0;cursor:pointer;
+    overflow:hidden;aspect-ratio:1/1;box-shadow:0 6px 16px rgba(0,0,0,.3);
+    transition:transform .1s,border-color .15s,box-shadow .15s}
+  .opt img{width:100%;height:100%;object-fit:contain;background:#fff;pointer-events:none}
+  .opt:hover{transform:translateY(-3px)}
+  .opt:active{transform:scale(.97)}
+  .opt.correct{border-color:var(--green);box-shadow:0 0 0 4px rgba(91,212,138,.5),0 6px 16px rgba(0,0,0,.3);
+    animation:pop .4s}
+  .opt.wrong{border-color:var(--red);animation:shake .4s}
+  .opt.dim{opacity:.35;pointer-events:none}
+  .opt.disabled{pointer-events:none}
+
+  /* Оверлей старту/фіналу */
+  .overlay{position:fixed;inset:0;background:rgba(6,14,30,.86);backdrop-filter:blur(3px);
+    display:flex;align-items:center;justify-content:center;padding:20px;z-index:20}
+  .overlay.hidden{display:none}
+  .card{width:min(420px,100%);background:var(--panel);border:1px solid var(--panel-edge);
+    border-radius:24px;padding:28px 24px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.5)}
+  .card .big{font-size:3rem;line-height:1;margin-bottom:8px}
+  .card h1{font-family:'Fredoka',sans-serif;font-weight:700;font-size:1.7rem;color:#fff;margin-bottom:6px}
+  .card p{color:var(--muted);font-weight:600;margin-bottom:18px;line-height:1.4}
+  .stars{font-size:2.2rem;letter-spacing:6px;margin:6px 0 14px}
+  .score-row{display:flex;justify-content:center;gap:26px;margin-bottom:18px}
+  .score-row .lbl{font-size:.78rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+  .score-row .num{font-family:'Fredoka',sans-serif;font-size:1.9rem;color:var(--gold)}
+  .btns{display:flex;flex-direction:column;gap:10px}
+  .btn{font-family:'Fredoka',sans-serif;font-weight:600;font-size:1.05rem;border:none;
+    border-radius:14px;padding:14px;cursor:pointer;text-decoration:none;display:block;transition:filter .12s,transform .1s}
+  .btn:active{transform:translateY(2px)}
+  .btn-play{background:linear-gradient(180deg,#FFE7A0,var(--gold-d));color:#5a3d08;
+    border:2px solid var(--gold-d);box-shadow:0 4px 0 #b9812a}
+  .btn-test{background:linear-gradient(180deg,#7BD79A,#3fae6e);color:#0f3d22;
+    border:2px solid var(--green-d);box-shadow:0 4px 0 var(--green-d)}
+  .btn-ghost{background:rgba(255,255,255,.08);color:var(--chalk);border:1px solid var(--panel-edge)}
+
+  @keyframes pop{0%{transform:scale(.9)}60%{transform:scale(1.06)}100%{transform:scale(1)}}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}
+    60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,201,74,.5)}50%{box-shadow:0 0 0 8px rgba(255,201,74,0)}}
+  .p-emoji{position:fixed;font-size:1.6rem;pointer-events:none;z-index:30;animation:fly .9s ease-out forwards}
+  @keyframes fly{0%{opacity:1;transform:translateY(0) scale(.6)}100%{opacity:0;transform:translateY(-90px) scale(1.3)}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+  <header>
+    <div class="title">🕵️ Комп'ютерний <b>детектив</b></div>
+    <a class="top-btn" href="igry.html">← Ігри</a>
+  </header>
+
+  <div class="hud">
+    <div class="hearts" id="hearts">❤️❤️❤️</div>
+    <div class="combo" id="combo">🔥 Серія ×1</div>
+    <div class="hud-box">Очки <span class="val" id="score">0</span></div>
+  </div>
+  <div class="roundbar"><i id="roundFill"></i></div>
+
+  <div class="wrap">
+    <div class="ask">
+      <button class="spk" id="spk" aria-label="Прослухати">🔊</button>
+      <h2 id="askText">…</h2>
+    </div>
+    <div class="options" id="options"></div>
+  </div>
+
+  <!-- Старт / Фінал -->
+  <div class="overlay" id="overlay">
+    <div class="card" id="card"><!-- рендериться в JS --></div>
+  </div>
+
+<script>
+/* Куди веде «Пройти тест». Постав test.html?id=<id>, коли знатимеш id тесту. */
+const TEST_URL = 'tests.html';
+const ROUNDS = 12;                 // скільки раундів у грі
+const BEST_KEY = 'sk_game_komputer_best';
+
+/* Пристрої: назва, фото, і як про них питати (кілька формулювань) */
+const DEVICES = [
+  { name:'Монітор',        img:'img/infcomp_2.jpg', asks:['Знайди монітор','Що показує зображення?','На чому ми бачимо картинку?'] },
+  { name:'Системний блок', img:'img/infcomp_5.jpg', asks:['Знайди системний блок','Хто обробляє інформацію?','Де «мозок» комп\u2019ютера?'] },
+  { name:'Клавіатура',     img:'img/infcomp_3.jpg', asks:['Знайди клавіатуру','Чим вводимо літери й цифри?','Чим друкуємо слова?'] },
+  { name:'Миша',           img:'img/infcomp_4.jpg', asks:['Знайди мишу','Чим керуємо стрілкою на екрані?'] },
+  { name:'Принтер',        img:'img/infcomp_6.jpg', asks:['Знайди принтер','Хто друкує на папері?','Чим надрукувати малюнок?'] },
+  { name:'Колонки',        img:'img/infcomp_7.jpg', asks:['Знайди колонки','Через що ми чуємо звук?','Що грає музику?'] },
+  { name:'Ноутбук',        img:'img/infcomp_8.jpg', asks:['Знайди ноутбук','Який комп\u2019ютер можна брати із собою?'] },
+  { name:'Планшет',        img:'img/infcomp_9.jpg', asks:['Знайди планшет','У кого сенсорний екран?','Чим керують пальцем?'] },
+];
+
+let score, hearts, streak, roundIdx, lastTarget, order, locked;
+
+const $ = id => document.getElementById(id);
+const rnd  = n => Math.floor(Math.random()*n);
+const pick = a => a[rnd(a.length)];
+const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]];} return a; };
+
+/* ── Гра ── */
+function start(){
+  score=0; hearts=3; streak=0; roundIdx=0; lastTarget=-1; locked=false;
+  order = shuffle(DEVICES.map((_,i)=>i));   // послідовність цілей без повторів поспіль
+  $('overlay').classList.add('hidden');
+  updateHud();
+  nextRound();
+}
+
+function nextRound(){
+  if(roundIdx >= ROUNDS){ return finish(); }
+  $('roundFill').style.width = (roundIdx/ROUNDS*100)+'%';
+
+  // ціль раунду (без повтору попередньої)
+  let ti = order[roundIdx % order.length];
+  if(ti === lastTarget) ti = order[(roundIdx+1) % order.length];
+  lastTarget = ti;
+  const target = DEVICES[ti];
+
+  // варіанти: ціль + 2 інші пристрої
+  const others = shuffle(DEVICES.map((_,i)=>i).filter(i=>i!==ti)).slice(0,2);
+  const opts = shuffle([ti, ...others]);
+
+  $('askText').textContent = pick(target.asks);
+  const box = $('options');
+  box.innerHTML = opts.map(i =>
+    `<button class="opt" data-i="${i}" aria-label="${DEVICES[i].name}">
+       <img src="${DEVICES[i].img}" alt="${DEVICES[i].name}"
+            onerror="this.parentNode.style.background='#e9eefc';this.style.display='none'">
+     </button>`).join('');
+  box.querySelectorAll('.opt').forEach(b =>
+    b.addEventListener('click', () => answer(+b.dataset.i, ti, b)));
+
+  locked=false;
+  speak($('askText').textContent);
+}
+
+function answer(chosen, target, el){
+  if(locked) return;
+  locked=true;
+  const opts = $('options').querySelectorAll('.opt');
+  opts.forEach(o => o.classList.add('disabled'));
+
+  if(chosen === target){
+    streak++;
+    const gain = 10 + Math.min(streak-1,5)*5;      // комбо-бонус до +25
+    score += gain;
+    el.classList.add('correct');
+    burst(el, streak>=3 ? '🔥' : '⭐');
+    blip(true);
+    showCombo();
+  }else{
+    streak=0; hearts--;
+    el.classList.add('wrong');
+    // підсвітити правильний
+    opts.forEach(o => { if(+o.dataset.i===target) o.classList.add('correct'); else if(o!==el) o.classList.add('dim'); });
+    blip(false);
+    hideCombo();
+  }
+  updateHud();
+
+  setTimeout(() => {
+    roundIdx++;
+    if(hearts<=0) return finish();
+    nextRound();
+  }, chosen===target ? 650 : 1050);
+}
+
+function updateHud(){
+  $('score').textContent = score;
+  $('hearts').textContent = '❤️'.repeat(hearts) + '🤍'.repeat(3-hearts);
+}
+function showCombo(){ const c=$('combo'); if(streak>=2){ c.textContent='🔥 Серія ×'+streak; c.classList.add('show'); } else hideCombo(); }
+function hideCombo(){ $('combo').classList.remove('show'); }
+
+/* ── Фінал ── */
+function finish(){
+  $('roundFill').style.width='100%';
+  const done = roundIdx;                         // скільки зіграно
+  const maxIf = done*35;                         // грубий стелаж очок
+  const ratio = maxIf ? score/maxIf : 0;
+  let stars = 1; if(hearts>=2 && ratio>=.55) stars=2; if(hearts===3 && ratio>=.75) stars=3;
+  const best = Math.max(score, +(localStorage.getItem(BEST_KEY)||0));
+  localStorage.setItem(BEST_KEY, best);
+
+  const win = hearts>0 && done>=ROUNDS;
+  render(
+    win ? '🏆' : '💪',
+    win ? 'Молодець, детективе!' : 'Гарна спроба!',
+    win ? 'Ти впізнав усі пристрої!' : 'Спробуй ще — цього разу без помилок!',
+    `<div class="stars">${'⭐'.repeat(stars)}${'☆'.repeat(3-stars)}</div>
+     <div class="score-row">
+       <div><div class="lbl">Очки</div><div class="num">${score}</div></div>
+       <div><div class="lbl">Рекорд</div><div class="num">${best}</div></div>
+     </div>`,
+    true);
+}
+
+function render(emoji, h1, p, extra, showTest){
+  $('card').innerHTML =
+    `<div class="big">${emoji}</div><h1>${h1}</h1><p>${p}</p>${extra||''}
+     <div class="btns">
+       <button class="btn btn-play" id="playBtn">${showTest?'Грати ще раз ▶':'Почати ▶'}</button>
+       ${showTest?`<a class="btn btn-test" href="${TEST_URL}">Пройти тест 🎯</a>`:''}
+       <a class="btn btn-ghost" href="igry.html">До ігор</a>
+     </div>`;
+  $('overlay').classList.remove('hidden');
+  $('playBtn').addEventListener('click', start);
+}
+
+/* ── Ефекти ── */
+function burst(el, emoji){
+  const r = el.getBoundingClientRect();
+  for(let k=0;k<5;k++){
+    const s=document.createElement('div'); s.className='p-emoji'; s.textContent=emoji;
+    s.style.left=(r.left+r.width/2+(rnd(60)-30))+'px'; s.style.top=(r.top+r.height/3)+'px';
+    s.style.animationDelay=(k*40)+'ms';
+    document.body.appendChild(s); setTimeout(()=>s.remove(),950);
+  }
+}
+let AC=null;
+function blip(ok){
+  try{
+    AC = AC || new (window.AudioContext||window.webkitAudioContext)();
+    const o=AC.createOscillator(), g=AC.createGain();
+    o.connect(g); g.connect(AC.destination);
+    o.type='sine';
+    if(ok){ o.frequency.setValueAtTime(660,AC.currentTime); o.frequency.exponentialRampToValueAtTime(990,AC.currentTime+.12); }
+    else  { o.frequency.setValueAtTime(300,AC.currentTime); o.frequency.exponentialRampToValueAtTime(160,AC.currentTime+.18); }
+    g.gain.setValueAtTime(.18,AC.currentTime); g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+.25);
+    o.start(); o.stop(AC.currentTime+.26);
+  }catch(e){}
+}
+
+/* ── Озвучення завдання (кращий український голос, без відкату на інші мови) ── */
+let chosenVoice=null;
+function rankVoices(){
+  const vs=(window.speechSynthesis?speechSynthesis.getVoices():[])||[];
+  const uk=vs.filter(v=>/uk|ukrain/i.test(v.lang)||/україн|ukrain/i.test(v.name));
+  const score=v=>(/natural|neural|online|premium|enhanced/i.test(v.name)?3:/google/i.test(v.name)?2:1);
+  uk.sort((a,b)=>score(b)-score(a));
+  chosenVoice=uk[0]||null;
+}
+function speak(text){
+  if(!('speechSynthesis'in window)||!text) return;
+  try{speechSynthesis.cancel();}catch(e){}
+  const u=new SpeechSynthesisUtterance(text);
+  if(chosenVoice){u.voice=chosenVoice;u.lang=chosenVoice.lang;} else u.lang='uk-UA';
+  u.rate=.95;u.pitch=1.05;
+  const b=$('spk');
+  u.onstart=()=>b&&b.classList.add('on'); u.onend=()=>b&&b.classList.remove('on');
+  try{speechSynthesis.speak(u);}catch(e){}
+}
+if('speechSynthesis'in window){ rankVoices(); speechSynthesis.onvoiceschanged=rankVoices; }
+$('spk').addEventListener('click',()=>speak($('askText').textContent));
+
+/* стартовий екран */
+render('🕵️','Комп\u2019ютерний детектив',
+  'Слухай завдання і тапай правильний пристрій. Маєш 3 життя ❤️ і '+ROUNDS+' раундів!',
+  '', false);
+</script>
+</body>
+</html>
