@@ -316,6 +316,15 @@ function chip(it, accent){
 function subjectHtml(s){
   var accent = s.accent || '#5C6BC0';
   var body = '';
+  // тренажери-сторінки предмета (з SUBJECT_LINKS) — показуємо першими
+  var slinks = SUBJECT_LINKS[s.id] || SUBJECT_LINKS[s.name];
+  if(slinks && slinks.length){
+    body += '<div class="grp-title">🎮 Тренажери</div><div class="chips">'
+          + slinks.map(function(l){
+              return '<span class="chip-group"><a class="chip ready" href="'+l.href+'" style="--accent:'+accent+'">'
+                   + esc(l.icon||'📖')+' '+esc(l.label)+'</a></span>';
+            }).join('') + '</div>';
+  }
   if(Array.isArray(s.groups)){
     s.groups.forEach(function(g){
       body += '<div class="grp-title">'+g.title+'</div>';
@@ -389,6 +398,15 @@ function isTestPassed(pre, lookup){
    Якщо в самому тесті задано поле learnUrl — воно має пріоритет над цим списком. */
 var LEARN_LINKS = {
   "Комп'ютер і його частини": "learn/learn_kompyuter.html"
+};
+
+/* Тренажери-сторінки, привʼязані до ПРЕДМЕТА (не з бази тестів — це окремі
+   самодостатні сторінки). Ключ — id предмета з карти (sk-curriculum.js) або
+   його назва. Щоб додати новий тренажер — допиши сюди рядок.
+   ВАЖЛИВО: тут, а не в даних карти, бо normalize() лишає у предметі лише
+   id/icon/name/accent/statKey/stat/keys/topics — кастомне поле було б відрізане. */
+var SUBJECT_LINKS = {
+  eng: [ { href:'english-reading.html', icon:'📖', label:'Вчимось читати!' } ]
 };
 
 function testChip(t){
