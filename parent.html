@@ -34,20 +34,31 @@
   .greeting{font-family:'Playfair Display',serif;font-weight:800;font-size:clamp(1.3rem,3.8vw,1.75rem);
     color:#0f3a6e;text-shadow:0 1px 2px rgba(255,255,255,.55);margin:0 0 8px;line-height:1.2}
 
-  /* ── Вкладки: адаптивна сітка (без горизонтальної прокрутки) ── */
-  .tabs{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:22px}
-  @media(min-width:560px){.tabs{grid-template-columns:repeat(3,1fr)}}
-  @media(min-width:880px){.tabs{grid-template-columns:repeat(6,1fr)}}
-  .tab{border:2px solid rgba(242,199,92,.45);border-radius:14px;
-    background:linear-gradient(165deg,rgba(39,81,140,.5),rgba(16,40,82,.55));color:#cdd9ef;
-    font-family:'Nunito',sans-serif;font-weight:800;font-size:.9rem;padding:11px 10px;cursor:pointer;
-    display:inline-flex;align-items:center;justify-content:center;text-align:center;gap:8px;
-    transition:.15s;white-space:normal;line-height:1.15}
-  .tab .ti{font-size:1.1rem}
-  .tab:hover{border-color:var(--gold);color:#fff}
-  .tab.active{color:#fff;border-color:#FFE7A0;
-    background:linear-gradient(165deg,rgba(47,132,81,.62),rgba(20,62,40,.66));
-    box-shadow:0 6px 16px rgba(0,0,0,.35),inset 0 0 0 1px rgba(242,199,92,.5)}
+  /* ── Головна: сітка дій (вкладки, яких нема в нижній навігації) ── */
+  .home-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:8px}
+  @media(min-width:880px){.home-grid{grid-template-columns:repeat(4,1fr)}}
+  .home-act{border:2px solid rgba(242,199,92,.45);border-radius:16px;
+    background:linear-gradient(165deg,rgba(39,81,140,.5),rgba(16,40,82,.55));color:#eaf1ff;
+    font-family:'Nunito',sans-serif;font-weight:800;font-size:1rem;padding:20px 14px;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;
+    transition:.15s;white-space:normal;line-height:1.2;min-height:96px}
+  .home-act .ti{font-size:1.8rem}
+  .home-act:hover{border-color:var(--gold);color:#fff;transform:translateY(-2px);
+    box-shadow:0 8px 18px rgba(0,0,0,.3)}
+
+  /* ── Нижня навігація (як на дитячих сторінках) ── */
+  .botnav{position:sticky;bottom:0;z-index:30;margin-top:auto;
+    background:linear-gradient(180deg,#1e3a6b,#16294f);
+    border-top:3px solid #e0a42a;display:flex;align-items:center;
+    gap:2px;padding:6px 8px;overflow-x:auto;scrollbar-width:none}
+  .botnav::-webkit-scrollbar{display:none}
+  .botnav a,.botnav button{display:flex;flex-direction:column;align-items:center;gap:2px;
+    color:#cfe0f5;background:none;border:none;cursor:pointer;font-family:inherit;
+    font-weight:800;font-size:.66rem;padding:5px 12px;border-radius:12px;text-decoration:none;
+    white-space:nowrap;flex:1;min-width:52px;transition:.15s}
+  .botnav .ic{font-size:1.2rem}
+  .botnav .active{background:linear-gradient(180deg,#f4c842,#e0a42a);color:#5a3d05;box-shadow:0 3px 10px rgba(0,0,0,.3)}
+  .botnav a:hover:not(.active),.botnav button:hover:not(.active){background:rgba(255,255,255,.1);color:#fff}
 
   /* ── Панелі / порожні блоки ── */
   .panel{display:none}
@@ -154,8 +165,7 @@
     <div class="topbar-actions">
       <!-- Показується лише адмінам (users/{uid}.role === 'admin') -->
       <a class="logout admin-link" href="admin.html" id="adminLink" hidden>⚙️ Адмінка</a>
-      <!-- Вихід: завершує сесію Firebase, інакше index.html кине назад у кабінет -->
-      <a class="logout" href="login.html" id="logoutBtn">Вийти →</a>
+      <!-- Кнопку «Вийти» перенесено вниз, у нижню навігацію (.botnav) -->
     </div>
   </header>
 
@@ -164,19 +174,18 @@
     <p class="greeting" id="greeting"></p>
     <p class="cab-sub">Керуйте завданнями, перевіряйте роботи та стежте за прогресом.</p>
 
-    <!-- Вкладки -->
-    <div class="tabs" role="tablist">
-      <button class="tab active" onclick="showTab('heroes', this)"><span class="ti">🛡️</span>Герої</button>
-      <button class="tab" onclick="showTab('create', this)"><span class="ti">📝</span>Створити завдання</button>
-      <button class="tab" onclick="showTab('review', this)"><span class="ti">✅</span>На перевірку</button>
-      <button class="tab" onclick="showTab('stats', this)"><span class="ti">📊</span>Статистика</button>
-      <button class="tab" onclick="showTab('settings', this)"><span class="ti">⚙️</span>Налаштування</button>
-      <button class="tab" onclick="showTab('friends', this)"><span class="ti">🤝</span>Друзі</button>
-      <a class="tab" href="rodyna.html" style="text-decoration:none"><span class="ti">🌳</span>Династія</a>
-    </div>
+    <!-- Панель: Головна (лендінг з діями, яких нема в нижній навігації) -->
+    <section class="panel active" id="tab-home">
+      <div class="home-grid">
+        <button class="home-act" onclick="showTab('create')"><span class="ti">📝</span>Створити завдання</button>
+        <button class="home-act" onclick="showTab('review')"><span class="ti">✅</span>На перевірку</button>
+        <button class="home-act" onclick="showTab('stats')"><span class="ti">📊</span>Статистика</button>
+        <button class="home-act" onclick="showTab('settings')"><span class="ti">⚙️</span>Налаштування</button>
+      </div>
+    </section>
 
     <!-- Панель: Герої -->
-    <section class="panel active" id="tab-heroes">
+    <section class="panel" id="tab-heroes">
       <div class="panel-head">🛡️ Герої</div>
 
       <div class="add-hero-bar">
@@ -318,6 +327,15 @@
     </section>
   </main>
 
+  <!-- ── Нижня навігація (як на дитячих сторінках) ── -->
+  <nav class="botnav">
+    <button data-nav="home"    class="active" onclick="showTab('home')"><span class="ic">🏠</span>Головна</button>
+    <button data-nav="heroes"  onclick="showTab('heroes')"><span class="ic">🛡️</span>Герої</button>
+    <button data-nav="friends" onclick="showTab('friends')"><span class="ic">🤝</span>Друзі</button>
+    <a href="rodyna.html"><span class="ic">🌳</span>Дерево роду</a>
+    <button id="logoutBtn"><span class="ic">🚪</span>Вийти</button>
+  </nav>
+
   <div class="toast" id="toast"></div>
 
   <script type="module" src="firebase-config.js"></script>
@@ -366,13 +384,18 @@
       }
     }
 
-    // Перемикання вкладок (поки лише UI, без даних)
-    function showTab(id, btn){
+    // Перемикання панелей. Нижня навігація має 3 «кореневі» розділи
+    // (home / heroes / friends); create·review·stats·settings — під «Головною»,
+    // тож для них у нижній навігації лишається підсвіченою «Головна».
+    function showTab(id){
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      document.getElementById('tab-' + id).classList.add('active');
-      if (btn) btn.classList.add('active');
+      var panel = document.getElementById('tab-' + id);
+      if (panel) panel.classList.add('active');
+      var footKey = (id === 'heroes' || id === 'friends') ? id : 'home';
+      document.querySelectorAll('.botnav [data-nav]').forEach(a =>
+        a.classList.toggle('active', a.getAttribute('data-nav') === footKey));
       if (id === 'friends') loadFriendsTab();
+      window.scrollTo(0, 0);
     }
 
     // ── Допоміжне ──
