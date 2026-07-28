@@ -418,6 +418,23 @@ const SK = {
     return true;
   },
 
+  // ── ТРЕНАЖЕРИ (посилання на сторінки/відео під предметами) ──
+  // Окремий документ curriculum/trainers: { links:[{subject,tier,href,icon,label,type,blank}] }.
+  // Читає tests.html, пише адмінка. Немає документа → null, і tests.html бере
+  // вбудований список за замовчуванням (SUBJECT_LINKS_DEFAULT).
+  async getTrainers() {
+    try {
+      const s = await getDoc(doc(db, 'curriculum', 'trainers'));
+      return s.exists() ? s.data() : null;
+    } catch (e) { return null; }
+  },
+
+  async saveTrainers(links) {
+    const data = { links: Array.isArray(links) ? links : [], updatedAt: serverTimestamp() };
+    await setDoc(doc(db, 'curriculum', 'trainers'), data);
+    return true;
+  },
+
   // Усі тести (для адмінки). -> [{ id, ...test }]
   async listTests() {
     const snap = await getDocs(collection(db, 'tests'));
