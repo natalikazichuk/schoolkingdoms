@@ -321,8 +321,9 @@ function subjectHtml(s, tier){
   if(slinks.length){
     body += '<div class="grp-title">🎮 Тренажери</div><div class="chips">'
           + slinks.map(function(l){
-              return '<span class="chip-group"><a class="chip ready" href="'+l.href+'" style="--accent:'+accent+'">'
-                   + esc(l.icon||'📖')+' '+esc(l.label)+'</a></span>';
+              var tgt = l.blank ? ' target="_blank" rel="noopener"' : '';
+              return '<span class="chip-group"><a class="chip ready" href="'+esc(l.href)+'"'+tgt+' style="--accent:'+accent+'">'
+                   + esc(l.icon||'📖')+' '+esc(l.label||l.href)+'</a></span>';
             }).join('') + '</div>';
   }
   if(Array.isArray(s.groups)){
@@ -405,12 +406,16 @@ var LEARN_LINKS = {
    його назва. Щоб додати новий тренажер — допиши сюди рядок.
    ВАЖЛИВО: тут, а не в даних карти, бо normalize() лишає у предметі лише
    id/icon/name/accent/statKey/stat/keys/topics — кастомне поле було б відрізане. */
-var SUBJECT_LINKS = [
+var SUBJECT_LINKS_DEFAULT = [
   { subject:'eng', href:'english-reading.html', icon:'📖', label:'Вчимось читати!' },
   // абетка — це дошкільна підготовка, тож привʼязуємо до ступеня «Дошкільна…», а не до 1 класу.
   // subject:'україн' зловить назву «Українська мова» / ключ «україн» незалежно від id з адмінки.
   { tier:'Дошкільн', subject:'україн', href:'ukrainian-abetka.html', icon:'🔤', label:'Українська абетка' }
 ];
+/* Реальний список тренажерів. До приходу відповіді з бази — вбудований.
+   Якщо в базі є документ curriculum/trainers (керується з адмінки), він
+   ПОВНІСТЮ заміняє вбудований — тож джерело стає одне. */
+var SUBJECT_LINKS = SUBJECT_LINKS_DEFAULT;
 /* Зіставлення посилання з предметом/ступенем. subject зіставляється за id (точно)
    або входженням у назву/keys[] — тож не залежимо від id, що згенерувала адмінка,
    і від точного написання назви. tier у записі — необовʼязковий фільтр (id точно
@@ -433,7 +438,8 @@ function slTierMatch(t, sel){
   return slNorm(t.name).indexOf(n) >= 0;
 }
 function subjectLinksFor(s, tier){
-  return SUBJECT_LINKS.filter(function(l){
+  return (SUBJECT_LINKS || []).filter(function(l){
+    if(!l || !l.href || !l.subject) return false;   // порожні/незаповнені рядки з адмінки — пропускаємо
     return slSubjMatch(s, l.subject) && (l.tier ? slTierMatch(tier, l.tier) : true);
   });
 }
@@ -662,11 +668,15 @@ document.getElementById('root').innerHTML =
   var tries = 0;
   (function tick(){
     if(window.SK && SK.ready){
-      // карта (curriculum/map або запасна) + активні тести — паралельно
+      // карта (curriculum/map або запасна) + активні тести + тренажери — паралельно
       Promise.all([
         SKCUR.ready,
-        SK.ready.then(function(){ return SK.listActiveTests(); }).catch(function(){ return []; })
+        SK.ready.then(function(){ return SK.listActiveTests(); }).catch(function(){ return []; }),
+        SK.ready.then(function(){ return SK.getTrainers ? SK.getTrainers() : null; }).catch(function(){ return null; })
       ]).then(function(res){
+        var tr = res[2];
+        // документ у базі є → він повністю заміняє вбудований список
+        if(tr && Array.isArray(tr.links)) SUBJECT_LINKS = tr.links;
         CURRICULUM = SKCUR.clone(res[0].tiers);
         distribute(res[1] || []);
         render();
