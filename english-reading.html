@@ -19,7 +19,8 @@ html,body{margin:0;padding:0}
 body{
   font-family:'Nunito',system-ui,sans-serif;color:var(--ink);background:var(--paper);
   background-image:linear-gradient(#efe6d6 1px,transparent 1px),linear-gradient(90deg,#efe6d6 1px,transparent 1px);
-  background-size:26px 26px;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:14px;
+  background-size:26px 26px;min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  padding:14px;padding-bottom:calc(14px + env(safe-area-inset-bottom));
 }
 .wrap{width:100%;max-width:520px;flex:1;display:flex;flex-direction:column}
 h1,h2,h3,.display{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.2px}
@@ -120,6 +121,11 @@ h1,h2,h3,.display{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacin
 .next{margin-top:auto;background:var(--green);color:#fff;border:none;border-radius:16px;padding:16px;
   font-family:'Fredoka';font-size:19px;cursor:pointer;box-shadow:0 5px 0 #388a6b;width:100%}
 .next:active{transform:translateY(3px);box-shadow:0 2px 0 #388a6b}
+/* екран правил: кнопку тримаємо одразу під картками правил, а не притискаємо до
+   самого низу — короткий список більше не лишає порожнечу, і кнопку видно */
+#rules{justify-content:flex-start}
+#rules .rules-list{flex:0 1 auto}
+#rules .next{margin-top:16px}
 
 #result{justify-content:center;text-align:center;gap:18px}
 .result-card{background:#fff;border:2px solid var(--line);border-radius:24px;padding:26px 20px;box-shadow:var(--shadow)}
@@ -139,6 +145,42 @@ h1,h2,h3,.display{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacin
 .btn.s{background:#fff;color:var(--ink);border:2px solid var(--line);box-shadow:var(--shadow)}
 .btn:active{transform:translateY(3px)}
 .foot{text-align:center;color:var(--ink-soft);font-size:12px;font-weight:700;padding:10px 0 2px}
+/* кнопка «друк усіх правил» на карті */
+.printall{margin:2px auto 8px;background:#fff;border:2px solid var(--line);border-radius:12px;
+  padding:9px 14px;font-family:'Fredoka';font-size:14px;color:var(--ink);cursor:pointer;box-shadow:var(--shadow)}
+.printall:active{transform:translateY(2px);box-shadow:0 3px 0 rgba(44,43,58,.12)}
+
+/* друкована шпаргалка всіх правил (на екрані схована) */
+#printSheet{display:none}
+.p-h1{font-family:'Fredoka';font-size:24px;margin:0 0 4px}
+.p-h1 .p-sub{display:block;font-family:'Nunito';font-size:13px;font-weight:700;color:var(--ink-soft)}
+.p-h2{font-family:'Fredoka';font-size:19px;margin:16px 0 8px;break-after:avoid}
+.p-level{margin:0 0 14px}
+.p-level .rules-intro{margin:0 0 8px}
+
+@media print{
+  @page{margin:12mm}
+  html,body{background:#fff!important}
+  body{background-image:none!important;padding:0!important;display:block!important}
+  .wrap{max-width:none!important;width:auto!important;display:block!important}
+  .iconbtn,.back,.sndbtn,.speak,.next,.foot,.streak,.printall,.dots,.blocks{display:none!important}
+  .exw::after{content:""!important}
+  .exw{background:#f2ede3!important;border:1px solid #e0d8c8}
+  .rule{break-inside:avoid;box-shadow:none!important;border-color:#ccc!important}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+  /* друк одного рівня (поточний екран правил) */
+  body.print-rules .screen{display:none!important}
+  body.print-rules #rules{display:block!important}
+  body.print-rules #rules .topbar{margin:0 0 10px}
+  body.print-rules #rules .rule-title b{font-size:23px}
+  body.print-rules .rules-list{overflow:visible!important;display:block!important}
+
+  /* друк усіх правил */
+  body.print-all .screen{display:none!important}
+  body.print-all #printSheet{display:block!important}
+  body.print-all .rules-list{overflow:visible!important;display:block!important}
+}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 @media(max-width:360px){.word{font-size:44px}.block{width:50px;height:50px}}
 </style>
@@ -168,6 +210,7 @@ h1,h2,h3,.display{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacin
     </div>
     <div class="levels" id="levels"></div>
     <div class="foot">Слухай, як читається слово — тисни 🔊</div>
+    <button class="printall" onclick="printAllRules()">🖨 Роздрукувати всі правила</button>
   </section>
 
   <!-- RULES -->
@@ -175,6 +218,7 @@ h1,h2,h3,.display{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacin
     <div class="topbar">
       <button class="back" onclick="goMap()">←</button>
       <div class="rule-title"><b id="rulesName"></b><span id="rulesTag"></span></div>
+      <button class="iconbtn" title="Друк правил" onclick="printRules()">🖨</button>
       <button class="iconbtn sndbtn" onclick="toggleSound()">🔊</button>
     </div>
     <p class="rules-intro" id="rulesIntro"></p>
@@ -218,6 +262,9 @@ h1,h2,h3,.display{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacin
       <button class="btn p" id="continueBtn" onclick="goMap()">До карти →</button>
     </div>
   </section>
+
+  <!-- ДРУКОВАНА ШПАРГАЛКА (видно лише під час друку) -->
+  <div id="printSheet"></div>
 
 </div>
 
@@ -587,6 +634,35 @@ function showRules(idx){
   show('rules');
 }
 function startFromRules(){ startLevel(rulesIdx); }
+
+/* ================== ДРУК ПРАВИЛ ================== */
+function ruleRowHtml(lv,r){
+  var head = r.desc
+    ? '<div class="rdesc">'+esc(r.desc)+'</div>'
+    : '<span class="chip" style="background:'+lv.color+';'+(lv.color2?'color:'+lv.color2:'')+'">'+esc(r.p)+'</span>'
+      +'<span class="arr">→</span><span class="ipa rsound">'+esc(r.s)+'</span>';
+  var ex=(r.ex||[]).map(function(w){return '<span class="exw">'+esc(w)+'</span>';}).join('');
+  return '<div class="rule"><div class="rule-head">'+head+'</div><div class="rule-ex">'+ex+'</div></div>';
+}
+function buildPrintSheet(){
+  var host=document.getElementById('printSheet');
+  host.innerHTML='<div class="p-h1">Уроки читання — усі правила<span class="p-sub">Тренажер із читання · Частина I</span></div>'
+    + LEVELS.map(function(lv){
+        var intro=lv.intro?'<p class="rules-intro">'+esc(lv.intro)+'</p>':'';
+        var rules=(lv.rules||[]).map(function(r){return ruleRowHtml(lv,r);}).join('');
+        return '<section class="p-level"><div class="p-h2">'+esc(lv.name)+(lv.tag?' · '+esc(lv.tag):'')+'</div>'
+             + intro+'<div class="rules-list">'+rules+'</div></section>';
+      }).join('');
+}
+function printWith(cls){
+  if(window.speechSynthesis)window.speechSynthesis.cancel();
+  document.body.classList.add(cls);
+  var done=function(){document.body.classList.remove(cls);window.removeEventListener('afterprint',done);};
+  window.addEventListener('afterprint',done);
+  setTimeout(function(){ window.print(); setTimeout(done,1500); },30);
+}
+function printRules(){ printWith('print-rules'); }
+function printAllRules(){ buildPrintSheet(); printWith('print-all'); }
 
 /* ================== ГРА ================== */
 const N_Q=10;
