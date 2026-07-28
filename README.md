@@ -1,119 +1,224 @@
-# 🏰 SchoolKingdoms
+# 🏰 School Kingdoms
 
-**SchoolKingdoms** is a modern gamified educational platform designed to make learning exciting for children while giving parents powerful tools to manage educational progress.
+**Гейміфікована освітня платформа для учнів початкової школи** (фокус — 1 клас) українською мовою.
+Дитина навчається через тести, ігри, читання та RPG-прогрес свого героя, а батьки стежать за успіхами з окремого кабінету.
 
-The project combines education, RPG mechanics, achievements, quests, and analytics into one interactive ecosystem.
+> Ukrainian-language gamified learning platform for primary-school kids. Static site on GitHub Pages, powered by Firebase (Auth + Firestore).
 
----
-
-## ✨ Features
-
-### 👨‍👩‍👧 Parent Dashboard
-
-* Create learning tasks
-* Assign homework
-* Track child progress
-* View statistics and reports
-* Reward children with coins and achievements
-* Manage multiple children from one account
-
-### 🧒 Child Dashboard
-
-* Personal Hero
-* Experience (XP) and Levels
-* Skills development
-* Daily quests
-* Mini-games
-* Achievement system
-* Coin wallet
-* Calendar
-* Progress charts
-
-### 🏰 Kingdom World
-
-* Interactive world map
-* Unlock new locations
-* Educational buildings
-* Hero Academy
-* Library
-* Science Center
-* Music School
-* Sports Arena
-* Creative Workshop
-
-### 🎮 RPG Mechanics
-
-* Hero progression
-* Experience points
-* Skills
-* Rewards
-* Coins
-* Daily challenges
-* Titles
-* Collections
-
-### 📊 Analytics
-
-* Daily progress
-* Weekly progress
-* Monthly statistics
-* Learning streaks
-* Reading tracker
-* Sports tracker
-* Skill growth
-* Achievement history
+🌐 **Демо:** https://natalikazichuk.github.io/schoolkingdoms
 
 ---
 
-## 🛠 Tech Stack
+## 📚 Зміст
 
-* HTML5
-* CSS3
-* JavaScript (ES6+)
-* Firebase Authentication
-* Cloud Firestore
-* Firebase Storage
-* GitHub Pages
-
----
-
-## 🚀 Project Goals
-
-* Make education engaging.
-* Encourage positive habits.
-* Help parents participate in learning.
-* Motivate children through game mechanics.
-* Create a safe educational environment.
+- [Можливості](#-можливості)
+- [Технології](#-технології)
+- [Архітектура](#-архітектура)
+- [Структура репозиторію](#-структура-репозиторію)
+- [Тренажери](#-тренажери)
+- [Ігри](#-ігри)
+- [Локальний запуск](#-локальний-запуск)
+- [Деплой](#-деплой)
+- [Домовленості розробки](#-домовленості-розробки)
+- [Backend і дані](#-backend-і-дані)
 
 ---
 
-## 📅 Current Status
+## ✨ Можливості
 
-🚧 **Under active development**
-
-The project is being redesigned into a new architecture with improved UI, better performance, and additional educational features.
-
----
-
-## 🌟 Planned Features
-
-* AI educational assistant
-* Multiplayer family challenges
-* Teacher accounts
-* School integration
-* Achievement marketplace
-* Mobile application
-* Offline mode
-* More educational mini-games
-* Learning recommendations
-* Google Calendar integration
+- **Тести** — інтерактивні тести з математики та інших предметів, узгоджені з програмою; універсальний плеєр із генератором завдань і перемішуванням.
+- **Ігри** — понад 20 навчальних міні-ігор (лічба, задачі, час, гроші, логіка, пам'ять, шахи/шашки тощо).
+- **Тренажери** — абетка, «Вчимо літери», «Learn ABC!», «Читаємо склади», уроки читання англійською, презентації.
+- **Бібліотека** — читалка книжок із власною адмін-панеллю.
+- **Герой (RPG)** — рівні, здоров'я/влучність/спритність/мана, XP, карта королівства.
+- **Дерево роду** — генеалогічне дерево родини з фото та підтримкою поколінь.
+- **Кабінет батьків** — герої, друзі (система запрошень із подвійним підтвердженням), дерево роду, статистика.
+- **Адмінка** — керування тестами, тренажерами, книжками.
 
 ---
 
-## 📄 License
+## 🛠 Технології
 
-This project is intended for educational purposes.
+| Шар | Технологія |
+|-----|-----------|
+| Фронтенд | Ванільний **HTML5 / CSS3 / JavaScript (ES6+)** — без збірки та фреймворків |
+| Автентифікація | **Firebase Authentication** |
+| База даних | **Cloud Firestore** |
+| Хостинг | **GitHub Pages** |
+| Шрифти | Fredoka One, Nunito, Playfair Display (Google Fonts) |
+
+Проєкт свідомо **не використовує систему збірки** — усі сторінки самодостатні й працюють як статичні файли.
 
 ---
 
-Made with ❤️ for children, parents, and lifelong learning.
+## 🧩 Архітектура
+
+### Спільна інфраструктура (підключається сторінками)
+
+| Файл | Призначення |
+|------|-------------|
+| `firebase-config.js` | Ініціалізація Firebase, глобальний неймспейс `SK` (авторизація, збереження прогресу героя, `SK.logout()`) |
+| `sk-styles.css` | Спільні стилі (сторінки входу, адмінка, головна тощо) |
+| `sk-header.js` | Спільна шапка героя (лого + чипси характеристик) |
+| `sk-curriculum.js` | Навчальна програма; експортує `SKCUR.placeTests()` (`API_VERSION`) |
+| `sk-progress.js` | Логіка прогресу |
+| `sk-game.css`, `sk-game-chalk.css` | Стилі для ігор |
+| `sk-zadachi.js` | Спільний движок текстових задач |
+
+### Два типи акаунтів
+
+- **Герой** — синтетичний email (`login@hero.schoolkingdom.app`), окрема сесія.
+- **Батьки** — окремий акаунт Firebase Auth.
+
+Сесія працює через `browserSessionPersistence` (діє до закриття вкладки). Для тестування героя потрібен окремий браузер/інкогніто від сесії батьків.
+
+### Спільний футер героя
+
+Сторінки-тренажери/ігри/книжки використовують спільний нижній навбар `.botnav`:
+🏠 Головна · 📜 Тести · 📚 Бібліотека · 🎮 Ігри · 🗺️ Карта · 🚪 Вийти.
+
+---
+
+## 📁 Структура репозиторію
+
+```
+schoolkingdoms/
+├── index.html                # Вхід
+├── login.html / auth.html    # Автентифікація
+│
+├── hero.html + hero.css      # Сторінка героя (RPG)
+├── karta.html                # Карта королівства
+├── parent.html               # Кабінет батьків
+├── rodyna.html               # Дерево роду
+│
+├── tests.html                # Список тестів (SKCUR.placeTests())
+├── test.html                 # Універсальний плеєр тестів
+├── admin.html                # Адмінка (тести, тренажери)
+│
+├── biblioteka.html           # Бібліотека
+├── book.html                 # Читалка книжки
+├── admin-books.html          # Адмінка книжок
+│
+├── igry.html                 # Сітка ігор
+├── <гра>.html                # Окремі ігри (див. нижче)
+│
+├── ukrainian-abetka.html     # Тренажери (див. нижче)
+├── vchymo-litery.html
+├── learn-abc.html
+├── chytaemo-sklady.html
+├── english-reading.html
+├── komputer.html
+├── learn_play_moi_svit.html
+├── learn/                    # Навчальні презентації
+│
+├── firebase-config.js        # Спільна інфраструктура
+├── sk-styles.css
+├── sk-header.js
+├── sk-curriculum.js
+├── sk-progress.js
+├── sk-game.css / sk-game-chalk.css
+├── sk-zadachi.js
+│
+├── img/                      # Зображення
+├── audio/                    # Озвучка (mp3)
+├── test-*.json               # Шаблони/приклади тестів
+└── README.md
+```
+
+---
+
+## 🎓 Тренажери
+
+| Файл | Опис |
+|------|------|
+| `ukrainian-abetka.html` | Читання: правила (голосні/приголосні, звуки, наголос) для тих, хто вже читає |
+| `vchymo-litery.html` | «Вчимо літери» — картки укр. абетки з малюнками та озвучкою + 5 ігор |
+| `learn-abc.html` | «Learn ABC!» — англійська абетка (A–Z) з озвучкою + 5 ігор |
+| `chytaemo-sklady.html` | «Читаємо склади» — складова таблиця + приклади слів + 5 ігор |
+| `english-reading.html` | Уроки читання англійською (фонетика, склади, IPA) + 5 ігор |
+| `komputer.html`, `learn_play_moi_svit.html`, `learn/` | Навчальні презентації з озвучкою |
+
+Тренажери реєструються у списку через **адмінку** (`curriculum/trainers` у Firestore) або через дефолт у `tests.html`.
+
+---
+
+## 🎮 Ігри
+
+Понад 20 міні-ігор у сітці `igry.html`:
+
+- **Лічба і числа:** `sklad`, `susidy`, `ryad`, `rozriady`, `pazly`, `komponenty`, `labirynt`
+- **Задачі:** `zadachi-zapys`, `zadachi-malyunok`, `zadachi-diya`
+- **Міряємо світ:** `chas` (час), `hroshi` (гроші), `heometriya`, `notky`
+- **Розум і пам'ять:** `lohika`, `pamyat`, `kartynka`, `hrestyky`, `shashky`, `shakhy`
+- **Слово:** `slovo`
+- **Відпочити:** `zabig`, `zmiyka`
+
+Частина ігор пише прогрес героя через `SK`; інші поки що лише грові.
+
+---
+
+## 💻 Локальний запуск
+
+Оскільки збірки немає, достатньо будь-якого статичного сервера:
+
+```bash
+# клонувати
+git clone https://github.com/natalikazichuk/schoolkingdoms.git
+cd schoolkingdoms
+
+# запустити локальний сервер (один із варіантів)
+python3 -m http.server 8000
+# або
+npx serve .
+```
+
+Відкрити `http://localhost:8000`.
+
+> ⚠️ Просто відкрити файл через `file://` недостатньо — Firebase та ES-модулі потребують `http(s)`.
+
+---
+
+## 🚀 Деплой
+
+Сайт публікується через **GitHub Pages** з гілки `main`. Оновлення — завантаженням файлів через веб-інтерфейс GitHub (**Add file → Upload files → Commit**). CLI/збірка не потрібні.
+
+**Зображення/аудіо** додаються у папки `img/` та `audio/` за домовленим іменуванням (напр. `img/abetka_<id>.jpg`, `audio/abc_<letter>.mp3`) — код підхоплює їх автоматично, а якщо файлу нема, показує чернетку-емодзі.
+
+---
+
+## 🧷 Домовленості розробки
+
+- **Мова:** UI і контент — українською; код — англійською.
+- **Самодостатність:** кожна нова сторінка — цілісний файл-заміна; спільні контракти (`sk-curriculum.js`, `test.html`, `sk-styles.css`) без потреби не чіпаються.
+- **Нові сторінки** мають кнопку «Назад» і спільний футер героя `.botnav`.
+- **Перевірка перед комітом:**
+  - баланс дужок CSS (`count('{') == count('}')`)
+  - баланс HTML-тегів
+  - `node --check` для інлайн-JavaScript (для ES-модулів: `node --input-type=module --check < file`)
+- **Firestore-правила** завжди відправляються **повністю** — частковий файл мовчки прибирає доступ до пропущених колекцій.
+- **Свіжий репозиторій** перед правками:
+  ```bash
+  curl -sL -o m.zip https://codeload.github.com/natalikazichuk/schoolkingdoms/zip/refs/heads/main && unzip -q m.zip
+  ```
+
+---
+
+## 🔧 Backend і дані
+
+- **Firebase проєкт:** `schoolkingdom-d46bc`
+- **Основні колекції Firestore:** `heroes`, `books`, `friendships`, `inviteCodes`, `curriculum/*` (зокрема `curriculum/trainers`), тести.
+- **Зберігання прогресу тренажерів:** локально в `localStorage` (окремий ключ на кожен тренажер, напр. `sk-abc-v1`, `sk-sklad-v1`).
+
+---
+
+## 📄 Ліцензія
+
+Проєкт створено для освітніх цілей.
+
+---
+
+<div align="center">
+
+Зроблено з ❤️ для дітей, батьків і радісного навчання.
+
+</div>
