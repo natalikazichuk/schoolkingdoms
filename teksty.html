@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Тексти — тренажер</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+</head>
+<body>
+<!-- firebase-config.js — модуль (потрібен для кнопки «Вийти» у футері); прогрес синхронізується через SK -->
+<script type="module" src="firebase-config.js"></script>
+<!-- увесь тренажер в одному файлі -->
+<script>
+/* sk-tekst.js — тренажер «Текст» для School Kingdoms.
+   Один рушій на всі теми. Сторінка теми лише кличе SKTEKST.mount('rodyna').
+
+   Механіки (складність зростає в межах теми):
+     word     — вставити пропущені слова в речення
+     sentence — скласти речення зі слів (правильний порядок)
+     order    — скласти текст: розставити речення по порядку
+     title    — обрати заголовок до тексту
+
+   Ілюстрації: кожен етап шукає файл img/tekst/<themeId>_<n>.jpg
+   (n — номер етапу з 1). Немає файлу — показуємо підказку-рамку,
+   сайт не ламається. Можна задати свій шлях полем stage.img.
+
+   Прогрес: sk_tekst_<themeId> у localStorage (ключ із префіксом sk_ —
+   синхронізується через SK.pushLocal, як решта прогресу Героя). */
+(function () {
+  'use strict';
+
+  var THEMES = /*__THEMES__*/[{"id": "rodyna", "name": "Родина", "emoji": "👪", "accent": "#e05a7a", "stages": [{"type": "word", "text": "Ми любимо нашу ___.", "answers": ["родину"], "bank": ["школу", "іграшку"]}, {"type": "sentence", "words": ["У", "мене", "велика", "родина."]}, {"type": "word", "text": "___ і ___ живуть разом.", "answers": ["Мама", "тато"], "bank": ["Кіт", "стіл"]}, {"type": "sentence", "words": ["Бабуся", "читає", "мені", "казку."]}, {"type": "order", "sentences": ["Настав ранок.", "Уся родина прокинулась.", "Разом ми снідаємо."]}, {"type": "title", "text": "Мама, тато, бабуся і я. Ми живемо разом і любимо одне одного.", "title": "Моя родина", "wrong": ["Іграшки", "Зима"]}]}, {"id": "shkola", "name": "Школа", "emoji": "🏫", "accent": "#4c8bf0", "stages": [{"type": "word", "text": "Я йду до ___.", "answers": ["школи"], "bank": ["лісу", "моря"]}, {"type": "sentence", "words": ["Ми", "вчимося", "читати."]}, {"type": "word", "text": "У ___ багато ___.", "answers": ["школі", "друзів"], "bank": ["морі", "риб"]}, {"type": "sentence", "words": ["Учитель", "пише", "на", "дошці."]}, {"type": "order", "sentences": ["Задзвенів дзвоник.", "Діти зайшли в клас.", "Почався урок."]}, {"type": "title", "text": "Я вчуся читати й писати. У школі в мене багато друзів.", "title": "Моя школа", "wrong": ["Овочі", "Транспорт"]}]}, {"id": "igrashky", "name": "Іграшки", "emoji": "🧸", "accent": "#f0953f", "stages": [{"type": "word", "text": "У мене є новий ___.", "answers": ["м'яч"], "bank": ["дощ", "сон"]}, {"type": "sentence", "words": ["Я", "граюся", "з", "лялькою."]}, {"type": "word", "text": "___ котиться по ___.", "answers": ["М'яч", "підлозі"], "bank": ["Стіл", "небі"]}, {"type": "sentence", "words": ["Ведмедик", "сидить", "на", "полиці."]}, {"type": "order", "sentences": ["Оленка дістала іграшки.", "Вона побудувала башту.", "Башта вийшла висока."]}, {"type": "title", "text": "У мене є лялька, м'яч і ведмедик. Найбільше я люблю ведмедика.", "title": "Мої іграшки", "wrong": ["Погода", "Посуд"]}]}, {"id": "odiah", "name": "Одяг", "emoji": "🧥", "accent": "#7c5cd0", "stages": [{"type": "word", "text": "Надворі холодно. Я вдягну теплу ___.", "answers": ["куртку"], "bank": ["квітку", "книжку"]}, {"type": "sentence", "words": ["Я", "взув", "нові", "чоботи."]}, {"type": "word", "text": "На руки я наділа ___, а на голову ___.", "answers": ["рукавички", "шапку"], "bank": ["тарілку", "ложку"]}, {"type": "sentence", "words": ["Мама", "купила", "мені", "шарф."]}, {"type": "order", "sentences": ["Настала зима.", "Оля вдягла куртку.", "Тепер їй тепло."]}, {"type": "title", "text": "Узимку я вдягаю куртку, шапку і рукавички. У теплому одязі не холодно.", "title": "Теплий одяг", "wrong": ["Ягоди", "Школа"]}]}, {"id": "posud", "name": "Посуд", "emoji": "🍽️", "accent": "#22a5b8", "stages": [{"type": "word", "text": "Мама поставила на стіл ___.", "answers": ["тарілки"], "bank": ["дерева", "хмари"]}, {"type": "sentence", "words": ["Я", "п'ю", "чай", "із", "чашки."]}, {"type": "word", "text": "У ___ налили ___.", "answers": ["склянку", "воду"], "bank": ["торбу", "сіль"]}, {"type": "sentence", "words": ["Ложка", "лежить", "біля", "тарілки."]}, {"type": "order", "sentences": ["Мама накрила стіл.", "Вона поставила тарілки й чашки.", "Ми сіли обідати."]}, {"type": "title", "text": "На столі стоять тарілки, чашки й ложки. З цього посуду ми їмо й п'ємо.", "title": "Посуд", "wrong": ["Птахи", "Іграшки"]}]}, {"id": "transport", "name": "Транспорт", "emoji": "🚌", "accent": "#3fa06a", "stages": [{"type": "word", "text": "По дорозі їде ___.", "answers": ["автобус"], "bank": ["ведмідь", "суп"]}, {"type": "sentence", "words": ["Літак", "летить", "у", "небі."]}, {"type": "word", "text": "___ пливе по ___.", "answers": ["Човен", "річці"], "bank": ["Кіт", "стелі"]}, {"type": "sentence", "words": ["Ми", "їдемо", "потягом", "до", "бабусі."]}, {"type": "order", "sentences": ["Ми зібралися в дорогу.", "Спершу їхали автобусом.", "Потім пересіли на потяг."]}, {"type": "title", "text": "Автобус, потяг і літак — це транспорт. На ньому люди їздять і літають.", "title": "Транспорт", "wrong": ["Квіти", "Родина"]}]}, {"id": "tvaryny", "name": "Тварини", "emoji": "🦊", "accent": "#e0743a", "stages": [{"type": "word", "text": "У лісі живе руда ___.", "answers": ["лисиця"], "bank": ["хмара", "парта"]}, {"type": "sentence", "words": ["Зайчик", "стрибає", "по", "галявині."]}, {"type": "word", "text": "___ ховається під ___.", "answers": ["Їжак", "кущем"], "bank": ["Стіл", "вікном"]}, {"type": "sentence", "words": ["Ведмідь", "спить", "у", "барлозі."]}, {"type": "order", "sentences": ["Настала зима.", "Ведмідь заліз у барліг.", "Він спить до весни."]}, {"type": "title", "text": "У лісі живуть лисиця, заєць і ведмідь. Це дикі тварини.", "title": "Лісові тварини", "wrong": ["Посуд", "Одяг"]}]}, {"id": "ptahy", "name": "Птахи", "emoji": "🐦", "accent": "#3fb6a8", "stages": [{"type": "word", "text": "На гілці сидить ___.", "answers": ["пташка"], "bank": ["тарілка", "машина"]}, {"type": "sentence", "words": ["Синичка", "співає", "гарну", "пісню."]}, {"type": "word", "text": "___ звила ___.", "answers": ["Пташка", "гніздо"], "bank": ["Риба", "стіл"]}, {"type": "sentence", "words": ["Лелека", "прилетів", "із", "теплих", "країв."]}, {"type": "order", "sentences": ["Настала весна.", "Птахи повернулися додому.", "Вони звили гнізда."]}, {"type": "title", "text": "Синичка, горобець і лелека — це птахи. Вони мають крила й уміють літати.", "title": "Птахи", "wrong": ["Овочі", "Транспорт"]}]}, {"id": "roslyny", "name": "Рослини", "emoji": "🌳", "accent": "#5aa03a", "stages": [{"type": "word", "text": "У парку росте високий ___.", "answers": ["дуб"], "bank": ["сон", "дощ"]}, {"type": "sentence", "words": ["Трава", "росте", "на", "галявині."]}, {"type": "word", "text": "На ___ виросли зелені ___.", "answers": ["дереві", "листочки"], "bank": ["столі", "ложки"]}, {"type": "sentence", "words": ["Під", "дубом", "ростуть", "гриби."]}, {"type": "order", "sentences": ["Впав жолудь у землю.", "З нього проріс паросток.", "Виріс великий дуб."]}, {"type": "title", "text": "Дерева, трава й кущі — це рослини. Вони ростуть і зеленіють.", "title": "Рослини", "wrong": ["Іграшки", "Птахи"]}]}, {"id": "pory_roku", "name": "Пори року", "emoji": "🍂", "accent": "#d0863a", "stages": [{"type": "word", "text": "Узимку падає білий ___.", "answers": ["сніг"], "bank": ["суп", "м'яч"]}, {"type": "sentence", "words": ["Навесні", "тане", "холодний", "сніг."]}, {"type": "word", "text": "___ пожовкло і ___.", "answers": ["Листя", "опало"], "bank": ["Сонце", "засяяло"]}, {"type": "sentence", "words": ["Улітку", "світить", "гаряче", "сонце."]}, {"type": "order", "sentences": ["Настала весна.", "Розтанув сніг.", "Прилетіли птахи."]}, {"type": "title", "text": "Зима, весна, літо й осінь. Це пори року.", "title": "Пори року", "wrong": ["Посуд", "Одяг"]}]}, {"id": "ovochi", "name": "Овочі", "emoji": "🥕", "accent": "#e0954e", "stages": [{"type": "word", "text": "На городі виріс великий ___.", "answers": ["гарбуз"], "bank": ["літак", "дзвоник"]}, {"type": "sentence", "words": ["Бабуся", "зібрала", "стиглі", "помідори."]}, {"type": "word", "text": "___ і ___ ростуть на грядці.", "answers": ["Морква", "буряк"], "bank": ["Птах", "стіл"]}, {"type": "sentence", "words": ["Ми", "їмо", "корисні", "овочі."]}, {"type": "order", "sentences": ["Ми посадили насіння.", "Овочі виросли на грядці.", "Восени зібрали врожай."]}, {"type": "title", "text": "Помідор, огірок і морква ростуть на городі. Це овочі.", "title": "Овочі", "wrong": ["Птахи", "Транспорт"]}]}, {"id": "frukty", "name": "Фрукти", "emoji": "🍎", "accent": "#e0573a", "stages": [{"type": "word", "text": "На яблуні висить червоне ___.", "answers": ["яблуко"], "bank": ["відро", "перо"]}, {"type": "sentence", "words": ["Груша", "солодка", "і", "соковита."]}, {"type": "word", "text": "___ ростуть у ___.", "answers": ["Фрукти", "саду"], "bank": ["Птахи", "небі"]}, {"type": "sentence", "words": ["Мама", "купила", "стиглі", "банани."]}, {"type": "order", "sentences": ["Навесні яблуня цвіла.", "Улітку зав'язалися яблука.", "Восени вони достигли."]}, {"type": "title", "text": "Яблуко, груша й слива ростуть у саду. Це фрукти.", "title": "Фрукти", "wrong": ["Одяг", "Посуд"]}]}, {"id": "iahody", "name": "Ягоди", "emoji": "🍓", "accent": "#d63a5a", "stages": [{"type": "word", "text": "У лісі багато червоної ___.", "answers": ["суниці"], "bank": ["машини", "книги"]}, {"type": "sentence", "words": ["Ми", "збираємо", "стиглі", "ягоди."]}, {"type": "word", "text": "___ солодка, а ___ кисла.", "answers": ["Малина", "журавлина"], "bank": ["Стіл", "зошит"]}, {"type": "sentence", "words": ["Чорниця", "росте", "у", "лісі."]}, {"type": "order", "sentences": ["Ми пішли в ліс.", "Там знайшли багато суниць.", "Кошик швидко наповнився."]}, {"type": "title", "text": "Суниця, малина й чорниця — це ягоди. Вони солодкі й смачні.", "title": "Ягоди", "wrong": ["Транспорт", "Школа"]}]}, {"id": "kvity", "name": "Квіти", "emoji": "🌷", "accent": "#e05a9a", "stages": [{"type": "word", "text": "На клумбі розквітла жовта ___.", "answers": ["квітка"], "bank": ["хмара", "ложка"]}, {"type": "sentence", "words": ["Бджілка", "сіла", "на", "квітку."]}, {"type": "word", "text": "___ і ___ гарно пахнуть.", "answers": ["Троянда", "конвалія"], "bank": ["Стіл", "м'яч"]}, {"type": "sentence", "words": ["Навесні", "розпустилися", "перші", "проліски."]}, {"type": "order", "sentences": ["Ми посадили насіння.", "З землі з'явився паросток.", "Розквітла гарна квітка."]}, {"type": "title", "text": "Троянда, тюльпан і ромашка — це квіти. Вони гарні й духмяні.", "title": "Квіти", "wrong": ["Овочі", "Одяг"]}]}];
+  var BY_ID = {};
+  THEMES.forEach(function (t) { BY_ID[t.id] = t; });
+
+  /* ───────────────────────── стилі ───────────────────────── */
+  var CSS = ''
+  + ':root{--ink:#2c2b3a;--soft:#6b6a7d;--paper:#fff9ef;--line:#ece3d2;--card:#fff;'
+  + '--green:#51cf66;--green-d:#37a052;--blue:#4dabf7;--blue-d:#2f8fd6;--red:#ff6b6b;'
+  + '--yellow:#ffd43b;--good:#37b26f;--good-bg:#e4f7ec;--bad:#e06666;--bad-bg:#fbe7e7;'
+  + '--acc:#e05a7a;--shadow:0 6px 0 rgba(44,43,58,.13)}'
+  + '*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}'
+  + 'html,body{margin:0;padding:0}'
+  + "body{font-family:'Nunito',system-ui,sans-serif;color:var(--ink);min-height:100vh;"
+  + 'background:radial-gradient(circle at 12% 8%,rgba(255,212,59,.22),transparent 42%),'
+  + 'radial-gradient(circle at 88% 14%,rgba(77,171,247,.20),transparent 44%),'
+  + 'radial-gradient(circle at 80% 92%,rgba(224,90,122,.16),transparent 46%),'
+  + 'var(--paper);display:flex;flex-direction:column;align-items:center;'
+  + 'padding:14px;padding-bottom:calc(84px + env(safe-area-inset-bottom))}'
+  + '.tk-wrap{width:100%;max-width:560px;flex:1;display:flex;flex-direction:column}'
+  + "h1,h2,.tk-disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px;margin:0}"
+  + '.tk-screen{display:none;flex:1;flex-direction:column;animation:tkpop .3s ease}'
+  + '.tk-screen.on{display:flex}'
+  + '@keyframes tkpop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}'
+  + '@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}'
+  /* верхня панель */
+  + '.tk-top{display:flex;align-items:center;gap:10px;margin-bottom:12px}'
+  + '.tk-icon{width:44px;height:44px;border:2px solid var(--line);background:#fff;border-radius:14px;'
+  + 'font-size:20px;cursor:pointer;display:grid;place-items:center;flex:none;color:var(--ink)}'
+  + '.tk-icon:active{transform:translateY(2px)}'
+  + '.tk-title{flex:1;min-width:0;font-family:\'Fredoka\';font-size:19px;line-height:1.1}'
+  + '.tk-title small{display:block;font-weight:800;font-size:12px;color:var(--soft)}'
+  + '.tk-bar{height:12px;background:#f0e7d6;border-radius:8px;overflow:hidden;flex:1;min-width:0}'
+  + '.tk-bar>span{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--green),var(--blue));transition:.35s}'
+  /* старт */
+  + '.tk-start{justify-content:center;text-align:center;gap:16px;flex:1}'
+  + '.tk-emoji{font-size:74px;line-height:1}'
+  + '.tk-start h1{font-size:34px;margin-top:6px}'
+  + '.tk-sub{color:var(--soft);font-weight:800;font-size:15px;max-width:400px;margin:0 auto}'
+  + '.tk-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:4px auto;max-width:420px}'
+  + '.tk-chip{background:#fff;border:2px solid var(--line);border-radius:14px;padding:8px 12px;font-weight:800;font-size:13px;color:var(--soft)}'
+  /* хаб — вибір теми */
+  + '.tk-hub{flex:1}'
+  + '.tk-hub .tk-head{text-align:center;margin-bottom:12px}'
+  + '.tk-hub h1{font-size:30px;margin-top:2px}'
+  + '.tk-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}'
+  + '.tk-tcard{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 12px;'
+  + 'border-radius:22px;background:#fff;border:3px solid var(--tc,#ece3d2);box-shadow:0 6px 0 rgba(44,43,58,.12);cursor:pointer;color:#2c2b3a}'
+  + '.tk-tcard:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(44,43,58,.12)}'
+  + '.tk-tcard .em{font-size:40px;line-height:1}'
+  + '.tk-tcard .nm{font-family:\'Fredoka\';font-size:16px}'
+  + '.tk-badge{position:absolute;top:8px;right:10px;font-size:12px;color:#e0a42a;font-weight:900}'
+  /* картка етапу */
+  + '.tk-card{background:var(--card);border:3px solid var(--line);border-radius:24px;box-shadow:var(--shadow);padding:18px 16px;margin-top:2px}'
+  + '.tk-task{font-weight:800;color:var(--soft);font-size:13px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}'
+  + '.tk-pic{width:100%;aspect-ratio:16/10;border-radius:18px;background:#f5eeda;display:grid;place-items:center;'
+  + 'overflow:hidden;margin-bottom:14px;border:2px solid var(--line)}'
+  + '.tk-pic img{width:100%;height:100%;object-fit:cover;display:block}'
+  + '.tk-pic .ph{text-align:center;color:#b9ad93;font-weight:800;font-size:13px;padding:10px}'
+  + '.tk-pic .ph b{display:block;font-size:30px;margin-bottom:4px}'
+  /* речення зі слотами (word) */
+  + '.tk-sent{font-family:\'Fredoka\';font-size:22px;line-height:1.9;text-align:center;margin:6px 0 14px;word-break:break-word}'
+  + '.tk-slot{display:inline-flex;align-items:center;justify-content:center;min-width:74px;height:40px;padding:0 8px;margin:0 3px;'
+  + 'vertical-align:middle;border-radius:12px;border:3px dashed var(--line);background:#faf4e6;color:var(--acc);cursor:pointer;font-size:20px}'
+  + '.tk-slot.full{border-style:solid;border-color:var(--green);background:var(--good-bg);color:var(--good)}'
+  /* ряд слотів (sentence) */
+  + '.tk-slots{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;min-height:52px;margin:2px 0 14px;'
+  + 'padding:8px;border-radius:16px;background:#faf4e6;border:2px dashed var(--line)}'
+  + '.tk-slots .tk-slot2{min-width:60px;height:46px;border-radius:12px;border:3px dashed #e2d7bf;background:#fff;'
+  + 'display:flex;align-items:center;justify-content:center;padding:0 10px;font-family:\'Fredoka\';font-size:19px;color:var(--acc);cursor:pointer}'
+  + '.tk-slots .tk-slot2.full{border-style:solid;border-color:var(--green);background:var(--good-bg);color:var(--good)}'
+  /* стек слотів (order) */
+  + '.tk-stack{display:flex;flex-direction:column;gap:8px;margin:2px 0 14px}'
+  + '.tk-line{min-height:50px;border-radius:14px;border:3px dashed #e2d7bf;background:#faf4e6;display:flex;align-items:center;'
+  + 'gap:8px;padding:8px 12px;cursor:pointer}'
+  + '.tk-line.full{border-style:solid;border-color:var(--green);background:var(--good-bg)}'
+  + '.tk-num{width:26px;height:26px;flex:none;border-radius:50%;background:var(--blue);color:#fff;font-family:\'Fredoka\';'
+  + 'display:grid;place-items:center;font-size:14px}'
+  + '.tk-line .txt{font-weight:800;font-size:15px}'
+  /* банк плиток */
+  + '.tk-bank{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:4px}'
+  + '.tk-tile{border:none;border-radius:14px;padding:12px 16px;font-family:\'Fredoka\';font-size:19px;color:#fff;'
+  + 'background:var(--blue);box-shadow:0 5px 0 var(--blue-d);cursor:pointer}'
+  + '.tk-tile:active{transform:translateY(3px);box-shadow:0 2px 0 var(--blue-d)}'
+  + '.tk-tile.used{opacity:.25;pointer-events:none}'
+  + '.tk-tile.wide{width:100%;text-align:left;font-family:\'Nunito\';font-weight:800;font-size:15px;padding:12px 14px}'
+  /* заголовок-опції */
+  + '.tk-text{background:#fff8ea;border:2px solid var(--line);border-radius:16px;padding:14px 16px;font-size:16px;'
+  + 'font-weight:700;line-height:1.5;margin-bottom:14px}'
+  + '.tk-opts{display:flex;flex-direction:column;gap:10px}'
+  + '.tk-opt{border:3px solid var(--line);background:#fff;border-radius:18px;padding:16px;font-family:\'Fredoka\';'
+  + 'font-size:19px;color:var(--ink);cursor:pointer;text-align:center}'
+  + '.tk-opt:active{transform:translateY(2px)}'
+  + '.tk-opt.correct{background:var(--good-bg);border-color:var(--good);color:var(--good)}'
+  + '.tk-opt.wrong{background:var(--bad-bg);border-color:var(--bad);color:var(--bad)}'
+  /* кнопки/фідбек */
+  + '.tk-big{border:none;border-radius:18px;padding:15px 20px;font-family:\'Fredoka\';font-size:19px;cursor:pointer;'
+  + 'color:#fff;background:var(--green);box-shadow:0 6px 0 var(--green-d);width:100%;margin-top:14px}'
+  + '.tk-big:active{transform:translateY(3px);box-shadow:0 3px 0 var(--green-d)}'
+  + '.tk-big:disabled{filter:grayscale(.5);opacity:.6;cursor:not-allowed}'
+  + '.tk-big.blue{background:var(--blue);box-shadow:0 6px 0 var(--blue-d)}'
+  + '.tk-big.blue:active{box-shadow:0 3px 0 var(--blue-d)}'
+  + '.tk-fb{text-align:center;font-weight:800;min-height:22px;margin-top:12px;font-size:15px}'
+  + '.tk-fb.ok{color:var(--good)}.tk-fb.no{color:var(--bad)}'
+  + '.shake{animation:shk .4s}'
+  + '@keyframes shk{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}'
+  /* фініш */
+  + '.tk-fin{justify-content:center;text-align:center;gap:14px;flex:1}'
+  + '.tk-fin .em{font-size:70px}'
+  + '.tk-stars{font-size:34px;letter-spacing:4px}'
+  /* нижній навбар (спільний із hero/tests/igry) */
+  + '.botnav{position:fixed;left:0;right:0;bottom:0;z-index:40;background:linear-gradient(180deg,#1e3a6b,#16294f);'
+  + 'border-top:3px solid #e0a42a;display:flex;align-items:center;gap:2px;'
+  + 'padding:6px 8px calc(6px + env(safe-area-inset-bottom));overflow-x:auto;scrollbar-width:none}'
+  + '.botnav::-webkit-scrollbar{display:none}'
+  + '.botnav a,.botnav button{display:flex;flex-direction:column;align-items:center;gap:2px;color:#cfe0f5;background:none;'
+  + 'border:none;cursor:pointer;font-family:inherit;font-weight:800;font-size:.66rem;padding:5px 12px;border-radius:12px;'
+  + 'text-decoration:none;white-space:nowrap;flex:1;min-width:52px;transition:.15s}'
+  + '.botnav .ic{font-size:1.2rem}'
+  + '.botnav a:hover{background:rgba(255,255,255,.1);color:#fff}';
+
+  /* ───────────────────────── дрібні хелпери ───────────────────────── */
+  function E(tag, cls, html) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (html != null) e.innerHTML = html;
+    return e;
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+  function shuffle(a) {
+    a = a.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = (Math.random() * (i + 1)) | 0, t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+  /* перемішати так, щоб порядок точно змінився (для order/sentence) */
+  function shuffleNE(a) {
+    if (a.length < 2) return a.slice();
+    var s, tries = 0;
+    do { s = shuffle(a); tries++; } while (tries < 12 && s.join('|') === a.join('|'));
+    return s;
+  }
+
+  /* ───────────────────────── стан ───────────────────────── */
+  var THEME = null, IDX = 0, STARS = 0, root = null, barSpan = null, titleSub = null;
+
+  function mount(id) {
+    THEME = BY_ID[id];
+    if (!THEME) { document.body.innerHTML = '<p style="padding:24px;font-family:sans-serif">Тему «' + esc(id) + '» не знайдено.</p>'; return; }
+    document.documentElement.lang = 'uk';
+    document.title = THEME.name + ' — тренажер «Текст»';
+    injectCSS(); setAccent(THEME.accent);
+    buildShell();
+    wireLogout();
+    showStart();
+  }
+
+  /* Головний вхід для об'єднаного тренажера: домашній екран — вибір теми. */
+  function mountHub() {
+    document.documentElement.lang = 'uk';
+    document.title = 'Тексти — тренажер';
+    injectCSS();
+    buildShell();
+    wireLogout();
+    showHub();
+  }
+
+  function showHub() {
+    THEME = null;
+    setAccent('#e05a7a');
+    var s = E('div', 'tk-screen tk-hub on');
+    var head = E('div', 'tk-head');
+    head.appendChild(E('h1', null, '📖 Тексти'));
+    head.appendChild(E('p', 'tk-sub', 'Обери тему. У кожній: вставити слова, скласти речення, скласти текст і дібрати заголовок.'));
+    s.appendChild(head);
+    var grid = E('div', 'tk-grid');
+    THEMES.forEach(function (t) {
+      var c = E('div', 'tk-tcard');
+      c.style.setProperty('--tc', t.accent || '#ece3d2');
+      var saved = loadProgressId(t.id);
+      var badge = (saved && saved.done) ? '<span class="tk-badge">⭐' + (saved.stars || 0) + '</span>' : '';
+      c.innerHTML = badge + '<span class="em">' + (t.emoji || '📖') + '</span><span class="nm">' + esc(t.name) + '</span>';
+      c.onclick = function () { openTheme(t.id); };
+      grid.appendChild(c);
+    });
+    s.appendChild(grid);
+    root.innerHTML = ''; root.appendChild(s);
+  }
+
+  function openTheme(id) {
+    THEME = BY_ID[id];
+    if (!THEME) return showHub();
+    document.title = THEME.name + ' — Тексти';
+    setAccent(THEME.accent);
+    showStart();
+  }
+
+  function injectCSS() {
+    if (document.getElementById('tk-css')) return;
+    var s = document.createElement('style');
+    s.id = 'tk-css';
+    s.textContent = CSS;
+    document.head.appendChild(s);
+  }
+  function setAccent(color) {
+    document.documentElement.style.setProperty('--acc', color || '#e05a7a');
+  }
+
+  function buildShell() {
+    document.body.innerHTML = '';
+    var wrap = E('div', 'tk-wrap');
+    root = E('div');            // сюди рендеримо екрани
+    wrap.appendChild(root);
+    document.body.appendChild(wrap);
+
+    var nav = E('nav', 'botnav');
+    nav.innerHTML =
+      '<a href="hero.html"><span class="ic">🏠</span>Головна</a>' +
+      '<a href="tests.html"><span class="ic">📜</span>Тести</a>' +
+      '<a href="biblioteka.html"><span class="ic">📚</span>Бібліотека</a>' +
+      '<a href="igry.html"><span class="ic">🎮</span>Ігри</a>' +
+      '<a href="karta.html"><span class="ic">🗺️</span>Карта</a>' +
+      '<button id="heroLogoutBtn"><span class="ic">🚪</span>Вийти</button>';
+    document.body.appendChild(nav);
+  }
+
+  function wireLogout() {
+    // firebase-config.js — модуль, вантажиться відкладено; чекаємо на window.SK
+    function bind() {
+      var b = document.getElementById('heroLogoutBtn');
+      if (!b) return;
+      b.onclick = async function () {
+        try { if (window.SK && window.SK.logout) await window.SK.logout(); } catch (e) {}
+        location.href = 'index.html';
+      };
+    }
+    if (window.SK) bind();
+    else {
+      var n = 0, iv = setInterval(function () {
+        if (window.SK || n++ > 50) { clearInterval(iv); bind(); }
+      }, 100);
+    }
+  }
+
+  function topbar(subtitle) {
+    var top = E('div', 'tk-top');
+    var back = E('button', 'tk-icon', '←');
+    back.title = 'Назад';
+    back.onclick = showStart;
+    var bar = E('div', 'tk-bar');
+    barSpan = E('span'); bar.appendChild(barSpan);
+    var ttl = E('div', 'tk-title', esc(THEME.name) + '<small>' + esc(subtitle || '') + '</small>');
+    titleSub = ttl.querySelector('small');
+    top.appendChild(back); top.appendChild(bar); top.appendChild(ttl);
+    return top;
+  }
+
+  /* ───────────────────────── старт ───────────────────────── */
+  function showStart() {
+    var s = E('div', 'tk-screen tk-start on');
+    s.style.position = 'relative';
+    var back = E('button', 'tk-icon', '←'); back.title = 'Усі теми'; back.onclick = showHub;
+    back.style.position = 'absolute'; back.style.top = '0'; back.style.left = '0';
+    s.appendChild(back);
+    var saved = loadProgress();
+    var done = saved && saved.done;
+    s.appendChild(E('div', 'tk-emoji', THEME.emoji || '📖'));
+    s.appendChild(E('h1', null, THEME.name));
+    s.appendChild(E('p', 'tk-sub', 'Читаємо, складаємо речення й текст. ' + THEME.stages.length + ' завдань — від простих до складніших.'));
+    var chips = E('div', 'tk-chips');
+    ['✍️ Вставити слова', '🧩 Скласти речення', '📑 Скласти текст', '🏷️ Заголовок'].forEach(function (c) {
+      chips.appendChild(E('div', 'tk-chip', c));
+    });
+    s.appendChild(chips);
+    if (done) s.appendChild(E('p', 'tk-sub', '⭐ Пройдено: ' + (saved.stars || 0) + ' з ' + THEME.stages.length));
+    var btn = E('button', 'tk-big', done ? '↻ Пройти знову' : '▶ Почати');
+    btn.style.maxWidth = '320px'; btn.style.margin = '8px auto 0';
+    btn.onclick = startRun;
+    s.appendChild(btn);
+    root.innerHTML = ''; root.appendChild(s);
+  }
+
+  function startRun() { IDX = 0; STARS = 0; renderStage(); }
+
+  function updateBar() {
+    if (barSpan) barSpan.style.width = Math.round((IDX / THEME.stages.length) * 100) + '%';
+    if (titleSub) titleSub.textContent = 'Завдання ' + (IDX + 1) + ' з ' + THEME.stages.length;
+  }
+
+  /* картинка етапу: файл або підказка-рамка */
+  function picHtml(st, idx) {
+    var src = st.img || ('img/tekst/' + THEME.id + '_' + (idx + 1) + '.jpg');
+    var pic = E('div', 'tk-pic');
+    var img = new Image();
+    img.onload = function () { pic.innerHTML = ''; pic.appendChild(img); };
+    img.onerror = function () {
+      pic.innerHTML = '<div class="ph"><b>' + (THEME.emoji || '🖼️') + '</b>малюнок за бажанням:<br>' + esc(src) + '</div>';
+    };
+    img.alt = THEME.name;
+    img.src = src;
+    return pic;
+  }
+
+  function taskLabel(type) {
+    return { word: '✍️ Встав пропущені слова', sentence: '🧩 Склади речення зі слів',
+             order: '📑 Постав речення по порядку', title: '🏷️ Обери заголовок' }[type] || '';
+  }
+
+  function renderStage() {
+    if (IDX >= THEME.stages.length) return showFinish();
+    updateBar();
+    var st = THEME.stages[IDX];
+    var scr = E('div', 'tk-screen on');
+    scr.appendChild(topbar('Завдання ' + (IDX + 1) + ' з ' + THEME.stages.length));
+    var card = E('div', 'tk-card');
+    card.appendChild(E('div', 'tk-task', taskLabel(st.type)));
+    card.appendChild(picHtml(st, IDX));
+    if (st.type === 'title') renderTitle(card, st);
+    else renderFill(card, st);
+    scr.appendChild(card);
+    root.innerHTML = ''; root.appendChild(scr);
+  }
+
+  /* ───────── механіка «заповни слоти з банку» (word/sentence/order) ───────── */
+  function renderFill(card, st) {
+    var target, mode = st.type, template = null;
+    if (st.type === 'word') { target = st.answers; template = st.text; }
+    else if (st.type === 'sentence') target = st.words;
+    else target = st.sentences; // order
+
+    var n = target.length;
+    var filled = new Array(n);       // текст у слоті
+    var owner = new Array(n);        // кнопка банку, що заповнила слот
+
+    // область слотів
+    var slotsWrap, slotEls = [];
+    if (mode === 'word') {
+      slotsWrap = E('div', 'tk-sent');
+      var parts = template.split('___');
+      parts.forEach(function (p, i) {
+        if (p) slotsWrap.appendChild(document.createTextNode(p));
+        if (i < parts.length - 1) {
+          var sl = E('span', 'tk-slot', '…'); sl.dataset.i = i;
+          slotEls.push(sl); slotsWrap.appendChild(sl);
+        }
+      });
+    } else if (mode === 'sentence') {
+      slotsWrap = E('div', 'tk-slots');
+      for (var i = 0; i < n; i++) {
+        var s2 = E('div', 'tk-slot2', '·'); s2.dataset.i = i;
+        slotEls.push(s2); slotsWrap.appendChild(s2);
+      }
+    } else { // order
+      slotsWrap = E('div', 'tk-stack');
+      for (var k = 0; k < n; k++) {
+        var line = E('div', 'tk-line');
+        line.dataset.i = k;
+        line.innerHTML = '<span class="tk-num">' + (k + 1) + '</span><span class="txt" style="color:#b9ad93">тут буде речення…</span>';
+        slotEls.push(line); slotsWrap.appendChild(line);
+      }
+    }
+    card.appendChild(slotsWrap);
+
+    // банк плиток
+    var bankArr = (mode === 'word') ? shuffle(target.concat(st.bank)) : shuffleNE(target);
+    var bank = E('div', 'tk-bank');
+    var tiles = [];
+    bankArr.forEach(function (word) {
+      var b = E('button', 'tk-tile' + (mode === 'order' ? ' wide' : ''), esc(word));
+      b.dataset.word = word;
+      b.onclick = function () { place(word, b); };
+      tiles.push(b); bank.appendChild(b);
+    });
+    card.appendChild(bank);
+
+    var fb = E('div', 'tk-fb');
+    var go = E('button', 'tk-big', 'Перевірити');
+    go.disabled = true;
+    card.appendChild(fb); card.appendChild(go);
+
+    function firstEmpty() { for (var i = 0; i < n; i++) if (filled[i] == null) return i; return -1; }
+    function fillSlot(i, word) {
+      filled[i] = word;
+      var el = slotEls[i];
+      if (mode === 'order') { el.classList.add('full'); el.querySelector('.txt').style.color = ''; el.querySelector('.txt').textContent = word; }
+      else { el.classList.add('full'); el.textContent = word; }
+    }
+    function clearSlot(i) {
+      filled[i] = null;
+      if (owner[i]) { owner[i].classList.remove('used'); owner[i] = null; }
+      var el = slotEls[i];
+      if (mode === 'order') { el.classList.remove('full'); el.querySelector('.txt').style.color = '#b9ad93'; el.querySelector('.txt').textContent = 'тут буде речення…'; }
+      else { el.classList.remove('full'); el.textContent = (mode === 'word' ? '…' : '·'); }
+      fb.textContent = ''; fb.className = 'tk-fb'; go.disabled = firstEmpty() !== -1;
+    }
+    function place(word, btn) {
+      var i = firstEmpty(); if (i < 0) return;
+      btn.classList.add('used'); owner[i] = btn;
+      fillSlot(i, word);
+      go.disabled = firstEmpty() !== -1;
+    }
+    slotEls.forEach(function (el) {
+      el.onclick = function () { var i = +el.dataset.i; if (filled[i] != null) clearSlot(i); };
+    });
+
+    go.onclick = function () {
+      if (firstEmpty() !== -1) return;
+      var ok = true;
+      for (var i = 0; i < n; i++) if (filled[i] !== target[i]) { ok = false; break; }
+      if (ok) {
+        go.disabled = true;
+        slotEls.forEach(function (el) { el.onclick = null; });
+        fb.className = 'tk-fb ok'; fb.textContent = '✅ Правильно!';
+        advance(go);
+      } else {
+        markMiss();
+        // повертаємо все в банк для нової спроби (clearSlot скидає фідбек)…
+        for (var j = 0; j < n; j++) if (filled[j] != null) clearSlot(j);
+        // …тому підказку показуємо ПІСЛЯ очищення, щоб вона лишилася на екрані
+        fb.className = 'tk-fb no'; fb.textContent = '🤔 Ще не так. Спробуй переставити.';
+        card.classList.add('shake'); setTimeout(function () { card.classList.remove('shake'); }, 400);
+      }
+    };
+  }
+
+  /* ───────── механіка «заголовок» ───────── */
+  function renderTitle(card, st) {
+    card.appendChild(E('div', 'tk-text', esc(st.text)));
+    var opts = E('div', 'tk-opts');
+    var list = shuffle([st.title].concat(st.wrong));
+    var fb = E('div', 'tk-fb');
+    var answered = false;
+    list.forEach(function (o) {
+      var b = E('button', 'tk-opt', esc(o));
+      b.onclick = function () {
+        if (answered) return; answered = true;
+        Array.prototype.forEach.call(opts.children, function (c) { c.disabled = true; });
+        if (o === st.title) {
+          b.classList.add('correct'); fb.className = 'tk-fb ok'; fb.textContent = '✅ Правильно!';
+          advanceInline(card, fb);
+        } else {
+          b.classList.add('wrong'); markMiss();
+          Array.prototype.forEach.call(opts.children, function (c) {
+            if (c.textContent === st.title) c.classList.add('correct');
+          });
+          fb.className = 'tk-fb no'; fb.textContent = '🤔 Правильний заголовок підсвічено.';
+          advanceInline(card, fb);
+        }
+      };
+      opts.appendChild(b);
+    });
+    card.appendChild(opts); card.appendChild(fb);
+  }
+
+  var missedThisStage = false;
+  function markMiss() { missedThisStage = true; }
+
+  function advance(afterBtn) {
+    if (!missedThisStage) STARS++;
+    var next = E('button', 'tk-big blue', IDX + 1 < THEME.stages.length ? 'Далі →' : 'Завершити 🎉');
+    next.onclick = function () { IDX++; missedThisStage = false; renderStage(); };
+    afterBtn.parentNode.replaceChild(next, afterBtn);
+  }
+  function advanceInline(card, fb) {
+    if (!missedThisStage) STARS++;
+    var next = E('button', 'tk-big blue', IDX + 1 < THEME.stages.length ? 'Далі →' : 'Завершити 🎉');
+    next.onclick = function () { IDX++; missedThisStage = false; renderStage(); };
+    card.appendChild(next);
+  }
+
+  /* ───────── фініш ───────── */
+  function showFinish() {
+    if (barSpan) barSpan.style.width = '100%';
+    saveProgress(STARS);
+    var total = THEME.stages.length;
+    var perfect = STARS === total;
+    var s = E('div', 'tk-screen tk-fin on');
+    s.appendChild(E('div', 'em', perfect ? '🏆' : '🎉'));
+    s.appendChild(E('h1', null, perfect ? 'Чудова робота!' : 'Молодець!'));
+    var stars = ''; for (var i = 0; i < total; i++) stars += (i < STARS ? '⭐' : '☆');
+    s.appendChild(E('div', 'tk-stars', stars));
+    s.appendChild(E('p', 'tk-sub', 'Ти впорався з темою «' + THEME.name + '». Зірочок: ' + STARS + ' з ' + total + '.'));
+    var again = E('button', 'tk-big', '↻ Ще раз');
+    again.style.maxWidth = '320px'; again.style.margin = '8px auto 0';
+    again.onclick = startRun;
+    var toGames = E('button', 'tk-big blue', '◀ Інші теми');
+    toGames.style.maxWidth = '320px'; toGames.style.margin = '10px auto 0';
+    toGames.onclick = showHub;
+    s.appendChild(again); s.appendChild(toGames);
+    root.innerHTML = ''; root.appendChild(s);
+  }
+
+  /* ───────── прогрес (sk_-ключ → синхронізується через SK.pushLocal) ───────── */
+  function pkey(id) { return 'sk_tekst_' + id; }
+  function loadProgressId(id) {
+    try { return JSON.parse(localStorage.getItem(pkey(id)) || 'null'); } catch (e) { return null; }
+  }
+  function loadProgress() { return loadProgressId(THEME.id); }
+  function saveProgress(stars) {
+    var prev = loadProgress() || { stars: 0 };
+    var best = Math.max(prev.stars || 0, stars || 0);
+    try { localStorage.setItem(pkey(THEME.id), JSON.stringify({ done: true, stars: best, ts: Date.now() })); } catch (e) {}
+    // синхронізація з базою Героя, якщо є сесія
+    try { if (window.SK && SK.isHeroSession && SK.isHeroSession() && SK.pushLocal) SK.pushLocal(); } catch (e) {}
+  }
+
+  window.SKTEKST = { mount: mount, mountHub: mountHub, THEMES: THEMES };
+})();
+
+</script>
+<script>SKTEKST.mountHub();</script>
+</body>
+</html>
