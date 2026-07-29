@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Вчимо Абетку! — тренажер порядку букв</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<style>
+:root{
+  --paper:#fbf5ea;--ink:#2c2b3a;--ink-soft:#6b6a7d;--card:#ffffff;--line:#e9e0d0;
+  --red:#e35b5b;--orange:#f2a24e;--yellow:#f6cd47;--green:#4bab86;--blue:#4d8fcc;--purple:#9b6cd8;
+  --good:#3fae7f;--good-bg:#e4f6ec;--bad:#e06666;--bad-bg:#fbe6e6;
+  --shadow:0 6px 0 rgba(44,43,58,.12);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  font-family:'Nunito',system-ui,sans-serif;color:var(--ink);background:var(--paper);
+  background-image:linear-gradient(#efe6d6 1px,transparent 1px),linear-gradient(90deg,#efe6d6 1px,transparent 1px);
+  background-size:26px 26px;min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  padding:14px;padding-bottom:calc(94px + env(safe-area-inset-bottom));
+}
+h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.2px;margin:0}
+.wrap{width:100%;max-width:560px;flex:1;display:flex;flex-direction:column}
+
+/* --- top bar --- */
+.topbar{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.iconbtn{width:44px;height:44px;border:2px solid var(--line);background:#fff;border-radius:13px;
+  font-size:20px;cursor:pointer;display:grid;place-items:center;flex:none;box-shadow:0 3px 0 rgba(44,43,58,.1)}
+.iconbtn:active{transform:translateY(3px);box-shadow:none}
+.iconbtn.off{opacity:.45}
+.topbar .ttl{flex:1;text-align:center;font-size:20px;color:var(--ink)}
+.topbar .sub{font-size:12px;color:var(--ink-soft);font-weight:700;text-align:center;margin-top:2px}
+
+/* --- screens --- */
+.screen{display:none;flex-direction:column;flex:1}
+.screen.on{display:flex;animation:pop .3s ease}
+@keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* --- board (home) --- */
+.hero-h1{text-align:center;font-size:30px;color:var(--purple);margin-top:2px}
+.hero-p{text-align:center;color:var(--ink-soft);font-weight:700;font-size:14px;margin:4px 0 14px}
+.abc{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.tile{aspect-ratio:1/1;border:none;border-radius:16px;font-family:'Fredoka';font-weight:700;
+  font-size:clamp(22px,7vw,34px);color:#fff;cursor:pointer;display:grid;place-items:center;
+  box-shadow:0 5px 0 rgba(0,0,0,.16);transition:transform .08s,box-shadow .08s;user-select:none}
+.tile:active,.tile.play{transform:translateY(4px) scale(1.04);box-shadow:0 1px 0 rgba(0,0,0,.16)}
+.tile.lit{outline:4px solid #fff;outline-offset:-4px;transform:scale(1.06)}
+.c0{background:var(--red)}.c1{background:var(--orange)}.c2{background:var(--green)}
+.c3{background:var(--blue)}.c4{background:var(--purple)}.c5{background:#d98cb3}
+
+.listen-row{display:flex;gap:10px;margin:16px 0 6px}
+.pill{flex:1;border:none;border-radius:16px;padding:13px;font-family:'Fredoka';font-size:16px;color:#fff;
+  cursor:pointer;box-shadow:0 5px 0 rgba(0,0,0,.16)}
+.pill:active{transform:translateY(4px);box-shadow:0 1px 0 rgba(0,0,0,.16)}
+.pill.blue{background:var(--blue)}.pill.green{background:var(--green)}
+
+.games-h{font-size:15px;color:var(--ink-soft);font-weight:800;margin:18px 4px 10px;text-transform:uppercase;letter-spacing:.5px}
+.games{display:flex;flex-direction:column;gap:11px}
+.gcard{display:flex;align-items:center;gap:14px;background:#fff;border:2px solid var(--line);
+  border-radius:18px;padding:13px 15px;cursor:pointer;text-align:left;box-shadow:var(--shadow)}
+.gcard:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(44,43,58,.12)}
+.gcard .em{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;font-size:24px;flex:none;color:#fff}
+.gcard .gt{flex:1}
+.gcard .gt b{display:block;font-family:'Fredoka';font-size:17px;color:var(--ink)}
+.gcard .gt span{font-size:12.5px;color:var(--ink-soft);font-weight:700}
+.gcard .arw{color:var(--ink-soft);font-size:20px}
+.gcard .star{font-size:13px;color:var(--orange);font-weight:800}
+
+/* --- game area --- */
+.q{background:#fff;border:2px solid var(--line);border-radius:20px;padding:18px 16px;box-shadow:var(--shadow);text-align:center}
+.q-lbl{font-family:'Fredoka';font-size:18px;color:var(--ink);margin-bottom:12px}
+.q-lbl b{color:var(--purple)}
+.big{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:4px 0}
+.big .cell{width:56px;height:64px;border-radius:14px;background:#f4ecdd;border:2px dashed #d8cbb2;
+  display:grid;place-items:center;font-family:'Fredoka';font-size:30px;color:var(--ink)}
+.big .cell.fix{background:var(--blue);color:#fff;border-style:solid;border-color:transparent}
+.big .cell.gap{color:var(--purple);border-color:var(--purple)}
+.big .cell.slot{background:#fff}
+.big .cell.filled{background:var(--green);color:#fff;border-style:solid;border-color:transparent;animation:pop .3s}
+
+.opts{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}
+.opt{border:none;border-radius:15px;background:#fff;border:2px solid var(--line);cursor:pointer;
+  font-family:'Fredoka';font-size:26px;color:var(--ink);padding:12px 0;box-shadow:0 4px 0 rgba(44,43,58,.1)}
+.opt:active{transform:translateY(4px);box-shadow:none}
+.opt.ok{background:var(--good-bg);border-color:var(--good);color:var(--good);animation:pop .3s}
+.opt.no{background:var(--bad-bg);border-color:var(--bad);color:var(--bad);animation:shake .35s}
+.opt.dim{opacity:.4;pointer-events:none}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+/* scramble / race tiles */
+.scatter{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:8px}
+.stile{width:58px;height:64px;border-radius:15px;border:none;background:var(--orange);color:#fff;
+  font-family:'Fredoka';font-size:28px;cursor:pointer;box-shadow:0 5px 0 rgba(0,0,0,.16)}
+.stile:active{transform:translateY(4px);box-shadow:0 1px 0 rgba(0,0,0,.16)}
+.stile.done{background:var(--green);pointer-events:none;opacity:.55}
+.stile.wrong{animation:shake .35s}
+
+.fb{min-height:26px;text-align:center;font-family:'Fredoka';font-size:17px;margin-top:14px}
+.fb.good{color:var(--good)}.fb.bad{color:var(--bad)}
+
+.hud{display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-weight:800;color:var(--ink-soft);font-size:14px}
+.hud .streak{color:var(--orange)}
+.hud .best{color:var(--purple)}
+
+.next-btn{margin-top:16px;width:100%;border:none;border-radius:16px;background:var(--green);color:#fff;
+  font-family:'Fredoka';font-size:17px;padding:14px;cursor:pointer;box-shadow:0 5px 0 #37876a}
+.next-btn:active{transform:translateY(4px);box-shadow:0 1px 0 #37876a}
+
+.no-voice .voiceonly{display:none!important}
+
+/* --- shared hero footer --- */
+.botnav{position:fixed;left:0;right:0;bottom:0;z-index:40;
+  background:linear-gradient(180deg,#1e3a6b,#16294f);
+  border-top:3px solid #e0a42a;display:flex;align-items:center;
+  gap:2px;padding:6px 8px calc(6px + env(safe-area-inset-bottom));overflow-x:auto;scrollbar-width:none}
+.botnav::-webkit-scrollbar{display:none}
+.botnav a,.botnav button{display:flex;flex-direction:column;align-items:center;gap:2px;
+  color:#cfe0f5;background:none;border:none;cursor:pointer;font-family:inherit;
+  font-weight:800;font-size:.66rem;padding:5px 12px;border-radius:12px;text-decoration:none;
+  white-space:nowrap;flex:1;min-width:52px;transition:.15s}
+.botnav .ic{font-size:1.2rem}
+.botnav a:hover{background:rgba(255,255,255,.1);color:#fff}
+
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <button class="iconbtn" id="topBack" title="Назад" aria-label="Назад">←</button>
+    <div style="flex:1">
+      <div class="ttl" id="scrTitle">Вчимо Абетку!</div>
+    </div>
+    <button class="iconbtn voiceonly" id="sndBtn" title="Звук" aria-label="Увімкнути звук" onclick="toggleSound()">🔊</button>
+  </div>
+
+  <!-- ================= ДОШКА ================= -->
+  <section id="board" class="screen on">
+    <h1 class="hero-h1">Українська абетка</h1>
+    <p class="hero-p">33 букви по порядку. Тисни букву — послухай, як вона зветься.</p>
+    <div class="abc" id="abcGrid"></div>
+
+    <div class="listen-row">
+      <button class="pill blue voiceonly" id="playAllBtn" onclick="playAlphabet()">▶ Послухати по порядку</button>
+    </div>
+
+    <div class="games-h">Ігри на порядок букв</div>
+    <div class="games" id="gamesList"></div>
+  </section>
+
+  <!-- ================= ГРА: спільний шаблон ================= -->
+  <section id="game" class="screen">
+    <div class="q">
+      <div class="q-lbl" id="qLbl"></div>
+      <div class="big" id="qBig"></div>
+      <div class="scatter" id="qScatter" style="display:none"></div>
+      <div class="opts" id="qOpts"></div>
+    </div>
+    <div class="fb" id="fb"></div>
+    <div class="hud">
+      <span class="streak" id="hudStreak">🔥 0</span>
+      <span class="best" id="hudBest"></span>
+    </div>
+    <button class="next-btn" id="nextBtn" style="display:none" onclick="G.next()">Далі →</button>
+  </section>
+
+</div>
+
+<nav class="botnav">
+  <a href="hero.html"><span class="ic">🏠</span>Головна</a>
+  <a href="tests.html"><span class="ic">📜</span>Тести</a>
+  <a href="biblioteka.html"><span class="ic">📚</span>Бібліотека</a>
+  <a href="igry.html"><span class="ic">🎮</span>Ігри</a>
+  <a href="karta.html"><span class="ic">🗺️</span>Карта</a>
+  <button id="heroBackBtn"><span class="ic">⬅️</span>Назад</button>
+</nav>
+
+<script>
+/* ============ АБЕТКА ============ */
+var ALPHA="АБВГҐДЕЄЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЬЮЯ".split("");
+var idxOf={}; ALPHA.forEach(function(l,i){ idxOf[l]=i; });
+
+/* букви, для яких треба підказати вимову синтезатору */
+var SAY={"Ь":"м’який знак"};
+function sayText(l){ return SAY[l]||l; }
+
+/* ============ ОЗВУЧКА (uk-UA, best-effort) ============ */
+var soundOn=true, ukVoice=null;
+try{ soundOn = localStorage.getItem("sk_abetka_snd")!=="0"; }catch(e){}
+
+function refreshVoice(){
+  if(!window.speechSynthesis){ applyVoiceUI(); return; }
+  var vs=window.speechSynthesis.getVoices();
+  ukVoice = vs.find(function(v){return /^uk([-_]|$)/i.test(v.lang);})
+         || vs.find(function(v){return /ukrain/i.test(v.name);}) || null;
+  applyVoiceUI();
+}
+function applyVoiceUI(){ document.body.classList.toggle("no-voice", !ukVoice); }
+function speak(txt){
+  if(!soundOn||!window.speechSynthesis||!ukVoice) return;
+  window.speechSynthesis.cancel();
+  var u=new SpeechSynthesisUtterance(txt);
+  u.lang="uk-UA"; u.rate=0.8; u.voice=ukVoice;
+  window.speechSynthesis.speak(u);
+}
+function speakLetter(l){ speak(sayText(l)); }
+function updateSoundBtn(){
+  var b=document.getElementById("sndBtn");
+  b.textContent = soundOn ? "🔊" : "🔇";
+  b.classList.toggle("off", !soundOn);
+}
+function toggleSound(){
+  soundOn=!soundOn;
+  if(!soundOn&&window.speechSynthesis) window.speechSynthesis.cancel();
+  try{ localStorage.setItem("sk_abetka_snd", soundOn?"1":"0"); }catch(e){}
+  updateSoundBtn();
+}
+
+/* ============ ДРІБНИЦІ ============ */
+function shuffle(a){ a=a.slice(); for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i];a[i]=a[j];a[j]=t; } return a; }
+function rand(n){ return Math.floor(Math.random()*n); }
+function sameOrder(a,b){ return a.join("")===b.join(""); }
+/* n випадкових літер-відволікачів, яких немає в exclude */
+function distractors(n,exclude){
+  var pool=ALPHA.filter(function(l){ return exclude.indexOf(l)<0; });
+  return shuffle(pool).slice(0,n);
+}
+function bestKey(id){ return "sk_abetka_best_"+id; }
+function getBest(id){ try{ return +localStorage.getItem(bestKey(id))||0; }catch(e){ return 0; } }
+function setBest(id,v){ try{ if(v>getBest(id)) localStorage.setItem(bestKey(id), v); }catch(e){} }
+
+/* ============ ДОШКА ============ */
+function buildBoard(){
+  var g=document.getElementById("abcGrid"); g.innerHTML="";
+  ALPHA.forEach(function(l,i){
+    var b=document.createElement("button");
+    b.className="tile c"+(i%6);
+    b.textContent=l; b.setAttribute("aria-label","Буква "+l);
+    b.onclick=function(){ b.classList.remove("play"); void b.offsetWidth; b.classList.add("play"); speakLetter(l); };
+    g.appendChild(b);
+  });
+}
+var playTimer=null;
+function playAlphabet(){
+  if(!ukVoice) return;
+  if(playTimer){ clearInterval(playTimer); playTimer=null; clearLit(); return; }
+  var tiles=document.querySelectorAll("#abcGrid .tile"), i=0;
+  function step(){
+    clearLit();
+    if(i>=ALPHA.length){ clearInterval(playTimer); playTimer=null; return; }
+    tiles[i].classList.add("lit"); speakLetter(ALPHA[i]); i++;
+  }
+  step(); playTimer=setInterval(step, 900);
+}
+function clearLit(){ document.querySelectorAll("#abcGrid .tile.lit").forEach(function(t){t.classList.remove("lit");}); }
+
+/* ============ СПИСОК ІГОР ============ */
+var GAMES=[
+  {id:"next",  em:"➡️", color:"var(--blue)",  name:"Наступна буква",  desc:"Яка буква йде після цієї?"},
+  {id:"order", em:"🔢", color:"var(--green)", name:"Розклади по порядку", desc:"Постав букви за абеткою"},
+  {id:"lost",  em:"🕳️", color:"var(--purple)",name:"Загублена буква",  desc:"Яка буква зникла з ряду?"},
+  {id:"neigh", em:"👫", color:"var(--orange)",name:"Сусіди букви",     desc:"Хто стоїть перед і після?"},
+  {id:"race",  em:"⚡", color:"var(--red)",    name:"Абеткові перегони", desc:"Тисни букви по порядку — на час!"}
+];
+function buildGamesList(){
+  var host=document.getElementById("gamesList"); host.innerHTML="";
+  GAMES.forEach(function(g){
+    var best=getBest(g.id);
+    var el=document.createElement("button");
+    el.className="gcard";
+    el.innerHTML='<span class="em" style="background:'+g.color+'">'+g.em+'</span>'+
+      '<span class="gt"><b>'+g.name+'</b><span>'+g.desc+'</span></span>'+
+      (best?'<span class="star">★ '+best+'</span>':'<span class="arw">→</span>');
+    el.onclick=function(){ startGame(g.id); };
+    host.appendChild(el);
+  });
+}
+
+/* ============ ДВИГУН ГРИ ============ */
+var G={ id:null, streak:0, next:function(){} };
+
+function showScreen(id){ document.querySelectorAll(".screen").forEach(function(s){ s.classList.toggle("on", s.id===id); }); }
+function setTitle(t){ document.getElementById("scrTitle").textContent=t; }
+function goBoard(){
+  if(window.speechSynthesis) window.speechSynthesis.cancel();
+  if(playTimer){ clearInterval(playTimer); playTimer=null; }
+  G.id=null; setTitle("Вчимо Абетку!"); buildGamesList(); showScreen("board");
+}
+
+function startGame(id){
+  var g=GAMES.find(function(x){return x.id===id;});
+  G.id=id; G.streak=0; setTitle(g.name);
+  document.getElementById("hudBest").textContent = getBest(id)?("Рекорд: "+getBest(id)):"";
+  updateHud(); showScreen("game");
+  rounds[id]();
+}
+function updateHud(){ document.getElementById("hudStreak").textContent="🔥 "+G.streak; }
+function win(msg){
+  G.streak++; if(G.streak>getBest(G.id)) setBest(G.id,G.streak);
+  document.getElementById("hudBest").textContent = getBest(G.id)?("Рекорд: "+getBest(G.id)):"";
+  updateHud();
+  var fb=document.getElementById("fb"); fb.className="fb good"; fb.textContent=msg||"Правильно! 🎉";
+  document.getElementById("nextBtn").style.display="block";
+}
+function miss(){
+  G.streak=0; updateHud();
+  var fb=document.getElementById("fb"); fb.className="fb bad"; fb.textContent="Спробуй ще раз 🙂";
+}
+function clearGameUI(){
+  document.getElementById("fb").textContent=""; document.getElementById("fb").className="fb";
+  document.getElementById("nextBtn").style.display="none";
+  document.getElementById("qBig").innerHTML="";
+  document.getElementById("qOpts").innerHTML="";
+  var sc=document.getElementById("qScatter"); sc.innerHTML=""; sc.style.display="none";
+}
+
+var rounds={};
+
+/* --- 1. НАСТУПНА БУКВА --- */
+rounds.next=function(){
+  clearGameUI();
+  var i=rand(ALPHA.length-1);              // 0..31, є наступна
+  var cur=ALPHA[i], ans=ALPHA[i+1];
+  document.getElementById("qLbl").innerHTML="Яка буква йде <b>після</b> букви "+cur+"?";
+  document.getElementById("qBig").innerHTML='<div class="cell fix">'+cur+'</div><div class="cell">?</div>';
+  speakLetter(cur);
+  var opts=shuffle([ans].concat(distractors(3,[cur,ans])));
+  renderOpts(opts, ans, function(){ G.next=rounds.next; win("Так! Після "+cur+" — "+ans+" 🎉"); });
+};
+
+/* --- 2. РОЗКЛАДИ ПО ПОРЯДКУ --- */
+rounds.order=function(){
+  clearGameUI();
+  var n=4, i=rand(ALPHA.length-n);
+  var run=ALPHA.slice(i,i+n);
+  var mixed; do{ mixed=shuffle(run); }while(sameOrder(mixed,run));
+  document.getElementById("qLbl").innerHTML="Тисни букви <b>за абеткою</b> — від першої до останньої.";
+  var big=document.getElementById("qBig");
+  run.forEach(function(){ var c=document.createElement("div"); c.className="cell slot"; c.textContent=""; big.appendChild(c); });
+  var sc=document.getElementById("qScatter"); sc.style.display="flex";
+  var need=0;
+  mixed.forEach(function(l){
+    var b=document.createElement("button"); b.className="stile"; b.textContent=l;
+    b.onclick=function(){
+      if(l===run[need]){
+        speakLetter(l); b.classList.add("done");
+        var cell=big.children[need]; cell.className="cell filled"; cell.textContent=l; need++;
+        if(need===run.length){ G.next=rounds.order; win("Абетка складена! 🎉"); }
+      } else { b.classList.remove("wrong"); void b.offsetWidth; b.classList.add("wrong"); miss(); }
+    };
+    sc.appendChild(b);
+  });
+};
+
+/* --- 3. ЗАГУБЛЕНА БУКВА --- */
+rounds.lost=function(){
+  clearGameUI();
+  var n=4, i=rand(ALPHA.length-n);
+  var run=ALPHA.slice(i,i+n);
+  var gpos=1+rand(2);                        // пропуск усередині (1 або 2)
+  var ans=run[gpos];
+  var big=document.getElementById("qBig");
+  run.forEach(function(l,k){
+    var c=document.createElement("div");
+    if(k===gpos){ c.className="cell gap"; c.textContent="?"; }
+    else { c.className="cell fix"; c.textContent=l; }
+    big.appendChild(c);
+  });
+  document.getElementById("qLbl").innerHTML="Яка буква <b>загубилась</b> у ряду?";
+  var opts=shuffle([ans].concat(distractors(3,run)));
+  renderOpts(opts, ans, function(){
+    big.children[gpos].className="cell filled"; big.children[gpos].textContent=ans;
+    G.next=rounds.lost; win("Знайшлась! Це буква "+ans+" 🎉");
+  });
+};
+
+/* --- 4. СУСІДИ БУКВИ --- */
+rounds.neigh=function(){
+  clearGameUI();
+  var i=1+rand(ALPHA.length-2);              // має обох сусідів
+  var mid=ALPHA[i], bef=ALPHA[i-1], aft=ALPHA[i+1];
+  var big=document.getElementById("qBig");
+  big.innerHTML='<div class="cell slot" id="cBef"></div><div class="cell fix">'+mid+'</div><div class="cell slot" id="cAft"></div>';
+  speakLetter(mid);
+  var phase=0; // 0 -> перед, 1 -> після
+  function ask(){
+    document.getElementById("qLbl").innerHTML = phase===0
+      ? "Яка буква стоїть <b>перед</b> "+mid+"?"
+      : "А яка буква стоїть <b>після</b> "+mid+"?";
+    var target = phase===0 ? bef : aft;
+    var opts=shuffle([target].concat(distractors(3,[bef,mid,aft])));
+    renderOpts(opts, target, function(){
+      if(phase===0){ var c=document.getElementById("cBef"); c.className="cell filled"; c.textContent=bef; phase=1; ask(); }
+      else { var c2=document.getElementById("cAft"); c2.className="cell filled"; c2.textContent=aft;
+             G.next=rounds.neigh; win("Сусіди на місцях: "+bef+" "+mid+" "+aft+" 🎉"); }
+    });
+  }
+  ask();
+};
+
+/* --- 5. АБЕТКОВІ ПЕРЕГОНИ --- */
+rounds.race=function(){
+  clearGameUI();
+  var n=7, i=rand(ALPHA.length-n);
+  var seg=ALPHA.slice(i,i+n);
+  var mixed; do{ mixed=shuffle(seg); }while(sameOrder(mixed,seg));
+  document.getElementById("qLbl").innerHTML="Тисни цей шматочок абетки <b>по порядку</b> — швидко!";
+  var sc=document.getElementById("qScatter"); sc.style.display="flex";
+  var need=0, t0=null;
+  mixed.forEach(function(l){
+    var b=document.createElement("button"); b.className="stile"; b.style.background="var(--red)"; b.textContent=l;
+    b.onclick=function(){
+      if(t0===null) t0=Date.now();
+      if(l===seg[need]){
+        speakLetter(l); b.classList.add("done"); need++;
+        if(need===seg.length){
+          var secs=((Date.now()-t0)/1000).toFixed(1);
+          G.next=rounds.race; win("Готово за "+secs+" с! 🏁 ("+seg[0]+"…"+seg[seg.length-1]+")");
+        }
+      } else { b.classList.remove("wrong"); void b.offsetWidth; b.classList.add("wrong"); miss(); }
+    };
+    sc.appendChild(b);
+  });
+};
+
+/* --- рендер варіантів-відповідей --- */
+function renderOpts(opts, ans, onWin){
+  var host=document.getElementById("qOpts"); host.innerHTML="";
+  opts.forEach(function(l){
+    var b=document.createElement("button"); b.className="opt"; b.textContent=l;
+    b.onclick=function(){
+      if(l===ans){
+        b.classList.add("ok"); speakLetter(l);
+        host.querySelectorAll(".opt").forEach(function(o){ o.classList.add("dim"); });
+        b.classList.remove("dim");
+        onWin();
+      } else {
+        b.classList.remove("no"); void b.offsetWidth; b.classList.add("no"); b.classList.add("dim"); miss();
+      }
+    };
+    host.appendChild(b);
+  });
+}
+
+/* ============ НАВІГАЦІЯ ============ */
+document.getElementById("topBack").onclick=function(){
+  if(G.id) goBoard();                 // у грі → назад на дошку
+  else location.href="tests.html";    // на дошці → вихід до Тестів
+};
+document.getElementById("heroBackBtn").addEventListener("click",function(){ location.href="tests.html"; });
+
+/* ============ СТАРТ ============ */
+buildBoard(); buildGamesList(); updateSoundBtn();
+if(window.speechSynthesis){ refreshVoice(); window.speechSynthesis.onvoiceschanged=refreshVoice; }
+else applyVoiceUI();
+</script>
+</body>
+</html>
