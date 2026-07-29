@@ -67,43 +67,31 @@
   <!-- RIGHT CONTENT -->
   <main class="content">
     <h2 class="sec-title">Активні характеристики</h2>
-    <div class="stat-grid">
-      <div class="stat hp">
-        <div class="stat-head"><span class="stat-emoji">❤️</span>
-          <div><div class="stat-name">Здоров'я (HP)</div><div class="stat-val"><span id="hpCur">50</span></div></div></div>
-        <div class="bar"><span id="hpBar" style="width:50%"></span></div>
-        <div class="meta"><span class="lbl">Впливає</span><b>Українська мова (рідна)</b>
-          <span class="lbl">Показує</span>витривалість, кількість життів</div>
-        <a class="train" href="biblioteka.html">Тренуватись <span class="arw">→</span></a>
-      </div>
-
-      <div class="stat agi">
-        <div class="stat-head"><span class="stat-emoji">🪶</span>
-          <div><div class="stat-name">Спритність (Agility)</div><div class="stat-val"><span id="agiCur">50</span></div></div></div>
-        <div class="bar"><span id="agiBar" style="width:50%"></span></div>
-        <div class="meta"><span class="lbl">Впливає</span><b>ЯДС</b>
-          <span class="lbl">Показує</span>швидкість, ухилення, ініціативу</div>
-        <a class="train" href="tests.html">Тренуватись <span class="arw">→</span></a>
-      </div>
-
-      <div class="stat mp">
-        <div class="stat-head"><span class="stat-emoji">🔵</span>
-          <div><div class="stat-name">Мана (MP)</div><div class="stat-val"><span id="mpCur">20</span></div></div></div>
-        <div class="bar"><span id="mpBar" style="width:20%"></span></div>
-        <div class="meta"><span class="lbl">Впливає</span><b>Логіка, Пам'ять, English</b>
-          <span class="lbl">Показує</span>запас магічної енергії</div>
-        <a class="train" href="tests.html">Тренуватись <span class="arw">→</span></a>
-      </div>
-
-      <div class="stat acc">
-        <div class="stat-head"><span class="stat-emoji">🎯</span>
-          <div><div class="stat-name">Точність (Accuracy)</div><div class="stat-val"><span id="accCur">50</span></div></div></div>
-        <div class="bar"><span id="accBar" style="width:50%"></span></div>
-        <div class="meta"><span class="lbl">Впливає</span><b>Математика</b>
-          <span class="lbl">Показує</span>шанс влучання, уважність</div>
-        <a class="train" href="tests.html">Тренуватись <span class="arw">→</span></a>
-      </div>
+    <div class="locked-grid active-grid">
+      <a class="lock-card act hp" href="biblioteka.html"><span class="ic">❤️</span><span class="nm">Здоров'я <small>(HP)</small></span><span class="lv" id="hpCur">50</span><span class="pad">→</span></a>
+      <a class="lock-card act agi" href="tests.html"><span class="ic">🪶</span><span class="nm">Спритність <small>(Agility)</small></span><span class="lv" id="agiCur">50</span><span class="pad">→</span></a>
+      <a class="lock-card act mp" href="tests.html"><span class="ic">🔵</span><span class="nm">Мана <small>(MP)</small></span><span class="lv" id="mpCur">20</span><span class="pad">→</span></a>
+      <a class="lock-card act acc" href="tests.html"><span class="ic">🎯</span><span class="nm">Точність <small>(Accuracy)</small></span><span class="lv" id="accCur">50</span><span class="pad">→</span></a>
     </div>
+
+    <!-- ЗАДАНІ ЗАВДАННЯ (від дорослих) — дизайн у стилі блоку «Пригоди» -->
+    <section class="tasks-card">
+      <svg class="peaks" viewBox="0 0 280 140" preserveAspectRatio="none" aria-hidden="true">
+        <polygon points="0,140 60,40 110,140" fill="#5d86b8" opacity=".7"/>
+        <polygon points="80,140 150,28 220,140" fill="#486ea0" opacity=".7"/>
+        <polygon points="170,140 240,55 300,140" fill="#5d86b8" opacity=".7"/>
+      </svg>
+      <div class="tasks-head">
+        <span class="tasks-ic">📋</span>
+        <div class="tasks-tt">
+          <h3>Задані завдання</h3>
+          <p>Завдання від дорослих — виконуй та отримуй нагороди!</p>
+        </div>
+      </div>
+      <div class="tasks-list" id="taskList">
+        <div class="tasks-empty">Поки що завдань немає 🎉</div>
+      </div>
+    </section>
 
     <!-- ПОСИЛАННЯ НА ТЕСТИ -->
     <a class="academy-link" href="tests.html" style="margin-top:12px">
@@ -244,6 +232,7 @@ const lockedMap = {strength:'lk-str',defense:'lk-def',intelligence:'lk-int',wisd
 const $=id=>document.getElementById(id);
 // безпечний запис тексту: елемент міг бути прибраний із розмітки (напр. гаманець/аватар у хедері)
 const setTxt=(id,val)=>{ const el=$(id); if(el) el.textContent=val; };
+const setBar=(id,p)=>{ const el=$(id); if(el) el.style.width=p+'%'; };
 // ПОКИ без стелі: прибрано верхнє обмеження 100% — шкали лише накопичуються
 // (трек .bar має overflow:hidden, тож заповнення понад 100% просто обрізається).
 function pct(v,max){ return Math.max(0, Math.round(v/max*100)); }
@@ -330,10 +319,10 @@ function renderHeroStats(h){
   const xp       = h.xp!=null       ? h.xp       : 0;
   const coins    = h.coins!=null    ? h.coins    : 0;
 
-  $('hpCur').textContent=health;   $('hpBar').style.width=pct(health,100)+'%';
-  $('agiCur').textContent=agility; $('agiBar').style.width=pct(agility,100)+'%';
-  $('mpCur').textContent=mana;     $('mpBar').style.width=pct(mana,100)+'%';
-  $('accCur').textContent=accuracy; $('accBar').style.width=pct(accuracy,100)+'%';
+  setTxt('hpCur',health);    setBar('hpBar',pct(health,100));
+  setTxt('agiCur',agility);  setBar('agiBar',pct(agility,100));
+  setTxt('mpCur',mana);      setBar('mpBar',pct(mana,100));
+  setTxt('accCur',accuracy); setBar('accBar',pct(accuracy,100));
   if($('heroLevel')) $('heroLevel').textContent=level;
   $('xpCur').textContent=xp; $('xpFill').style.width=pct(xp%100,100)+'%';
   setTxt('w-coins',coins); setTxt('coins2',coins);
@@ -344,7 +333,30 @@ function renderHeroStats(h){
   });
 }
 
+/* -- Задані завдання (від дорослих). Джерело з'явиться пізніше: якщо SK матиме
+   getAssignedTasks() -- показуємо список, інакше -- порожній стан. -- */
+async function loadTasks(){
+  const box=$('taskList'); if(!box) return;
+  let tasks=[];
+  try{ if(window.SK && window.SK.getAssignedTasks) tasks=(await window.SK.getAssignedTasks())||[]; }
+  catch(e){ console.warn('[hero.html] getAssignedTasks:',e); }
+  if(!Array.isArray(tasks) || !tasks.length){
+    box.innerHTML='<div class="tasks-empty">Поки що завдань немає \U0001f389</div>'; return;
+  }
+  const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  box.innerHTML=tasks.map(function(t){
+    const href=t.url||(t.testId?('test.html?id='+encodeURIComponent(t.testId)):'tests.html');
+    const done=t.done?' done':'';
+    return '<a class="task-item'+done+'" href="'+esc(href)+'">'
+      +'<span class="t-ic">'+esc(t.icon||(t.done?'\u2705':'\U0001f4cc'))+'</span>'
+      +'<span class="t-tx"><b>'+esc(t.title||'Завдання')+'</b>'
+      +(t.subject?'<small>'+esc(t.subject)+'</small>':'')+'</span>'
+      +'<span class="t-go">'+(t.done?'\u2713':'\u25b6')+'</span></a>';
+  }).join('');
+}
+
 render();
+loadTasks();
 
 /* ── якщо дитина в системі — перекриваємо індикатори реальними даними з бази ── */
 (function(){
