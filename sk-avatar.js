@@ -174,7 +174,7 @@
   window.SKAVA = {
     CATALOG: CATALOG, EMOJIS: EMOJIS,
     isHeroToken: isHeroToken, idOf: idOf, tokenOf: tokenOf, has: has,
-    faceSrc: faceSrc, facePng: facePng, cardSrc: cardSrc,
+    faceSrc: faceSrc, facePng: facePng, cardSrc: cardSrc, fullSrc: fullSrc, fullPng: fullPng,
     html: html, gridHTML: gridHTML, bindGrid: bindGrid, openPicker: openPicker
   };
 })();
