@@ -48,7 +48,7 @@
       <div class="aura" aria-hidden="true"></div>
       <!-- swap to your art by placing hero-portrait.png next to this file -->
       <img class="photo" id="heroPhoto" src="hero-portrait.png" alt="" onerror="this.style.display='none'">
-      <div class="figure" id="heroFig">🧒</div>
+      <div class="figure" id="heroFig" style="display:none">🧒</div>
       <button class="ava-cam" id="avaCam" type="button" title="Додати своє фото" aria-label="Додати фото героя">📷</button>
       <input type="file" id="avaFile" accept="image/*" hidden>
     </div>
@@ -472,6 +472,10 @@ $('editName').addEventListener('click',()=>{
     if(fig){ fig.style.display='none'; }
   }
   function hasLocalPhoto(){ try{ return !!localStorage.getItem('sk_hero_avatar'); }catch(e){ return false; } }
+  var TOKEN_KEY='sk_hero_avatar_token';
+  function cacheToken(t){ try{ if(t) localStorage.setItem(TOKEN_KEY,t); }catch(e){} }
+  function readToken(){ try{ return localStorage.getItem(TOKEN_KEY); }catch(e){ return null; } }
+  function showEmoji(em){ if(fig){ fig.textContent=em||'🧒'; fig.style.display='block'; } if(photo){ photo.classList.remove('art'); photo.style.display='none'; } }
 
   // Показати вбудованого героя на ПОВНИЙ ЗРІСТ: прозора вирізка стоїть у сцені
   // портрета (замок + небо + трава + сяйво лишаються позаду).
@@ -486,12 +490,20 @@ $('editName').addEventListener('click',()=>{
   // Локальне фото має пріоритет над ілюстрацією (це власне фото на цьому пристрої).
   window.__skApplyHeroAvatar=function(token){
     _heroToken=token||null;
-    if(hasLocalPhoto()) return;                 // фото вже показане — не чіпаємо
+    cacheToken(token);                          // кеш для миттєвого показу при перезавантаженні
+    if(hasLocalPhoto()) return;                 // локальне фото має пріоритет
     if(window.SKAVA && SKAVA.isHeroToken(token)) showHeroArt(SKAVA.idOf(token));
+    else if(token) showEmoji(token);            // емодзі-аватар — показуємо саме його
   };
 
   // підтягнути збережене фото (спільний ключ із головною)
   try{ var saved=localStorage.getItem('sk_hero_avatar'); if(saved) showPhoto(saved); }catch(e){}
+  // МИТТЄВО (до Firebase): кешований аватар → без блимання смайлика при перезавантаженні
+  if(!hasLocalPhoto()){
+    var _ct=readToken();
+    if(window.SKAVA && SKAVA.isHeroToken(_ct)) showHeroArt(SKAVA.idOf(_ct));
+    else if(_ct) showEmoji(_ct);
+  }
 
   // підстрибування при тапі на героя (але не на кнопці 📷)
   if(portrait){
@@ -507,7 +519,7 @@ $('editName').addEventListener('click',()=>{
   function pickHero(token){
     if(!window.SKAVA || !SKAVA.isHeroToken(token)) return;
     try{ localStorage.removeItem('sk_hero_avatar'); }catch(e){}
-    _heroToken=token; showHeroArt(SKAVA.idOf(token));
+    _heroToken=token; cacheToken(token); showHeroArt(SKAVA.idOf(token));
     try{ if(window.SK && SK.saveHeroAvatar) SK.saveHeroAvatar(token); }catch(e){}
   }
 
@@ -559,5 +571,3 @@ $('editName').addEventListener('click',()=>{
 <script src="sk-header.js"></script>
 </body>
 </html>
-
-
