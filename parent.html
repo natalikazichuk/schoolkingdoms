@@ -338,6 +338,7 @@
 
   <div class="toast" id="toast"></div>
 
+  <script src="sk-avatar.js"></script>
   <script type="module" src="firebase-config.js"></script>
   <script>
     // ── Гейт сторінки user ──────────────────────────────────────
@@ -491,21 +492,30 @@
       btn.querySelector('svg').innerHTML = show ? EYE_CLOSED : EYE_OPEN;
     }
 
-    // палітра аватарів
-    const AVATARS = ['🦁','🐯','🦊','🐺','🐲','🦄','🐉','🦅','🐻','🐼','🦉','🐢'];
-    let selectedAvatar = '🦁';
+    // палітра аватарів: вбудовані герої-ілюстрації + емодзі (див. sk-avatar.js).
+    // selectedAvatar — короткий токен: 'hero:<id>' або емодзі; іде в heroes/{id}.avatar.
+    let selectedAvatar = (window.SKAVA ? SKAVA.tokenOf('knight-blue-boy') : '🦁');
     (function buildAvatars(){
       const grid = $('avatarGrid');
-      grid.innerHTML = AVATARS.map(a =>
-        '<div class="avatar-option'+(a===selectedAvatar?' selected':'')+'" data-a="'+a+'">'+a+'</div>'
-      ).join('');
-      grid.querySelectorAll('.avatar-option').forEach(el => {
-        el.addEventListener('click', () => {
-          grid.querySelectorAll('.avatar-option').forEach(o => o.classList.remove('selected'));
-          el.classList.add('selected');
-          selectedAvatar = el.dataset.a;
+      if(!grid) return;
+      if(!window.SKAVA){
+        // запасний варіант, якщо модуль не завантажився — лишаємо емодзі
+        const AVATARS = ['🦁','🐯','🦊','🐺','🐲','🦄','🐉','🦅','🐻','🐼','🦉','🐢'];
+        selectedAvatar = '🦁';
+        grid.innerHTML = AVATARS.map(a =>
+          '<div class="avatar-option'+(a===selectedAvatar?' selected':'')+'" data-a="'+a+'">'+a+'</div>'
+        ).join('');
+        grid.querySelectorAll('.avatar-option').forEach(el => {
+          el.addEventListener('click', () => {
+            grid.querySelectorAll('.avatar-option').forEach(o => o.classList.remove('selected'));
+            el.classList.add('selected'); selectedAvatar = el.dataset.a;
+          });
         });
-      });
+        return;
+      }
+      grid.classList.remove('avatar-grid');   // віддаємо розкладку .ska-grid
+      grid.innerHTML = SKAVA.gridHTML(selectedAvatar, {emojis:true});
+      SKAVA.bindGrid(grid, tok => { selectedAvatar = tok; });
     })();
 
     function toggleForm(show){
@@ -651,7 +661,7 @@
         list.innerHTML = '<div class="heroes-grid">' + ids.map(id => {
           const h = heroes[id] || {};
           return '<div class="hero-card">'
-            + '<div class="hc-ava">'+escapeHtml(h.avatar || '🙂')+'</div>'
+            + '<div class="hc-ava">'+(window.SKAVA?SKAVA.html(h.avatar||'🙂',{size:56}):escapeHtml(h.avatar||'🙂'))+'</div>'
             + '<div class="hc-name">'+escapeHtml(h.name || 'Герой')+'</div>'
             + '<div class="hc-login">@'+escapeHtml(h.login || '')+'</div>'
             + '<div class="hc-meta">'+gradeLabel(h.grade)+' · рівень '+(h.level||1)+'</div>'

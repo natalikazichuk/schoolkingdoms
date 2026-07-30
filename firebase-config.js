@@ -325,6 +325,19 @@ const SK = {
     return true;
   },
 
+  // Зберегти обраний аватар Героя: емодзі або токен 'hero:<id>'.
+  // СВОЄ ФОТО сюди НЕ пишемо — воно лишається лише локально (sk_hero_avatar),
+  // інакше base64 (1–3 МБ) вб'є ліміт документа. Після запису оновлюємо
+  // публічну картку, щоб рідні та друзі бачили новий аватар.
+  async saveHeroAvatar(token) {
+    const heroId = SK._heroUid();
+    if (!heroId || !token) return false;
+    await setDoc(doc(db, 'heroes', heroId),
+      { avatar: token, updatedAt: serverTimestamp() }, { merge: true });
+    try { await SK.publishHeroCard(); } catch (e) {}
+    return true;
+  },
+
   // дозволяємо user «дивитися» конкретного Героя (необов'язково)
   setActiveChild(heroId) {
     SK.activeChildId = heroId || null;

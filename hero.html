@@ -9,6 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="hero.css">
+<script src="sk-avatar.js"></script>
 <script type="module" src="firebase-config.js"></script>
 </head>
 <body>
@@ -276,8 +277,9 @@ function teamCard(x, isMe){
   const av = String(x.avatar || '🧒');
   const nm = String(x.name || 'Герой');
   const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const avHtml = (window.SKAVA ? SKAVA.html(av,{size:34}) : esc(av));
   return '<div class="team-card'+(isMe?' me':'')+'">'
-    + '<span class="av">'+esc(av)+'</span>'
+    + '<span class="av">'+avHtml+'</span>'
     + '<span class="tx"><span class="nm">'+esc(nm)+'</span>'
     + '<span class="lv">🆙 рівень '+(x.level!=null?x.level:1)+'</span></span></div>';
 }
@@ -396,6 +398,8 @@ loadTasks();
           setTxt('avatarMini',(child.name||'🧒').trim().charAt(0).toUpperCase()||'🧒');
         }
         if(child.grade!=null) $('heroGrade').textContent = gradeLabel(child.grade);
+        // синхронізований аватар (емодзі/ілюстрація) → великий портрет
+        try{ if(window.__skApplyHeroAvatar) window.__skApplyHeroAvatar(child.avatar); }catch(e){}
       }
 
       // 2) Характеристики героя = документ heroes/{heroID} — єдине джерело правди
@@ -461,10 +465,31 @@ $('editName').addEventListener('click',()=>{
   var cam=document.getElementById('avaCam');
   var file=document.getElementById('avaFile');
 
+  var _heroToken=null;   // синхронізований токен (емодзі / 'hero:<id>')
+
   function showPhoto(src){
-    if(photo){ photo.src=src; photo.style.display='block'; }
+    if(photo){ photo.classList.remove('art'); photo.onerror=function(){ this.style.display='none'; }; photo.src=src; photo.style.display='block'; }
     if(fig){ fig.style.display='none'; }
   }
+  function hasLocalPhoto(){ try{ return !!localStorage.getItem('sk_hero_avatar'); }catch(e){ return false; } }
+
+  // Показати вбудованого героя на ПОВНИЙ ЗРІСТ: прозора вирізка стоїть у сцені
+  // портрета (замок + небо + трава + сяйво лишаються позаду).
+  function showHeroArt(id){
+    if(!window.SKAVA || !SKAVA.has(id) || !photo) return;
+    photo.classList.add('art');
+    photo.onerror=function(){ this.onerror=null; this.src=SKAVA.fullPng(id); };
+    photo.src=SKAVA.fullSrc(id); photo.style.display='block';
+    if(fig) fig.style.display='none';
+  }
+  // Викликається із блоку завантаження героя: застосувати синхронізований аватар.
+  // Локальне фото має пріоритет над ілюстрацією (це власне фото на цьому пристрої).
+  window.__skApplyHeroAvatar=function(token){
+    _heroToken=token||null;
+    if(hasLocalPhoto()) return;                 // фото вже показане — не чіпаємо
+    if(window.SKAVA && SKAVA.isHeroToken(token)) showHeroArt(SKAVA.idOf(token));
+  };
+
   // підтягнути збережене фото (спільний ключ із головною)
   try{ var saved=localStorage.getItem('sk_hero_avatar'); if(saved) showPhoto(saved); }catch(e){}
 
@@ -477,9 +502,32 @@ $('editName').addEventListener('click',()=>{
       el.classList.remove('jump'); void el.offsetWidth; el.classList.add('jump');
     });
   }
-  // завантаження фото з пристрою
-  if(cam && file){
-    cam.addEventListener('click',function(e){ e.stopPropagation(); file.click(); });
+  // Обрати вбудованого героя: зберігаємо синхронізований токен і показуємо ілюстрацію.
+  // Локальне фото прибираємо — дитина свідомо обрала героя.
+  function pickHero(token){
+    if(!window.SKAVA || !SKAVA.isHeroToken(token)) return;
+    try{ localStorage.removeItem('sk_hero_avatar'); }catch(e){}
+    _heroToken=token; showHeroArt(SKAVA.idOf(token));
+    try{ if(window.SK && SK.saveHeroAvatar) SK.saveHeroAvatar(token); }catch(e){}
+  }
+
+  // Кнопка 📷 → модалка вибору (герої / своє фото / 3D-скоро).
+  if(cam){
+    cam.title='Змінити аватар'; cam.setAttribute('aria-label','Змінити аватар героя');
+    cam.addEventListener('click',function(e){
+      e.stopPropagation();
+      if(window.SKAVA && SKAVA.openPicker){
+        SKAVA.openPicker({
+          selected:_heroToken,
+          allowPhoto:!!file,
+          onHero:pickHero,
+          onPhoto:function(){ if(file) file.click(); }
+        });
+      } else if(file){ file.click(); }
+    });
+  }
+  // завантаження фото з пристрою (локально; синхронізований аватар лишається як був)
+  if(file){
     file.addEventListener('change',function(){
       var f=file.files && file.files[0]; if(!f) return;
       var r=new FileReader();
