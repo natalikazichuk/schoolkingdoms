@@ -100,6 +100,10 @@
       <span class="tx">
         <b>Тести</b>
         <small>Проходь тести за предметами — результати впливають на характеристики Героя 🎯</small>
+        <span class="tst-prog" id="testsProg" hidden>
+          <span class="tst-prog-track"><i id="testsProgFill"></i></span>
+          <b id="testsProgTx"></b>
+        </span>
       </span>
       <span class="go">▶</span>
     </a>
@@ -359,6 +363,40 @@ async function loadTasks(){
 
 render();
 loadTasks();
+loadTestsProgress();
+
+/* ── Смужка пройдених тестів у картці «Тести». ──
+   Пройдені = мітки sk_testpass_<id>='1' (пише test.html, синхр. з Firebase).
+   Усього = активні тести з бази (SK.listActiveTests). Джерела ті самі, що
+   й у Досягненнях на tests.html, тож числа не розійдуться. */
+async function loadTestsProgress(){
+  const wrap=$('testsProg'), fill=$('testsProgFill'), tx=$('testsProgTx');
+  if(!wrap || !fill || !tx) return;
+  let passed=0;
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);
+      if(k && k.indexOf('sk_testpass_')===0 && localStorage.getItem(k)==='1') passed++;
+    }
+  }catch(e){}
+  // дочекатись firebase-config (module — вантажиться відкладено), тоді спитати кількість тестів
+  let total=0;
+  try{
+    await new Promise(function(res){ let n=0;
+      (function w(){ if(window.SK && window.SK.ready) return res();
+        if(n++<100) setTimeout(w,50); else res(); })(); });
+    if(window.SK && window.SK.listActiveTests){
+      await window.SK.ready;
+      const list=await window.SK.listActiveTests();
+      total=Array.isArray(list)?list.length:0;
+    }
+  }catch(e){}
+  if(!total) return;                 // тестів у базі ще немає — смужку не показуємо
+  if(passed>total) passed=total;     // застарілі мітки видалених тестів
+  fill.style.width=Math.round(passed/total*100)+'%';
+  tx.textContent=passed+' / '+total+' пройдено';
+  wrap.hidden=false;
+}
 
 /* ── якщо дитина в системі — перекриваємо індикатори реальними даними з бази ── */
 (function(){
@@ -429,6 +467,7 @@ loadTasks();
   (function(){
     let busy=false;
     function refreshHeroStats(){
+      loadTestsProgress();
       if(busy) return;
       if(!(window.SK && window.SK.ready)) return;
       if(window.SK.isHeroSession && !window.SK.isHeroSession()) return;
