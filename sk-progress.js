@@ -81,7 +81,8 @@
     'math', 'add', 'sub', 'mult', 'num', 'cifr',  // математика
     'capital', 'geo', 'svit', 'world', 'yads', 'dovkil', // світ
     'eng', 'abc',                                 // англійська
-    'logic', 'logika', 'pamyat', 'memory'         // логіка/пам'ять
+    'logic', 'logika', 'pamyat', 'memory',        // логіка/пам'ять
+    'task'                                        // бонус за завдання від дорослих (sk_taskxp_<id>)
   ];
 
   /* ── допоміжні ── */

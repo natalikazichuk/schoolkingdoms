@@ -338,6 +338,125 @@ const SK = {
     return true;
   },
 
+  /* ===== ЗАВДАННЯ ВІД ДОРОСЛИХ (assigned tasks) =================
+     Зберігаємо просто в документі Героя — щоб НЕ чіпати firestore.rules:
+       heroes/{id}.tasks       — масив завдань (пише БАТЬКО, як і createHero)
+       heroes/{id}.taskClaims  — мапа {taskId:{at,xp,coins}} (пише ГЕРОЙ)
+     Розділені поля: правки батька (tasks) і «виконано» дитини (taskClaims,
+     coins, xp) не затирають одне одного під { merge:true }.
+     • coins — надійний лічильник (sk-progress його не чіпає) → нараховуємо тут.
+     • xp — батько задає в завданні; при «виконано» дитина отримує його разово,
+       а sk-progress.js підхоплює бонус із localStorage-ключа sk_taskxp_<id>
+       (патерн 'task' у QUEST_XP_PATTERNS), тож наступний перерахунок не з'їдає його.
+     serverTimestamp() НЕ можна класти в елементи масиву → час = Date.now(). */
+
+  // нормалізуємо картку завдання (спільна для батьківських методів)
+  _normTask(t) {
+    t = t || {};
+    const id = t.id || ('t' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7));
+    const clampN = v => Math.max(0, Math.min(9999, Math.round(Number(v) || 0)));
+    return {
+      id,
+      type:    (t.type === 'test' || t.type === 'trainer') ? t.type : 'deed',
+      title:   String(t.title || '').slice(0, 120),
+      subject: String(t.subject || '').slice(0, 60),
+      url:     t.url    ? String(t.url).slice(0, 200) : '',
+      testId:  t.testId ? String(t.testId)            : '',
+      icon:    t.icon   ? String(t.icon).slice(0, 8)  : '',
+      xp:      clampN(t.xp),
+      coins:   clampN(t.coins),
+      createdAt: Date.now()
+    };
+  },
+
+  // БАТЬКО: усі завдання Героя (для керування) → [{...task, done}]
+  async getHeroTasks(heroId) {
+    if (!heroId) return [];
+    const s = await getDoc(doc(db, 'heroes', heroId));
+    if (!s.exists()) return [];
+    const d = s.data();
+    const claims = d.taskClaims || {};
+    const arr = Array.isArray(d.tasks) ? d.tasks : [];
+    return arr.map(t => Object.assign({}, t, { done: !!claims[t.id] }))
+              .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  },
+
+  // БАТЬКО: додати завдання Герою (read-modify-write у транзакції) → id
+  async assignTask(heroId, task) {
+    if (!heroId) throw new Error('no-hero');
+    const nt = SK._normTask(task);
+    if (!nt.title) throw new Error('empty-title');
+    const ref = doc(db, 'heroes', heroId);
+    await runTransaction(db, async (tx) => {
+      const s = await tx.get(ref);
+      if (!s.exists()) throw new Error('hero-not-found');
+      const arr = Array.isArray(s.data().tasks) ? s.data().tasks.slice() : [];
+      arr.push(nt);
+      tx.set(ref, { tasks: arr, updatedAt: serverTimestamp() }, { merge: true });
+    });
+    return nt.id;
+  },
+
+  // БАТЬКО: прибрати завдання (лишок у taskClaims не заважає — ігнорується)
+  async removeHeroTask(heroId, taskId) {
+    if (!heroId || !taskId) return;
+    const ref = doc(db, 'heroes', heroId);
+    await runTransaction(db, async (tx) => {
+      const s = await tx.get(ref);
+      if (!s.exists()) return;
+      const arr = (Array.isArray(s.data().tasks) ? s.data().tasks : []).filter(t => t.id !== taskId);
+      tx.set(ref, { tasks: arr, updatedAt: serverTimestamp() }, { merge: true });
+    });
+  },
+
+  // ГЕРОЙ: свої завдання (для hero.html) — з позначкою done та іконкою за типом
+  async getAssignedTasks() {
+    const heroId = SK._heroUid();
+    if (!heroId) return [];
+    const s = await getDoc(doc(db, 'heroes', heroId));
+    if (!s.exists()) return [];
+    const d = s.data();
+    const claims = d.taskClaims || {};
+    const arr = Array.isArray(d.tasks) ? d.tasks : [];
+    return arr.map(t => Object.assign({}, t, {
+      done: !!claims[t.id],
+      icon: t.icon || (t.type === 'test' ? '📝' : t.type === 'trainer' ? '🎮' : '⭐')
+    })).sort((a, b) => (a.done - b.done) || ((b.createdAt || 0) - (a.createdAt || 0)));
+  },
+
+  // ГЕРОЙ: позначити завдання виконаним і РАЗОВО нарахувати нагороду.
+  // → { ok, already, xp, coins, coinsTotal, xpTotal }
+  async claimTask(taskId) {
+    const heroId = SK._heroUid();
+    if (!heroId || !taskId) return { ok: false };
+    const ref = doc(db, 'heroes', heroId);
+    let result = { ok: false };
+    await runTransaction(db, async (tx) => {
+      const s = await tx.get(ref);
+      if (!s.exists()) return;
+      const d = s.data();
+      const arr = Array.isArray(d.tasks) ? d.tasks : [];
+      const task = arr.find(t => t.id === taskId);
+      if (!task) return;
+      const claims = d.taskClaims || {};
+      const curXp    = Number(d.xp)    || 0;
+      const curCoins = Number(d.coins) || 0;
+      if (claims[taskId]) { result = { ok: true, already: true, xp: 0, coins: 0, xpTotal: curXp, coinsTotal: curCoins }; return; }
+      const addXp    = Math.max(0, Number(task.xp)    || 0);
+      const addCoins = Math.max(0, Number(task.coins) || 0);
+      claims[taskId] = { at: Date.now(), xp: addXp, coins: addCoins };
+      tx.set(ref, {
+        taskClaims: claims,
+        coins: curCoins + addCoins,
+        xp:    curXp + addXp,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      result = { ok: true, already: false, xp: addXp, coins: addCoins,
+                 xpTotal: curXp + addXp, coinsTotal: curCoins + addCoins };
+    });
+    return result;
+  },
+
   // дозволяємо user «дивитися» конкретного Героя (необов'язково)
   setActiveChild(heroId) {
     SK.activeChildId = heroId || null;

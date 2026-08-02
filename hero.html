@@ -349,17 +349,59 @@ async function loadTasks(){
   if(!Array.isArray(tasks) || !tasks.length){
     box.innerHTML='<div class="tasks-empty">Поки що завдань немає 🎉</div>'; return;
   }
-  const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   box.innerHTML=tasks.map(function(t){
-    const href=t.url||(t.testId?('test.html?id='+encodeURIComponent(t.testId)):'tests.html');
-    const done=t.done?' done':'';
-    return '<a class="task-item'+done+'" href="'+esc(href)+'">'
-      +'<span class="t-ic">'+esc(t.icon||(t.done?'\u2705':'📌'))+'</span>'
+    // тест → внутрішня вкладка; тренажер → нова вкладка (як в іграх); добра справа → без посилання
+    const href = t.url || (t.testId?('test.html?id='+encodeURIComponent(t.testId)):'');
+    const done = !!t.done;
+    const reward=[];
+    if(+t.xp)    reward.push('⭐ '+(+t.xp));
+    if(+t.coins) reward.push('🪙 '+(+t.coins));
+    const sub = [t.subject, reward.join(' · ')].filter(Boolean).join(' • ');
+    const goBtn = (href && !done)
+      ? '<a class="t-go-link" href="'+esc(href)+'"'+(t.type==='trainer'?' target="_blank" rel="noopener"':'')+' aria-label="Виконати">▶</a>'
+      : '';
+    const claimBtn = done
+      ? '<span class="t-done-badge">✓ Готово</span>'
+      : '<button class="t-claim" data-id="'+esc(t.id)+'">Готово</button>';
+    return '<div class="task-item'+(done?' done':'')+'">'
+      +'<span class="t-ic">'+esc(t.icon||'📌')+'</span>'
       +'<span class="t-tx"><b>'+esc(t.title||'Завдання')+'</b>'
-      +(t.subject?'<small>'+esc(t.subject)+'</small>':'')+'</span>'
-      +'<span class="t-go">'+(t.done?'\u2713':'\u25b6')+'</span></a>';
+      +(sub?'<small>'+esc(sub)+'</small>':'')+'</span>'
+      + goBtn + claimBtn
+      +'</div>';
   }).join('');
 }
+
+/* Дитина натиснула «Готово» → разова нагорода (ХР + монети).
+   Монети та ХР пише claimTask() у heroes/{id}; ХР-бонус закріплюємо ще й у
+   localStorage (sk_taskxp_<id>), щоб sk-progress.js не з'їв його при наступному
+   перерахунку з тренажера. Після цього перечитуємо документ і оновлюємо цифри. */
+async function claimTaskUI(id, btn){
+  if(!window.SK || !window.SK.claimTask) return;
+  if(btn){ btn.disabled=true; btn.textContent='…'; }
+  try{
+    const r = await window.SK.claimTask(id);
+    if(r && r.ok){
+      if(!r.already && +r.xp){
+        try{ localStorage.setItem('sk_taskxp_'+id, String(+r.xp)); }catch(e){}
+      }
+      try{ const h=await window.SK.getHero(); if(h) renderHeroStats(h); }catch(e){}
+    }
+  }catch(e){ console.warn('[hero.html] claimTask:',e); }
+  finally{ loadTasks(); }
+}
+
+/* делегування: одне слухання на контейнері переживає перемальовування innerHTML */
+(function(){
+  const box=document.getElementById('taskList');
+  if(!box) return;
+  box.addEventListener('click', function(e){
+    const b=e.target.closest('.t-claim');
+    if(!b || b.disabled) return;
+    claimTaskUI(b.getAttribute('data-id'), b);
+  });
+})();
 
 render();
 loadTasks();
@@ -468,6 +510,7 @@ async function loadTestsProgress(){
     let busy=false;
     function refreshHeroStats(){
       loadTestsProgress();
+      loadTasks();
       if(busy) return;
       if(!(window.SK && window.SK.ready)) return;
       if(window.SK.isHeroSession && !window.SK.isHeroSession()) return;
