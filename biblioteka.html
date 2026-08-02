@@ -135,6 +135,15 @@
   .read-loading,.read-empty{grid-column:1/-1;text-align:center;color:#e8dcc0;
     background:rgba(251,239,208,.08);border:2px dashed rgba(242,199,92,.4);border-radius:16px;padding:26px 18px;font-weight:700}
 
+  /* ── вкладки-розділи над полицею книг ── */
+  .read-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:0 4px 14px}
+  .read-tab{cursor:pointer;font-family:'Nunito',sans-serif;font-weight:800;font-size:.82rem;
+    color:#f0e6cd;background:rgba(251,239,208,.12);border:2px solid var(--gold-d);border-radius:999px;
+    padding:7px 15px;transition:transform .12s,background .15s,color .15s}
+  .read-tab:hover{transform:translateY(-2px);background:rgba(251,239,208,.22)}
+  .read-tab.active{background:linear-gradient(180deg,#FFE7A0,#E0A93A);color:#5a3d08;box-shadow:0 3px 0 var(--gold-deep)}
+  .read-tab .cnt{opacity:.65;margin-left:3px}
+
   /* ── шапка щоденника: заголовок + кнопка «Додати запис» ── */
   .section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:34px 4px 8px}
   .section-head .shelf-title{margin:0}
@@ -201,6 +210,7 @@
     <!-- КНИГИ ДЛЯ ЧИТАННЯ (з бази, читаються в застосунку) -->
     <h2 class="shelf-title" style="margin-top:4px">📖 Книги для читання</h2>
     <p class="read-intro">Обери книгу, прочитай сторінки та дай відповіді на прості питання — Герой отримає ❤️ здоров’я і монети.</p>
+    <div class="read-tabs" id="readTabs" style="display:none"></div>
     <div class="read-shelf" id="readShelf">
       <div class="read-loading">Завантажуємо книги…</div>
     </div>
@@ -270,27 +280,65 @@
     if(/^https?:\/\//i.test(v)) return '<img class="read-cover-img" src="'+esc(v)+'" alt="" onerror="this.replaceWith(document.createTextNode(\'📕\'))">';
     return esc(v||'📕');
   }
+  var ALL=[], READ={}, ACTIVE='__all';
+  var NONE_KEY='__none', NONE_LABEL='Інші';
+
+  function catKey(b){ var c=(b&&b.category!=null?String(b.category):'').trim(); return c||NONE_KEY; }
+  function catLabel(k){ return k===NONE_KEY?NONE_LABEL:k; }
+
+  function cardHtml(b){
+    var np=(b.pages||[]).length;
+    var done=!!READ[b.id];
+    return '<a class="read-card'+(done?' done':'')+'" href="book.html?id='+encodeURIComponent(b.id)+'">'
+      +(done?'<span class="read-stamp">✅ прочитано</span>':'')
+      +'<span class="read-cover">'+coverInner(b.cover)+'</span>'
+      +'<span class="read-title">'+esc(b.title||'Книга')+'</span>'
+      +'<span class="read-meta">'+esc(b.subject||'Читання')+' · '+np+' стор.</span>'
+      +'<span class="read-cta">'+(done?'Читати ще ↻':'Читати →')+'</span>'
+      +'</a>';
+  }
+  function renderShelf(){
+    var list=(ACTIVE==='__all') ? ALL : ALL.filter(function(b){ return catKey(b)===ACTIVE; });
+    if(!list.length){ setHost('<div class="read-empty">📚 У цьому розділі поки порожньо.</div>'); return; }
+    setHost(list.map(cardHtml).join(''));
+  }
+  function renderTabs(){
+    var host=document.getElementById('readTabs'); if(!host) return;
+    var order=[], counts={};
+    ALL.forEach(function(b){ var k=catKey(b); if(counts[k]==null){ counts[k]=0; order.push(k); } counts[k]++; });
+    // один розділ — вкладки зайві
+    if(order.length<2){ host.innerHTML=''; host.style.display='none'; return; }
+    order.sort(function(a,b){ if(a===NONE_KEY) return 1; if(b===NONE_KEY) return -1; return 0; }); // «Інші» в кінець
+    var chips=['<button class="read-tab'+(ACTIVE==='__all'?' active':'')+'" data-cat="__all">Усі<span class="cnt">'+ALL.length+'</span></button>'];
+    order.forEach(function(k){
+      chips.push('<button class="read-tab'+(ACTIVE===k?' active':'')+'" data-cat="'+esc(k)+'">'+esc(catLabel(k))+'<span class="cnt">'+counts[k]+'</span></button>');
+    });
+    host.style.display=''; host.innerHTML=chips.join('');
+  }
   function render(books, lib){
     var cnt=document.getElementById('stRead');
     if(cnt) cnt.textContent=(lib||[]).length;
-    if(!books || !books.length){
+    READ={};
+    (lib||[]).forEach(function(r){ if(r && r.bookId) READ[r.bookId]=r; });
+    ALL=books||[];
+    if(!ALL.length){
+      var t=document.getElementById('readTabs'); if(t){ t.innerHTML=''; t.style.display='none'; }
       setHost('<div class="read-empty">📚 Поки що немає книг для читання. Загляни трохи пізніше!</div>');
       return;
     }
-    var read={};
-    (lib||[]).forEach(function(r){ if(r && r.bookId) read[r.bookId]=r; });
-    setHost(books.map(function(b){
-      var np=(b.pages||[]).length;
-      var done=!!read[b.id];
-      return '<a class="read-card'+(done?' done':'')+'" href="book.html?id='+encodeURIComponent(b.id)+'">'
-        +(done?'<span class="read-stamp">✅ прочитано</span>':'')
-        +'<span class="read-cover">'+coverInner(b.cover)+'</span>'
-        +'<span class="read-title">'+esc(b.title||'Книга')+'</span>'
-        +'<span class="read-meta">'+esc(b.subject||'Читання')+' · '+np+' стор.</span>'
-        +'<span class="read-cta">'+(done?'Читати ще ↻':'Читати →')+'</span>'
-        +'</a>';
-    }).join(''));
+    // якщо активний розділ зник (напр. після оновлення даних) — вернутись на «Усі»
+    if(ACTIVE!=='__all' && !ALL.some(function(b){ return catKey(b)===ACTIVE; })) ACTIVE='__all';
+    renderTabs();
+    renderShelf();
   }
+  (function(){
+    var host=document.getElementById('readTabs');
+    if(host) host.addEventListener('click', function(e){
+      var t=e.target.closest('.read-tab'); if(!t) return;
+      ACTIVE=t.getAttribute('data-cat')||'__all';
+      renderTabs(); renderShelf();
+    });
+  })();
   function boot(){
     if(!(window.SK && SK.listActiveBooks)){ setHost('<div class="read-empty">Не вдалося підключитися до бази.</div>'); return; }
     SK.listActiveBooks().then(function(books){
