@@ -338,17 +338,19 @@ const SK = {
     return true;
   },
 
-  /* ===== ЗАВДАННЯ ВІД ДОРОСЛИХ (assigned tasks) =================
-     Зберігаємо просто в документі Героя — щоб НЕ чіпати firestore.rules:
-       heroes/{id}.tasks       — масив завдань (пише БАТЬКО, як і createHero)
-       heroes/{id}.taskClaims  — мапа {taskId:{at,xp,coins}} (пише ГЕРОЙ)
-     Розділені поля: правки батька (tasks) і «виконано» дитини (taskClaims,
-     coins, xp) не затирають одне одного під { merge:true }.
-     • coins — надійний лічильник (sk-progress його не чіпає) → нараховуємо тут.
-     • xp — батько задає в завданні; при «виконано» дитина отримує його разово,
-       а sk-progress.js підхоплює бонус із localStorage-ключа sk_taskxp_<id>
-       (патерн 'task' у QUEST_XP_PATTERNS), тож наступний перерахунок не з'їдає його.
-     serverTimestamp() НЕ можна класти в елементи масиву → час = Date.now(). */
+  /* ===== ЗАВДАННЯ ВІД ДОРОСЛИХ + ПЕРЕВІРКА =====================
+     Зберігаємо в документі Героя — щоб НЕ чіпати firestore.rules:
+       heroes/{id}.tasks      — масив завдань (пише БАТЬКО, як і createHero)
+       heroes/{id}.taskState  — мапа {taskId:{status,at,approvedAt,xp,coins}}
+     Життєвий цикл: assigned → (дитина: submitTask) pending → (батько:
+     approveTask) approved. Батько може returnTask (pending → assigned).
+     Нагороду (ХР+монети) нараховує ЛИШЕ approveTask — після підтвердження.
+     • coins — надійний лічильник (sk-progress його не чіпає).
+     • xp — піднімаємо в документі при підтвердженні; hero.html на боці дитини
+       закріплює бонус у localStorage (sk_taskxp_<id>, патерн 'task' у
+       QUEST_XP_PATTERNS), тож перерахунок sk-progress його не з'їдає.
+     Сумісність: старий taskClaims[id] читається як status 'approved'.
+     serverTimestamp() НЕ можна класти в елементи масиву/мапи → час = Date.now(). */
 
   // нормалізуємо картку завдання (спільна для батьківських методів)
   _normTask(t) {
@@ -369,16 +371,26 @@ const SK = {
     };
   },
 
-  // БАТЬКО: усі завдання Героя (для керування) → [{...task, done}]
+  // Статус завдання: 'approved' | 'pending' | 'assigned'.
+  // Зворотна сумісність: старий taskClaims[id] вважаємо за approved.
+  _taskStatus(d, id) {
+    const st = (d.taskState || {})[id];
+    if (st && st.status) return st.status;
+    if ((d.taskClaims || {})[id]) return 'approved';
+    return 'assigned';
+  },
+
+  // БАТЬКО: усі завдання Героя (для керування) → [{...task, status, done}]
   async getHeroTasks(heroId) {
     if (!heroId) return [];
     const s = await getDoc(doc(db, 'heroes', heroId));
     if (!s.exists()) return [];
     const d = s.data();
-    const claims = d.taskClaims || {};
     const arr = Array.isArray(d.tasks) ? d.tasks : [];
-    return arr.map(t => Object.assign({}, t, { done: !!claims[t.id] }))
-              .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    return arr.map(t => {
+      const status = SK._taskStatus(d, t.id);
+      return Object.assign({}, t, { status, done: status === 'approved' });
+    }).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   },
 
   // БАТЬКО: додати завдання Герою (read-modify-write у транзакції) → id
@@ -397,37 +409,86 @@ const SK = {
     return nt.id;
   },
 
-  // БАТЬКО: прибрати завдання (лишок у taskClaims не заважає — ігнорується)
+  // БАТЬКО: прибрати завдання (і його статус)
   async removeHeroTask(heroId, taskId) {
     if (!heroId || !taskId) return;
     const ref = doc(db, 'heroes', heroId);
     await runTransaction(db, async (tx) => {
       const s = await tx.get(ref);
       if (!s.exists()) return;
-      const arr = (Array.isArray(s.data().tasks) ? s.data().tasks : []).filter(t => t.id !== taskId);
-      tx.set(ref, { tasks: arr, updatedAt: serverTimestamp() }, { merge: true });
+      const d = s.data();
+      const arr = (Array.isArray(d.tasks) ? d.tasks : []).filter(t => t.id !== taskId);
+      const state = d.taskState || {};
+      delete state[taskId];
+      tx.set(ref, { tasks: arr, taskState: state, updatedAt: serverTimestamp() }, { merge: true });
     });
   },
 
-  // ГЕРОЙ: свої завдання (для hero.html) — з позначкою done та іконкою за типом
+  // ГЕРОЙ: свої завдання (для hero.html) — зі статусом та іконкою за типом.
+  // Порядок: спершу нові (assigned), тоді на перевірці (pending), тоді зараховані.
   async getAssignedTasks() {
     const heroId = SK._heroUid();
     if (!heroId) return [];
     const s = await getDoc(doc(db, 'heroes', heroId));
     if (!s.exists()) return [];
     const d = s.data();
-    const claims = d.taskClaims || {};
     const arr = Array.isArray(d.tasks) ? d.tasks : [];
-    return arr.map(t => Object.assign({}, t, {
-      done: !!claims[t.id],
-      icon: t.icon || (t.type === 'test' ? '📝' : t.type === 'trainer' ? '🎮' : '⭐')
-    })).sort((a, b) => (a.done - b.done) || ((b.createdAt || 0) - (a.createdAt || 0)));
+    const rank = { assigned: 0, pending: 1, approved: 2 };
+    return arr.map(t => {
+      const status = SK._taskStatus(d, t.id);
+      return Object.assign({}, t, {
+        status, done: status === 'approved',
+        icon: t.icon || (t.type === 'test' ? '📝' : t.type === 'trainer' ? '🎮' : '⭐')
+      });
+    }).sort((a, b) => ((rank[a.status]||0) - (rank[b.status]||0)) || ((b.createdAt || 0) - (a.createdAt || 0)));
   },
 
-  // ГЕРОЙ: позначити завдання виконаним і РАЗОВО нарахувати нагороду.
-  // → { ok, already, xp, coins, coinsTotal, xpTotal }
-  async claimTask(taskId) {
+  // ГЕРОЙ: позначити завдання виконаним → статус 'pending' (на перевірку).
+  // Нагороду НЕ нараховує — це робить БАТЬКО через approveTask.
+  async submitTask(taskId) {
     const heroId = SK._heroUid();
+    if (!heroId || !taskId) return { ok: false };
+    const ref = doc(db, 'heroes', heroId);
+    let result = { ok: false };
+    await runTransaction(db, async (tx) => {
+      const s = await tx.get(ref);
+      if (!s.exists()) return;
+      const d = s.data();
+      const arr = Array.isArray(d.tasks) ? d.tasks : [];
+      if (!arr.some(t => t.id === taskId)) return;
+      if (SK._taskStatus(d, taskId) === 'approved') { result = { ok: true, status: 'approved' }; return; }
+      const state = d.taskState || {};
+      state[taskId] = { status: 'pending', at: Date.now() };
+      tx.set(ref, { taskState: state, updatedAt: serverTimestamp() }, { merge: true });
+      result = { ok: true, status: 'pending' };
+    });
+    return result;
+  },
+
+  // ГЕРОЙ: скасувати подання (pending → assigned), поки батько не підтвердив
+  async unsubmitTask(taskId) {
+    const heroId = SK._heroUid();
+    if (!heroId || !taskId) return { ok: false };
+    const ref = doc(db, 'heroes', heroId);
+    let result = { ok: false };
+    await runTransaction(db, async (tx) => {
+      const s = await tx.get(ref);
+      if (!s.exists()) return;
+      const d = s.data();
+      if (SK._taskStatus(d, taskId) !== 'pending') { result = { ok: false }; return; }
+      const state = d.taskState || {};
+      delete state[taskId];
+      tx.set(ref, { taskState: state, updatedAt: serverTimestamp() }, { merge: true });
+      result = { ok: true, status: 'assigned' };
+    });
+    return result;
+  },
+
+  // БАТЬКО: підтвердити виконання → РАЗОВО нарахувати ХР+монети, статус 'approved'.
+  // Монети — надійно (не перераховуються). ХР теж піднімаємо в документі; на боці
+  // дитини hero.html закріплює бонус у localStorage (sk_taskxp_<id>), щоб
+  // sk-progress.js не з'їв його при наступному перерахунку. → {ok, already, xp, coins}
+  async approveTask(heroId, taskId) {
     if (!heroId || !taskId) return { ok: false };
     const ref = doc(db, 'heroes', heroId);
     let result = { ok: false };
@@ -438,23 +499,64 @@ const SK = {
       const arr = Array.isArray(d.tasks) ? d.tasks : [];
       const task = arr.find(t => t.id === taskId);
       if (!task) return;
-      const claims = d.taskClaims || {};
-      const curXp    = Number(d.xp)    || 0;
-      const curCoins = Number(d.coins) || 0;
-      if (claims[taskId]) { result = { ok: true, already: true, xp: 0, coins: 0, xpTotal: curXp, coinsTotal: curCoins }; return; }
+      if (SK._taskStatus(d, taskId) === 'approved') { result = { ok: true, already: true, xp: 0, coins: 0 }; return; }
       const addXp    = Math.max(0, Number(task.xp)    || 0);
       const addCoins = Math.max(0, Number(task.coins) || 0);
-      claims[taskId] = { at: Date.now(), xp: addXp, coins: addCoins };
+      const curXp    = Number(d.xp)    || 0;
+      const curCoins = Number(d.coins) || 0;
+      const state = d.taskState || {};
+      const prevAt = (state[taskId] && state[taskId].at) || Date.now();
+      state[taskId] = { status: 'approved', at: prevAt, approvedAt: Date.now(), xp: addXp, coins: addCoins };
       tx.set(ref, {
-        taskClaims: claims,
+        taskState: state,
         coins: curCoins + addCoins,
         xp:    curXp + addXp,
         updatedAt: serverTimestamp()
       }, { merge: true });
-      result = { ok: true, already: false, xp: addXp, coins: addCoins,
-                 xpTotal: curXp + addXp, coinsTotal: curCoins + addCoins };
+      result = { ok: true, already: false, xp: addXp, coins: addCoins };
     });
     return result;
+  },
+
+  // БАТЬКО: повернути завдання дитині (pending → assigned), без нарахування
+  async returnTask(heroId, taskId) {
+    if (!heroId || !taskId) return { ok: false };
+    const ref = doc(db, 'heroes', heroId);
+    let result = { ok: false };
+    await runTransaction(db, async (tx) => {
+      const s = await tx.get(ref);
+      if (!s.exists()) return;
+      const d = s.data();
+      if (SK._taskStatus(d, taskId) === 'approved') { result = { ok: false, already: true }; return; }
+      const state = d.taskState || {};
+      delete state[taskId];
+      tx.set(ref, { taskState: state, updatedAt: serverTimestamp() }, { merge: true });
+      result = { ok: true };
+    });
+    return result;
+  },
+
+  // БАТЬКО: усі завдання «на перевірці» по всіх Героях → [{heroId, heroName, ...task}]
+  async getPendingReviews() {
+    const u = auth.currentUser;
+    if (!u) return [];
+    const snap = await getDocs(query(collection(db, 'heroes'), where('parentUid', '==', u.uid)));
+    const out = [];
+    snap.forEach(docSnap => {
+      const d = docSnap.data();
+      const arr = Array.isArray(d.tasks) ? d.tasks : [];
+      arr.forEach(t => {
+        if (SK._taskStatus(d, t.id) === 'pending') {
+          const st = (d.taskState || {})[t.id] || {};
+          out.push(Object.assign({}, t, {
+            heroId: docSnap.id, heroName: d.name || 'Герой', submittedAt: st.at || 0,
+            icon: t.icon || (t.type === 'test' ? '📝' : t.type === 'trainer' ? '🎮' : '⭐')
+          }));
+        }
+      });
+    });
+    out.sort((a, b) => (b.submittedAt || 0) - (a.submittedAt || 0));
+    return out;
   },
 
   // дозволяємо user «дивитися» конкретного Героя (необов'язково)

@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="hero.css?v=3">
+<link rel="stylesheet" href="hero.css?v=2">
 <script src="sk-avatar.js"></script>
 <script type="module" src="firebase-config.js"></script>
 </head>
@@ -349,57 +349,103 @@ async function loadTasks(){
   if(!Array.isArray(tasks) || !tasks.length){
     box.innerHTML='<div class="tasks-empty">Поки що завдань немає 🎉</div>'; return;
   }
+  // Авто-подання НА ПЕРЕВІРКУ: тест — за міткою проходження sk_testpass_<testId>;
+  // тренажер — за міткою відкриття sk_taskseen_<taskId>. Нагороди тут НЕ дає —
+  // лише переводить у 'pending'; нараховує батько підтвердженням.
+  const changed = await autoSubmitTasks(tasks);
+  if(changed){ try{ tasks=(await window.SK.getAssignedTasks())||tasks; }catch(e){} }
+  // ХР затверджених завдань закріплюємо в localStorage, щоб sk-progress не з'їв
+  anchorApprovedXp(tasks);
+
   const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   box.innerHTML=tasks.map(function(t){
-    // тест → внутрішня вкладка; тренажер → нова вкладка (як в іграх); добра справа → без посилання
+    const status = t.status || 'assigned';
     const href = t.url || (t.testId?('test.html?id='+encodeURIComponent(t.testId)):'');
-    const done = !!t.done;
     const reward=[];
     if(+t.xp)    reward.push('⭐ '+(+t.xp));
     if(+t.coins) reward.push('🪙 '+(+t.coins));
     const sub = [t.subject, reward.join(' · ')].filter(Boolean).join(' • ');
-    const goBtn = (href && !done)
-      ? '<a class="t-go-link" href="'+esc(href)+'"'+(t.type==='trainer'?' target="_blank" rel="noopener"':'')+' aria-label="Виконати">▶</a>'
-      : '';
-    const claimBtn = done
-      ? '<span class="t-done-badge">✓ Готово</span>'
-      : '<button class="t-claim" data-id="'+esc(t.id)+'">Готово</button>';
-    return '<div class="task-item'+(done?' done':'')+'">'
+    // ▶ показуємо, поки не зараховано (для тренажера ставимо мітку «відкрито»)
+    let goBtn='';
+    if(href && status!=='approved'){
+      const isTr=t.type==='trainer';
+      const tgt=isTr?' target="_blank" rel="noopener"':'';
+      const seen=isTr?' data-seen="'+esc(t.id)+'"':'';
+      goBtn='<a class="t-go-link" href="'+esc(href)+'"'+tgt+seen+' aria-label="Відкрити">▶</a>';
+    }
+    // чекбокс: порожній (assigned) → тап подає на перевірку; ⏳ (pending) → тап скасовує;
+    // ✓ (approved) → заблокований.
+    const mark = status==='assigned' ? '' : '✓';
+    const cbCls = 't-check'+(status==='approved'?' approved':status==='pending'?' pending':'');
+    const cbAttrs = status==='approved' ? ' disabled aria-label="Зараховано"'
+                  : ' data-id="'+esc(t.id)+'" data-status="'+status+'" aria-label="Позначити виконаним"';
+    const cb = '<button class="'+cbCls+'"'+cbAttrs+'>'+mark+'</button>';
+    const statusTx = status==='approved' ? '<span class="t-done-badge">✓ Зараховано</span>'
+                   : status==='pending'  ? '<span class="t-pending">⏳ На перевірці</span>'
+                   : '';
+    return '<div class="task-item status-'+status+'">'
+      + cb
       +'<span class="t-ic">'+esc(t.icon||'📌')+'</span>'
       +'<span class="t-tx"><b>'+esc(t.title||'Завдання')+'</b>'
       +(sub?'<small>'+esc(sub)+'</small>':'')+'</span>'
-      + goBtn + claimBtn
+      + goBtn + statusTx
       +'</div>';
   }).join('');
 }
 
-/* Дитина натиснула «Готово» → разова нагорода (ХР + монети).
-   Монети та ХР пише claimTask() у heroes/{id}; ХР-бонус закріплюємо ще й у
-   localStorage (sk_taskxp_<id>), щоб sk-progress.js не з'їв його при наступному
-   перерахунку з тренажера. Після цього перечитуємо документ і оновлюємо цифри. */
-async function claimTaskUI(id, btn){
-  if(!window.SK || !window.SK.claimTask) return;
-  if(btn){ btn.disabled=true; btn.textContent='…'; }
-  try{
-    const r = await window.SK.claimTask(id);
-    if(r && r.ok){
-      if(!r.already && +r.xp){
-        try{ localStorage.setItem('sk_taskxp_'+id, String(+r.xp)); }catch(e){}
-      }
-      try{ const h=await window.SK.getHero(); if(h) renderHeroStats(h); }catch(e){}
+/* Авто-подання на перевірку (без нарахування нагороди).
+   Тест: сигнал = sk_testpass_<testId>='1' (пише test.html при проходженні).
+   Тренажер: сигнал = sk_taskseen_<taskId>='1' (ставимо при натисканні ▶). */
+async function autoSubmitTasks(tasks){
+  if(!window.SK || !window.SK.submitTask) return false;
+  let changed=false;
+  for(const t of tasks){
+    if((t.status||'assigned')!=='assigned') continue;
+    let signal=false;
+    try{
+      if(t.type==='test' && t.testId) signal = localStorage.getItem('sk_testpass_'+t.testId)==='1';
+      else if(t.type==='trainer')     signal = localStorage.getItem('sk_taskseen_'+t.id)==='1';
+    }catch(e){}
+    if(!signal) continue;
+    try{ const r=await window.SK.submitTask(t.id); if(r && r.ok && r.status==='pending') changed=true; }
+    catch(e){ console.warn('[hero.html] autoSubmit:',e); }
+  }
+  return changed;
+}
+
+/* Затверджені завдання: кладемо їхній ХР у localStorage (sk_taskxp_<id>), щоб
+   sk-progress.js рахував його як частину XP і не з'їдав нарахований батьком бонус. */
+function anchorApprovedXp(tasks){
+  try{ tasks.forEach(function(t){
+    if(t.status==='approved' && +t.xp){
+      const k='sk_taskxp_'+t.id, v=String(+t.xp);
+      if(localStorage.getItem(k)!==v) localStorage.setItem(k, v);
     }
-  }catch(e){ console.warn('[hero.html] claimTask:',e); }
+  }); }catch(e){}
+}
+
+/* Дитина тапнула чекбокс: assigned → подати на перевірку; pending → скасувати. */
+async function toggleTask(id, status, btn){
+  if(!window.SK || !id) return;
+  if(btn) btn.disabled=true;
+  try{
+    if(status==='assigned' && window.SK.submitTask)      await window.SK.submitTask(id);
+    else if(status==='pending' && window.SK.unsubmitTask) await window.SK.unsubmitTask(id);
+  }catch(e){ console.warn('[hero.html] toggleTask:',e); }
   finally{ loadTasks(); }
 }
 
-/* делегування: одне слухання на контейнері переживає перемальовування innerHTML */
+/* делегування: одне слухання на контейнері переживає перемальовування innerHTML.
+   • .t-check → подати/скасувати перевірку
+   • .t-go-link[data-seen] → перед відкриттям гри позначаємо тренажер «відкрито» */
 (function(){
   const box=document.getElementById('taskList');
   if(!box) return;
   box.addEventListener('click', function(e){
-    const b=e.target.closest('.t-claim');
-    if(!b || b.disabled) return;
-    claimTaskUI(b.getAttribute('data-id'), b);
+    const cb=e.target.closest('.t-check');
+    if(cb && !cb.disabled){ toggleTask(cb.getAttribute('data-id'), cb.getAttribute('data-status'), cb); return; }
+    const go=e.target.closest('.t-go-link[data-seen]');
+    if(go){ try{ localStorage.setItem('sk_taskseen_'+go.getAttribute('data-seen'),'1'); }catch(e){} }
   });
 })();
 
@@ -654,6 +700,6 @@ $('editName').addEventListener('click',()=>{
 </script>
 <!-- СПІЛЬНИЙ ХЕДЕР (бренд + шкала Героя) -->
 <script>window.SK_HEADER_SUB='Вивчай, грай, досягай';</script>
-<script src="sk-header.js?v=3"></script>
+<script src="sk-header.js"></script>
 </body>
 </html>
