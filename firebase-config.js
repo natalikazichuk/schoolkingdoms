@@ -358,8 +358,8 @@ const SK = {
     return {
       id,
       type:    (t.type === 'test' || t.type === 'trainer') ? t.type : 'deed',
-      title:   String(t.title || '').slice(0, 120),
-      subject: String(t.subject || '').slice(0, 60),
+      title:   String(t.title || '').trim().slice(0, 120),
+      subject: String(t.subject || '').trim().slice(0, 60),
       url:     t.url    ? String(t.url).slice(0, 200) : '',
       testId:  t.testId ? String(t.testId)            : '',
       icon:    t.icon   ? String(t.icon).slice(0, 8)  : '',
