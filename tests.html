@@ -87,6 +87,14 @@
   .subj-name{font-weight:800;font-size:1.02rem;color:#fff}
   .subj-stat{font-size:.74rem;color:#b9c4e0;font-weight:700;margin-top:2px}
   .subj-stat b{color:var(--accent,#8fa2e6)}
+  /* смужка «пройдено/усього» у підсумку предмета (колір — акцент предмета) */
+  .subj-bar{display:flex;align-items:center;gap:8px;margin-top:6px;max-width:260px}
+  .subj-bar[hidden]{display:none}
+  .subj-bar-track{flex:1;min-width:56px;height:8px;border-radius:999px;
+    background:rgba(0,0,0,.32);border:1px solid rgba(255,255,255,.14);overflow:hidden}
+  .subj-bar-track>i{display:block;height:100%;width:0;border-radius:999px;
+    background:var(--accent,#5C6BC0);box-shadow:0 0 8px -2px var(--accent,#5C6BC0);transition:width .5s ease}
+  .subj-bar>b{font-size:.7rem;font-weight:800;color:#dfe7ff;white-space:nowrap}
   .subj-arrow{font-size:1rem;color:#cfd4ff;transition:transform .25s;flex-shrink:0}
   details.subj[open] > summary .subj-arrow{transform:rotate(180deg)}
   /* бейдж прогресу предмета (рівень + ХР), напр. біля Математики */
@@ -333,7 +341,8 @@ function chip(it, accent){
     var locked   = !!it.lockPreId;
     var lockAttr = locked ? ' data-lock-preid="'+it.lockPreId+'" data-lock-prelevels="'+(it.lockPreLevels||0)+'"' : '';
     var lockCls  = locked ? ' locked' : '';
-    var parts = '<a class="chip ready'+lockCls+'" href="'+it.href+'"'+tgt+lockAttr+' style="--accent:'+accent+'">▶ '+esc(it.label)+badge+'</a>';
+    var dataAttr = (it.db && it.testId) ? ' data-testid="'+esc(it.testId)+'" data-levels="'+(it.levelCount||0)+'"' : '';
+    var parts = '<a class="chip ready'+lockCls+'" href="'+it.href+'"'+tgt+lockAttr+dataAttr+' style="--accent:'+accent+'">▶ '+esc(it.label)+badge+'</a>';
     if(locked){
       parts += '<span class="chip-lock">🔒 Пройди «'+esc(it.lockPreTitle||'')+'» на 55%</span>';
     }
@@ -386,7 +395,8 @@ function subjectHtml(s, tier){
   return '<details class="subj" style="--accent:'+accent+';--accent-soft:'+withA(accent,'24')+';--accent-line:'+withA(accent,'66')+'">'
     + '<summary><span class="subj-ic">'+s.icon+'</span>'
     + '<span class="subj-tt"><span class="subj-name">'+s.name+'</span>'
-    + '<span class="subj-stat"><b>'+s.stat+'</b></span></span>'
+    + '<span class="subj-stat"><b>'+s.stat+'</b></span>'
+    + '<span class="subj-bar" hidden><span class="subj-bar-track"><i></i></span><b></b></span></span>'
     + '<span class="subj-arrow">▾</span></summary>'
     + '<div class="subj-body">'+body+'</div></details>';
 }
@@ -580,6 +590,30 @@ function fillLevelProgress(){
 }
 /* відкрити/лишити закритими тести-замки. prog (Firebase) — необовʼязковий,
    беремо максимум із локальним станом пристрою (localStorage) */
+/* ── смужка «пройдено / усього» на КОЖЕН предмет ──
+   Рахуємо по всіх тест-чіпах предмета (data-testid), НЕЗАЛЕЖНО від того, чи
+   applyAchievements() сховав 100%-тести. «Пройдено» = isTestPassed() (той самий
+   поріг і два джерела — localStorage + Firebase, що й у замках). */
+function fillSubjectProgress(prog){
+  function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+  function pgGet(k){ return (prog && prog[k]!=null) ? prog[k] : null; }
+  document.querySelectorAll('#root details.subj').forEach(function(subj){
+    var bar = subj.querySelector('.subj-bar'); if(!bar) return;
+    var total=0, passed=0, seen={};
+    subj.querySelectorAll('.chip.ready[data-testid]').forEach(function(a){
+      var id=a.getAttribute('data-testid'); if(!id || seen[id]) return; seen[id]=1;
+      total++;
+      var pre={ id:id, levels: parseInt(a.getAttribute('data-levels')||'0',10)||0 };
+      if(isTestPassed(pre, lsGet) || isTestPassed(pre, pgGet)) passed++;
+    });
+    if(!total){ bar.hidden=true; return; }
+    if(passed>total) passed=total;
+    var fill=bar.querySelector('i'), tx=bar.querySelector('b');
+    if(fill) fill.style.width=Math.round(passed/total*100)+'%';
+    if(tx) tx.textContent=passed+' / '+total+' пройдено';
+    bar.hidden=false;
+  });
+}
 function applyLocks(prog){
   function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
   function pgGet(k){ return (prog && prog[k]!=null) ? prog[k] : null; }
@@ -698,6 +732,7 @@ function render(){
   fillLevelProgress();
   applyLocks();
   applyAchievements();
+  fillSubjectProgress();
 }
 
 /* первинний стан — щоб не блимала порожня сторінка */
@@ -790,6 +825,9 @@ document.getElementById('root').innerHTML =
 
               /* ── перенести завершені тести в 🏆 Досягнення (після оновлення бейджів) ── */
               if(typeof applyAchievements==='function') applyAchievements();
+
+              /* ── смужки предметів: перерахувати з урахуванням прогресу Firebase ── */
+              if(typeof fillSubjectProgress==='function') fillSubjectProgress(prog);
               })();   /* /applyProg */
             }).catch(function(){});
           }
