@@ -127,7 +127,7 @@ function blankQuestion(){ return { q:'', options:['','',''], correct:0 }; }
 function blankPage(){ return { text:'', image:'', questions:[] }; }
 function blankBook(){
   return {
-    id:null, title:'', cover:'📕', subject:'Читання', grade:1,
+    id:null, title:'', cover:'📕', subject:'Читання', category:'', grade:1,
     xpMode:'perCorrect', xpValue:1,
     statMode:'fixed', statValue:2, stat:'health',
     coins:3, active:true,
@@ -153,13 +153,23 @@ function renderList(){
     return '<div class="brow">'
       +'<span class="cv">'+coverMini(b.cover)+'</span>'
       +'<div class="info"><div class="bt">'+esc(b.title||'(без назви)')+'</div>'
-        +'<div class="bm">'+esc(b.subject||'—')+' · клас '+esc(b.grade!=null?b.grade:'1')+' · '+np+' стор. · '+nq+' пит.</div></div>'
+        +'<div class="bm">'+(b.category?'📚 '+esc(b.category)+' · ':'')+esc(b.subject||'—')+' · клас '+esc(b.grade!=null?b.grade:'1')+' · '+np+' стор. · '+nq+' пит.</div></div>'
       +'<div class="acts">'
         +'<button class="mini '+(on?'on':'off')+'" data-act="toggle" data-id="'+esc(b.id)+'">'+(on?'✓ активна':'○ вимк.')+'</button>'
         +'<button class="mini" data-act="edit" data-id="'+esc(b.id)+'">✏️</button>'
         +'<button class="mini danger" data-act="del" data-id="'+esc(b.id)+'">🗑</button>'
       +'</div></div>';
   }).join('');
+}
+
+/* ---------- список наявних розділів (для datalist) ---------- */
+function catOptions(){
+  var seen={}, out=[];
+  BOOKS.forEach(function(b){
+    var c=(b&&b.category!=null?String(b.category):'').trim();
+    if(c && !seen[c]){ seen[c]=1; out.push('<option value="'+esc(c)+'">'); }
+  });
+  return out.join('');
 }
 
 /* ---------- рендер редактора ---------- */
@@ -220,6 +230,10 @@ function renderEditor(){
        +'</select></div>'
     +'  <div class="field"><label>Клас</label><input type="number" id="m_grade" min="1" max="11" value="'+esc(M.grade)+'"></div>'
     +'</div>'
+    +'<div class="field"><label>Розділ бібліотеки (вкладка)</label>'
+       +'<input type="text" id="m_category" list="catlist" value="'+esc(M.category||'')+'" placeholder="Напр.: Українські народні казки">'
+       +'<datalist id="catlist">'+catOptions()+'</datalist>'
+       +'<div class="inline-note">Так книга потрапляє у вкладку в бібліотеці. Порожньо → вкладка «Інші».</div></div>'
     +'<div class="grid3">'
     +'  <div class="field"><label>XP — режим</label><select id="m_xpMode">'
        +'<option value="perCorrect"'+(M.xpMode==='perCorrect'?' selected':'')+'>за правильну</option>'
@@ -252,6 +266,7 @@ function collectForm(){
   M.title=el('#m_title').value;
   M.cover=el('#m_cover').value;
   M.subject=el('#m_subject').value;
+  if(el('#m_category')) M.category=el('#m_category').value;
   M.grade=el('#m_grade').value;
   M.xpMode=el('#m_xpMode').value;
   M.xpValue=el('#m_xpValue').value;
@@ -280,6 +295,7 @@ function buildClean(){
     title:(M.title||'').trim(),
     cover:(M.cover||'📕').trim()||'📕',
     subject:(M.subject||'Читання').trim(),
+    category:(M.category||'').trim(),
     grade:parseInt(M.grade,10)||1,
     xpMode: M.xpMode==='perCorrect'?'perCorrect':'fixed',
     xpValue: num(M.xpValue),
@@ -408,7 +424,7 @@ function importJSON(){
   try{ obj=JSON.parse(raw); }catch(e){ setMsg('Некоректний JSON: '+e.message, false); return; }
   if(!obj || typeof obj!=='object'){ setMsg('Очікується об\u2019єкт книги.', false); return; }
   var m=blankBook();
-  ['title','cover','subject','xpMode','statMode','stat'].forEach(function(k){ if(obj[k]!=null) m[k]=obj[k]; });
+  ['title','cover','subject','category','xpMode','statMode','stat'].forEach(function(k){ if(obj[k]!=null) m[k]=obj[k]; });
   ['grade','xpValue','statValue','coins'].forEach(function(k){ if(obj[k]!=null) m[k]=obj[k]; });
   if(obj.active!=null) m.active=!!obj.active;
   if(Array.isArray(obj.pages) && obj.pages.length){
