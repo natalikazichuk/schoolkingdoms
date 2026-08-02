@@ -401,6 +401,7 @@
   <div class="toast" id="toast"></div>
 
   <script src="sk-avatar.js"></script>
+  <script src="sk-curriculum.js"></script>
   <script type="module" src="firebase-config.js"></script>
   <script>
     // ── Гейт сторінки user ──────────────────────────────────────
@@ -785,7 +786,7 @@
        (єдине джерело правди для сітки ігор, без дубля списку тут). Добрі справи —
        вільний текст. Нагорода (ХР+монети) додається до завдання; дитина отримує
        її разово, натиснувши «Готово» у себе. Завдання зберігаються в heroes/{id}. */
-    let TA_TESTS = null, TA_TRAINERS = null, TA_TYPE = 'test', TA_BOUND = false;
+    let TA_TESTS = null, TA_TRAINERS = null, TA_TYPE = 'test', TA_BOUND = false, TA_CUR_MAP;
 
     async function loadCreateTab(){
       bindCreateOnce();
@@ -830,19 +831,61 @@
 
     async function loadTaTests(){
       const sel = $('taTest');
-      if (TA_TESTS){ renderTaTests(sel); return; }
-      try { TA_TESTS = (await SK.listActiveTests()) || []; }
-      catch(e){ console.warn('[parent] listActiveTests:', e); TA_TESTS = []; }
+      if (!TA_TESTS){
+        try { TA_TESTS = (await SK.listActiveTests()) || []; }
+        catch(e){ console.warn('[parent] listActiveTests:', e); TA_TESTS = []; }
+      }
+      // карта програми (та сама, що на сторінці тестів) — для порядку «як у програмі»
+      if (TA_CUR_MAP === undefined){
+        try { TA_CUR_MAP = (window.SKCUR && SKCUR.ready) ? await SKCUR.ready : (window.SKCUR ? SKCUR.map : null); }
+        catch(e){ TA_CUR_MAP = (window.SKCUR ? SKCUR.map : null); }
+      }
       renderTaTests(sel);
     }
+
+    // Порядок і групування — через SKCUR.placeTests (розкладка як на tests.html):
+    // за предметом (<optgroup>) і всередині — у послідовності програми.
     function renderTaTests(sel){
       if (!TA_TESTS.length){ sel.innerHTML = '<option value="">Активних тестів ще немає</option>'; return; }
-      sel.innerHTML = TA_TESTS.map(t =>
-        '<option value="'+escapeHtml(t.id)+'">'
-        + escapeHtml(t.title || 'Тест')
-        + (t.subject ? ' — '+escapeHtml(t.subject) : '')
-        + (t.grade != null ? ' ('+escapeHtml(t.grade)+' кл.)' : '')
-        + '</option>').join('');
+      let groups = null;
+      try {
+        if (window.SKCUR && SKCUR.placeTests){
+          const placed = SKCUR.placeTests(TA_CUR_MAP || SKCUR.map, TA_TESTS);
+          const order = [], bySubj = {}, included = new Set();
+          const push = (subjName, grade, t) => {
+            if (!t || !t.id || included.has(t.id)) return;
+            included.add(t.id);
+            const key = (subjName || '—') + '|' + (grade != null ? grade : '');
+            if (!bySubj[key]){
+              bySubj[key] = { label: (subjName || 'Інше') + (grade != null ? (' · ' + grade + ' кл.') : ''), tests: [] };
+              order.push(key);
+            }
+            bySubj[key].tests.push(t);
+          };
+          (placed.topics   || []).forEach(b => (b.tests || []).forEach(t => push(b.subj && b.subj.name, b.grade && b.grade.gradeNum, t)));
+          (placed.subjects || []).forEach(b => (b.tests || []).forEach(t => push(b.subj && b.subj.name, b.grade && b.grade.gradeNum, t)));
+          (placed.leftovers|| []).forEach(t => push('Інші тести', null, t));
+          // будь-що не розкладене (dropped/sameTitle) — щоб жоден тест не зник зі списку
+          TA_TESTS.forEach(t => { if (!included.has(t.id)) push('Інші тести', null, t); });
+          groups = order.map(k => bySubj[k]);
+        }
+      } catch(e){ console.warn('[parent] placeTests:', e); groups = null; }
+
+      if (groups && groups.length){
+        sel.innerHTML = groups.map(g =>
+          '<optgroup label="'+escapeHtml(g.label)+'">'
+          + g.tests.map(t => '<option value="'+escapeHtml(t.id)+'">'+escapeHtml(t.title || 'Тест')+'</option>').join('')
+          + '</optgroup>').join('');
+      } else {
+        // запасний варіант без SKCUR: сортуємо за предметом, тоді за назвою
+        const sorted = TA_TESTS.slice().sort((a, b) =>
+          String(a.subject||'').localeCompare(String(b.subject||''), 'uk') ||
+          String(a.title||'').localeCompare(String(b.title||''), 'uk'));
+        sel.innerHTML = sorted.map(t =>
+          '<option value="'+escapeHtml(t.id)+'">'+escapeHtml(t.title || 'Тест')
+          + (t.subject ? ' — '+escapeHtml(t.subject) : '')
+          + (t.grade != null ? ' ('+escapeHtml(t.grade)+' кл.)' : '')+'</option>').join('');
+      }
     }
 
     // Тренажери = картки ігор з igry.html (той самий, що бачить дитина).
