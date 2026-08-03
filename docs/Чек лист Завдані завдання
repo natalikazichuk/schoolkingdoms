@@ -1,1 +1,321 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Чек-лист тестування — Задані завдання</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<style>
+:root{
+  --ink:#20232e;--soft:#6b6f80;--paper:#f4f6fb;--card:#fff;--line:#e4e8f0;
+  --blue:#3b6fd4;--blue-d:#2b56a8;--good:#2fa96a;--good-bg:#e5f7ee;--bad:#e0554f;--bad-bg:#fceceb;
+  --amber:#e0a42a;--p1:#e0554f;--p2:#e0a42a;--p3:#7a86a8;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{font-family:'Nunito',system-ui,sans-serif;color:var(--ink);background:var(--paper);
+  padding:16px;padding-bottom:60px;display:flex;flex-direction:column;align-items:center}
+.wrap{width:100%;max-width:820px}
+h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;margin:0}
+
+/* header */
+.head{background:linear-gradient(135deg,#1e3a6b,#16294f);color:#fff;border-radius:20px;padding:20px;
+  box-shadow:0 8px 24px rgba(22,41,79,.25);border-top:4px solid var(--amber)}
+.head h1{font-size:24px;line-height:1.15}
+.head p{margin:4px 0 0;color:#c7d6ee;font-weight:800;font-size:13px}
+.summary{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.stat{background:rgba(255,255,255,.1);border-radius:14px;padding:10px 14px;flex:1;min-width:90px}
+.stat b{font-family:'Fredoka';font-size:26px;display:block;line-height:1}
+.stat span{font-size:11px;font-weight:800;color:#c7d6ee;text-transform:uppercase;letter-spacing:.4px}
+.stat.pass b{color:#7ee6ac}.stat.fail b{color:#ff9d97}.stat.todo b{color:#ffe08a}
+.pbar{height:12px;background:rgba(255,255,255,.15);border-radius:8px;overflow:hidden;margin-top:14px;display:flex}
+.pbar .pg{height:100%;transition:width .4s}
+.pbar .pg.p{background:linear-gradient(90deg,#2fa96a,#7ee6ac)}
+.pbar .pg.f{background:linear-gradient(90deg,#e0554f,#ff9d97)}
+.pct{font-weight:800;font-size:12px;color:#c7d6ee;margin-top:6px}
+
+/* toolbar */
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:16px 0}
+.filters{display:flex;gap:6px;background:#fff;border:2px solid var(--line);border-radius:12px;padding:4px}
+.filters button{border:none;background:none;font:800 13px 'Nunito';color:var(--soft);padding:7px 11px;border-radius:9px;cursor:pointer}
+.filters button.on{background:var(--blue);color:#fff}
+.spacer{flex:1}
+.tbtn{border:2px solid var(--line);background:#fff;border-radius:12px;padding:8px 12px;font:800 13px 'Nunito';
+  color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.tbtn:active{transform:translateY(1px)}
+.tbtn.danger{color:var(--bad);border-color:#f3cfcd}
+
+/* sections */
+.section{background:var(--card);border:1px solid var(--line);border-radius:16px;margin-bottom:14px;overflow:hidden;
+  box-shadow:0 2px 8px rgba(30,40,70,.05)}
+.shead{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;user-select:none}
+.shead h3{font-size:17px;flex:1}
+.schip{font-family:'Fredoka';font-size:13px;color:var(--soft);background:var(--paper);border-radius:20px;padding:3px 10px}
+.smini{width:70px;height:8px;background:var(--paper);border-radius:6px;overflow:hidden;flex:none}
+.smini span{display:block;height:100%;background:var(--good);transition:width .4s}
+.caret{color:var(--soft);font-size:14px;transition:transform .2s}
+.section.closed .caret{transform:rotate(-90deg)}
+.section.closed .rows{display:none}
+.rows{border-top:1px solid var(--line)}
+
+.row{display:flex;gap:10px;align-items:flex-start;padding:12px 16px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:none}
+.row.pass{background:var(--good-bg)}
+.row.fail{background:var(--bad-bg)}
+.row.hide{display:none}
+.rid{font-family:'Fredoka';font-size:12px;color:var(--blue-d);background:#eaf1fc;border-radius:8px;padding:3px 7px;flex:none;margin-top:2px}
+.prio{font-size:10px;font-weight:800;color:#fff;border-radius:6px;padding:2px 6px;flex:none;margin-top:3px}
+.prio.P1{background:var(--p1)}.prio.P2{background:var(--p2)}.prio.P3{background:var(--p3)}
+.rbody{flex:1;min-width:0}
+.rtext{font-weight:700;font-size:14.5px;line-height:1.35}
+.note{margin-top:6px;width:100%;border:1px dashed var(--line);border-radius:8px;padding:6px 9px;
+  font:600 13px 'Nunito';color:var(--ink);background:#fff;display:none}
+.row.noteon .note{display:block}
+.acts{display:flex;gap:6px;flex:none}
+.mark{width:38px;height:38px;border-radius:11px;border:2px solid var(--line);background:#fff;font-size:17px;
+  cursor:pointer;display:grid;place-items:center;color:var(--soft)}
+.mark.p.on{background:var(--good);border-color:var(--good);color:#fff}
+.mark.f.on{background:var(--bad);border-color:var(--bad);color:#fff}
+.mark.n{font-size:15px}
+.mark.n.on{background:var(--amber);border-color:var(--amber);color:#fff}
+
+.foot{text-align:center;color:var(--soft);font-size:12px;font-weight:700;margin-top:10px}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#20232e;color:#fff;
+  padding:11px 18px;border-radius:12px;font-weight:800;font-size:14px;opacity:0;pointer-events:none;transition:.25s;z-index:50}
+.toast.on{opacity:1}
+@media(max-width:520px){.rid{display:none}.head h1{font-size:20px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="head">
+    <h1>📋 Чек-лист тестування</h1>
+    <p>Задані завдання: створення · перевірка · нагороди · School Kingdoms</p>
+    <div class="summary">
+      <div class="stat pass"><b id="cPass">0</b><span>Пройдено</span></div>
+      <div class="stat fail"><b id="cFail">0</b><span>Впало</span></div>
+      <div class="stat todo"><b id="cTodo">0</b><span>Лишилось</span></div>
+      <div class="stat"><b id="cAll">0</b><span>Усього</span></div>
+    </div>
+    <div class="pbar"><span class="pg p" id="pgP" style="width:0"></span><span class="pg f" id="pgF" style="width:0"></span></div>
+    <div class="pct" id="pctTxt">0% перевірено</div>
+  </div>
+
+  <div class="toolbar">
+    <div class="filters">
+      <button data-f="all" class="on" onclick="setFilter('all')">Усі</button>
+      <button data-f="todo" onclick="setFilter('todo')">Лишились</button>
+      <button data-f="fail" onclick="setFilter('fail')">Впали</button>
+      <button data-f="pass" onclick="setFilter('pass')">Пройдені</button>
+    </div>
+    <div class="spacer"></div>
+    <button class="tbtn" onclick="copySummary()">📋 Підсумок</button>
+    <button class="tbtn" onclick="expandAll(true)">▾ Розгорнути</button>
+    <button class="tbtn danger" onclick="resetAll()">↺ Скинути</button>
+  </div>
+
+  <div id="sections"></div>
+
+  <div class="foot">Прогрес зберігається на цьому пристрої (localStorage). P1 — блокер · P2 — важливо · P3 — крайній випадок.</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── ДАНІ: тест-кейси (з test-plan-auth.md) ── */
+const DATA=[
+ {id:"A",title:"Батько — форма створення",items:[
+   {id:"TASK-A01",p:"P1",t:"Вкладка «Створити завдання» показує форму (Кому призначити, Тип, нагорода, «Призначити завдання →»), а не «У розробці»"},
+   {id:"TASK-A02",p:"P1",t:"Селектор «Кому призначити» містить усіх Героїв у форматі «Ім'я (@логін)»"},
+   {id:"TASK-A03",p:"P2",t:"Немає Героїв → «Спершу додайте Героя», призначення неможливе"},
+   {id:"TASK-A04",p:"P1",t:"Перемикач типу (📝 Тест / 🎮 Тренажер / ⭐ Добра справа) показує потрібний блок і ховає інші"},
+   {id:"TASK-A05",p:"P2",t:"Зміна Героя в селекторі → список «Призначені завдання» перечитується під нього"},
+ ]},
+ {id:"B",title:"Вибір тесту — порядок «як у програмі»",items:[
+   {id:"TASK-B01",p:"P1",t:"Тести згруповані за предметом (<optgroup>: Математика · 1 кл., Українська мова…), а не в довільному порядку"},
+   {id:"TASK-B02",p:"P1",t:"Усередині предмета порядок = сторінка тестів (програма): напр. «Знайди помилку до 10» перед «…до 20»"},
+   {id:"TASK-B03",p:"P2",t:"Кожен активний тест присутній; нерозкладені потрапляють у групу «Інші тести» (нічого не зникає)"},
+   {id:"TASK-B04",p:"P3",t:"SKCUR недоступний → запасне сортування за предметом, тоді за назвою (список усе одно впорядкований)"},
+   {id:"TASK-B05",p:"P2",t:"Призначений тест має правильні title/subject/testId (звірити в дитини та в heroes/{id}.tasks)"},
+ ]},
+ {id:"C",title:"Вибір тренажера",items:[
+   {id:"TASK-C01",p:"P1",t:"Список тренажерів збігається з іграми на igry.html (назви + емодзі)"},
+   {id:"TASK-C02",p:"P2",t:"Обраний тренажер призначається з url гри та іконкою"},
+   {id:"TASK-C03",p:"P3",t:"igry.html не зчитався → «Не вдалося зчитати список ігор», форма не падає"},
+ ]},
+ {id:"D",title:"Добра справа",items:[
+   {id:"TASK-D01",p:"P1",t:"Порожнє поле → «⚠️ Впишіть добру справу», завдання не створюється"},
+   {id:"TASK-D02",p:"P2",t:"Пробіли по краях обрізаються (trim); текст із самих пробілів не приймається"},
+   {id:"TASK-D03",p:"P2",t:"Призначена справа у дитини з іконкою ⭐ і підписом «Добра справа»"},
+ ]},
+ {id:"E",title:"Нагорода — поля ХР/монети",items:[
+   {id:"TASK-E01",p:"P2",t:"За замовчуванням ХР=10, монети=5; значення можна змінити"},
+   {id:"TASK-E02",p:"P2",t:"Відʼємні/нечислові → 0; надто великі обрізаються (≤9999)"},
+   {id:"TASK-E03",p:"P3",t:"Нагорода 0/0 дозволена (завдання без призу)"},
+ ]},
+ {id:"F",title:"Батько — список призначених + видалення",items:[
+   {id:"TASK-F01",p:"P1",t:"Призначене завдання одразу зʼявляється в «Призначені завдання»"},
+   {id:"TASK-F02",p:"P2",t:"Статуси в списку: нове (без бейджа) · «⏳ на перевірці» · «✓ зараховано»"},
+   {id:"TASK-F03",p:"P1",t:"«🗑» прибирає завдання (після підтвердження) — зникає й у дитини"},
+   {id:"TASK-F04",p:"P3",t:"Видалення одного завдання не чіпає статуси/нагороди інших"},
+ ]},
+ {id:"G",title:"Дитина — відображення завдань",items:[
+   {id:"TASK-G01",p:"P1",t:"На hero.html блок «Задані завдання» показує завдання, а не порожній стан"},
+   {id:"TASK-G02",p:"P1",t:"Завдання зʼявляються ПІСЛЯ входу (не губляться через відкладений модуль firebase-config)"},
+   {id:"TASK-G03",p:"P2",t:"Рядок: чекбокс, іконка, назва, підпис (предмет • ⭐/🪙), ▶ для тесту/тренажера"},
+   {id:"TASK-G04",p:"P2",t:"Порядок: нові → на перевірці → зараховані"},
+   {id:"TASK-G05",p:"P3",t:"Без завдань → «Поки що завдань немає 🎉»"},
+ ]},
+ {id:"H",title:"Дитина — чекбокс і подання",items:[
+   {id:"TASK-H01",p:"P1",t:"Тап по порожньому чекбоксу доброї справи → «⏳ На перевірці» (нагорода НЕ нараховується)"},
+   {id:"TASK-H02",p:"P1",t:"Монети/ХР дитини при поданні НЕ змінюються (тільки після підтвердження батьком)"},
+   {id:"TASK-H03",p:"P2",t:"Тап по «⏳» (pending) чекбоксу → скасовує подання, повертає у «нове»"},
+   {id:"TASK-H04",p:"P2",t:"Зараховане (зелена ✓) заблоковане — тап нічого не робить"},
+ ]},
+ {id:"I",title:"Авто-подання (тест / тренажер)",items:[
+   {id:"TASK-I01",p:"P1",t:"Тест: після проходження (≥55%) завдання само стає «на перевірці» без тапу"},
+   {id:"TASK-I02",p:"P2",t:"Тренажер: після відкриття гри з завдання (▶) і повернення — стає «на перевірці»"},
+   {id:"TASK-I03",p:"P2",t:"▶ у тесті відкриває саме той тест (test.html?id=…); у тренажері — гру в новій вкладці"},
+   {id:"TASK-I04",p:"P3",t:"Повернення на вкладку/повторний вхід не створює дублів подання"},
+ ]},
+ {id:"J",title:"Батько — вкладка «На перевірку»",items:[
+   {id:"TASK-J01",p:"P1",t:"Вкладка показує подані завдання по ВСІХ Героях, а не «У розробці»"},
+   {id:"TASK-J02",p:"P2",t:"Елемент: іконка, назва, імʼя Героя, нагорода, кнопки «✅ Підтвердити» / «↩ Повернути»"},
+   {id:"TASK-J03",p:"P2",t:"Порожньо → «Немає завдань на перевірку 🎉»"},
+   {id:"TASK-J04",p:"P3",t:"Новіші подання — зверху"},
+ ]},
+ {id:"K",title:"Підтвердження / повернення",items:[
+   {id:"TASK-K01",p:"P1",t:"«✅ Підтвердити» → нараховує ХР+монети; тост «Зараховано: ⭐X · 🪙Y»"},
+   {id:"TASK-K02",p:"P1",t:"Повторне підтвердження → «Вже зараховано», БЕЗ подвоєння нагороди"},
+   {id:"TASK-K03",p:"P1",t:"«↩ Повернути» → завдання знову «нове» у дитини, без нарахування"},
+   {id:"TASK-K04",p:"P2",t:"Після підтвердження елемент зникає з «На перевірку», у списку стає «✓ зараховано»"},
+   {id:"TASK-K05",p:"P2",t:"Кнопки «Підтвердити/Повернути» у списку «Призначені завдання» працюють так само"},
+ ]},
+ {id:"L",title:"Результат тесту у батька",items:[
+   {id:"TASK-L01",p:"P1",t:"Тест, складений після оновлення → чип «📊 80% · 8/10» біля завдання"},
+   {id:"TASK-L02",p:"P2",t:"Не склав (<55%) → чип червоний, напр. «📊 40% · 4/10»"},
+   {id:"TASK-L03",p:"P2",t:"Рівневий тест → «рівні 3/4 · 75%»"},
+   {id:"TASK-L04",p:"P3",t:"Старе проходження (до оновлення) → «складено»/«100%» без відсотка"},
+   {id:"TASK-L05",p:"P2",t:"Результат видно і в «Призначені завдання», і у «На перевірку»"},
+ ]},
+ {id:"M",title:"ХР/монети — нарахування й стійкість",items:[
+   {id:"TASK-M01",p:"P1",t:"Монети після підтвердження зростають рівно на суму завдання"},
+   {id:"TASK-M02",p:"P1",t:"ХР після підтвердження зростає; далі дитина грає в тренажер/тест — бонус ХР НЕ зникає"},
+   {id:"TASK-M03",p:"P2",t:"Кілька підтверджених завдань додаються сумарно, без втрат"},
+   {id:"TASK-M04",p:"P3",t:"Нагорода 0/0 підтверджується без зміни лічильників"},
+ ]},
+ {id:"N",title:"Крайні випадки / дані / сумісність / безпека",items:[
+   {id:"TASK-N01",p:"P1",t:"Права Firestore: призначення й підтвердження батьком НЕ дають permission-denied (батько оновлює heroes/{id})"},
+   {id:"TASK-N02",p:"P2",t:"Сумісність: завдання, зараховане в старій версії (taskClaims), показується «✓ зараховано», повторно не нараховується"},
+   {id:"TASK-N03",p:"P2",t:"XSS: назва доброї справи з <script>/HTML екранується у дитини і в батька"},
+   {id:"TASK-N04",p:"P2",t:"Кілька Героїв: «На перевірку» коректно розділяє завдання за Героєм; чуже не показується"},
+   {id:"TASK-N05",p:"P2",t:"Дитина A не бачить і не змінює завдання дитини B"},
+   {id:"TASK-N06",p:"P3",t:"Санітизація результату: у базу йдуть лише pct/correct/total/passed/hundred/levels (без стороннього)"},
+   {id:"TASK-N07",p:"P3",t:"Офлайн/повільна мережа при призначенні/підтвердженні → тост помилки, кнопка не «зависає»"},
+   {id:"TASK-N08",p:"P3",t:"Після перемальовування списку тапи по кнопках спрацьовують рівно раз (делегування)"},
+ ]},
+];
+
+const KEY='sk-tasks-checklist-v1';
+let store={st:{},notes:{},open:{}}; // st: id->'pass'|'fail'; notes: id->text; open: sectionId->bool
+let filter='all';
+
+function load(){ try{const s=JSON.parse(localStorage.getItem(KEY)); if(s){store=Object.assign(store,s);store.st=s.st||{};store.notes=s.notes||{};store.open=s.open||{};}}catch(e){} }
+function save(){ try{localStorage.setItem(KEY,JSON.stringify(store));}catch(e){} }
+load();
+
+const ALL=DATA.reduce((n,s)=>n+s.items.length,0);
+function counts(){
+  let p=0,f=0; for(const k in store.st){ if(store.st[k]==='pass')p++; else if(store.st[k]==='fail')f++; }
+  return {p,f,todo:ALL-p-f};
+}
+function secCounts(sec){ let p=0,f=0; sec.items.forEach(it=>{const s=store.st[it.id]; if(s==='pass')p++; else if(s==='fail')f++;}); return {p,f,n:sec.items.length}; }
+
+function render(){
+  const root=document.getElementById('sections'); root.innerHTML='';
+  DATA.forEach(sec=>{
+    const sc=secCounts(sec);
+    const closed = store.open[sec.id]===false;
+    const el=document.createElement('div'); el.className='section'+(closed?' closed':'');
+    const done=sc.p+sc.f;
+    el.innerHTML=
+      '<div class="shead" onclick="toggleSec(\''+sec.id+'\')">'+
+        '<span class="caret">▾</span>'+
+        '<h3></h3>'+
+        '<span class="schip">'+done+'/'+sc.n+'</span>'+
+        '<div class="smini"><span style="width:'+Math.round(sc.p/sc.n*100)+'%"></span></div>'+
+      '</div><div class="rows"></div>';
+    el.querySelector('h3').textContent=sec.id+'. '+sec.title;
+    const rows=el.querySelector('.rows');
+    sec.items.forEach(it=>{
+      const st=store.st[it.id]||'';
+      if(filter==='todo'&&st!=='') return;
+      if(filter==='fail'&&st!=='fail') return;
+      if(filter==='pass'&&st!=='pass') return;
+      const hasNote=!!(store.notes[it.id]);
+      const row=document.createElement('div');
+      row.className='row'+(st?' '+st:'')+(hasNote?' noteon':'');
+      row.innerHTML=
+        '<span class="rid">'+it.id+'</span>'+
+        '<span class="prio '+it.p+'">'+it.p+'</span>'+
+        '<div class="rbody"><div class="rtext"></div>'+
+          '<input class="note" placeholder="нотатка / дефект…" value="">'+
+        '</div>'+
+        '<div class="acts">'+
+          '<button class="mark p'+(st==='pass'?' on':'')+'" title="Пройдено" onclick="mark(\''+it.id+'\',\'pass\')">✔</button>'+
+          '<button class="mark f'+(st==='fail'?' on':'')+'" title="Впало" onclick="mark(\''+it.id+'\',\'fail\')">✖</button>'+
+          '<button class="mark n'+(hasNote?' on':'')+'" title="Нотатка" onclick="toggleNote(this)">✎</button>'+
+        '</div>';
+      row.querySelector('.rtext').textContent=it.t;
+      const note=row.querySelector('.note');
+      note.value=store.notes[it.id]||'';
+      note.addEventListener('input',()=>{ store.notes[it.id]=note.value; save(); });
+      rows.appendChild(row);
+    });
+    root.appendChild(el);
+  });
+  updateSummary();
+}
+function updateSummary(){
+  const c=counts();
+  document.getElementById('cPass').textContent=c.p;
+  document.getElementById('cFail').textContent=c.f;
+  document.getElementById('cTodo').textContent=c.todo;
+  document.getElementById('cAll').textContent=ALL;
+  document.getElementById('pgP').style.width=(c.p/ALL*100)+'%';
+  document.getElementById('pgF').style.width=(c.f/ALL*100)+'%';
+  document.getElementById('pctTxt').textContent=Math.round((c.p+c.f)/ALL*100)+'% перевірено · '+c.p+' ✔ / '+c.f+' ✖';
+}
+function mark(id,val){ store.st[id]=(store.st[id]===val)?'':val; if(store.st[id]==='')delete store.st[id]; save(); render(); }
+function toggleNote(btn){ const row=btn.closest('.row'); row.classList.toggle('noteon'); const n=row.querySelector('.note'); if(row.classList.contains('noteon'))n.focus(); }
+function toggleSec(id){ store.open[id]=store.open[id]===false?true:false; save(); render(); }
+function expandAll(open){ DATA.forEach(s=>store.open[s.id]=open); save(); render(); }
+function setFilter(f){ filter=f; document.querySelectorAll('.filters button').forEach(b=>b.classList.toggle('on',b.dataset.f===f)); render(); }
+function resetAll(){ if(!confirm('Скинути всі статуси й нотатки?'))return; store={st:{},notes:{},open:{}}; save(); render(); toast('Скинуто'); }
+
+function copySummary(){
+  const c=counts();
+  let out='ЧЕК-ЛИСТ: Задані завдання — School Kingdoms\n';
+  out+='Дата: '+new Date().toLocaleString('uk-UA')+'\n';
+  out+='Пройдено '+c.p+' · Впало '+c.f+' · Лишилось '+c.todo+' · Усього '+ALL+' ('+Math.round((c.p+c.f)/ALL*100)+'% перевірено)\n';
+  const fails=[]; DATA.forEach(s=>s.items.forEach(it=>{ if(store.st[it.id]==='fail') fails.push('  ✖ '+it.id+' — '+it.t+(store.notes[it.id]?(' | '+store.notes[it.id]):'')); }));
+  if(fails.length){ out+='\nДЕФЕКТИ ('+fails.length+'):\n'+fails.join('\n')+'\n'; }
+  const notes=[]; DATA.forEach(s=>s.items.forEach(it=>{ if(store.notes[it.id]&&store.st[it.id]!=='fail') notes.push('  • '+it.id+': '+store.notes[it.id]); }));
+  if(notes.length){ out+='\nНОТАТКИ:\n'+notes.join('\n')+'\n'; }
+  const done=()=>toast('Підсумок скопійовано');
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(out).then(done).catch(()=>fallbackCopy(out,done)); }
+  else fallbackCopy(out,done);
+}
+function fallbackCopy(text,cb){ const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select();
+  try{document.execCommand('copy');cb();}catch(e){alert(text);} document.body.removeChild(ta); }
+
+let toastT=null;
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'),1600); }
+
+render();
+</script>
+</body>
+</html>
 
