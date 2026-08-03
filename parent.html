@@ -168,6 +168,10 @@
   .ta-badge{font-weight:800;font-size:.72rem;padding:5px 9px;border-radius:99px;white-space:nowrap;
     background:rgba(88,214,141,.22);color:#8ef0b4;border:1px solid rgba(88,214,141,.45)}
   .ta-badge.wait{background:rgba(242,199,92,.2);color:#ffe7a0;border-color:rgba(242,199,92,.5)}
+  .ta-res{font-weight:800;font-size:.76rem;padding:5px 9px;border-radius:99px;white-space:nowrap;
+    background:rgba(140,175,235,.18);color:#cfe0ff;border:1px solid rgba(140,175,235,.4)}
+  .ta-res.ok{background:rgba(88,214,141,.2);color:#8ef0b4;border-color:rgba(88,214,141,.45)}
+  .ta-res.bad{background:rgba(242,120,110,.2);color:#ffb9b0;border-color:rgba(242,120,110,.45)}
 </style>
 </head>
 <body>
@@ -958,6 +962,22 @@
       }
     }
 
+    // Чип результату тесту (бал), який дитина показала при поданні
+    function taResultChip(r){
+      if (!r) return '';
+      const ok = !!(r.hundred || r.passed || (r.pct != null && +r.pct >= 55));
+      const parts = [];
+      if (r.levels){
+        parts.push('рівні '+(+r.correct||0)+'/'+(+r.total||0));
+        if (r.pct != null) parts.push((+r.pct)+'%');
+      } else {
+        if (r.pct != null) parts.push((+r.pct)+'%');
+        if (r.correct != null && r.total != null) parts.push((+r.correct)+'/'+(+r.total));
+      }
+      if (!parts.length) parts.push(r.hundred ? '100%' : r.passed ? 'складено' : 'спроба');
+      return '<span class="ta-res '+(ok?'ok':'bad')+'">📊 '+escapeHtml(parts.join(' · '))+'</span>';
+    }
+
     async function loadAssignedList(){
       const box = $('taList');
       const heroId = $('taHero').value;
@@ -985,6 +1005,7 @@
           + '<span class="ta-w">'+escapeHtml(t.title || 'Завдання')
           + (t.subject ? '<small>'+escapeHtml(t.subject)+'</small>' : '')+'</span>'
           + (rw.length ? '<span class="ta-rw">'+escapeHtml(rw.join(' · '))+'</span>' : '')
+          + (t.result ? taResultChip(t.result) : '')
           + badge + actions
           + '</div>';
       }).join('');
@@ -1035,6 +1056,7 @@
           + '<span class="ta-w">'+escapeHtml(t.title || 'Завдання')
           + '<small>'+escapeHtml(t.heroName || 'Герой')+(t.subject ? ' · '+escapeHtml(t.subject) : '')+'</small></span>'
           + (rw.length ? '<span class="ta-rw">'+escapeHtml(rw.join(' · '))+'</span>' : '')
+          + (t.result ? taResultChip(t.result) : '')
           + '<button class="btn btn-gold ta-del" onclick="approveReview(\''+escapeHtml(t.heroId)+'\',\''+escapeHtml(t.id)+'\')">✅ Підтвердити</button>'
           + '<button class="btn btn-ghost ta-del" onclick="returnReview(\''+escapeHtml(t.heroId)+'\',\''+escapeHtml(t.id)+'\')">↩ Повернути</button>'
           + '</div>';

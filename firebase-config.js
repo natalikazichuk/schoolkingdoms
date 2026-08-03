@@ -389,7 +389,8 @@ const SK = {
     const arr = Array.isArray(d.tasks) ? d.tasks : [];
     return arr.map(t => {
       const status = SK._taskStatus(d, t.id);
-      return Object.assign({}, t, { status, done: status === 'approved' });
+      const st = (d.taskState || {})[t.id] || {};
+      return Object.assign({}, t, { status, done: status === 'approved', result: st.result || null });
     }).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   },
 
@@ -443,11 +444,27 @@ const SK = {
     }).sort((a, b) => ((rank[a.status]||0) - (rank[b.status]||0)) || ((b.createdAt || 0) - (a.createdAt || 0)));
   },
 
+  // Нормалізуємо результат тесту (щоб у базу не потрапляло сміття)
+  _sanitizeResult(r) {
+    if (!r || typeof r !== 'object') return null;
+    const num = v => (v == null || isNaN(Number(v))) ? null : Math.max(0, Math.min(100000, Math.round(Number(v))));
+    const out = {};
+    if (num(r.pct)     != null) out.pct     = Math.min(100, num(r.pct));
+    if (num(r.correct) != null) out.correct = num(r.correct);
+    if (num(r.total)   != null) out.total   = num(r.total);
+    if (r.passed  != null) out.passed  = !!r.passed;
+    if (r.hundred != null) out.hundred = !!r.hundred;
+    if (r.levels  != null) out.levels  = !!r.levels;
+    return Object.keys(out).length ? out : null;
+  },
+
   // ГЕРОЙ: позначити завдання виконаним → статус 'pending' (на перевірку).
   // Нагороду НЕ нараховує — це робить БАТЬКО через approveTask.
-  async submitTask(taskId) {
+  // meta.result (для тестів) зберігаємо, щоб батько бачив бал при перевірці.
+  async submitTask(taskId, meta) {
     const heroId = SK._heroUid();
     if (!heroId || !taskId) return { ok: false };
+    const res = SK._sanitizeResult(meta && meta.result);
     const ref = doc(db, 'heroes', heroId);
     let result = { ok: false };
     await runTransaction(db, async (tx) => {
@@ -458,7 +475,9 @@ const SK = {
       if (!arr.some(t => t.id === taskId)) return;
       if (SK._taskStatus(d, taskId) === 'approved') { result = { ok: true, status: 'approved' }; return; }
       const state = d.taskState || {};
-      state[taskId] = { status: 'pending', at: Date.now() };
+      const entry = { status: 'pending', at: Date.now() };
+      if (res) entry.result = res;
+      state[taskId] = entry;
       tx.set(ref, { taskState: state, updatedAt: serverTimestamp() }, { merge: true });
       result = { ok: true, status: 'pending' };
     });
@@ -549,7 +568,7 @@ const SK = {
         if (SK._taskStatus(d, t.id) === 'pending') {
           const st = (d.taskState || {})[t.id] || {};
           out.push(Object.assign({}, t, {
-            heroId: docSnap.id, heroName: d.name || 'Герой', submittedAt: st.at || 0,
+            heroId: docSnap.id, heroName: d.name || 'Герой', submittedAt: st.at || 0, result: st.result || null,
             icon: t.icon || (t.type === 'test' ? '📝' : t.type === 'trainer' ? '🎮' : '⭐')
           }));
         }

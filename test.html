@@ -746,6 +746,8 @@ function finish(){
 
   try{ localStorage.setItem('sk_dbtest_'+id,'1'); }catch(e){}
   try{ if(pctScore>=100) localStorage.setItem('sk_test100_'+id,'1'); }catch(e){}   // 100% → у Досягнення
+  // Результат для перевірки батьком (читає hero.html при поданні завдання)
+  try{ localStorage.setItem('sk_testscore_'+id, JSON.stringify({pct:pctScore, correct:correct, total:total, passed:(pctScore>=55), at:Date.now()})); }catch(e){}
   var crossed = markPassed(pctScore>=55);   // ≥55% правильних → тест пройдено
   if(HERO_SESSION) saveReward(xpGain, statGain);
   if(crossed) setTimeout(showUnlockPopup, 500);
@@ -775,6 +777,11 @@ function finishLevel(){
   var totalLevels=levelsArr().length;
   var crossed = markPassed(totalLevels>0 && (Object.keys(doneMap).length/totalLevels)>=PASS_RATIO);
   try{ if(totalLevels>0 && Object.keys(doneMap).length>=totalLevels) localStorage.setItem('sk_test100_'+TEST.id,'1'); }catch(e){}   // усі рівні → у Досягнення
+  // Результат (по рівнях) для перевірки батьком
+  try{
+    var _lvDone=Object.keys(doneMap).length, _lvPct= totalLevels? Math.round(_lvDone/totalLevels*100):0;
+    localStorage.setItem('sk_testscore_'+TEST.id, JSON.stringify({pct:_lvPct, correct:_lvDone, total:totalLevels, levels:true, passed:(_lvPct>=55), at:Date.now()}));
+  }catch(e){}
 
   var levels=levelsArr();
   var isLast=i>=levels.length-1;
