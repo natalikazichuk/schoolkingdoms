@@ -128,9 +128,46 @@
     .card .ic{width:38px;height:38px}
     .card .cdesc{font-size:.8rem}
   }
+  /* ── ЗАСТАВКА (splash) при відкритті застосунку ──
+     Щоб змінити картинку — залий свій файл splash.jpg (або splash.webp)
+     у корінь репозиторію. Нічого в коді міняти не треба.
+     Якщо файлу немає — лишається суцільний небесно-блакитний фон.
+     Тривалість показу регулюється в JS нижче (MIN / MAX, у мілісекундах). */
+  #splash{position:fixed;inset:0;z-index:9999;background:#96cef0;overflow:hidden;
+    display:flex;align-items:center;justify-content:center;transition:opacity .45s ease}
+  #splash.gone{opacity:0;pointer-events:none}
+  #splash img{width:100%;height:100%;object-fit:cover;display:block}
+  #splash .sp-spin{position:absolute;bottom:11%;width:42px;height:42px;
+    border:4px solid rgba(255,255,255,.5);border-top-color:#fff;border-radius:50%;
+    animation:sp-rot .8s linear infinite;filter:drop-shadow(0 1px 3px rgba(0,0,0,.25))}
+  @keyframes sp-rot{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){#splash .sp-spin{animation:none}}
 </style>
 </head>
 <body>
+  <!-- ЗАСТАВКА: щоб змінити картинку — залий splash.jpg (або splash.webp) у корінь репозиторію -->
+  <div id="splash" aria-hidden="true">
+    <img src="splash.webp" alt=""
+         onerror="if(this.dataset.f!=='1'){this.dataset.f='1';this.src='splash.jpg';}else{this.style.display='none';}">
+    <div class="sp-spin"></div>
+  </div>
+  <script>
+  (function(){
+    var sp=document.getElementById('splash'); if(!sp) return;
+    var MIN=700, MAX=3000, start=Date.now(), done=false;   // MIN — мінімум показу, MAX — страховка
+    function hide(){
+      if(done) return; done=true;
+      var wait=Math.max(0, MIN-(Date.now()-start));
+      setTimeout(function(){
+        sp.classList.add('gone');
+        setTimeout(function(){ if(sp.parentNode) sp.parentNode.removeChild(sp); }, 500);
+      }, wait);
+    }
+    window.addEventListener('load', hide);
+    setTimeout(hide, MAX);
+  })();
+  </script>
+
   <div class="bg-fallback"></div>
   <div class="stars"></div>
   <div class="moon"></div>
