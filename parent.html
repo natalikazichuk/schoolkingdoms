@@ -172,6 +172,32 @@
     background:rgba(140,175,235,.18);color:#cfe0ff;border:1px solid rgba(140,175,235,.4)}
   .ta-res.ok{background:rgba(88,214,141,.2);color:#8ef0b4;border-color:rgba(88,214,141,.45)}
   .ta-res.bad{background:rgba(242,120,110,.2);color:#ffb9b0;border-color:rgba(242,120,110,.45)}
+
+  /* ── Статистика ── */
+  .st-sec{margin-top:22px}
+  .st-sec:first-child{margin-top:4px}
+  .st-sec-h{font-family:'Playfair Display',serif;font-weight:800;font-size:1.1rem;color:#FBEFD0;
+    margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .st-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(94px,1fr));gap:10px}
+  .st-card{border:1.5px solid rgba(242,199,92,.35);border-radius:14px;padding:12px 8px;text-align:center;
+    background:linear-gradient(165deg,rgba(39,81,140,.42),rgba(16,40,82,.5));display:flex;flex-direction:column;gap:3px}
+  .st-card .st-ic{font-size:1.5rem;line-height:1}
+  .st-card .st-v{font-family:'Playfair Display',serif;font-weight:800;font-size:1.35rem;color:#fff;line-height:1.1}
+  .st-card .st-l{font-size:.72rem;font-weight:700;color:#cdd9ef}
+  .st-mini-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:10px;margin-bottom:12px}
+  .st-mini{border:1.5px solid rgba(140,175,235,.28);border-radius:12px;padding:10px 12px;
+    background:rgba(8,20,42,.4);display:flex;flex-direction:column;gap:2px}
+  .st-mini .st-mini-v{font-weight:800;font-size:1.05rem;color:#fff}
+  .st-mini .st-mini-l{font-size:.74rem;font-weight:700;color:#a9bcd8}
+  .st-bar{height:12px;border-radius:99px;background:rgba(8,20,42,.55);overflow:hidden;border:1px solid rgba(140,175,235,.25)}
+  .st-bar span{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#5ad18d,#33b46f)}
+  .st-bar-l{font-size:.8rem;font-weight:700;color:#cdd9ef;margin:6px 0 2px}
+  .st-earn{font-weight:800;font-size:.88rem;color:#ffe7a0;margin-top:10px}
+  .st-grp{margin-top:14px}
+  .st-subj{display:flex;align-items:center;justify-content:space-between;gap:8px;
+    font-family:'Nunito',sans-serif;font-weight:800;font-size:.98rem;color:#fff;
+    padding:5px 2px;border-bottom:1.5px solid rgba(242,199,92,.28)}
+  .st-subj-stat{font-size:.76rem;font-weight:800;color:#ffe7a0;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -335,12 +361,15 @@
     <!-- Панель: Статистика -->
     <section class="panel" id="tab-stats">
       <div class="panel-head">📊 Статистика</div>
-      <div class="empty-block">
-        <span class="eb-ic">📊</span>
-        <span class="eb-title">Тут зʼявиться статистика</span>
-        <span class="eb-text">Прогрес, характеристики та досягнення кожної дитини.</span>
-        <span class="eb-badge">У розробці</span>
+      <div class="fr-sub">Загальний прогрес Героя: характеристики, виконані завдання та результати тестів.</div>
+      <div class="field" style="margin-bottom:6px">
+        <label for="stHero">Герой</label>
+        <select id="stHero" onchange="loadStatsFor()"><option value="">—</option></select>
       </div>
+      <div style="text-align:right;margin-bottom:10px">
+        <button class="btn btn-ghost" style="width:auto;margin:0;padding:7px 14px;font-size:.85rem" onclick="loadStatsTab()">↻ Оновити</button>
+      </div>
+      <div id="stBody"><div class="fr-empty">Оберіть Героя…</div></div>
     </section>
 
     <!-- Панель: Налаштування -->
@@ -465,6 +494,7 @@
       if (id === 'friends') loadFriendsTab();
       if (id === 'create')  loadCreateTab();
       if (id === 'review')  loadReviewTab();
+      if (id === 'stats')   loadStatsTab();
       window.scrollTo(0, 0);
     }
 
@@ -1078,6 +1108,199 @@
       try { await SK.returnTask(heroId, taskId); toast('↩ Повернуто дитині'); }
       catch(e){ console.warn('[parent] returnReview:', e); toast('❌ Не вдалося'); }
       loadReviewTab();
+    }
+
+    /* ═══════════ СТАТИСТИКА ═══════════
+       Джерело даних — документ Героя (heroes/{id}):
+         • xp/coins/level + характеристики (health/accuracy/agility/mana);
+         • tasks[] + taskState{} — призначені завдання та їх статуси;
+         • progress{} — дзеркало localStorage дитини з результатами тестів
+           (ключі sk_testscore_/sk_test100_/sk_testpass_/sk_dbtest_/sk_lvtest_).
+       Назви й предмети тестів беремо зі списку tests, стат предмета — з SKCUR. */
+    let ST_HEROES = null;   // мапа {id: heroDoc}
+    let ST_TESTS  = null;   // список усіх тестів (id → назва/предмет)
+    let ST_CUR;             // карта програми (для предмет→стат); undefined = ще не тягли
+
+    async function loadStatsTab(){
+      const sel = $('stHero'), body = $('stBody');
+      if (!sel || !body) return;
+      let heroes = {};
+      try { heroes = await SK.getHeroes() || {}; }
+      catch(e){ console.warn('[parent] stats getHeroes:', e); }
+      ST_HEROES = heroes;
+      const ids = Object.keys(heroes);
+      if (!ids.length){
+        sel.innerHTML = '<option value="">—</option>';
+        body.innerHTML = '<div class="empty-block">'
+          + '<span class="eb-ic">🛡️</span>'
+          + '<span class="eb-title">Ще немає Героїв</span>'
+          + '<span class="eb-text">Додайте Героя у вкладці «Герої» — і тут зʼявиться його статистика.</span></div>';
+        return;
+      }
+      const prev = sel.value;
+      sel.innerHTML = ids.map(id =>
+        '<option value="'+escapeHtml(id)+'">'+escapeHtml(heroes[id].name || 'Герой')
+        +' (@'+escapeHtml(heroes[id].login || '')+')</option>').join('');
+      if (prev && heroes[prev]) sel.value = prev;
+      loadStatsFor();
+    }
+
+    async function loadStatsFor(){
+      const body = $('stBody');
+      if (!body) return;
+      const id = $('stHero').value;
+      if (!id || !ST_HEROES || !ST_HEROES[id]){ body.innerHTML = '<div class="fr-empty">Оберіть Героя…</div>'; return; }
+      body.innerHTML = '<div class="fr-empty">Завантаження…</div>';
+      if (ST_TESTS === null){
+        try { ST_TESTS = await SK.listTests() || []; }
+        catch(e){ console.warn('[parent] stats listTests:', e); ST_TESTS = []; }
+      }
+      if (ST_CUR === undefined){
+        try { ST_CUR = (window.SKCUR && SKCUR.ready) ? await SKCUR.ready : (window.SKCUR ? SKCUR.map : null); }
+        catch(e){ ST_CUR = (window.SKCUR ? SKCUR.map : null); }
+      }
+      // після await вибір міг змінитися — беремо актуального Героя
+      const hid = $('stHero').value;
+      const hero = ST_HEROES && ST_HEROES[hid];
+      if (!hero){ body.innerHTML = '<div class="fr-empty">Оберіть Героя…</div>'; return; }
+      body.innerHTML = stOverview(hero) + stTasks(hero) + stTests(hero);
+    }
+
+    function stSec(title, inner){
+      return '<div class="st-sec"><div class="st-sec-h">'+escapeHtml(title)+'</div>'+inner+'</div>';
+    }
+    function stMini(ic, v, l){
+      return '<div class="st-mini"><span class="st-mini-v">'+ic+' '+escapeHtml(String(v))
+        +'</span><span class="st-mini-l">'+escapeHtml(l)+'</span></div>';
+    }
+    function stNum(n){ return String(Math.round(Number(n) || 0)); }
+
+    // ── Огляд: характеристики та валюта ──
+    function stOverview(hero){
+      const cards = [
+        {ic:'🎖️', v: stNum(hero.level || 1), l:'Рівень'},
+        {ic:'⭐',  v: stNum(hero.xp    || 0), l:'XP'},
+        {ic:'🪙',  v: stNum(hero.coins || 0), l:'Монети'},
+        {ic:'❤️', v: stNum(hero.health   || 0), l:"Здоров'я"},
+        {ic:'🎯', v: stNum(hero.accuracy || 0), l:'Точність'},
+        {ic:'🏃', v: stNum(hero.agility  || 0), l:'Спритність'},
+        {ic:'🔮', v: stNum(hero.mana     || 0), l:'Мана'}
+      ];
+      const grid = '<div class="st-cards">' + cards.map(c =>
+        '<div class="st-card"><span class="st-ic">'+c.ic+'</span>'
+        +'<span class="st-v">'+escapeHtml(c.v)+'</span>'
+        +'<span class="st-l">'+escapeHtml(c.l)+'</span></div>').join('') + '</div>';
+      return stSec('👑 Огляд героя', grid);
+    }
+
+    // ── Завдання: підсумок за статусами ──
+    function stTasks(hero){
+      const tasks = Array.isArray(hero.tasks) ? hero.tasks : [];
+      const state = hero.taskState || {}, claims = hero.taskClaims || {};
+      const statusOf = id => { const s = state[id]; if (s && s.status) return s.status; if (claims[id]) return 'approved'; return 'assigned'; };
+      if (!tasks.length) return stSec('📋 Завдання', '<div class="fr-empty">Завдань ще не призначали.</div>');
+      let approved=0, pending=0, assigned=0, xp=0, coins=0;
+      tasks.forEach(t => {
+        const s = statusOf(t.id);
+        if (s === 'approved'){ approved++; const e = state[t.id] || {};
+          xp    += Number(e.xp    != null ? e.xp    : t.xp)    || 0;
+          coins += Number(e.coins != null ? e.coins : t.coins) || 0;
+        } else if (s === 'pending') pending++;
+        else assigned++;
+      });
+      const total = tasks.length;
+      const cards = '<div class="st-mini-row">'
+        + stMini('📋', total,    'усього')
+        + stMini('✅', approved, 'зараховано')
+        + stMini('⏳', pending,  'на перевірці')
+        + stMini('📝', assigned, 'в роботі') + '</div>';
+      const pct = total ? Math.round(approved/total*100) : 0;
+      const bar = '<div class="st-bar"><span style="width:'+pct+'%"></span></div>'
+        + '<div class="st-bar-l">Виконано '+approved+' з '+total+' ('+pct+'%)</div>'
+        + '<div class="st-earn">Зароблено із завдань: ⭐ '+xp+' · 🪙 '+coins+'</div>';
+      return stSec('📋 Завдання', cards + bar);
+    }
+
+    // ── Тести: збираємо результати з progress{} ──
+    function stCollectTests(hero){
+      const prog = hero.progress || {}, byId = {};
+      const ensure = id => byId[id] || (byId[id] = { id, attempted:false, passed:false, hundred:false, score:null });
+      Object.keys(prog).forEach(k => {
+        const v = prog[k]; let m;
+        if ((m = /^sk_testscore_(.+)$/.exec(k))){
+          let r = null; try { r = JSON.parse(v); } catch(e){}
+          if (r && typeof r === 'object'){ const e = ensure(m[1]); e.score = r; e.attempted = true;
+            if (r.passed || (r.pct != null && +r.pct >= 55)) e.passed = true; }
+        } else if ((m = /^sk_test100_(.+)$/.exec(k))){ if (v === '1'){ const e = ensure(m[1]); e.hundred = true; e.passed = true; e.attempted = true; } }
+        else if ((m = /^sk_testpass_(.+)$/.exec(k))){ if (v === '1'){ const e = ensure(m[1]); e.passed = true; e.attempted = true; } }
+        else if ((m = /^sk_dbtest_(.+)$/.exec(k))){ if (v === '1') ensure(m[1]).attempted = true; }
+        else if ((m = /^sk_lvtest_(.+)_done$/.exec(k))){
+          let n = 0; try { const o = JSON.parse(v); n = (o && typeof o === 'object') ? Object.keys(o).length : 0; } catch(e){}
+          if (n > 0) ensure(m[1]).attempted = true;
+        }
+      });
+      return Object.keys(byId).map(id => byId[id]);
+    }
+
+    // предмет тесту → предмет карти (іконка, стат, порядок як у програмі)
+    function stSubjectFor(subjName){
+      const cur = ST_CUR || (window.SKCUR ? SKCUR.map : null);
+      let ord = 0;
+      if (cur && Array.isArray(cur.tiers)){
+        for (const t of cur.tiers) for (const g of (t.grades || [])) for (const s of (g.subjects || [])){
+          if (window.SKCUR && SKCUR.subjectMatches && SKCUR.subjectMatches(s, subjName))
+            return { name: s.name, icon: s.icon || '📘', stat: s.stat || '', ord };
+          ord++;
+        }
+      }
+      return { name: subjName || 'Інші тести', icon: '📄', stat: '', ord: 999 };
+    }
+
+    function stTestChip(e){
+      const r = e.score;
+      const ok = !!(e.hundred || e.passed || (r && r.pct != null && +r.pct >= 55));
+      const parts = [];
+      if (r && r.levels){ parts.push('рівні '+(+r.correct||0)+'/'+(+r.total||0)); if (r.pct != null) parts.push((+r.pct)+'%'); }
+      else if (r){ if (r.pct != null) parts.push((+r.pct)+'%'); if (r.correct != null && r.total != null) parts.push((+r.correct)+'/'+(+r.total)); }
+      if (!parts.length) parts.push(e.hundred ? '100%' : e.passed ? 'складено' : 'спроба');
+      return '<span class="ta-res '+(ok?'ok':'bad')+'">📊 '+escapeHtml(parts.join(' · '))+'</span>';
+    }
+
+    function stTests(hero){
+      const entries = stCollectTests(hero);
+      if (!entries.length) return stSec('📚 Тести', '<div class="fr-empty">Пройдених тестів ще немає.</div>');
+      const byId = {}; (ST_TESTS || []).forEach(t => { byId[t.id] = t; });
+      let attempted=0, passed=0, hundred=0, pctSum=0, pctCnt=0;
+      const groups = {}, order = [];
+      entries.forEach(e => {
+        attempted++;
+        if (e.passed) passed++;
+        if (e.hundred) hundred++;
+        if (e.score && e.score.pct != null){ pctSum += Number(e.score.pct) || 0; pctCnt++; }
+        const meta = byId[e.id] || {};
+        const cur = stSubjectFor(meta.subject || '');
+        if (!groups[cur.name]){ groups[cur.name] = { cur, rows: [] }; order.push(cur.name); }
+        groups[cur.name].rows.push({ title: meta.title || 'Тест', e });
+      });
+      order.sort((a,b) => (groups[a].cur.ord - groups[b].cur.ord) || a.localeCompare(b, 'uk'));
+      const avg = pctCnt ? Math.round(pctSum/pctCnt) : null;
+      const cards = '<div class="st-mini-row">'
+        + stMini('📚', attempted, 'пройдено')
+        + stMini('🏅', passed,    'складено')
+        + stMini('💯', hundred,   'на 100%')
+        + stMini('📊', (avg != null ? avg+'%' : '—'), 'середній бал') + '</div>';
+      const body = order.map(k => {
+        const g = groups[k];
+        const head = '<div class="st-subj"><span>'+escapeHtml(g.cur.icon+' '+g.cur.name)+'</span>'
+          + (g.cur.stat ? '<span class="st-subj-stat">'+escapeHtml(g.cur.stat)+'</span>' : '') + '</div>';
+        const rows = g.rows.map(r =>
+          '<div class="ta-item">'
+          + '<span class="ta-ic">'+(r.e.hundred ? '💯' : r.e.passed ? '✅' : '📝')+'</span>'
+          + '<span class="ta-w">'+escapeHtml(r.title)+'</span>'
+          + stTestChip(r.e) + '</div>').join('');
+        return '<div class="st-grp">'+head+rows+'</div>';
+      }).join('');
+      return stSec('📚 Тести', cards + body);
     }
 
     // Вихід: завершуємо сесію Firebase, тоді ведемо на сторінку входу
