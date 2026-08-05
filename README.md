@@ -212,6 +212,15 @@ npx serve .
 ---
 
 ## 📄 Ліцензія
+## Copyright
+
+© 2026 Nataliia Kazichuk. All Rights Reserved.
+
+SkillKingdom is an original educational platform created and developed by Nataliia Kazichuk.
+
+This repository is provided for portfolio and demonstration purposes only.
+
+No permission is granted to copy, reproduce, modify, distribute, or commercially use any part of this project without prior written permission from the author.
 
 Проєкт створено для освітніх цілей.
 
