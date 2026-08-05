@@ -13,6 +13,15 @@
 <link rel="stylesheet" href="sk-styles.css">
 <style>
   body{display:flex;flex-direction:column}
+  /* ── Темна тема кабінету (лише parent.html; sk-styles.css НЕ чіпаємо) ── */
+  .bg-fallback,.stars{display:none !important}
+  body{background:
+      radial-gradient(1200px 700px at 12% -10%, #3a6aa8 0%, rgba(58,106,168,0) 60%),
+      radial-gradient(1100px 800px at 108% 8%, #2f5c96 0%, rgba(47,92,150,0) 55%),
+      linear-gradient(160deg,#1d3f70,#122a4e) fixed;
+    color:#e9f0fb}
+  .cab-watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+    width:min(60vw,560px);height:auto;z-index:-1;pointer-events:none;opacity:.5}
   /* ── Шапка ──
      Стандарт у sk-styles.css (.topbar/.brand/.brand-name/.brand-sub/.logo-img).
      Тут лишаємо лише те, чого немає в стандарті: кнопки праворуч. */
@@ -224,11 +233,39 @@
     font-family:'Nunito',sans-serif;font-weight:800;font-size:.98rem;color:#fff;
     padding:5px 2px;border-bottom:1.5px solid rgba(242,199,92,.28)}
   .st-subj-stat{font-size:.76rem;font-weight:800;color:#ffe7a0;white-space:nowrap}
+
+  /* ── Огляд (дашборд) ── */
+  .ov-greet{font-family:'Playfair Display',serif;font-weight:800;font-size:clamp(1.45rem,3vw,2rem);
+    color:#FBEFD0;text-shadow:0 2px 12px rgba(0,0,0,.4);margin:0 0 2px;line-height:1.2}
+  .ov-sub{color:#9db2d4;font-weight:600;margin:0 0 22px}
+  .ov-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:24px}
+  .ov-stat{background:linear-gradient(165deg,rgba(39,81,140,.5),rgba(16,40,82,.55));
+    border:1px solid rgba(242,199,92,.28);border-radius:18px;padding:20px;display:flex;align-items:center;gap:15px}
+  .ov-stat.gold{background:linear-gradient(165deg,rgba(242,199,92,.16),rgba(201,148,47,.12));border-color:rgba(242,199,92,.5)}
+  .ov-stat .ov-ic{font-size:2rem;line-height:1}
+  .ov-stat .ov-n{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:800;color:#fff;line-height:1}
+  .ov-stat.gold .ov-n{color:#FBEFD0}
+  .ov-stat .ov-l{font-size:.82rem;font-weight:700;color:#cdd9ef;margin-top:2px}
+  .ov-stat.gold .ov-l{color:#ffe9b8}
+  .ov-h{font-family:'Playfair Display',serif;font-weight:800;color:#FBEFD0;font-size:1.15rem;margin-bottom:12px}
+  .ov-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:26px}
+  .ov-attention{background:linear-gradient(165deg,rgba(19,44,86,.5),rgba(12,30,62,.55));
+    border:1px solid rgba(242,199,92,.25);border-radius:18px;padding:22px}
+  .ov-att-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+  .btn-link{background:none;border:none;font-family:inherit;font-size:.88rem;font-weight:800;color:#F2C75C;cursor:pointer;white-space:nowrap}
+  .ov-support{margin-top:22px;color:#9db2d4;font-weight:600;font-size:.9rem}
+
+  /* ── Значок-лічильник на «Перевірка» ── */
+  .botnav .ic-wrap{position:relative;display:inline-flex}
+  .nav-badge{position:absolute;top:-4px;right:-10px;min-width:16px;height:16px;padding:0 3px;border-radius:99px;
+    background:#F2C75C;color:#5a3d05;font-size:.6rem;font-weight:900;display:grid;place-items:center;
+    box-shadow:0 1px 4px rgba(0,0,0,.4)}
 </style>
 </head>
 <body>
   <div class="bg-fallback"></div>
   <div class="stars"></div>
+  <img class="cab-watermark" src="logo-big.webp" alt="" aria-hidden="true">
 
   <!-- ── Шапка ── -->
   <header class="topbar">
@@ -245,23 +282,44 @@
 
   <!-- ── Тіло ── -->
   <main class="cab-wrap">
-    <p class="greeting" id="greeting"></p>
-    <p class="cab-sub">Керуйте завданнями, перевіряйте роботи та стежте за прогресом.</p>
+      <!-- ═══════════ ОГЛЯД ═══════════ -->
+      <section class="panel active" id="tab-overview">
+        <p class="ov-greet" id="greeting">Сьогодні чудовий день!</p>
+        <p class="ov-sub">Ось що відбувається у ваших Героїв.</p>
 
-    <!-- Панель: Головна — вертикальне меню розділів + панель перегляду -->
-    <section class="panel active" id="tab-home">
-      <div class="pcab">
-        <nav class="pcab-menu" aria-label="Розділи кабінету">
-          <button class="pmenu-item active" data-sub="create"   onclick="showSub('create')"><span class="ti">📝</span>Створити завдання</button>
-          <button class="pmenu-item"        data-sub="review"   onclick="showSub('review')"><span class="ti">✅</span>На перевірку</button>
-          <button class="pmenu-item"        data-sub="stats"    onclick="showSub('stats')"><span class="ti">📊</span>Статистика</button>
-          <button class="pmenu-item"        data-sub="settings" onclick="showSub('settings')"><span class="ti">⚙️</span>Налаштування</button>
-        </nav>
-        <div class="pcab-view" id="pcabView">
-            <div class="subpanel active" id="sub-create">
-              <div class="panel-head">📝 Створити завдання</div>
+        <div class="ov-stats">
+          <div class="ov-stat"><span class="ov-ic">🛡️</span><div><div class="ov-n" id="ovHeroes">—</div><div class="ov-l">Герої</div></div></div>
+          <div class="ov-stat gold"><span class="ov-ic">⏳</span><div><div class="ov-n" id="ovPending">—</div><div class="ov-l">На перевірку</div></div></div>
+          <div class="ov-stat"><span class="ov-ic">📈</span><div><div class="ov-n" id="ovProgress">—</div><div class="ov-l">Середній прогрес</div></div></div>
+        </div>
 
-              <div class="form-card">
+        <div class="ov-h">Швидкі дії</div>
+        <div class="ov-actions">
+          <button class="home-act" onclick="showTab('create')"><span class="ti">📝</span>Створити завдання</button>
+          <button class="home-act" onclick="showTab('review')"><span class="ti">✅</span>Перевірити роботи</button>
+          <button class="home-act" onclick="showTab('heroes')"><span class="ti">🛡️</span>Додати Героя</button>
+          <button class="home-act" onclick="showTab('friends')"><span class="ti">🤝</span>Друзі</button>
+        </div>
+
+        <div class="ov-attention">
+          <div class="ov-att-head">
+            <div class="ov-h" style="margin:0">Потребує уваги</div>
+            <button class="btn-link" onclick="showTab('review')">Дивитись усе →</button>
+          </div>
+          <div id="ovAttention"><div class="fr-empty">Завантаження…</div></div>
+        </div>
+
+        <div class="ov-support">
+          Виникло питання чи проблема? Напишіть нам — <a href="mailto:schoolkingdoms@gmail.com">schoolkingdoms@gmail.com</a>
+        </div>
+      </section>
+
+      <!-- ═══════════ ЗАВДАННЯ ═══════════ -->
+      <section class="panel" id="tab-create">
+        <div class="panel-head">📝 Створити завдання</div>
+        <div class="fr-sub" style="margin-bottom:16px">Оберіть Героя, тип завдання та нагороду.</div>
+
+        <div class="form-card">
                 <div class="field">
                   <label for="taHero">Кому призначити</label>
                   <select id="taHero"><option value="">Завантаження…</option></select>
@@ -311,54 +369,38 @@
                 <button class="btn btn-gold" id="taAssign" onclick="doAssignTask()">Призначити завдання →</button>
               </div>
 
-              <div class="fr-t" style="margin-top:20px">Призначені завдання</div>
-              <div class="fr-sub">Виконані дитиною позначені зеленим. Нагорода нараховується <b>один раз</b>.</div>
-              <div id="taList"><div class="fr-empty">Оберіть Героя…</div></div>
-            </div>
+        <div class="fr-t" style="margin-top:20px">Призначені завдання</div>
+        <div class="fr-sub">Виконані дитиною позначені зеленим. Нагорода нараховується <b>один раз</b>.</div>
+        <div id="taList"><div class="fr-empty">Оберіть Героя…</div></div>
+      </section>
 
-            <div class="subpanel" id="sub-review">
-              <div class="panel-head">✅ Завдання на перевірку</div>
-              <div class="fr-sub">Виконані дітьми завдання, які чекають на ваше підтвердження. Нагорода нараховується <b>лише після підтвердження</b>.</div>
-              <div id="reviewList"><div class="fr-empty">Завантаження…</div></div>
-            </div>
+      <!-- ═══════════ ПЕРЕВІРКА ═══════════ -->
+      <section class="panel" id="tab-review">
+        <div class="panel-head">✅ Завдання на перевірку</div>
+        <div class="fr-sub">Виконані дітьми завдання, які чекають на ваше підтвердження. Нагорода нараховується <b>лише після підтвердження</b>.</div>
+        <div id="reviewList"><div class="fr-empty">Завантаження…</div></div>
+      </section>
 
-            <div class="subpanel" id="sub-stats">
-              <div class="panel-head">📊 Статистика</div>
-              <div class="fr-sub">Загальний прогрес Героя: характеристики, виконані завдання та результати тестів.</div>
-              <div class="field" style="margin-bottom:6px">
-                <label for="stHero">Герой</label>
-                <select id="stHero" onchange="loadStatsFor()"><option value="">—</option></select>
-              </div>
-              <div style="text-align:right;margin-bottom:10px">
-                <button class="btn btn-ghost" style="width:auto;margin:0;padding:7px 14px;font-size:.85rem" onclick="loadStatsTab()">↻ Оновити</button>
-              </div>
-              <div id="stBody"><div class="fr-empty">Оберіть Героя…</div></div>
-            </div>
-
-            <div class="subpanel" id="sub-settings">
-              <div class="panel-head">⚙️ Налаштування</div>
-              <div class="empty-block">
-                <span class="eb-ic">⚙️</span>
-                <span class="eb-title">Тут зʼявляться налаштування</span>
-                <span class="eb-text">Профілі дітей, PIN-коди, нагороди та параметри сімʼї.</span>
-                <span class="eb-badge">У розробці</span>
-              </div>
-              <div class="empty-block" style="margin-top:12px">
-                <span class="eb-ic">✉️</span>
-                <span class="eb-title">Підтримка</span>
-                <span class="eb-text">Виникло питання чи проблема? Напишіть нам —
-                  <a href="mailto:schoolkingdoms@gmail.com">schoolkingdoms@gmail.com</a></span>
-              </div>
-            </div>
+      <!-- ═══════════ СТАТИСТИКА ═══════════ -->
+      <section class="panel" id="tab-stats">
+        <div class="panel-head">📊 Статистика</div>
+        <div class="fr-sub">Загальний прогрес Героя: характеристики, виконані завдання та результати тестів.</div>
+        <div class="field" style="margin-bottom:6px;max-width:420px">
+          <label for="stHero">Герой</label>
+          <select id="stHero" onchange="loadStatsFor()"><option value="">—</option></select>
         </div>
-      </div>
-    </section>
+        <div style="max-width:420px;text-align:right;margin-bottom:10px">
+          <button class="btn btn-ghost" style="width:auto;margin:0;padding:7px 14px;font-size:.85rem" onclick="loadStatsTab()">↻ Оновити</button>
+        </div>
+        <div id="stBody"><div class="fr-empty">Оберіть Героя…</div></div>
+      </section>
 
-    <!-- Панель: Герої -->
-    <section class="panel" id="tab-heroes">
-      <div class="panel-head">🛡️ Герої</div>
+      <!-- ═══════════ ГЕРОЇ ═══════════ -->
+      <section class="panel" id="tab-heroes">
+        <div class="panel-head">🛡️ Герої</div>
+        <div class="fr-sub" style="margin-bottom:16px">Профілі ваших дітей у застосунку.</div>
 
-      <div class="add-hero-bar">
+        <div class="add-hero-bar">
         <button class="btn btn-gold" id="toggleFormBtn" onclick="toggleForm()" style="max-width:260px">➕ Додати Героя</button>
       </div>
 
@@ -412,16 +454,14 @@
         <button class="btn btn-gold" id="btnCreateHero" onclick="doCreateHero()">Створити Героя →</button>
         <button class="btn btn-ghost" onclick="toggleForm(false)" style="margin-top:8px">Скасувати</button>
       </div>
-    </section>
 
+      </section>
 
+      <!-- ═══════════ ДРУЗІ ═══════════ -->
+      <section class="panel" id="tab-friends">
+        <div class="panel-head">🤝 Друзі з інших родин</div>
 
-
-    <!-- Панель: Налаштування -->
-    <section class="panel" id="tab-friends">
-      <div class="panel-head">🤝 Друзі з інших родин</div>
-
-      <div class="fr-note">
+        <div class="fr-note">
         🔒 <b>Дружбу створюють лише дорослі.</b> Дитина нікого не може додати сама.
         Друзі бачать одне в одного <b>лише ім'я, аватар і рівень</b> — жодних особистих даних,
         листування чи пошуку інших дітей у застосунку немає.
@@ -454,15 +494,18 @@
       <div class="fr-t" style="margin-top:20px">Запити та друзі</div>
       <div class="fr-sub">Дружба вмикається лише тоді, коли її підтвердили дорослі <b>з обох боків</b>.</div>
       <div id="frList"><div class="fr-empty">Завантаження…</div></div>
-    </section>
+      </section>
 
   </main>
 
   <!-- ── Нижня навігація (як на дитячих сторінках) ── -->
   <nav class="botnav">
-    <button data-nav="home"    class="active" onclick="showTab('home')"><span class="ic">🏠</span>Головна</button>
-    <button data-nav="heroes"  onclick="showTab('heroes')"><span class="ic">🛡️</span>Герої</button>
-    <button data-nav="friends" onclick="showTab('friends')"><span class="ic">🤝</span>Друзі</button>
+    <button data-nav="overview" class="active" onclick="showTab('overview')"><span class="ic">🏠</span>Огляд</button>
+    <button data-nav="create"   onclick="showTab('create')"><span class="ic">📝</span>Завдання</button>
+    <button data-nav="review"   onclick="showTab('review')"><span class="ic ic-wrap">✅<span class="nav-badge" id="reviewBadge" hidden>0</span></span>Перевірка</button>
+    <button data-nav="stats"    onclick="showTab('stats')"><span class="ic">📊</span>Статистика</button>
+    <button data-nav="heroes"   onclick="showTab('heroes')"><span class="ic">🛡️</span>Герої</button>
+    <button data-nav="friends"  onclick="showTab('friends')"><span class="ic">🤝</span>Друзі</button>
     <a href="rodyna.html"><span class="ic">🌳</span>Дерево роду</a>
     <button id="logoutBtn"><span class="ic">🚪</span>Вийти</button>
   </nav>
@@ -486,7 +529,7 @@
           loadGreeting();
           revealAdmin();
           bindFriends();
-          showSub('create');
+          showTab('overview');
         } catch(_){}
       });
     })();
@@ -511,49 +554,113 @@
         const surname = (p && p.surname) ? p.surname.trim() : '';
         const full = [name, surname].filter(Boolean).join(' ');
         el.textContent = full
-          ? `Сьогодні чудовий день, ${full}!`
-          : 'Сьогодні чудовий день!';
+          ? `Сьогодні чудовий день, ${full}! ✨`
+          : 'Сьогодні чудовий день! ✨';
       }catch(e){
         console.warn('[parent] loadGreeting:', e);
       }
     }
 
-    // Перемикання панелей. Нижня навігація має 3 «кореневі» розділи
-    // (home / heroes / friends); create·review·stats·settings — під «Головною»,
-    // тож для них у нижній навігації лишається підсвіченою «Головна».
+    // Перемикання вкладок кабінету. Нижня навігація тепер має 6 рівноправних
+    // розділів: overview·create·review·stats·heroes·friends. showSub(...) лишено
+    // як тонкий псевдонім для зворотної сумісності зі старими викликами.
     function showTab(id){
-      // create·review·stats·settings живуть у «Головній» як розділи перегляду
-      var SUBS = ['create','review','stats','settings'];
-      if (SUBS.indexOf(id) !== -1){
-        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-        var home = document.getElementById('tab-home');
-        if (home) home.classList.add('active');
-        document.querySelectorAll('.botnav [data-nav]').forEach(a =>
-          a.classList.toggle('active', a.getAttribute('data-nav') === 'home'));
-        showSub(id);
-        window.scrollTo(0, 0);
-        return;
-      }
-      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      var VALID = ['overview','create','review','stats','heroes','friends'];
+      if (VALID.indexOf(id) === -1) id = 'overview';
+      document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
       var panel = document.getElementById('tab-' + id);
       if (panel) panel.classList.add('active');
-      var footKey = (id === 'heroes' || id === 'friends') ? id : 'home';
-      document.querySelectorAll('.botnav [data-nav]').forEach(a =>
-        a.classList.toggle('active', a.getAttribute('data-nav') === footKey));
-      if (id === 'friends') loadFriendsTab();
+      document.querySelectorAll('.botnav [data-nav]').forEach(function(a){
+        a.classList.toggle('active', a.getAttribute('data-nav') === id);
+      });
+      if (id === 'overview') loadOverview();
+      else if (id === 'create')   loadCreateTab();
+      else if (id === 'review')   loadReviewTab();
+      else if (id === 'stats')    loadStatsTab();
+      else if (id === 'friends')  loadFriendsTab();
       window.scrollTo(0, 0);
     }
+    function showSub(id){ showTab(id); }
 
-    // Перемикання розділів усередині «Головної» (панель перегляду праворуч).
-    function showSub(id){
-      document.querySelectorAll('#pcabView .subpanel').forEach(p => p.classList.remove('active'));
-      var sp = document.getElementById('sub-' + id);
-      if (sp) sp.classList.add('active');
-      document.querySelectorAll('.pcab-menu [data-sub]').forEach(b =>
-        b.classList.toggle('active', b.getAttribute('data-sub') === id));
-      if (id === 'create')  loadCreateTab();
-      if (id === 'review')  loadReviewTab();
-      if (id === 'stats')   loadStatsTab();
+    /* ═══════════ ОГЛЯД (дашборд) ═══════════
+       Лічильники (Герої / На перевірку / Середній прогрес), швидкі дії та
+       блок «Потребує уваги» з тими самими даними, що й вкладки нижче. */
+    function setOv(id, v){ var el = $(id); if (el) el.textContent = String(v); }
+
+    function updateReviewBadge(n){
+      var b = $('reviewBadge');
+      if (!b) return;
+      if (n > 0){ b.textContent = n > 99 ? '99+' : String(n); b.hidden = false; }
+      else b.hidden = true;
+    }
+
+    async function loadOverview(){
+      loadGreeting();
+      // Герої + середній прогрес (частка зарахованих завдань, усереднена по Героях)
+      var heroes = {};
+      try { heroes = await SK.getHeroes() || {}; }
+      catch(e){ console.warn('[parent] overview heroes:', e); }
+      var ids = Object.keys(heroes);
+      setOv('ovHeroes', ids.length);
+      var sum = 0, cnt = 0;
+      ids.forEach(function(id){
+        var h = heroes[id] || {};
+        var tasks = Array.isArray(h.tasks) ? h.tasks : [];
+        if (!tasks.length) return;
+        var state = h.taskState || {}, claims = h.taskClaims || {};
+        var approved = 0;
+        tasks.forEach(function(t){
+          var st = (state[t.id] && state[t.id].status) ? state[t.id].status
+                 : (claims[t.id] ? 'approved' : 'assigned');
+          if (st === 'approved') approved++;
+        });
+        sum += approved / tasks.length; cnt++;
+      });
+      setOv('ovProgress', cnt ? Math.round(sum / cnt * 100) + '%' : '—');
+
+      // На перевірку + блок «Потребує уваги»
+      var box = $('ovAttention');
+      var items = [];
+      try { items = await SK.getPendingReviews() || []; }
+      catch(e){
+        console.warn('[parent] overview reviews:', e);
+        if (box) box.innerHTML = '<div class="fr-empty">Не вдалося завантажити.</div>';
+      }
+      setOv('ovPending', items.length);
+      updateReviewBadge(items.length);
+      if (box){
+        if (!items.length){
+          box.innerHTML = '<div class="fr-empty">Немає завдань на перевірку 🎉</div>';
+        } else {
+          box.innerHTML = items.slice(0, 4).map(function(t){
+            var rw = [];
+            if (+t.xp)    rw.push('⭐ ' + (+t.xp));
+            if (+t.coins) rw.push('🪙 ' + (+t.coins));
+            return '<div class="ta-item">'
+              + '<span class="ta-ic">' + escapeHtml(t.icon || '📌') + '</span>'
+              + '<span class="ta-w">' + escapeHtml(t.title || 'Завдання')
+              + '<small>' + escapeHtml(t.heroName || 'Герой')
+              + (t.subject ? ' · ' + escapeHtml(t.subject) : '') + '</small></span>'
+              + (rw.length ? '<span class="ta-rw">' + escapeHtml(rw.join(' · ')) + '</span>' : '')
+              + (t.result ? taResultChip(t.result) : '')
+              + '<button class="btn btn-gold ta-del" onclick="approveOverview(\'' + escapeHtml(t.heroId) + '\',\'' + escapeHtml(t.id) + '\')">✅ Підтвердити</button>'
+              + '</div>';
+          }).join('');
+          if (items.length > 4){
+            box.innerHTML += '<div class="fr-empty">…та ще ' + (items.length - 4) + ' — див. вкладку «Перевірка».</div>';
+          }
+        }
+      }
+    }
+
+    async function approveOverview(heroId, taskId){
+      if (!heroId || !taskId) return;
+      try {
+        var r = await SK.approveTask(heroId, taskId);
+        if (r && r.ok) toast(r.already ? 'Вже зараховано' : '✅ Зараховано: ⭐' + (+r.xp) + ' · 🪙' + (+r.coins));
+        else toast('❌ Не вдалося');
+      } catch(e){ console.warn('[parent] approveOverview:', e); toast('❌ Не вдалося підтвердити'); }
+      loadOverview();
     }
 
     // ── Допоміжне ──
@@ -1134,6 +1241,7 @@
       let items = [];
       try { items = await SK.getPendingReviews(); }
       catch(e){ console.warn('[parent] getPendingReviews:', e); box.innerHTML = '<div class="fr-empty">Не вдалося завантажити.</div>'; return; }
+      updateReviewBadge(items.length);
       if (!items.length){ box.innerHTML = '<div class="fr-empty">Немає завдань на перевірку 🎉</div>'; return; }
       box.innerHTML = items.map(function(t){
         const rw = [];
