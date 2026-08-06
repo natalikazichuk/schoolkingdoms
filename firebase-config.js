@@ -688,6 +688,23 @@ const SK = {
     return true;
   },
 
+  // ── ІГРИ (ігротека) ──
+  // Окремий документ curriculum/games: { games:[{href,icon,name,desc,group,blank}] }.
+  // Читає igry.html, пише адмінка. Немає документа → null, і igry.html бере
+  // вбудований список за замовчуванням (GAMES_DEFAULT).
+  async getGames() {
+    try {
+      const s = await getDoc(doc(db, 'curriculum', 'games'));
+      return s.exists() ? s.data() : null;
+    } catch (e) { return null; }
+  },
+
+  async saveGames(games) {
+    const data = { games: Array.isArray(games) ? games : [], updatedAt: serverTimestamp() };
+    await setDoc(doc(db, 'curriculum', 'games'), data);
+    return true;
+  },
+
   // Усі тести (для адмінки). -> [{ id, ...test }]
   async listTests() {
     const snap = await getDocs(collection(db, 'tests'));

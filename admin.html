@@ -227,6 +227,8 @@
 
   /* ── Тренажери ── */
   #viewTrainers > .panel{max-width:980px;margin:0 auto}
+  /* ── Ігри (та сама стилістика карток, що й у тренажерів) ── */
+  #viewGames > .panel{max-width:980px;margin:0 auto}
   .tr-card{border:1px solid var(--border);border-radius:10px;padding:10px;margin:10px 0 0;
     background:rgba(9,13,35,.5)}
   .tr-card .map-head + .map-head{margin-top:6px}
@@ -377,6 +379,7 @@
     <div class="who">Ви: <b id="adminEmail">—</b></div>
     <button class="btn ghost sm" id="btnMap">🗺 Карта</button>
     <button class="btn ghost sm" id="btnTrainers">🎮 Тренажери</button>
+    <button class="btn ghost sm" id="btnGames">🕹 Ігри</button>
     <a class="btn ghost sm" href="admin-books.html">📖 Книги</a>
     <a class="btn ghost sm" href="index.html">← Вихід у гру</a>
   </header>
@@ -567,6 +570,37 @@
       <div id="trMsg"></div>
     </div>
   </section>
+
+<!-- ---- ВИД: ІГРИ ---- -->
+  <section id="viewGames" class="hidden">
+    <div class="toolbar">
+      <button class="btn ghost" id="gmBack">← Назад до списку</button>
+      <div class="spacer"></div>
+      <button class="btn gold" id="gmSave">💾 Зберегти ігри</button>
+    </div>
+    <div class="panel">
+      <h2>🕹 Ігри</h2>
+      <p class="hint" style="margin:8px 0 14px">
+        Ігри показуються на сторінці «Ігри» (<code>igry.html</code>), згруповані за полем
+        <b>Група</b>. Групу пишеш вільно (можна вибрати з підказок) — напр. «Математика»,
+        «Логіка та памʼять», «Аркади». Ігри з однаковою групою стають однією згортуваною
+        секцією; порожня група потрапляє в «Інші».
+        <br>Тут вирішуєш сама, що́ гра, а що́ тренажер: тренажери-посилання під предметами —
+        у вкладці «🎮 Тренажери», а ігротека — тут.
+        <br>Порожні рядки не зберігаються.
+      </p>
+      <datalist id="gmGroups"></datalist>
+      <div id="gmList"></div>
+      <div class="toolbar" style="margin-top:12px">
+        <button class="btn xs" id="gmAdd">＋ Гра</button>
+        <div class="spacer"></div>
+        <button class="btn xs" id="gmSortGroup">⇅ За групою</button>
+        <button class="btn xs" id="gmCollapseAll">▸ Згорнути все</button>
+        <button class="btn xs" id="gmExpandAll">▾ Розгорнути все</button>
+      </div>
+      <div id="gmMsg"></div>
+    </div>
+  </section>
 </div>
 
 <!-- ===== МОДАЛКА ІМПОРТУ JSON ===== -->
@@ -656,6 +690,8 @@ const SK_API = {
   saveMap:     (m) => window.SK.saveCurriculum(m),
   getTrainers: ()  => window.SK.getTrainers(),
   saveTrainers:(l) => window.SK.saveTrainers(l),
+  getGames:    ()  => window.SK.getGames(),
+  saveGames:   (g) => window.SK.saveGames(g),
 };
 
 
@@ -1075,6 +1111,7 @@ async function openMap(){
   $('viewList').classList.add('hidden');
   $('viewEdit').classList.add('hidden');
   $('viewTrainers').classList.add('hidden');
+  $('viewGames').classList.add('hidden');
   $('viewMap').classList.remove('hidden');
   $('mapMsg').innerHTML = '';
 
@@ -1321,6 +1358,7 @@ async function openTrainers(){
   $('viewList').classList.add('hidden');
   $('viewEdit').classList.add('hidden');
   $('viewMap').classList.add('hidden');
+  $('viewGames').classList.add('hidden');
   $('viewTrainers').classList.remove('hidden');
   $('trMsg').innerHTML = '';
 
@@ -1378,6 +1416,207 @@ async function saveTrainersDoc(){
     $('trMsg').innerHTML = '<div class="map-warn">✘ Не вдалося зберегти. '
       + 'Можливо, у правилах Firestore закрито документ <code>curriculum/trainers</code>.</div>';
     toast('Не вдалося зберегти тренажери', true);
+  }
+}
+
+/* ============================================================
+   ІГРИ (🕹 Ігри) — вкладка-близнюк «Тренажерів».
+   Документ curriculum/games = { games:[{href,icon,name,desc,group,blank}] }.
+   Читає igry.html і показує ігротеку, згруповану за полем group
+   (порожня група → «Інші», як у бібліотеці). Немає документа → igry.html
+   бере вбудований GAMES_DEFAULT (ті самі ігри, що були зашиті в розмітці).
+   ============================================================ */
+let GAMES = null;    // масив ігор (чернетка)
+
+// Вбудовані за замовчуванням — ті самі ігри, що були зашиті в igry.html.
+// Показуємо, доки в базі немає документа, щоб нічого не загубити.
+const GAMES_DEFAULT = [
+  { href:'komputer.html',         icon:'🕵️', name:"Комп'ютерний детектив", desc:"Слухай завдання й упізнавай частини комп'ютера.", group:'Я досліджую світ', blank:true },
+  { href:'zabig.html',            icon:'🏃', name:'Королівський Забіг',      desc:'Стрибай через перешкоди й збирай загін тваринок.', group:'Аркади', blank:true },
+  { href:'zmiyka.html',           icon:'🐍', name:'Королівська Змійка',      desc:'Веди змійку до яблучок і рости що довша, то швидше.', group:'Аркади', blank:true },
+  { href:'hrestyky.html',         icon:'✕◯', name:'Хрестики-нулики',         desc:'Зіграй проти друга або проти компʼютера.', group:'Логіка та памʼять', blank:true },
+  { href:'shashky.html',          icon:'🔴⚪', name:'Королівські шашки',      desc:'Бий обовʼязково, дійди до кінця дошки — і стань дамкою.', group:'Логіка та памʼять', blank:true },
+  { href:'shakhy.html',           icon:'♔♞', name:'Королівські шахи',        desc:'Справжні шахи з рокіровкою — проти друга або компʼютера.', group:'Логіка та памʼять', blank:true },
+  { href:'kartynka.html',         icon:'🧩', name:'Картинка-пазл',           desc:'Збери картинку з частинок: замок, ракета, котик, веселка.', group:'Логіка та памʼять', blank:true },
+  { href:'pamyat.html',           icon:'🧠', name:"Пам'ять королівства",     desc:'Перевертай картки й шукай однакові пари.', group:'Логіка та памʼять', blank:true },
+  { href:'slovo.html',            icon:'🔤', name:'Вгадай слово',            desc:'Відгадуй слово по буквах, доки є сердечка.', group:'Українська мова', blank:true },
+  { href:'labirynt.html',         icon:'🌀', name:'Математичний лабіринт',   desc:"Розв'язуй приклади й прокладай шлях до замку.", group:'Математика', blank:true },
+  { href:'notky.html',            icon:'🎵', name:'Нотна математика',        desc:"Розв'язуй приклади й грай справжню мелодію на ксилофоні.", group:'Математика', blank:true },
+  { href:'sklad.html',            icon:'🏠', name:'Будиночки чисел',         desc:'Склад числа: засели поверхи так, щоб разом вийшло число з даху.', group:'Математика', blank:true },
+  { href:'susidy.html',           icon:'🏘️', name:'Цифри-сусіди',           desc:'Постав числа-сусіди: яке перед, а яке після. Числа до 19.', group:'Математика', blank:true },
+  { href:'ryad.html',             icon:'🔢', name:'Числовий ряд',            desc:'Знайди пропущене число у ряду зірочок, сердечок і тістечок.', group:'Математика', blank:true },
+  { href:'pazly.html',            icon:'🧩', name:'Математичні пазли',       desc:'Збери корону, вставляючи частинку, якої не вистачає у прикладі.', group:'Математика', blank:true },
+  { href:'komponenty.html',       icon:'🏷️', name:'Компоненти дій',         desc:"Підпиши деталі рівності: доданок, сума, зменшуване, від'ємник, різниця.", group:'Математика', blank:true },
+  { href:'rozriady.html',         icon:'🔟', name:'Десятки і одиниці',       desc:'Виклади число паличками й кубиками. Десять одиниць — і збереться десяток.', group:'Математика', blank:true },
+  { href:'chas.html',             icon:'🕰️', name:'Годинник королівства',   desc:'Читай стрілки й став їх сам. Година, доба, тиждень.', group:'Математика', blank:true },
+  { href:'zadachi-zapys.html',    icon:'📝', name:'Задачі: короткий запис',  desc:'Прочитай задачу й склади її короткий запис, а тоді обчисли.', group:'Математика', blank:true },
+  { href:'zadachi-malyunok.html', icon:'🖼️', name:'Задачі за малюнком',     desc:'Порахуй на малюнку: скільки стало разом і скільки залишилося.', group:'Математика', blank:true },
+  { href:'zadachi-diya.html',     icon:'➕', name:'Вибери правильну дію',    desc:'Стало більше чи менше? Постав + або − і розвʼяжи задачу.', group:'Математика', blank:true },
+  { href:'hroshi.html',           icon:'🪙', name:'Королівський гаманець',   desc:'Кидай монети в гаманець і збери рівно стільки, скільки коштує товар.', group:'Математика', blank:true },
+  { href:'heometriya.html',       icon:'📐', name:'Королівська геометрія',   desc:'Крейда малює фігури: точка, відрізок, ламана, коло, круг, трикутник, квадрат, прямокутник.', group:'Математика', blank:true },
+  { href:'lohika.html',           icon:'🧠', name:'Вежа Логіки',            desc:'Закономірності, ряди, зайве, магічні квадрати, судоку й лабіринти.', group:'Логіка та памʼять', blank:true }
+];
+
+/* Згортання карток ігор — той самий підхід, що й у карті/тренажерах. */
+const COLLAPSED_GM = new Set();
+function gmColCls(i){ return COLLAPSED_GM.has(i) ? ' col' : ''; }
+function gmColBtn(i, grp){
+  const c = COLLAPSED_GM.has(i);
+  return '<button class="btn xs col-toggle" data-gmtoggle="' + i + '" title="' + (c ? 'Розгорнути' : 'Згорнути') + '">'
+       + (c ? '▸' : '▾') + '</button>'
+       + '<span class="col-count">' + esc(grp && grp.trim() ? grp : '— без групи —') + '</span>';
+}
+function gmCollapseAll(){ if(!GAMES) return; GAMES.forEach((_, i) => COLLAPSED_GM.add(i)); renderGames(); }
+function gmExpandAll(){ COLLAPSED_GM.clear(); renderGames(); }
+/* Сортує список за назвою групи (А–Я), у межах групи — за назвою гри.
+   Порожня група йде в кінець. Ігри однієї групи стають поруч. */
+function gmSortByGroup(){
+  if(!GAMES) return;
+  GAMES.sort((a, b) => {
+    const ga = trSlNorm(a.group), gb = trSlNorm(b.group);
+    if(!ga && gb) return 1;
+    if(ga && !gb) return -1;
+    return ga.localeCompare(gb, 'uk')
+        || trSlNorm(a.name).localeCompare(trSlNorm(b.name), 'uk');
+  });
+  COLLAPSED_GM.clear();
+  renderGames();
+}
+/* Підказки груп для datalist — наявні групи + типові. */
+function gmGroupDatalist(){
+  const out = []; const set = new Set();
+  (GAMES || []).forEach(g => { const v = (g.group || '').trim(); if(v && !set.has(v)){ set.add(v); out.push(v); } });
+  ['Українська мова','Я досліджую світ','Логіка та памʼять','Математика','Аркади']
+    .forEach(v => { if(!set.has(v)){ set.add(v); out.push(v); } });
+  return out.map(v => '<option value="' + esc(v) + '"></option>').join('');
+}
+
+function renderGames(){
+  if(!GAMES || !GAMES.length){
+    $('gmList').innerHTML = '<div class="tr-empty">Ігор ще немає. Натисни «＋ Гра».</div>';
+    $('gmGroups').innerHTML = '';
+    return;
+  }
+  $('gmGroups').innerHTML = gmGroupDatalist();
+  let html = '';
+  GAMES.forEach((g, i) => {
+    html += '<div class="tr-card' + gmColCls(i) + '">'
+      + '<div class="map-head">'
+        + gmColBtn(i, g.group || '')
+        + '<span class="map-lvl">ГРА</span>'
+        + '<input type="text" class="grow" data-gf="name" data-i="' + i + '" placeholder="Назва (напр. Королівська Змійка)" value="' + esc(g.name || '') + '">'
+        + '<span class="map-btns">'
+          + '<button class="btn xs" data-ga="up" data-i="' + i + '" title="Вище">↑</button>'
+          + '<button class="btn xs" data-ga="down" data-i="' + i + '" title="Нижче">↓</button>'
+          + '<button class="btn xs" data-ga="del" data-i="' + i + '" title="Видалити">✕</button>'
+        + '</span>'
+      + '</div>'
+      + '<div class="map-kids">'
+      + '<div class="map-head">'
+        + '<span class="map-lvl">ГРУПА</span>'
+        + '<input type="text" class="grow" data-gf="group" data-i="' + i + '" list="gmGroups" placeholder="Напр. Математика" value="' + esc(g.group || '') + '">'
+        + '<input type="text" class="w-ic" data-gf="icon" data-i="' + i + '" value="' + esc(g.icon || '') + '" title="Емодзі-іконка">'
+      + '</div>'
+      + '<div class="map-head">'
+        + '<span class="map-lvl">ПОСИЛАННЯ</span>'
+        + '<input type="text" class="grow" data-gf="href" data-i="' + i + '" placeholder="zmiyka.html  або  https://…" value="' + esc(g.href || '') + '">'
+        + '<label class="switch" style="flex:0 0 auto">'
+          + '<input type="checkbox" data-gf="blank" data-i="' + i + '"' + (g.blank ? ' checked' : '') + '>'
+          + '<span class="track"></span><span class="sw-txt">↗ нова вкладка</span>'
+        + '</label>'
+      + '</div>'
+      + '<div class="map-head">'
+        + '<span class="map-lvl">ОПИС</span>'
+        + '<input type="text" class="grow" data-gf="desc" data-i="' + i + '" placeholder="Короткий опис гри" value="' + esc(g.desc || '') + '">'
+      + '</div>'
+      + '</div>'
+    + '</div>';
+  });
+  $('gmList').innerHTML = html;
+}
+
+function onGmInput(e){
+  const el = e.target;
+  const f = el.dataset.gf;
+  if(f == null || !GAMES) return;
+  const i = Number(el.dataset.i);
+  const g = GAMES[i];
+  if(!g) return;
+  switch(f){
+    case 'name':  g.name  = el.value;   break;
+    case 'group': g.group = el.value;   break;
+    case 'icon':  g.icon  = el.value;   break;
+    case 'href':  g.href  = el.value;   break;
+    case 'desc':  g.desc  = el.value;   break;
+    case 'blank': g.blank = el.checked; break;
+  }
+}
+function onGmClick(e){
+  const tog = e.target.closest('button[data-gmtoggle]');
+  if(tog){
+    const k = Number(tog.dataset.gmtoggle);
+    if(COLLAPSED_GM.has(k)) COLLAPSED_GM.delete(k); else COLLAPSED_GM.add(k);
+    renderGames();
+    return;
+  }
+  const b = e.target.closest('button[data-ga]');
+  if(!b || !GAMES) return;
+  const a = b.dataset.ga;
+  const i = Number(b.dataset.i);
+  if(a === 'up')        move(GAMES, i, -1);
+  else if(a === 'down') move(GAMES, i, +1);
+  else if(a === 'del'){
+    const g = GAMES[i];
+    if(!confirm('Видалити гру «' + ((g && g.name) || 'без назви') + '»?')) return;
+    GAMES.splice(i, 1);
+  }
+  renderGames();
+}
+
+async function openGames(){
+  $('viewList').classList.add('hidden');
+  $('viewEdit').classList.add('hidden');
+  $('viewMap').classList.add('hidden');
+  $('viewTrainers').classList.add('hidden');
+  $('viewGames').classList.remove('hidden');
+  $('gmMsg').innerHTML = '';
+
+  if(!GAMES){
+    let doc = null;
+    try { doc = await SK_API.getGames(); } catch(e){ doc = null; }
+    if(doc && Array.isArray(doc.games)){
+      GAMES = doc.games.map(x => Object.assign({}, x));
+    } else {
+      GAMES = GAMES_DEFAULT.map(x => Object.assign({}, x));
+      $('gmMsg').innerHTML = '<div class="map-ok">ℹ У базі ще немає списку — показано вбудовані ігри. '
+        + 'Натисни «Зберегти ігри», щоб закріпити (після цього список береться з бази).</div>';
+    }
+  }
+  renderGames();
+}
+
+async function saveGamesDoc(){
+  if(!GAMES) return;
+  // прибираємо геть порожні рядки (без назви й без посилання)
+  const clean = GAMES.filter(g => (g.name && g.name.trim()) || (g.href && g.href.trim()));
+  const bad = clean.filter(g => !(g.href && g.href.trim()));
+  if(bad.length){
+    $('gmMsg').innerHTML = '<div class="map-warn">✘ У ' + bad.length
+      + ' гр(и) не заповнено посилання. Заповни або видали ці рядки.</div>';
+    toast('Заповни посилання', true);
+    return;
+  }
+  try {
+    await SK_API.saveGames(clean);
+    GAMES = clean;
+    renderGames();
+    $('gmMsg').innerHTML = '<div class="map-ok">✔ Збережено. Тепер ігри беруться з бази.</div>';
+    toast('Ігри збережено ✔');
+  } catch(e){
+    console.error(e);
+    $('gmMsg').innerHTML = '<div class="map-warn">✘ Не вдалося зберегти. '
+      + 'Можливо, у правилах Firestore закрито документ <code>curriculum/games</code>.</div>';
+    toast('Не вдалося зберегти ігри', true);
   }
 }
 
@@ -1593,6 +1832,7 @@ function openEditor(test){
   $('viewList').classList.add('hidden');
   $('viewMap').classList.add('hidden');
   $('viewTrainers').classList.add('hidden');
+  $('viewGames').classList.add('hidden');
   $('viewEdit').classList.remove('hidden');
   window.scrollTo(0,0);
 }
@@ -1936,6 +2176,25 @@ function bindEvents(){
   $('trSortSubj').onclick    = trSortBySubject;
   $('trCollapseAll').onclick = trCollapseAll;
   $('trExpandAll').onclick   = trExpandAll;
+
+  // ---- Ігри ----
+  $('btnGames').onclick = openGames;
+  $('gmSave').onclick = saveGamesDoc;
+  $('gmAdd').onclick = () => {
+    if(!GAMES) GAMES = [];
+    GAMES.push({ href:'', icon:'🎮', name:'', desc:'', group:'', blank:true });
+    renderGames();
+  };
+  $('gmBack').onclick = () => {
+    $('viewGames').classList.add('hidden');
+    $('viewList').classList.remove('hidden');
+  };
+  $('gmList').addEventListener('input',  onGmInput);
+  $('gmList').addEventListener('change', onGmInput);
+  $('gmList').addEventListener('click',  onGmClick);
+  $('gmSortGroup').onclick   = gmSortByGroup;
+  $('gmCollapseAll').onclick = gmCollapseAll;
+  $('gmExpandAll').onclick   = gmExpandAll;
   $('btnExportAll').onclick  = () => download('tests.json', JSON.stringify(stripIds(TESTS), null, 2));
   $('btnExportOne').onclick  = () => { collectForm(); download((draft.title||'test')+'.json', JSON.stringify(stripIds([draft])[0], null, 2)); };
 
