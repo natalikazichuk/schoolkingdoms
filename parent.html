@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Кабінет — School Kingdoms</title>
+<title>Кабінет — SchoolKingdoms</title>
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -241,7 +241,7 @@
   .ov-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:24px}
   .ov-stat{background:linear-gradient(165deg,rgba(39,81,140,.9),rgba(16,40,82,.92));
     border:1px solid rgba(242,199,92,.28);border-radius:18px;padding:20px;display:flex;align-items:center;gap:15px}
-  .ov-stat.gold{background:linear-gradient(165deg,rgba(242,199,92,.22),rgba(201,148,47,.18));border-color:rgba(242,199,92,.5)}
+  .ov-stat.gold{background:linear-gradient(165deg,rgba(122,92,38,.96),rgba(84,62,24,.97));border-color:rgba(242,199,92,.55)}
   .ov-stat .ov-ic{font-size:2rem;line-height:1}
   .ov-stat .ov-n{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:800;color:#fff;line-height:1}
   .ov-stat.gold .ov-n{color:#FBEFD0}
@@ -317,7 +317,7 @@
       <!-- ═══════════ ЗАВДАННЯ ═══════════ -->
       <section class="panel" id="tab-create">
         <div class="panel-head">📝 Створити завдання</div>
-        <div class="fr-sub" style="margin-bottom:16px">Оберіть Героя, тип завдання та нагороду.</div>
+        <div class="fr-sub" style="margin-bottom:16px">Оберіть Героя та тип завдання.</div>
 
         <div class="form-card">
                 <div class="field">
@@ -352,32 +352,21 @@
                     <label for="taDeedTitle">Добра справа</label>
                     <input id="taDeedTitle" type="text" maxlength="120" placeholder="Напр., прибрати іграшки, допомогти мамі…">
                   </div>
-                  <div class="ta-note">Дитина позначить справу як виконану — і отримає нагороду.</div>
-                </div>
-
-                <div class="field-row">
-                  <div class="field">
-                    <label for="taXp">Нагорода: ХР ⭐</label>
-                    <input id="taXp" type="number" min="0" max="9999" step="1" value="10" inputmode="numeric">
-                  </div>
-                  <div class="field">
-                    <label for="taCoins">Монети 🪙</label>
-                    <input id="taCoins" type="number" min="0" max="9999" step="1" value="5" inputmode="numeric">
-                  </div>
+                  <div class="ta-note">Дитина позначить справу як виконану, а ви підтвердите виконання.</div>
                 </div>
 
                 <button class="btn btn-gold" id="taAssign" onclick="doAssignTask()">Призначити завдання →</button>
               </div>
 
         <div class="fr-t" style="margin-top:20px">Призначені завдання</div>
-        <div class="fr-sub">Виконані дитиною позначені зеленим. Нагорода нараховується <b>один раз</b>.</div>
+        <div class="fr-sub">Виконані дитиною позначені зеленим.</div>
         <div id="taList"><div class="fr-empty">Оберіть Героя…</div></div>
       </section>
 
       <!-- ═══════════ ПЕРЕВІРКА ═══════════ -->
       <section class="panel" id="tab-review">
         <div class="panel-head">✅ Завдання на перевірку</div>
-        <div class="fr-sub">Виконані дітьми завдання, які чекають на ваше підтвердження. Нагорода нараховується <b>лише після підтвердження</b>.</div>
+        <div class="fr-sub">Виконані дітьми завдання, які чекають на ваше підтвердження.</div>
         <div id="reviewList"><div class="fr-empty">Завантаження…</div></div>
       </section>
 
@@ -656,7 +645,7 @@
       if (!heroId || !taskId) return;
       try {
         var r = await SK.approveTask(heroId, taskId);
-        if (r && r.ok) toast(r.already ? 'Вже зараховано' : '✅ Зараховано: ⭐' + (+r.xp) + ' · 🪙' + (+r.coins));
+        if (r && r.ok) toast(r.already ? 'Вже зараховано' : ('✅ Зараховано' + ((+r.xp||+r.coins) ? (': ⭐'+(+r.xp)+' · 🪙'+(+r.coins)) : '!')));
         else toast('❌ Не вдалося');
       } catch(e){ console.warn('[parent] approveOverview:', e); toast('❌ Не вдалося підтвердити'); }
       loadOverview();
@@ -985,6 +974,7 @@
        вільний текст. Нагорода (ХР+монети) додається до завдання; дитина отримує
        її разово, натиснувши «Готово» у себе. Завдання зберігаються в heroes/{id}. */
     let TA_TESTS = null, TA_TRAINERS = null, TA_TYPE = 'test', TA_BOUND = false, TA_CUR_MAP;
+    let TA_HEROES = null;   // кеш Героїв для позначки «пройдено» у списку тестів
 
     async function loadCreateTab(){
       bindCreateOnce();
@@ -1007,8 +997,24 @@
           $('taBlockDeed').hidden    = TA_TYPE !== 'deed';
         });
       });
-      // зміна Героя → перечитати його завдання
-      $('taHero').addEventListener('change', loadAssignedList);
+      // зміна Героя → перечитати його завдання + оновити позначки «пройдено» у списку тестів
+      $('taHero').addEventListener('change', function(){
+        loadAssignedList();
+        if (TA_TESTS) renderTaTests($('taTest'));
+      });
+    }
+
+    // Набір id тестів, які обраний Герой уже пройшов (для позначки ✓ у списку).
+    function taPassedSet(heroId){
+      const set = new Set();
+      const hero = TA_HEROES && TA_HEROES[heroId];
+      if (!hero) return set;
+      try {
+        (stCollectTests(hero) || []).forEach(function(e){
+          if (e && (e.passed || e.hundred)) set.add(e.id);
+        });
+      } catch(err){ console.warn('[parent] taPassedSet:', err); }
+      return set;
     }
 
     async function fillTaHeroes(){
@@ -1016,6 +1022,7 @@
       const prev = sel.value;
       let heroes = {};
       try { heroes = await SK.getHeroes(); } catch(e){ console.warn('[parent] taHeroes:', e); }
+      TA_HEROES = heroes || {};
       const ids = Object.keys(heroes || {});
       if (!ids.length){
         sel.innerHTML = '<option value="">Спершу додайте Героя</option>';
@@ -1044,6 +1051,8 @@
     // Порядок і групування — через SKCUR.placeTests (розкладка як на tests.html):
     // за предметом (<optgroup>) і всередині — у послідовності програми.
     function renderTaTests(sel){
+      const passed = taPassedSet($('taHero').value);
+      const mark = id => passed.has(id) ? '✓ ' : '';
       if (!TA_TESTS.length){ sel.innerHTML = '<option value="">Активних тестів ще немає</option>'; return; }
       let groups = null;
       try {
@@ -1072,7 +1081,7 @@
       if (groups && groups.length){
         sel.innerHTML = groups.map(g =>
           '<optgroup label="'+escapeHtml(g.label)+'">'
-          + g.tests.map(t => '<option value="'+escapeHtml(t.id)+'">'+escapeHtml(t.title || 'Тест')+'</option>').join('')
+          + g.tests.map(t => '<option value="'+escapeHtml(t.id)+'">'+mark(t.id)+escapeHtml(t.title || 'Тест')+'</option>').join('')
           + '</optgroup>').join('');
       } else {
         // запасний варіант без SKCUR: сортуємо за предметом, тоді за назвою
@@ -1080,29 +1089,43 @@
           String(a.subject||'').localeCompare(String(b.subject||''), 'uk') ||
           String(a.title||'').localeCompare(String(b.title||''), 'uk'));
         sel.innerHTML = sorted.map(t =>
-          '<option value="'+escapeHtml(t.id)+'">'+escapeHtml(t.title || 'Тест')
+          '<option value="'+escapeHtml(t.id)+'">'+mark(t.id)+escapeHtml(t.title || 'Тест')
           + (t.subject ? ' — '+escapeHtml(t.subject) : '')
           + (t.grade != null ? ' ('+escapeHtml(t.grade)+' кл.)' : '')+'</option>').join('');
       }
     }
 
-    // Тренажери = картки ігор з igry.html (той самий, що бачить дитина).
+    // Тренажери = той самий список ігор, що бачить дитина в igry.html.
+    // Джерело №1 — Firestore (curriculum/games) через SK.getGames();
+    // якщо в базі порожньо — читаємо вбудований GAMES_DEFAULT прямо з тексту igry.html.
+    // (Картки в igry.html тепер генерує JS, тож парсити готовий DOM більше не можна.)
+    function taPushGame(g){
+      if (g && g.href && g.name){
+        TA_TRAINERS.push({ url: String(g.href).trim(), label: String(g.name).trim(), icon: (g.icon || '').trim() });
+      }
+    }
     async function loadTaTrainers(){
       const sel = $('taTrainer');
       if (TA_TRAINERS){ renderTaTrainers(sel); return; }
       TA_TRAINERS = [];
+      // 1) База (те саме джерело, що й у дитини)
       try {
-        const html = await (await fetch('igry.html', { cache: 'no-store' })).text();
-        const doc  = new DOMParser().parseFromString(html, 'text/html');
-        doc.querySelectorAll('a.game-card').forEach(function(a){
-          const href = a.getAttribute('href') || '';
-          const name = (a.querySelector('.gname') || {}).textContent || '';
-          const icon = ((a.querySelector('.emoji') || {}).textContent || '').trim();
-          if (href && /\.html($|\?)/.test(href) && name.trim()){
-            TA_TRAINERS.push({ url: href.trim(), label: name.trim(), icon: icon });
+        if (window.SK && SK.getGames){
+          const d = await SK.getGames();
+          if (d && Array.isArray(d.games) && d.games.length) d.games.forEach(taPushGame);
+        }
+      } catch(e){ console.warn('[parent] getGames:', e); }
+      // 2) Запасний варіант — вбудований список GAMES_DEFAULT із igry.html
+      if (!TA_TRAINERS.length){
+        try {
+          const html = await (await fetch('igry.html', { cache: 'no-store' })).text();
+          const m = html.match(/GAMES_DEFAULT\s*=\s*(\[[\s\S]*?\n\]);/);
+          if (m){
+            const arr = (new Function('return ' + m[1]))();
+            if (Array.isArray(arr)) arr.forEach(taPushGame);
           }
-        });
-      } catch(e){ console.warn('[parent] loadTaTrainers:', e); }
+        } catch(e){ console.warn('[parent] loadTaTrainers parse:', e); }
+      }
       renderTaTrainers(sel);
     }
     function renderTaTrainers(sel){
@@ -1114,10 +1137,7 @@
     async function doAssignTask(){
       const heroId = $('taHero').value;
       if (!heroId){ toast('⚠️ Оберіть Героя'); return; }
-      const xp    = Math.max(0, parseInt($('taXp').value, 10)    || 0);
-      const coins = Math.max(0, parseInt($('taCoins').value, 10) || 0);
-
-      let task = { type: TA_TYPE, xp: xp, coins: coins };
+      let task = { type: TA_TYPE };
       if (TA_TYPE === 'test'){
         const id = $('taTest').value;
         const t  = (TA_TESTS || []).find(x => x.id === id);
@@ -1210,7 +1230,7 @@
       if (!heroId || !taskId) return;
       try {
         const r = await SK.approveTask(heroId, taskId);
-        if (r && r.ok) toast(r.already ? 'Вже зараховано' : '✅ Зараховано: ⭐'+(+r.xp)+' · 🪙'+(+r.coins));
+        if (r && r.ok) toast(r.already ? 'Вже зараховано' : ('✅ Зараховано' + ((+r.xp||+r.coins) ? (': ⭐'+(+r.xp)+' · 🪙'+(+r.coins)) : '!')));
         else toast('❌ Не вдалося');
       } catch(e){ console.warn('[parent] approveTask:', e); toast('❌ Не вдалося підтвердити'); }
       loadAssignedList();
@@ -1262,7 +1282,7 @@
       if (!heroId || !taskId) return;
       try {
         const r = await SK.approveTask(heroId, taskId);
-        if (r && r.ok) toast(r.already ? 'Вже зараховано' : '✅ Зараховано: ⭐'+(+r.xp)+' · 🪙'+(+r.coins));
+        if (r && r.ok) toast(r.already ? 'Вже зараховано' : ('✅ Зараховано' + ((+r.xp||+r.coins) ? (': ⭐'+(+r.xp)+' · 🪙'+(+r.coins)) : '!')));
         else toast('❌ Не вдалося');
       } catch(e){ console.warn('[parent] approveReview:', e); toast('❌ Не вдалося підтвердити'); }
       loadReviewTab();
