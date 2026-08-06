@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Дні тижня — тренажер-гра</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<style>
+:root{
+  --ink:#2c2b3a;--soft:#6b6a7d;--paper:#fff9ef;--line:#ece3d2;--card:#fff;
+  --red:#ff6b6b;--orange:#ffa94d;--yellow:#ffd43b;--green:#51cf66;--teal:#22b8cf;
+  --blue:#4dabf7;--indigo:#748ffc;--purple:#cc5de8;--pink:#f783ac;
+  --good:#37b26f;--good-bg:#e4f7ec;--bad:#e06666;--bad-bg:#fbe7e7;
+  --shadow:0 6px 0 rgba(44,43,58,.13);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  font-family:'Nunito',system-ui,sans-serif;color:var(--ink);
+  background:
+    radial-gradient(circle at 12% 8%,rgba(255,212,59,.28),transparent 42%),
+    radial-gradient(circle at 88% 14%,rgba(77,171,247,.26),transparent 44%),
+    radial-gradient(circle at 78% 92%,rgba(204,93,232,.22),transparent 46%),
+    radial-gradient(circle at 8% 86%,rgba(81,207,102,.24),transparent 44%),
+    var(--paper);
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  padding:14px;padding-bottom:calc(82px + env(safe-area-inset-bottom));
+}
+.wrap{width:100%;max-width:540px;flex:1;display:flex;flex-direction:column}
+h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px}
+.screen{display:none;flex:1;flex-direction:column}
+.screen.on{display:flex;animation:pop .32s ease}
+@keyframes pop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ── дрібні кнопки ── */
+.iconbtn{width:44px;height:44px;border:2px solid var(--line);background:#fff;border-radius:14px;
+  font-size:20px;cursor:pointer;display:grid;place-items:center;flex:none;color:var(--ink)}
+.iconbtn.off{opacity:.4}
+.iconbtn:active{transform:translateY(2px)}
+.big-btn{border:none;border-radius:18px;padding:16px 20px;font-family:'Fredoka';font-size:20px;
+  cursor:pointer;color:#fff;background:var(--green);box-shadow:0 6px 0 #37a052;width:100%}
+.big-btn:active{transform:translateY(3px);box-shadow:0 3px 0 #37a052}
+.big-btn.blue{background:var(--blue);box-shadow:0 6px 0 #2f8fd6}
+.big-btn.blue:active{box-shadow:0 3px 0 #2f8fd6}
+.big-btn.gray{background:#c9c2b4;box-shadow:0 6px 0 #a89f8d;color:#40382a}
+.big-btn.gray:active{box-shadow:0 3px 0 #a89f8d}
+.big-btn:disabled{filter:grayscale(.5);opacity:.65;cursor:not-allowed}
+
+/* ══════════════ START ══════════════ */
+#start{justify-content:center;text-align:center;gap:16px}
+.day-blocks{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:2px}
+.db{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;
+  font-family:'Fredoka';font-size:22px;color:#fff;box-shadow:var(--shadow);transform:rotate(var(--r))}
+.db:nth-child(1){background:var(--red);--r:-8deg}.db:nth-child(2){background:var(--orange);--r:5deg}
+.db:nth-child(3){background:var(--green);--r:-4deg}.db:nth-child(4){background:var(--teal);--r:6deg}
+.db:nth-child(5){background:var(--blue);--r:-5deg}.db:nth-child(6){background:var(--purple);--r:4deg}
+.db:nth-child(7){background:var(--pink);--r:-6deg}
+#start h1{font-size:38px;margin:8px 0 0;line-height:1.05}
+.sub{color:var(--soft);font-weight:800;margin:0;font-size:16px}
+.rhyme{background:#fff;border:3px dashed var(--line);border-radius:18px;padding:14px 16px;
+  font-style:italic;color:var(--soft);font-weight:800;max-width:400px;margin:0 auto;line-height:1.5}
+.start-btns{display:flex;flex-direction:column;gap:10px;max-width:320px;margin:6px auto 0;width:100%}
+
+/* ── верхня панель ── */
+.topbar{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.topbar .title{flex:1;min-width:0;font-family:'Fredoka';font-size:20px;line-height:1.1}
+.topbar .title small{display:block;font-family:'Nunito';font-weight:800;font-size:12px;color:var(--soft)}
+.progress-line{flex:1;min-width:0}
+.bar{height:12px;background:#f0e7d6;border-radius:8px;overflow:hidden}
+.bar>span{display:block;height:100%;background:linear-gradient(90deg,var(--green),var(--teal));
+  border-radius:8px;transition:width .45s}
+.progress-line .pt{font-weight:800;font-size:12px;color:var(--soft);margin:3px 2px 0;display:block}
+
+/* вибір голосу */
+.voice-row{display:flex;align-items:center;gap:8px;font-size:.82rem;color:var(--soft);
+  font-weight:800;margin:0 0 10px;padding:6px 10px;background:#fff;border:2px solid var(--line);border-radius:12px}
+.voice-row.hidden{display:none}
+.voice-row select{font:800 .82rem 'Nunito',sans-serif;color:var(--ink);border:none;background:transparent;flex:1;min-width:0}
+.voice-row select:focus{outline:2px solid var(--yellow)}
+
+/* ══════════════ LEARN — картка дня ══════════════ */
+#learn{gap:12px}
+.card-stage{flex:1;display:flex;flex-direction:column;justify-content:center}
+.day-card{background:var(--card);border-radius:28px;box-shadow:0 10px 0 rgba(44,43,58,.14);
+  border:4px solid #fff;overflow:hidden;position:relative;cursor:pointer;transition:transform .12s}
+.day-card:active{transform:scale(.985)}
+.dc-head{padding:18px 18px 14px;display:flex;align-items:center;justify-content:center;gap:12px;
+  color:#fff;background:var(--cardc,var(--blue))}
+.dc-num{width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.25);
+  display:grid;place-items:center;font-family:'Fredoka';font-size:30px;flex:none;
+  text-shadow:0 3px 0 rgba(0,0,0,.12)}
+.dc-name{font-family:'Fredoka';font-size:38px;line-height:1;text-shadow:0 3px 0 rgba(0,0,0,.14)}
+.dc-pic{aspect-ratio:16/10;background:#f5eeda;display:grid;place-items:center;position:relative}
+.dc-pic img{width:100%;height:100%;object-fit:cover;display:block}
+.dc-emoji{font-size:104px;line-height:1}
+.dc-info{padding:14px 14px 18px;text-align:center;background:#fff}
+.dc-kind{display:inline-block;font-family:'Fredoka';font-size:17px;padding:5px 16px;border-radius:14px}
+.dc-kind.work{background:#eaf3ff;color:#2b74c9}
+.dc-kind.rest{background:#fdeef6;color:#c94596}
+.dc-note{color:var(--soft);font-weight:800;font-size:14px;margin-top:8px;display:block}
+.dc-speak{position:absolute;top:12px;right:12px;width:46px;height:46px;border-radius:50%;border:none;
+  background:rgba(255,255,255,.92);font-size:22px;cursor:pointer;box-shadow:0 4px 10px rgba(0,0,0,.2);z-index:2}
+.dc-speak.on{background:var(--yellow);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+
+.nav-row{display:flex;align-items:center;gap:10px}
+.navb{flex:none;width:56px;height:56px;border-radius:18px;border:none;background:#fff;
+  border:2px solid var(--line);font-size:26px;cursor:pointer;box-shadow:var(--shadow);color:var(--ink)}
+.navb:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(44,43,58,.13)}
+.navb:disabled{opacity:.35;cursor:default}
+.nav-mid{flex:1;text-align:center;font-family:'Fredoka';font-weight:700;color:var(--soft);font-size:15px}
+.hearword{margin-top:2px}
+.hearword button{border:none;background:var(--yellow);color:var(--ink);font-family:'Fredoka';
+  border-radius:14px;padding:12px;font-size:17px;width:100%;cursor:pointer;box-shadow:0 5px 0 #e0b90f}
+.hearword button:active{transform:translateY(3px);box-shadow:0 2px 0 #e0b90f}
+
+.done-banner{background:var(--good-bg);border:3px solid var(--good);border-radius:18px;
+  padding:14px;text-align:center;font-weight:800;color:var(--good);display:none}
+.done-banner.on{display:block}
+
+/* ── рядок вірша під карткою (для поточного дня) ── */
+.verse{background:#fff;border:3px solid var(--vc,var(--line));border-left-width:8px;border-radius:16px;
+  padding:13px 16px;margin-top:12px;text-align:center}
+.verse .vln{margin:0;font-family:'Fredoka';font-weight:600;font-size:17px;line-height:1.5;color:var(--ink)}
+
+/* ── вірш під карткою ── */
+.poem{background:#fff;border:3px dashed var(--line);border-radius:20px;padding:16px 16px 18px;margin-top:12px}
+.poem h3{text-align:center;font-size:19px;margin:0 0 8px}
+.poem .pl{color:var(--soft);font-weight:800;font-style:italic;line-height:1.5;text-align:center;font-size:15px;margin:0}
+.poem .stz{margin:9px 0 0;padding:6px 8px;border-radius:12px;transition:background .25s}
+.poem .stz.cur{background:var(--good-bg)}
+.poem .stz .pl b{font-style:normal;font-family:'Fredoka';font-weight:700}
+.poem .names{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:10px 0 2px}
+.poem .names span{font-family:'Fredoka';font-size:13px;color:#fff;padding:4px 11px;border-radius:11px;
+  box-shadow:inset 0 -3px 0 rgba(0,0,0,.12)}
+.poem .final{margin-top:12px;text-align:center;font-family:'Fredoka';color:var(--ink);font-size:15px;line-height:1.5}
+.poem .pbtn{margin-top:14px;background:var(--yellow);color:var(--ink);border:none;border-radius:14px;
+  padding:12px;font-family:'Fredoka';font-size:16px;width:100%;cursor:pointer;box-shadow:0 5px 0 #e0b90f}
+.poem .pbtn:active{transform:translateY(3px);box-shadow:0 2px 0 #e0b90f}
+.poem .pbtn.on{background:var(--green);color:#fff;box-shadow:0 5px 0 #37a052}
+
+/* ══════════════ GAMES HUB ══════════════ */
+#games{gap:12px}
+.games-lock{background:#fff;border:3px dashed var(--line);border-radius:20px;padding:22px 18px;
+  text-align:center;display:none}
+.games-lock.on{display:block}
+.games-lock .lk{font-size:44px}
+.games-lock h3{margin:8px 0 4px;font-size:22px}
+.games-list{display:flex;flex-direction:column;gap:12px}
+.games-list.locked{opacity:.45;pointer-events:none;filter:grayscale(.6)}
+.gtile{display:flex;align-items:center;gap:14px;background:#fff;border:3px solid var(--line);
+  border-radius:20px;padding:14px;cursor:pointer;box-shadow:var(--shadow);transition:transform .12s;position:relative}
+.gtile:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(44,43,58,.13)}
+.gtile .ic{width:60px;height:60px;border-radius:18px;flex:none;display:grid;place-items:center;
+  font-size:30px;color:#fff;box-shadow:inset 0 -4px 0 rgba(0,0,0,.12)}
+.gtile .tx{flex:1;min-width:0}
+.gtile .tx b{font-family:'Fredoka';font-size:19px;display:block;line-height:1.1}
+.gtile .tx span{color:var(--soft);font-size:13px;font-weight:800}
+.gtile .go{font-size:24px;color:var(--soft)}
+.gtile .stars{position:absolute;top:8px;right:12px;font-size:12px;letter-spacing:1px;color:var(--yellow)}
+
+/* ══════════════ PLAY ══════════════ */
+#play{gap:14px}
+.play-top{display:flex;align-items:center;gap:10px}
+.dots-row{display:flex;gap:5px;flex:1;flex-wrap:wrap}
+.dots-row i{flex:1;min-width:12px;height:11px;border-radius:4px;background:#ecdfca}
+.dots-row i.ok{background:var(--green)}.dots-row i.no{background:var(--bad)}
+.qbox{background:#fff;border:3px solid var(--line);border-radius:24px;box-shadow:var(--shadow);
+  padding:22px 18px;text-align:center;position:relative}
+.qlabel{color:var(--soft);font-weight:800;font-size:14px;text-transform:uppercase;letter-spacing:.5px;margin:0 0 10px}
+.q-emoji{font-size:80px;line-height:1;margin:2px 0}
+.q-word{font-family:'Fredoka';font-size:38px;margin:6px 0 2px;line-height:1.05}
+.q-speak{margin-top:10px;background:var(--blue);color:#fff;border:none;border-radius:14px;
+  padding:10px 18px;font-family:'Fredoka';font-size:16px;cursor:pointer;box-shadow:0 4px 0 #2f8fd6}
+.q-speak:active{transform:translateY(3px);box-shadow:0 1px 0 #2f8fd6}
+.q-sub{color:var(--soft);font-weight:800;margin:14px 0 0;font-size:16px}
+
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.opts.one{grid-template-columns:1fr}
+.opt{background:#fff;border:3px solid var(--line);border-radius:20px;padding:20px 12px;
+  font-family:'Fredoka';font-size:26px;cursor:pointer;box-shadow:var(--shadow);transition:transform .1s;color:var(--ink)}
+.opt.small{font-size:20px}
+.opt:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(44,43,58,.13)}
+.opt.correct{background:var(--good-bg);border-color:var(--good);color:var(--good)}
+.opt.wrong{background:var(--bad-bg);border-color:var(--bad);color:var(--bad)}
+.opt:disabled{cursor:default}
+.opt .oe{font-size:34px;display:block;line-height:1}
+
+/* постав по порядку */
+.slots{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:8px 0 6px}
+.slot{min-width:44px;height:56px;padding:0 6px;border-radius:14px;border:3px dashed var(--line);background:#faf4e6;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-family:'Fredoka';font-size:13px;color:var(--soft);line-height:1}
+.slot .sn{font-size:15px;color:#b9ad93}
+.slot.full{border-style:solid;border-color:var(--green);background:var(--good-bg);color:var(--good)}
+.slot.full .sn{color:var(--good)}
+.tiles{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:10px}
+.tile.day{min-width:96px;height:auto;padding:12px 10px;border-radius:16px;border:none;background:var(--blue);color:#fff;
+  font-family:'Fredoka';font-size:15px;cursor:pointer;box-shadow:0 5px 0 #2f8fd6;display:flex;flex-direction:column;align-items:center;gap:2px}
+.tile.day .te{font-size:26px}
+.tile.day:active{transform:translateY(3px);box-shadow:0 2px 0 #2f8fd6}
+.tile.day.used{opacity:.25;pointer-events:none}
+.tile.day.shake{animation:shk .35s}
+@keyframes shk{0%,100%{transform:none}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+.feedback{border-radius:18px;padding:14px;text-align:center;font-weight:800;font-size:17px;display:none}
+.feedback.on{display:block}
+.feedback.good{background:var(--good-bg);color:var(--good)}
+.feedback.bad{background:var(--bad-bg);color:var(--bad)}
+
+/* результат */
+.result-card{background:#fff;border:3px solid var(--line);border-radius:26px;padding:26px 20px;
+  box-shadow:var(--shadow);text-align:center}
+.big-stars{font-size:52px;letter-spacing:8px}
+.big-stars .s{color:#e5dcc9}
+.big-stars .s.f{color:var(--yellow);animation:star .4s ease both}
+.big-stars .s.f:nth-child(2){animation-delay:.15s}.big-stars .s.f:nth-child(3){animation-delay:.3s}
+@keyframes star{from{transform:scale(0) rotate(-40deg)}to{transform:none}}
+.result-card h2{font-size:28px;margin:10px 0 4px}
+.btn-row{display:flex;gap:10px}
+.btn-row .big-btn{font-size:17px;padding:15px}
+
+.foot{text-align:center;color:var(--soft);font-size:12px;font-weight:800;padding:12px 0 2px}
+.no-voice .dc-speak,.no-voice .q-speak,.no-voice .hearword,.no-voice .voice-row{display:none!important}
+@media(max-width:380px){.dc-name{font-size:32px}.dc-emoji{font-size:88px}.tile.day{min-width:82px;font-size:13px}}
+
+/* ───── СПІЛЬНИЙ ФУТЕР ГЕРОЯ (як на hero/tests/igry/biblioteka) ───── */
+.botnav{position:fixed;left:0;right:0;bottom:0;z-index:40;
+  background:linear-gradient(180deg,#1e3a6b,#16294f);
+  border-top:3px solid #e0a42a;display:flex;align-items:center;
+  gap:2px;padding:6px 8px calc(6px + env(safe-area-inset-bottom));overflow-x:auto;scrollbar-width:none}
+.botnav::-webkit-scrollbar{display:none}
+.botnav a,.botnav button{display:flex;flex-direction:column;align-items:center;gap:2px;
+  color:#cfe0f5;background:none;border:none;cursor:pointer;font-family:inherit;
+  font-weight:800;font-size:.66rem;padding:5px 12px;border-radius:12px;text-decoration:none;
+  white-space:nowrap;flex:1;min-width:52px;transition:.15s}
+.botnav .ic{font-size:1.2rem}
+.botnav a.active{background:linear-gradient(180deg,#f4c842,#e0a42a);color:#5a3d05;box-shadow:0 3px 10px rgba(0,0,0,.3)}
+.botnav a:hover:not(.active){background:rgba(255,255,255,.1);color:#fff}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ══════ START ══════ -->
+  <section id="start" class="screen on">
+    <div class="day-blocks">
+      <div class="db">Пн</div><div class="db">Вт</div><div class="db">Ср</div>
+      <div class="db">Чт</div><div class="db">Пт</div><div class="db">Сб</div><div class="db">Нд</div>
+    </div>
+    <h1>Дні тижня</h1>
+    <p class="sub">Вивчи 7 днів та їхній порядок</p>
+    <div class="rhyme">
+      Пн, Вт, Ср, Чт, Пт —<br>
+      п'ять днів працюємо й вчимось.<br>
+      А Субота і Неділя —<br>
+      відпочинок для родини! 🎉
+    </div>
+    <div class="start-btns">
+      <button class="big-btn" onclick="startLearn()">📚 Вивчати дні ▶</button>
+      <button class="big-btn blue" onclick="goGames()">🎮 Грати в ігри ▶</button>
+    </div>
+    <div class="foot">Прогрес зберігається на цьому пристрої</div>
+  </section>
+
+  <!-- ══════ LEARN ══════ -->
+  <section id="learn" class="screen">
+    <div class="topbar">
+      <button class="iconbtn" onclick="goStart()" title="Назад">←</button>
+      <div class="progress-line">
+        <div class="bar"><span id="learnBar" style="width:0%"></span></div>
+        <span class="pt" id="learnPt">0 / 7</span>
+      </div>
+      <button class="iconbtn sndbtn" onclick="toggleSound()" title="Звук">🔊</button>
+    </div>
+    <div class="voice-row hidden" id="voiceRow">
+      <span>🎙</span><select id="voiceSel" aria-label="Голос"></select>
+    </div>
+
+    <div class="card-stage">
+      <div class="day-card" id="dayCard" onclick="speakCard()">
+        <button class="dc-speak" id="cardSpeak" onclick="event.stopPropagation();speakCard()" aria-label="Слухати">🔊</button>
+        <div class="dc-head" id="dcHead">
+          <span class="dc-num" id="dcNum">1</span>
+          <span class="dc-name" id="dcName">Понеділок</span>
+        </div>
+        <div class="dc-pic" id="dcPic"><span class="dc-emoji">🌅</span></div>
+        <div class="dc-info">
+          <span class="dc-kind work" id="dcKind">🏫 Будній день</span>
+          <span class="dc-note" id="dcNote">Перший день тижня</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="verse" id="verse">
+      <p class="vln" id="verseText">Понеділок двері відкриває,<br>до навчання закликає.</p>
+    </div>
+
+    <div class="hearword"><button onclick="speakCard()" id="hearBtn">🔊 Послухати ще раз</button></div>
+
+    <div class="done-banner" id="doneBanner">
+      🎉 Ти вивчив усі 7 днів!<br>
+      <button class="big-btn blue" style="margin-top:8px" onclick="goGames()">🎮 Грати в ігри ▶</button>
+    </div>
+
+    <div class="nav-row">
+      <button class="navb" id="prevB" onclick="move(-1)">←</button>
+      <div class="nav-mid" id="navMid">1 / 7</div>
+      <button class="navb" id="nextB" onclick="move(1)">→</button>
+    </div>
+
+    <div class="poem" id="poem">
+      <h3>🌟 Подорож Днями Тижня</h3>
+      <p class="pl">У чарівнім SkillKingdoms<br>є дорога за містком.<br>Сім друзів там живуть щодня —<br>це дні тижневого життя!</p>
+
+      <div class="stz" data-day="1"><p class="pl"><b style="color:var(--red)">Понеділок</b> двері відкриває,<br>до навчання закликає.</p></div>
+      <div class="stz" data-day="2"><p class="pl"><b style="color:var(--orange)">Вівторок</b> книжку вже читає,<br>нові знання усім дарує.</p></div>
+      <div class="stz" data-day="3"><p class="pl"><b style="color:var(--green)">Середа</b> всміхнеться щиро:<br>— Половина шляху, діти!</p></div>
+      <div class="stz" data-day="4"><p class="pl"><b style="color:var(--teal)">Четвер</b> кличе мандрувати,<br>грати, думати, пізнати.</p></div>
+      <div class="stz" data-day="5"><p class="pl"><b style="color:var(--blue)">П'ятниця</b> несе нагороди<br>за старанність і турботу.</p></div>
+      <div class="stz" data-day="6"><p class="pl"><b style="color:var(--purple)">Субота</b> сміється дзвінко:<br>час для ігор і відпочинку!</p></div>
+      <div class="stz" data-day="7"><p class="pl"><b style="color:var(--pink)">Неділя</b> тихо промовляє:<br>— Сил набрати всіх скликаю.</p></div>
+
+      <p class="pl" style="margin-top:10px">Разом дні назвемо всі:</p>
+      <div class="names">
+        <span style="background:var(--red)">Понеділок</span>
+        <span style="background:var(--orange)">Вівторок</span>
+        <span style="background:var(--green)">Середа</span>
+        <span style="background:var(--teal)">Четвер</span>
+        <span style="background:var(--blue)">П'ятниця</span>
+        <span style="background:var(--purple)">Субота</span>
+        <span style="background:var(--pink)">Неділя</span>
+      </div>
+
+      <p class="final">Хто цей віршик прочитає —<br>дні тижня вже не забуває! 🎉</p>
+      <button class="pbtn" id="poemBtn" onclick="speakPoem()">🔊 Послухати весь вірш</button>
+    </div>
+  </section>
+
+  <!-- ══════ GAMES HUB ══════ -->
+  <section id="games" class="screen">
+    <div class="topbar">
+      <button class="iconbtn" onclick="goStart()" title="Назад">←</button>
+      <div class="title">Ігри з днями<small>Порядок, сусіди, вихідні…</small></div>
+      <button class="iconbtn sndbtn" onclick="toggleSound()" title="Звук">🔊</button>
+    </div>
+
+    <div class="games-lock" id="gamesLock">
+      <div class="lk">🔒</div>
+      <h3>Спочатку — усі дні!</h3>
+      <p class="sub" id="lockText">Переглянь усі 7 днів, і відкриються ігри.</p>
+      <button class="big-btn" style="margin-top:10px" onclick="startLearn()">📚 Вивчати дні ▶</button>
+    </div>
+
+    <div class="games-list" id="gamesList"></div>
+    <div class="foot">Прогрес зберігається на цьому пристрої</div>
+  </section>
+
+  <!-- ══════ PLAY ══════ -->
+  <section id="play" class="screen">
+    <div class="play-top">
+      <button class="iconbtn" onclick="goGames()" title="До ігор">←</button>
+      <div class="dots-row" id="playDots"></div>
+      <button class="iconbtn sndbtn" onclick="toggleSound()" title="Звук">🔊</button>
+    </div>
+    <div id="playBody"></div>
+    <div class="feedback" id="playFb"></div>
+    <button class="big-btn" id="playNext" style="display:none" onclick="playAdvance()">Далі →</button>
+  </section>
+
+</div>
+
+<!-- СПІЛЬНИЙ ФУТЕР ГЕРОЯ (той самий, що на hero/tests/igry/biblioteka) -->
+<nav class="botnav">
+  <a href="hero.html"><span class="ic">🏠</span>Головна</a>
+  <a href="tests.html"><span class="ic">📜</span>Тести</a>
+  <a href="biblioteka.html"><span class="ic">📚</span>Бібліотека</a>
+  <a href="igry.html"><span class="ic">🎮</span>Ігри</a>
+  <a href="karta.html"><span class="ic">🗺️</span>Карта</a>
+  <button id="heroBackBtn"><span class="ic">⬅️</span>Назад</button>
+</nav>
+
+<script>
+/* ============================================================
+   ДНІ ТИЖНЯ — самодостатній тренажер-гра.
+   Прогрес: localStorage ключ 'sk-dni-v1' {seen:[...], stars:{game:1..3}, soundOn}.
+   Озвучка: синтез українським голосом (Web Speech API).
+   ============================================================ */
+
+const DAYS=[
+  {n:1, name:'Понеділок', short:'Пн', e:'🌅', kind:'work', note:'Перший день тижня',        c:'--red',    pic:'img/dni_pn.webp',    verse:['Понеділок двері відкриває,','до навчання закликає.']},
+  {n:2, name:'Вівторок',  short:'Вт', e:'🎨', kind:'work', note:'Другий день тижня',         c:'--orange', pic:'img/dni_vt.webp', verse:['Вівторок книжку вже читає,','нові знання усім дарує.']},
+  {n:3, name:'Середа',    short:'Ср', e:'🌳', kind:'work', note:'Середина тижня',            c:'--green',  pic:'img/dni_sr.webp',  verse:['Середа всміхнеться щиро:','— Половина шляху, діти!']},
+  {n:4, name:'Четвер',    short:'Чт', e:'🎵', kind:'work', note:'Четвертий день тижня',      c:'--teal',   pic:'img/dni_cht.webp',   verse:['Четвер кличе мандрувати,','грати, думати, пізнати.']},
+  {n:5, name:"П'ятниця",  short:'Пт', e:'🎉', kind:'work', note:"П'ятий день, скоро вихідні",c:'--blue',   pic:'img/dni_pt.webp',   verse:["П'ятниця несе нагороди",'за старанність і турботу.']},
+  {n:6, name:'Субота',    short:'Сб', e:'⚽', kind:'rest', note:'Вихідний день',             c:'--purple', pic:'img/dni_sb.webp', verse:['Субота сміється дзвінко:','час для ігор і відпочинку!']},
+  {n:7, name:'Неділя',    short:'Нд', e:'🏠', kind:'rest', note:'Вихідний день',             c:'--pink',   pic:'img/dni_nd.webp',   verse:['Неділя тихо промовляє:','— Сил набрати всіх скликаю.']},
+];
+const ORD=['','перший','другий','третій','четвертий',"п'ятий",'шостий','сьомий'];
+const dayByN=n=>DAYS[(n-1+7)%7];
+const nextN=n=>(n%7)+1;
+const prevN=n=>((n+5)%7)+1;
+
+/* ── стан ── */
+const KEY='sk-dni-v1';
+function load(){ try{return JSON.parse(localStorage.getItem(KEY))||{}}catch(e){return{}} }
+function save(){ try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){} }
+let state=load();
+if(!Array.isArray(state.seen)) state.seen=[];
+if(typeof state.stars!=='object'||!state.stars) state.stars={};
+if(typeof state.soundOn!=='boolean') state.soundOn=true;
+
+/* ── навігація екранів ── */
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+  window.scrollTo(0,0);
+}
+function goStart(){ show('start'); }
+function allSeen(){ return state.seen.length>=DAYS.length; }
+
+/* ══════════════ LEARN ══════════════ */
+let learnIdx=0;
+function startLearn(){ show('learn'); renderCard(); }
+function renderCard(){
+  const d=DAYS[learnIdx];
+  document.getElementById('dayCard').style.setProperty('--cardc','var('+d.c+')');
+  document.getElementById('dcNum').textContent=d.n;
+  document.getElementById('dcName').textContent=d.name;
+  const pic=document.getElementById('dcPic');
+  pic.innerHTML='<span class="dc-emoji">'+d.e+'</span>';
+  if(d.pic){
+    const img=new Image();
+    img.alt=d.name;
+    img.onload=function(){ pic.innerHTML=''; pic.appendChild(img); };
+    img.src=d.pic;
+  }
+  const k=document.getElementById('dcKind');
+  k.className='dc-kind '+(d.kind==='work'?'work':'rest');
+  k.textContent=d.kind==='work'?'🏫 Будній день':'🏖 Вихідний день';
+  document.getElementById('dcNote').textContent=d.note;
+  document.getElementById('navMid').textContent=(learnIdx+1)+' / '+DAYS.length;
+  document.getElementById('prevB').disabled=learnIdx===0;
+  document.getElementById('nextB').disabled=learnIdx===DAYS.length-1;
+
+  if(!state.seen.includes(d.n)){ state.seen.push(d.n); save(); }
+  const pct=Math.round(state.seen.length/DAYS.length*100);
+  document.getElementById('learnBar').style.width=pct+'%';
+  document.getElementById('learnPt').textContent=state.seen.length+' / '+DAYS.length;
+  document.getElementById('doneBanner').classList.toggle('on', allSeen());
+  const vb=document.getElementById('verse');
+  vb.style.setProperty('--vc','var('+d.c+')');
+  document.getElementById('verseText').innerHTML=d.verse[0]+'<br>'+d.verse[1];
+  document.querySelectorAll('#poem .stz').forEach(s=>{
+    s.classList.toggle('cur', +s.dataset.day===d.n);
+  });
+  speakCard();
+}
+function move(dir){
+  learnIdx=Math.min(DAYS.length-1,Math.max(0,learnIdx+dir));
+  renderCard();
+}
+
+/* ══════════════ GAMES HUB ══════════════ */
+const GAMES=[
+  {id:'order',   ic:'🔢', c:'--red',    t:'Постав по порядку', s:'Розклади дні від Пн до Нд'},
+  {id:'next',    ic:'⏭',  c:'--orange', t:'Що далі?',          s:'Який день ПІСЛЯ цього?'},
+  {id:'prev',    ic:'⏮',  c:'--green',  t:'Що було до?',       s:'Який день ПЕРЕД цим?'},
+  {id:'count',   ic:'🎯', c:'--blue',   t:'Який за рахунком?', s:'Порядковий номер дня'},
+  {id:'weekend', ic:'🏖', c:'--purple', t:'Будній чи вихідний?',s:'Розсортуй дні'},
+];
+function starStr(n){ n=n||0; return '★★★☆☆☆'.slice(3-n,6-n).slice(0,3); }
+function goGames(){
+  show('games');
+  const locked=!allSeen();
+  document.getElementById('gamesLock').classList.toggle('on',locked);
+  const list=document.getElementById('gamesList');
+  list.classList.toggle('locked',locked);
+  list.innerHTML=GAMES.map(g=>{
+    const st=state.stars[g.id]||0;
+    const badge=st?('<span class="stars">'+'★'.repeat(st)+'</span>'):'';
+    return '<div class="gtile" onclick="playGame(\''+g.id+'\')">'+
+      '<div class="ic" style="background:var('+g.c+')">'+g.ic+'</div>'+
+      '<div class="tx"><b>'+g.t+'</b><span>'+g.s+'</span></div>'+badge+
+      '<div class="go">▶</div></div>';
+  }).join('');
+}
+
+/* ══════════════ PLAY ENGINE ══════════════ */
+let play={game:null,queue:[],i:0,correct:0,total:0,locked:false};
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+const sample=(arr,k,exclude)=>{
+  const pool=arr.filter(x=>!exclude||!exclude.includes(x));
+  return shuffle(pool).slice(0,k);
+};
+
+function playGame(id){
+  if(!allSeen()){ goGames(); return; }
+  play={game:id,queue:buildQueue(id),i:0,correct:0,total:0,locked:false};
+  play.total=play.queue.length;
+  show('play');
+  document.getElementById('playFb').className='feedback';
+  document.getElementById('playNext').style.display='none';
+  renderDots();
+  renderRound();
+}
+function renderDots(){
+  const row=document.getElementById('playDots');
+  row.innerHTML='';
+  for(let k=0;k<play.total;k++){
+    const i=document.createElement('i');
+    const r=play.queue[k]&&play.queue[k]._r;
+    if(r==='ok')i.className='ok'; else if(r==='no')i.className='no';
+    row.appendChild(i);
+  }
+}
+
+/* побудова питань */
+function buildQueue(id){
+  if(id==='order'){ return [{type:'order'}]; }
+  const rounds=6, q=[];
+  const days=DAYS.map(d=>d.n);
+  if(id==='next'){
+    shuffle(days).forEach(n=>{
+      const ans=nextN(n), d=dayByN(n);
+      const distr=sample(days.filter(x=>x!==ans&&x!==n),2);
+      const opts=shuffle([ans,...distr]).map(x=>({label:dayByN(x).name,ok:x===ans}));
+      q.push({type:'choice',emoji:d.e,word:d.name,label:'Який день ПІСЛЯ?',sub:'Що йде після цього дня?',speak:d.name,opts,cols:2});
+    });
+  } else if(id==='prev'){
+    shuffle(days).forEach(n=>{
+      const ans=prevN(n), d=dayByN(n);
+      const distr=sample(days.filter(x=>x!==ans&&x!==n),2);
+      const opts=shuffle([ans,...distr]).map(x=>({label:dayByN(x).name,ok:x===ans}));
+      q.push({type:'choice',emoji:d.e,word:d.name,label:'Який день ПЕРЕД?',sub:'Що йде перед цим днем?',speak:d.name,opts,cols:2});
+    });
+  } else if(id==='count'){
+    shuffle(days).forEach((n,i)=>{
+      const d=dayByN(n);
+      if(i%2===0){
+        // день → номер
+        const distr=sample(days.filter(x=>x!==n),3);
+        const opts=shuffle([n,...distr]).map(x=>({label:x+'-й',ok:x===n}));
+        q.push({type:'choice',emoji:d.e,word:d.name,label:'Який за рахунком?',sub:'Це який день тижня?',speak:d.name,opts,cols:2});
+      } else {
+        // номер → день
+        const distr=sample(days.filter(x=>x!==n),2);
+        const opts=shuffle([n,...distr]).map(x=>({label:dayByN(x).name,ok:x===n}));
+        q.push({type:'choice',emoji:'🔢',word:d.n+'-й день',label:'Обери день',sub:'Який день '+ORD[d.n]+'?',speak:ORD[d.n]+' день тижня',opts,cols:2});
+      }
+    });
+  } else if(id==='weekend'){
+    shuffle(days).forEach(n=>{
+      const d=dayByN(n);
+      const opts=[{label:'🏫 Будній',ok:d.kind==='work'},{label:'🏖 Вихідний',ok:d.kind==='rest'}];
+      q.push({type:'choice',emoji:d.e,word:d.name,label:'Будній чи вихідний?',sub:'Цей день робочий чи для відпочинку?',speak:d.name,opts,cols:1});
+    });
+  }
+  return q;
+}
+
+function renderRound(){
+  play.locked=false;
+  const body=document.getElementById('playBody');
+  const r=play.queue[play.i];
+  document.getElementById('playFb').className='feedback';
+  document.getElementById('playNext').style.display='none';
+  if(r.type==='order'){ renderOrder(body); return; }
+  // choice
+  body.innerHTML=
+    '<div class="qbox">'+
+      '<p class="qlabel">'+r.label+'</p>'+
+      '<div class="q-emoji">'+r.emoji+'</div>'+
+      '<div class="q-word">'+r.word+'</div>'+
+      '<p class="q-sub">'+r.sub+'</p>'+
+      (r.speak?'<button class="q-speak" onclick="speak(\''+r.speak.replace(/'/g,"\\'")+'\')">🔊 Послухати</button>':'')+
+    '</div>'+
+    '<div class="opts'+(r.cols===1?' one':'')+'" id="optWrap"></div>';
+  const wrap=document.getElementById('optWrap');
+  r.opts.forEach((o,idx)=>{
+    const b=document.createElement('button');
+    b.className='opt'+(o.label.length>3?' small':'');
+    b.innerHTML=o.label;
+    b.onclick=()=>pickChoice(idx,b);
+    wrap.appendChild(b);
+  });
+  if(r.speak) speak(r.speak);
+}
+function pickChoice(idx,btn){
+  if(play.locked)return; play.locked=true;
+  const r=play.queue[play.i];
+  const chosen=r.opts[idx];
+  document.querySelectorAll('#optWrap .opt').forEach((b,i)=>{
+    b.disabled=true;
+    if(r.opts[i].ok)b.classList.add('correct');
+  });
+  if(chosen.ok){
+    btn.classList.add('correct');
+    r._r='ok'; play.correct++;
+    feedback(true, pickPraise());
+  } else {
+    btn.classList.add('wrong');
+    r._r='no';
+    const ok=r.opts.find(o=>o.ok);
+    feedback(false, 'Правильно: '+ok.label);
+  }
+  renderDots();
+  document.getElementById('playNext').style.display='block';
+  document.getElementById('playNext').textContent=(play.i>=play.total-1?'Готово 🎉':'Далі →');
+}
+
+/* ── гра «Постав по порядку» ── */
+let orderState=null;
+function renderOrder(body){
+  orderState={placed:0, tiles:shuffle(DAYS.map(d=>d.n))};
+  body.innerHTML=
+    '<div class="qbox">'+
+      '<p class="qlabel">Постав по порядку</p>'+
+      '<div class="q-word" style="font-size:22px">Розклади дні від Понеділка до Неділі</div>'+
+      '<div class="slots" id="ordSlots"></div>'+
+    '</div>'+
+    '<div class="tiles" id="ordTiles"></div>';
+  drawSlots();
+  const tw=document.getElementById('ordTiles');
+  orderState.tiles.forEach(n=>{
+    const d=dayByN(n);
+    const b=document.createElement('button');
+    b.className='tile day'; b.dataset.n=n;
+    b.innerHTML='<span class="te">'+d.e+'</span>'+d.name;
+    b.onclick=()=>tapTile(n,b);
+    tw.appendChild(b);
+  });
+}
+function drawSlots(){
+  const sw=document.getElementById('ordSlots');
+  sw.innerHTML='';
+  for(let k=1;k<=7;k++){
+    const filled=k<=orderState.placed;
+    const d=filled?dayByN(k):null;
+    const el=document.createElement('div');
+    el.className='slot'+(filled?' full':'');
+    el.innerHTML='<span class="sn">'+k+'</span>'+(filled?d.short:'·');
+    sw.appendChild(el);
+  }
+}
+function tapTile(n,btn){
+  if(play.locked)return;
+  const want=orderState.placed+1;
+  if(n===want){
+    btn.classList.add('used');
+    orderState.placed++;
+    drawSlots();
+    if(orderState.placed>=7){
+      play.locked=true;
+      play.correct=play.total; // ідеальний ряд
+      play.queue[0]._r='ok';
+      renderDots();
+      feedback(true,'🎉 Молодець! Увесь тиждень по порядку!');
+      document.getElementById('playNext').style.display='block';
+      document.getElementById('playNext').textContent='Готово 🎉';
+    } else {
+      speak(dayByN(want).name);
+    }
+  } else {
+    btn.classList.add('shake');
+    setTimeout(()=>btn.classList.remove('shake'),400);
+    const d=dayByN(want);
+    feedback(false,'Зараз шукаємо '+want+'-й день: '+d.name);
+    speak(d.name);
+  }
+}
+
+/* ── фідбек / просування ── */
+function pickPraise(){
+  const p=['Молодець! 🌟','Правильно! 👍','Супер! ✨','Так тримати! 🎉','Чудово! 💫'];
+  return p[Math.floor(Math.random()*p.length)];
+}
+function feedback(good,txt){
+  const f=document.getElementById('playFb');
+  f.className='feedback on '+(good?'good':'bad');
+  f.textContent=txt;
+}
+function playAdvance(){
+  document.getElementById('playFb').className='feedback';
+  document.getElementById('playNext').style.display='none';
+  if(play.i>=play.total-1){ finishGame(); return; }
+  play.i++;
+  renderRound();
+}
+function finishGame(){
+  const pct=play.total?play.correct/play.total:0;
+  const stars=pct>=1?3:pct>=0.66?2:pct>0?1:0;
+  const prev=state.stars[play.game]||0;
+  if(stars>prev){ state.stars[play.game]=stars; save(); }
+  const shown=Math.max(stars,0);
+  const body=document.getElementById('playBody');
+  const msg=stars===3?'Ідеально! Усе правильно!':stars===2?'Дуже добре!':stars===1?'Гарний початок!':'Спробуй ще раз!';
+  body.innerHTML=
+    '<div class="result-card">'+
+      '<div class="big-stars">'+
+        '<span class="s'+(shown>=1?' f':'')+'">★</span>'+
+        '<span class="s'+(shown>=2?' f':'')+'">★</span>'+
+        '<span class="s'+(shown>=3?' f':'')+'">★</span>'+
+      '</div>'+
+      '<h2>'+msg+'</h2>'+
+      '<p class="sub">Правильних: '+play.correct+' з '+play.total+'</p>'+
+      '<div class="btn-row" style="margin-top:16px">'+
+        '<button class="big-btn" onclick="playGame(\''+play.game+'\')">🔁 Ще раз</button>'+
+        '<button class="big-btn blue" onclick="goGames()">🎮 До ігор</button>'+
+      '</div>'+
+    '</div>';
+  document.getElementById('playFb').className='feedback';
+  document.getElementById('playNext').style.display='none';
+  if(stars===3) speak('Молодець! Ідеально!');
+}
+
+/* ══════════════ ЗВУК ══════════════ */
+let ukVoices=[], chosenVoice=null;
+function toggleSound(){
+  state.soundOn=!state.soundOn; save();
+  document.querySelectorAll('.sndbtn').forEach(b=>{
+    b.classList.toggle('off',!state.soundOn);
+    b.textContent=state.soundOn?'🔊':'🔇';
+  });
+  if(!state.soundOn && window.speechSynthesis) speechSynthesis.cancel();
+}
+function speak(text){
+  if(!state.soundOn||!('speechSynthesis'in window)||!text)return;
+  try{
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text);
+    u.lang='uk-UA'; u.rate=.92; u.pitch=1.05;
+    if(chosenVoice)u.voice=chosenVoice;
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+function speakCard(){
+  const d=DAYS[learnIdx];
+  const btn=document.getElementById('cardSpeak');
+  if(btn){btn.classList.add('on');setTimeout(()=>btn.classList.remove('on'),900);}
+  speak(d.name);
+}
+const POEM_TEXT=[
+  'Подорож днями тижня.',
+  'У чарівнім Скіл Кінгдомс є дорога за містком.',
+  'Сім друзів там живуть щодня — це дні тижневого життя!',
+  'Понеділок двері відкриває, до навчання закликає.',
+  'Вівторок книжку вже читає, нові знання усім дарує.',
+  'Середа всміхнеться щиро: половина шляху, діти!',
+  'Четвер кличе мандрувати, грати, думати, пізнати.',
+  "П'ятниця несе нагороди за старанність і турботу.",
+  'Субота сміється дзвінко: час для ігор і відпочинку!',
+  'Неділя тихо промовляє: сил набрати всіх скликаю.',
+  'Разом дні назвемо всі: понеділок, вівторок, середа, четвер, п’ятниця, субота, неділя!',
+  'Хто цей віршик прочитає — дні тижня вже не забуває!'
+].join(' ');
+function speakPoem(){
+  const btn=document.getElementById('poemBtn');
+  if(!state.soundOn||!('speechSynthesis'in window)){ speak(POEM_TEXT); return; }
+  // повторний клік — зупинити
+  if(btn && btn.classList.contains('on')){
+    speechSynthesis.cancel(); btn.classList.remove('on'); btn.textContent='🔊 Послухати вірш'; return;
+  }
+  try{
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(POEM_TEXT);
+    u.lang='uk-UA'; u.rate=.9; u.pitch=1.05;
+    if(chosenVoice)u.voice=chosenVoice;
+    if(btn){ btn.classList.add('on'); btn.textContent='⏹ Зупинити';
+      u.onend=u.onerror=()=>{ btn.classList.remove('on'); btn.textContent='🔊 Послухати вірш'; }; }
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+function rankVoices(){
+  const vs=(window.speechSynthesis?speechSynthesis.getVoices():[])||[];
+  const uk=vs.filter(v=>/uk|ukrain/i.test(v.lang)||/україн|ukrain/i.test(v.name));
+  const score=v=>(/natural|neural|online|premium|enhanced/i.test(v.name)?3:/google/i.test(v.name)?2:1);
+  uk.sort((a,b)=>score(b)-score(a));
+  ukVoices=uk;
+  const saved=localStorage.getItem('sk_learn_voice');
+  chosenVoice=uk.find(v=>v.name===saved)||uk[0]||null;
+  buildVoicePicker();
+  document.body.classList.toggle('no-voice', ukVoices.length===0 && !('speechSynthesis' in window));
+}
+function buildVoicePicker(){
+  const row=document.getElementById('voiceRow'), sel=document.getElementById('voiceSel');
+  if(!row||!sel)return;
+  if(ukVoices.length<2){ row.classList.add('hidden'); return; }
+  row.classList.remove('hidden');
+  sel.innerHTML=ukVoices.map(v=>'<option value="'+v.name+'">'+v.name.replace(/\s*\(.*?\)\s*$/,'')+'</option>').join('');
+  if(chosenVoice) sel.value=chosenVoice.name;
+  sel.onchange=()=>{ chosenVoice=ukVoices.find(v=>v.name===sel.value)||null;
+    if(chosenVoice) localStorage.setItem('sk_learn_voice',chosenVoice.name); };
+}
+rankVoices();
+if('speechSynthesis' in window) speechSynthesis.onvoiceschanged=rankVoices;
+
+/* ── старт ── */
+if(!state.soundOn) document.querySelectorAll('.sndbtn').forEach(b=>{b.classList.add('off');b.textContent='🔇';});
+</script>
+
+<!-- Firebase лише для кнопки «Вийти» у спільному футері -->
+<script type="module" src="firebase-config.js"></script>
+<script>
+(function(){
+  var outBtn=document.getElementById('heroBackBtn');
+  if(outBtn) outBtn.addEventListener('click', function(){
+    location.href='igry.html';
+  });
+})();
+</script>
+</body>
+</html>
