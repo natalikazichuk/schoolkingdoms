@@ -390,6 +390,7 @@
       <button class="btn gold" id="btnNew">＋ Новий тест</button>
       <button class="btn" id="btnImport">⬆ Імпорт JSON</button>
       <button class="btn ghost" id="btnExportAll">⬇ Експорт усіх</button>
+      <button class="btn ghost" id="btnPrintLists">📄 Списки для друку</button>
       <div class="spacer"></div>
       <select id="filterSubject" aria-label="Фільтр за предметом" style="max-width:220px">
         <option value="">Усі предмети</option>
@@ -1620,6 +1621,137 @@ async function saveGamesDoc(){
   }
 }
 
+/* ============================================================
+   СПИСКИ ДЛЯ ДРУКУ (📄)
+   Один .txt: тільки назви, згруповані — тести за класом → предметом →
+   розділом (як бачить дитина, через SKCUR.placeTests), ігри за групою,
+   тренажери за предметом. Джерела: TESTS (у пам'яті), а ігри/тренажери
+   підтягуємо з бази (або вбудовані за замовчуванням). */
+async function exportListsTxt(){
+  const lines = [];
+  const L = s => lines.push(s == null ? '' : String(s));
+  const RULE = '════════════════════════════════════════';
+  const pad = n => String(n).padStart(2, '0');
+  const d = new Date();
+  const stamp = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate())
+              + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+
+  L('СПИСКИ SCHOOL KINGDOMS — для друку');
+  L('Згенеровано: ' + stamp);
+  L('');
+
+  // ── ТЕСТИ ──
+  const live = (TESTS || []).filter(t => t && t.title && t.active !== false);
+  L(RULE); L('ТЕСТИ (' + live.length + ')'); L(RULE); L('');
+
+  let placed = false;
+  try { await ensureMap(); } catch(e){ /* без карти — впадемо на запасний спосіб */ }
+  if(window.SKCUR && window.SKCUR.placeTests && MAP){
+    try {
+      const P = window.SKCUR.placeTests(MAP, live);
+      const gradeMap = new Map();
+      const ensureGrade = g => {
+        const k = g ? (String(g.gradeNum||'') + '|' + (g.name||'')) : '|Без класу';
+        if(!gradeMap.has(k)) gradeMap.set(k, { num:(g && +g.gradeNum) || 999, name:(g && g.name) || 'Без класу', subj:new Map() });
+        return gradeMap.get(k);
+      };
+      const ensureSubj = (ge, s) => {
+        const nm = (s && s.name) || 'Без предмета';
+        if(!ge.subj.has(nm)) ge.subj.set(nm, { topics:[], only:[] });
+        return ge.subj.get(nm);
+      };
+      P.topics.forEach(e => {
+        if(!e.tests || !e.tests.length) return;
+        ensureSubj(ensureGrade(e.grade), e.subj).topics.push({ topic:((e.topic && e.topic.topic) || 'Без розділу'), titles:e.tests.map(t => t.title) });
+      });
+      P.subjects.forEach(e => {
+        if(!e.tests || !e.tests.length) return;
+        const se = ensureSubj(ensureGrade(e.grade), e.subj);
+        e.tests.forEach(t => se.only.push(t.title));
+      });
+      const grades = [...gradeMap.values()].sort((a,b) => a.num - b.num || a.name.localeCompare(b.name,'uk'));
+      grades.forEach(ge => {
+        L('КЛАС: ' + ge.name);
+        [...ge.subj.entries()].sort((a,b) => a[0].localeCompare(b[0],'uk')).forEach(([sn, se]) => {
+          L('  ПРЕДМЕТ: ' + sn);
+          se.topics.forEach(tp => { L('    ' + tp.topic); tp.titles.forEach(t => L('      • ' + t)); });
+          if(se.only.length){ L('    (без розділу)'); se.only.forEach(t => L('      • ' + t)); }
+        });
+        L('');
+      });
+      if(P.leftovers && P.leftovers.length){
+        L('ІНШІ ТЕСТИ (поза розділами карти):');
+        P.leftovers.slice().sort((a,b) => String(a.title).localeCompare(String(b.title),'uk'))
+          .forEach(t => L('  • ' + t.title));
+        L('');
+      }
+      placed = true;
+    } catch(e){ placed = false; }
+  }
+  if(!placed){
+    // запасний спосіб — за полями тесту (клас/предмет/розділ)
+    const byG = {};
+    live.forEach(t => {
+      const g = (t.grade != null && t.grade !== '') ? String(t.grade) : '—';
+      const s = (t.subject && String(t.subject).trim()) || 'Без предмета';
+      const tp = (t.topic && String(t.topic).trim()) || 'Без розділу';
+      ((byG[g] = byG[g] || {})[s] = byG[g][s] || {})[tp] = byG[g][s][tp] || [];
+      byG[g][s][tp].push(t.title);
+    });
+    Object.keys(byG).sort((a,b) => (+a||999) - (+b||999) || a.localeCompare(b,'uk')).forEach(g => {
+      L('КЛАС: ' + (g === '—' ? 'Без класу' : g + ' клас'));
+      Object.keys(byG[g]).sort((a,b) => a.localeCompare(b,'uk')).forEach(s => {
+        L('  ПРЕДМЕТ: ' + s);
+        Object.keys(byG[g][s]).sort((a,b) => a.localeCompare(b,'uk')).forEach(tp => {
+          L('    ' + tp);
+          byG[g][s][tp].forEach(t => L('      • ' + t));
+        });
+      });
+      L('');
+    });
+  }
+
+  // ── ІГРИ ──
+  let games = GAMES;
+  if(!games){
+    try { const dg = await SK_API.getGames(); games = (dg && Array.isArray(dg.games) && dg.games.length) ? dg.games : GAMES_DEFAULT; }
+    catch(e){ games = GAMES_DEFAULT; }
+  }
+  L(RULE); L('ІГРИ (' + games.length + ')'); L(RULE); L('');
+  {
+    const grp = {}, order = [];
+    games.forEach(g => {
+      const k = (g.group && String(g.group).trim()) || 'Інші';
+      if(!grp[k]){ grp[k] = []; order.push(k); }
+      grp[k].push((g.name && g.name.trim()) || g.href || '');
+    });
+    order.sort((a,b) => (a === 'Інші') - (b === 'Інші') || a.localeCompare(b,'uk'));
+    order.forEach(k => { L(k); grp[k].forEach(n => L('  • ' + n)); L(''); });
+  }
+
+  // ── ТРЕНАЖЕРИ ──
+  let tr = TRAINERS;
+  if(!tr){
+    try { const dt = await SK_API.getTrainers(); tr = (dt && Array.isArray(dt.links)) ? dt.links : TRAINERS_DEFAULT; }
+    catch(e){ tr = TRAINERS_DEFAULT; }
+  }
+  L(RULE); L('ТРЕНАЖЕРИ (' + tr.length + ')'); L(RULE); L('');
+  {
+    const grp = {}, order = [];
+    tr.forEach(l => {
+      const k = (l.subject && String(l.subject).trim()) || 'Без предмета';
+      if(!grp[k]){ grp[k] = []; order.push(k); }
+      const suffix = (l.tier && String(l.tier).trim()) ? (' (' + String(l.tier).trim() + ')') : '';
+      grp[k].push(((l.label && l.label.trim()) || l.href || '') + suffix);
+    });
+    order.sort((a,b) => a.localeCompare(b,'uk'));
+    order.forEach(k => { L(k); grp[k].forEach(n => L('  • ' + n)); L(''); });
+  }
+
+  downloadTxt('school-kingdoms-spysky.txt', lines.join('\n'));
+  toast('Список сформовано ✔');
+}
+
 /* ---- Стан ---- */
 let TESTS = [];
 let draft = null;           // редагований тест
@@ -2196,6 +2328,7 @@ function bindEvents(){
   $('gmCollapseAll').onclick = gmCollapseAll;
   $('gmExpandAll').onclick   = gmExpandAll;
   $('btnExportAll').onclick  = () => download('tests.json', JSON.stringify(stripIds(TESTS), null, 2));
+  $('btnPrintLists').onclick = exportListsTxt;
   $('btnExportOne').onclick  = () => { collectForm(); download((draft.title||'test')+'.json', JSON.stringify(stripIds([draft])[0], null, 2)); };
 
   // Реакції на зміну нагород
@@ -2390,6 +2523,12 @@ function deepClone(o){ return JSON.parse(JSON.stringify(o)); }
 function stripIds(list){ return list.map(({id, ...rest}) => rest); }
 function download(name, text){
   const blob = new Blob([text], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  URL.revokeObjectURL(a.href);
+}
+function downloadTxt(name, text){
+  const blob = new Blob([text], {type:'text/plain;charset=utf-8'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = name; a.click();
   URL.revokeObjectURL(a.href);
