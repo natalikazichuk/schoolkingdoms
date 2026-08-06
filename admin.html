@@ -230,6 +230,9 @@
   .tr-card{border:1px solid var(--border);border-radius:10px;padding:10px;margin:10px 0 0;
     background:rgba(9,13,35,.5)}
   .tr-card .map-head + .map-head{margin-top:6px}
+  .tr-card .map-kids{margin-top:6px}
+  .tr-card.col > .map-kids{display:none}
+  .tr-card.col{opacity:.96}
   .tr-empty{color:var(--muted);font-style:italic;font-weight:600;font-size:.88rem;padding:10px 2px}
 
   /* Форми */
@@ -557,6 +560,9 @@
       <div class="toolbar" style="margin-top:12px">
         <button class="btn xs" id="trAdd">＋ Тренажер</button>
         <div class="spacer"></div>
+        <button class="btn xs" id="trSortSubj">⇅ За предметом</button>
+        <button class="btn xs" id="trCollapseAll">▸ Згорнути все</button>
+        <button class="btn xs" id="trExpandAll">▾ Розгорнути все</button>
       </div>
       <div id="trMsg"></div>
     </div>
@@ -1191,6 +1197,36 @@ function trTypeOpts(sel){
     '<option value="' + o[0] + '"' + (sel === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('');
 }
 
+/* ── Згортання карток тренажерів (той самий підхід, що й у карті) ──
+   COLLAPSED_TR — множина індексів згорнутих карток. Стан суто UI й
+   переживає перемальовування. При сортуванні/видаленні скидаємо, бо
+   індекси зсуваються. */
+const COLLAPSED_TR = new Set();
+function trColCls(i){ return COLLAPSED_TR.has(i) ? ' col' : ''; }
+function trColBtn(i, subj){
+  const c = COLLAPSED_TR.has(i);
+  return '<button class="btn xs col-toggle" data-trtoggle="' + i + '" title="' + (c ? 'Розгорнути' : 'Згорнути') + '">'
+       + (c ? '▸' : '▾') + '</button>'
+       + '<span class="col-count">' + esc(subj && subj.trim() ? subj : '— без предмета —') + '</span>';
+}
+function trCollapseAll(){ if(!TRAINERS) return; TRAINERS.forEach((_, i) => COLLAPSED_TR.add(i)); renderTrainers(); }
+function trExpandAll(){ COLLAPSED_TR.clear(); renderTrainers(); }
+/* Сортує список за назвою предмета (А–Я), а в межах предмета — за назвою
+   тренажера. Тренажери одного предмета стають поруч — як розділи під
+   предметом у карті. Порожній предмет іде в кінець. */
+function trSortBySubject(){
+  if(!TRAINERS) return;
+  TRAINERS.sort((a, b) => {
+    const sa = trSlNorm(a.subject), sb = trSlNorm(b.subject);
+    if(!sa && sb) return 1;
+    if(sa && !sb) return -1;
+    return sa.localeCompare(sb, 'uk')
+        || trSlNorm(a.label).localeCompare(trSlNorm(b.label), 'uk');
+  });
+  COLLAPSED_TR.clear();   // індекси змінилися
+  renderTrainers();
+}
+
 function renderTrainers(){
   if(!TRAINERS || !TRAINERS.length){
     $('trList').innerHTML = '<div class="tr-empty">Тренажерів ще немає. Натисни «＋ Тренажер».</div>';
@@ -1198,8 +1234,9 @@ function renderTrainers(){
   }
   let html = '';
   TRAINERS.forEach((l, i) => {
-    html += '<div class="tr-card">'
+    html += '<div class="tr-card' + trColCls(i) + '">'
       + '<div class="map-head">'
+        + trColBtn(i, l.subject || '')
         + '<span class="map-lvl">ТРЕНАЖЕР</span>'
         + '<input type="text" class="grow" data-tf="label" data-i="' + i + '" placeholder="Назва (напр. Вчимось читати!)" value="' + esc(l.label || '') + '">'
         + '<span class="map-btns">'
@@ -1208,6 +1245,7 @@ function renderTrainers(){
           + '<button class="btn xs" data-ta="del" data-i="' + i + '" title="Видалити">✕</button>'
         + '</span>'
       + '</div>'
+      + '<div class="map-kids">'
       + '<div class="map-head">'
         + '<span class="map-lvl">ПРЕДМЕТ</span>'
         + '<select class="grow" data-tf="subject" data-i="' + i + '">' + trSubjOpts(l.subject) + '</select>'
@@ -1225,6 +1263,7 @@ function renderTrainers(){
           + '<input type="checkbox" data-tf="blank" data-i="' + i + '"' + (l.blank ? ' checked' : '') + '>'
           + '<span class="track"></span><span class="sw-txt">↗ нова вкладка</span>'
         + '</label>'
+      + '</div>'
       + '</div>'
     + '</div>';
   });
@@ -1257,6 +1296,13 @@ function onTrInput(e){
   }
 }
 function onTrClick(e){
+  const tog = e.target.closest('button[data-trtoggle]');
+  if(tog){
+    const k = Number(tog.dataset.trtoggle);
+    if(COLLAPSED_TR.has(k)) COLLAPSED_TR.delete(k); else COLLAPSED_TR.add(k);
+    renderTrainers();
+    return;
+  }
   const b = e.target.closest('button[data-ta]');
   if(!b || !TRAINERS) return;
   const a = b.dataset.ta;
@@ -1887,6 +1933,9 @@ function bindEvents(){
   $('trList').addEventListener('input',  onTrInput);
   $('trList').addEventListener('change', onTrInput);
   $('trList').addEventListener('click',  onTrClick);
+  $('trSortSubj').onclick    = trSortBySubject;
+  $('trCollapseAll').onclick = trCollapseAll;
+  $('trExpandAll').onclick   = trExpandAll;
   $('btnExportAll').onclick  = () => download('tests.json', JSON.stringify(stripIds(TESTS), null, 2));
   $('btnExportOne').onclick  = () => { collectForm(); download((draft.title||'test')+'.json', JSON.stringify(stripIds([draft])[0], null, 2)); };
 
