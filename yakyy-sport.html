@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Який спорт тобі підходить? — тест</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<style>
+:root{
+  --ink:#2c2b3a;--soft:#6b6a7d;--paper:#fff9ef;--line:#ece3d2;--card:#fff;
+  --red:#ff6b6b;--orange:#ffa94d;--yellow:#ffd43b;--green:#51cf66;--teal:#22b8cf;
+  --blue:#4dabf7;--indigo:#748ffc;--purple:#cc5de8;--pink:#f783ac;
+  --shadow:0 6px 0 rgba(44,43,58,.13);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  font-family:'Nunito',system-ui,sans-serif;color:var(--ink);
+  background:
+    radial-gradient(circle at 12% 8%,rgba(255,212,59,.28),transparent 42%),
+    radial-gradient(circle at 88% 14%,rgba(77,171,247,.26),transparent 44%),
+    radial-gradient(circle at 78% 92%,rgba(204,93,232,.22),transparent 46%),
+    radial-gradient(circle at 8% 86%,rgba(81,207,102,.24),transparent 44%),
+    var(--paper);
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  padding:14px;padding-bottom:calc(82px + env(safe-area-inset-bottom));
+}
+.wrap{width:100%;max-width:540px;flex:1;display:flex;flex-direction:column}
+h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px}
+.screen{display:none;flex:1;flex-direction:column}
+.screen.on{display:flex;animation:pop .32s ease}
+@keyframes pop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.iconbtn{width:44px;height:44px;border:2px solid var(--line);background:#fff;border-radius:14px;
+  font-size:20px;cursor:pointer;display:grid;place-items:center;flex:none;color:var(--ink)}
+.iconbtn:active{transform:translateY(2px)}
+.big-btn{border:none;border-radius:18px;padding:16px 20px;font-family:'Fredoka';font-size:20px;
+  cursor:pointer;color:#fff;background:var(--green);box-shadow:0 6px 0 #37a052;width:100%}
+.big-btn:active{transform:translateY(3px);box-shadow:0 3px 0 #37a052}
+.big-btn.blue{background:var(--blue);box-shadow:0 6px 0 #2f8fd6}
+.big-btn.blue:active{box-shadow:0 3px 0 #2f8fd6}
+.big-btn.ghost{background:#fff;color:var(--ink);box-shadow:0 6px 0 var(--line);border:2px solid var(--line)}
+.big-btn.ghost:active{box-shadow:0 3px 0 var(--line)}
+
+/* ══════════ START ══════════ */
+#start{justify-content:center;text-align:center;gap:16px}
+.sport-blocks{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:2px}
+.sb{width:60px;height:60px;border-radius:18px;display:grid;place-items:center;
+  font-size:30px;box-shadow:var(--shadow);transform:rotate(var(--r))}
+.sb:nth-child(1){background:var(--blue);--r:-7deg}.sb:nth-child(2){background:var(--red);--r:5deg}
+.sb:nth-child(3){background:var(--green);--r:-4deg}.sb:nth-child(4){background:var(--orange);--r:6deg}
+.sb:nth-child(5){background:var(--purple);--r:-5deg}
+#start h1{font-size:38px;margin:8px 0 0;line-height:1.05}
+.sub{color:var(--soft);font-weight:800;margin:0;font-size:16px}
+.rhyme{background:#fff;border:3px dashed var(--line);border-radius:18px;padding:14px 16px;
+  color:var(--soft);font-weight:800;max-width:400px;margin:0 auto}
+.start-btns{display:flex;flex-direction:column;gap:10px;max-width:340px;margin:6px auto 0;width:100%}
+
+/* ══════════ TOPBAR ══════════ */
+.topbar{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.progress-line{flex:1;min-width:0}
+.bar{height:12px;background:#f0e7d6;border-radius:8px;overflow:hidden}
+.bar>span{display:block;height:100%;background:linear-gradient(90deg,var(--green),var(--teal));
+  border-radius:8px;transition:width .45s}
+.progress-line .pt{font-weight:800;font-size:12px;color:var(--soft);margin:3px 2px 0;display:block}
+
+/* ══════════ QUIZ ══════════ */
+#quiz{gap:4px}
+.qnum{color:var(--soft);font-weight:800;font-size:13px;text-transform:uppercase;letter-spacing:1px;margin:0 2px}
+.qtext{font-family:'Fredoka';font-size:26px;line-height:1.15;margin:2px 0 16px}
+.opts{display:flex;flex-direction:column;gap:10px}
+.opt{display:flex;align-items:center;gap:14px;background:#fff;border:2px solid var(--line);
+  border-radius:16px;padding:14px 16px;cursor:pointer;text-align:left;font:800 17px 'Nunito',sans-serif;
+  color:var(--ink);box-shadow:0 4px 0 rgba(44,43,58,.08);transition:.12s}
+.opt:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(44,43,58,.08)}
+.opt.pick{border-color:var(--green);background:#eefbf1;box-shadow:0 4px 0 rgba(81,207,102,.35)}
+.opt .oe{font-size:28px;flex:none;width:38px;text-align:center}
+
+/* ══════════ RESULT ══════════ */
+#result{gap:14px}
+.crown{text-align:center}
+.crown .champ-emoji{font-size:64px;line-height:1}
+.crown h2{font-size:30px;margin:6px 0 2px}
+.crown .lead{color:var(--soft);font-weight:800;margin:0}
+.section-title{font-family:'Fredoka';font-size:18px;margin:6px 2px 2px}
+
+.stats{display:flex;flex-direction:column;gap:9px}
+.stat{background:#fff;border:2px solid var(--line);border-radius:14px;padding:10px 12px}
+.stat .row{display:flex;align-items:center;gap:8px;font-weight:800;font-size:15px}
+.stat .row .se{font-size:20px}
+.stat .row .pv{margin-left:auto;font-family:'Fredoka';color:var(--soft)}
+.stat .track{height:10px;background:#f0e7d6;border-radius:6px;overflow:hidden;margin-top:7px}
+.stat .track>span{display:block;height:100%;border-radius:6px;transition:width .6s}
+.stat.top{border-color:var(--yellow);box-shadow:0 4px 0 rgba(255,212,59,.35)}
+
+.sportcards{display:flex;flex-direction:column;gap:10px}
+.sportcard{background:#fff;border:2px solid var(--line);border-radius:16px;padding:12px 14px;
+  border-left:6px solid var(--line)}
+.sportcard h3{margin:0 0 8px;font-size:17px;display:flex;align-items:center;gap:8px}
+.sportcard h3 .se{font-size:22px}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{background:#f5efe2;border-radius:999px;padding:6px 12px;font-weight:800;font-size:13px;color:var(--ink)}
+
+.result-btns{display:flex;flex-direction:column;gap:10px;margin-top:4px}
+.tipbox{background:#fff;border:3px dashed var(--line);border-radius:16px;padding:12px 14px;
+  color:var(--soft);font-weight:800;font-size:14px;text-align:center}
+
+/* ══════════ BOTNAV ══════════ */
+.botnav{position:fixed;left:0;right:0;bottom:0;z-index:40;
+  background:linear-gradient(180deg,#1e3a6b,#16294f);
+  border-top:3px solid #e0a42a;display:flex;align-items:center;
+  gap:2px;padding:6px 8px calc(6px + env(safe-area-inset-bottom));overflow-x:auto;scrollbar-width:none}
+.botnav::-webkit-scrollbar{display:none}
+.botnav a,.botnav button{display:flex;flex-direction:column;align-items:center;gap:2px;
+  color:#cfe0f5;background:none;border:none;cursor:pointer;font-family:inherit;
+  font-weight:800;font-size:.66rem;padding:5px 12px;border-radius:12px;text-decoration:none;
+  white-space:nowrap;flex:1;min-width:52px;transition:.15s}
+.botnav .ic{font-size:1.2rem}
+.botnav a:hover{background:rgba(255,255,255,.1);color:#fff}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ══════ START ══════ -->
+  <section id="start" class="screen on">
+    <div class="sport-blocks">
+      <div class="sb">🏃</div><div class="sb">🤸</div><div class="sb">⚽</div><div class="sb">🎯</div><div class="sb">🏊</div>
+    </div>
+    <h1>Який спорт<br>тобі підходить?</h1>
+    <p class="sub">8 запитань · дізнайся свою суперсилу</p>
+    <p class="rhyme">Дай відповіді чесно — і я підкажу, у якому спорті ти можеш стати зіркою! 🌟</p>
+    <div class="start-btns">
+      <button class="big-btn" onclick="startQuiz()">▶ Почати тест</button>
+      <button class="big-btn ghost" id="lastBtn" style="display:none" onclick="showLast()">📋 Мій минулий результат</button>
+    </div>
+  </section>
+
+  <!-- ══════ QUIZ ══════ -->
+  <section id="quiz" class="screen">
+    <div class="topbar">
+      <button class="iconbtn" onclick="backStep()" title="Назад">←</button>
+      <div class="progress-line">
+        <div class="bar"><span id="qBar" style="width:0%"></span></div>
+        <span class="pt" id="qPt">Питання 1 / 8</span>
+      </div>
+    </div>
+    <p class="qnum" id="qNum">Питання 1</p>
+    <h2 class="qtext" id="qText">…</h2>
+    <div class="opts" id="qOpts"></div>
+  </section>
+
+  <!-- ══════ RESULT ══════ -->
+  <section id="result" class="screen">
+    <div class="crown">
+      <div class="champ-emoji" id="champEmoji">🏆</div>
+      <h2 id="champTitle">Твоя суперсила — …</h2>
+      <p class="lead" id="champLead"></p>
+    </div>
+
+    <div class="tipbox" id="champTip"></div>
+
+    <p class="section-title">🎯 Рекомендовані види спорту</p>
+    <div class="sportcards" id="sportCards"></div>
+
+    <p class="section-title">📊 Усі твої характеристики</p>
+    <div class="stats" id="statBars"></div>
+
+    <div class="result-btns">
+      <button class="big-btn blue" onclick="shareResult()">📤 Поділитися результатом</button>
+      <button class="big-btn" onclick="startQuiz()">🔁 Пройти ще раз</button>
+    </div>
+  </section>
+
+</div>
+
+<nav class="botnav">
+  <a href="hero.html"><span class="ic">🏠</span>Головна</a>
+  <a href="tests.html"><span class="ic">📜</span>Тести</a>
+  <a href="biblioteka.html"><span class="ic">📚</span>Бібліотека</a>
+  <a href="igry.html"><span class="ic">🎮</span>Ігри</a>
+  <a href="karta.html"><span class="ic">🗺️</span>Карта</a>
+  <button id="heroBackBtn"><span class="ic">⬅️</span>Назад</button>
+</nav>
+
+<script>
+/* ============================================================
+   ЯКИЙ СПОРТ ТОБІ ПІДХОДИТЬ — самодостатній тест-опитувальник.
+   Це НЕ тест на правильність: кожна відповідь додає бали
+   характеристикам. Результат — % від максимуму кожної
+   характеристики (щоб рідкісні характеристики не програвали).
+   Останній результат зберігається в localStorage: 'sk-sport-quiz-v1'.
+   ============================================================ */
+
+/* ── 8 характеристик + види спорту ── */
+const ATTRS = {
+  speed:    {name:'Швидкість',   e:'🏃', color:'#4dabf7', sports:['легка атлетика','футбол','хокей','ковзанярський спорт']},
+  strength: {name:'Сила',        e:'💪', color:'#ff6b6b', sports:['боротьба','дзюдо','карате','важка атлетика (для старших)']},
+  endurance:{name:'Витривалість',e:'❤️', color:'#e64980', sports:['плавання','біг на довгі дистанції','велоспорт','лижні перегони']},
+  coord:    {name:'Координація', e:'🤸', color:'#cc5de8', sports:['спортивна гімнастика','акробатика','фігурне катання','футбол']},
+  flex:     {name:'Гнучкість',   e:'🩰', color:'#f783ac', sports:['художня гімнастика','танці','стретчинг / йога','акробатика']},
+  aim:      {name:'Точність',    e:'🎯', color:'#ffa94d', sports:['стрільба з лука','бадмінтон','теніс','настільний теніс']},
+  team:     {name:'Командність', e:'🤝', color:'#51cf66', sports:['футбол','баскетбол','волейбол','хокей']},
+  brave:    {name:'Сміливість',  e:'🦁', color:'#fab005', sports:['скелелазіння','гірські лижі','єдиноборства','стрибки у воду']}
+};
+
+/* короткі фрази-підказки під чемпіоном */
+const TIPS = {
+  speed:'Ти — блискавка! Швидкість і старт даються тобі найкраще.',
+  strength:'Ти сильний і витривалий у навантаженнях. Справжній богатир!',
+  endurance:'Ти можеш довго не втомлюватися — це супер для довгих дистанцій.',
+  coord:'У тебе чудова координація рухів — тіло слухається на всі 100%.',
+  flex:'Ти гнучкий і граційний — рухаєшся легко й красиво.',
+  aim:'У тебе влучне око й тверда рука. Ти майже завжди в ціль!',
+  team:'Ти народжений грати в команді — з тобою всім легко перемагати.',
+  brave:'Ти сміливий і завзятий — не боїшся викликів і важких тренувань.'
+};
+
+/* ── 8 питань. s: скільки балів якій характеристиці дає відповідь ── */
+const Q = [
+ {q:'На перерві ти найчастіше…', a:[
+   {t:'Бігаю швидше за всіх',              e:'🟢', s:{speed:2}},
+   {t:'Стрибаю через перешкоди',           e:'🔵', s:{flex:1,coord:1}},
+   {t:'Люблю кидати мʼяч',                 e:'🟣', s:{aim:2}},
+   {t:'Катаюся на велосипеді чи самокаті', e:'🟡', s:{endurance:2}},
+   {t:'Граю у командні ігри',              e:'🟠', s:{team:2}},
+ ]},
+ {q:'Що тобі дається найкраще?', a:[
+   {t:'Бігати швидко',        e:'🐆', s:{speed:2}},
+   {t:'Лазити по драбинах',   e:'🐒', s:{coord:1,strength:1}},
+   {t:'Високо стрибати',      e:'🦘', s:{flex:1,strength:1}},
+   {t:'Довго не втомлюватися',e:'🦅', s:{endurance:2}},
+   {t:'Бути сильним',         e:'🐻', s:{strength:2}},
+ ]},
+ {q:'Яку суперсилу ти хотів би мати?', a:[
+   {t:'Надшвидкість',            e:'⚡', s:{speed:2}},
+   {t:'Суперсилу',               e:'💪', s:{strength:2}},
+   {t:'Завжди влучати в ціль',   e:'🎯', s:{aim:2}},
+   {t:'Робити красиві перевороти',e:'🤸',s:{coord:1,flex:1}},
+   {t:'Плавати як дельфін',      e:'🏊', s:{endurance:2}},
+ ]},
+ {q:'Що тобі цікавіше?', a:[
+   {t:'Забити гол',            e:'⚽', s:{team:1,aim:1}},
+   {t:'Закинути мʼяч у кошик', e:'🏀', s:{team:1,aim:1}},
+   {t:'Перекинути волан',      e:'🏸', s:{aim:1,coord:1}},
+   {t:'Відбити мʼяч ракеткою', e:'🎾', s:{aim:1,coord:1}},
+   {t:'Вивчити новий прийом',  e:'🥋', s:{brave:1,strength:1}},
+ ]},
+ {q:'Які вправи подобаються?', a:[
+   {t:'Біг',      e:'🏃', s:{speed:1,endurance:1}},
+   {t:'Стрибки',  e:'🤸', s:{flex:2}},
+   {t:'Лазіння',  e:'🧗', s:{strength:1,brave:1}},
+   {t:'Плавання', e:'🏊', s:{endurance:2}},
+   {t:'Катання',  e:'🚴', s:{endurance:1,coord:1}},
+ ]},
+ {q:'Що у тебе виходить краще?', a:[
+   {t:'Прицілитися',      e:'🎯', s:{aim:2}},
+   {t:'Вести мʼяч',       e:'⚽', s:{coord:1,team:1}},
+   {t:'Ловити предмети',  e:'🤹', s:{coord:2}},
+   {t:'Тримати рівновагу',e:'🤸', s:{flex:1,coord:1}},
+   {t:'Швидко стартувати',e:'🏃', s:{speed:2}},
+ ]},
+ {q:'Тобі більше подобається…', a:[
+   {t:'Грати з командою',          e:'👨‍👩‍👧‍👦', s:{team:2}},
+   {t:'Досягати результату самому', e:'🙂', s:{brave:2}},
+ ]},
+ {q:'Якщо потрібно багато тренуватися…', a:[
+   {t:'Я готовий!',        e:'😀', s:{brave:2,endurance:1}},
+   {t:'Якщо буде цікаво',  e:'🙂', s:{coord:1}},
+   {t:'Люблю більше грати',e:'😅', s:{team:1}},
+ ]},
+];
+
+const KEYS = Object.keys(ATTRS);
+const STORE = 'sk-sport-quiz-v1';
+
+/* максимум балів, який кожна характеристика може набрати
+   (сума найбільшого внеску у кожному питанні) — для нормалізації */
+const MAX = (function(){
+  const m = {}; KEYS.forEach(k=>m[k]=0);
+  Q.forEach(q=>{
+    const best = {}; KEYS.forEach(k=>best[k]=0);
+    q.a.forEach(o=>{ for(const k in o.s){ if(o.s[k]>best[k]) best[k]=o.s[k]; } });
+    KEYS.forEach(k=>m[k]+=best[k]);
+  });
+  return m;
+})();
+
+let step = 0;            // поточне питання (0..Q.length-1)
+let answers = [];        // індекси обраних відповідей
+
+/* ── навігація екранами ── */
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+  window.scrollTo(0,0);
+}
+
+function startQuiz(){
+  step = 0; answers = [];
+  show('quiz');
+  renderQ();
+}
+
+function renderQ(){
+  const q = Q[step];
+  document.getElementById('qNum').textContent = 'Питання ' + (step+1);
+  document.getElementById('qText').textContent = q.q;
+  document.getElementById('qPt').textContent = 'Питання ' + (step+1) + ' / ' + Q.length;
+  document.getElementById('qBar').style.width = Math.round(step/Q.length*100) + '%';
+  const box = document.getElementById('qOpts');
+  box.innerHTML = '';
+  q.a.forEach((o,i)=>{
+    const b = document.createElement('button');
+    b.className = 'opt' + (answers[step]===i ? ' pick' : '');
+    b.innerHTML = '<span class="oe">'+o.e+'</span><span>'+o.t+'</span>';
+    b.onclick = ()=>pick(i);
+    box.appendChild(b);
+  });
+}
+
+function pick(i){
+  answers[step] = i;
+  // коротка підсвітка вибору, тоді крок далі
+  const btns = document.querySelectorAll('#qOpts .opt');
+  btns.forEach((b,idx)=>b.classList.toggle('pick', idx===i));
+  setTimeout(()=>{
+    if(step < Q.length-1){ step++; renderQ(); }
+    else finish();
+  }, 260);
+}
+
+function backStep(){
+  if(step > 0){ step--; renderQ(); }
+  else show('start');
+}
+
+/* ── підрахунок ── */
+function tally(){
+  const raw = {}; KEYS.forEach(k=>raw[k]=0);
+  answers.forEach((ai,qi)=>{
+    const s = Q[qi].a[ai].s;
+    for(const k in s) raw[k] += s[k];
+  });
+  const pct = KEYS.map(k=>({
+    key:k, pct: MAX[k] ? Math.round(raw[k]/MAX[k]*100) : 0
+  }));
+  pct.sort((a,b)=> b.pct - a.pct);
+  return pct;
+}
+
+function finish(){
+  const ranked = tally();
+  try{ localStorage.setItem(STORE, JSON.stringify(ranked)); }catch(e){}
+  renderResult(ranked);
+  show('result');
+}
+
+function showLast(){
+  let ranked = null;
+  try{ ranked = JSON.parse(localStorage.getItem(STORE)); }catch(e){}
+  if(!ranked || !ranked.length){ startQuiz(); return; }
+  renderResult(ranked);
+  show('result');
+}
+
+/* лідери: топ-результат + усі в межах 12% від нього, максимум 3 */
+function leaders(ranked){
+  const top = ranked[0].pct;
+  const L = ranked.filter(r=> r.pct>0 && r.pct >= top-12).slice(0,3);
+  return L.length ? L : ranked.slice(0,1);
+}
+
+function renderResult(ranked){
+  const L = leaders(ranked);
+  const champ = ranked[0];
+  const A = ATTRS[champ.key];
+
+  document.getElementById('champEmoji').textContent = A.e;
+  document.getElementById('champTitle').textContent = 'Твоя суперсила — ' + A.name.toLowerCase() + '!';
+  const others = L.slice(1).map(r=>ATTRS[r.key].name.toLowerCase());
+  document.getElementById('champLead').textContent =
+    others.length ? ('А ще в тебе сильні: ' + others.join(', ')) : 'Це твоя найяскравіша риса!';
+  document.getElementById('champTip').textContent = TIPS[champ.key];
+
+  // картки спорту для лідерів
+  const cc = document.getElementById('sportCards');
+  cc.innerHTML = '';
+  L.forEach(r=>{
+    const a = ATTRS[r.key];
+    const card = document.createElement('div');
+    card.className = 'sportcard';
+    card.style.borderLeftColor = a.color;
+    card.innerHTML =
+      '<h3><span class="se">'+a.e+'</span>'+a.name+' <span style="color:var(--soft);font-weight:800;font-size:14px">· '+r.pct+'%</span></h3>'+
+      '<div class="chips">'+a.sports.map(s=>'<span class="chip">'+s+'</span>').join('')+'</div>';
+    cc.appendChild(card);
+  });
+
+  // усі 8 характеристик
+  const sb = document.getElementById('statBars');
+  sb.innerHTML = '';
+  ranked.forEach((r,idx)=>{
+    const a = ATTRS[r.key];
+    const div = document.createElement('div');
+    div.className = 'stat' + (idx===0 ? ' top' : '');
+    div.innerHTML =
+      '<div class="row"><span class="se">'+a.e+'</span>'+a.name+'<span class="pv">'+r.pct+'%</span></div>'+
+      '<div class="track"><span style="width:0%;background:'+a.color+'"></span></div>';
+    sb.appendChild(div);
+    // плавне заповнення
+    const fill = div.querySelector('.track>span');
+    requestAnimationFrame(()=>{ setTimeout(()=>{ fill.style.width = r.pct + '%'; }, 60 + idx*50); });
+  });
+}
+
+/* ── поділитися ── */
+function shareResult(){
+  let ranked = null;
+  try{ ranked = JSON.parse(localStorage.getItem(STORE)); }catch(e){}
+  if(!ranked || !ranked.length) return;
+  const L = leaders(ranked);
+  const champ = ATTRS[ranked[0].key];
+  const txt = 'Мій спортивний результат у Королівстві Школи 🏆\n'+
+    'Суперсила: ' + champ.name + ' ' + champ.e + '\n'+
+    'Рекомендовані види спорту: ' + ATTRS[L[0].key].sports.join(', ') + '.';
+  if(navigator.share){
+    navigator.share({title:'Який спорт тобі підходить?', text:txt}).catch(()=>{});
+  }else if(navigator.clipboard){
+    navigator.clipboard.writeText(txt).then(()=>alert('Результат скопійовано! 📋')).catch(()=>alert(txt));
+  }else{
+    alert(txt);
+  }
+}
+
+/* показати кнопку минулого результату, якщо він є */
+(function(){
+  let has = false;
+  try{ has = !!JSON.parse(localStorage.getItem(STORE)); }catch(e){}
+  if(has) document.getElementById('lastBtn').style.display = '';
+})();
+</script>
+
+<!-- Firebase лише для спільного футера (кнопка «Назад») -->
+<script type="module" src="firebase-config.js"></script>
+<script>
+(function(){
+  var b = document.getElementById('heroBackBtn');
+  if(b) b.addEventListener('click', function(){ location.href='tests.html'; });
+})();
+</script>
+</body>
+</html>
