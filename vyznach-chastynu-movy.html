@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Визнач частину мови — 10 рівнів</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="sk-game-chalk.css">
+<style>
+/* картка зі словом */
+.card{
+  border:1px solid var(--line);border-radius:var(--r);
+  background:rgba(11,16,48,.7);padding:26px 16px 18px;margin:16px 0;text-align:center
+}
+.word{
+  font-family:"Fredoka",sans-serif;font-weight:700;
+  font-size:clamp(30px,9vw,44px);line-height:1.1;color:var(--chalk);
+  transition:all .15s ease
+}
+.word.ok{color:var(--mint)}
+.word.no{color:var(--coral)}
+
+/* підказка: питання до частин мови у виборі */
+.hint{
+  display:flex;flex-direction:column;gap:4px;margin-top:14px;
+  font-size:12px;line-height:1.3;color:var(--dim);text-align:center
+}
+.hint b{color:var(--line);font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="screen-map">
+    <div class="eyebrow">Українська мова · 10 рівнів · <span id="sync" class="sync">…</span></div>
+    <h1>Визнач частину мови</h1>
+    <div class="hud">
+      <div class="stat"><span class="k">XP</span><b id="hud-xp">0</b></div>
+      <div class="stat"><span class="k">Точність</span><b id="hud-acc">—</b></div>
+      <div class="stat"><span class="k">Рівні</span><b id="hud-lv">0/10</b></div>
+    </div>
+    <div class="map" id="map"></div>
+    <div class="rule"></div>
+    <div class="eyebrow">Прочитай слово й обери його частину мови</div>
+    <a class="backlink" href="igry.html">← До ігор</a>
+  </div>
+
+  <div id="screen-play" class="hide">
+    <div class="eyebrow" id="p-eyebrow"></div>
+    <h1 id="p-title"></h1>
+    <div class="card"><div class="word" id="p-word"></div></div>
+    <p class="q" id="p-q"></p>
+    <div class="hint" id="p-hint"></div>
+    <div class="opts" id="p-opts"></div>
+    <div class="dots" id="p-dots"></div>
+    <div class="msg" id="p-msg"></div>
+    <button class="btn ghost" id="p-back">До карти рівнів</button>
+  </div>
+
+  <div id="screen-done" class="hide">
+    <div class="eyebrow">Рівень пройдено</div>
+    <h1 id="d-title"></h1>
+    <div class="card"><p class="q" id="d-text"></p></div>
+    <button class="btn" id="d-next">Наступний рівень</button>
+    <button class="btn ghost" id="d-map">До карти рівнів</button>
+  </div>
+
+</div>
+
+<script type="module" src="firebase-config.js"></script>
+<script>
+/* ---------- частини мови ---------- */
+const POS = {
+  imen:  {name:"Іменник",    q:"хто? що?"},
+  prykm: {name:"Прикметник", q:"який? яка? яке?"},
+  diesl: {name:"Дієслово",   q:"що робить? що зробив?"},
+  chysl: {name:"Числівник",  q:"скільки? котрий?"},
+  zaym:  {name:"Займенник",  q:"я, ти, він, вона…"},
+  prysl: {name:"Прислівник", q:"як? де? коли?"},
+  pryym: {name:"Прийменник", q:"в, на, під, за"},
+  spol:  {name:"Сполучник",  q:"і, та, але, бо"}
+};
+
+/* банки слів (пул більший за 5 — випадкова вибірка) */
+const WORDS = {
+  imen:  ["кіт","собака","школа","книга","мама","тато","дерево","річка","сонце","квітка","зошит","олівець","місто","ліс","хліб","вода","друг","вчитель","зима","пташка","стіл","вікно","машина","яблуко"],
+  prykm: ["гарний","великий","малий","добрий","зелений","солодкий","високий","теплий","холодний","швидкий","веселий","розумний","сильний","м'який","яскравий","смачний","чистий","новий","старий","красивий"],
+  diesl: ["біжить","читає","пише","співає","малює","стрибає","спить","їсть","грає","летить","плаває","думає","сміється","працює","вчиться","будує","копає","ловить","шукає","слухає"],
+  chysl: ["один","два","три","чотири","п'ять","шість","сім","вісім","дев'ять","десять","перший","другий","третій","п'ятий","десятий","двадцять","сто"],
+  zaym:  ["я","ти","він","вона","воно","ми","ви","вони","мене","тебе","нас","вас","мій","твій","наш","ваш","свій"],
+  prysl: ["швидко","повільно","тихо","голосно","високо","низько","далеко","близько","вранці","ввечері","тут","там","добре","весело","разом","вдома","назад"],
+  pryym: ["в","у","на","під","над","за","до","від","з","із","при","біля","коло","через","поза"],
+  spol:  ["і","та","й","але","бо","або","чи","проте","тому","адже"]
+};
+
+const LEVELS = [
+  {t:"Іменник чи дієслово",  s:"хто/що проти що робить",      pos:["imen","diesl"]},
+  {t:"Іменник чи прикметник",s:"хто/що проти який",           pos:["imen","prykm"]},
+  {t:"Три головні",          s:"іменник · прикметник · дієслово", pos:["imen","prykm","diesl"]},
+  {t:"Додаємо числівник",    s:"скільки? котрий?",            pos:["imen","prykm","diesl","chysl"]},
+  {t:"Займенник",            s:"слово замість іменника",      pos:["imen","zaym","diesl"]},
+  {t:"Прислівник",           s:"як? де? коли?",               pos:["prykm","prysl","diesl"]},
+  {t:"Прийменник",           s:"маленькі слова-зв'язки",      pos:["imen","pryym","diesl"]},
+  {t:"Сполучник",            s:"поєднує слова",               pos:["pryym","spol","imen"]},
+  {t:"Службові слова",       s:"прийменник · сполучник · прислівник · займенник", pos:["pryym","spol","prysl","zaym"]},
+  {t:"Чемпіон частин мови",  s:"усі частини мови",            pos:["imen","prykm","diesl","chysl","zaym","prysl","pryym","spol"], champ:true}
+];
+const PER_LEVEL = 5, XP_FULL = 10, XP_REPLAY = 5;
+
+const S = {xp:0, unlocked:0, done:Array(10).fill(false), asked:0, right:0};
+let L=0, qs=[], qi=0, levelXP=0, replay=false, busy=false;
+
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2,"0");
+const shuffle = a => a.map(v=>[Math.random(),v]).sort((x,y)=>x[0]-y[0]).map(p=>p[1]);
+
+/* ---------- питання ---------- */
+function make(lv, used){
+  const cat = shuffle(lv.pos)[0];
+  const pool = WORDS[cat].filter(w => !used.has(w));
+  const word = shuffle(pool.length ? pool : WORDS[cat])[0];
+  used.add(word);
+
+  let optKeys;
+  if(lv.champ){
+    optKeys = [cat, ...shuffle(lv.pos.filter(k=>k!==cat)).slice(0,3)];
+  }else{
+    optKeys = [...lv.pos];
+  }
+  return {word, ans:cat, opts:shuffle(optKeys)};
+}
+function buildLevel(){
+  const used = new Set();
+  qs = Array.from({length:PER_LEVEL}, () => make(LEVELS[L], used));
+  qi = 0; levelXP = 0;
+}
+
+/* ---------- рендер ---------- */
+function show(id){ ["screen-map","screen-play","screen-done"].forEach(s=>$(s).classList.toggle("hide", s!==id)); }
+
+function drawMap(){
+  $("hud-xp").textContent = S.xp;
+  $("hud-acc").textContent = S.asked ? Math.round(S.right/S.asked*100)+"%" : "—";
+  $("hud-lv").textContent = S.done.filter(Boolean).length + "/10";
+  $("map").innerHTML = "";
+  LEVELS.forEach((lv,i)=>{
+    const b = document.createElement("button");
+    const locked = i > S.unlocked;
+    b.className = "lvl" + (S.done[i]?" done":"") + (locked?" lock":"");
+    b.innerHTML = `<span class="n">РІВЕНЬ ${pad(i+1)}</span>${lv.t}
+      <span class="tag">${locked ? "зачинено" : (S.done[i] ? "пройдено · повтор ½ XP" : lv.s)}</span>`;
+    b.disabled = locked;
+    b.onclick = () => startLevel(i);
+    $("map").appendChild(b);
+  });
+}
+
+function drawQ(){
+  const q = qs[qi];
+  $("p-eyebrow").textContent = `РІВЕНЬ ${pad(L+1)} · ${replay ? "повтор · ½ XP" : "+"+XP_FULL+" XP за відповідь"}`;
+  $("p-title").textContent = LEVELS[L].t;
+  $("p-word").textContent = q.word;
+  $("p-word").className = "word";
+  $("p-q").textContent = "Яка це частина мови?";
+
+  $("p-hint").innerHTML = q.opts
+    .map(k => `<span><b>${POS[k].name}</b> — ${POS[k].q}</span>`)
+    .join("");
+
+  const opts = $("p-opts");
+  opts.className = "opts" + (q.opts.length !== 3 ? " wide" : "");
+  opts.innerHTML = "";
+  q.opts.forEach(k=>{
+    const b = document.createElement("button");
+    b.className = "opt"; b.textContent = POS[k].name; b.dataset.k = k;
+    b.onclick = () => tap(b, k);
+    opts.appendChild(b);
+  });
+
+  $("p-dots").innerHTML = qs.map((_,i)=>`<span class="dot ${i<qi?"hit":i===qi?"on":""}"></span>`).join("");
+  $("p-msg").textContent = ""; $("p-msg").className = "msg";
+  busy = false;
+}
+
+/* ---------- відповідь ---------- */
+function tap(btn, k){
+  if(busy) return; busy = true;
+  const q = qs[qi], ok = k === q.ans;
+  btn.classList.add(ok ? "ok" : "no");
+  [...$("p-opts").children].forEach(b=>{
+    b.disabled = true;
+    if(!ok && b.dataset.k === q.ans) b.classList.add("ok");
+  });
+  $("p-word").classList.add(ok ? "ok" : "no");
+  finish(ok);
+}
+function finish(ok){
+  if(!replay){ S.asked++; if(ok) S.right++; }
+  const msg = $("p-msg");
+  if(ok){
+    levelXP += replay ? XP_REPLAY : XP_FULL;
+    msg.className = "msg ok"; msg.textContent = `Правильно · +${replay?XP_REPLAY:XP_FULL} XP`;
+    setTimeout(()=>{ qi++; qi < qs.length ? drawQ() : endLevel(); }, 1100);
+  }else{
+    msg.className = "msg no";
+    msg.textContent = `Це «${POS[qs[qi].ans].name}». Рівень починається спочатку, XP рівня скидається`;
+    setTimeout(()=>{ buildLevel(); drawQ(); }, 1900);
+  }
+}
+function startLevel(i){ L=i; replay=S.done[i]; buildLevel(); show("screen-play"); drawQ(); }
+function endLevel(){
+  S.xp += levelXP;
+  if(!S.done[L]){ S.done[L]=true; if(L===S.unlocked && L<9) S.unlocked=L+1; }
+  $("d-title").textContent = LEVELS[L].t;
+  $("d-text").textContent = `Зароблено ${levelXP} XP${replay?" (повтор — половина XP, точність не змінюється)":""}. Усього ${S.xp} XP.`;
+  $("d-next").classList.toggle("hide", L>=9);
+  saveProgress();
+  show("screen-done");
+}
+
+$("p-back").onclick = ()=>{ drawMap(); show("screen-map"); };
+$("d-map").onclick  = ()=>{ drawMap(); show("screen-map"); };
+$("d-next").onclick = ()=> startLevel(Math.min(L+1,9));
+
+/* ---------- прогрес: localStorage (sk_game_chastyny) + heroes/{id}.progress через SK ---------- */
+const LS_KEY = "sk_game_chastyny";
+const setSync = (t,c) => { const e=$("sync"); if(e){ e.textContent=t; e.className="sync "+(c||""); } };
+
+function readLS(){
+  try{
+    const o = JSON.parse(localStorage.getItem(LS_KEY) || "null");
+    if(o && typeof o === "object"){
+      S.xp = o.xp|0; S.unlocked = o.unlocked|0; S.asked = o.asked|0; S.right = o.right|0;
+      S.done = Array.isArray(o.done) && o.done.length===10 ? o.done : Array(10).fill(false);
+    }
+  }catch(e){}
+}
+function saveProgress(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){}
+  if(window.SK && SK.pushLocal){
+    SK.pushLocal().then(ok=>setSync(ok?"збережено":"локально",ok?"ok":"no")).catch(()=>setSync("локально","no"));
+  }
+}
+window.addEventListener("pagehide", saveProgress);
+
+function waitSK(cb){
+  let n = 0;
+  (function poll(){
+    if(window.SK && window.SK.ready) return cb();
+    if(++n > 60) return cb(null);           // ~6 с — firebase-config.js не піднявся
+    setTimeout(poll, 100);
+  })();
+}
+function boot(){
+  readLS(); drawMap(); setSync("з'єднання…");
+  waitSK(ok => {
+    if(!ok){ setSync("локально — без хмари","no"); return; }
+    SK.ready.then(async () => {
+      try{
+        if(!SK.isHeroSession || !SK.isHeroSession()){ setSync("увійди як Герой","no"); return; }
+        await SK.pullLocal();               // хмара → localStorage
+        readLS(); drawMap();
+        const hero = await SK.getActiveChild();
+        setSync(hero && hero.name ? hero.name : "прогрес у хмарі", "ok");
+      }catch(e){ setSync("локально","no"); }
+    });
+  });
+}
+boot();
+</script>
+</body>
+</html>
