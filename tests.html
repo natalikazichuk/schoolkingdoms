@@ -359,11 +359,11 @@ function chip(it, accent){
   }
   return '<span class="chip plan" style="--accent:'+accent+'"><span class="dot">•</span> '+esc(it.label)+'</span>';
 }
-function subjectHtml(s, tier){
+function subjectHtml(s, tier, grade){
   var accent = s.accent || '#5C6BC0';
   var body = '';
   // тренажери-сторінки предмета (з SUBJECT_LINKS) — показуємо першими
-  var slinks = subjectLinksFor(s, tier);
+  var slinks = subjectLinksFor(s, tier, grade);
   if(slinks.length){
     body += '<div class="grp-title">🎮 Тренажери</div><div class="chips">'
           + slinks.map(function(l){
@@ -406,7 +406,7 @@ function tierHtml(t, openFirst){
   if(Array.isArray(t.grades) && t.grades.length){
     t.grades.forEach(function(g){
       inner += '<div class="grade-name">📖 '+g.name+'</div>';
-      inner += (g.subjects||[]).map(function(s){ return subjectHtml(s, t); }).join('');
+      inner += (g.subjects||[]).map(function(s){ return subjectHtml(s, t, g); }).join('');
     });
   } else {
     inner = '<p style="color:#c6d3ea;font-weight:600;font-size:.9rem;padding:6px 4px 4px">'
@@ -461,8 +461,7 @@ var SUBJECT_LINKS_DEFAULT = [
   { subject:'eng', href:'english-reading.html', icon:'📖', label:'Вчимось читати!' },
   // абетка — це дошкільна підготовка, тож привʼязуємо до ступеня «Дошкільна…», а не до 1 класу.
   // subject:'україн' зловить назву «Українська мова» / ключ «україн» незалежно від id з адмінки.
-  { tier:'Дошкільн', subject:'україн', href:'ukrainian-abetka.html', icon:'🔤', label:'Українська абетка' },
-  { subject:'україн', href:'vyznach-chastynu-movy.html', icon:'🧩', label:'Визнач частину мови' }
+  { tier:'Дошкільн', subject:'україн', href:'ukrainian-abetka.html', icon:'🔤', label:'Українська абетка' }
 ];
 /* Реальний список тренажерів. До приходу відповіді з бази — вбудований.
    Якщо в базі є документ curriculum/trainers (керується з адмінки), він
@@ -489,10 +488,19 @@ function slTierMatch(t, sel){
   if(slNorm(t.id) === n) return true;
   return slNorm(t.name).indexOf(n) >= 0;
 }
-function subjectLinksFor(s, tier){
+/* Клас у записі — необовʼязковий фільтр. Порожній → показуємо в усіх класах.
+   Заданий (1–4) → лише в класі з таким gradeNum. */
+function slGradeMatch(g, sel){
+  if(!sel) return true;
+  if(!g) return true;   // немає контексту класу — не ховаємо
+  return Number(g.gradeNum) === Number(sel);
+}
+function subjectLinksFor(s, tier, grade){
   return (SUBJECT_LINKS || []).filter(function(l){
     if(!l || !l.href || !l.subject) return false;   // порожні/незаповнені рядки з адмінки — пропускаємо
-    return slSubjMatch(s, l.subject) && (l.tier ? slTierMatch(tier, l.tier) : true);
+    return slSubjMatch(s, l.subject)
+        && (l.tier  ? slTierMatch(tier, l.tier)   : true)
+        && (l.grade ? slGradeMatch(grade, l.grade) : true);
   });
 }
 

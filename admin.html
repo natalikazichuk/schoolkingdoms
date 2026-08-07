@@ -557,8 +557,9 @@
         предметом на сторінці «Тести» (блок 🎮 Тренажери). Обери предмет, дай назву
         й встав посилання. Можна вказати внутрішню сторінку (напр. <code>english-reading.html</code>)
         або зовнішнє посилання/відео (<code>https://…</code>).
-        <br>Порожні рядки не зберігаються. Ступінь — необовʼязковий фільтр: залиш «усі»,
-        щоб тренажер показувався в кожному класі з цим предметом.
+        <br>Порожні рядки не зберігаються. Ступінь і клас — необовʼязкові фільтри:
+        залиш «усі ступені»/«усі класи», щоб тренажер показувався скрізь із цим предметом.
+        Обери клас (1–4), щоб тренажер зʼявлявся тільки в тому класі.
       </p>
       <div class="toolbar" style="margin:4px 0 12px">
         <button class="btn xs" id="trAdd">＋ Тренажер</button>
@@ -1230,6 +1231,30 @@ function trTierOpts(sel){
   if(sel && !known) html += '<option value="' + esc(sel) + '" selected>' + esc(sel) + '</option>';
   return html;
 }
+/* Номери класів із карти (унікальні gradeNum) — для випадаючого списку.
+   Якщо карта порожня — типовий набір молодшої школи 1–4. */
+function trGradeList(){
+  const set = new Set();
+  if(MAP) MAP.tiers.forEach(t => (t.grades||[]).forEach(g => {
+    const n = Number(g.gradeNum);
+    if(n) set.add(n);
+  }));
+  const arr = [...set].sort((a, b) => a - b);
+  return arr.length ? arr : [1, 2, 3, 4];
+}
+function trGradeOpts(sel){
+  const s = String(sel == null ? '' : sel).trim();
+  const list = trGradeList();
+  let html = '<option value="">— усі класи —</option>';
+  let known = false;
+  list.forEach(n => {
+    const isSel = s === String(n);
+    if(isSel) known = true;
+    html += '<option value="' + n + '"' + (isSel ? ' selected' : '') + '>' + n + ' клас</option>';
+  });
+  if(s && !known) html += '<option value="' + esc(s) + '" selected>' + esc(s) + ' клас</option>';
+  return html;
+}
 function trTypeOpts(sel){
   return [['page','🔗 Сторінка'],['video','🎬 Відео']].map(o =>
     '<option value="' + o[0] + '"' + (sel === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('');
@@ -1287,7 +1312,8 @@ function renderTrainers(){
       + '<div class="map-head">'
         + '<span class="map-lvl">ПРЕДМЕТ</span>'
         + '<select class="grow" data-tf="subject" data-i="' + i + '">' + trSubjOpts(l.subject) + '</select>'
-        + '<select data-tf="tier" data-i="' + i + '" style="width:auto">' + trTierOpts(l.tier) + '</select>'
+        + '<select data-tf="tier" data-i="' + i + '" style="width:auto" title="Ступінь — необовʼязковий фільтр">' + trTierOpts(l.tier) + '</select>'
+        + '<select data-tf="grade" data-i="' + i + '" style="width:auto" title="Клас — необовʼязковий фільтр">' + trGradeOpts(l.grade) + '</select>'
       + '</div>'
       + '<div class="map-head">'
         + '<span class="map-lvl">ПОСИЛАННЯ</span>'
@@ -1319,6 +1345,7 @@ function onTrInput(e){
     case 'label':   l.label = el.value; break;
     case 'subject': l.subject = el.value; break;
     case 'tier':    l.tier = el.value; break;
+    case 'grade':   l.grade = el.value; break;
     case 'href':    l.href = el.value; break;
     case 'icon':    l.icon = el.value; break;
     case 'blank':   l.blank = el.checked; break;
