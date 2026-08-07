@@ -11,10 +11,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="sk-game-chalk.css">
 <style>
+/* дрібні підписи (overline) — темні, щоб читались на світлому небі */
+.eyebrow{color:#0b1030;font-weight:600}
+
 /* картка зі словом */
 .card{
   border:1px solid var(--line);border-radius:var(--r);
-  background:rgba(11,16,48,.7);padding:26px 16px 18px;margin:16px 0;text-align:center
+  background:rgba(11,16,48,.72);padding:26px 16px 18px;margin:16px 0;text-align:center
 }
 .word{
   font-family:"Fredoka",sans-serif;font-weight:700;
@@ -24,12 +27,16 @@
 .word.ok{color:var(--mint)}
 .word.no{color:var(--coral)}
 
+/* питання + підказка — на тій самій темній картці, тож добре видно */
+.cardq{border-top:1px solid var(--grid);margin-top:16px;padding-top:12px}
+.cardq .q{color:var(--chalk)}
+
 /* підказка: питання до частин мови у виборі */
 .hint{
-  display:flex;flex-direction:column;gap:4px;margin-top:14px;
+  display:flex;flex-direction:column;gap:4px;margin-top:8px;
   font-size:12px;line-height:1.3;color:var(--dim);text-align:center
 }
-.hint b{color:var(--line);font-weight:700}
+.hint b{color:var(--amber);font-weight:700}
 </style>
 </head>
 <body>
@@ -52,13 +59,17 @@
   <div id="screen-play" class="hide">
     <div class="eyebrow" id="p-eyebrow"></div>
     <h1 id="p-title"></h1>
-    <div class="card"><div class="word" id="p-word"></div></div>
-    <p class="q" id="p-q"></p>
-    <div class="hint" id="p-hint"></div>
+    <div class="card">
+      <div class="word" id="p-word"></div>
+      <div class="cardq">
+        <p class="q" id="p-q"></p>
+        <div class="hint" id="p-hint"></div>
+      </div>
+    </div>
     <div class="opts" id="p-opts"></div>
     <div class="dots" id="p-dots"></div>
     <div class="msg" id="p-msg"></div>
-    <button class="btn ghost" id="p-back">До карти рівнів</button>
+    <button class="btn ghost" id="p-back">← Назад до рівнів</button>
   </div>
 
   <div id="screen-done" class="hide">
@@ -66,7 +77,7 @@
     <h1 id="d-title"></h1>
     <div class="card"><p class="q" id="d-text"></p></div>
     <button class="btn" id="d-next">Наступний рівень</button>
-    <button class="btn ghost" id="d-map">До карти рівнів</button>
+    <button class="btn ghost" id="d-map">← Назад до рівнів</button>
   </div>
 
 </div>
@@ -109,7 +120,7 @@ const LEVELS = [
   {t:"Службові слова",       s:"прийменник · сполучник · прислівник · займенник", pos:["pryym","spol","prysl","zaym"]},
   {t:"Чемпіон частин мови",  s:"усі частини мови",            pos:["imen","prykm","diesl","chysl","zaym","prysl","pryym","spol"], champ:true}
 ];
-const PER_LEVEL = 5, XP_FULL = 10, XP_REPLAY = 5;
+const PER_LEVEL = 5, XP_FULL = 1, XP_REPLAY = 0;
 
 const S = {xp:0, unlocked:0, done:Array(10).fill(false), asked:0, right:0};
 let L=0, qs=[], qi=0, levelXP=0, replay=false, busy=false;
@@ -152,7 +163,7 @@ function drawMap(){
     const locked = i > S.unlocked;
     b.className = "lvl" + (S.done[i]?" done":"") + (locked?" lock":"");
     b.innerHTML = `<span class="n">РІВЕНЬ ${pad(i+1)}</span>${lv.t}
-      <span class="tag">${locked ? "зачинено" : (S.done[i] ? "пройдено · повтор ½ XP" : lv.s)}</span>`;
+      <span class="tag">${locked ? "зачинено" : (S.done[i] ? "пройдено · повтор без XP" : lv.s)}</span>`;
     b.disabled = locked;
     b.onclick = () => startLevel(i);
     $("map").appendChild(b);
@@ -161,7 +172,7 @@ function drawMap(){
 
 function drawQ(){
   const q = qs[qi];
-  $("p-eyebrow").textContent = `РІВЕНЬ ${pad(L+1)} · ${replay ? "повтор · ½ XP" : "+"+XP_FULL+" XP за відповідь"}`;
+  $("p-eyebrow").textContent = `РІВЕНЬ ${pad(L+1)} · ${replay ? "повтор · без XP" : "+"+XP_FULL+" XP за відповідь"}`;
   $("p-title").textContent = LEVELS[L].t;
   $("p-word").textContent = q.word;
   $("p-word").className = "word";
@@ -203,7 +214,7 @@ function finish(ok){
   const msg = $("p-msg");
   if(ok){
     levelXP += replay ? XP_REPLAY : XP_FULL;
-    msg.className = "msg ok"; msg.textContent = `Правильно · +${replay?XP_REPLAY:XP_FULL} XP`;
+    msg.className = "msg ok"; msg.textContent = replay ? "Правильно" : `Правильно · +${XP_FULL} XP`;
     setTimeout(()=>{ qi++; qi < qs.length ? drawQ() : endLevel(); }, 1100);
   }else{
     msg.className = "msg no";
@@ -216,7 +227,9 @@ function endLevel(){
   S.xp += levelXP;
   if(!S.done[L]){ S.done[L]=true; if(L===S.unlocked && L<9) S.unlocked=L+1; }
   $("d-title").textContent = LEVELS[L].t;
-  $("d-text").textContent = `Зароблено ${levelXP} XP${replay?" (повтор — половина XP, точність не змінюється)":""}. Усього ${S.xp} XP.`;
+  $("d-text").textContent = replay
+    ? `Повтор — XP не нараховується, точність не змінюється. Усього ${S.xp} XP.`
+    : `Зароблено ${levelXP} XP. Усього ${S.xp} XP.`;
   $("d-next").classList.toggle("hide", L>=9);
   saveProgress();
   show("screen-done");
