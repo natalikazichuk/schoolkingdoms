@@ -648,12 +648,23 @@ function achPlural(n){
   if(d>=2 && d<=4) return 'тести';
   return 'тестів';
 }
-function applyAchievements(){
+function applyAchievements(prog){
   var sec=document.getElementById('skAch');
   var list=document.getElementById('skAchList');
   if(!sec || !list) return;
   list.innerHTML='';
   var count=0;
+  /* Дані з Firebase (heroes/{id}.progress) — той самий обʼєкт, що вже живить
+     бейджі рівнів і смужки предметів. Читаємо і тут, інакше тест, який бейдж
+     показує «8/8», а смужка предмета рахує пройденим, губився з 🏆 (лічильник
+     занижувався), бо applyAchievements() дивилась лише в localStorage. */
+  function pgGet(k){ return (prog && prog[k]!=null) ? prog[k] : null; }
+  function mergedDone(key){
+    var a=0,b=0;
+    try{ a=countDoneLevels(localStorage.getItem(key)); }catch(e){}
+    try{ b=countDoneLevels(pgGet(key)); }catch(e){}
+    return Math.max(a,b);
+  }
 
   /* 1) знайти тести, ВИКОНАНІ на 100% (прапорець sk_test100_<id>) — будь-якого типу,
         сховати оригінал у рідній темі, клон → Досягнення. Розблокування ланцюга — окремо, на 55%. */
@@ -671,15 +682,15 @@ function applyAchievements(){
        isTestPassed() поруч уже давно читає два джерела — робимо так само. */
     var full=false;
     if(id){ try{ full = localStorage.getItem('sk_test100_'+id)==='1'; }catch(e){} }
+    if(!full && id && pgGet('sk_test100_'+id)==='1') full=true;   // прапорець із Firebase
     if(!full){
       var lp=grp.querySelector('.chip-lvprog');
       if(lp){
         var tot=parseInt(lp.getAttribute('data-lvtotal'),10)||0;
-        var done=0;
-        try{ done=countDoneLevels(localStorage.getItem(lp.getAttribute('data-lvkey'))); }catch(e){}
+        var done=mergedDone(lp.getAttribute('data-lvkey'));       // localStorage ∪ Firebase
         if(tot>0 && done>=tot){
           full=true;
-          try{ localStorage.setItem('sk_test100_'+id,'1'); }catch(e){}   // дописуємо, щоб синхронізувалось
+          try{ if(id) localStorage.setItem('sk_test100_'+id,'1'); }catch(e){}   // дописуємо, щоб синхронізувалось
         }
       }
     }
@@ -832,8 +843,9 @@ document.getElementById('root').innerHTML =
                 el.textContent = v + ' XP';
               });
 
-              /* ── перенести завершені тести в 🏆 Досягнення (після оновлення бейджів) ── */
-              if(typeof applyAchievements==='function') applyAchievements();
+              /* ── перенести завершені тести в 🏆 Досягнення (після оновлення бейджів) ──
+                 передаємо prog, щоб 100%-тести з Firebase теж потрапляли в 🏆 ── */
+              if(typeof applyAchievements==='function') applyAchievements(prog);
 
               /* ── смужки предметів: перерахувати з урахуванням прогресу Firebase ── */
               if(typeof fillSubjectProgress==='function') fillSubjectProgress(prog);
