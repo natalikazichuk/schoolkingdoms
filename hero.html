@@ -482,33 +482,64 @@ loadTasks();
 loadTestsProgress();
 
 /* ── Смужка пройдених тестів у картці «Тести». ──
-   Пройдені = мітки sk_testpass_<id>='1' (пише test.html, синхр. з Firebase).
-   Усього = активні тести з бази (SK.listActiveTests). Джерела ті самі, що
-   й у Досягненнях на tests.html, тож числа не розійдуться. */
+   Пройдено рахуємо ТОЧНО так само, як смужки предметів і Досягнення на
+   tests.html — інакше числа розходяться (як було: hero показував 23, а
+   Досягнення 35, хоча 100% ⊆ пройдених). Єдиний поріг:
+     мітка sk_testpass_<id>='1'  АБО  (тест-рівні) пройдено ≥55% рівнів,
+   з ДВОХ джерел — localStorage ∪ Firebase (heroes/{id}.progress).
+   Усього = активні тести з бази (SK.listActiveTests). */
+var TESTS_PASS_RATIO = 0.55;   // = SKCUR.PASS_RATIO (sk-curriculum.js); тримати синхронно
+function _countDoneLevels(v){
+  try{ var o=(typeof v==='string')?JSON.parse(v):v;
+    if(Array.isArray(o)) return o.length;
+    return (o && typeof o==='object') ? Object.keys(o).length : 0;
+  }catch(e){ return 0; }
+}
+function _testLevels(t){
+  if(!t) return 0;
+  var lv = (t.format==='levels') || (Array.isArray(t.levels) && t.levels.length);
+  return lv ? (Array.isArray(t.levels) ? t.levels.length : 0) : 0;
+}
+function _isTestPassed(id, levels, lsGet, pgGet){
+  if(!id) return false;
+  if(lsGet('sk_testpass_'+id)==='1' || pgGet('sk_testpass_'+id)==='1') return true;
+  if(levels>0){
+    var done=Math.max(_countDoneLevels(lsGet('sk_lvtest_'+id+'_done')),
+                      _countDoneLevels(pgGet('sk_lvtest_'+id+'_done')));
+    return (done/levels)>=TESTS_PASS_RATIO;
+  }
+  return false;
+}
 async function loadTestsProgress(){
   const wrap=$('testsProg'), fill=$('testsProgFill'), tx=$('testsProgTx');
   if(!wrap || !fill || !tx) return;
-  let passed=0;
-  try{
-    for(let i=0;i<localStorage.length;i++){
-      const k=localStorage.key(i);
-      if(k && k.indexOf('sk_testpass_')===0 && localStorage.getItem(k)==='1') passed++;
-    }
-  }catch(e){}
-  // дочекатись firebase-config (module — вантажиться відкладено), тоді спитати кількість тестів
-  let total=0;
+  // дочекатись firebase-config (module — вантажиться відкладено)
   try{
     await new Promise(function(res){ let n=0;
       (function w(){ if(window.SK && window.SK.ready) return res();
         if(n++<100) setTimeout(w,50); else res(); })(); });
-    if(window.SK && window.SK.listActiveTests){
-      await window.SK.ready;
-      const list=await window.SK.listActiveTests();
-      total=Array.isArray(list)?list.length:0;
+  }catch(e){}
+  if(!(window.SK && window.SK.listActiveTests)) return;
+  let list=[], prog={};
+  try{
+    await window.SK.ready;
+    list = await window.SK.listActiveTests();
+    if(!Array.isArray(list)) list=[];
+    // прогрес з Firebase — той самий обʼєкт, що живить стати й смужки на tests.html
+    if(window.SK.isHeroSession && window.SK.isHeroSession() && window.SK.getHero){
+      const h = await window.SK.getHero();
+      prog = (h && h.progress) ? h.progress : {};
     }
   }catch(e){}
+  const total = list.length;
   if(!total) return;                 // тестів у базі ще немає — смужку не показуємо
-  if(passed>total) passed=total;     // застарілі мітки видалених тестів
+  function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+  function pgGet(k){ return (prog && prog[k]!=null) ? prog[k] : null; }
+  let passed=0;
+  list.forEach(function(t){
+    if(_isTestPassed(t.id, _testLevels(t), lsGet, pgGet)) passed++;
+  });
+  if(passed>total) passed=total;
   fill.style.width=Math.round(passed/total*100)+'%';
   tx.textContent=passed+' / '+total+' пройдено';
   wrap.hidden=false;
