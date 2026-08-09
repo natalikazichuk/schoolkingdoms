@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Швидке додавання — 10 рівнів</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Manrope:wght@400;600;800&family=JetBrains+Mono:wght@400;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0F2038;
+  --ink-deep:#0A1526;
+  --grid:#1E3A5C;
+  --line:#4C7FB8;
+  --chalk:#E8F1FF;
+  --dim:#8FA9C7;
+  --amber:#FFC145;
+  --mint:#4FD6A4;
+  --coral:#FF6B6B;
+  --r:14px;
+  --paper:#FFFFFF;         /* біле «зошитне» табло */
+  --cell:#CFE0F2;          /* колір клітинки */
+  --penink:#16305C;        /* «синя ручка» — цифри */
+  --penedge:#9BBEE8;       /* намальована рамка */
+  --pengreen:#1F9E63;      /* правильно */
+  --penred:#E0492E;        /* помилка */
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:radial-gradient(120% 80% at 50% 0%,#9ad6f5 0%,#5aa3e6 45%,#2f74c8 100%) fixed;
+  color:var(--chalk);
+  font-family:"Manrope",system-ui,sans-serif;
+  min-height:100vh;
+  padding:18px 16px calc(28px + env(safe-area-inset-bottom));
+}
+.wrap{max-width:520px;margin:0 auto}
+.eyebrow{
+  font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--line)
+}
+.sync{color:var(--dim)}
+.sync.ok{color:var(--mint)}
+.sync.no{color:var(--coral)}
+h1{font-family:"Caveat",cursive;font-weight:700;font-size:34px;line-height:1.05;margin:4px 0 14px}
+.rule{height:1px;background:var(--line);opacity:.45;margin:14px 0}
+
+.hud{display:flex;gap:10px;margin-bottom:16px}
+.stat{flex:1;border:1px solid var(--grid);background:rgba(15,32,56,.75);border-radius:var(--r);padding:9px 11px}
+.stat b{display:block;font-family:"Caveat",cursive;font-weight:700;font-size:26px;line-height:1;margin-top:1px}
+.stat .k{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase}
+
+.map{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.lvl{
+  text-align:left;border:2px solid #E0A42A;
+  background:linear-gradient(160deg,#FFD764 0%,#F4B12B 100%);
+  color:#15294D;border-radius:var(--r);padding:12px;cursor:pointer;
+  font-family:"Manrope",sans-serif;font-size:13px;font-weight:700;line-height:1.3;
+  box-shadow:0 4px 12px rgba(10,21,38,.22);
+  transition:transform .12s ease, filter .12s ease;
+}
+.lvl:hover{transform:translateY(-2px);filter:brightness(1.05)}
+.lvl .n{display:block;margin-bottom:4px;font-family:"JetBrains Mono",monospace;font-size:10px;color:#8A5A00;letter-spacing:.1em}
+.lvl.done{border-color:#1F9E63}
+.lvl.done .n{color:#1F7A50}
+.lvl.lock{
+  border-color:#6E86AE;color:#9FB4D4;cursor:not-allowed;box-shadow:none;
+  background:linear-gradient(160deg,rgba(20,40,70,.55),rgba(15,32,56,.55))
+}
+.lvl.lock .n{color:#7E95BC}
+.lvl.lock:hover{transform:none;filter:none}
+.lvl .tag{display:block;margin-top:7px;font-family:"JetBrains Mono",monospace;font-size:10px;color:#7A5A1E}
+.lvl.lock .tag{color:#8AA0C4}
+.lvl .st{display:block;margin-top:6px;font-size:13px;letter-spacing:2px;line-height:1;color:#15294D}
+.lvl .st .off{color:rgba(21,41,77,.24)}
+
+.backlink{display:inline-block;margin-top:14px;color:var(--line);text-decoration:none;
+  font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.06em}
+.backlink:hover{color:var(--chalk)}
+
+/* --- гра --- */
+.pbar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.pbar .lab{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.1em;color:var(--dim);text-transform:uppercase}
+.pbar .score{margin-left:auto;font-family:"Caveat",cursive;font-weight:700;font-size:30px;line-height:1}
+.pbar .score small{font-family:"JetBrains Mono",monospace;font-weight:400;font-size:10px;color:var(--dim);letter-spacing:.08em}
+
+.timer{height:10px;border-radius:6px;background:rgba(10,21,38,.7);border:1px solid var(--grid);overflow:hidden;margin-bottom:14px}
+.timer > i{display:block;height:100%;width:100%;border-radius:6px;
+  background:linear-gradient(90deg,var(--mint),var(--amber));transition:width .15s linear}
+.timer.low > i{background:linear-gradient(90deg,var(--coral),var(--amber))}
+
+.board{
+  border:2px solid var(--penedge);border-radius:var(--r);
+  background:
+    linear-gradient(var(--cell) 1px, transparent 1px) 0 0 / 22px 22px,
+    linear-gradient(90deg, var(--cell) 1px, transparent 1px) 0 0 / 22px 22px,
+    var(--paper);
+  padding:26px 12px;margin:0 0 4px;text-align:center;
+  font-family:"Caveat",cursive;font-weight:700;font-size:58px;letter-spacing:1px;color:var(--penink);
+  min-height:118px;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 6px 18px rgba(10,21,38,.28)
+}
+.board .eqq{white-space:nowrap}
+.board .hole{color:var(--penred)}
+
+.opts{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px}
+.opt{
+  border:2px solid var(--penedge);color:var(--penink);
+  background:
+    linear-gradient(var(--cell) 1px, transparent 1px) 0 0 / 22px 22px,
+    linear-gradient(90deg, var(--cell) 1px, transparent 1px) 0 0 / 22px 22px,
+    var(--paper);
+  border-radius:12px;padding:16px 8px;font-family:"Caveat",cursive;font-weight:700;font-size:40px;line-height:1;cursor:pointer;
+  box-shadow:0 4px 12px rgba(10,21,38,.22);
+  transition:transform .08s ease,border-color .1s ease
+}
+.opt:hover{border-color:var(--line)}
+.opt:active{transform:scale(.97)}
+.opt.ok{border-color:var(--pengreen);color:var(--pengreen);background:#EAF7F0}
+.opt.no{border-color:var(--penred);color:var(--penred);background:#FCEDE9}
+.opt:disabled{cursor:default}
+
+.msg{text-align:center;font-size:13px;font-weight:600;margin-top:12px;min-height:18px}
+.msg.no{color:var(--coral)}
+.msg.ok{color:var(--mint)}
+.msg.hint{color:var(--amber)}
+
+/* зворотний відлік перед стартом */
+.count{
+  position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
+  background:rgba(10,21,38,.82)
+}
+.count.on{display:flex}
+.count b{font-family:"Caveat",cursive;font-weight:700;font-size:120px;color:var(--amber);
+  animation:pop .55s ease}
+.count b.go{font-size:56px;color:var(--mint)}
+@keyframes pop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* екран результату */
+.result{border:2px solid var(--penedge);border-radius:var(--r);
+  background:
+    linear-gradient(var(--cell) 1px, transparent 1px) 0 0 / 22px 22px,
+    linear-gradient(90deg, var(--cell) 1px, transparent 1px) 0 0 / 22px 22px,
+    var(--paper);
+  padding:22px 14px;margin:0 0 14px;text-align:center;box-shadow:0 6px 18px rgba(10,21,38,.28)}
+.result .big{font-family:"Caveat",cursive;font-weight:700;font-size:82px;line-height:.9;color:var(--penink)}
+.result .cap{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.1em;color:#6E7E97;text-transform:uppercase;margin-top:4px}
+.result .stars{font-size:36px;letter-spacing:6px;margin:12px 0 6px;line-height:1;color:#F2B705}
+.result .stars .off{color:#C9D3E0}
+.result .super{display:inline-block;margin-top:8px;padding:7px 16px;border-radius:20px;
+  border:2px solid var(--pengreen);color:var(--pengreen);font-family:"Caveat",cursive;font-weight:700;font-size:22px;
+  animation:pop .5s ease}
+.result .xp{margin-top:12px;font-size:13px;color:var(--ink2,#2B3B57)}
+
+.btn{
+  display:block;width:100%;margin-top:12px;padding:14px;border-radius:12px;
+  border:1px solid var(--line);background:var(--amber);color:var(--ink-deep);
+  font-family:"Unbounded",sans-serif;font-weight:600;font-size:14px;cursor:pointer
+}
+.btn.ghost{background:transparent;color:var(--chalk);border-color:var(--grid)}
+.hide{display:none}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="screen-map">
+    <div class="eyebrow">Математика · 10 рівнів · <span id="sync" class="sync">…</span></div>
+    <h1>Швидке додавання</h1>
+    <div class="hud">
+      <div class="stat"><span class="k">XP</span><b id="hud-xp">0</b></div>
+      <div class="stat"><span class="k">Рекорд/хв</span><b id="hud-rec">—</b></div>
+      <div class="stat"><span class="k">Рівні</span><b id="hud-lv">0/10</b></div>
+    </div>
+    <div class="map" id="map"></div>
+    <div class="rule"></div>
+    <div class="eyebrow">Супер-результат — 45 правильних за хвилину</div>
+    <a class="backlink" href="igry.html">← До ігор</a>
+  </div>
+
+  <div id="screen-play" class="hide">
+    <div class="pbar">
+      <span class="lab" id="p-lab"></span>
+      <span class="score" id="p-score">0<small> / 45</small></span>
+    </div>
+    <div class="timer" id="p-timer"><i id="p-bar"></i></div>
+    <div class="board"><div class="eqq" id="p-eq"></div></div>
+    <div class="opts" id="p-opts"></div>
+    <div class="msg" id="p-msg"></div>
+    <button class="btn ghost" id="p-back">Зупинити · до карти</button>
+  </div>
+
+  <div id="screen-done" class="hide">
+    <div class="eyebrow">Рівень завершено</div>
+    <h1 id="d-title"></h1>
+    <div class="result">
+      <div class="big" id="d-num">0</div>
+      <div class="cap">правильних за 60 секунд</div>
+      <div class="stars" id="d-stars"></div>
+      <div id="d-super"></div>
+      <div class="xp" id="d-xp"></div>
+    </div>
+    <button class="btn" id="d-again">Спробувати ще раз</button>
+    <button class="btn" id="d-next">Наступний рівень</button>
+    <button class="btn ghost" id="d-map">До карти рівнів</button>
+  </div>
+
+</div>
+
+<div class="count" id="count"><b id="count-n">3</b></div>
+
+<script type="module" src="firebase-config.js"></script>
+<script>
+/* ============================================================
+   ШВИДКЕ ДОДАВАННЯ — 10 рівнів, спринт на 60 секунд.
+   Супер-результат: 45 правильних за хвилину.
+   Прогрес: localStorage 'sk_game_dodavannya' + heroes/{id}.progress через SK.
+   best[i] — рекорд правильних за рівень; XP і зірки рахуються з best[].
+   ============================================================ */
+
+const LEVELS = [
+  {t:"Додаємо до 10",            s:"до 10",      kind:"to10"},
+  {t:"Додаємо до 20",            s:"до 20",      kind:"to20"},   // без переходу
+  {t:"Перехід через десяток",    s:"через 10",   kind:"cross10"},
+  {t:"Круглі десятки",           s:"десятки",    kind:"tens"},
+  {t:"Двоцифрове + одноцифрове",  s:"дв.+одн.",   kind:"td1"},   // без переходу
+  {t:"…з переходом через десяток",s:"дв.+одн. ⤴", kind:"td1c"},
+  {t:"Двоцифрове + двоцифрове",   s:"дв.+дв.",    kind:"td2"},   // без переходу
+  {t:"…з переходом через десяток",s:"дв.+дв. ⤴",  kind:"td2c"},
+  {t:"Змішане додавання",        s:"мікс",       kind:"mix"},
+  {t:"Чемпіон додавання",        s:"чемпіон",    kind:"champ"},
+];
+
+const ROUND_SEC = 60;   // тривалість спринту
+const SUPER     = 45;   // супер-результат за хвилину
+const PASS      = 18;   // мінімум, щоб відчинити наступний рівень (= 1 зірка)
+
+/* стан гравця (дзеркалиться у localStorage) */
+const S = { unlocked:0, done:Array(10).fill(false), best:Array(10).fill(0), xp:0 };
+
+let L = 0, correct = 0, curr = null, busy = false;
+let roundEndAt = 0, ticker = null;
+
+const $ = id => document.getElementById(id);
+const rnd = (a,b) => a + Math.floor(Math.random()*(b-a+1));
+const shuffle = a => a.map(v=>[Math.random(),v]).sort((x,y)=>x[0]-y[0]).map(p=>p[1]);
+
+/* ---------- зірки та XP ---------- */
+function starCount(best){ if(best>=SUPER) return 3; if(best>=30) return 2; if(best>=PASS) return 1; return 0; }
+function levelXp(best){ if(best<=0) return 0; let xp = Math.min(best, SUPER); if(best>=SUPER) xp += 20; return xp; }
+function totalXp(){ return S.best.reduce((a,b)=>a+levelXp(b), 0); }
+function recordPerMin(){ return Math.max(0, ...S.best); }
+function starStr(k){ let s=""; for(let i=0;i<3;i++) s += `<span class="${i<k?"":"off"}">★</span>`; return s; }
+
+/* ---------- генерація питань ----------
+   Приклади генеруються випадково. Щоб не було повторів, тримаємо вікно
+   останніх прикладів (recent) і не даємо ту саму відповідь двічі підряд. */
+let lastKey = null, lastAns = null, recent = [];
+const RECENT_MAX = 6;
+function resetDeck(){ lastKey = null; lastAns = null; recent = []; }   // ім'я збережене (викликається у beginRound)
+
+const keyOf = (a,b) => Math.min(a,b) + "+" + Math.max(a,b);
+
+/* один приклад [a,b] за типом рівня */
+function genRaw(kind){
+  if(kind==="to10"){ const s=rnd(2,10), a=rnd(1,s-1); return [a, s-a]; }
+  if(kind==="to20"){ const t=rnd(1,8), a=10+t, u=rnd(1, 9-t); return [a, u]; }        // teen + ones, без переходу
+  if(kind==="cross10"){ let a,b; do{ a=rnd(2,9); b=rnd(2,9); }while(a+b<=10 || a+b>18); return [a,b]; }
+  if(kind==="tens"){ const x=rnd(1,8), y=rnd(1, 9-x); return [x*10, y*10]; }           // круглі десятки ≤90
+  if(kind==="td1"){ let a,uA; do{ a=rnd(11,89); uA=a%10; }while(uA>8); const b=rnd(1, 9-uA); return [a,b]; }
+  if(kind==="td1c"){ let a,uA; do{ a=rnd(11,89); uA=a%10; }while(uA<1); const b=rnd(10-uA, 9); return [a,b]; }
+  if(kind==="td2"){ const uA=rnd(0,8), tA=rnd(1,8), uB=rnd(0, 9-uA), tB=rnd(1, 9-tA); return [tA*10+uA, tB*10+uB]; }
+  if(kind==="td2c"){ const uA=rnd(1,9), uB=rnd(10-uA, 9), tA=rnd(1,7), tB=rnd(1, 8-tA); return [tA*10+uA, tB*10+uB]; }
+  return [rnd(2,9), rnd(2,9)];
+}
+const MIX_KINDS   = ["to20","cross10","tens","td1","td1c","td2","td2c"];
+const CHAMP_KINDS = ["cross10","tens","td1c","td2","td2c"];
+
+function optsSum(c){
+  const set = new Set([c]);
+  [c+1,c-1,c+2,c-2,c+10,c-10,c+9,c-9,c+11,c-11].forEach(v=>{ if(v>0 && v!==c) set.add(v); });
+  let arr = [...set].filter(v=>v!==c), g=0;
+  while(arr.length<3 && g++<60){ const v=c+rnd(-12,12); if(v>0 && v!==c && !arr.includes(v)) arr.push(v); }
+  return shuffle([c, ...shuffle(arr).slice(0,3)]);
+}
+function optsNear(ans){
+  const set = new Set([ans]);
+  [ans+1,ans-1,ans+2,ans-2,ans+3,ans-3,ans+10,ans-10].forEach(v=>{ if(v>0 && v!==ans) set.add(v); });
+  let arr = [...set].filter(v=>v!==ans), g=0;
+  while(arr.length<3 && g++<60){ const v=ans+rnd(-6,6); if(v>0 && v!==ans && !arr.includes(v)) arr.push(v); }
+  return shuffle([ans, ...shuffle(arr).slice(0,3)]);
+}
+
+function make(lvl){
+  const base = LEVELS[lvl].kind;
+  const reverse = (base==="champ") && Math.random() < 0.30;
+  let pick=null, diffOnly=null, first=null;
+  for(let g=0; g<50; g++){
+    let k = base;
+    if(base==="mix")   k = MIX_KINDS[Math.floor(Math.random()*MIX_KINDS.length)];
+    if(base==="champ") k = CHAMP_KINDS[Math.floor(Math.random()*CHAMP_KINDS.length)];
+    let [a,b] = genRaw(k);
+    if(Math.random()<0.5){ const t=a; a=b; b=t; }   // випадковий порядок доданків
+    const key = keyOf(a,b), ans = a+b;
+    const cand = {a,b,key,ans};
+    if(g===0) first = cand;
+    const diff = (ans !== lastAns), fresh = !recent.includes(key);
+    if(diff && fresh){ pick = cand; break; }         // ідеально: інша відповідь і не з недавніх
+    if(diff && !diffOnly) diffOnly = cand;           // запас: хоч інша відповідь
+  }
+  const {a,b,key,ans} = pick || diffOnly || first;
+  recent.push(key); if(recent.length>RECENT_MAX) recent.shift();
+
+  if(reverse){                                       // знайди доданок: □ + b = c
+    let hideA = Math.random() < 0.5;
+    if((hideA?a:b) === lastAns && (hideA?b:a) !== lastAns) hideA = !hideA;  // не повторювати відповідь
+    const miss  = hideA ? a : b;
+    const eq = hideA
+      ? `<span class="hole">?</span> + ${b} = ${ans}`
+      : `${a} + <span class="hole">?</span> = ${ans}`;
+    lastAns = miss;
+    return { eq, ans: miss, opts: optsNear(miss) };
+  }
+  lastAns = ans;
+  return { eq: `${a} + ${b} = <span class="hole">?</span>`, ans, opts: optsSum(ans) };
+}
+
+/* ---------- карта рівнів ---------- */
+function drawMap(){
+  $("hud-xp").textContent  = S.xp;
+  $("hud-rec").textContent = recordPerMin() > 0 ? recordPerMin() : "—";
+  $("hud-lv").textContent  = S.done.filter(Boolean).length + "/10";
+  $("map").innerHTML = "";
+  LEVELS.forEach((lv,i) => {
+    const b = document.createElement("button");
+    const locked = i > S.unlocked;
+    const best = S.best[i]|0, k = starCount(best);
+    b.className = "lvl" + (S.done[i] ? " done" : "") + (locked ? " lock" : "");
+    const tag = locked ? "зачинено"
+              : (best > 0 ? `рекорд ${best}` : `спринт 60 с`);
+    b.innerHTML =
+      `<span class="n">РІВЕНЬ ${String(i+1).padStart(2,"0")} · ${lv.s}</span>${lv.t}` +
+      `<span class="st">${locked ? "" : starStr(k)}</span>` +
+      `<span class="tag">${tag}</span>`;
+    b.disabled = locked;
+    b.onclick = () => startLevel(i);
+    $("map").appendChild(b);
+  });
+}
+function show(id){ ["screen-map","screen-play","screen-done"].forEach(s => $(s).classList.toggle("hide", s !== id)); }
+
+/* ---------- запуск рівня ---------- */
+function startLevel(i){
+  L = i; show("screen-play");
+  $("p-lab").textContent = `Рівень ${String(i+1).padStart(2,"0")} · ${LEVELS[i].t}`;
+  $("p-msg").textContent = ""; $("p-msg").className = "msg";
+  $("p-opts").innerHTML = ""; $("p-eq").innerHTML = "";
+  preCount(() => beginRound());
+}
+function preCount(done){
+  const box = $("count"), n = $("count-n");
+  const seq = ["3","2","1","Вперед!"];
+  let i = 0;
+  box.classList.add("on");
+  const step = () => {
+    n.textContent = seq[i];
+    n.className = (seq[i] === "Вперед!") ? "go" : "";
+    i++;
+    if(i < seq.length){ setTimeout(step, 620); }
+    else { setTimeout(() => { box.classList.remove("on"); done(); }, 520); }
+  };
+  step();
+}
+function beginRound(){
+  correct = 0; busy = false;
+  resetDeck();
+  updateScore();
+  roundEndAt = Date.now() + ROUND_SEC*1000;
+  $("p-timer").classList.remove("low");
+  $("p-bar").style.width = "100%";
+  if(ticker) clearInterval(ticker);
+  ticker = setInterval(tick, 120);
+  nextQ();
+}
+function tick(){
+  const left = roundEndAt - Date.now();
+  const frac = Math.max(0, left) / (ROUND_SEC*1000);
+  $("p-bar").style.width = (frac*100).toFixed(1) + "%";
+  $("p-timer").classList.toggle("low", left <= 10000);
+  if(left <= 0) endRound();
+}
+function updateScore(){ $("p-score").innerHTML = `${correct}<small> / ${SUPER}</small>`; }
+
+function nextQ(){
+  curr = make(L);
+  $("p-eq").innerHTML = curr.eq;
+  $("p-opts").innerHTML = "";
+  curr.opts.forEach(v => {
+    const b = document.createElement("button");
+    b.className = "opt"; b.textContent = v;
+    b.onclick = () => tapOpt(b, v);
+    $("p-opts").appendChild(b);
+  });
+  busy = false;
+}
+function lockOpts(){ [...$("p-opts").children].forEach(b => b.disabled = true); }
+
+function tapOpt(btn, val){
+  if(busy || Date.now() >= roundEndAt) return;
+  busy = true;
+  const ok = (val === curr.ans);
+  if(ok){
+    btn.classList.add("ok");
+    correct++; updateScore();
+    setTimeout(() => { if(Date.now() < roundEndAt) nextQ(); }, 170);
+  }else{
+    btn.classList.add("no");
+    lockOpts();
+    [...$("p-opts").children].forEach(b => { if(Number(b.textContent) === curr.ans) b.classList.add("ok"); });
+    $("p-msg").className = "msg no";
+    $("p-msg").textContent = `${curr.eq.replace(/<[^>]+>/g,"?")} → ${curr.ans}`;
+    setTimeout(() => { $("p-msg").textContent = ""; $("p-msg").className = "msg"; if(Date.now() < roundEndAt) nextQ(); }, 700);
+  }
+}
+
+/* ---------- кінець раунду ---------- */
+function endRound(){
+  if(ticker){ clearInterval(ticker); ticker = null; }
+  busy = true; lockOpts();
+  $("p-bar").style.width = "0%";
+
+  const before = totalXp();
+  const isBest = correct > (S.best[L]|0);
+  if(isBest) S.best[L] = correct;
+  if(correct >= PASS && !S.done[L]){
+    S.done[L] = true;
+    if(L === S.unlocked && L < 9) S.unlocked = L + 1;
+  }else if(correct >= PASS && L === S.unlocked && L < 9){
+    S.unlocked = L + 1;
+  }
+  S.xp = totalXp();
+  const gained = Math.max(0, S.xp - before);
+  saveProgress();
+
+  const k = starCount(correct);
+  $("d-title").textContent = LEVELS[L].t;
+  $("d-num").textContent   = correct;
+  $("d-stars").innerHTML   = starStr(k);
+  $("d-super").innerHTML   = correct >= SUPER ? `<span class="super">🏆 СУПЕР · 30+ за хвилину</span>` : "";
+
+  let line;
+  if(correct >= SUPER)      line = "Неймовірно! Ти справжній чемпіон таблиці множення.";
+  else if(correct >= 20)    line = "Чудово! До супер-результату лишилось зовсім трохи.";
+  else if(correct >= PASS)  line = "Рівень пройдено! Спробуй побити свій рекорд.";
+  else                      line = `Треба ${PASS}, щоб відчинити наступний рівень. Ще один спринт!`;
+  const xpLine = gained > 0 ? ` +${gained} XP` : (isBest ? "" : " (рекорд не побито)");
+  $("d-xp").textContent = line + xpLine + `  ·  Усього ${S.xp} XP`;
+
+  $("d-next").classList.toggle("hide", !(S.done[L] && L < 9));
+  show("screen-done");
+  drawMap();
+}
+
+/* ---------- кнопки ---------- */
+$("p-back").onclick  = () => { if(ticker){ clearInterval(ticker); ticker=null; } drawMap(); show("screen-map"); };
+$("d-map").onclick   = () => { drawMap(); show("screen-map"); };
+$("d-again").onclick = () => startLevel(L);
+$("d-next").onclick  = () => startLevel(Math.min(L+1, 9));
+
+/* ---------- прогрес: localStorage (ключі sk_*) + heroes/{id}.progress через SK ---------- */
+const LS_KEY = "sk_game_dodavannya";
+const setSync = (t,c) => { const e=$("sync"); if(e){ e.textContent=t; e.className="sync "+(c||""); } };
+
+function readLS(){
+  try{
+    const o = JSON.parse(localStorage.getItem(LS_KEY) || "null");
+    if(o && typeof o === "object"){
+      S.unlocked = o.unlocked|0;
+      S.done = Array.isArray(o.done) && o.done.length===10 ? o.done.map(Boolean) : Array(10).fill(false);
+      S.best = Array.isArray(o.best) && o.best.length===10 ? o.best.map(v=>v|0) : Array(10).fill(0);
+      S.xp = totalXp();
+    }
+  }catch(e){}
+}
+function saveProgress(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify({unlocked:S.unlocked, done:S.done, best:S.best, xp:S.xp})); }catch(e){}
+  if(window.SK && SK.pushLocal){
+    SK.pushLocal().then(ok=>setSync(ok?"збережено":"локально",ok?"ok":"no")).catch(()=>setSync("локально","no"));
+  }
+}
+window.addEventListener("pagehide", saveProgress);
+
+function waitSK(cb){
+  let n = 0;
+  (function poll(){
+    if(window.SK && window.SK.ready) return cb(true);
+    if(++n > 60) return cb(null);           // ~6 с — firebase-config.js не піднявся
+    setTimeout(poll, 100);
+  })();
+}
+function boot(){
+  readLS(); drawMap(); setSync("з'єднання…");
+  waitSK(ok => {
+    if(!ok){ setSync("локально — без хмари","no"); return; }
+    SK.ready.then(async () => {
+      try{
+        if(!SK.isHeroSession || !SK.isHeroSession()){ setSync("увійди як Герой","no"); return; }
+        await SK.pullLocal();               // хмара → localStorage
+        readLS(); drawMap();
+        const hero = await SK.getActiveChild();
+        setSync(hero && hero.name ? hero.name : "прогрес у хмарі", "ok");
+      }catch(e){ setSync("локально","no"); }
+    });
+  });
+}
+boot();
+</script>
+</body>
+</html>
