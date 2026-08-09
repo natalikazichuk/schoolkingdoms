@@ -255,28 +255,65 @@ function recordPerMin(){ return Math.max(0, ...S.best); }
 function starStr(k){ let s=""; for(let i=0;i<3;i++) s += `<span class="${i<k?"":"off"}">★</span>`; return s; }
 
 /* ---------- генерація питань ----------
-   Приклади генеруються випадково. Щоб не було повторів, тримаємо вікно
-   останніх прикладів (recent) і не даємо ту саму відповідь двічі підряд. */
-let lastKey = null, lastAns = null, recent = [];
-const RECENT_MAX = 6;
-function resetDeck(){ lastKey = null; lastAns = null; recent = []; }   // ім'я збережене (викликається у beginRound)
+   Колода прикладів на рівень: усі приклади перемішуються й роздаються без
+   повторів. Коли колода вичерпалась — тасуємо знову, стежачи, щоб на «шві»
+   не повторився той самий приклад чи та сама відповідь (сума). */
+let deck = [], dpos = 0, lastPair = null, lastAns = null, lastShown = null;
 
-const keyOf = (a,b) => Math.min(a,b) + "+" + Math.max(a,b);
-
-/* один приклад [a,b] за типом рівня */
-function genRaw(kind){
-  if(kind==="to10"){ const s=rnd(2,10), a=rnd(1,s-1); return [a, s-a]; }
-  if(kind==="to20"){ const t=rnd(1,8), a=10+t, u=rnd(1, 9-t); return [a, u]; }        // teen + ones, без переходу
-  if(kind==="cross10"){ let a,b; do{ a=rnd(2,9); b=rnd(2,9); }while(a+b<=10 || a+b>18); return [a,b]; }
-  if(kind==="tens"){ const x=rnd(1,8), y=rnd(1, 9-x); return [x*10, y*10]; }           // круглі десятки ≤90
-  if(kind==="td1"){ let a,uA; do{ a=rnd(11,89); uA=a%10; }while(uA>8); const b=rnd(1, 9-uA); return [a,b]; }
-  if(kind==="td1c"){ let a,uA; do{ a=rnd(11,89); uA=a%10; }while(uA<1); const b=rnd(10-uA, 9); return [a,b]; }
-  if(kind==="td2"){ const uA=rnd(0,8), tA=rnd(1,8), uB=rnd(0, 9-uA), tB=rnd(1, 9-tA); return [tA*10+uA, tB*10+uB]; }
-  if(kind==="td2c"){ const uA=rnd(1,9), uB=rnd(10-uA, 9), tA=rnd(1,7), tB=rnd(1, 8-tA); return [tA*10+uA, tB*10+uB]; }
-  return [rnd(2,9), rnd(2,9)];
-}
 const MIX_KINDS   = ["to20","cross10","tens","td1","td1c","td2","td2c"];
 const CHAMP_KINDS = ["cross10","tens","td1c","td2","td2c"];
+
+/* усі приклади одного типу (канонічно [менше,більше], без дублів-комутацій) */
+function pairsFor(kind){
+  const m = new Map();
+  const add = (a,b) => { const lo=Math.min(a,b), hi=Math.max(a,b); m.set(lo+"_"+hi, [lo,hi]); };
+  if(kind==="to10"){ for(let a=1;a<=9;a++) for(let b=1;b<=10-a;b++) add(a,b); }
+  else if(kind==="to20"){ for(let t=1;t<=8;t++){ const a=10+t; for(let u=1;u<=9-t;u++) add(a,u); } }
+  else if(kind==="cross10"){ for(let a=2;a<=9;a++) for(let b=2;b<=9;b++) if(a+b>10 && a+b<=18) add(a,b); }
+  else if(kind==="tens"){ for(let x=1;x<=8;x++) for(let y=1;y<=9-x;y++) add(x*10, y*10); }
+  else if(kind==="td1"){ for(let a=11;a<=89;a++){ const u=a%10; if(u>8) continue; for(let b=1;b<=9-u;b++) add(a,b); } }
+  else if(kind==="td1c"){ for(let a=11;a<=89;a++){ const u=a%10; if(u<1) continue; for(let b=10-u;b<=9;b++) add(a,b); } }
+  else if(kind==="td2"){ for(let tA=1;tA<=8;tA++) for(let uA=0;uA<=9;uA++) for(let tB=1;tB<=9-tA;tB++) for(let uB=0;uB<=9-uA;uB++) add(tA*10+uA, tB*10+uB); }
+  else if(kind==="td2c"){ for(let tA=1;tA<=7;tA++) for(let uA=1;uA<=9;uA++) for(let tB=1;tB<=8-tA;tB++) for(let uB=10-uA;uB<=9;uB++) add(tA*10+uA, tB*10+uB); }
+  return [...m.values()];
+}
+function basePairs(lvl){
+  const kind = LEVELS[lvl].kind;
+  if(kind==="mix" || kind==="champ"){
+    const kinds = kind==="mix" ? MIX_KINDS : CHAMP_KINDS;
+    const m = new Map();
+    kinds.forEach(k => pairsFor(k).forEach(p => m.set(p[0]+"_"+p[1], p)));
+    return [...m.values()];
+  }
+  return pairsFor(kind);
+}
+
+function resetDeck(){ deck = []; dpos = 0; lastPair = null; lastAns = null; lastShown = null; }   // викликається у beginRound
+function reshuffle(){
+  deck = shuffle(basePairs(L)); dpos = 0;
+  if(lastPair && deck.length>1 &&                       // не починати з того самого прикладу
+     deck[0][0]===lastPair[0] && deck[0][1]===lastPair[1]){
+    const j = 1 + Math.floor(Math.random()*(deck.length-1));
+    [deck[0],deck[j]] = [deck[j],deck[0]];
+  }
+}
+function swapAwayFrom(from){                             // прибрати з позиції from приклад із сумою lastAns
+  for(let k=from+1;k<deck.length;k++){
+    if(deck[k][0]+deck[k][1] !== lastAns){ [deck[from],deck[k]]=[deck[k],deck[from]]; return true; }
+  }
+  return false;
+}
+function drawPair(){
+  if(dpos >= deck.length) reshuffle();
+  if(lastAns !== null && deck[dpos][0]+deck[dpos][1] === lastAns){   // не давати ту саму відповідь підряд
+    if(!swapAwayFrom(dpos)){
+      reshuffle();
+      if(deck[0][0]+deck[0][1] === lastAns) swapAwayFrom(0);
+    }
+  }
+  const p = deck[dpos]; dpos++; lastPair = p;
+  return p;
+}
 
 function optsSum(c){
   const set = new Set([c]);
@@ -294,37 +331,23 @@ function optsNear(ans){
 }
 
 function make(lvl){
-  const base = LEVELS[lvl].kind;
-  const reverse = (base==="champ") && Math.random() < 0.30;
-  let pick=null, diffOnly=null, first=null;
-  for(let g=0; g<50; g++){
-    let k = base;
-    if(base==="mix")   k = MIX_KINDS[Math.floor(Math.random()*MIX_KINDS.length)];
-    if(base==="champ") k = CHAMP_KINDS[Math.floor(Math.random()*CHAMP_KINDS.length)];
-    let [a,b] = genRaw(k);
-    if(Math.random()<0.5){ const t=a; a=b; b=t; }   // випадковий порядок доданків
-    const key = keyOf(a,b), ans = a+b;
-    const cand = {a,b,key,ans};
-    if(g===0) first = cand;
-    const diff = (ans !== lastAns), fresh = !recent.includes(key);
-    if(diff && fresh){ pick = cand; break; }         // ідеально: інша відповідь і не з недавніх
-    if(diff && !diffOnly) diffOnly = cand;           // запас: хоч інша відповідь
-  }
-  const {a,b,key,ans} = pick || diffOnly || first;
-  recent.push(key); if(recent.length>RECENT_MAX) recent.shift();
-
-  if(reverse){                                       // знайди доданок: □ + b = c
+  const champ = LEVELS[lvl].kind === "champ";
+  const reverse = champ && Math.random() < 0.30;
+  let [a,b] = drawPair();
+  if(Math.random()<0.5){ const t=a; a=b; b=t; }         // випадковий порядок доданків
+  const c = a+b;
+  if(reverse){                                          // знайди доданок: □ + b = c
     let hideA = Math.random() < 0.5;
-    if((hideA?a:b) === lastAns && (hideA?b:a) !== lastAns) hideA = !hideA;  // не повторювати відповідь
-    const miss  = hideA ? a : b;
+    let miss = hideA ? a : b;
+    if(miss === lastShown && (hideA ? b : a) !== lastShown){ hideA = !hideA; miss = hideA ? a : b; }
     const eq = hideA
-      ? `<span class="hole">?</span> + ${b} = ${ans}`
-      : `${a} + <span class="hole">?</span> = ${ans}`;
-    lastAns = miss;
+      ? `<span class="hole">?</span> + ${b} = ${c}`
+      : `${a} + <span class="hole">?</span> = ${c}`;
+    lastAns = c; lastShown = miss;                       // «шов» стежить за сумою; окремо — за показаною відповіддю
     return { eq, ans: miss, opts: optsNear(miss) };
   }
-  lastAns = ans;
-  return { eq: `${a} + ${b} = <span class="hole">?</span>`, ans, opts: optsSum(ans) };
+  lastAns = c; lastShown = c;
+  return { eq: `${a} + ${b} = <span class="hole">?</span>`, ans: c, opts: optsSum(c) };
 }
 
 /* ---------- карта рівнів ---------- */
