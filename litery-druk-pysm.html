@@ -14,8 +14,8 @@
   --paper:#FFFFFF; --cell:#CFE0F2; --penink:#16305C; --penedge:#9BBEE8;
   --hand:"Propysy", cursive;   /* українські прописи (вбудовано нижче) */
   --rule:
-    repeating-linear-gradient(0deg, transparent 0, transparent 27px, #BFD5EF 27px, #BFD5EF 28px),
-    repeating-linear-gradient(65deg, transparent 0, transparent 22px, #E1EBF7 22px, #E1EBF7 23px),
+    repeating-linear-gradient(0deg, transparent 0, transparent 33px, #D6E2F3 33px, #D6E2F3 34px),
+    repeating-linear-gradient(64deg, transparent 0, transparent 41px, #E7EFF9 41px, #E7EFF9 42px),
     var(--paper);
   --pengreen:#1F9E63; --penred:#E0492E; --amber:#FFC145; --gold:#F2B705;
   --r:14px;
@@ -76,27 +76,31 @@ h1{font-family:"Caveat",cursive;font-weight:700;font-size:36px;line-height:1.05;
 
 .qlab{text-align:center;font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.12em;color:var(--chalk);text-transform:uppercase;margin-bottom:8px}
 .board{
-  border:2px solid var(--penedge);border-radius:var(--r);
-  background:var(--rule);
-  padding:16px 12px;text-align:center;color:var(--penink);min-height:132px;overflow:hidden;
-  display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(10,21,38,.28)
+  border:2px solid var(--penedge);border-radius:var(--r);position:relative;overflow:hidden;
+  height:150px;color:var(--penink);box-shadow:0 6px 18px rgba(10,21,38,.28);
+  background:
+    linear-gradient(#93B7E2,#93B7E2) 0 96px/100% 2px no-repeat,
+    linear-gradient(#D6E2F3,#D6E2F3) 0 58px/100% 1px no-repeat,
+    repeating-linear-gradient(64deg, transparent 0, transparent 41px, #E7EFF9 41px, #E7EFF9 42px),
+    var(--paper)
 }
-.glyph{line-height:1}
-.glyph.print{font-family:"Manrope",sans-serif;font-weight:800;font-size:76px}
-.glyph.hand{font-family:var(--hand);font-weight:400;font-size:58px}
+.gsvg{display:block;width:100%}
 .instr{text-align:center;font-family:"Manrope",sans-serif;font-weight:800;font-size:19px;color:#fff;margin:12px 0 2px;letter-spacing:.01em}
 
 .opts{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px}
 .opt{
-  border:2px solid var(--penedge);color:var(--penink);
-  background:var(--rule);
-  border-radius:12px;padding:10px 8px;cursor:pointer;box-shadow:0 4px 12px rgba(10,21,38,.22);overflow:hidden;
-  transition:transform .08s ease,border-color .1s ease;min-height:88px;display:flex;align-items:center;justify-content:center
+  border:2px solid var(--penedge);color:var(--penink);border-radius:12px;padding:0;cursor:pointer;
+  height:108px;position:relative;overflow:hidden;box-shadow:0 4px 12px rgba(10,21,38,.22);
+  transition:transform .08s ease,border-color .1s ease;
+  background:
+    linear-gradient(#93B7E2,#93B7E2) 0 68px/100% 2px no-repeat,
+    linear-gradient(#D6E2F3,#D6E2F3) 0 38px/100% 1px no-repeat,
+    repeating-linear-gradient(64deg, transparent 0, transparent 41px, #E7EFF9 41px, #E7EFF9 42px),
+    var(--paper)
 }
-.opt .glyph.print{font-size:50px} .opt .glyph.hand{font-size:40px}
 .opt:hover{border-color:var(--line)} .opt:active{transform:scale(.97)}
-.opt.ok{border-color:var(--pengreen);background:#EAF7F0} .opt.ok .glyph{color:var(--pengreen)}
-.opt.no{border-color:var(--penred);background:#FCEDE9} .opt.no .glyph{color:var(--penred)}
+.opt.ok{border-color:var(--pengreen);color:var(--pengreen)}
+.opt.no{border-color:var(--penred);color:var(--penred)}
 .opt:disabled{cursor:default}
 
 .msg{text-align:center;font-size:14px;font-weight:700;margin-top:12px;min-height:18px}
@@ -266,7 +270,12 @@ function makeQ(lvl){
   const printedTarget = Math.random() < 0.5;   // цільова літера друкована?
   return { target, printedTarget, opts: optionsFor(lvl, target) };
 }
-const glyphHTML = (ch, printed) => `<span class="glyph ${printed?"print":"hand"}">${ch}</span>`;
+function svgGlyph(ch, printed, where){
+  const c = where==='board' ? {h:150,y:96,fs:46} : {h:108,y:68,fs:32};
+  const fam = printed ? "Manrope, sans-serif" : "Propysy, cursive";
+  const wt  = printed ? 800 : 400;
+  return `<svg class="gsvg" width="100%" height="${c.h}" xmlns="http://www.w3.org/2000/svg"><text x="50%" y="${c.y}" text-anchor="middle" font-family='${fam}' font-weight="${wt}" font-size="${c.fs}" fill="currentColor">${ch}</text></svg>`;
+}
 
 /* карта рівнів */
 function drawMap(){
@@ -306,12 +315,12 @@ function nextQ(){
   $("p-cnt").textContent = `${qi+1} / ${QPER}`;
   curr = makeQ(L);
   $("p-qlab").textContent = curr.printedTarget ? "Друкована літера" : "Письмова літера";
-  $("p-glyph").outerHTML = glyphHTML(curr.target, curr.printedTarget).replace('class="glyph','id="p-glyph" class="glyph');
+  $("p-glyph").outerHTML = svgGlyph(curr.target, curr.printedTarget, "board").replace('<svg class="gsvg"','<svg id="p-glyph" class="gsvg"');
   $("p-instr").textContent = curr.printedTarget ? "Знайди письмову" : "Знайди друковану";
   $("p-opts").innerHTML="";
   curr.opts.forEach(ch=>{
     const b=document.createElement("button");
-    b.className="opt"; b.innerHTML=glyphHTML(ch, !curr.printedTarget);
+    b.className="opt"; b.innerHTML=svgGlyph(ch, !curr.printedTarget, "opt");
     b.onclick=()=>tapOpt(b, ch);
     $("p-opts").appendChild(b);
   });
