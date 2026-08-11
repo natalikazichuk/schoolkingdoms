@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Турнірна арена — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#13315f; --navy-d:#0c2247; --navy-l:#1e4d8b;
+  --gold:#F2C75C; --gold-d:#C9942F; --gold-deep:#8a5e16;
+  --cream:#FBEFD0; --parch:#efdcae; --wood:#5a3d1e; --wood-d:#3f2a12;
+  --blue-team:#4a86d6; --red-team:#d65a5a;
+  --ok:#7bd88a; --grid:rgba(242,199,92,.28);
+  /* кольори характеристик (як на сторінці Героя) */
+  --hp:#e23b3b; --agi:#5b9bd5; --mp:#2f7fd1; --acc:#e08a2e;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%}
+body{
+  font-family:'Nunito',sans-serif;color:#fff;min-height:100vh;position:relative;
+  /* ── ФОН: зоряне небо (як index/hero) ── */
+  background:
+    radial-gradient(circle at 91% 11%, rgba(255,247,224,.55) 0%, rgba(255,233,184,.32) 2.4%, rgba(255,233,184,0) 7.5%),
+    radial-gradient(120% 90% at 50% 0%, #2d1b6b 0%, #1a1040 45%, #0d2647 100%);
+  background-attachment:fixed;
+  overflow-x:hidden;padding-bottom:82px;
+}
+/* мерехтливі зорі (два шари) — під фоновою картинкою */
+body::before,body::after{content:"";position:fixed;inset:-50%;z-index:-3;pointer-events:none;
+  background-image:
+    radial-gradient(1.6px 1.6px at 40px 60px,#fff,transparent),
+    radial-gradient(1.4px 1.4px at 130px 170px,#fff,transparent),
+    radial-gradient(1px 1px at 210px 90px,#cfe3ff,transparent),
+    radial-gradient(1.3px 1.3px at 300px 230px,#fff,transparent),
+    radial-gradient(1px 1px at 360px 40px,#ffe9b8,transparent),
+    radial-gradient(1.5px 1.5px at 80px 300px,#fff,transparent),
+    radial-gradient(1px 1px at 250px 340px,#bfe0ef,transparent);
+  background-repeat:repeat;background-size:400px 400px;animation:twinkle 4.5s ease-in-out infinite}
+body::after{background-size:300px 300px;background-position:90px 130px;animation-duration:6.5s;animation-delay:1.6s;opacity:.7}
+@keyframes twinkle{0%,100%{opacity:.35}50%{opacity:.95}}
+/* ── КАЗКОВИЙ КОЛІЗЕЙ: фонова картинка Героя (hero-bg.webp поруч у корені) ── */
+.bg-img{position:fixed;inset:0;z-index:-2;pointer-events:none;
+  background:url('hero-bg.webp') center top/cover no-repeat}
+/* легке затемнення зверху вниз — щоб панелі й текст читались поверх арени */
+.bg-shade{position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:linear-gradient(180deg,rgba(8,17,38,.12) 0%,rgba(8,17,38,.28) 45%,rgba(8,17,38,.52) 100%)}
+h1,h2,h3,.disp{font-family:'Fredoka',cursive}
+.wrap{max-width:960px;margin:0 auto;padding:14px}
+.hidden{display:none!important}
+button{font-family:inherit}
+
+/* ── шапка ── */
+.topbar{display:flex;align-items:center;gap:10px;padding:10px 4px 4px}
+.topbar .crest{font-size:1.6rem;filter:drop-shadow(0 2px 4px rgba(0,0,0,.4))}
+.topbar h1{font-size:1.35rem;font-weight:700;letter-spacing:.01em;line-height:1}
+.topbar h1 b{color:var(--gold)}
+.topbar .sub{font-size:.72rem;color:#bcd2f0;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.iconbtn{margin-left:auto;background:rgba(255,255,255,.08);border:2px solid var(--grid);color:#fff;
+  border-radius:12px;width:40px;height:40px;font-size:1.1rem;cursor:pointer;transition:.15s}
+.iconbtn:hover{background:rgba(255,255,255,.16);border-color:var(--gold)}
+
+/* ── картка бійця (кути) ── */
+.fighter{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:120px}
+.shield{position:relative;width:110px;height:128px;cursor:pointer;
+  filter:drop-shadow(0 6px 14px rgba(0,0,0,.5))}
+.shield .clip{position:absolute;inset:8px;overflow:hidden;
+  clip-path:path('M51 0 L102 14 L102 74 Q102 118 51 136 Q0 118 0 74 L0 14 Z')}
+.shield .clip img{width:100%;height:100%;object-fit:cover;object-position:center 18%;
+  background:linear-gradient(180deg,#bfe3fb,#79b4e6)}
+.shield .frame{position:absolute;inset:0;pointer-events:none}
+.shield .emoji{position:absolute;inset:8px;display:flex;align-items:center;justify-content:center;font-size:3rem;
+  background:linear-gradient(180deg,#243b66,#182a4c);clip-path:path('M51 0 L102 14 L102 74 Q102 118 51 136 Q0 118 0 74 L0 14 Z')}
+.fighter.blue .frame path{stroke:var(--blue-team)}
+.fighter.red  .frame path{stroke:var(--red-team)}
+.fighter .fname{font-family:'Fredoka';font-weight:700;font-size:.92rem;color:#fff;text-align:center;line-height:1.05;max-width:130px}
+.fighter .flvl{font-size:.66rem;font-weight:900;color:#0c2247;background:var(--gold);border-radius:20px;padding:1px 9px}
+
+/* смужка сил */
+.forcebar{width:130px;height:16px;border-radius:20px;background:rgba(0,0,0,.4);
+  border:2px solid rgba(255,255,255,.22);overflow:hidden;position:relative}
+.forcebar > i{position:absolute;inset:0;transform-origin:left;transition:transform .45s cubic-bezier(.3,.8,.3,1);
+  background:linear-gradient(90deg,#7bd88a,#37b558)}
+.forcebar.low > i{background:linear-gradient(90deg,#ffcf4d,#e0a42a)}
+.forcebar.crit > i{background:linear-gradient(90deg,#ff9a6b,#e0553a)}
+.forcebar .lbl{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:.62rem;font-weight:900;color:#0b1a34;text-shadow:0 1px 0 rgba(255,255,255,.3)}
+
+/* збільшений аватар при наведенні */
+.avapeek{position:absolute;top:100%;left:50%;transform:translate(-50%,8px) scale(.9);
+  opacity:0;pointer-events:none;z-index:40;width:150px;transition:.18s;
+  background:linear-gradient(180deg,#243b66,#182a4c);border:3px solid var(--gold);border-radius:16px;padding:8px;
+  box-shadow:0 16px 40px rgba(0,0,0,.55)}
+.avapeek img{width:100%;border-radius:10px;display:block;background:linear-gradient(180deg,#bfe3fb,#79b4e6)}
+.avapeek b{display:block;text-align:center;font-family:'Fredoka';color:#ffe9b8;font-size:.85rem;margin-top:4px}
+.fighter:hover .avapeek,.fighter:focus-within .avapeek{opacity:1;transform:translate(-50%,8px) scale(1)}
+
+/* ══════════ ТАВЕРНА ══════════ */
+.tavern-hero{position:relative;border-radius:20px;overflow:hidden;margin:4px 0 12px;
+  border:3px solid var(--gold-d);
+  background:
+    repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0 44px, rgba(0,0,0,0) 44px 88px),
+    linear-gradient(180deg,#6a4a25,#48301659), linear-gradient(180deg,#7a5a30,#4a3018);
+  box-shadow:0 14px 40px rgba(0,0,0,.4), inset 0 0 0 2px rgba(255,255,255,.06)}
+.tavern-hero .inner{position:relative;display:flex;align-items:stretch;gap:14px;padding:12px 14px;
+  background:radial-gradient(120% 120% at 12% 0%, rgba(242,199,92,.16), transparent 55%)}
+.band-info{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;
+  background:rgba(8,16,34,.34);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:10px 12px}
+.band-info .prog-head{margin-bottom:2px}
+.band-info .wl{margin-top:10px}
+.band-info .wl .box{padding:6px}
+.tav-copy{min-width:0}
+.tavern-hero .eyebrow{font-family:'Fredoka';font-size:.62rem;font-weight:600;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--gold)}
+.tavern-hero h2{font-size:1.18rem;font-weight:700;margin:1px 0 4px;text-shadow:0 2px 0 rgba(0,0,0,.35)}
+.tavern-hero p{color:#f3e6c8;font-weight:700;font-size:.78rem;line-height:1.35}
+.tavern-hero .torch{position:absolute;top:10px;font-size:1.1rem;filter:drop-shadow(0 0 10px #ffb43a);z-index:2;
+  animation:flick 1.6s ease-in-out infinite}
+.tavern-hero .torch.l{left:12px}.tavern-hero .torch.r{right:12px}
+@keyframes flick{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.75;transform:scale(1.12)}}
+
+/* повнозрісний боєць — клікабельний (відкриває гардероб) */
+.hero-figure{position:relative;flex:0 0 auto;width:112px;height:150px;padding:0;cursor:pointer;
+  border:2px solid var(--gold);border-radius:16px;overflow:hidden;
+  background:linear-gradient(180deg,#bfe3fb 0%,#8fc3ee 62%,#79b4e6 100%);
+  box-shadow:0 8px 20px rgba(0,0,0,.45);transition:transform .15s,box-shadow .15s}
+.hero-figure:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(0,0,0,.5)}
+.hero-figure:active{transform:translateY(-1px)}
+.hero-figure img{width:100%;height:100%;object-fit:contain;object-position:center bottom;display:block}
+.hero-figure .figemoji{display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:3.4rem}
+.hero-figure .wardrobe-chip{position:absolute;left:0;right:0;bottom:0;padding:5px 4px;
+  font-family:'Fredoka';font-weight:600;font-size:.7rem;color:#4a3008;
+  background:linear-gradient(180deg,rgba(255,231,160,.92),rgba(224,169,58,.97));text-align:center}
+@media(max-width:560px){
+  .hero-figure{width:92px;height:124px}
+  .tavern-hero h2{font-size:1.05rem}
+  .tavern-hero p{font-size:.74rem}
+}
+@media(max-width:520px){
+  .tavern-hero .inner{flex-direction:column;align-items:stretch}
+  .hero-figure{align-self:center}
+}
+
+.section-t{font-family:'Fredoka';font-weight:600;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--gold);margin:20px 4px 10px;display:flex;align-items:center;gap:8px}
+.section-t::after{content:"";flex:1;height:2px;background:linear-gradient(90deg,var(--grid),transparent)}
+
+/* формати боїв */
+.formats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.fmt{position:relative;border:2px solid var(--grid);border-radius:16px;padding:16px 12px;text-align:center;cursor:pointer;
+  background:linear-gradient(180deg,rgba(30,52,96,.9),rgba(16,30,60,.9));transition:.16s}
+.fmt:hover{transform:translateY(-4px);border-color:var(--gold);box-shadow:0 14px 30px rgba(0,0,0,.45)}
+.fmt .big{font-family:'Fredoka';font-weight:700;font-size:1.5rem;color:var(--gold);line-height:1}
+.fmt .nm{font-weight:900;margin-top:6px;font-size:.9rem}
+.fmt .ds{font-size:.72rem;color:#a9c1e4;margin-top:2px;font-weight:700}
+.fmt.soon{opacity:.62;cursor:not-allowed}
+.fmt.soon::after{content:"скоро";position:absolute;top:8px;right:8px;font-size:.56rem;font-weight:900;
+  background:var(--gold-deep);color:#fff;border-radius:8px;padding:2px 7px;letter-spacing:.04em}
+
+/* панелі */
+.panel{border:2px solid var(--grid);border-radius:16px;padding:14px;
+  background:linear-gradient(180deg,rgba(20,38,72,.72),rgba(12,24,50,.72))}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:640px){.grid2{grid-template-columns:1fr}.formats{grid-template-columns:1fr}}
+
+/* прогрес арени */
+.prog-head{display:flex;align-items:center;gap:12px}
+.prog-head .t b{font-family:'Fredoka';font-size:1.05rem;color:#fff}
+.prog-head .t span{display:block;font-size:.74rem;color:#a9c1e4;font-weight:800}
+.lvlchip{display:inline-block;margin-top:5px;font-size:.68rem;font-weight:900;color:#cfe0f5}
+.lvlchip b{font-family:'Fredoka';color:var(--gold);font-size:.92rem;margin-left:3px}
+
+/* значки характеристик — той самий вигляд, що в хедері (sk-header.js) */
+.hchips{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+.hchip{display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.24);
+  border:1px solid rgba(242,199,92,.42);border-radius:999px;padding:5px 13px;
+  font-weight:800;font-size:.9rem;color:#eaf1ff;white-space:nowrap}
+.hchip b{color:var(--gold);font-family:'Fredoka';font-weight:700}
+.xpline{height:14px;border-radius:20px;background:rgba(0,0,0,.35);overflow:hidden;margin-top:12px;border:2px solid rgba(255,255,255,.14)}
+.xpline > i{display:block;height:100%;background:linear-gradient(90deg,#f4c842,#e0a42a);transition:width .5s}
+.xpsub{display:flex;justify-content:space-between;font-size:.72rem;color:#cfe0f5;font-weight:800;margin-top:5px}
+.wl{display:flex;gap:10px;margin-top:12px}
+.wl .box{flex:1;text-align:center;background:rgba(0,0,0,.22);border-radius:12px;padding:8px}
+.wl .box b{font-family:'Fredoka';font-size:1.3rem;display:block;line-height:1}
+.wl .box.win b{color:var(--ok)} .wl .box.lose b{color:#ffb3a0}
+.wl .box span{font-size:.66rem;color:#a9c1e4;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+
+/* вміння */
+.skills{display:flex;flex-direction:column;gap:8px}
+.skill{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:12px;
+  background:rgba(0,0,0,.2);border:1px solid transparent}
+.skill.on{border-color:var(--grid);background:rgba(242,199,92,.1)}
+.skill .ic{font-size:1.3rem;width:30px;text-align:center}
+.skill .nm{font-family:'Fredoka';font-weight:600;font-size:.9rem}
+.skill .lv{margin-left:auto;font-size:.66rem;font-weight:900;color:#0c2247;background:#cfe0f5;border-radius:20px;padding:2px 8px}
+.skill.on .lv{background:var(--gold)}
+.skill.off{opacity:.55}
+
+/* зала слави */
+.hof{display:flex;flex-direction:column;gap:6px}
+.hof .row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;background:rgba(0,0,0,.2)}
+.hof .row.you{background:linear-gradient(90deg,rgba(242,199,92,.22),rgba(242,199,92,.05));border:1px solid var(--grid)}
+.hof .pos{width:24px;font-family:'Fredoka';font-weight:700;color:var(--gold);text-align:center}
+.hof .nm{font-weight:800;flex:1}
+.hof .nm small{display:block;color:#a9c1e4;font-weight:800;font-size:.68rem}
+.hof .pts{font-family:'Fredoka';font-weight:600;color:#fff}
+
+/* головні кнопки */
+.cta{display:block;width:100%;text-align:center;border:none;cursor:pointer;
+  font-family:'Fredoka';font-weight:700;font-size:1.05rem;color:#0c2247;
+  background:linear-gradient(180deg,#ffe7a0,#e0a93a);border:2px solid var(--gold-d);
+  border-radius:14px;padding:13px;margin-top:14px;box-shadow:0 6px 0 var(--gold-deep);transition:.1s}
+.cta:hover{filter:brightness(1.05)} .cta:active{transform:translateY(3px);box-shadow:0 3px 0 var(--gold-deep)}
+.cta.ghost{color:#fff;background:rgba(255,255,255,.08);border-color:var(--grid);box-shadow:none}
+.cta.ghost:active{transform:none}
+
+/* ══════════ АРЕНА (БІЙ) ══════════ */
+.arena-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-top:6px}
+.round-pill{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:6px}
+.timer{position:relative;width:74px;height:74px}
+.timer svg{transform:rotate(-90deg)}
+.timer .num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:'Fredoka';font-weight:700;font-size:1.5rem;color:#fff}
+.round-lbl{font-size:.68rem;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--gold)}
+
+.stage{position:relative;margin:14px 0;border:2px solid var(--grid);border-radius:20px;padding:14px 10px 10px;
+  background:radial-gradient(90% 70% at 50% 0%, rgba(242,199,92,.1), transparent 60%),
+             linear-gradient(180deg,rgba(10,22,46,.7),rgba(8,17,38,.7))}
+.stage .hint{text-align:center;font-weight:800;color:#cfe0f5;font-size:.82rem;margin-bottom:6px}
+.stage .hint b{color:var(--gold)}
+.figure-wrap{display:flex;justify-content:center}
+.knight{width:200px;max-width:62vw;height:auto}
+.zone{cursor:pointer;transition:.12s}
+.zone .hit{fill:rgba(255,255,255,.02);stroke:transparent;stroke-width:3}
+.zone .body{fill:rgba(226,237,255,.9);stroke:#0c2247;stroke-width:2}
+.zone:hover .hit{fill:rgba(242,199,92,.18);stroke:var(--gold)}
+.zone.sel .hit{fill:rgba(242,199,92,.32);stroke:var(--gold);stroke-width:3.5}
+.zone.hitflash .body{fill:#ff8f6b}
+.zone.blockflash .body{fill:#7bd8ff}
+.zlabel{font-family:'Nunito';font-weight:900;font-size:11px;fill:#cfe0f5;text-anchor:middle;pointer-events:none}
+
+/* захист гравця */
+.guard{margin-top:8px}
+.guard .cap{text-align:center;font-weight:900;font-size:.74rem;color:#a9c1e4;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.guard-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.gbtn{border:2px solid var(--grid);border-radius:12px;padding:9px 4px;text-align:center;cursor:pointer;
+  background:rgba(20,38,72,.8);color:#fff;transition:.14s;font-weight:800;font-size:.78rem}
+.gbtn .gi{font-size:1.25rem;display:block}
+.gbtn:hover{border-color:#7bd8ff}
+.gbtn.sel{border-color:#7bd8ff;background:rgba(74,134,214,.28);box-shadow:0 0 0 2px rgba(123,216,255,.4)}
+
+/* ── ПОП-АП результату атаки (над бійцем) ── */
+.hitpop{position:absolute;top:42%;left:50%;transform:translate(-50%,-50%) scale(.6);z-index:30;
+  pointer-events:none;text-align:center;opacity:0;white-space:nowrap;
+  font-family:'Fredoka';font-weight:700;padding:9px 18px;border-radius:14px;color:#fff;
+  background:rgba(8,14,30,.78);border:2px solid var(--gold);box-shadow:0 12px 34px rgba(0,0,0,.55)}
+.hitpop[hidden]{display:none}
+.hitpop .n{display:block;font-size:1.7rem;line-height:1;margin-bottom:1px}
+.hitpop .s{font-size:.74rem;font-weight:800;color:#dbe7fb}
+.hitpop.hit{border-color:#ff9a6b}  .hitpop.hit .n{color:#ff9a6b}
+.hitpop.crit{border-color:#ff5a3a} .hitpop.crit .n{color:#ff7a4a}
+.hitpop.blk{border-color:#7bd8ff}  .hitpop.blk .n{color:#7bd8ff}
+.hitpop.miss{border-color:#9fb6da} .hitpop.miss .n{color:#cfe0f5}
+.hitpop.show{animation:hitpop 1.35s ease-out}
+@keyframes hitpop{
+  0%{opacity:0;transform:translate(-50%,-46%) scale(.55)}
+  12%{opacity:1;transform:translate(-50%,-60%) scale(1.18)}
+  80%{opacity:1;transform:translate(-50%,-62%) scale(1)}
+  100%{opacity:0;transform:translate(-50%,-74%) scale(1)}}
+
+/* ── спливаючі цифри шкоди на картках бійців ── */
+.dmg-float{position:absolute;top:36px;left:50%;z-index:50;pointer-events:none;
+  font-family:'Fredoka';font-weight:700;font-size:1.3rem;text-shadow:0 2px 6px rgba(0,0,0,.65);
+  animation:floatup 1.05s ease-out forwards}
+.dmg-float.hit{color:#ff9a6b} .dmg-float.crit{color:#ff5a3a;font-size:1.6rem}
+.dmg-float.blk{color:#7bd8ff} .dmg-float.miss{color:#dbe7fb;font-size:.95rem}
+@keyframes floatup{
+  0%{opacity:0;transform:translate(-50%,8px) scale(.7)}
+  20%{opacity:1;transform:translate(-50%,-4px) scale(1.1)}
+  100%{opacity:0;transform:translate(-50%,-42px) scale(1)}}
+
+/* ── журнал ходів «Хід 1, Хід 2…» ── */
+.steps{margin-top:12px;max-height:136px;overflow-y:auto;border-radius:12px;
+  background:rgba(0,0,0,.28);border:1px solid var(--grid);padding:8px 10px;
+  display:flex;flex-direction:column;gap:6px;scrollbar-width:thin}
+.steps-empty{color:#9fb6da;font-weight:800;text-align:center;font-size:.85rem;padding:6px 2px}
+.step{display:flex;gap:8px;align-items:flex-start;font-size:.82rem;font-weight:700;line-height:1.3;
+  animation:stepin .25s ease-out}
+@keyframes stepin{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.step .no{flex:none;font-family:'Fredoka';font-weight:700;font-size:.7rem;color:#0c2247;
+  background:var(--gold);border-radius:20px;padding:2px 9px;margin-top:1px}
+.step .txt{color:#eaf2ff}
+.step .g{color:var(--ok)} .step .b{color:#ffcf4d} .step .r{color:#ff9a6b}
+.strike{display:block;width:100%;border:none;cursor:pointer;margin-top:12px;
+  font-family:'Fredoka';font-weight:700;font-size:1.15rem;color:#3a1206;
+  background:linear-gradient(180deg,#ffd27a,#e0553a);border:2px solid #b33c22;
+  border-radius:14px;padding:14px;box-shadow:0 6px 0 #8a2c17;transition:.1s}
+.strike:disabled{filter:grayscale(.5) brightness(.8);cursor:default;box-shadow:0 6px 0 #5a3a33}
+.strike:not(:disabled):active{transform:translateY(3px);box-shadow:0 3px 0 #8a2c17}
+
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+.shake{animation:shake .35s}
+
+/* оверлей результату */
+.result{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:20px;
+  background:rgba(6,12,26,.78);backdrop-filter:blur(3px)}
+.result[hidden]{display:none}
+.result .card{width:100%;max-width:360px;text-align:center;border:3px solid var(--gold);border-radius:22px;padding:26px 20px;
+  background:linear-gradient(180deg,#243b66,#152744);box-shadow:0 24px 70px rgba(0,0,0,.6);animation:pop .3s}
+@keyframes pop{from{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}
+.result .big{font-family:'Fredoka';font-weight:700;font-size:2rem;line-height:1}
+.result.win .big{color:var(--gold)} .result.lose .big{color:#ffb3a0}
+.result .em{font-size:3.2rem;line-height:1;margin-bottom:6px}
+.result p{color:#dbe7fb;font-weight:800;margin:10px 0 4px}
+.result .xpwon{font-family:'Fredoka';font-weight:700;color:var(--ok);font-size:1.2rem;margin:6px 0}
+
+/* toast рівня */
+.toast{position:fixed;left:50%;top:16px;transform:translateX(-50%) translateY(-120%);z-index:90;
+  background:linear-gradient(180deg,#ffe7a0,#e0a93a);color:#0c2247;font-family:'Fredoka';font-weight:700;
+  padding:12px 20px;border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,.5);transition:transform .4s;text-align:center}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast small{display:block;font-family:'Nunito';font-weight:800;font-size:.72rem}
+
+/* ── ГАРДЕРОБ (вибір образу бійця) ── */
+.ward{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;
+  background:rgba(8,14,30,.74);backdrop-filter:blur(3px)}
+.ward[hidden]{display:none}
+.ward-card{width:100%;max-width:440px;max-height:88vh;overflow:auto;
+  background:linear-gradient(180deg,#243b66,#182a4c);border:3px solid var(--gold);border-radius:20px;padding:16px;
+  box-shadow:0 24px 70px rgba(0,0,0,.6)}
+.ward-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.ward-h b{font-family:'Fredoka';font-weight:700;font-size:1.05rem;color:#ffe9b8}
+.ward-x{background:none;border:0;color:#ffe9b8;font-size:1.3rem;cursor:pointer;padding:2px 8px;line-height:1}
+.ward-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
+.ward-opt{position:relative;cursor:pointer;border:2px solid rgba(242,199,92,.4);border-radius:14px;overflow:hidden;
+  aspect-ratio:3/4;background:linear-gradient(180deg,#bfe3fb,#79b4e6);transition:.15s}
+.ward-opt:hover{border-color:var(--gold);transform:translateY(-2px)}
+.ward-opt.sel{border-color:#FFE7A0;box-shadow:0 0 0 3px rgba(242,199,92,.55)}
+.ward-opt img{width:100%;height:100%;object-fit:contain;object-position:center bottom;display:block}
+.ward-opt .cap{position:absolute;left:0;right:0;bottom:0;padding:9px 4px 4px;font-size:.6rem;font-weight:800;
+  color:#ffe9b8;background:linear-gradient(transparent,rgba(10,18,38,.88));text-align:center;line-height:1.15}
+.ward-opt.sel .cap::after{content:" ✓";color:var(--gold)}
+.ward-note{margin-top:12px;font-size:.72rem;color:#9fb6da;font-weight:800;text-align:center}
+
+/* ── вкладки гардероба ── */
+.ward-card{max-width:520px}
+.ward-tabs{display:flex;gap:6px;margin-bottom:12px}
+.wtab{flex:1;border:2px solid var(--grid);border-radius:12px;padding:8px;cursor:pointer;
+  background:rgba(0,0,0,.2);color:#cfe0f5;font-family:'Fredoka';font-weight:600;font-size:.82rem;transition:.15s}
+.wtab:hover{border-color:var(--gold)}
+.wtab.on{background:linear-gradient(180deg,#ffe7a0,#e0a93a);color:#5a3d05;border-color:var(--gold-d)}
+
+/* ── спорядження: лялька + слоти ── */
+.ward-body{display:flex;gap:12px;align-items:flex-start}
+.ward-doll{position:relative;flex:0 0 120px;width:120px;border-radius:14px;overflow:hidden;border:2px solid var(--gold);
+  background:linear-gradient(180deg,#bfe3fb 0%,#8fc3ee 62%,#79b4e6 100%);aspect-ratio:3/4;
+  display:flex;align-items:flex-end;justify-content:center}
+.ward-doll img{width:100%;height:100%;object-fit:contain;object-position:center bottom;display:block}
+.ward-doll .emo{font-size:3rem;padding-bottom:14px}
+.slot-grid{flex:1;min-width:0;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.slot{display:flex;align-items:center;gap:8px;cursor:pointer;border:2px solid var(--grid);border-radius:12px;
+  padding:7px 8px;background:rgba(0,0,0,.22);transition:.14s;text-align:left}
+.slot:hover{border-color:var(--gold);background:rgba(242,199,92,.1)}
+.slot .si{font-size:1.35rem;width:28px;text-align:center;flex:none}
+.slot .st{min-width:0}
+.slot .sn{display:block;font-size:.62rem;font-weight:900;color:#9fb6da;text-transform:uppercase;letter-spacing:.03em}
+.slot .sv{display:block;font-size:.78rem;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slot.empty .sv{color:#7d93b6;font-weight:700}
+.slot.filled{border-color:rgba(242,199,92,.55);background:rgba(242,199,92,.12)}
+.slot.locked{opacity:.7;cursor:default}
+@media(max-width:520px){.ward-body{flex-direction:column;align-items:center}.slot-grid{width:100%}}
+@media(max-width:380px){.slot-grid{grid-template-columns:1fr}}
+
+/* ── вибір предмета для слота ── */
+.wback{background:none;border:0;color:#ffe9b8;font-weight:800;cursor:pointer;padding:2px 0;margin-bottom:8px;font-size:.85rem}
+.items-title{font-family:'Fredoka';font-weight:700;color:#ffe9b8;margin-bottom:10px}
+.item-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(94px,1fr));gap:8px}
+.item{position:relative;cursor:pointer;border:2px solid var(--grid);border-radius:12px;padding:10px 6px;text-align:center;
+  background:rgba(0,0,0,.22);transition:.14s}
+.item:hover{border-color:var(--gold);transform:translateY(-2px)}
+.item.sel{border-color:#FFE7A0;box-shadow:0 0 0 2px rgba(242,199,92,.5)}
+.item.clear{border-style:dashed;color:#ffb3a0}
+.item .ii{display:block;font-size:1.8rem;line-height:1}
+.item .in{display:block;font-size:.68rem;font-weight:800;margin-top:5px;color:#eaf2ff}
+.item .tag{position:absolute;top:4px;right:4px;font-size:.5rem;font-weight:900;color:#0c2247;
+  background:var(--gold);border-radius:6px;padding:1px 5px}
+
+/* ── BOTTOM NAV ── */
+.botnav{position:fixed;bottom:0;left:0;right:0;z-index:40;
+  background:linear-gradient(180deg,#1e3a6b,#16294f);border-top:3px solid #e0a42a;
+  display:flex;align-items:center;gap:2px;padding:6px 8px;overflow-x:auto;scrollbar-width:none}
+.botnav::-webkit-scrollbar{display:none}
+.botnav a,.botnav button{display:flex;flex-direction:column;align-items:center;gap:2px;
+  color:#cfe0f5;background:none;border:none;cursor:pointer;font-family:inherit;font-weight:800;font-size:.66rem;
+  padding:5px 12px;border-radius:12px;text-decoration:none;white-space:nowrap;flex:1;min-width:52px;transition:.15s}
+.botnav .ic{font-size:1.2rem}
+.botnav a.active{background:linear-gradient(180deg,#f4c842,#e0a42a);color:#5a3d05;box-shadow:0 3px 10px rgba(0,0,0,.3)}
+.botnav a:hover:not(.active){background:rgba(255,255,255,.1);color:#fff}
+
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}
+  .hitpop.show{opacity:1}}
+</style>
+</head>
+<body>
+<div class="bg-img"></div>
+<div class="bg-shade"></div>
+<div class="wrap">
+
+  <div class="topbar">
+    <span class="crest">🛡️</span>
+    <div>
+      <h1>Турнірна <b>арена</b></h1>
+      <div class="sub" id="screenSub">Таверна бійців</div>
+    </div>
+    <button class="iconbtn" id="homeBtn" title="На головну">🏠</button>
+  </div>
+
+  <!-- ════════════ ЕКРАН: ТАВЕРНА ════════════ -->
+  <section id="screen-tavern">
+    <div class="tavern-hero">
+      <span class="torch l">🔥</span><span class="torch r">🔥</span>
+      <div class="inner">
+        <button class="hero-figure" id="heroFigure" aria-label="Вдягнути персонажа" title="Натисни, щоб змінити образ">
+          <img id="heroFull" alt="Твій боєць">
+          <span id="heroFullEmoji" class="figemoji hidden">🧒</span>
+          <span class="wardrobe-chip">👕 Гардероб</span>
+        </button>
+        <div class="band-info">
+          <div class="prog-head">
+            <div class="t">
+              <b id="heroLine">Твій боєць</b>
+              <span id="rankName">Новачок арени</span>
+              <span class="lvlchip">Рівень арени<b id="rankBadge">1</b></span>
+            </div>
+          </div>
+          <div class="hchips" id="heroChips">
+            <span class="hchip">❤️ <b id="stHealth">0</b></span>
+            <span class="hchip">🔮 <b id="stMana">0</b></span>
+            <span class="hchip">🏃 <b id="stAgi">0</b></span>
+            <span class="hchip">🎯 <b id="stAcc">0</b></span>
+          </div>
+          <div class="xpline" style="margin-top:10px"><i id="xpFill" style="width:0%"></i></div>
+          <div class="xpsub"><span id="xpNow">0 / 120 досвіду</span><span id="lvlNow">Рівень 1</span></div>
+          <div class="wl">
+            <div class="box win"><b id="winCount">0</b><span>Перемог</span></div>
+            <div class="box lose"><b id="loseCount">0</b><span>Поразок</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-t">Формат бою</div>
+    <div class="formats">
+      <div class="fmt" data-fmt="1v1">
+        <div class="big">1×1</div>
+        <div class="nm">Двобій</div>
+        <div class="ds">Ти проти суперника</div>
+      </div>
+      <div class="fmt soon" data-fmt="3v3">
+        <div class="big">3×3</div>
+        <div class="nm">Загін</div>
+        <div class="ds">Троє на троє</div>
+      </div>
+      <div class="fmt soon" data-fmt="5v5">
+        <div class="big">5×5</div>
+        <div class="nm">Дружина</div>
+        <div class="ds">Пʼятеро на пʼятеро</div>
+      </div>
+    </div>
+
+    <div class="grid2" style="margin-top:14px">
+      <!-- вміння -->
+      <div class="panel">
+        <div class="section-t" style="margin:0 0 8px">Вміння за рівні</div>
+        <div class="skills" id="skillList"></div>
+        <div style="font-size:.7rem;color:#8fa8cf;font-weight:800;margin-top:8px">Самі вміння додамо згодом — поки що це нагороди за рівень.</div>
+      </div>
+
+      <!-- зала слави -->
+      <div class="panel">
+        <div class="section-t" style="margin:0 0 8px">Зала слави</div>
+        <div class="hof" id="hof"></div>
+      </div>
+    </div>
+
+    <button class="cta" id="findBtn">⚔️ Знайти суперника</button>
+    <div style="text-align:center;font-size:.72rem;color:#8fa8cf;font-weight:800;margin-top:8px">Онлайн-суперники зʼявляться пізніше — зараз бʼємось із ботом.</div>
+  </section>
+
+  <!-- ════════════ ЕКРАН: БІЙ ════════════ -->
+  <section id="screen-battle" class="hidden">
+    <div class="arena-top">
+      <!-- лівий кут: ти -->
+      <div class="fighter blue" id="pCard" tabindex="0">
+        <div class="shield">
+          <div class="clip"><img id="pImg" alt=""></div>
+          <div class="emoji hidden" id="pEmoji">🧒</div>
+          <svg class="frame" viewBox="0 0 102 136"><path d="M51 0 L102 14 L102 74 Q102 118 51 136 Q0 118 0 74 L0 14 Z" fill="none" stroke-width="4"/></svg>
+        </div>
+        <div class="fname" id="pName">Ти</div>
+        <div class="flvl" id="pLvl">рів. 1</div>
+        <div class="forcebar" id="pForce"><i></i><span class="lbl" id="pForceLbl">—</span></div>
+        <div class="avapeek"><img id="pPeek" alt=""><b id="pPeekN">Ти</b></div>
+      </div>
+
+      <!-- таймер + раунд -->
+      <div class="round-pill">
+        <div class="timer">
+          <svg width="74" height="74" viewBox="0 0 74 74">
+            <circle cx="37" cy="37" r="32" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="6"/>
+            <circle id="timerArc" cx="37" cy="37" r="32" fill="none" stroke="#f4c842" stroke-width="6"
+              stroke-linecap="round" stroke-dasharray="201" stroke-dashoffset="0"/>
+          </svg>
+          <div class="num" id="timerNum">30</div>
+        </div>
+        <div class="round-lbl">Раунд <span id="roundNum">1</span></div>
+      </div>
+
+      <!-- правий кут: суперник -->
+      <div class="fighter red" id="oCard" tabindex="0">
+        <div class="shield">
+          <div class="clip"><img id="oImg" alt=""></div>
+          <div class="emoji hidden" id="oEmoji">🤖</div>
+          <svg class="frame" viewBox="0 0 102 136"><path d="M51 0 L102 14 L102 74 Q102 118 51 136 Q0 118 0 74 L0 14 Z" fill="none" stroke-width="4"/></svg>
+        </div>
+        <div class="fname" id="oName">Суперник</div>
+        <div class="flvl" id="oLvl">рів. 1</div>
+        <div class="forcebar" id="oForce"><i></i><span class="lbl" id="oForceLbl">—</span></div>
+        <div class="avapeek"><img id="oPeek" alt=""><b id="oPeekN">Суперник</b></div>
+      </div>
+    </div>
+
+    <!-- центр: куди атакувати -->
+    <div class="stage" id="stage">
+      <div class="hitpop" id="hitpop" hidden></div>
+      <div class="hint">Тапни, <b>куди атакувати</b> суперника</div>
+      <div class="figure-wrap">
+        <svg class="knight" id="knight" viewBox="0 0 200 300" aria-label="Схематичний боєць">
+          <!-- ноги -->
+          <g class="zone" data-zone="legs">
+            <rect class="body" x="78" y="196" width="18" height="86" rx="9"/>
+            <rect class="body" x="104" y="196" width="18" height="86" rx="9"/>
+            <rect class="hit" x="70" y="190" width="60" height="100" rx="14"/>
+            <text class="zlabel" x="100" y="298">Ноги</text>
+          </g>
+          <!-- руки -->
+          <g class="zone" data-zone="arms">
+            <rect class="body" x="46" y="120" width="16" height="78" rx="8"/>
+            <rect class="body" x="138" y="120" width="16" height="78" rx="8"/>
+            <rect class="hit" x="40" y="112" width="30" height="94" rx="12"/>
+            <rect class="hit" x="130" y="112" width="30" height="94" rx="12"/>
+          </g>
+          <!-- тіло -->
+          <g class="zone" data-zone="body">
+            <rect class="body" x="64" y="116" width="72" height="86" rx="18"/>
+            <rect class="hit" x="60" y="112" width="80" height="94" rx="18"/>
+            <text class="zlabel" x="100" y="164" style="fill:#0c2247">Тіло</text>
+          </g>
+          <!-- голова -->
+          <g class="zone" data-zone="head">
+            <circle class="body" cx="100" cy="70" r="34"/>
+            <circle class="hit" cx="100" cy="70" r="42"/>
+            <text class="zlabel" x="100" y="26">Голова</text>
+          </g>
+        </svg>
+      </div>
+
+      <!-- захист -->
+      <div class="guard">
+        <div class="cap">🛡️ Постав свій захист</div>
+        <div class="guard-row" id="guardRow">
+          <div class="gbtn" data-zone="head"><span class="gi">🪖</span>Голова</div>
+          <div class="gbtn" data-zone="body"><span class="gi">🛡️</span>Тіло</div>
+          <div class="gbtn" data-zone="arms"><span class="gi">💪</span>Руки</div>
+          <div class="gbtn" data-zone="legs"><span class="gi">🦵</span>Ноги</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="steps" id="steps"><div class="steps-empty">Тут з'являться ходи бою…</div></div>
+    <button class="strike" id="strikeBtn" disabled>⚔️ Атака</button>
+    <button class="cta ghost" id="fleeBtn" style="margin-top:8px">Повернутись у таверну</button>
+  </section>
+
+</div>
+
+<!-- оверлей результату -->
+<div class="result" id="result" hidden>
+  <div class="card">
+    <div class="em" id="resEm">🏆</div>
+    <div class="big" id="resBig">Перемога!</div>
+    <p id="resTxt">Суперник здався.</p>
+    <div class="xpwon" id="resXp">+25 досвіду</div>
+    <button class="cta" id="againBtn">Ще бій</button>
+    <button class="cta ghost" id="backTavernBtn" style="margin-top:8px">У таверну</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toastMain">Новий рівень!</span><small id="toastSub"></small></div>
+
+<!-- гардероб: вибір образу бійця -->
+<div class="ward" id="ward" hidden>
+  <div class="ward-card">
+    <div class="ward-h"><b>👕 Гардероб бійця</b><button class="ward-x" id="wardX" aria-label="Закрити">✕</button></div>
+
+    <div class="ward-tabs">
+      <button class="wtab on" data-tab="gear">🛡️ Спорядження</button>
+      <button class="wtab" data-tab="look">🧑‍🎨 Образ</button>
+    </div>
+
+    <!-- вкладка: спорядження (лялька + слоти) -->
+    <div id="wtabGear">
+      <div class="ward-body">
+        <div class="ward-doll"><img id="wardHeroImg" alt=""><span id="wardHeroEmoji" class="emo hidden">🧒</span></div>
+        <div class="slot-grid" id="slotGrid"></div>
+      </div>
+    </div>
+
+    <!-- вкладка: образ (базовий лицар) -->
+    <div id="wtabLook" class="hidden">
+      <div class="ward-grid" id="wardGrid"></div>
+    </div>
+
+    <!-- вибір предмета для слота -->
+    <div id="wtabItems" class="hidden">
+      <button class="wback" id="itemsBack">← До слотів</button>
+      <div class="items-title" id="itemsTitle">Предмет</div>
+      <div class="item-grid" id="itemGrid"></div>
+    </div>
+
+    <div class="ward-note">Далі речі даватимуть бонуси до характеристик ✨</div>
+  </div>
+</div>
+
+<!-- ── навігація ── -->
+<nav class="botnav">
+  <a href="hero.html"><span class="ic">🏠</span>Головна</a>
+  <a href="tests.html"><span class="ic">📜</span>Тести</a>
+  <a href="biblioteka.html"><span class="ic">📚</span>Бібліотека</a>
+  <a class="active" href="igry.html"><span class="ic">🎮</span>Ігри</a>
+  <a href="karta.html"><span class="ic">🗺️</span>Карта</a>
+  <button id="heroBackBtn"><span class="ic">⬅️</span>Назад</button>
+</nav>
+
+<script type="module" src="firebase-config.js"></script>
+<script src="sk-avatar.js"></script>
+<script>
+(function(){
+  'use strict';
+  var $ = function(id){ return document.getElementById(id); };
+  var ZONES = ['head','body','arms','legs'];
+  var ZONE_UA = {head:'голову', body:'тіло', arms:'руки', legs:'ноги'};
+  var TURN_SECONDS = 30;
+
+  /* ── налаштування балансу (легко правити) ── */
+  var CFG = {
+    baseHP: 100,          // + характеристика «Здоровʼя»
+    baseDmg: 8,           // + точність/8
+    critChance: 280,      // менше = частіше (accuracy/CFG.critChance)
+    critMult: 1.7,
+    dodgeChance: 380,     // agility/CFG.dodgeChance
+    blockKeep: 0.30,      // скільки шкоди проходить крізь захист
+    xpWin: 25, xpLose: 8, xpPerLvl: 120
+  };
+
+  /* ── вміння за рівні (заглушки під майбутні скіли) ── */
+  var SKILLS = [
+    {lv:2, ic:'⚔️', nm:'Подвійний удар'},
+    {lv:3, ic:'🛡️', nm:'Залізний захист'},
+    {lv:4, ic:'🌀', nm:'Спритний стрибок'},
+    {lv:5, ic:'🔥', nm:'Королівська лють'}
+  ];
+
+  /* ── боти (казкові, добрі імена) ── */
+  var BOTS = [
+    {name:'Тренувальний лицар', avatar:'hero:knight-green-boy',  power:0},
+    {name:'Джура Тимко',        avatar:'hero:knight-blue-boy',   power:1},
+    {name:'Лицарка Оленка',     avatar:'hero:knight-purple-girl',power:2},
+    {name:'Вартовий Грім',      avatar:'hero:knight-green-girl', power:3}
+  ];
+
+  /* ── стан гравця (арена) ── */
+  var arena = { level:1, xp:0, wins:0, losses:0 };
+  var hero  = { name:'Ти', avatar:'hero:knight-blue-boy', health:50, agility:50, accuracy:50, mana:20 };
+
+  /* ── localStorage ── */
+  function loadArena(){
+    try{
+      arena.level  = +localStorage.getItem('sk_arena_level')  || 1;
+      arena.xp     = +localStorage.getItem('sk_arena_xp')     || 0;
+      arena.wins   = +localStorage.getItem('sk_arena_wins')   || 0;
+      arena.losses = +localStorage.getItem('sk_arena_losses') || 0;
+    }catch(e){}
+  }
+  function saveArena(){
+    try{
+      localStorage.setItem('sk_arena_level',  arena.level);
+      localStorage.setItem('sk_arena_xp',     arena.xp);
+      localStorage.setItem('sk_arena_wins',   arena.wins);
+      localStorage.setItem('sk_arena_losses', arena.losses);
+    }catch(e){}
+    try{ if(window.SK && SK.pushLocal) SK.pushLocal().catch(function(){}); }catch(e){}
+  }
+
+  /* ── похідні бойові показники з характеристик ── */
+  function maxForce(f){ return CFG.baseHP + Math.round(f.health||50); }
+  function dmgOf(f){ return CFG.baseDmg + Math.round((f.accuracy||50)/8); }
+  function critRoll(f){ return Math.random() < (f.accuracy||50)/CFG.critChance; }
+  function dodgeRoll(f){ return Math.random() < (f.agility||50)/CFG.dodgeChance; }
+
+  /* ── рендер аватара у щит + peek ── */
+  function paintAvatar(token, imgId, emojiId, peekId){
+    var img = $(imgId), em = $(emojiId), peek = $(peekId);
+    var SKAVA = window.SKAVA;
+    if(SKAVA && SKAVA.isHeroToken && SKAVA.isHeroToken(token)){
+      var id = SKAVA.idOf(token);
+      img.src = SKAVA.faceSrc(id, 256);
+      img.classList.remove('hidden'); em.classList.add('hidden');
+      if(peek) peek.src = SKAVA.fullSrc(id);
+    }else{
+      var heroTok = (typeof token==='string' && token.indexOf('hero:')===0);
+      em.textContent = heroTok ? '🧒' : (token || '🧒'); em.classList.remove('hidden'); img.classList.add('hidden');
+      if(peek){ peek.style.display='none'; }
+    }
+  }
+
+  /* ── повнозрісний боєць у таверні ── */
+  function paintHeroFull(token){
+    var img = $('heroFull'), em = $('heroFullEmoji');
+    var SKAVA = window.SKAVA;
+    if(SKAVA && SKAVA.isHeroToken && SKAVA.isHeroToken(token) && SKAVA.has && SKAVA.has(SKAVA.idOf(token))){
+      var id = SKAVA.idOf(token);
+      img.onerror = function(){ img.onerror=null; if(SKAVA.fullPng) img.src = SKAVA.fullPng(id); };
+      img.src = SKAVA.fullSrc(id);
+      img.style.display = 'block'; em.classList.add('hidden');
+    }else{
+      img.style.display = 'none';
+      var isHeroTok = (typeof token==='string' && token.indexOf('hero:')===0);
+      em.textContent = isHeroTok ? '🧒' : (token || '🧒');
+      em.classList.remove('hidden');
+    }
+  }
+
+  /* ══════════ ГАРДЕРОБ / СПОРЯДЖЕННЯ ══════════ */
+  // слоти героя (порядок — як показуємо в сітці)
+  var SLOTS = [
+    {key:'helmet', name:'Шолом',      ph:'🪖', pool:'helmet'},
+    {key:'amulet', name:'Амулет',     ph:'📿', pool:'amulet'},
+    {key:'armor',  name:'Броня',      ph:'🥋', pool:'armor'},
+    {key:'gloves', name:'Рукавиці',   ph:'🧤', pool:'gloves'},
+    {key:'pants',  name:'Штани',      ph:'👖', pool:'pants'},
+    {key:'boots',  name:'Взуття',     ph:'🥾', pool:'boots'},
+    {key:'ring1',  name:'Кільце 1',   ph:'💍', pool:'ring'},
+    {key:'ring2',  name:'Кільце 2',   ph:'💍', pool:'ring'},
+    {key:'hand_r', name:'Права рука', ph:'🗡️', pool:'weapon'},
+    {key:'hand_l', name:'Ліва рука',  ph:'🛡️', pool:'weapon'}
+  ];
+  // стартовий набір предметів (поки без бонусів — це каркас під майбутні речі)
+  var ITEMS = {
+    helmet:[{id:'helm_leather',name:'Шкіряний шолом',emoji:'🪖'},{id:'helm_iron',name:'Залізний шолом',emoji:'⛑️'},{id:'helm_gold',name:'Золотий шолом',emoji:'👑'}],
+    amulet:[{id:'amu_moon',name:'Амулет місяця',emoji:'🌙'},{id:'amu_gem',name:'Самоцвіт',emoji:'💎'},{id:'amu_star',name:'Зоря',emoji:'⭐'}],
+    armor:[{id:'arm_cloth',name:'Полотняна броня',emoji:'🥋'},{id:'arm_chain',name:'Кольчуга',emoji:'🦺'},{id:'arm_plate',name:'Лати',emoji:'🛡️'}],
+    gloves:[{id:'glo_leather',name:'Рукавиці',emoji:'🧤'},{id:'glo_iron',name:'Латні рукавиці',emoji:'🥊'}],
+    pants:[{id:'pan_cloth',name:'Штани',emoji:'👖'},{id:'pan_armor',name:'Бойові штани',emoji:'🩳'}],
+    boots:[{id:'boo_leather',name:'Чоботи',emoji:'🥾'},{id:'boo_iron',name:'Латні чоботи',emoji:'👢'}],
+    ring:[{id:'rng_ruby',name:'Рубінове кільце',emoji:'💍'},{id:'rng_emer',name:'Смарагдове кільце',emoji:'💚'},{id:'rng_gold',name:'Золоте кільце',emoji:'🟡'}],
+    weapon:[
+      {id:'wpn_sword', name:'Меч',    emoji:'🗡️', hands:1},
+      {id:'wpn_shield',name:'Щит',    emoji:'🛡️', hands:1},
+      {id:'wpn_axe',   name:'Сокира', emoji:'🪓', hands:1},
+      {id:'wpn_bow',   name:'Лук',    emoji:'🏹', hands:2},
+      {id:'wpn_staff', name:'Посох',  emoji:'🪄', hands:2}
+    ]
+  };
+  var ITEM_BY_ID = {};
+  Object.keys(ITEMS).forEach(function(p){ ITEMS[p].forEach(function(it){ it.pool=p; ITEM_BY_ID[it.id]=it; }); });
+  function isTwoHanded(id){ return !!(ITEM_BY_ID[id] && ITEM_BY_ID[id].hands===2); }
+  function slotByKey(k){ for(var i=0;i<SLOTS.length;i++) if(SLOTS[i].key===k) return SLOTS[i]; return null; }
+
+  // надіті речі
+  var EQUIP = {helmet:null,amulet:null,armor:null,gloves:null,pants:null,boots:null,ring1:null,ring2:null,hand_r:null,hand_l:null};
+  var currentSlot = null;
+
+  function loadEquip(){
+    try{ var raw=localStorage.getItem('sk_arena_equip'); if(raw){ var o=JSON.parse(raw);
+      Object.keys(EQUIP).forEach(function(k){ if(o[k]!==undefined) EQUIP[k]=o[k]; }); } }catch(e){}
+  }
+  function saveEquip(){
+    try{ localStorage.setItem('sk_arena_equip', JSON.stringify(EQUIP)); }catch(e){}
+    try{ if(window.SK && SK.pushLocal) SK.pushLocal().catch(function(){}); }catch(e){}
+  }
+
+  /* лялька-персонаж у гардеробі */
+  function paintWardHero(token){
+    var img=$('wardHeroImg'), em=$('wardHeroEmoji'); if(!img) return;
+    var SKAVA=window.SKAVA;
+    if(SKAVA && SKAVA.isHeroToken && SKAVA.isHeroToken(token) && SKAVA.has && SKAVA.has(SKAVA.idOf(token))){
+      var id=SKAVA.idOf(token);
+      img.onerror=function(){ img.onerror=null; if(SKAVA.fullPng) img.src=SKAVA.fullPng(id); };
+      img.src=SKAVA.fullSrc(id); img.style.display='block'; em.classList.add('hidden');
+    }else{ img.style.display='none'; em.classList.remove('hidden'); }
+  }
+
+  /* сітка слотів */
+  function renderSlots(){
+    var grid=$('slotGrid'); if(!grid) return;
+    grid.innerHTML = SLOTS.map(function(s){
+      var id=EQUIP[s.key], it=id?ITEM_BY_ID[id]:null;
+      var twoH = it && it.hands===2;
+      var emoji = it ? it.emoji : s.ph;
+      var val = it ? (it.name + (twoH?' · дворучна':'')) : 'порожньо';
+      var cls = it ? 'filled' : 'empty';
+      return '<button class="slot '+cls+'" data-slot="'+s.key+'">'
+        + '<span class="si">'+emoji+'</span>'
+        + '<span class="st"><span class="sn">'+s.name+'</span><span class="sv">'+val+'</span></span>'
+        + '</button>';
+    }).join('');
+    grid.querySelectorAll('.slot').forEach(function(b){
+      b.addEventListener('click', function(){ openItems(b.getAttribute('data-slot')); });
+    });
+  }
+
+  /* вибір предмета для слота */
+  function openItems(slotKey){
+    var s=slotByKey(slotKey); if(!s) return;
+    currentSlot=slotKey;
+    $('itemsTitle').textContent = s.name;
+    var pool = ITEMS[s.pool]||[];
+    var cur = EQUIP[slotKey];
+    var cells = '';
+    if(cur){ cells += '<button class="item clear" data-act="clear"><span class="ii">🚫</span><span class="in">Зняти</span></button>'; }
+    cells += pool.map(function(it){
+      var sel=(it.id===cur)?' sel':'';
+      var tag=(it.hands===2)?'<span class="tag">2р</span>':'';
+      return '<button class="item'+sel+'" data-item="'+it.id+'">'+tag
+        + '<span class="ii">'+it.emoji+'</span><span class="in">'+it.name+'</span></button>';
+    }).join('');
+    $('itemGrid').innerHTML = cells;
+    $('itemGrid').querySelectorAll('.item').forEach(function(b){
+      b.addEventListener('click', function(){
+        if(b.getAttribute('data-act')==='clear'){ unequip(slotKey); switchWTab('gear'); return; }
+        equipItem(slotKey, b.getAttribute('data-item'));
+      });
+    });
+    switchWTab('items');
+  }
+
+  /* присвоїти предмет у слот (з логікою дворучної зброї) */
+  function equipItem(slotKey, itemId){
+    var it = ITEM_BY_ID[itemId]; if(!it){ return; }
+    if(slotKey==='hand_r' || slotKey==='hand_l'){
+      if(it.hands===2){
+        EQUIP.hand_r = itemId; EQUIP.hand_l = itemId;   // одна дворучна на обидві руки
+      }else{
+        var other = (slotKey==='hand_r') ? 'hand_l' : 'hand_r';
+        // якщо в руках лежала дворучна — знімаємо її з іншої руки
+        if(EQUIP.hand_r && EQUIP.hand_r===EQUIP.hand_l && isTwoHanded(EQUIP.hand_r)){ EQUIP[other]=null; }
+        EQUIP[slotKey] = itemId;
+      }
+    }else{
+      EQUIP[slotKey] = itemId;
+    }
+    saveEquip(); renderSlots(); switchWTab('gear');
+  }
+  function unequip(slotKey){
+    if((slotKey==='hand_r'||slotKey==='hand_l') && EQUIP.hand_r && EQUIP.hand_r===EQUIP.hand_l && isTwoHanded(EQUIP.hand_r)){
+      EQUIP.hand_r=null; EQUIP.hand_l=null;   // дворучна знімається з обох рук
+    }else{
+      EQUIP[slotKey]=null;
+    }
+    saveEquip(); renderSlots();
+  }
+
+  /* перемикання вкладок гардероба (gear / look / items) */
+  function switchWTab(tab){
+    var map={gear:'wtabGear', look:'wtabLook', items:'wtabItems'};
+    Object.keys(map).forEach(function(t){ var el=$(map[t]); if(el) el.classList.toggle('hidden', t!==tab); });
+    document.querySelectorAll('.wtab').forEach(function(b){
+      b.classList.toggle('on', b.getAttribute('data-tab')===(tab==='items'?'gear':tab));
+    });
+  }
+
+  /* сітка образів (базовий лицар) */
+  function buildLookGrid(){
+    var SKAVA=window.SKAVA, grid=$('wardGrid'); if(!SKAVA||!SKAVA.CATALOG||!grid) return;
+    grid.innerHTML = SKAVA.CATALOG.map(function(h){
+      var token='hero:'+h.id, sel=(token===hero.avatar)?' sel':'';
+      var png=SKAVA.fullPng?SKAVA.fullPng(h.id):'';
+      return '<div class="ward-opt'+sel+'" data-token="'+token+'">'
+        + '<img src="'+SKAVA.fullSrc(h.id)+'" alt="'+h.name+'" loading="lazy"'
+        + (png?' onerror="this.onerror=null;this.src=\''+png+'\'"':'') + '>'
+        + '<span class="cap">'+h.name+'</span></div>';
+    }).join('');
+    grid.querySelectorAll('.ward-opt').forEach(function(o){
+      o.addEventListener('click', function(){ chooseLook(o.getAttribute('data-token')); });
+    });
+  }
+
+  function openWardrobe(){
+    buildLookGrid();
+    paintWardHero(hero.avatar);
+    renderSlots();
+    switchWTab('gear');
+    $('ward').hidden = false;
+  }
+  function chooseLook(token){
+    hero.avatar = token;
+    paintHeroFull(token); paintWardHero(token); renderTavern();
+    if(B && !B.over){ paintAvatar(token,'pImg','pEmoji','pPeek'); }
+    try{ if(window.SK && SK.saveHeroAvatar && SK.isHeroSession && SK.isHeroSession()) SK.saveHeroAvatar(token); }catch(e){}
+    buildLookGrid();   // оновити позначку обраного
+  }
+
+  /* ══════════ ТАВЕРНА ══════════ */
+  function rankName(lv){
+    if(lv>=8) return 'Легенда арени';
+    if(lv>=6) return 'Чемпіон турніру';
+    if(lv>=4) return 'Досвідчений боєць';
+    if(lv>=2) return 'Учень лицаря';
+    return 'Новачок арени';
+  }
+  function renderTavern(){
+    // повнозрісний боєць + значки з його 4 активними характеристиками (як у хедері)
+    paintHeroFull(hero.avatar);
+    $('stHealth').textContent = Math.round(hero.health  || 0);
+    $('stMana').textContent   = Math.round(hero.mana    || 0);
+    $('stAgi').textContent    = Math.round(hero.agility || 0);
+    $('stAcc').textContent    = Math.round(hero.accuracy|| 0);
+
+    $('rankBadge').textContent = arena.level;
+    $('rankName').textContent  = rankName(arena.level);
+    $('heroLine').textContent  = hero.name;
+    var need = arena.level*CFG.xpPerLvl;
+    $('xpFill').style.width = Math.min(100, arena.xp/need*100) + '%';
+    $('xpNow').textContent  = arena.xp + ' / ' + need + ' досвіду';
+    $('lvlNow').textContent = 'Рівень ' + arena.level;
+    $('winCount').textContent  = arena.wins;
+    $('loseCount').textContent = arena.losses;
+
+    // вміння
+    var sk = SKILLS.map(function(s){
+      var on = arena.level >= s.lv;
+      return '<div class="skill '+(on?'on':'off')+'">'
+        + '<span class="ic">'+(on?s.ic:'🔒')+'</span>'
+        + '<span class="nm">'+s.nm+'</span>'
+        + '<span class="lv">рів. '+s.lv+'</span></div>';
+    }).join('');
+    $('skillList').innerHTML = sk;
+
+    // зала слави (поки локально: ти + легендарні бійці королівства)
+    var board = [
+      {name:'Лицар Королевич', sub:'легенда', pts:960},
+      {name:'Мандрівниця Ліна', sub:'чемпіонка', pts:720},
+      {name:'Джура Тимко', sub:'герой турнірів', pts:540},
+      {name:hero.name, sub:'це ти', pts:arena.wins*40 + arena.xp, you:true}
+    ].sort(function(a,b){ return b.pts-a.pts; });
+    $('hof').innerHTML = board.map(function(r,i){
+      return '<div class="row'+(r.you?' you':'')+'">'
+        + '<div class="pos">'+(i+1)+'</div>'
+        + '<div class="nm">'+r.name+'<small>'+r.sub+'</small></div>'
+        + '<div class="pts">'+r.pts+' 🏅</div></div>';
+    }).join('');
+  }
+
+  /* ══════════ БІЙ (1×1) ══════════ */
+  var B = null; // стан поточного бою
+
+  function pickBot(){
+    // бот під рівень гравця: беремо приблизно за силою
+    var idx = Math.min(BOTS.length-1, Math.floor((arena.level-1)/2));
+    var bot = BOTS[idx];
+    var scale = 1 + bot.power*0.12;
+    return {
+      name: bot.name, avatar: bot.avatar,
+      level: Math.max(1, arena.level + (bot.power-1)),
+      health: Math.round(50*scale), accuracy: Math.round(50*scale), agility: Math.round(45*scale), mana:20,
+      lastPlayerAtk: null
+    };
+  }
+
+  function startBattle(){
+    var bot = pickBot();
+    B = {
+      round:1, over:false, resolving:false,
+      me:   {f:hero, force:maxForce(hero), max:maxForce(hero), atk:null, block:null},
+      op:   {f:bot,  force:maxForce(bot),  max:maxForce(bot),  atk:null, block:null},
+      timer:null, left:TURN_SECONDS
+    };
+
+    // ліва картка — гравець
+    paintAvatar(hero.avatar,'pImg','pEmoji','pPeek');
+    $('pName').textContent = hero.name; $('pPeekN').textContent = hero.name;
+    $('pLvl').textContent  = 'рів. ' + arena.level;
+    // права — суперник
+    paintAvatar(bot.avatar,'oImg','oEmoji','oPeek');
+    $('oName').textContent = bot.name; $('oPeekN').textContent = bot.name;
+    $('oLvl').textContent  = 'рів. ' + bot.level;
+
+    updateForce('p', B.me); updateForce('o', B.op);
+    $('roundNum').textContent = '1';
+    clearSel();
+    resetSteps();
+    show('battle');
+    startTimer();
+    refreshStrike();
+  }
+
+  function updateForce(side, unit){
+    var wrap = $(side==='p'?'pForce':'oForce');
+    var pct = Math.max(0, unit.force)/unit.max;
+    wrap.querySelector('i').style.transform = 'scaleX('+pct+')';
+    wrap.classList.toggle('low',  pct<=0.5 && pct>0.25);
+    wrap.classList.toggle('crit', pct<=0.25);
+    $(side==='p'?'pForceLbl':'oForceLbl').textContent = Math.max(0,Math.round(unit.force)) + ' сил';
+  }
+
+  /* таймер ходу */
+  function startTimer(){
+    stopTimer(); B.left = TURN_SECONDS; drawTimer();
+    B.timer = setInterval(function(){
+      B.left--; drawTimer();
+      if(B.left<=0){ stopTimer(); autoResolve(); }
+    },1000);
+  }
+  function stopTimer(){ if(B && B.timer){ clearInterval(B.timer); B.timer=null; } }
+  function drawTimer(){
+    $('timerNum').textContent = Math.max(0,B.left);
+    var arc = $('timerArc'), full=201;
+    arc.style.strokeDashoffset = full*(1 - B.left/TURN_SECONDS);
+  }
+  function autoResolve(){
+    // час вийшов — доберемо випадково те, чого бракує (щоб дитину не карати)
+    if(!B.me.atk)   B.me.atk   = ZONES[Math.floor(Math.random()*4)];
+    if(!B.me.block) B.me.block = ZONES[Math.floor(Math.random()*4)];
+    resolve();
+  }
+
+  /* вибір цілі удару (по фігурі) */
+  function bindKnight(){
+    $('knight').querySelectorAll('.zone').forEach(function(g){
+      g.addEventListener('click', function(){
+        if(!B || B.over || B.resolving) return;
+        $('knight').querySelectorAll('.zone').forEach(function(z){ z.classList.remove('sel'); });
+        g.classList.add('sel');
+        B.me.atk = g.getAttribute('data-zone');
+        refreshStrike();
+      });
+    });
+  }
+  /* вибір захисту */
+  function bindGuard(){
+    $('guardRow').querySelectorAll('.gbtn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        if(!B || B.over || B.resolving) return;
+        $('guardRow').querySelectorAll('.gbtn').forEach(function(b){ b.classList.remove('sel'); });
+        btn.classList.add('sel');
+        B.me.block = btn.getAttribute('data-zone');
+        refreshStrike();
+      });
+    });
+  }
+  function clearSel(){
+    $('knight').querySelectorAll('.zone').forEach(function(z){ z.classList.remove('sel','hitflash','blockflash'); });
+    $('guardRow').querySelectorAll('.gbtn').forEach(function(b){ b.classList.remove('sel'); });
+    B.me.atk=null; B.me.block=null;
+  }
+  function refreshStrike(){
+    $('strikeBtn').disabled = !(B && !B.over && !B.resolving && B.me.atk && B.me.block);
+  }
+
+  /* бот обирає хід */
+  function botChoose(){
+    B.op.atk = ZONES[Math.floor(Math.random()*4)];
+    // 40% — намагається вгадати останній удар гравця
+    if(B.op.f.lastPlayerAtk && Math.random()<0.4) B.op.block = B.op.f.lastPlayerAtk;
+    else B.op.block = ZONES[Math.floor(Math.random()*4)];
+  }
+
+  /* один обмін ударами */
+  function computeHit(attacker, defender){
+    // повертає {dmg, kind}
+    if(dodgeRoll(defender.f)) return {dmg:0, kind:'dodge'};
+    var dmg = dmgOf(attacker.f);
+    var crit = critRoll(attacker.f);
+    if(crit) dmg = Math.round(dmg*CFG.critMult);
+    if(attacker.atk === defender.block){
+      dmg = Math.max(1, Math.round(dmg*CFG.blockKeep));
+      return {dmg:dmg, kind:'block'};
+    }
+    return {dmg:dmg, kind:crit?'crit':'hit'};
+  }
+
+  function resolve(){
+    if(!B || B.over || B.resolving) return;
+    B.resolving = true; stopTimer();
+    $('strikeBtn').disabled = true;
+    if(!B.op.atk) botChoose();
+
+    var meHit = computeHit(B.me, B.op);   // гравець → суперник
+    var opHit = computeHit(B.op, B.me);   // суперник → гравець
+    B.op.f.lastPlayerAtk = B.me.atk;
+
+    // застосувати
+    B.op.force -= meHit.dmg;
+    B.me.force -= opHit.dmg;
+
+    // підсвітка зон на фігурі (де влучив гравець)
+    flashZone(B.me.atk, meHit.kind==='block'?'blockflash':'hitflash');
+
+    // ПОП-АП результату твоєї атаки (над бійцем) + спливаючі цифри на картках
+    showHitPop(meHit);
+    floatDmg('o', meHit);   // скільки втратив суперник від тебе
+    floatDmg('p', opHit);   // скільки втратив ти від суперника
+
+    // журнал: Хід N
+    addStep(B.round,
+      phrase('Ти → '+ZONE_UA[B.me.atk], meHit)
+      + ' <span style="opacity:.5">·</span> '
+      + phrase(B.op.f.name+' → '+ZONE_UA[B.op.atk], opHit));
+
+    // анімації смужок
+    updateForce('o', B.op); updateForce('p', B.me);
+    if(meHit.dmg>0) shakeCard('oCard');
+    if(opHit.dmg>0) shakeCard('pCard');
+
+    setTimeout(function(){
+      // кінець бою?
+      var meDown = B.me.force<=0, opDown = B.op.force<=0;
+      if(meDown || opDown){ endBattle(meDown, opDown); return; }
+      // наступний раунд
+      B.round++; $('roundNum').textContent = B.round;
+      clearSel(); B.op.atk=null; B.op.block=null;
+      B.resolving = false; refreshStrike();
+      startTimer();
+    }, 1350);
+  }
+
+  /* великий поп-ап результату ТВОЄЇ атаки */
+  function showHitPop(hit){
+    var pop = $('hitpop'); if(!pop) return;
+    var cls, big, sub;
+    if(hit.kind==='dodge'){ cls='miss'; big='Ухилився'; sub='суперник уник удару'; }
+    else if(hit.kind==='block'){ cls='blk'; big='−'+hit.dmg+' 🛡️'; sub='суперник прикрився'; }
+    else if(hit.kind==='crit'){ cls='crit'; big='−'+hit.dmg; sub='Влучний удар!'; }
+    else { cls='hit'; big='−'+hit.dmg; sub='Влучив!'; }
+    pop.classList.remove('show');
+    pop.innerHTML = '<span class="n">'+big+'</span><span class="s">'+sub+'</span>';
+    pop.className = 'hitpop '+cls;
+    pop.hidden = false;
+    void pop.offsetWidth;         // перезапуск анімації
+    pop.classList.add('show');
+    clearTimeout(pop._t);
+    pop._t = setTimeout(function(){ pop.hidden = true; pop.classList.remove('show'); }, 1350);
+  }
+
+  /* спливаюча цифра над карткою бійця, який отримав удар */
+  function floatDmg(side, hit){
+    var card = $(side==='p' ? 'pCard' : 'oCard'); if(!card) return;
+    var el = document.createElement('div');
+    if(hit.kind==='dodge'){ el.className='dmg-float miss'; el.textContent='ухил'; }
+    else if(hit.kind==='block'){ el.className='dmg-float blk'; el.textContent='−'+hit.dmg; }
+    else if(hit.kind==='crit'){ el.className='dmg-float crit'; el.textContent='−'+hit.dmg+'!'; }
+    else { el.className='dmg-float hit'; el.textContent='−'+hit.dmg; }
+    card.appendChild(el);
+    setTimeout(function(){ el.remove(); }, 1100);
+  }
+
+  /* додати рядок у журнал ходів */
+  function addStep(n, html){
+    var box = $('steps'); if(!box) return;
+    var empty = box.querySelector('.steps-empty'); if(empty) empty.remove();
+    var row = document.createElement('div'); row.className='step';
+    row.innerHTML = '<span class="no">Хід '+n+'</span><span class="txt">'+html+'</span>';
+    box.appendChild(row);
+    box.scrollTop = box.scrollHeight;
+  }
+  function resetSteps(){
+    var box = $('steps'); if(box) box.innerHTML = '<div class="steps-empty">Тут з\'являться ходи бою…</div>';
+    var pop = $('hitpop'); if(pop){ pop.hidden = true; pop.classList.remove('show'); }
+  }
+
+  function phrase(prefix, hit){
+    if(hit.kind==='dodge') return prefix+': <span class="b">ухилився!</span>';
+    if(hit.kind==='block') return prefix+': <span class="b">захист спрацював</span> (−'+hit.dmg+')';
+    if(hit.kind==='crit')  return prefix+': <span class="r">влучний удар!</span> (−'+hit.dmg+')';
+    return prefix+': <span class="g">влучив</span> (−'+hit.dmg+')';
+  }
+
+  function flashZone(zone, cls){
+    var g = $('knight').querySelector('.zone[data-zone="'+zone+'"]');
+    if(!g) return;
+    g.classList.add(cls);
+    setTimeout(function(){ g.classList.remove(cls); }, 650);
+  }
+  function shakeCard(id){ var c=$(id); c.classList.add('shake'); setTimeout(function(){ c.classList.remove('shake'); },400); }
+
+  function endBattle(meDown, opDown){
+    B.over = true; B.resolving = true; stopTimer();
+    var res = $('result');
+    if(meDown && opDown){
+      // нічия → трактуємо як почесну поразку, але даємо досвід
+      finishResult(false, '🤝', 'Нічия!', 'Обидва бійці видихлись — гідний бій!', CFG.xpLose);
+    }else if(opDown){
+      arena.wins++;
+      finishResult(true, '🏆', 'Перемога!', B.op.f.name + ' здається. Ти виграв бій!', CFG.xpWin);
+    }else{
+      arena.losses++;
+      finishResult(false, '🛡️', 'Не цього разу', 'Сили скінчились. Наступного разу вийде!', CFG.xpLose);
+    }
+  }
+
+  function finishResult(win, em, big, txt, xp){
+    var before = arena.level;
+    arena.xp += xp;
+    // рівні
+    var leveled = [];
+    while(arena.xp >= arena.level*CFG.xpPerLvl){
+      arena.xp -= arena.level*CFG.xpPerLvl;
+      arena.level++;
+      leveled.push(arena.level);
+    }
+    saveArena();
+
+    var res = $('result');
+    res.className = 'result ' + (win?'win':'lose');
+    $('resEm').textContent = em;
+    $('resBig').textContent = big;
+    $('resTxt').textContent = txt;
+    $('resXp').textContent = '+' + xp + ' досвіду';
+    res.hidden = false;
+
+    if(leveled.length){
+      var top = leveled[leveled.length-1];
+      var newSkill = SKILLS.filter(function(s){ return leveled.indexOf(s.lv)>=0; });
+      var sub = newSkill.length ? ('Відкрито: '+newSkill.map(function(s){return s.nm;}).join(', ')) : ('Тепер ти '+rankName(top).toLowerCase());
+      showToast('Рівень ' + top + '! 🎉', sub);
+    }
+  }
+
+  /* toast */
+  var toastT=null;
+  function showToast(main, sub){
+    $('toastMain').textContent = main; $('toastSub').textContent = sub||'';
+    var t=$('toast'); t.classList.add('show');
+    clearTimeout(toastT); toastT=setTimeout(function(){ t.classList.remove('show'); }, 3200);
+  }
+
+  /* ── навігація екранів ── */
+  function show(which){
+    $('screen-tavern').classList.toggle('hidden', which!=='tavern');
+    $('screen-battle').classList.toggle('hidden', which!=='battle');
+    $('screenSub').textContent = which==='battle' ? 'Бій • 1×1' : 'Таверна бійців';
+    if(which==='tavern'){ stopTimer(); renderTavern(); window.scrollTo(0,0); }
+  }
+
+  /* ── прив'язки ── */
+  function wire(){
+    bindKnight(); bindGuard();
+    $('strikeBtn').addEventListener('click', resolve);
+    $('findBtn').addEventListener('click', function(){
+      startBattle();
+    });
+    document.querySelectorAll('.fmt').forEach(function(f){
+      f.addEventListener('click', function(){
+        if(f.classList.contains('soon')){ showToast('Скоро!', 'Командні бої 3×3 і 5×5 у розробці'); return; }
+        startBattle();
+      });
+    });
+    $('fleeBtn').addEventListener('click', function(){ show('tavern'); });
+    $('backTavernBtn').addEventListener('click', function(){ $('result').hidden=true; show('tavern'); });
+    $('againBtn').addEventListener('click', function(){ $('result').hidden=true; startBattle(); });
+    $('homeBtn').addEventListener('click', function(){ location.href='hero.html'; });
+    // гардероб
+    var fig = $('heroFigure');
+    if(fig) fig.addEventListener('click', openWardrobe);
+    $('wardX').addEventListener('click', function(){ $('ward').hidden=true; });
+    $('ward').addEventListener('click', function(e){ if(e.target===$('ward')) $('ward').hidden=true; });
+    document.querySelectorAll('.wtab').forEach(function(b){
+      b.addEventListener('click', function(){ switchWTab(b.getAttribute('data-tab')); });
+    });
+    $('itemsBack').addEventListener('click', function(){ switchWTab('gear'); });
+    var back=$('heroBackBtn');
+    if(back) back.addEventListener('click', function(){
+      if(!$('screen-battle').classList.contains('hidden')){ show('tavern'); return; }
+      location.href='igry.html';
+    });
+  }
+
+  /* ── старт ── */
+  function boot(){
+    loadArena(); loadEquip(); wire(); renderTavern(); show('tavern');
+    // спробувати підтягнути справжнього героя
+    whenSK(function(){
+      try{
+        window.SK.ready.then(async function(u){
+          if(!u || (SK.isHeroSession && !SK.isHeroSession())) return; // не сесія героя — лишаємось на демо
+          try{ if(SK.pullLocal) await SK.pullLocal(u.uid); loadArena(); }catch(e){}
+          var child = SK.getActiveChild ? await SK.getActiveChild() : null;
+          var h = SK.getHero ? await SK.getHero() : null;
+          if(child){ if(child.name) hero.name=child.name; if(child.avatar) hero.avatar=child.avatar; }
+          if(h){
+            if(h.health!=null)   hero.health=h.health;
+            if(h.agility!=null)  hero.agility=h.agility;
+            if(h.accuracy!=null) hero.accuracy=h.accuracy;
+            if(h.mana!=null)     hero.mana=h.mana;
+          }
+          renderTavern();
+        });
+      }catch(e){}
+    });
+  }
+  function whenSK(cb){
+    var n=0;
+    (function w(){
+      if(window.SK && window.SK.ready){ cb(); return; }
+      if(n++<100) setTimeout(w,50);
+    })();
+  }
+
+  if(document.readyState!=='loading') boot();
+  else document.addEventListener('DOMContentLoaded', boot);
+})();
+</script>
+</body>
+</html>
