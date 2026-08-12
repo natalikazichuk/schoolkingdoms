@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Турнірна арена — SchoolKingdoms</title>
+<title>Турнірна арена — School Kingdoms</title>
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -794,6 +794,13 @@ button{font-family:inherit}
       localStorage.setItem('sk_arena_draws',  arena.draws);
     }catch(e){}
     try{ if(window.SK && SK.pushLocal) SK.pushLocal().catch(function(){}); }catch(e){}
+    // явний запис бойової статистики в heroes/{id}.arena (окреме поле в базі)
+    try{
+      if(window.SK && SK.saveArenaStats && SK.isHeroSession && SK.isHeroSession()){
+        SK.saveArenaStats({ level:arena.level, xp:arena.xp, wins:arena.wins,
+                            losses:arena.losses, draws:arena.draws }).catch(function(){});
+      }
+    }catch(e){}
   }
 
   /* ── похідні бойові показники з характеристик ── */
@@ -1013,6 +1020,8 @@ button{font-family:inherit}
     hero.avatar = token;
     paintHeroFull(token); paintWardHero(token); renderTavern();
     if(B && !B.over){ paintAvatar(token,'pImg','pEmoji','pPeek'); }
+    // спільний кеш аватара — щоб головна (hero.html) одразу показала той самий
+    try{ localStorage.setItem('sk_hero_avatar_token', token); }catch(e){}
     try{ if(window.SK && SK.saveHeroAvatar && SK.isHeroSession && SK.isHeroSession()) SK.saveHeroAvatar(token); }catch(e){}
     buildLookGrid();   // оновити позначку обраного
   }
@@ -1395,12 +1404,45 @@ button{font-family:inherit}
   function applyHeroDoc(h){
     if(!h) return;
     if(h.name)   hero.name   = h.name;
-    if(h.avatar) hero.avatar = h.avatar;
+    if(h.avatar){
+      hero.avatar = h.avatar;
+      // спільний кеш аватара з головною (hero.html читає той самий ключ) — щоб збігались
+      try{ localStorage.setItem('sk_hero_avatar_token', h.avatar); }catch(e){}
+    }
     if(h.mana     != null) hero.mana     = h.mana;
     if(h.agility  != null) hero.agility  = h.agility;
     if(h.health   != null) hero.health   = h.health;
     if(h.accuracy != null) hero.accuracy = h.accuracy;
     if(h.xp       != null) hero.xp       = h.xp;
+    // бойова статистика з бази — головне джерело (крос-девайс)
+    if(h.arena){
+      var A = h.arena;
+      if(A.level  != null) arena.level  = +A.level  || 1;
+      if(A.xp     != null) arena.xp     = +A.xp     || 0;
+      if(A.wins   != null) arena.wins   = +A.wins   || 0;
+      if(A.losses != null) arena.losses = +A.losses || 0;
+      if(A.draws  != null) arena.draws  = +A.draws  || 0;
+      try{
+        localStorage.setItem('sk_arena_level',  arena.level);
+        localStorage.setItem('sk_arena_xp',     arena.xp);
+        localStorage.setItem('sk_arena_wins',   arena.wins);
+        localStorage.setItem('sk_arena_losses', arena.losses);
+        localStorage.setItem('sk_arena_draws',  arena.draws);
+      }catch(e){}
+    }
+  }
+  /* ── Живий розрахунок Health/Точності з локального прогресу — ЛИШЕ ЯК ЗАПАС,
+     коли в документі героя цих полів ще немає. НЕ перекриваємо збережені значення. ── */
+  function applyLiveStats(h){
+    try{
+      if(window.SKProgress && SKProgress.snapshot){
+        var s = SKProgress.snapshot();
+        if(s){
+          if((!h || h.health   == null) && s.health   != null) hero.health   = s.health;
+          if((!h || h.accuracy == null) && s.accuracy != null) hero.accuracy = s.accuracy;
+        }
+      }
+    }catch(e){}
   }
   /* ── Кеш статів Героя у localStorage. Дозволяє показати останні відомі стати
      навіть тоді, коли сесія Героя ще не піднялась (нова вкладка/пряме відкриття),
@@ -1425,6 +1467,11 @@ button{font-family:inherit}
         if(c.name)           hero.name     = c.name;
         if(c.avatar)         hero.avatar   = c.avatar;
       }
+    }catch(e){}
+    // спільний кеш аватара з головною має пріоритет — щоб аватар збігався одразу
+    try{
+      var tok = localStorage.getItem('sk_hero_avatar_token');
+      if(tok) hero.avatar = tok;
     }catch(e){}
   }
   /* ── Якщо сесії Героя немає, хедер (sk-header.js) показав би «Увійди як Герой».
