@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Турнірна арена — SchoolKingdoms</title>
+<title>Турнірна арена — School Kingdoms</title>
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -496,15 +496,10 @@ button{font-family:inherit}
 
   <!-- ════════════ ЕКРАН: ТАВЕРНА ════════════ -->
   <section id="screen-tavern">
-    <!-- 1. Характеристики зверху по центру -->
-    <div class="stat-row" id="heroChips">
-      <span class="hchip">❤️ <b id="stHealth">0</b></span>
-      <span class="hchip">🔮 <b id="stMana">0</b></span>
-      <span class="hchip">⚡ <b id="stAgi">0</b></span>
-      <span class="hchip">🎯 <b id="stAcc">0</b></span>
-    </div>
+    <!-- Характеристики Героя показує спільний хедер (sk-header.js) — та сама
+         панель прогресу, що й на інших сторінках. Власну смужку прибрано. -->
 
-    <!-- 1b. Панель прогресу арени — горизонтальна лінія під статами -->
+    <!-- Панель прогресу арени — горизонтальна лінія -->
     <div class="prog-card">
       <div class="pc-rank">
         <span class="pc-star">⭐</span>
@@ -521,6 +516,7 @@ button{font-family:inherit}
       <div class="pc-stats">
         <div class="pc-stat"><span class="pi">🏆</span><b id="winCount">0</b><span class="pl">Перемог</span></div>
         <div class="pc-stat"><span class="pi">⚔️</span><b id="loseCount">0</b><span class="pl">Поразок</span></div>
+        <div class="pc-stat"><span class="pi">🤝</span><b id="drawCount">0</b><span class="pl">Нічиїх</span></div>
       </div>
     </div>
 
@@ -776,7 +772,7 @@ button{font-family:inherit}
   ];
 
   /* ── стан гравця (арена) ── */
-  var arena = { level:1, xp:0, wins:0, losses:0 };
+  var arena = { level:1, xp:0, wins:0, losses:0, draws:0 };
   var hero  = { name:'Ти', avatar:'hero:knight-blue-boy', health:50, agility:50, accuracy:50, mana:20 };
 
   /* ── localStorage ── */
@@ -786,6 +782,7 @@ button{font-family:inherit}
       arena.xp     = +localStorage.getItem('sk_arena_xp')     || 0;
       arena.wins   = +localStorage.getItem('sk_arena_wins')   || 0;
       arena.losses = +localStorage.getItem('sk_arena_losses') || 0;
+      arena.draws  = +localStorage.getItem('sk_arena_draws')  || 0;
     }catch(e){}
   }
   function saveArena(){
@@ -794,6 +791,7 @@ button{font-family:inherit}
       localStorage.setItem('sk_arena_xp',     arena.xp);
       localStorage.setItem('sk_arena_wins',   arena.wins);
       localStorage.setItem('sk_arena_losses', arena.losses);
+      localStorage.setItem('sk_arena_draws',  arena.draws);
     }catch(e){}
     try{ if(window.SK && SK.pushLocal) SK.pushLocal().catch(function(){}); }catch(e){}
   }
@@ -1031,10 +1029,12 @@ button{font-family:inherit}
     // герой у центрі + значки характеристик (з бази)
     paintHeroFull(hero.avatar);
     renderVS();
-    $('stHealth').textContent = Math.round(hero.health  || 0);
-    $('stMana').textContent   = Math.round(hero.mana    || 0);
-    $('stAgi').textContent    = Math.round(hero.agility || 0);
-    $('stAcc').textContent    = Math.round(hero.accuracy|| 0);
+    // характеристики Героя тепер показує спільний хедер (sk-header.js);
+    // тут лишаємо запобіжник на випадок, якщо смужка десь присутня
+    if($('stHealth')) $('stHealth').textContent = Math.round(hero.health  || 0);
+    if($('stMana'))   $('stMana').textContent   = Math.round(hero.mana    || 0);
+    if($('stAgi'))    $('stAgi').textContent    = Math.round(hero.agility || 0);
+    if($('stAcc'))    $('stAcc').textContent    = Math.round(hero.accuracy|| 0);
 
     $('rankBadge').textContent = arena.level;
     $('rankName').textContent  = rankName(arena.level);
@@ -1044,6 +1044,7 @@ button{font-family:inherit}
     $('lvlNow').textContent = arena.level;
     $('winCount').textContent  = arena.wins;
     $('loseCount').textContent = arena.losses;
+    if($('drawCount')) $('drawCount').textContent = arena.draws;
   }
 
   /* маленькі портрети для VS-панелі (ти vs суперник) */
@@ -1297,7 +1298,8 @@ button{font-family:inherit}
     B.over = true; B.resolving = true; stopTimer();
     var res = $('result');
     if(meDown && opDown){
-      // нічия → трактуємо як почесну поразку, але даємо досвід
+      // нічия → окремий лічильник, досвід як за гідний бій
+      arena.draws++;
       finishResult(false, '🤝', 'Нічия!', 'Обидва бійці видихлись — гідний бій!', CFG.xpLose);
     }else if(opDown){
       arena.wins++;
@@ -1449,5 +1451,9 @@ button{font-family:inherit}
   else document.addEventListener('DOMContentLoaded', boot);
 })();
 </script>
+
+<!-- Спільний хедер із панеллю прогресу Героя (❤️🔮🏃🎯⭐) — те саме джерело, що й на інших сторінках -->
+<script>window.SK_HEADER_SUB='Турнірна арена';</script>
+<script src="sk-header.js"></script>
 </body>
 </html>
