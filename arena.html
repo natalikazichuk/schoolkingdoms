@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Турнірна арена — SchoolKingdoms</title>
+<title>Турнірна арена — School Kingdoms</title>
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -739,6 +739,7 @@ button{font-family:inherit}
 
 <script type="module" src="firebase-config.js"></script>
 <script src="sk-avatar.js"></script>
+<script src="sk-progress.js"></script>
 <script>
 (function(){
   'use strict';
@@ -1387,29 +1388,51 @@ button{font-family:inherit}
   }
 
   /* ── старт ── */
+  /* ── застосувати характеристики з документа heroes/{id} ── */
+  function applyHeroDoc(h){
+    if(!h) return;
+    if(h.name)   hero.name   = h.name;
+    if(h.avatar) hero.avatar = h.avatar;
+    if(h.mana     != null) hero.mana     = h.mana;     // Мана — з бази (sk-progress її ще не рахує)
+    if(h.agility  != null) hero.agility  = h.agility;  // Спритність — з бази
+    if(h.health   != null) hero.health   = h.health;   // база; нижче перекриється живим розрахунком
+    if(h.accuracy != null) hero.accuracy = h.accuracy;
+  }
+  /* ── Health і Точність рахуємо з локального прогресу тим самим рушієм,
+     що живить хедер і hero.html, — щоб стати збігалися всюди й гарантовано
+     потрапляли в бій (maxForce/dmgOf читають саме hero.health/accuracy). ── */
+  function applyLiveStats(){
+    try{
+      if(window.SKProgress && SKProgress.snapshot){
+        var s = SKProgress.snapshot();
+        if(s){
+          if(s.health   != null) hero.health   = s.health;
+          if(s.accuracy != null) hero.accuracy = s.accuracy;
+        }
+      }
+    }catch(e){}
+  }
+  async function pullHeroStats(){
+    if(!(window.SK && SK.isHeroSession && SK.isHeroSession())) return; // не сесія Героя — демо
+    try{ if(SK.pullLocal) await SK.pullLocal(); }catch(e){}
+    loadArena();
+    try{ if(SK.getHero) applyHeroDoc(await SK.getHero()); }catch(e){}
+    applyLiveStats();
+    if(!(B && !B.over)) renderTavern();   // не перемальовувати під час активного бою
+  }
+
   function boot(){
     loadArena(); loadEquip(); wire(); renderTavern(); show('tavern');
     // підтягнути справжнього героя з бази (той самий шлях, що й у хедері)
     whenSK(function(){
-      try{
-        window.SK.ready.then(async function(){
-          if(!(SK.isHeroSession && SK.isHeroSession())) return; // не сесія Героя — лишаємось на демо
-          try{ if(SK.pullLocal){ await SK.pullLocal(); loadArena(); } }catch(e){}
-          try{
-            var h = SK.getHero ? await SK.getHero() : null;
-            if(h){
-              if(h.name)   hero.name   = h.name;
-              if(h.avatar) hero.avatar = h.avatar;
-              if(h.health   != null) hero.health   = h.health;
-              if(h.mana     != null) hero.mana     = h.mana;
-              if(h.agility  != null) hero.agility  = h.agility;
-              if(h.accuracy != null) hero.accuracy = h.accuracy;
-            }
-            renderTavern();
-          }catch(e){}
-        });
-      }catch(e){}
+      try{ window.SK.ready.then(function(){ pullHeroStats(); }); }catch(e){}
     });
+    // повертаємось на арену після гри в іншій вкладці — тягнемо свіжі стати
+    document.addEventListener('visibilitychange', function(){
+      if(document.visibilityState==='visible') pullHeroStats();
+    });
+    window.addEventListener('focus', pullHeroStats);
+    window.addEventListener('pageshow', function(e){ if(e.persisted) pullHeroStats(); });
   }
   function whenSK(cb){
     var n=0;
