@@ -340,6 +340,21 @@ const SK = {
     return true;
   },
 
+  // Зберегти статистику боїв Арени в ОКРЕМЕ поле heroes/{id}.arena
+  // (рівень / досвід / перемоги / поразки / нічиї). Пишемо лише свій документ —
+  // ті самі права, що й у saveHeroStats/saveHeroAvatar.
+  async saveArenaStats(stats) {
+    const heroId = SK._heroUid();
+    if (!heroId || !stats) return false;
+    const a = {};
+    ['level', 'xp', 'wins', 'losses', 'draws'].forEach(k => {
+      if (stats[k] != null) a[k] = Number(stats[k]) || 0;
+    });
+    await setDoc(doc(db, 'heroes', heroId),
+      { arena: a, updatedAt: serverTimestamp() }, { merge: true });
+    return true;
+  },
+
   /* ===== ЗАВДАННЯ ВІД ДОРОСЛИХ + ПЕРЕВІРКА =====================
      Зберігаємо в документі Героя — щоб НЕ чіпати firestore.rules:
        heroes/{id}.tasks      — масив завдань (пише БАТЬКО, як і createHero)
@@ -1071,3 +1086,4 @@ window.addEventListener('visibilitychange', () => {
 });
 
 window.SK = SK;
+
