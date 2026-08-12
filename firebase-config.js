@@ -33,7 +33,7 @@
 import { initializeApp, deleteApp }
   from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
 import {
-  getAuth, setPersistence, browserSessionPersistence,
+  getAuth, setPersistence, browserLocalPersistence, browserSessionPersistence,
   createUserWithEmailAndPassword, signInWithEmailAndPassword,
   signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
@@ -56,9 +56,11 @@ const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
-// Сесія живе лише до закриття вкладки/браузера (не «прилипає» між сеансами).
-// Зручно для тестування кількох акаунтів; при закритті вкладки — автоматичний вихід.
-try { await setPersistence(auth, browserSessionPersistence); } catch (e) {}
+// Сесія «прилипає» між вкладками й заходами (localStorage/IndexedDB), тому
+// відкриття гри/тесту в новій вкладці й перехід між сторінками НЕ розлогінюють.
+// Вихід — лише явно, кнопкою 🚪 Вийти (SK.logout). Для тестування кількох
+// акаунтів користуйся окремим вікном "інкогніто".
+try { await setPersistence(auth, browserLocalPersistence); } catch (e) {}
 
 try {
   const { getAnalytics, isSupported } =
@@ -1069,4 +1071,3 @@ window.addEventListener('visibilitychange', () => {
 });
 
 window.SK = SK;
-
