@@ -1388,26 +1388,28 @@ button{font-family:inherit}
   }
 
   /* ── старт ── */
-  /* ── застосувати характеристики з документа heroes/{id} ── */
+  /* ── застосувати характеристики з документа heroes/{id} — ГОЛОВНЕ джерело
+     (довговічне, спільне для всіх пристроїв; так само, як на hero.html) ── */
   function applyHeroDoc(h){
     if(!h) return;
     if(h.name)   hero.name   = h.name;
     if(h.avatar) hero.avatar = h.avatar;
-    if(h.mana     != null) hero.mana     = h.mana;     // Мана — з бази (sk-progress її ще не рахує)
-    if(h.agility  != null) hero.agility  = h.agility;  // Спритність — з бази
-    if(h.health   != null) hero.health   = h.health;   // база; нижче перекриється живим розрахунком
+    if(h.mana     != null) hero.mana     = h.mana;
+    if(h.agility  != null) hero.agility  = h.agility;
+    if(h.health   != null) hero.health   = h.health;
     if(h.accuracy != null) hero.accuracy = h.accuracy;
   }
-  /* ── Health і Точність рахуємо з локального прогресу тим самим рушієм,
-     що живить хедер і hero.html, — щоб стати збігалися всюди й гарантовано
-     потрапляли в бій (maxForce/dmgOf читають саме hero.health/accuracy). ── */
-  function applyLiveStats(){
+  /* ── Живий розрахунок з локального прогресу — ЛИШЕ ЯК ЗАПАС, коли в документі
+     героя ще немає Health/Точності. НЕ перекриваємо збережені значення: локальне
+     сховище може бути порожнім на іншому пристрої/у новій вкладці, і snapshot
+     повернув би базові 50/50, затерши справжні стати з бази. ── */
+  function applyLiveStats(h){
     try{
       if(window.SKProgress && SKProgress.snapshot){
         var s = SKProgress.snapshot();
         if(s){
-          if(s.health   != null) hero.health   = s.health;
-          if(s.accuracy != null) hero.accuracy = s.accuracy;
+          if((!h || h.health   == null) && s.health   != null) hero.health   = s.health;
+          if((!h || h.accuracy == null) && s.accuracy != null) hero.accuracy = s.accuracy;
         }
       }
     }catch(e){}
@@ -1416,8 +1418,9 @@ button{font-family:inherit}
     if(!(window.SK && SK.isHeroSession && SK.isHeroSession())) return; // не сесія Героя — демо
     try{ if(SK.pullLocal) await SK.pullLocal(); }catch(e){}
     loadArena();
-    try{ if(SK.getHero) applyHeroDoc(await SK.getHero()); }catch(e){}
-    applyLiveStats();
+    var h = null;
+    try{ if(SK.getHero){ h = await SK.getHero(); applyHeroDoc(h); } }catch(e){}
+    applyLiveStats(h);
     if(!(B && !B.over)) renderTavern();   // не перемальовувати під час активного бою
   }
 
