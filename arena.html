@@ -773,7 +773,7 @@ button{font-family:inherit}
 
   /* ── стан гравця (арена) ── */
   var arena = { level:1, xp:0, wins:0, losses:0, draws:0 };
-  var hero  = { name:'Ти', avatar:'hero:knight-blue-boy', health:50, agility:50, accuracy:50, mana:20 };
+  var hero  = { name:'Ти', avatar:'hero:knight-blue-boy', health:50, agility:50, accuracy:50, mana:20, xp:0 };
 
   /* ── localStorage ── */
   function loadArena(){
@@ -1400,38 +1400,78 @@ button{font-family:inherit}
     if(h.agility  != null) hero.agility  = h.agility;
     if(h.health   != null) hero.health   = h.health;
     if(h.accuracy != null) hero.accuracy = h.accuracy;
+    if(h.xp       != null) hero.xp       = h.xp;
   }
-  /* ── Живий розрахунок з локального прогресу — ЛИШЕ ЯК ЗАПАС, коли в документі
-     героя ще немає Health/Точності. НЕ перекриваємо збережені значення: локальне
-     сховище може бути порожнім на іншому пристрої/у новій вкладці, і snapshot
-     повернув би базові 50/50, затерши справжні стати з бази. ── */
-  function applyLiveStats(h){
+  /* ── Кеш статів Героя у localStorage. Дозволяє показати останні відомі стати
+     навіть тоді, коли сесія Героя ще не піднялась (нова вкладка/пряме відкриття),
+     і не лякати дитину написом «увійди» в самій грі. ── */
+  function cacheStats(){
     try{
-      if(window.SKProgress && SKProgress.snapshot){
-        var s = SKProgress.snapshot();
-        if(s){
-          if((!h || h.health   == null) && s.health   != null) hero.health   = s.health;
-          if((!h || h.accuracy == null) && s.accuracy != null) hero.accuracy = s.accuracy;
-        }
+      localStorage.setItem('sk_hero_stats', JSON.stringify({
+        health:hero.health, mana:hero.mana, agility:hero.agility,
+        accuracy:hero.accuracy, xp:hero.xp, name:hero.name, avatar:hero.avatar
+      }));
+    }catch(e){}
+  }
+  function loadCachedStats(){
+    try{
+      var c = JSON.parse(localStorage.getItem('sk_hero_stats')||'null');
+      if(c){
+        if(c.health  !=null) hero.health   = c.health;
+        if(c.mana    !=null) hero.mana     = c.mana;
+        if(c.agility !=null) hero.agility  = c.agility;
+        if(c.accuracy!=null) hero.accuracy = c.accuracy;
+        if(c.xp      !=null) hero.xp       = c.xp;
+        if(c.name)           hero.name     = c.name;
+        if(c.avatar)         hero.avatar   = c.avatar;
       }
     }catch(e){}
   }
+  /* ── Якщо сесії Героя немає, хедер (sk-header.js) показав би «Увійди як Герой».
+     У грі це недоречно — підставляємо в ту саму смужку хедера кешовані/демо
+     стати, щоб панель була заповнена. Коли сесія Героя є — не чіпаємо: хедер
+     сам покаже реальні значення. ── */
+  function statChipsHTML(){
+    var it=[{k:'❤️',v:hero.health},{k:'🔮',v:hero.mana},{k:'🏃',v:hero.agility},{k:'🎯',v:hero.accuracy},{k:'⭐',v:hero.xp}];
+    return it.map(function(s){ return '<span class="sk-hd__stat">'+s.k+' <b>'+(s.v!=null?Math.round(s.v):0)+'</b></span>'; }).join('');
+  }
+  function fillHeaderFallback(){
+    try{
+      if(window.SK && SK.isHeroSession && SK.isHeroSession()) return; // сесія Героя — хедер заповнить сам
+      var strip=document.getElementById('skHdStrip'),
+          box  =document.getElementById('skHdStats'),
+          guest=document.getElementById('skHdGuest');
+      if(!strip || !box) return;
+      box.innerHTML = statChipsHTML();
+      strip.classList.add('on');
+      if(guest) guest.classList.remove('on');
+    }catch(e){}
+  }
   async function pullHeroStats(){
-    if(!(window.SK && SK.isHeroSession && SK.isHeroSession())) return; // не сесія Героя — демо
-    try{ if(SK.pullLocal) await SK.pullLocal(); }catch(e){}
-    loadArena();
-    var h = null;
-    try{ if(SK.getHero){ h = await SK.getHero(); applyHeroDoc(h); } }catch(e){}
-    applyLiveStats(h);
-    if(!(B && !B.over)) renderTavern();   // не перемальовувати під час активного бою
+    var isHero = !!(window.SK && SK.isHeroSession && SK.isHeroSession());
+    if(isHero){
+      try{ if(SK.pullLocal) await SK.pullLocal(); }catch(e){}
+      loadArena();
+      var h = null;
+      try{ if(SK.getHero){ h = await SK.getHero(); applyHeroDoc(h); } }catch(e){}
+      applyLiveStats(h);
+      cacheStats();                       // зберегти справжні стати для наступних відкриттів
+    }
+    if(!(B && !B.over)) renderTavern();    // не перемальовувати під час активного бою
+    fillHeaderFallback();                  // коли не сесія Героя — заповнити смужку кешем/демо
   }
 
   function boot(){
-    loadArena(); loadEquip(); wire(); renderTavern(); show('tavern');
+    loadArena(); loadCachedStats(); loadEquip(); wire(); renderTavern(); show('tavern');
     // підтягнути справжнього героя з бази (той самий шлях, що й у хедері)
     whenSK(function(){
       try{ window.SK.ready.then(function(){ pullHeroStats(); }); }catch(e){}
     });
+    // хедер показує «увійди» лише коли немає сесії Героя; кількома спробами
+    // гарантовано перекриваємо його кешованими/демо статами (обганяємо showGuest)
+    setTimeout(fillHeaderFallback, 250);
+    setTimeout(fillHeaderFallback, 700);
+    setTimeout(fillHeaderFallback, 1500);
     // повертаємось на арену після гри в іншій вкладці — тягнемо свіжі стати
     document.addEventListener('visibilitychange', function(){
       if(document.visibilityState==='visible') pullHeroStats();
