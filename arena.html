@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Турнірна арена — SchoolKingdoms</title>
+<title>Турнірна арена — School Kingdoms</title>
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -47,8 +47,10 @@ body::after{background-size:300px 300px;background-position:90px 130px;animation
 /* ── КАЗКОВИЙ КОЛІЗЕЙ: фонова картинка Героя (hero-bg.webp поруч у корені) ── */
 .bg-img{position:fixed;inset:0;z-index:-2;pointer-events:none;
   background:url('arena-bg.webp') center top/cover no-repeat}
-/* на екрані бою — краєвид гір (hero-bg), у таверні — арена-колізей (за замовч.) */
-body.scr-battle .bg-img{background-image:url('hero-bg.webp')}
+/* на екрані бою — арена-колізей зсередини; у таверні — панорама арени (за замовч.) */
+body.scr-battle .bg-img{background-image:url('arena-battle-bg.webp');background-position:center center}
+/* на бою менше затемнюємо середину — арена має бути видима */
+body.scr-battle .bg-shade{background:linear-gradient(180deg,rgba(8,17,38,.46) 0%,rgba(8,17,38,.10) 30%,rgba(8,17,38,.12) 60%,rgba(8,17,38,.60) 100%)}
 /* легке затемнення зверху вниз — щоб панелі й текст читались поверх арени */
 .bg-shade{position:fixed;inset:0;z-index:-1;pointer-events:none;
   background:linear-gradient(180deg,rgba(8,17,38,.58) 0%,rgba(8,17,38,.14) 22%,rgba(8,17,38,.26) 60%,rgba(8,17,38,.52) 100%)}
@@ -67,32 +69,49 @@ button{font-family:inherit}
   border-radius:12px;width:40px;height:40px;font-size:1.1rem;cursor:pointer;transition:.15s}
 .iconbtn:hover{background:rgba(255,255,255,.16);border-color:var(--gold)}
 
-/* ── картка бійця (кути) ── */
-.fighter{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:88px}
-.shield{position:relative;width:78px;aspect-ratio:102/136;cursor:pointer;
-  clip-path:polygon(50% 0,100% 12%,100% 58%,50% 100%,0 58%,0 12%);
-  filter:drop-shadow(0 5px 10px rgba(0,0,0,.5))}
-.fighter.blue .shield{background:linear-gradient(180deg,#7fb0e8,#3f6fbf)}
-.fighter.red  .shield{background:linear-gradient(180deg,#e79a9a,#c25a5a)}
-.shield .clip{position:absolute;inset:4px;overflow:hidden;
-  clip-path:polygon(50% 0,100% 12%,100% 58%,50% 100%,0 58%,0 12%)}
-.shield .clip img{width:100%;height:100%;object-fit:cover;object-position:center 18%;
+/* ── картка бійця (кути): круглий аватар + банер, як в арт-мокапі ── */
+.fighter{position:relative;display:flex;align-items:center;gap:8px;flex:1 1 0;min-width:0;max-width:44%}
+.fighter.red{flex-direction:row-reverse;text-align:right}
+.fighter .av{position:relative;flex:none}
+.fighter .ring{position:relative;width:54px;height:54px;border-radius:50%;overflow:hidden;cursor:pointer;
+  border:3px solid var(--gold);box-shadow:0 4px 10px rgba(0,0,0,.55), inset 0 0 0 2px rgba(0,0,0,.35);
   background:linear-gradient(180deg,#bfe3fb,#79b4e6)}
-.shield .frame{display:none}
-.shield .emoji{position:absolute;inset:4px;display:flex;align-items:center;justify-content:center;font-size:2.1rem;
-  background:linear-gradient(180deg,#243b66,#182a4c);clip-path:polygon(50% 0,100% 12%,100% 58%,50% 100%,0 58%,0 12%)}
-.fighter .fname{font-family:'Fredoka';font-weight:700;font-size:.8rem;color:#fff;text-align:center;line-height:1.05;max-width:112px}
-.fighter .flvl{font-size:.6rem;font-weight:900;color:#0c2247;background:var(--gold);border-radius:20px;padding:1px 8px}
+.fighter .clip{position:absolute;inset:0}
+.fighter .clip img{width:100%;height:100%;object-fit:cover;object-position:center 20%;display:block}
+.fighter .emoji{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.8rem;
+  background:linear-gradient(180deg,#243b66,#182a4c)}
+.fighter .flvl{position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);
+  min-width:22px;height:20px;display:flex;align-items:center;justify-content:center;
+  font-family:'Fredoka';font-weight:700;font-size:.72rem;color:#3a2a08;
+  background:linear-gradient(180deg,#ffe7a0,#e0a93a);border:2px solid var(--gold-d);border-radius:20px;padding:0 5px;
+  box-shadow:0 2px 5px rgba(0,0,0,.4)}
+.fighter .info{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:4px;
+  background:linear-gradient(180deg,rgba(22,36,68,.86),rgba(12,22,44,.86));
+  border:2px solid rgba(0,0,0,.35);border-radius:11px;padding:5px 9px 6px;
+  box-shadow:0 3px 9px rgba(0,0,0,.4), inset 0 0 0 1px rgba(255,255,255,.06)}
+.fighter .fname{font-family:'Fredoka';font-weight:700;font-size:.86rem;color:#fff;line-height:1;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 3px rgba(0,0,0,.7)}
 
-/* смужка сил */
-.forcebar{width:104px;height:14px;border-radius:20px;background:rgba(0,0,0,.4);
-  border:2px solid rgba(255,255,255,.22);overflow:hidden;position:relative}
+/* смужка сил (HP) */
+.forcebar{width:100%;height:16px;border-radius:8px;background:rgba(0,0,0,.55);
+  border:2px solid rgba(0,0,0,.5);overflow:hidden;position:relative}
 .forcebar > i{position:absolute;inset:0;transform-origin:left;transition:transform .45s cubic-bezier(.3,.8,.3,1);
   background:linear-gradient(90deg,#7bd88a,#37b558)}
+.fighter.red .forcebar:not(.low):not(.crit) > i{background:linear-gradient(90deg,#e0663a,#c23a2a)}
 .forcebar.low > i{background:linear-gradient(90deg,#ffcf4d,#e0a42a)}
 .forcebar.crit > i{background:linear-gradient(90deg,#ff9a6b,#e0553a)}
 .forcebar .lbl{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  font-size:.58rem;font-weight:900;color:#0b1a34;text-shadow:0 1px 0 rgba(255,255,255,.3)}
+  font-size:.62rem;font-weight:900;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.85)}
+@media(max-width:430px){
+  .arena-top{gap:5px}
+  .fighter{gap:6px}
+  .fighter .ring{width:46px;height:46px}
+  .fighter .emoji{font-size:1.5rem}
+  .fighter .fname{font-size:.76rem}
+  .fighter .info{padding:4px 7px 5px}
+  .timer,.timer svg{width:46px;height:46px}
+  .timer .num{font-size:1rem}
+}
 
 /* збільшений аватар при наведенні */
 .avapeek{position:absolute;top:100%;left:50%;transform:translate(-50%,8px) scale(.9);
@@ -578,14 +597,17 @@ button{font-family:inherit}
     <div class="arena-top">
       <!-- лівий кут: ти -->
       <div class="fighter blue" id="pCard" tabindex="0">
-        <div class="shield">
-          <div class="clip"><img id="pImg" alt=""></div>
-          <div class="emoji hidden" id="pEmoji">🧒</div>
-          <svg class="frame" viewBox="0 0 102 136"><path d="M51 0 L102 14 L102 74 Q102 118 51 136 Q0 118 0 74 L0 14 Z" fill="none" stroke-width="4"/></svg>
+        <div class="av">
+          <div class="ring">
+            <div class="clip"><img id="pImg" alt=""></div>
+            <div class="emoji hidden" id="pEmoji">🧒</div>
+          </div>
+          <div class="flvl" id="pLvl">1</div>
         </div>
-        <div class="fname" id="pName">Ти</div>
-        <div class="flvl" id="pLvl">рів. 1</div>
-        <div class="forcebar" id="pForce"><i></i><span class="lbl" id="pForceLbl">—</span></div>
+        <div class="info">
+          <div class="fname" id="pName">Ти</div>
+          <div class="forcebar" id="pForce"><i></i><span class="lbl" id="pForceLbl">—</span></div>
+        </div>
         <div class="avapeek"><img id="pPeek" alt=""><b id="pPeekN">Ти</b></div>
       </div>
 
@@ -604,14 +626,17 @@ button{font-family:inherit}
 
       <!-- правий кут: суперник -->
       <div class="fighter red" id="oCard" tabindex="0">
-        <div class="shield">
-          <div class="clip"><img id="oImg" alt=""></div>
-          <div class="emoji hidden" id="oEmoji">🤖</div>
-          <svg class="frame" viewBox="0 0 102 136"><path d="M51 0 L102 14 L102 74 Q102 118 51 136 Q0 118 0 74 L0 14 Z" fill="none" stroke-width="4"/></svg>
+        <div class="av">
+          <div class="ring">
+            <div class="clip"><img id="oImg" alt=""></div>
+            <div class="emoji hidden" id="oEmoji">🤖</div>
+          </div>
+          <div class="flvl" id="oLvl">1</div>
         </div>
-        <div class="fname" id="oName">Суперник</div>
-        <div class="flvl" id="oLvl">рів. 1</div>
-        <div class="forcebar" id="oForce"><i></i><span class="lbl" id="oForceLbl">—</span></div>
+        <div class="info">
+          <div class="fname" id="oName">Суперник</div>
+          <div class="forcebar" id="oForce"><i></i><span class="lbl" id="oForceLbl">—</span></div>
+        </div>
         <div class="avapeek"><img id="oPeek" alt=""><b id="oPeekN">Суперник</b></div>
       </div>
     </div>
@@ -1099,11 +1124,11 @@ button{font-family:inherit}
     // ліва картка — гравець
     paintAvatar(hero.avatar,'pImg','pEmoji','pPeek');
     $('pName').textContent = hero.name; $('pPeekN').textContent = hero.name;
-    $('pLvl').textContent  = 'рів. ' + arena.level;
+    $('pLvl').textContent  = arena.level;
     // права — суперник
     paintAvatar(bot.avatar,'oImg','oEmoji','oPeek');
     $('oName').textContent = bot.name; $('oPeekN').textContent = bot.name;
-    $('oLvl').textContent  = 'рів. ' + bot.level;
+    $('oLvl').textContent  = bot.level;
 
     updateForce('p', B.me); updateForce('o', B.op);
     $('roundNum').textContent = '1';
@@ -1120,7 +1145,7 @@ button{font-family:inherit}
     wrap.querySelector('i').style.transform = 'scaleX('+pct+')';
     wrap.classList.toggle('low',  pct<=0.5 && pct>0.25);
     wrap.classList.toggle('crit', pct<=0.25);
-    $(side==='p'?'pForceLbl':'oForceLbl').textContent = Math.max(0,Math.round(unit.force)) + ' сил';
+    $(side==='p'?'pForceLbl':'oForceLbl').textContent = Math.max(0,Math.round(unit.force)) + ' / ' + unit.max;
   }
 
   /* таймер ходу */
