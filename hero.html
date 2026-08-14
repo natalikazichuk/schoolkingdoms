@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="hero.css?v=5">
+<link rel="stylesheet" href="hero.css?v=6">
 <script src="sk-avatar.js"></script>
 <script type="module" src="firebase-config.js"></script>
 </head>
@@ -101,11 +101,24 @@
           <h3>Задані завдання</h3>
           <p>Завдання від дорослих — виконуй та отримуй нагороди!</p>
         </div>
+        <button class="tasks-all-btn" id="tasksAllBtn" type="button" hidden aria-label="Показати всі завдання">📜 Усі <span id="tasksAllCount"></span></button>
       </div>
       <div class="tasks-list" id="taskList">
         <div class="tasks-empty">Поки що завдань немає 🎉</div>
       </div>
     </section>
+
+    <!-- ПОП-АП: увесь список завдань (активні + виконані) -->
+    <div class="tasks-modal" id="tasksModal" hidden>
+      <div class="tasks-modal-bg" data-close="1"></div>
+      <div class="tasks-modal-panel" role="dialog" aria-modal="true" aria-label="Усі завдання">
+        <div class="tasks-modal-head">
+          <h3>📋 Усі завдання</h3>
+          <button class="tasks-modal-x" id="tasksModalClose" type="button" aria-label="Закрити">✕</button>
+        </div>
+        <div class="tasks-modal-list" id="tasksModalList"></div>
+      </div>
+    </div>
 
     <!-- ПОСИЛАННЯ НА ТЕСТИ -->
     <a class="academy-link" href="tests.html" style="margin-top:12px">
@@ -349,13 +362,57 @@ function renderHeroStats(h){
 
 /* -- Задані завдання (від дорослих). Джерело з'явиться пізніше: якщо SK матиме
    getAssignedTasks() -- показуємо список, інакше -- порожній стан. -- */
+/* повний список останнього завантаження — для поп-апа «Усі завдання» */
+let ALL_TASKS=[];
+
+function escHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* Рендер одного рядка завдання (спільний для списку й поп-апа). */
+function renderTaskItem(t){
+  const esc=escHtml;
+  const status = t.status || 'assigned';
+  const href = t.url || (t.testId?('test.html?id='+encodeURIComponent(t.testId)):'');
+  const reward=[];
+  if(+t.xp)    reward.push('⭐ '+(+t.xp));
+  if(+t.coins) reward.push('🪙 '+(+t.coins));
+  const sub = [t.subject, reward.join(' · ')].filter(Boolean).join(' • ');
+  // ▶ показуємо, поки не зараховано (для тренажера ставимо мітку «відкрито»)
+  let goBtn='';
+  if(href && status!=='approved'){
+    const isTr=t.type==='trainer';
+    const tgt=isTr?' target="_blank" rel="noopener"':'';
+    const seen=isTr?' data-seen="'+esc(t.id)+'"':'';
+    goBtn='<a class="t-go-link" href="'+esc(href)+'"'+tgt+seen+' aria-label="Відкрити">▶</a>';
+  }
+  // чекбокс: порожній (assigned) → тап подає на перевірку; ⏳ (pending) → тап скасовує;
+  // ✓ (approved) → заблокований.
+  const mark = status==='assigned' ? '' : '✓';
+  const cbCls = 't-check'+(status==='approved'?' approved':status==='pending'?' pending':'');
+  const cbAttrs = status==='approved' ? ' disabled aria-label="Зараховано"'
+                : ' data-id="'+esc(t.id)+'" data-status="'+status+'"'
+                  +((t.type==='test'&&t.testId)?(' data-testid="'+esc(t.testId)+'"'):'')
+                  +' aria-label="Позначити виконаним"';
+  const cb = '<button class="'+cbCls+'"'+cbAttrs+'>'+mark+'</button>';
+  const statusTx = status==='approved' ? '<span class="t-done-badge">✓ Зараховано</span>'
+                 : status==='pending'  ? '<span class="t-pending">⏳ На перевірці</span>'
+                 : '';
+  return '<div class="task-item status-'+status+'">'
+    + cb
+    +'<span class="t-ic">'+esc(t.icon||'📌')+'</span>'
+    +'<span class="t-tx"><b>'+esc(t.title||'Завдання')+'</b>'
+    +(sub?'<small>'+esc(sub)+'</small>':'')+'</span>'
+    + goBtn + statusTx
+    +'</div>';
+}
+
 async function loadTasks(){
   const box=$('taskList'); if(!box) return;
   let tasks=[];
   try{ if(window.SK && window.SK.getAssignedTasks) tasks=(await window.SK.getAssignedTasks())||[]; }
   catch(e){ console.warn('[hero.html] getAssignedTasks:',e); }
   if(!Array.isArray(tasks) || !tasks.length){
-    box.innerHTML='<div class="tasks-empty">Поки що завдань немає 🎉</div>'; return;
+    ALL_TASKS=[]; box.innerHTML='<div class="tasks-empty">Поки що завдань немає 🎉</div>';
+    syncTasksAllBtn(); return;
   }
   // Авто-подання НА ПЕРЕВІРКУ: тест — за міткою проходження sk_testpass_<testId>;
   // тренажер — за міткою відкриття sk_taskseen_<taskId>. Нагороди тут НЕ дає —
@@ -365,43 +422,41 @@ async function loadTasks(){
   // ХР затверджених завдань закріплюємо в localStorage, щоб sk-progress не з'їв
   anchorApprovedXp(tasks);
 
-  const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  box.innerHTML=tasks.map(function(t){
-    const status = t.status || 'assigned';
-    const href = t.url || (t.testId?('test.html?id='+encodeURIComponent(t.testId)):'');
-    const reward=[];
-    if(+t.xp)    reward.push('⭐ '+(+t.xp));
-    if(+t.coins) reward.push('🪙 '+(+t.coins));
-    const sub = [t.subject, reward.join(' · ')].filter(Boolean).join(' • ');
-    // ▶ показуємо, поки не зараховано (для тренажера ставимо мітку «відкрито»)
-    let goBtn='';
-    if(href && status!=='approved'){
-      const isTr=t.type==='trainer';
-      const tgt=isTr?' target="_blank" rel="noopener"':'';
-      const seen=isTr?' data-seen="'+esc(t.id)+'"':'';
-      goBtn='<a class="t-go-link" href="'+esc(href)+'"'+tgt+seen+' aria-label="Відкрити">▶</a>';
-    }
-    // чекбокс: порожній (assigned) → тап подає на перевірку; ⏳ (pending) → тап скасовує;
-    // ✓ (approved) → заблокований.
-    const mark = status==='assigned' ? '' : '✓';
-    const cbCls = 't-check'+(status==='approved'?' approved':status==='pending'?' pending':'');
-    const cbAttrs = status==='approved' ? ' disabled aria-label="Зараховано"'
-                  : ' data-id="'+esc(t.id)+'" data-status="'+status+'"'
-                    +((t.type==='test'&&t.testId)?(' data-testid="'+esc(t.testId)+'"'):'')
-                    +' aria-label="Позначити виконаним"';
-    const cb = '<button class="'+cbCls+'"'+cbAttrs+'>'+mark+'</button>';
-    const statusTx = status==='approved' ? '<span class="t-done-badge">✓ Зараховано</span>'
-                   : status==='pending'  ? '<span class="t-pending">⏳ На перевірці</span>'
-                   : '';
-    return '<div class="task-item status-'+status+'">'
-      + cb
-      +'<span class="t-ic">'+esc(t.icon||'📌')+'</span>'
-      +'<span class="t-tx"><b>'+esc(t.title||'Завдання')+'</b>'
-      +(sub?'<small>'+esc(sub)+'</small>':'')+'</span>'
-      + goBtn + statusTx
-      +'</div>';
-  }).join('');
+  ALL_TASKS = tasks;
+  // У картці — ТІЛЬКИ активні (незроблені) завдання. Виконані (approved) ховаємо;
+  // весь список доступний у поп-апі за кнопкою «Усі».
+  const active = tasks.filter(t=>(t.status||'assigned')!=='approved');
+  if(!active.length){
+    box.innerHTML='<div class="tasks-empty">Усі завдання виконано 🎉</div>';
+  } else {
+    box.innerHTML=active.map(renderTaskItem).join('');
+  }
+  syncTasksAllBtn();
+  // якщо поп-ап відкритий — перемалювати і його
+  const modal=$('tasksModal');
+  if(modal && !modal.hidden) fillTasksModal();
 }
+
+/* Кнопка «Усі» показується лише коли є хоч одне виконане завдання (є що ховати). */
+function syncTasksAllBtn(){
+  const btn=$('tasksAllBtn'); if(!btn) return;
+  const doneN = ALL_TASKS.filter(t=>(t.status||'assigned')==='approved').length;
+  const cnt=$('tasksAllCount'); if(cnt) cnt.textContent='('+ALL_TASKS.length+')';
+  btn.hidden = doneN===0;
+}
+
+/* Наповнення поп-апа повним списком (активні + виконані). */
+function fillTasksModal(){
+  const list=$('tasksModalList'); if(!list) return;
+  if(!ALL_TASKS.length){ list.innerHTML='<div class="tasks-empty">Поки що завдань немає 🎉</div>'; return; }
+  // спершу активні, потім виконані
+  const order={assigned:0,pending:1,approved:2};
+  const sorted=ALL_TASKS.slice().sort((a,b)=>(order[a.status||'assigned']||0)-(order[b.status||'assigned']||0));
+  list.innerHTML=sorted.map(renderTaskItem).join('');
+}
+
+function openTasksModal(){ const m=$('tasksModal'); if(!m) return; fillTasksModal(); m.hidden=false; document.body.classList.add('modal-open'); }
+function closeTasksModal(){ const m=$('tasksModal'); if(!m) return; m.hidden=true; document.body.classList.remove('modal-open'); }
 
 /* Читаємо результат тесту з localStorage (пише test.html при завершенні),
    щоб передати його разом із поданням — тоді батько бачить бал при перевірці. */
@@ -467,14 +522,25 @@ async function toggleTask(id, status, testId, btn){
    • .t-check → подати/скасувати перевірку
    • .t-go-link[data-seen] → перед відкриттям гри позначаємо тренажер «відкрито» */
 (function(){
-  const box=document.getElementById('taskList');
-  if(!box) return;
-  box.addEventListener('click', function(e){
+  function onListClick(e){
     const cb=e.target.closest('.t-check');
     if(cb && !cb.disabled){ toggleTask(cb.getAttribute('data-id'), cb.getAttribute('data-status'), cb.getAttribute('data-testid'), cb); return; }
     const go=e.target.closest('.t-go-link[data-seen]');
     if(go){ try{ localStorage.setItem('sk_taskseen_'+go.getAttribute('data-seen'),'1'); }catch(e){} }
-  });
+  }
+  const box=document.getElementById('taskList');
+  if(box) box.addEventListener('click', onListClick);
+  const mlist=document.getElementById('tasksModalList');
+  if(mlist) mlist.addEventListener('click', onListClick);
+
+  // поп-ап «Усі завдання»
+  const allBtn=document.getElementById('tasksAllBtn');
+  if(allBtn) allBtn.addEventListener('click', openTasksModal);
+  const xBtn=document.getElementById('tasksModalClose');
+  if(xBtn) xBtn.addEventListener('click', closeTasksModal);
+  const modal=document.getElementById('tasksModal');
+  if(modal) modal.addEventListener('click', function(e){ if(e.target.getAttribute('data-close')) closeTasksModal(); });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape'){ const m=document.getElementById('tasksModal'); if(m && !m.hidden) closeTasksModal(); } });
 })();
 
 render();
