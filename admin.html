@@ -213,6 +213,18 @@
   .map-warn{color:#ffb0b0;font-size:.78rem;font-weight:700;margin-top:6px}
   .map-ok{color:#8fe3ad;font-size:.78rem;font-weight:700;margin-top:6px}
 
+  /* ── Тренування (тренажери-сторінки під предметом) ──
+     Той самий вигляд, що й розділи, але штрихова рамка золотиста, щоб
+     відрізнити від тестових розділів. Поля предмет/ступінь/клас не показуємо
+     — вони випливають із того, під якою карткою предмета лежить тренажер. */
+  .tr-section{margin:10px 0 0 14px;padding-top:8px;border-top:1px dashed var(--border)}
+  .tr-section-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+  .tr-section-head .tr-hint{font-size:.72rem;color:var(--muted);flex:1 1 auto;min-width:120px}
+  .tr-mini{border:1px dashed rgba(224,164,42,.55);border-radius:8px;padding:8px;margin:6px 0 0 0;
+    background:rgba(224,164,42,.05)}
+  .tr-mini .map-head + .map-head{margin-top:6px}
+  @media (max-width:720px){ .tr-section{margin-left:6px} }
+
   /* ── Згортання гілок карти ──
      Кожен рівень (ступінь/клас/предмет/розділ) можна закрити/відкрити.
      Стан живе в JS-множині COLLAPSED і переживає перемальовування. */
@@ -920,8 +932,20 @@ function renderMap(){
             + '</div>'   // .map-kids
             + '</div>';  // .map-topic
         });
-        html += '<button class="btn xs" data-a="topic.add" data-p="' + pS + '" style="margin-top:8px">＋ Розділ</button>'
-          + '</div>'   // .map-kids
+        html += '<button class="btn xs" data-a="topic.add" data-p="' + pS + '" style="margin-top:8px">＋ Розділ</button>';
+
+        // ── Тренування: тренажери-сторінки/відео цього предмета ──
+        const trIdx = subjTrainerIdx(sj, tier, g);
+        html += '<div class="tr-section">'
+          + '<div class="tr-section-head">'
+            + '<span class="map-lvl">🎮 ТРЕНУВАННЯ</span>'
+            + '<span class="tr-hint">Окремі сторінки-тренажери або відео. Дитина бачить їх як міні-ігри (іконка · назва · опис).</span>'
+          + '</div>';
+        trIdx.forEach(gi => { html += trRowInMap(gi, pS); });
+        html += '<button class="btn xs" data-a="subjtr.add" data-p="' + pS + '" style="margin-top:6px">＋ Тренажер</button>'
+          + '</div>';  // .tr-section
+
+        html += '</div>'   // .map-kids
           + '</div>';  // .map-subj
       });
       html += '<button class="btn xs" data-a="subj.add" data-p="' + pG + '" style="margin-top:8px">＋ Предмет</button>'
@@ -962,6 +986,30 @@ function statusOpts(v){
 /* ── правки полів ── */
 function onMapInput(e){
   const el = e.target;
+  // Вбудований редактор тренажерів під предметом (data-mtf). Правимо той самий
+  // масив TRAINERS, що й вкладка «🎮 Тренажери» та tests.html.
+  if(el.dataset.mtf != null){
+    const gi = Number(el.dataset.tri);
+    const l = TRAINERS && TRAINERS[gi];
+    if(!l) return;
+    switch(el.dataset.mtf){
+      case 'label': l.label = el.value; break;
+      case 'href':  l.href  = el.value; break;
+      case 'desc':  l.desc  = el.value; break;
+      case 'icon':  l.icon  = el.value; break;
+      case 'blank': l.blank = el.checked; break;
+      case 'type':
+        l.type = el.value;
+        // типова іконка, якщо порожньо або лишалась типова іншого вигляду
+        if(!l.icon || l.icon === '📖' || l.icon === '🎬' || l.icon === '🔗'){
+          l.icon = l.type === 'video' ? '🎬' : '🔗';
+        }
+        l.blank = (l.type === 'video');   // відео зазвичай у новій вкладці
+        renderMap();
+        return;
+    }
+    return;
+  }
   const f = el.dataset.f;
   if(!f || !MAP) return;
   const p = mapPath(el);
@@ -976,7 +1024,16 @@ function onMapInput(e){
     case 'grade.status':gradeAt(p).status = v; break;
     case 'subj.icon':   subjAt(p).icon = v; break;
     case 'subj.name':   subjAt(p).name = v; break;
-    case 'subj.accent': subjAt(p).accent = v; renderMap(); return;
+    case 'subj.accent': {
+      // НЕ перемальовуємо: input type=color кидає «input» безперервно, поки
+      // відкрито системну піпетку. renderMap() знищив би саме той <input>,
+      // до якого прив'язана піпетка, — і колір неможливо було б вибрати.
+      // Тому лише оновлюємо модель і --accent наживо на картці предмета.
+      subjAt(p).accent = v;
+      const card = el.closest('.map-subj');
+      if(card) card.style.setProperty('--accent', v);
+      return;
+    }
     case 'subj.statKey': {
       const sj = subjAt(p);
       sj.statKey = v;
@@ -1006,6 +1063,33 @@ function onMapClick(e){
     renderMap();
     return;
   }
+  // Кнопки вбудованого редактора тренажерів (data-mta): ↑ ↓ ✕.
+  // Порядок міняємо в межах ОДНОГО предмета — міняємо місцями сусідів того
+  // самого предмета в глобальному TRAINERS, не чіпаючи чужі тренажери.
+  const tb = e.target.closest('button[data-mta]');
+  if(tb){
+    if(!TRAINERS) return;
+    const a = tb.dataset.mta;
+    const gi = Number(tb.dataset.tri);
+    const p = tb.dataset.p ? tb.dataset.p.split('.').map(Number) : null;
+    if(!TRAINERS[gi]) return;
+    if((a === 'up' || a === 'down') && p){
+      const idx = subjTrainerIdx(subjAt(p), tierAt(p), gradeAt(p));
+      const pos = idx.indexOf(gi);
+      const npos = a === 'up' ? pos - 1 : pos + 1;
+      if(pos >= 0 && npos >= 0 && npos < idx.length){
+        const A = idx[pos], B = idx[npos];
+        const t = TRAINERS[A]; TRAINERS[A] = TRAINERS[B]; TRAINERS[B] = t;
+      }
+    } else if(a === 'del'){
+      const l = TRAINERS[gi];
+      if(!confirm('Видалити тренажер «' + ((l && l.label) || 'без назви') + '»?')) return;
+      TRAINERS.splice(gi, 1);
+    }
+    renderMap();
+    return;
+  }
+
   const b = e.target.closest('button[data-a]');
   if(!b || !MAP) return;
   const a = b.dataset.a;
@@ -1043,6 +1127,15 @@ function onMapClick(e){
     case 'test.up':   move(subjAt(p).topics[p[3]].tests, p[4], -1); break;
     case 'test.down': move(subjAt(p).topics[p[3]].tests, p[4], +1); break;
     case 'test.del':  subjAt(p).topics[p[3]].tests.splice(p[4], 1); break;
+
+    case 'subjtr.add': {
+      // Новий тренажер, привʼязаний саме до цього предмета/ступеня/класу.
+      if(!TRAINERS) TRAINERS = [];
+      const sj = subjAt(p), g = gradeAt(p), t = tierAt(p);
+      TRAINERS.push({ subject: sj.name, tier: (t && t.name) || '', grade: String((g && g.gradeNum) || ''),
+                      href:'', icon:'🎮', label:'', desc:'', type:'page', blank:false });
+      break;
+    }
     default: redraw = false;
   }
   if(redraw) renderMap();
@@ -1130,6 +1223,7 @@ async function openMap(){
     return;
   }
   if(!had && !MAP_FROM_DB) toast('Карти в базі ще немає — відкрито запасну. Збережи, щоб закріпити.');
+  try { await ensureTrainers(); } catch(e){ /* тренажери показуються порожніми — не критично */ }
   renderMap();
   if(MAP_MIGRATED){
     $('mapMsg').innerHTML = '<div class="map-ok">↻ Посилань на тести переведено з назв на id: <b>'
@@ -1149,8 +1243,18 @@ async function saveMap(){
     await SK_API.saveMap(clean);
     MAP = clean;
     MAP_FROM_DB = true;
+
+    // Разом із картою зберігаємо тренування (той самий curriculum/trainers, що
+    // й вкладка «Тренажери»). Порожні рядки (без назви й посилання) відкидаємо.
+    // Не блокуємо збереження карти, якщо тренажери не записались.
+    let trNote = '';
+    if(TRAINERS){
+      const cleanTr = TRAINERS.filter(l => l && ((l.label && String(l.label).trim()) || (l.href && String(l.href).trim())));
+      try { await SK_API.saveTrainers(cleanTr); TRAINERS = cleanTr; }
+      catch(e){ console.error(e); trNote = ' (тренування не збережено — перевір правила Firestore)'; }
+    }
     renderMap();
-    toast('Карту збережено ✔');
+    toast('Карту збережено ✔' + trNote, !!trNote);
   } catch(e){
     console.error(e);
     toast('Не вдалося зберегти карту');
@@ -1258,6 +1362,87 @@ function trGradeOpts(sel){
 function trTypeOpts(sel){
   return [['page','🔗 Сторінка'],['video','🎬 Відео']].map(o =>
     '<option value="' + o[0] + '"' + (sel === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('');
+}
+
+/* ── Тренажери в редакторі структури (вбудовано в картку предмета) ──
+   Зіставлення тренажера з предметом/ступенем/класом — ДЗЕРКАЛО функції
+   subjectLinksFor() у tests.html, тож те, що адмін бачить під карткою,
+   збігається з тим, що бачить дитина. */
+function mapTrSubjMatch(sj, sel){
+  if(!sel) return false;
+  const n = trSlNorm(sel);
+  if(trSlNorm(sj.id) === n) return true;
+  if(trSlNorm(sj.name).indexOf(n) >= 0) return true;
+  return (sj.keys || []).some(k => trSlNorm(k).indexOf(n) >= 0);
+}
+function mapTrTierMatch(tier, sel){
+  if(!sel) return true;
+  if(!tier) return false;
+  const n = trSlNorm(sel);
+  return trSlNorm(tier.id) === n || trSlNorm(tier.name).indexOf(n) >= 0;
+}
+function mapTrGradeMatch(g, sel){
+  if(!sel) return true;
+  return Number(g.gradeNum) === Number(sel);
+}
+/* Глобальні індекси TRAINERS, що належать цьому предмету (у цьому ступені/класі). */
+function subjTrainerIdx(sj, tier, g){
+  const out = [];
+  (TRAINERS || []).forEach((l, i) => {
+    if(!l) return;
+    if(!mapTrSubjMatch(sj, l.subject)) return;
+    if(l.tier  && !mapTrTierMatch(tier, l.tier))  return;
+    if(l.grade && !mapTrGradeMatch(g, l.grade))   return;
+    out.push(i);
+  });
+  return out;
+}
+/* Один тренажер у картці предмета. Полів «предмет/ступінь/клас» тут немає —
+   вони випливають із того, під яким предметом лежить рядок. Лишаємо: назву,
+   вибір «сторінка/відео», іконку, «нова вкладка», посилання й опис (як у грі). */
+function trRowInMap(gi, pS){
+  const l = TRAINERS[gi]; if(!l) return '';
+  return '<div class="tr-mini">'
+    + '<div class="map-head">'
+      + '<span class="map-lvl">🎮 ТРЕНАЖЕР</span>'
+      + '<input type="text" class="grow" data-mtf="label" data-tri="' + gi + '" placeholder="Назва (напр. Вчимось читати!)" value="' + esc(l.label || '') + '">'
+      + '<select data-mtf="type" data-tri="' + gi + '" style="width:auto" title="Посилання на сторінку чи відео">' + trTypeOpts(l.type || 'page') + '</select>'
+      + '<input type="text" class="w-ic" data-mtf="icon" data-tri="' + gi + '" value="' + esc(l.icon || '') + '" title="Емодзі-іконка">'
+      + '<label class="switch" style="flex:0 0 auto">'
+        + '<input type="checkbox" data-mtf="blank" data-tri="' + gi + '"' + (l.blank ? ' checked' : '') + '>'
+        + '<span class="track"></span><span class="sw-txt">↗</span>'
+      + '</label>'
+      + '<span class="map-btns">'
+        + '<button class="btn xs" data-mta="up"   data-tri="' + gi + '" data-p="' + pS + '" title="Вище">↑</button>'
+        + '<button class="btn xs" data-mta="down" data-tri="' + gi + '" data-p="' + pS + '" title="Нижче">↓</button>'
+        + '<button class="btn xs" data-mta="del"  data-tri="' + gi + '" data-p="' + pS + '" title="Видалити">✕</button>'
+      + '</span>'
+    + '</div>'
+    + '<div class="map-head">'
+      + '<span class="map-lvl">ПОСИЛАННЯ</span>'
+      + '<input type="text" class="grow" data-mtf="href" data-tri="' + gi + '" placeholder="english-reading.html  або  https://…" value="' + esc(l.href || '') + '">'
+    + '</div>'
+    + '<div class="map-head">'
+      + '<span class="map-lvl">ОПИС</span>'
+      + '<input type="text" class="grow" data-mtf="desc" data-tri="' + gi + '" placeholder="Короткий опис (як у грі)" value="' + esc(l.desc || '') + '">'
+    + '</div>'
+  + '</div>';
+}
+/* Завантажити TRAINERS один раз (спільно з вкладкою «Тренажери»). */
+async function ensureTrainers(){
+  if(TRAINERS) return;
+  let doc = null;
+  try { doc = await SK_API.getTrainers(); } catch(e){ doc = null; }
+  if(doc && Array.isArray(doc.links)){
+    TRAINERS = doc.links.map(x => Object.assign({}, x));
+  } else {
+    TRAINERS = TRAINERS_DEFAULT.map(x => {
+      const c = Object.assign({}, x);
+      const r = trResolveSubj(c.subject); if(r) c.subject = r;
+      const rt = c.tier ? trResolveSubj_tier(c.tier) : ''; if(rt) c.tier = rt;
+      return c;
+    });
+  }
 }
 
 /* ── Згортання карток тренажерів (той самий підхід, що й у карті) ──

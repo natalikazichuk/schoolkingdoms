@@ -36,6 +36,7 @@
   var CATALOG = [
     { id:'knight-blue-boy',   name:'Королівський лицар' },
     { id:'knight-green-boy',  name:'Мандрівний лицар'  },
+    { id:'knight-wood-boy',   name:'Дубовий лицар'     },
     { id:'knight-green-girl', name:'Лісова лицарка'    },
     { id:'knight-purple-girl',name:'Зоряна лицарка'    }
   ];
