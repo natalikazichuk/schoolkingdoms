@@ -212,7 +212,7 @@ body{font-family:'Nunito',sans-serif;background:linear-gradient(180deg,var(--sky
 })();
 
 var ACTIVE_STATS={health:1,mana:1,agility:1,accuracy:1};
-var STAT_BASE={health:100,mana:20,agility:50,accuracy:50};
+var STAT_BASE={health:50,mana:20,agility:50,accuracy:50};
 var STAT_LABEL={health:"Здоров'я ❤️",accuracy:'Точність 🎯',agility:'Спритність 🏃',mana:'Мана 🔮',
   strength:'Сила',defense:'Захист',intelligence:'Інтелект',wisdom:'Мудрість',luck:'Удача',memory:'Пам’ять',charisma:'Харизма'};
 
@@ -950,6 +950,11 @@ function showUnlockPopup(){
           }
           checkLock(t, function(){
             TEST=t;
+            // ── ФІКС: нормалізуємо ключ стата до канонічного ('accuracy'/'health'/…).
+            // Частина тестів зберігала stat як підпис ('Точність 🎯') чи укр. слово
+            // ('точність'), тож ACTIVE_STATS[stat] був undefined і приріст мовчки
+            // не писався в базу — hero.html показував дефолт. statKeyFrom вирівнює це.
+            try{ if(window.SKCUR&&SKCUR.statKeyFrom){ var _sk=SKCUR.statKeyFrom(t.stat); if(_sk) TEST.stat=_sk; } }catch(e){}
             IS_LEVELS=isLevels(t);
             intro();
           });

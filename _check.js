@@ -23,7 +23,7 @@
 })();
 
 var ACTIVE_STATS={health:1,mana:1,agility:1,accuracy:1};
-var STAT_BASE={health:100,mana:20,agility:50,accuracy:50};
+var STAT_BASE={health:50,mana:20,agility:50,accuracy:50};
 var STAT_LABEL={health:"Здоров'я ❤️",accuracy:'Влучність 🎯',agility:'Спритність 🏃',mana:'Мана 🔮',
   strength:'Сила',defense:'Захист',intelligence:'Інтелект',wisdom:'Мудрість',luck:'Удача',memory:'Пам’ять',charisma:'Харизма'};
 
