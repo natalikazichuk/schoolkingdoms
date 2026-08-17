@@ -5,23 +5,21 @@
    Працює і без Firebase (тоді просто рахує значення з localStorage).
 
    ЛОГІКА (1 клас):
-   • HEALTH = 50 базових + до +50, розподілених ПОРІВНУ між завданнями
-     з рідної мови (українська). Кожне завдання дає свою частку
-     пропорційно до того, наскільки воно виконане ("по мірі виконання").
-     Зараз 5 слотів → по 10 HP. Усі виконані → 100. Стеля — 100.
-   • ХР  = +1 за кожну виконану вправу у КВЕСТАХ 1 класу (всі предмети).
-     Тренування у ХР НЕ входять.
-   • Обидва показники зберігаються у Firebase: SK.saveHeroStats({health, xp}).
+   • HEALTH = 50 базових + по +10 за кожне ПОВНІСТЮ виконане завдання
+     з рідної мови (українська), пропорційно до виконання ("по мірі виконання").
+     БЕЗ верхньої стелі — накопичується так само, як точність.
+   • ТОЧНІСТЬ = 50 базових + пройдені мат-рівні, теж БЕЗ стелі.
+   • У базу пишеться лише health/accuracy: SK.saveHeroStats({health, accuracy}).
+   • XP повністю прибрано (тести/тренажери нараховують стати напряму).
 
    Щоб додати новий квест з української — допиши запис у UKR_TASKS
-   (заміни зарезервований слот) і, за потреби, ключ-лічильник у QUEST_XP_KEYS.
+   (заміни зарезервований слот).
    ============================================================ */
 (function () {
   'use strict';
 
-  var BASE_HEALTH = 50;        // початкове здоров'я
-  var HEALTH_FROM_TASKS = 50;  // скільки сумарно дають усі завдання рідної мови
-  var MAX_HEALTH = 100;        // довідкове значення (ПОКИ не стеля — здоров'я не обмежується)
+  var BASE_HEALTH = 50;        // початкове здоров'я (підлога)
+  var HEALTH_PER_TASK = 10;    // +HP за кожне повністю виконане завдання рідної мови (БЕЗ верхньої стелі)
 
   /* ── ТОЧНІСТЬ (accuracy) — стат від скілів МАТЕМАТИКИ. ──
      Базове значення = 1 (як у defaultHero). Кожен ПРОЙДЕНИЙ БЕЗ ПОМИЛОК
@@ -59,31 +57,6 @@
     { id: 'ukr_quest_slot4', label: 'Квест з української (скоро)', kind: 'quest', reserved: true, frac: function () { return 0; } }
   ];
 
-  /* ── Лічильники ХР з РІДНОЇ МОВИ (показуємо поряд зі здоров'ям). ──
-     Сюди входять і тренування, і квести української. */
-  var UKR_XP_KEYS = [
-    'sk_train_ukrabc_pts_v1', // Тренування: Букви Абетки
-    'sk_spell_pts_v1'         // Квест: Правопис слів
-    // майбутні квести з української додавати сюди
-  ];
-
-  /* ── Лічильники виконаних вправ у КВЕСТАХ (дають ХР, +1 за вправу). ──
-     Тренування СЮДИ не входять. Явні ключі відомих квестів: */
-  var QUEST_XP_KEYS = [
-    'sk_spell_pts_v1'   // Українська · Правопис слів (+1 за правильну вправу)
-    // майбутні квести додавати сюди, напр.: 'sk_palace_xp_v1', 'mathtest_xp', ...
-  ];
-  /* Решту квестових '*xp*'-ключів підбираємо автоматично за підрядками предметів,
-     щоб уже наявні квести враховувались без ручного переліку.
-     Тренування використовують '_pts_' без 'xp' — тож сюди не потраплять. */
-  var QUEST_XP_PATTERNS = [
-    'palace', 'rak', 'piven', 'druzhba',          // українська-квести
-    'math', 'add', 'sub', 'mult', 'num', 'cifr',  // математика
-    'capital', 'geo', 'svit', 'world', 'yads', 'dovkil', // світ
-    'eng', 'abc',                                 // англійська
-    'logic', 'logika', 'pamyat', 'memory',        // логіка/пам'ять
-    'task'                                        // бонус за завдання від дорослих (sk_taskxp_<id>)
-  ];
 
   /* ── допоміжні ── */
   function num(key) {
@@ -109,13 +82,12 @@
   function clamp01(x) { return Math.max(0, Math.min(1, x)); }
 
   /* ── HEALTH ── */
-  // ПОКИ без стелі: прибрано верхнє обмеження 100 (лишається лише підлога — базове здоров'я).
+  // БЕЗ верхньої стелі: кожне завдання додає +HEALTH_PER_TASK (пропорційно до виконання);
+  // підлога — базове здоров'я. Ліміту зверху немає.
   function computeHealth() {
-    var n = UKR_TASKS.length || 1;
-    var share = HEALTH_FROM_TASKS / n;   // напр. 50/5 = 10
     var bonus = 0;
     for (var i = 0; i < UKR_TASKS.length; i++) {
-      bonus += share * clamp01(UKR_TASKS[i].frac());
+      bonus += HEALTH_PER_TASK * clamp01(UKR_TASKS[i].frac());
     }
     return Math.max(BASE_HEALTH, Math.round(BASE_HEALTH + bonus));
   }
@@ -139,37 +111,6 @@
     return acc;
   }
 
-  /* ── ХР (виконані вправи квестів) ── */
-  function computeXP() {
-    var xp = 0, seen = {};
-    for (var i = 0; i < QUEST_XP_KEYS.length; i++) {
-      var k = QUEST_XP_KEYS[i];
-      xp += num(k); seen[k] = true;
-    }
-    try {
-      for (var j = 0; j < localStorage.length; j++) {
-        var key = localStorage.key(j);
-        if (!key || seen[key]) continue;
-        var kl = key.toLowerCase();
-        if (kl.indexOf('xp') === -1) continue;
-        for (var p = 0; p < QUEST_XP_PATTERNS.length; p++) {
-          if (kl.indexOf(QUEST_XP_PATTERNS[p]) !== -1) {
-            var v = parseFloat(localStorage.getItem(key) || '0');
-            if (!isNaN(v)) xp += v;
-            break;
-          }
-        }
-      }
-    } catch (e) {}
-    return xp;
-  }
-
-  /* ── ХР рідної мови (тренування + квести української) для показу біля здоров'я ── */
-  function computeUkrXP() {
-    var xp = 0;
-    for (var i = 0; i < UKR_XP_KEYS.length; i++) xp += num(UKR_XP_KEYS[i]);
-    return xp;
-  }
 
   /* ── знімок усіх показників (для UI) ── */
   function snapshot() {
@@ -180,16 +121,13 @@
     }
     return {
       health: computeHealth(),
-      maxHealth: MAX_HEALTH,
       accuracy: computeAccuracy(),
-      xp: computeXP(),
-      ukrXP: computeUkrXP(),
-      healthPerTask: HEALTH_FROM_TASKS / (UKR_TASKS.length || 1),
+      healthPerTask: HEALTH_PER_TASK,
       ukrTasks: tasks
     };
   }
 
-  /* ── збереження у Firebase (health + xp) ── */
+  /* ── збереження у Firebase (лише health/accuracy; XP у базу не пишемо) ── */
   function save() {
     var s = snapshot();
     try {
@@ -205,15 +143,14 @@
             //    пишемо health/accuracy лише коли обчислене БІЛЬШЕ за збережене.
             SK.getHero().then(function (h) {
               h = h || {};
-              var patch = { xp: s.xp };
+              var patch = {};
               var curH = (h.health   != null) ? Number(h.health)   : 0;
               var curA = (h.accuracy != null) ? Number(h.accuracy) : 0;
               if (!(curH >= s.health)) patch.health   = s.health;
               if (!(curA >= s.accuracy)) patch.accuracy = s.accuracy;
-              SK.saveHeroStats(patch).catch(function () {});
+              if (Object.keys(patch).length) SK.saveHeroStats(patch).catch(function () {});
             }).catch(function () {
-              // якщо не вдалось прочитати героя — пишемо лише XP, стати не чіпаємо
-              SK.saveHeroStats({ xp: s.xp }).catch(function () {});
+              // не вдалось прочитати героя — нічого не пишемо (XP у базу більше не зберігається)
             });
             // синхронізуємо прогрес (пройдені рівні / розблокування скілів) у heroes/{id}.progress
             if (typeof SK.pushLocal === 'function') SK.pushLocal().catch(function () {});
@@ -271,12 +208,9 @@
 
   window.SKProgress = {
     UKR_TASKS: UKR_TASKS,
-    QUEST_XP_KEYS: QUEST_XP_KEYS,
     ACCURACY_SKILLS: ACCURACY_SKILLS,
     computeHealth: computeHealth,
     computeAccuracy: computeAccuracy,
-    computeXP: computeXP,
-    computeUkrXP: computeUkrXP,
     snapshot: snapshot,
     save: save,
     saveDebounced: saveDebounced,
