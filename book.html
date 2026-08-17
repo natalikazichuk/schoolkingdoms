@@ -248,9 +248,6 @@ function errorScreen(msg){
 }
 
 function rewardText(){
-  var xp = BOOK.xpMode==='perCorrect'
-    ? (num(BOOK.xpValue)+' XP за кожну правильну відповідь')
-    : ('+'+num(BOOK.xpValue)+' XP за книгу');
   var sv = num(BOOK.statValue);
   var st='';
   if(sv>0){
@@ -260,7 +257,7 @@ function rewardText(){
       : ('+'+sv+' до «'+lbl+'» за книгу');
   }
   var coins=num(BOOK.coins);
-  return {xp:xp, st:st, coins:coins};
+  return {st:st, coins:coins};
 }
 
 function intro(){
@@ -276,9 +273,8 @@ function intro(){
     +'<div class="b-cover">'+coverInner(BOOK.cover)+'</div>'
     +'<div class="b-title">'+esc(BOOK.title||'Книга')+'</div>'
     +'<div class="chips">'+chips+'</div>'
-    +'<div class="reward-line">🎁 '+r.xp
-      +(r.st?('<br>✨ '+r.st):'')
-      +(r.coins>0?('<br>🪙 +'+fmt(r.coins)+' монет за дочитану книгу'):'')+'</div>'
+    +'<div class="reward-line">'+(r.st?('✨ '+r.st):'')
+      +(r.coins>0?((r.st?'<br>':'')+'🪙 +'+fmt(r.coins)+' монет за дочитану книгу'):'')+'</div>'
     +warn
     +'<button class="btn" id="startBtn">▶ Читати</button>'
     +'</div>';
@@ -401,10 +397,9 @@ function finish(){
   var replay=false;
   try{ replay = localStorage.getItem('sk_dbbook_'+id)==='1'; }catch(e){}
 
-  var xpGain = BOOK.xpMode==='perCorrect' ? num(BOOK.xpValue)*correct : num(BOOK.xpValue);
   var statGain = BOOK.statMode==='perCorrect' ? num(BOOK.statValue)*correct : num(BOOK.statValue);
   var coinGain = num(BOOK.coins);
-  if(replay){ xpGain=xpGain/2; statGain=0; coinGain=0; }
+  if(replay){ statGain=0; coinGain=0; }
 
   var lbl=STAT_LABEL[BOOK.stat]||BOOK.stat;
   var statLine = statGain>0 ? '<div class="reward-line">✨ +'+fmt(statGain)+' до «'+esc(lbl)+'»</div>' : '';
@@ -416,7 +411,6 @@ function finish(){
     +'<div class="result-title">Книгу прочитано!</div>'
     +'<div class="stamp">✅ ПРОЧИТАНО</div>'
     +scoreLine
-    +'<div class="result-xp">+'+fmt(xpGain)+' XP'+(replay?' <span class="muted" style="font-size:.8rem">(повтор)</span>':'')+'</div>'
     +statLine
     +coinLine
     +'<div id="saveNote" class="muted" style="margin:8px 0 2px">'+(HERO_SESSION?'💾 Зберігаємо…':'ℹ️ Увійди Героєм, щоб зберегти нагороду')+'</div>'
@@ -426,10 +420,10 @@ function finish(){
     +'</div>';
 
   try{ localStorage.setItem('sk_dbbook_'+id,'1'); }catch(e){}
-  if(HERO_SESSION) saveReward(xpGain, statGain, coinGain, correct, total);
+  if(HERO_SESSION) saveReward(statGain, coinGain, correct, total);
 }
 
-function saveReward(xpGain, statGain, coinGain, correct, total){
+function saveReward(statGain, coinGain, correct, total){
   var done=0, need=2, failed=false;
   function step(ok){
     if(ok===false) failed=true;
@@ -440,19 +434,14 @@ function saveReward(xpGain, statGain, coinGain, correct, total){
     else { n.textContent='✅ Збережено!'; n.style.color='var(--green-ink)'; }
   }
 
-  // 1) XP + рівень + здоров'я (health) — як у test.html
+  // 1) здоров'я (health) — XP/рівень більше не нараховуються
   SK.getHero().then(function(h){
     h=h||{};
-    var curXp=num(h.xp);
-    var newXp=curXp+xpGain;
-    var curLevel=parseInt(h.level,10); if(isNaN(curLevel)) curLevel=1;
-    var newLevel=Math.max(curLevel, Math.floor(newXp/100)+1);
-    var patch={ xp:newXp, level:newLevel };
     if(statGain>0 && BOOK.stat==='health'){
       var cur=(h.health!=null)?num(h.health):(STAT_BASE.health||0);
-      patch.health=cur+statGain;
+      return SK.saveHeroStats({ health: cur+statGain });
     }
-    return SK.saveHeroStats(patch);
+    return true;
   }).then(function(){ step(true); }).catch(function(){ step(false); });
 
   // 2) Запис у бібліотеку Героя + монети (атомарно)
