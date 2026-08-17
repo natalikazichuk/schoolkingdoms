@@ -206,7 +206,6 @@ function blankPage(){ return { text:'', image:'', questions:[] }; }
 function blankBook(){
   return {
     id:null, title:'', cover:'📕', subject:'Читання', category:'', grade:1,
-    xpMode:'perCorrect', xpValue:1,
     statMode:'fixed', statValue:2, stat:'health',
     coins:3, active:true,
     pages:[ blankPage() ]
@@ -313,10 +312,6 @@ function renderEditor(){
        +'<datalist id="catlist">'+catOptions()+'</datalist>'
        +'<div class="inline-note">Так книга потрапляє у вкладку в бібліотеці. Порожньо → вкладка «Інші».</div></div>'
     +'<div class="grid3">'
-    +'  <div class="field"><label>XP — режим</label><select id="m_xpMode">'
-       +'<option value="perCorrect"'+(M.xpMode==='perCorrect'?' selected':'')+'>за правильну</option>'
-       +'<option value="fixed"'+(M.xpMode==='fixed'?' selected':'')+'>раз за книгу</option></select></div>'
-    +'  <div class="field"><label>XP — значення</label><input type="number" id="m_xpValue" step="0.5" min="0" value="'+esc(M.xpValue)+'"></div>'
     +'  <div class="field"><label>Монети за книгу</label><input type="number" id="m_coins" min="0" value="'+esc(M.coins)+'"></div>'
     +'</div>'
     +'<div class="grid3">'
@@ -346,8 +341,6 @@ function collectForm(){
   M.subject=el('#m_subject').value;
   if(el('#m_category')) M.category=el('#m_category').value;
   M.grade=el('#m_grade').value;
-  M.xpMode=el('#m_xpMode').value;
-  M.xpValue=el('#m_xpValue').value;
   M.coins=el('#m_coins').value;
   M.statMode=el('#m_statMode').value;
   M.statValue=el('#m_statValue').value;
@@ -375,8 +368,6 @@ function buildClean(){
     subject:(M.subject||'Читання').trim(),
     category:(M.category||'').trim(),
     grade:parseInt(M.grade,10)||1,
-    xpMode: M.xpMode==='perCorrect'?'perCorrect':'fixed',
-    xpValue: num(M.xpValue),
     statMode: M.statMode==='perCorrect'?'perCorrect':'fixed',
     statValue: num(M.statValue),
     stat:'health',
@@ -502,8 +493,8 @@ function importJSON(){
   try{ obj=JSON.parse(raw); }catch(e){ setMsg('Некоректний JSON: '+e.message, false); return; }
   if(!obj || typeof obj!=='object'){ setMsg('Очікується об\u2019єкт книги.', false); return; }
   var m=blankBook();
-  ['title','cover','subject','category','xpMode','statMode','stat'].forEach(function(k){ if(obj[k]!=null) m[k]=obj[k]; });
-  ['grade','xpValue','statValue','coins'].forEach(function(k){ if(obj[k]!=null) m[k]=obj[k]; });
+  ['title','cover','subject','category','statMode','stat'].forEach(function(k){ if(obj[k]!=null) m[k]=obj[k]; });
+  ['grade','statValue','coins'].forEach(function(k){ if(obj[k]!=null) m[k]=obj[k]; });
   if(obj.active!=null) m.active=!!obj.active;
   if(Array.isArray(obj.pages) && obj.pages.length){
     m.pages=obj.pages.map(function(p){

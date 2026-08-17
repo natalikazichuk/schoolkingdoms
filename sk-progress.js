@@ -196,7 +196,25 @@
       if (window.SK && SK.ready && typeof SK.ready.then === 'function') {
         SK.ready.then(function () {
           if (SK.currentUser && SK.currentUser() && SK.activeChildId) {
-            SK.saveHeroStats({ health: s.health, accuracy: s.accuracy, xp: s.xp }).catch(function () {});
+            // ── ВАЖЛИВО: цей модуль рахує health/accuracy лише з ВУЗЬКОГО набору
+            //    localStorage-ключів (тренування абетки/правопису, мат-рівні).
+            //    Тести (test.html) і книги (book.html) пишуть health/accuracy
+            //    напряму в базу. Якщо тут писати ОБЧИСЛЕНЕ значення беззастережно,
+            //    воно ЗАТИРАЄ зароблене тестами/книгами назад до ~50 — саме через це
+            //    «здоров'я не зберігалося». Тому оновлюємо НЕДЕСТРУКТИВНО:
+            //    пишемо health/accuracy лише коли обчислене БІЛЬШЕ за збережене.
+            SK.getHero().then(function (h) {
+              h = h || {};
+              var patch = { xp: s.xp };
+              var curH = (h.health   != null) ? Number(h.health)   : 0;
+              var curA = (h.accuracy != null) ? Number(h.accuracy) : 0;
+              if (!(curH >= s.health)) patch.health   = s.health;
+              if (!(curA >= s.accuracy)) patch.accuracy = s.accuracy;
+              SK.saveHeroStats(patch).catch(function () {});
+            }).catch(function () {
+              // якщо не вдалось прочитати героя — пишемо лише XP, стати не чіпаємо
+              SK.saveHeroStats({ xp: s.xp }).catch(function () {});
+            });
             // синхронізуємо прогрес (пройдені рівні / розблокування скілів) у heroes/{id}.progress
             if (typeof SK.pushLocal === 'function') SK.pushLocal().catch(function () {});
           }
