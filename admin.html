@@ -469,17 +469,6 @@
       <div class="section-title">🏆 Нагороди</div>
       <div class="form-grid">
         <div class="field">
-          <label>Нарахування XP</label>
-          <div class="reward-row">
-            <select id="fXpMode">
-              <option value="fixed">Фіксовано за тест</option>
-              <option value="perCorrect">За кожну правильну</option>
-            </select>
-            <input type="number" id="fXpValue" min="0" value="10" aria-label="Кількість XP" />
-          </div>
-          <span class="hint" id="xpHint"></span>
-        </div>
-        <div class="field">
           <label>Одиниці характеристики</label>
           <div class="reward-row">
             <select id="fStatMode">
@@ -2110,7 +2099,6 @@ function renderList(){
     const isLv = t.format === 'levels' || (Array.isArray(t.levels) && t.levels.length);
     const lv = isLv ? (t.levels || []) : null;
     const qn = isLv ? lv.reduce((s, L) => s + ((L.questions || []).length), 0) : (t.questions || []).length;
-    const xp = t.xpMode === 'perCorrect' ? `${t.xpValue} XP/правильну` : `${t.xpValue} XP`;
     const st = t.statMode === 'perCorrect' ? `${t.statValue}/правильну` : `+${t.statValue}`;
     return `
       <div class="test-card" data-id="${t.id}">
@@ -2122,7 +2110,7 @@ function renderList(){
             <span class="badge stat">${statLabel(t.stat)}</span>
             ${isLv ? `<span class="badge">🧩 ${lv.length} рівнів</span>` : ''}
             <span class="badge">${qn} пит.</span>
-            <span class="badge reward">${xp} · ${statLabel(t.stat)} ${st}</span>
+            <span class="badge reward">${statLabel(t.stat)} ${st}</span>
           </div>
         </div>
         <div class="actions">
@@ -2142,7 +2130,7 @@ function renderList(){
    ============================================================ */
 function blankTest(){
   return { id:null, title:'', subject:'', topic:'', grade:1, stat:'accuracy', format:'flat',
-    xpMode:'fixed', xpValue:10, statMode:'fixed', statValue:1, active:true,
+    statMode:'fixed', statValue:1, active:true,
     questions:[ blankQuestion() ], levels:[] };
 }
 function blankQuestion(){ return { q:'', options:['',''], correct:0 }; }
@@ -2164,8 +2152,6 @@ function openEditor(test){
   $('fGrade').value    = draft.grade ?? 1;
   $('fStat').value     = draft.stat;
   $('fFormat').value   = draft.format;
-  $('fXpMode').value   = draft.xpMode;
-  $('fXpValue').value  = draft.xpValue;
   $('fStatMode').value = draft.statMode;
   $('fStatValue').value= draft.statValue;
   $('fActive').checked = !!draft.active;
@@ -2371,9 +2357,6 @@ function renderQuestions(){
 
 function updateHints(){
   const perUnit = $('fFormat').value === 'levels' ? 'рівень' : 'тест';
-  $('xpHint').textContent = $('fXpMode').value === 'perCorrect'
-    ? 'Дитина отримає XP за кожну правильну відповідь.'
-    : `Дитина отримає цей XP один раз за завершений ${perUnit}.`;
   $('statUnitsHint').textContent = $('fStatMode').value === 'perCorrect'
     ? `+${$('fStatValue').value||0} до «${statLabel($('fStat').value)}» за кожну правильну.`
     : `+${$('fStatValue').value||0} до «${statLabel($('fStat').value)}» за ${perUnit}.`;
@@ -2391,8 +2374,6 @@ function collectForm(){
   draft.grade     = +$('fGrade').value || 1;
   draft.stat      = $('fStat').value;
   draft.format    = $('fFormat').value === 'levels' ? 'levels' : 'flat';
-  draft.xpMode    = $('fXpMode').value;
-  draft.xpValue   = Math.max(0, +$('fXpValue').value || 0);
   draft.statMode  = $('fStatMode').value;
   draft.statValue = Math.max(0, +$('fStatValue').value || 0);
   draft.active    = $('fActive').checked;
@@ -2544,7 +2525,7 @@ function bindEvents(){
   $('btnExportOne').onclick  = () => { collectForm(); download((draft.title||'test')+'.json', JSON.stringify(stripIds([draft])[0], null, 2)); };
 
   // Реакції на зміну нагород
-  ['fXpMode','fXpValue','fStatMode','fStatValue','fStat'].forEach(id => $(id).addEventListener('input', updateHints));
+  ['fStatMode','fStatValue','fStat'].forEach(id => $(id).addEventListener('input', updateHints));
 
   // Додати питання
   $('btnAddQ').onclick = () => { draft.questions.push(blankQuestion()); renderQuestions(); };
@@ -2690,8 +2671,6 @@ function normalizeImported(raw){
     topic: raw.topic || '',
     grade: +raw.grade || 1,
     stat: STATS.some(s => s.v === raw.stat) ? raw.stat : 'accuracy',
-    xpMode: raw.xpMode === 'perCorrect' ? 'perCorrect' : 'fixed',
-    xpValue: Math.max(0, +raw.xpValue || 0),
     statMode: raw.statMode === 'perCorrect' ? 'perCorrect' : 'fixed',
     statValue: Math.max(0, +raw.statValue || 0),
     active: raw.active !== false,

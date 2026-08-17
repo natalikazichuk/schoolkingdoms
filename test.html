@@ -419,7 +419,6 @@ function errorScreen(msg){
 }
 
 function rewardText(){
-  var xp = TEST.xpMode==='perCorrect' ? (num(TEST.xpValue)+' XP за кожну правильну') : ('+'+num(TEST.xpValue)+' XP'+(IS_LEVELS?' за рівень':' за тест'));
   var sv = num(TEST.statValue);
   var st='';
   if(sv>0){
@@ -427,7 +426,7 @@ function rewardText(){
     var per = IS_LEVELS?'рівень':'тест';
     st = TEST.statMode==='perCorrect' ? ('+'+sv+' до «'+lbl+'» за кожну правильну') : ('+'+sv+' до «'+lbl+'» за '+per);
   }
-  return {xp:xp, st:st};
+  return {st:st};
 }
 
 function intro(){
@@ -445,7 +444,7 @@ function intro(){
   root.innerHTML='<div class="card">'
     +'<div class="t-title">'+esc(TEST.title||'Тест')+'</div>'
     +'<div class="chips">'+chips+'</div>'
-    +'<div class="reward-line">🎁 '+r.xp+(r.st?('<br>✨ '+r.st):'')+'</div>'
+    +(r.st?'<div class="reward-line">✨ '+r.st+'</div>':'')
     +warn
     +'<button class="btn" id="startBtn">'+(IS_LEVELS?'▶ Обрати рівень':'▶ Почати')+'</button>'
     +'</div>';
@@ -718,9 +717,8 @@ function finish(){
   var replay=false;
   try{ replay = localStorage.getItem('sk_dbtest_'+id)==='1'; }catch(e){}
 
-  var xpGain = TEST.xpMode==='perCorrect' ? num(TEST.xpValue)*correct : num(TEST.xpValue);
   var statGain = TEST.statMode==='perCorrect' ? num(TEST.statValue)*correct : num(TEST.statValue);
-  if(replay){ xpGain = xpGain/2; statGain = 0; }
+  if(replay){ statGain = 0; }
 
   var pctScore = total? Math.round(correct/total*100) : 0;
   var emoji = pctScore>=80?'🏆':pctScore>=50?'🌟':'💪';
@@ -736,7 +734,6 @@ function finish(){
     +'<div class="result-emoji">'+emoji+'</div>'
     +'<div class="result-title">'+head+'</div>'
     +'<div class="result-score">'+correct+' з '+total+' правильно</div>'
-    +'<div class="result-xp">+'+fmt(xpGain)+' XP'+(replay?' <span class="muted" style="font-size:.8rem">(повтор)</span>':'')+'</div>'
     +statLine
     +'<div id="saveNote" class="muted" style="margin:8px 0 2px">'+(HERO_SESSION?'💾 Зберігаємо…':'ℹ️ Увійди Героєм, щоб зберегти нагороду')+'</div>'
     +'<button class="btn" onclick="location.reload()">↻ Пройти ще раз</button>'
@@ -749,7 +746,7 @@ function finish(){
   // Результат для перевірки батьком (читає hero.html при поданні завдання)
   try{ localStorage.setItem('sk_testscore_'+id, JSON.stringify({pct:pctScore, correct:correct, total:total, passed:(pctScore>=55), at:Date.now()})); }catch(e){}
   var crossed = markPassed(pctScore>=55);   // ≥55% правильних → тест пройдено
-  if(HERO_SESSION) saveReward(xpGain, statGain);
+  if(HERO_SESSION) saveReward(statGain);
   if(crossed) setTimeout(showUnlockPopup, 500);
 }
 
@@ -761,9 +758,8 @@ function finishLevel(){
   var id=levelId(i);
   var replay=ST.isReplay;
 
-  var xpGain = TEST.xpMode==='perCorrect' ? num(TEST.xpValue)*correct : num(TEST.xpValue);
   var statGain = TEST.statMode==='perCorrect' ? num(TEST.statValue)*correct : num(TEST.statValue);
-  if(replay){ xpGain = xpGain/2; statGain = 0; }   // повтор рівня: пів-XP, без стата
+  if(replay){ statGain = 0; }   // повтор рівня: без стата
 
   var pctScore = total? Math.round(correct/total*100) : 0;
   var stars = pctScore>=90?3 : pctScore>=70?2 : 1;
@@ -803,7 +799,6 @@ function finishLevel(){
     +'<div class="result-emoji">'+emoji+'</div>'
     +'<div class="result-title">'+head+'</div>'
     +'<div class="result-score">'+correct+' з '+total+' правильно · '+'⭐'.repeat(stars)+'</div>'
-    +'<div class="result-xp">+'+fmt(xpGain)+' XP'+(replay?' <span class="muted" style="font-size:.8rem">(повтор)</span>':'')+'</div>'
     +statLine
     +'<div id="saveNote" class="muted" style="margin:8px 0 2px">'+(HERO_SESSION?'💾 Зберігаємо…':'ℹ️ Увійди Героєм, щоб зберегти нагороду')+'</div>'
     +nextBtn
@@ -812,19 +807,14 @@ function finishLevel(){
   var nb=document.getElementById('nextBtn'); if(nb) nb.onclick=function(){ startLevel(i+1); };
   var mb=document.getElementById('menuBtn'); if(mb) mb.onclick=levelMenu;
 
-  if(HERO_SESSION) saveReward(xpGain, statGain);
+  if(HERO_SESSION) saveReward(statGain);
   if(crossed) setTimeout(showUnlockPopup, 500);
 }
 
-function saveReward(xpGain, statGain){
+function saveReward(statGain){
   SK.getHero().then(function(h){
     h=h||{};
-    var curXp=num(h.xp);
-    var newXp=curXp+xpGain;
-    var curLevel=parseInt(h.level,10); if(isNaN(curLevel)) curLevel=1;
-    var newLevel=Math.max(curLevel, Math.floor(newXp/100)+1);   // 100 XP на рівень (як у hero.html)
-    var patch={ xp:newXp, level:newLevel };
-
+    var patch={};
     var key=TEST.stat;
     if(statGain>0 && ACTIVE_STATS[key]){
       var cur = (h[key]!=null) ? num(h[key]) : (STAT_BASE[key]||0);
