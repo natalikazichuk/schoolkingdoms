@@ -1068,6 +1068,7 @@ const SK = {
       heroId:        String(d.heroId || ''),
       screen:        String(d.screen || ''),
       ua:            String(d.ua || ''),
+      screenshot:    String(d.screenshot || '').slice(0, 900000), // JPEG dataURL; тримаємо документ < 1 МБ
       role:          SK.isHeroSession() ? 'hero' : (u ? 'parent' : 'guest'),
       reporterUid:   u ? u.uid : null,
       reporterEmail: u ? (u.email || null) : null,

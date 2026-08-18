@@ -50,17 +50,96 @@
     return lines;
   }
 
+  /* ── СКРІНШОТ через html2canvas (лінива підвантажка з CDN) ── */
+  var H2C_URL = (window.SK_H2C_URL || 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+  var SHOT = null;        // dataURL останнього знімка або null
+  var SHOT_STATE = 'idle'; // idle | working | ready | fail
+  var SHOT_MAX = 780000;  // стеля розміру base64 (щоб документ Firestore лишався < 1 МБ)
+
+  function loadH2C(){
+    return new Promise(function(res){
+      if(window.html2canvas) return res(window.html2canvas);
+      var s = document.createElement('script');
+      s.src = H2C_URL; s.async = true;
+      s.onload = function(){ res(window.html2canvas || null); };
+      s.onerror = function(){ res(null); };
+      document.head.appendChild(s);
+    });
+  }
+
+  // зменшити канвас за шириною й закодувати в JPEG із контролем розміру
+  function encodeShot(canvas){
+    var maxW = 720, q = 0.6;
+    function draw(w){
+      var r = w / canvas.width;
+      var c = document.createElement('canvas');
+      c.width = w; c.height = Math.max(1, Math.round(canvas.height * r));
+      c.getContext('2d').drawImage(canvas, 0, 0, c.width, c.height);
+      return c;
+    }
+    var work = canvas.width > maxW ? draw(maxW) : canvas;
+    var url = work.toDataURL('image/jpeg', q);
+    // якщо завелике — знижуємо якість, потім ширину
+    var guard = 0;
+    while(url.length > SHOT_MAX && guard++ < 5){
+      if(q > 0.35){ q -= 0.12; }
+      else { maxW = Math.round(maxW * 0.8); work = draw(maxW); }
+      url = work.toDataURL('image/jpeg', q);
+    }
+    return url.length <= SHOT_MAX ? url : null;
+  }
+
+  // знімок ВИДИМОЇ частини сторінки (без самого віджета)
+  function captureShot(){
+    SHOT = null; SHOT_STATE = 'working'; updateShotUI();
+    loadH2C().then(function(h2c){
+      if(!h2c){ SHOT_STATE = 'fail'; updateShotUI(); return; }
+      try{
+        h2c(document.body, {
+          backgroundColor: '#0c1c36',
+          scale: 1, useCORS: true, logging: false,
+          x: window.scrollX, y: window.scrollY,
+          width: window.innerWidth, height: window.innerHeight,
+          ignoreElements: function(el){
+            return el.getAttribute && el.getAttribute('data-html2canvas-ignore') === 'true';
+          }
+        }).then(function(canvas){
+          try{ SHOT = encodeShot(canvas); }catch(e){ SHOT = null; }
+          SHOT_STATE = SHOT ? 'ready' : 'fail'; updateShotUI();
+        }).catch(function(){ SHOT_STATE = 'fail'; updateShotUI(); });
+      }catch(e){ SHOT_STATE = 'fail'; updateShotUI(); }
+    });
+  }
+
+  function updateShotUI(){
+    if(!back) return;
+    var st = back.querySelector('#skShotState');
+    var chk = back.querySelector('#skShotChk');
+    if(!st) return;
+    if(SHOT_STATE === 'working') st.textContent = '📷 Роблю знімок екрана…';
+    else if(SHOT_STATE === 'ready') st.textContent = '📷 Знімок екрана додано ✓';
+    else if(SHOT_STATE === 'fail') st.textContent = '📷 Знімок не вдався — надішлемо без нього';
+    else st.textContent = '';
+    if(chk){
+      chk.disabled = (SHOT_STATE !== 'ready');
+      chk.checked  = (SHOT_STATE === 'ready');
+    }
+  }
+
   /* дані для запису у Firestore */
   function reportData(userText){
     var page = (location.pathname.split('/').pop() || 'сторінка').replace(/\.html$/,'');
+    var wantShot = false;
+    if(back){ var chk = back.querySelector('#skShotChk'); wantShot = !!(chk && chk.checked); }
     return {
-      message:  (userText||'').trim(),
-      page:     page + ((document.title? ' — '+document.title.trim() : '')),
-      url:      location.href,
-      heroName: heroName(),
-      heroId:   heroId(),
-      screen:   window.innerWidth + '×' + window.innerHeight,
-      ua:       navigator.userAgent
+      message:    (userText||'').trim(),
+      page:       page + ((document.title? ' — '+document.title.trim() : '')),
+      url:        location.href,
+      heroName:   heroName(),
+      heroId:     heroId(),
+      screen:     window.innerWidth + '×' + window.innerHeight,
+      ua:         navigator.userAgent,
+      screenshot: (wantShot && SHOT) ? SHOT : ''
     };
   }
 
@@ -118,6 +197,9 @@
     + 'padding:10px 12px;outline:none}'
     + '.sk-rep-card textarea:focus{border-color:rgba(242,199,92,.8)}'
     + '.sk-rep-hint{font-size:.74rem;color:#9aa6c6;margin:8px 2px 0;line-height:1.3}'
+    + '.sk-shot-row{display:flex;align-items:center;gap:8px;margin:10px 2px 0;'
+    + 'font-size:.8rem;color:#c6d3ea;cursor:pointer;user-select:none}'
+    + '.sk-shot-row input{width:16px;height:16px;accent-color:#E0A93A;cursor:pointer}'
     + '.sk-rep-row{display:flex;gap:10px;margin-top:14px}'
     + '.sk-rep-btn{flex:1;border:none;border-radius:999px;font:inherit;font-weight:900;'
     + 'font-size:.92rem;padding:11px 14px;cursor:pointer}'
@@ -128,15 +210,19 @@
     document.head.appendChild(css);
   }
 
-  /* ── кнопка 🐞 ── */
-  var btn = document.createElement('button');
-  btn.className = 'sk-bug-btn';
-  btn.type = 'button';
-  btn.setAttribute('aria-label','Повідомити про помилку');
-  btn.title = 'Повідомити про помилку';
-  btn.textContent = '🐞';
-  btn.addEventListener('click', openModal);
-  (document.body || document.documentElement).appendChild(btn);
+  /* ── плаваюча кнопка 🐞 (можна вимкнути прапорцем SK_REPORT_NO_BUTTON,
+        напр. у кабінеті батьків, де є власна кнопка «Повідомити про помилку») ── */
+  if (!window.SK_REPORT_NO_BUTTON) {
+    var btn = document.createElement('button');
+    btn.className = 'sk-bug-btn';
+    btn.type = 'button';
+    btn.setAttribute('aria-label','Повідомити про помилку');
+    btn.title = 'Повідомити про помилку';
+    btn.textContent = '🐞';
+    btn.setAttribute('data-html2canvas-ignore','true');
+    btn.addEventListener('click', openModal);
+    (document.body || document.documentElement).appendChild(btn);
+  }
 
   var back = null;
   function closeModal(){ if(back){ back.remove(); back=null; document.removeEventListener('keydown',onKey); } }
@@ -144,14 +230,19 @@
 
   function openModal(){
     if(back) return;
+    // спершу — знімок поточної сторінки (доки вікна ще немає в DOM)
+    captureShot();
+
     back = document.createElement('div');
     back.className = 'sk-rep-back';
+    back.setAttribute('data-html2canvas-ignore','true');
     back.innerHTML =
       '<div class="sk-rep-card" role="dialog" aria-modal="true">'
     + '<h3>🐞 Помітили помилку?</h3>'
-    + '<p>Коротко опишіть, що сталося — і ми полагодимо. Технічні дані про сторінку додадуться автоматично.</p>'
+    + '<p>Коротко опишіть, що сталося — і ми полагодимо. Дані про сторінку додадуться автоматично.</p>'
     + '<textarea id="skRepText" placeholder="Напр.: кнопка «Грати» не відкриває тренажер…"></textarea>'
-    + '<div class="sk-rep-hint">✉️ Відкриється поштова програма. За бажанням можна прикріпити скрин екрана в самому листі.</div>'
+    + '<label class="sk-shot-row"><input type="checkbox" id="skShotChk" checked disabled>'
+    +   '<span id="skShotState">📷 Роблю знімок екрана…</span></label>'
     + '<div class="sk-rep-row">'
     +   '<button class="sk-rep-btn sk-rep-cancel" type="button" id="skRepCancel">Скасувати</button>'
     +   '<button class="sk-rep-btn sk-rep-send" type="button" id="skRepSend">✉️ Повідомити</button>'
@@ -160,6 +251,7 @@
     document.body.appendChild(back);
     document.addEventListener('keydown', onKey);
     back.addEventListener('click', function(e){ if(e.target===back) closeModal(); });
+    updateShotUI();
     var ta = back.querySelector('#skRepText');
     if(ta) setTimeout(function(){ ta.focus(); }, 30);
     back.querySelector('#skRepCancel').addEventListener('click', closeModal);
@@ -191,4 +283,8 @@
     var ok = card.querySelector('#skRepOk');
     if(ok) ok.addEventListener('click', closeModal);
   }
+
+  /* Публічний виклик: window.SKReport.open() — відкрити вікно з будь-якої
+     кнопки (напр. «Повідомити про помилку» у кабінеті батьків). */
+  window.SKReport = { open: openModal };
 })();

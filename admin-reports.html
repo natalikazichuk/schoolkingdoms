@@ -80,6 +80,13 @@
   .rwhen{margin-left:auto;font-size:.76rem;color:var(--muted);font-weight:700}
   .rmsg{font-size:1rem;color:#fff;font-weight:700;white-space:pre-wrap;word-break:break-word;margin:2px 0 10px}
   .rmsg.empty{color:var(--muted);font-style:italic;font-weight:600}
+  .rshot{margin:2px 0 10px}
+  .shot-thumb{max-width:260px;max-height:180px;border-radius:10px;border:1px solid var(--border);
+    cursor:zoom-in;display:block;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+  .lightbox{position:fixed;inset:0;z-index:90;background:rgba(4,10,24,.9);
+    display:flex;align-items:center;justify-content:center;padding:20px;cursor:zoom-out}
+  .lightbox img{max-width:100%;max-height:100%;border-radius:10px;
+    box-shadow:0 20px 60px rgba(0,0,0,.6)}
   .rmeta{font-size:.78rem;color:var(--muted);line-height:1.5;
     border-top:1px dashed var(--border);padding-top:8px;word-break:break-word}
   .rmeta b{color:#b7bfe6;font-weight:800}
@@ -178,9 +185,14 @@
       ? '<button class="mini" data-act="undone" data-id="'+esc(r.id)+'">↩︎ У нові</button>'
       : '<button class="mini ok" data-act="done" data-id="'+esc(r.id)+'">✓ Вирішено</button>';
 
+    var shot = r.screenshot
+      ? '<div class="rshot"><img class="shot-thumb" src="'+esc(r.screenshot)+'" alt="скрін" data-full="'+esc(r.screenshot)+'"></div>'
+      : '';
+
     return '<div class="rcard'+(r.status==='done'?' done':'')+'">'
       + '<div class="rhead">'+role+status+'<span class="rwhen">'+esc(fmtWhen(r.createdAt))+'</span></div>'
       + msg
+      + shot
       + (meta.length ? '<div class="rmeta">'+meta.join('<br>')+'</div>' : '')
       + '<div class="racts">'+toggle
       +   '<button class="mini danger" data-act="del" data-id="'+esc(r.id)+'">🗑 Видалити</button>'
@@ -209,6 +221,15 @@
     });
     root.querySelectorAll('.mini').forEach(function(b){
       b.addEventListener('click', function(){ onAct(b.getAttribute('data-act'), b.getAttribute('data-id'), b); });
+    });
+    root.querySelectorAll('.shot-thumb').forEach(function(img){
+      img.addEventListener('click', function(){
+        var lb = document.createElement('div');
+        lb.className = 'lightbox';
+        lb.innerHTML = '<img src="'+img.getAttribute('data-full')+'" alt="скрін">';
+        lb.addEventListener('click', function(){ lb.remove(); });
+        document.body.appendChild(lb);
+      });
     });
   }
 
