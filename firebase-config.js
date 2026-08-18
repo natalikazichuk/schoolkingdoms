@@ -407,7 +407,7 @@ const SK = {
     return arr.map(t => {
       const status = SK._taskStatus(d, t.id);
       const st = (d.taskState || {})[t.id] || {};
-      return Object.assign({}, t, { status, done: status === 'approved', result: st.result || null });
+      return Object.assign({}, t, { status, done: status === 'approved', returned: !!st.returned, result: st.result || null });
     }).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   },
 
@@ -454,8 +454,10 @@ const SK = {
     const rank = { assigned: 0, pending: 1, approved: 2 };
     return arr.map(t => {
       const status = SK._taskStatus(d, t.id);
+      const stx = (d.taskState || {})[t.id] || {};
       return Object.assign({}, t, {
         status, done: status === 'approved',
+        returned: !!stx.returned,
         icon: t.icon || (t.type === 'test' ? '📝' : t.type === 'trainer' ? '🎮' : '⭐')
       });
     }).sort((a, b) => ((rank[a.status]||0) - (rank[b.status]||0)) || ((b.createdAt || 0) - (a.createdAt || 0)));
@@ -565,7 +567,11 @@ const SK = {
       const d = s.data();
       if (SK._taskStatus(d, taskId) === 'approved') { result = { ok: false, already: true }; return; }
       const state = d.taskState || {};
-      delete state[taskId];
+      // Не просто видаляємо статус: ставимо 'assigned' з міткою returned.
+      // Інакше hero.html за старим сигналом у localStorage (sk_testpass_/sk_taskseen_)
+      // миттєво авто-подасть завдання знову — і воно повернеться «на перевірку».
+      // Мітка знімається, коли дитина сама повторно подасть завдання (submitTask).
+      state[taskId] = { status: 'assigned', returned: true, at: Date.now() };
       tx.set(ref, { taskState: state, updatedAt: serverTimestamp() }, { merge: true });
       result = { ok: true };
     });
