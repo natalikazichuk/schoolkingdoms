@@ -148,4 +148,16 @@
     }
     if(tries++ < 100) setTimeout(whenSK, 50);
   })();
+
+  /* ── підвантажуємо віджет «Повідомити про помилку» (🐞) ──
+     Той самий BASE, що й для логотипа. Одноразово. */
+  (function(){
+    if(window.__skReportMounted) return;
+    if(document.getElementById('sk-report-loader')) return;
+    var s = document.createElement('script');
+    s.id = 'sk-report-loader';
+    s.src = BASE + 'sk-report.js';
+    s.defer = true;
+    document.body.appendChild(s);
+  })();
 })();

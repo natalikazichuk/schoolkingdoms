@@ -1,0 +1,236 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /* ══════════════════════════════════════════════════════════════
+       ДОПОМІЖНІ ФУНКЦІЇ
+       ══════════════════════════════════════════════════════════════ */
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Адмін = users/{uid}.role == 'admin'.
+    // Роль НЕ можна виставити з клієнта (див. match /users) — лише вручну
+    // в консолі Firebase. Це єдина точка, що відрізняє адміна від будь-кого,
+    // хто просто зареєструвався.
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // чи той, хто звертається, — Герой (має власний документ у heroes)
+    function iAmHero() {
+      return exists(/databases/$(database)/documents/heroes/$(request.auth.uid));
+    }
+    function myHero() {
+      return get(/databases/$(database)/documents/heroes/$(request.auth.uid)).data;
+    }
+
+    // справжній батько цього Героя — беремо з heroes, а не з того,
+    // що прислав клієнт (інакше можна «привласнити» чужу картку)
+    function heroParent(heroId) {
+      return get(/databases/$(database)/documents/heroes/$(heroId)).data.parentUid;
+    }
+
+    // id документа дружби: два id Героїв, відсортовані й склеєні
+    function pairId(a, b) {
+      return a < b ? a + '__' + b : b + '__' + a;
+    }
+
+    // чи є ПІДТВЕРДЖЕНА дружба між тим, хто звертається, і heroId
+    function friendApproved(heroId) {
+      return exists(/databases/$(database)/documents/friendships/$(pairId(request.auth.uid, heroId)))
+        && get(/databases/$(database)/documents/friendships/$(pairId(request.auth.uid, heroId))).data.status == 'approved';
+    }
+
+
+    /* ══════════════════════════════════════════════════════════════
+       БАТЬКИ
+       ══════════════════════════════════════════════════════════════ */
+
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+
+      /* ⚠ РОЛЬ НЕ ПИШЕТЬСЯ З КЛІЄНТА.
+         Раніше тут було `allow read, write` — тобто будь-хто міг записати
+         собі role:'admin' одним рядком у консолі браузера. Форма реєстрації
+         жорстко ставить 'user', але UI — не захист: правила має тримати база.
+         Реєстрація створює документ із role:'user'; змінити роль потім можна
+         лише вручну в консолі Firebase. */
+      allow create: if signedIn() && request.auth.uid == uid
+        && (!('role' in request.resource.data) || request.resource.data.role == 'user');
+
+      // будь-яке оновлення мусить лишити роль такою, якою вона була
+      allow update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.role == resource.data.role;
+
+      allow delete: if false;
+    }
+
+
+    /* ══════════════════════════════════════════════════════════════
+       ГЕРОЇ
+       ══════════════════════════════════════════════════════════════ */
+
+    match /heroes/{heroId} {
+      allow read: if signedIn() && (
+        request.auth.uid == heroId ||
+        request.auth.uid == resource.data.parentUid ||
+        // брат/сестра — Герой тієї самої родини.
+        // ⚠ Ця гілка віддає ВЕСЬ документ (прогрес, parentEmail), хоча
+        // getSiblings() бере лише name/avatar/level/grade. Ті самі поля вже
+        // лежать у heroCards. Коли getSiblings() перевести на heroCards —
+        // цю гілку прибрати. Зараз вона потрібна, інакше «Команда» спорожніє.
+        (iAmHero() && myHero().parentUid == resource.data.parentUid)
+      );
+
+      allow create: if signedIn() &&
+        request.auth.uid == request.resource.data.parentUid;
+
+      // parentUid незмінний для ОБОХ сторін: Герой не «підселиться» в чужу
+      // родину, а батько не передасть дитину іншому акаунту.
+      // ⚙ Запис прогресу/характеристик Героєм (saveHeroStats, saveHeroAvatar,
+      //    saveArenaStats, pushLocal, задачі, recordBookRead) іде setDoc(merge:true)
+      //    і parentUid не чіпає — merge зберігає старе значення, тож ця умова
+      //    виконується автоматично. Тому дитина може оновлювати свій прогрес.
+      allow update: if signedIn()
+        && request.resource.data.parentUid == resource.data.parentUid
+        && (request.auth.uid == heroId || request.auth.uid == resource.data.parentUid);
+
+      allow delete: if signedIn() && request.auth.uid == resource.data.parentUid;
+    }
+
+
+    /* ══════════════════════════════════════════════════════════════
+       ПУБЛІЧНА КАРТКА ГЕРОЯ: лише ім'я, аватар, рівень
+       ══════════════════════════════════════════════════════════════ */
+
+    match /heroCards/{heroId} {
+      allow read: if signedIn() && (
+        request.auth.uid == heroId ||
+        request.auth.uid == resource.data.parentUid ||
+        (iAmHero() && myHero().parentUid == resource.data.parentUid) ||
+        friendApproved(heroId)
+      );
+
+      /* ⚠ parentUid звіряємо з heroes/{heroId}, а не з тим, що прислали.
+         Раніше гілка `request.auth.uid == request.resource.data.parentUid`
+         не перевіряла, що heroId узагалі належить цьому батькові: будь-який
+         дорослий міг записати heroCards/{чужий_id} із parentUid: собі —
+         затерти чужу картку і «підтягнути» її до своєї родини. */
+      allow create, update: if signedIn()
+        && request.resource.data.parentUid == heroParent(heroId)
+        && (request.auth.uid == heroId || request.auth.uid == heroParent(heroId));
+
+      allow delete: if signedIn() && request.auth.uid == heroParent(heroId);
+    }
+
+
+    /* ══════════════════════════════════════════════════════════════
+       ДРУЖБА МІЖ РОДИНАМИ — керують лише дорослі
+       ══════════════════════════════════════════════════════════════ */
+
+    match /friendships/{pair} {
+      allow read: if signedIn() && (
+        request.auth.uid in resource.data.heroes ||
+        request.auth.uid in resource.data.parents
+      );
+
+      /* ⚠ Створювати можна ЛИШЕ як 'pending' і лише з власним підписом.
+         Раніше status не перевірявся взагалі — дорослий міг створити
+         документ одразу зі status:'approved' і тим самим повністю обійти
+         двостороннє підтвердження: friendApproved() дивиться тільки на
+         status, тож його дитина одразу бачила б чужу картку. */
+      allow create: if signedIn()
+        && request.auth.uid in request.resource.data.parents
+        && !(request.auth.uid in request.resource.data.heroes)
+        && request.resource.data.status == 'pending'
+        && request.resource.data.approvedBy == [request.auth.uid]
+        && request.resource.data.parents.size() == 2
+        && request.resource.data.heroes.size() == 2
+        && pair == pairId(request.resource.data.heroes[0], request.resource.data.heroes[1]);
+
+      /* 'approved' — лише коли підтвердили ОБОЄ. Склад учасників незмінний. */
+      allow update: if signedIn()
+        && request.auth.uid in resource.data.parents
+        && request.resource.data.parents == resource.data.parents
+        && request.resource.data.heroes  == resource.data.heroes
+        && request.resource.data.approvedBy.hasOnly(resource.data.parents)
+        && request.auth.uid in request.resource.data.approvedBy
+        && (
+          request.resource.data.status == 'approved'
+            ? request.resource.data.approvedBy.size() >= 2
+            : request.resource.data.status == 'pending'
+        );
+
+      allow delete: if signedIn() && request.auth.uid in resource.data.parents;
+    }
+
+
+    /* ══════════════════════════════════════════════════════════════
+       ОДНОРАЗОВІ КОДИ-ЗАПРОШЕННЯ
+       get дозволено (треба знати сам код), list — ні, тож перебрати
+       колекцію неможливо. Код — 8 символів з алфавіту 32 → 32^8 ≈ 1.1·10^12.
+       ══════════════════════════════════════════════════════════════ */
+
+    match /inviteCodes/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn() && request.auth.uid == request.resource.data.parentUid;
+      allow update: if false;
+      allow delete: if signedIn() && request.auth.uid == resource.data.parentUid;
+    }
+
+
+    /* ══════════════════════════════════════════════════════════════
+       КОНТЕНТ ПЛАТФОРМИ — читають усі, пише ЛИШЕ адмін
+
+       ⚠ Раніше тут стояло `allow write: if signedIn()`. Це означало, що
+       будь-який зареєстрований акаунт — включно з дитячим акаунтом Героя —
+       міг стерти або переписати всі тести, всі книжки і всю карту
+       курикулуму. Код гейтить це через SK.isAdmin(), але то перевірка в
+       браузері: її обходить будь-хто, хто відкриє консоль.
+       ══════════════════════════════════════════════════════════════ */
+
+    match /tests/{doc} {
+      allow read:  if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /books/{doc} {
+      allow read:  if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /curriculum/{doc} {
+      allow read:  if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /meta/{doc} {
+      allow read:  if signedIn();
+      allow write: if isAdmin();
+    }
+
+
+    /* ══════════════════════════════════════════════════════════════
+       🐞 ПОВІДОМЛЕННЯ ПРО ПОМИЛКИ (sk-report.js → admin-reports.html)
+       Дитина або батьки надсилають скаргу про себе; читає й керує адмін.
+
+       create — лише про СВІЙ обліковий запис (reporterUid == свій uid) і лише
+       зі status:'new', щоб ніхто не створив запис одразу «вирішеним» чи від
+       чужого імені. list/read, зміна статусу та видалення — тільки адмін
+       (звичайні акаунти не можуть перебрати чужі повідомлення).
+       ══════════════════════════════════════════════════════════════ */
+
+    match /reports/{id} {
+      allow create: if signedIn()
+        && request.resource.data.reporterUid == request.auth.uid
+        && request.resource.data.status == 'new';
+
+      allow read, update, delete: if isAdmin();
+    }
+  }
+}
