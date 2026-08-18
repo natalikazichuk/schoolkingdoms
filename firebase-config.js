@@ -1050,7 +1050,57 @@ const SK = {
     return true;
   },
 
-  onUser(cb) { if (typeof cb === 'function') SK._userCbs.push(cb); }
+  onUser(cb) { if (typeof cb === 'function') SK._userCbs.push(cb); },
+
+  /* ===== ПОВІДОМЛЕННЯ ПРО ПОМИЛКИ (🐞 sk-report.js) =====
+     reports/{id} = { message, page, url, heroName, heroId, screen, ua,
+                      role, reporterUid, reporterEmail, status, createdAt } */
+
+  // Створити повідомлення. Доступно і Герою, і батькам (будь-яка сесія).
+  async submitReport(data) {
+    const u = auth.currentUser;
+    const d = data || {};
+    const rec = {
+      message:       String(d.message || '').slice(0, 4000),
+      page:          String(d.page || ''),
+      url:           String(d.url || ''),
+      heroName:      String(d.heroName || ''),
+      heroId:        String(d.heroId || ''),
+      screen:        String(d.screen || ''),
+      ua:            String(d.ua || ''),
+      role:          SK.isHeroSession() ? 'hero' : (u ? 'parent' : 'guest'),
+      reporterUid:   u ? u.uid : null,
+      reporterEmail: u ? (u.email || null) : null,
+      status:        'new',
+      createdAt:     serverTimestamp()
+    };
+    const ref = await addDoc(collection(db, 'reports'), rec);
+    return ref.id;
+  },
+
+  // Усі повідомлення (для admin-reports.html). Новіші — зверху.
+  async listReports() {
+    const snap = await getDocs(collection(db, 'reports'));
+    const out = [];
+    snap.forEach(dd => out.push(Object.assign({ id: dd.id }, dd.data())));
+    out.sort((a, b) => {
+      const ta = a.createdAt && a.createdAt.seconds ? a.createdAt.seconds : 0;
+      const tb = b.createdAt && b.createdAt.seconds ? b.createdAt.seconds : 0;
+      return tb - ta;
+    });
+    return out;
+  },
+
+  // Змінити статус: 'new' | 'done' (лише адмін — за правилами Firestore).
+  async setReportStatus(id, status) {
+    if (!id) return;
+    await updateDoc(doc(db, 'reports', id), { status: String(status || 'new') });
+  },
+
+  async deleteReport(id) {
+    if (!id) return;
+    await deleteDoc(doc(db, 'reports', id));
+  }
 };
 
 SK.ready = new Promise(res => { SK._userResolve = res; });
