@@ -1804,4 +1804,235 @@ body.scr-battle .wrap{max-width:1500px}
       }));
     }catch(e){}
   }
-  function load
+  function loadCachedStats(){
+    try{
+      var c = JSON.parse(localStorage.getItem('sk_hero_stats')||'null');
+      if(c){
+        if(c.health  !=null) hero.health   = c.health;
+        if(c.mana    !=null) hero.mana     = c.mana;
+        if(c.agility !=null) hero.agility  = c.agility;
+        if(c.accuracy!=null) hero.accuracy = c.accuracy;
+        if(c.xp      !=null) hero.xp       = c.xp;
+        if(c.name)           hero.name     = c.name;
+        if(c.avatar)         hero.avatar   = c.avatar;
+      }
+    }catch(e){}
+    // спільний кеш аватара з головною має пріоритет — щоб аватар збігався одразу
+    try{
+      var tok = localStorage.getItem('sk_hero_avatar_token');
+      if(tok) hero.avatar = tok;
+    }catch(e){}
+  }
+  /* ── Якщо сесії Героя немає, хедер (sk-header.js) показав би «Увійди як Герой».
+     У грі це недоречно — підставляємо в ту саму смужку хедера кешовані/демо
+     стати, щоб панель була заповнена. Коли сесія Героя є — не чіпаємо: хедер
+     сам покаже реальні значення. ── */
+  function statChipsHTML(){
+    var it=[{k:'❤️',v:hero.health},{k:'🔮',v:hero.mana},{k:'🏃',v:hero.agility},{k:'🎯',v:hero.accuracy},{k:'⭐',v:hero.xp}];
+    return it.map(function(s){ return '<span class="sk-hd__stat">'+s.k+' <b>'+(s.v!=null?Math.round(s.v):0)+'</b></span>'; }).join('');
+  }
+  function fillHeaderFallback(){
+    try{
+      if(window.SK && SK.isHeroSession && SK.isHeroSession()) return; // сесія Героя — хедер заповнить сам
+      var strip=document.getElementById('skHdStrip'),
+          box  =document.getElementById('skHdStats'),
+          guest=document.getElementById('skHdGuest');
+      if(!strip || !box) return;
+      box.innerHTML = statChipsHTML();
+      strip.classList.add('on');
+      if(guest) guest.classList.remove('on');
+    }catch(e){}
+  }
+  async function pullHeroStats(){
+    var isHero = !!(window.SK && SK.isHeroSession && SK.isHeroSession());
+    if(isHero){
+      try{ if(SK.pullLocal) await SK.pullLocal(); }catch(e){}
+      loadArena();
+      var h = null;
+      try{ if(SK.getHero){ h = await SK.getHero(); applyHeroDoc(h); } }catch(e){}
+      applyLiveStats(h);
+      cacheStats();                       // зберегти справжні стати для наступних відкриттів
+    }
+    if(!(B && !B.over)) renderTavern();    // не перемальовувати під час активного бою
+    fillHeaderFallback();                  // коли не сесія Героя — заповнити смужку кешем/демо
+  }
+
+  function boot(){
+    loadArena(); loadCachedStats(); loadEquip(); wire(); renderTavern(); show('tavern');
+    // підтягнути справжнього героя з бази (той самий шлях, що й у хедері)
+    whenSK(function(){
+      try{ window.SK.ready.then(function(){ pullHeroStats(); }); }catch(e){}
+    });
+    // хедер показує «увійди» лише коли немає сесії Героя; кількома спробами
+    // гарантовано перекриваємо його кешованими/демо статами (обганяємо showGuest)
+    setTimeout(fillHeaderFallback, 250);
+    setTimeout(fillHeaderFallback, 700);
+    setTimeout(fillHeaderFallback, 1500);
+    // повертаємось на арену після гри в іншій вкладці — тягнемо свіжі стати
+    document.addEventListener('visibilitychange', function(){
+      if(document.visibilityState==='visible') pullHeroStats();
+    });
+    window.addEventListener('focus', pullHeroStats);
+    window.addEventListener('pageshow', function(e){ if(e.persisted) pullHeroStats(); });
+  }
+  function whenSK(cb){
+    var n=0;
+    (function w(){
+      if(window.SK && window.SK.ready){ cb(); return; }
+      if(n++<100) setTimeout(w,50);
+    })();
+  }
+
+  if(document.readyState!=='loading') boot();
+  else document.addEventListener('DOMContentLoaded', boot);
+})();
+</script>
+
+<script>
+/* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
+   Дані ЗАРАЗ demo (локально). Крок 2: джерело речей → Firestore (адмінка).
+   Окремий IIFE + префікс ek- → нуль колізій з логікою arena. */
+(function(){
+'use strict';
+var q=function(id){return document.getElementById(id);};
+
+var HERO={health:50,mana:20,agility:50,accuracy:50,coins:0}; /* база з даних Героя (хедер); заповнюється в render() */
+var LEVEL={level:12,xp:2450,xpMax:3000};
+var SLOT_CAT={helmet:'head',armor:'body',gloves:'gloves',bracers:'bracers',belt:'belt',pants:'pants',boots:'boots',weaponR:'weapon',weaponL:'weapon',ring1:'ring',ring2:'ring',amulet:'amulet'};
+var SLOT_DEFS=[
+ ['helmet','Шолом','⛑️'],['armor','Обладунки','🥋'],
+ ['gloves','Рукавиці','🧤'],['bracers','Наручі','🦾'],
+ ['belt','Пояс','🪢'],['pants','Штани','👖'],
+ ['boots','Взуття','👢'],['amulet','Амулет','📿'],
+ ['weaponR','Зброя|права рука','⚔️'],['weaponL','Зброя|ліва рука','🗡️'],
+ ['ring1','Кільце 1','💍'],['ring2','Кільце 2','💍']
+];
+var STAT_UK={agility:'спритність',accuracy:'точність',damage:'урон',armor:'броня',health:"здоров'я",mana:'мана',magicDamage:'магічний урон',magicResist:'магічна стійкість',critDamage:'критичний урон'};
+var uid=1;function it(name,cat,icon,qty,stats){return {uid:'i'+(uid++),name:name,cat:cat,icon:icon,qty:qty,stats:stats||{}};}
+var INV=[
+ it('Меч','weapon','⚔️',1,{damage:14}),
+ it('Щит','weapon','🛡️',1,{armor:12}),
+ it('Посох','weapon','🪄',1,{magicDamage:16}),
+ it('Лук','weapon','🏹',2,{accuracy:8,damage:6}),
+ it('Стріли','other','🎯',5,{}),
+ it('Капелюх мага','head','img/items/mage-hat.webp',1,{}),
+ it('Обладунки','body','🥋',1,{armor:18,health:40}),
+ it('Плащ','body','🧥',2,{armor:6,magicResist:8}),
+ it('Рукавиці','gloves','🧤',1,{agility:6,armor:4}),
+ it('Наручі','bracers','🦾',1,{armor:6,agility:3}),
+ it('Пояс','belt','🪢',1,{armor:5,health:20}),
+ it('Штани','pants','👖',1,{armor:7,agility:5}),
+ it('Чоботи','boots','👢',1,{agility:9,armor:4}),
+ it('Перстень','ring','💍',1,{magicDamage:10}),
+ it('Амулет','amulet','💜',1,{magicResist:12,mana:30}),
+ it('Кулон','amulet','🔱',1,{health:60}),
+ it('Зілля здоровʼя','other','🧪',3,{}),
+ it('Зілля мани','other','🧴',5,{}),
+ it('Сувій','other','📜',2,{}),
+ it('Книга','other','📖',1,{}),
+ it('Ключ','other','🗝️',1,{}),
+ it('Скриня','other','🧰',1,{}),
+ it('Мішечок','other','💰',8,{}),
+ it('Кристал','other','💎',4,{}),
+ it('Перо','other','🪶',3,{}),
+ it('Трава','other','🌿',6,{}),
+ it('Мʼясо','other','🥩',2,{}),
+ it('Яблуко','other','🍎',7,{}),
+ it('Гриб','other','🍄',4,{})
+];
+var EQUIP={helmet:null,armor:null,gloves:null,bracers:null,belt:null,pants:null,boots:null,weaponR:null,weaponL:null,ring1:null,ring2:null,amulet:null};
+var TABS=[
+ ['all','Усі','🎒',function(){return true;}],
+ ['weapon','Зброя','⚔️',function(c){return c==='weapon';}],
+ ['armor','Броня','🛡️',function(c){return ['body','head','gloves','bracers','belt','pants','boots'].indexOf(c)>=0;}],
+ ['other','Інше','🧪',function(c){return ['other','ring','amulet'].indexOf(c)>=0;}]
+];
+var curTab='all';
+
+function isImg(ic){return typeof ic==='string'&&/\.(webp|png|jpe?g|svg|gif)$/i.test(ic);}
+function iconHTML(ic){if(isImg(ic))return '<img class="ek-img" src="'+ic+'" alt="" onerror="this.onerror=null;this.src=this.src.replace(\'.webp\',\'.png\')">';return ic;}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function totals(){var t={health:HERO.health||0,mana:HERO.mana||0,agility:HERO.agility||0,accuracy:HERO.accuracy||0,armor:0,magicResist:0,magicDamage:0,damage:0};
+ for(var s in EQUIP){var item=EQUIP[s];if(!item)continue;for(var k2 in item.stats)t[k2]=(t[k2]||0)+item.stats[k2];}
+ return t;}
+function bonusTitle(item){var p=[];for(var k in item.stats)p.push((STAT_UK[k]||k)+' +'+item.stats[k]);return item.name+(p.length?' — '+p.join(', '):'');}
+
+function paintAvatar(token){var img=q('ek-heroImg');if(!img)return;var S=window.SKAVA;
+ if(S&&S.isHeroToken&&S.isHeroToken(token)&&S.has&&S.has(S.idOf(token))){var id=S.idOf(token);
+  img.onerror=function(){img.onerror=null;if(S.fullPng)img.src=S.fullPng(id);};img.src=S.fullSrc(id);}
+ else{img.onerror=function(){img.onerror=null;img.src='https://raw.githubusercontent.com/natalikazichuk/schoolkingdoms/main/img/ava/knight-green-boy-full.webp';};img.src='img/ava/knight-green-boy-full.webp';}}
+
+function renderStats(){var t=totals();
+ q('ek-lvl').textContent=LEVEL.level;q('ek-xpTxt').textContent=LEVEL.xp+' / '+LEVEL.xpMax;
+ q('ek-xpFill').style.width=Math.min(100,LEVEL.xp/LEVEL.xpMax*100)+'%';
+ q('ek-hpVal').textContent=t.health+' / '+t.health;q('ek-mpVal').textContent=t.mana+' / '+t.mana;q('ek-coins').textContent=(HERO.coins!=null?HERO.coins:0);
+ q('ek-hpFill').style.width='100%';q('ek-mpFill').style.width='100%';
+ var tiles=[['dmg','⚔️','Урон',t.damage],['arm','🛡️','Броня',t.armor],['acc','🎯','Точність',t.accuracy],
+  ['mdmg','✨','Магічний урон',t.magicDamage],['mres','🔮','Магічна стійкість',t.magicResist],['agi','👟','Спритність',t.agility]];
+ q('ek-statGrid').innerHTML=tiles.map(function(a){return '<div class="ek-stat '+a[0]+'"><div class="ek-si">'+a[1]+'</div><div class="ek-sl">'+a[2]+'</div><div class="ek-sv">'+a[3]+'</div></div>';}).join('');}
+
+function renderSlots(){q('ek-slots').innerHTML=SLOT_DEFS.map(function(d){var id=d[0],lab=d[1],ghost=d[2];var item=EQUIP[id];
+ var inner=item?'<span class="ek-chip ek-drag" data-src="slot" data-slot="'+id+'" title="'+esc(bonusTitle(item))+'">'+iconHTML(item.icon)+'</span>'
+  :'<span class="ek-gh">'+ghost+'</span>';
+ return '<div class="ek-slot'+(item?' ek-filled':'')+'" data-slot="'+id+'">'+inner+'<span class="ek-lab">'+lab.split('|').join('<br>')+'</span></div>';}).join('');}
+
+function renderInv(){var f=null;for(var i=0;i<TABS.length;i++)if(TABS[i][0]===curTab)f=TABS[i][3];
+ var list=INV.filter(function(x){return x.qty>0&&f(x.cat);});var g=q('ek-invGrid');
+ if(!list.length){g.innerHTML='<div class="ek-empty">Порожньо</div>';return;}
+ g.innerHTML=list.map(function(x){return '<div class="ek-cell" data-uid="'+x.uid+'">'+
+  '<span class="ek-chip ek-drag" data-src="inv" data-uid="'+x.uid+'" title="'+esc(bonusTitle(x))+'">'+iconHTML(x.icon)+'</span>'+
+  (x.qty>1?'<span class="ek-qty">'+x.qty+'</span>':'')+'</div>';}).join('');}
+
+function renderTabs(){q('ek-tabs').innerHTML=TABS.map(function(t){return '<span class="ek-tab'+(t[0]===curTab?' ek-on':'')+'" data-tab="'+t[0]+'">'+t[2]+' '+t[1]+'</span>';}).join('');}
+function renderAll(){renderTabs();renderSlots();renderInv();renderStats();}
+
+function findInv(u){for(var i=0;i<INV.length;i++)if(INV[i].uid===u)return INV[i];return null;}
+function compat(cat,slotId){return SLOT_CAT[slotId]===cat;}
+function firstFree(cat){var s;for(s in SLOT_CAT)if(SLOT_CAT[s]===cat&&!EQUIP[s])return s;for(s in SLOT_CAT)if(SLOT_CAT[s]===cat)return s;return null;}
+function invAdd(item){for(var i=0;i<INV.length;i++)if(INV[i].name===item.name&&INV[i].cat===item.cat){INV[i].qty+=(item.qty||1);return;}INV.push({uid:'i'+(uid++),name:item.name,cat:item.cat,icon:item.icon,stats:item.stats,qty:item.qty||1});}
+function equipFromInv(u,slotId){var inv=findInv(u);if(!inv||inv.qty<1)return;if(!compat(inv.cat,slotId))return;
+ if(EQUIP[slotId])invAdd(EQUIP[slotId]);EQUIP[slotId]={name:inv.name,cat:inv.cat,icon:inv.icon,stats:inv.stats,qty:1};inv.qty--;renderAll();}
+function unequip(slotId){if(!EQUIP[slotId])return;invAdd(EQUIP[slotId]);EQUIP[slotId]=null;renderAll();}
+function moveSlot(a,b){if(a===b)return;if(!compat(EQUIP[a].cat,b))return;var t=EQUIP[b];EQUIP[b]=EQUIP[a];EQUIP[a]=t;renderAll();}
+
+var ghost=null;function mkGhost(){if(ghost)return;ghost=document.createElement('div');ghost.id='ek-ghost';ghost.hidden=true;document.body.appendChild(ghost);}
+var drag=null,down=null;
+function startDrag(el,x,y){var src=el.getAttribute('data-src'),cat,icon;
+ if(src==='inv'){var i=findInv(el.getAttribute('data-uid'));if(!i)return;cat=i.cat;icon=i.icon;drag={src:src,uid:el.getAttribute('data-uid'),cat:cat,icon:icon};}
+ else{var s=el.getAttribute('data-slot'),item=EQUIP[s];if(!item)return;cat=item.cat;icon=item.icon;drag={src:src,slot:s,cat:cat,icon:icon};}
+ mkGhost();ghost.innerHTML=iconHTML(icon);ghost.hidden=false;moveGhost(x,y);
+ var slots=document.querySelectorAll('#ek-slots .ek-slot');for(var k=0;k<slots.length;k++)if(compat(cat,slots[k].getAttribute('data-slot')))slots[k].classList.add('ek-compat');
+ document.body.style.userSelect='none';}
+function moveGhost(x,y){ghost.style.left=x+'px';ghost.style.top=y+'px';}
+function targetAt(x,y){ghost.style.visibility='hidden';var el=document.elementFromPoint(x,y);ghost.style.visibility='';if(!el)return null;
+ var slot=el.closest('.ek-slot');if(slot)return {type:'slot',id:slot.getAttribute('data-slot'),el:slot};
+ var inv=el.closest('.ek-inv');if(inv)return {type:'inv'};return null;}
+function highlightOver(t){var o=document.querySelectorAll('.ek-slot.ek-over');for(var i=0;i<o.length;i++)o[i].classList.remove('ek-over');
+ if(t&&t.type==='slot'&&t.el.classList.contains('ek-compat'))t.el.classList.add('ek-over');}
+function endDrag(x,y){var t=targetAt(x,y);if(drag&&t){
+  if(t.type==='slot'&&compat(drag.cat,t.id)){if(drag.src==='inv')equipFromInv(drag.uid,t.id);else moveSlot(drag.slot,t.id);}
+  else if(t.type==='inv'&&drag.src==='slot')unequip(drag.slot);}cleanup();}
+function cleanup(){drag=null;if(ghost)ghost.hidden=true;var c=document.querySelectorAll('.ek-slot.ek-compat,.ek-slot.ek-over');for(var i=0;i<c.length;i++)c[i].classList.remove('ek-compat','ek-over');document.body.style.userSelect='';}
+function tap(el){if(el.getAttribute('data-src')==='inv'){var i=findInv(el.getAttribute('data-uid'));if(!i)return;var s=firstFree(i.cat);if(s)equipFromInv(el.getAttribute('data-uid'),s);}
+ else if(el.getAttribute('data-src')==='slot')unequip(el.getAttribute('data-slot'));}
+
+document.addEventListener('pointerdown',function(e){var el=e.target.closest?e.target.closest('.ek-drag'):null;if(!el)return;down={el:el,x:e.clientX,y:e.clientY,started:false};});
+document.addEventListener('pointermove',function(e){if(!down)return;if(!down.started){if(Math.hypot(e.clientX-down.x,e.clientY-down.y)<7)return;down.started=true;startDrag(down.el,e.clientX,e.clientY);}
+ if(drag){moveGhost(e.clientX,e.clientY);highlightOver(targetAt(e.clientX,e.clientY));e.preventDefault();}},{passive:false});
+document.addEventListener('pointerup',function(e){if(down&&down.started)endDrag(e.clientX,e.clientY);else if(down)tap(down.el);down=null;});
+document.addEventListener('pointercancel',function(){cleanup();down=null;});
+document.addEventListener('click',function(e){if(e.target.closest&&e.target.closest('#ek-avatarPick')){if(window.__openLook)window.__openLook();return;}var t=e.target.closest?e.target.closest('#ek-tabs .ek-tab'):null;if(!t)return;curTab=t.getAttribute('data-tab');renderTabs();renderInv();});
+
+window.EKEQUIP={render:function(token,hd){if(hd){['health','mana','agility','accuracy','coins'].forEach(function(k){if(hd[k]!=null)HERO[k]=hd[k];});if(hd.level!=null)LEVEL.level=hd.level;if(hd.xp!=null)LEVEL.xp=hd.xp;if(hd.xpMax!=null&&hd.xpMax>0)LEVEL.xpMax=hd.xpMax;}paintAvatar(token);renderAll();}};
+function init(){renderAll();paintAvatar(null);}
+if(document.readyState!=='loading')init();else document.addEventListener('DOMContentLoaded',init);
+})();
+</script>
+
+
+<!-- Спільний хедер із панеллю прогресу Героя (❤️🔮🏃🎯⭐) — те саме джерело, що й на інших сторінках -->
+<script>window.SK_HEADER_SUB='Турнірна арена';</script>
+<script src="sk-header.js"></script>
+</body>
+</html>
+
