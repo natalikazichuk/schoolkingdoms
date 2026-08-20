@@ -1063,7 +1063,7 @@ body.scr-battle .wrap{max-width:1500px}
   }
 
   /* ── похідні бойові показники з характеристик ── */
-  function maxForce(f){ return CFG.baseHP + Math.round(f.health||50); }
+  function maxForce(f){ return Math.round(f.health||50); }  // бойове HP = здоров'я Героя
   function dmgOf(f){ return CFG.baseDmg + Math.round((f.accuracy||50)/8); }
   function critRoll(f){ return Math.random() < (f.accuracy||50)/CFG.critChance; }
   function dodgeRoll(f){ return Math.random() < (f.agility||50)/CFG.dodgeChance; }
@@ -1300,7 +1300,7 @@ body.scr-battle .wrap{max-width:1500px}
     });
   }
 
-  function ekHeroData(){ return { health:hero.health, mana:hero.mana, agility:hero.agility, accuracy:hero.accuracy, coins:hero.coins, level:arena.level, xp:arena.xp, xpMax:arena.level*CFG.xpPerLvl }; }
+  function ekHeroData(){ return { health:hero.health, mana:hero.mana, agility:hero.agility, accuracy:hero.accuracy, coins:hero.coins, level:arena.level, xp:arena.xp, xpMax:arena.level*CFG.xpPerLvl, baseHP:CFG.baseHP }; }
   function openWardrobe(){
     buildLookGrid();
     if(window.EKEQUIP){ EKEQUIP.render(hero.avatar, ekHeroData()); }
@@ -1369,11 +1369,11 @@ body.scr-battle .wrap{max-width:1500px}
     // бот під рівень гравця: беремо приблизно за силою
     var idx = Math.min(BOTS.length-1, Math.floor((arena.level-1)/2));
     var bot = BOTS[idx];
-    var scale = 1 + bot.power*0.12;
+    function vary(v){ return Math.max(1, Math.round((v||0)*(0.8+Math.random()*0.4))); } // ±20% від Героя
     return {
       name: bot.name, avatar: bot.avatar,
       level: Math.max(1, arena.level + (bot.power-1)),
-      health: Math.round(50*scale), accuracy: Math.round(50*scale), agility: Math.round(45*scale), mana:20,
+      health: vary(hero.health), accuracy: vary(hero.accuracy), agility: vary(hero.agility), mana: vary(hero.mana),
       lastPlayerAtk: null
     };
   }
@@ -1896,7 +1896,7 @@ body.scr-battle .wrap{max-width:1500px}
 'use strict';
 var q=function(id){return document.getElementById(id);};
 
-var HERO={health:50,mana:20,agility:50,accuracy:50,coins:0}; /* база з даних Героя (хедер); заповнюється в render() */
+var HERO={health:50,mana:20,agility:50,accuracy:50,coins:0,baseHP:0}; /* база з даних Героя (хедер); заповнюється в render() */
 var LEVEL={level:12,xp:2450,xpMax:3000};
 var SLOT_CAT={helmet:'head',armor:'body',gloves:'gloves',bracers:'bracers',belt:'belt',pants:'pants',boots:'boots',weaponR:'weapon',weaponL:'weapon',ring1:'ring',ring2:'ring',amulet:'amulet'};
 var SLOT_DEFS=[
@@ -2023,7 +2023,7 @@ document.addEventListener('pointerup',function(e){if(down&&down.started)endDrag(
 document.addEventListener('pointercancel',function(){cleanup();down=null;});
 document.addEventListener('click',function(e){if(e.target.closest&&e.target.closest('#ek-avatarPick')){if(window.__openLook)window.__openLook();return;}var t=e.target.closest?e.target.closest('#ek-tabs .ek-tab'):null;if(!t)return;curTab=t.getAttribute('data-tab');renderTabs();renderInv();});
 
-window.EKEQUIP={render:function(token,hd){if(hd){['health','mana','agility','accuracy','coins'].forEach(function(k){if(hd[k]!=null)HERO[k]=hd[k];});if(hd.level!=null)LEVEL.level=hd.level;if(hd.xp!=null)LEVEL.xp=hd.xp;if(hd.xpMax!=null&&hd.xpMax>0)LEVEL.xpMax=hd.xpMax;}paintAvatar(token);renderAll();}};
+window.EKEQUIP={render:function(token,hd){if(hd){['health','mana','agility','accuracy','coins','baseHP'].forEach(function(k){if(hd[k]!=null)HERO[k]=hd[k];});if(hd.level!=null)LEVEL.level=hd.level;if(hd.xp!=null)LEVEL.xp=hd.xp;if(hd.xpMax!=null&&hd.xpMax>0)LEVEL.xpMax=hd.xpMax;}paintAvatar(token);renderAll();}};
 function init(){renderAll();paintAvatar(null);}
 if(document.readyState!=='loading')init();else document.addEventListener('DOMContentLoaded',init);
 })();
