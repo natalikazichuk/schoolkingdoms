@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Екіпіровка героя — прототип</title>
+<style>
+/* ══════════════════════════════════════════════════════════════════
+   sk-equip — поп-ап «Екіпіровка героя» (Ф0 прототип для перевірки)
+   Дані ЗАРАЗ локальні (demo). Наступний крок — база + сторінка в адмінці.
+   Токени взято з sk-styles.css:
+     navy #13315f / #0c2247 / #1e4d8b · gold #F2C75C / #C9942F / #8a5e16
+   ══════════════════════════════════════════════════════════════════ */
+:root{
+  --navy:#13315f; --navy-d:#0c2247; --navy-l:#1e4d8b;
+  --gold:#F2C75C; --gold-d:#C9942F; --gold-deep:#8a5e16; --gold-line:#e0a42a;
+  --cream:#FBEFD0; --ink:#16315c;
+  --c-agi:#F2C75C; --c-acc:#F2C75C; --c-arm:#4bd07a;
+  --c-mres:#9d7bf0; --c-mdmg:#c06be6; --c-dmg:#f0603f;
+  --cell:84px;            /* ЄДИНИЙ розмір комірки: інвентар == слоти */
+  --gap:8px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  font-family:'Rubik','Segoe UI',system-ui,-apple-system,sans-serif;
+  color:#eaf1ff;
+  background:
+    radial-gradient(1200px 700px at 50% -10%, #2a4a7e 0%, #16294f 45%, #0b1a38 100%);
+  min-height:100dvh; display:flex; align-items:center; justify-content:center; padding:14px;
+}
+
+/* ── кнопка повторного відкриття (для перегляду) ── */
+#reopen{display:none; padding:16px 26px; font-size:1.05rem; font-weight:800;
+  background:linear-gradient(180deg,#FFE7A0,#E0A93A); color:#5a3d08;
+  border:2px solid var(--gold-d); border-radius:16px; cursor:pointer;
+  box-shadow:0 10px 28px rgba(0,0,0,.4)}
+
+/* ── бекдроп + панель ── */
+.ek-back{position:fixed; inset:0; z-index:100; display:flex; align-items:center; justify-content:center;
+  background:rgba(6,12,26,.72); backdrop-filter:blur(4px); padding:14px}
+.ek-back[hidden]{display:none}
+
+.ek{
+  width:min(1000px,97vw); max-height:94dvh; overflow:auto;
+  background:linear-gradient(180deg,#243b66,#182a4c);
+  border:3px solid var(--gold-line); border-radius:22px;
+  box-shadow:0 24px 70px rgba(0,0,0,.55);
+}
+.ek-head{display:flex; align-items:center; gap:10px; padding:14px 18px;
+  border-bottom:2px solid rgba(224,164,42,.35)}
+.ek-head .ico{font-size:1.5rem; filter:drop-shadow(0 2px 2px rgba(0,0,0,.4))}
+.ek-head b{font-size:1.25rem; color:#ffe9b8; letter-spacing:.01em; flex:1}
+.ek-x{background:none; border:0; color:#ffe9b8; font-size:1.7rem; line-height:1; cursor:pointer;
+  padding:2px 8px; border-radius:10px}
+.ek-x:hover{background:rgba(255,255,255,.08)}
+
+/* ── три колонки ── */
+.ek-body{display:grid; grid-template-columns:300px minmax(190px,auto) 1fr; gap:14px; padding:16px}
+
+/* ── ЛІВА: картка героя ── */
+.hero-card{background:linear-gradient(180deg,#1c3357,#111f3c);
+  border:2px solid rgba(224,164,42,.5); border-radius:16px; padding:12px; position:relative}
+.hc-art{position:relative; border-radius:12px; overflow:hidden;
+  background:linear-gradient(180deg,#bfe3fb 0%,#8fc3ee 55%,#7ab98f 100%);
+  aspect-ratio:1/1; display:flex; align-items:flex-end; justify-content:center}
+.hc-art img{width:96%; height:98%; object-fit:contain; object-position:center bottom;
+  filter:drop-shadow(0 8px 10px rgba(0,0,0,.25))}
+.hc-land{position:absolute; inset:0; background:
+  radial-gradient(120% 60% at 50% 120%, rgba(60,120,70,.55), transparent 60%),
+  radial-gradient(90% 40% at 20% 10%, rgba(255,255,255,.35), transparent 60%)}
+
+/* значок рівня + XP */
+.lvl{position:absolute; top:6px; left:6px; display:flex; align-items:center; gap:8px; z-index:3}
+.lvl .shield{width:46px; height:52px; display:flex; align-items:center; justify-content:center;
+  font-weight:900; font-size:1.25rem; color:#3a2a06;
+  background:linear-gradient(180deg,#FFE29A,#E7B23E); border:2px solid #b9822a;
+  clip-path:polygon(50% 0,100% 12%,100% 66%,50% 100%,0 66%,0 12%);
+  box-shadow:0 3px 6px rgba(0,0,0,.35)}
+.lvl .xpwrap{background:rgba(9,18,38,.72); border:1.5px solid rgba(224,164,42,.6);
+  border-radius:12px; padding:5px 10px; min-width:150px}
+.lvl .xpwrap .t{font-size:.62rem; font-weight:800; color:#ffe9b8; letter-spacing:.03em; margin-bottom:3px}
+.xpbar{height:9px; border-radius:6px; background:rgba(0,0,0,.4); overflow:hidden}
+.xpbar>i{display:block; height:100%; border-radius:6px;
+  background:linear-gradient(90deg,#8fd0ff,#4d9bff)}
+
+/* HP / Mana */
+.bars{margin-top:10px; display:grid; gap:8px}
+.bar{display:flex; align-items:center; gap:8px}
+.bar .b-ico{width:30px; height:30px; flex:none; display:flex; align-items:center; justify-content:center;
+  font-size:1rem; border-radius:9px; background:rgba(0,0,0,.28); border:1.5px solid rgba(255,255,255,.14)}
+.bar .track{flex:1; height:22px; border-radius:11px; background:rgba(0,0,0,.38);
+  border:1.5px solid rgba(255,255,255,.14); overflow:hidden; position:relative}
+.bar .track>i{display:block; height:100%; border-radius:11px}
+.bar.hp .track>i{background:linear-gradient(180deg,#ff7a6b,#d23a2c)}
+.bar.mp .track>i{background:linear-gradient(180deg,#7fb2ff,#3f6fe0)}
+.bar .val{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  font-weight:800; font-size:.82rem; text-shadow:0 1px 2px rgba(0,0,0,.6)}
+
+/* стати (6 плиток) */
+.stats{margin-top:12px; display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
+.stat{background:linear-gradient(180deg,#22375f,#182b4d); border:1.5px solid rgba(224,164,42,.35);
+  border-radius:12px; padding:7px 4px 6px; text-align:center; position:relative; overflow:hidden}
+.stat .si{font-size:1.15rem; line-height:1}
+.stat .sl{font-size:.56rem; font-weight:700; color:#c9d8f5; margin:3px 0 1px; line-height:1.1;
+  min-height:1.9em; display:flex; align-items:center; justify-content:center}
+.stat .sv{font-size:1.05rem; font-weight:900}
+.stat::after{content:""; position:absolute; left:14%; right:14%; bottom:4px; height:3px; border-radius:3px;
+  background:var(--acc,#F2C75C)}
+.stat.agi{--acc:var(--c-agi)} .stat.agi .sv{color:var(--c-agi)}
+.stat.acc{--acc:var(--c-acc)} .stat.acc .sv{color:var(--c-acc)}
+.stat.arm{--acc:var(--c-arm)} .stat.arm .sv{color:var(--c-arm)}
+.stat.mres{--acc:var(--c-mres)} .stat.mres .sv{color:#c3b0ff}
+.stat.mdmg{--acc:var(--c-mdmg)} .stat.mdmg .sv{color:#e2b0ff}
+.stat.dmg{--acc:var(--c-dmg)} .stat.dmg .sv{color:#ff9c88}
+
+/* ── СЕРЕДИНА: слоти екіпіровки ── */
+.slots{display:grid; grid-template-columns:repeat(2,var(--cell)); gap:var(--gap); align-content:start;
+  justify-content:center}
+.slot,.cell{width:var(--cell); height:var(--cell); border-radius:14px; position:relative;
+  display:flex; align-items:center; justify-content:center; user-select:none}
+.slot{background:radial-gradient(120% 120% at 50% 20%, #24406e, #16294c);
+  border:2px solid rgba(224,164,42,.45); box-shadow:inset 0 2px 10px rgba(0,0,0,.45)}
+.slot .ghost{font-size:1.6rem; opacity:.28}
+.slot .lab{position:absolute; left:4px; right:4px; bottom:5px; font-size:.56rem; font-weight:800;
+  color:#ffe6ab; text-align:center; line-height:1.05; text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.slot.compat{border-color:#ffe07a; box-shadow:0 0 0 3px rgba(255,224,122,.5),inset 0 2px 10px rgba(0,0,0,.4)}
+.slot.over{background:radial-gradient(120% 120% at 50% 20%, #33528a, #1c355f)}
+.slot.filled{border-color:#ffd873}
+
+/* фішка предмета всередині слота/комірки */
+.chip{position:absolute; inset:5px; border-radius:11px; display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(180deg,#2c4a7d,#1b3157); border:1.5px solid rgba(255,214,115,.6);
+  font-size:2rem; cursor:grab; line-height:1; box-shadow:0 3px 8px rgba(0,0,0,.35)}
+.slot .chip .lab{position:static; inset:auto; background:none}
+.slot.filled .lab{display:none}
+.chip:active{cursor:grabbing}
+
+/* ── ПРАВА: інвентар ── */
+.inv{background:linear-gradient(180deg,#1c3357,#111f3c); border:2px solid rgba(224,164,42,.5);
+  border-radius:16px; padding:12px; display:flex; flex-direction:column; min-width:0}
+.inv-head{display:flex; align-items:center; gap:10px; margin-bottom:10px}
+.inv-head b{font-size:1.1rem; color:#ffe9b8; flex:1}
+.coins{display:inline-flex; align-items:center; gap:6px; font-weight:900; color:#ffe9b8;
+  background:rgba(0,0,0,.3); border:1.5px solid rgba(224,164,42,.55); border-radius:20px; padding:4px 12px}
+.tabs{display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap}
+.tab{display:inline-flex; align-items:center; gap:5px; font-weight:800; font-size:.82rem; cursor:pointer;
+  padding:7px 12px; border-radius:11px; color:#dfe8fb; border:1.5px solid transparent;
+  background:rgba(255,255,255,.05)}
+.tab:hover{background:rgba(255,255,255,.1)}
+.tab.on{background:linear-gradient(180deg,#FFE7A0,#E0A93A); color:#5a3d08; border-color:var(--gold-d)}
+.grid{display:grid; grid-template-columns:repeat(auto-fill,var(--cell)); gap:var(--gap);
+  justify-content:center; align-content:start; overflow:auto; padding:2px; max-height:60dvh}
+.cell{background:radial-gradient(120% 120% at 50% 20%, #22406e, #14274a);
+  border:2px solid rgba(224,164,42,.3); box-shadow:inset 0 2px 8px rgba(0,0,0,.4)}
+.cell .chip{cursor:grab}
+.cell.compat-hint{outline:2px dashed rgba(255,224,122,.5); outline-offset:-4px}
+.qty{position:absolute; right:4px; bottom:3px; font-size:.72rem; font-weight:900; color:#fff;
+  background:rgba(9,18,38,.85); border:1px solid rgba(224,164,42,.6); border-radius:8px;
+  padding:0 5px; line-height:1.4; z-index:2}
+.empty{grid-column:1/-1; text-align:center; color:#9fb2d6; padding:24px 8px; font-weight:700}
+
+/* привид перетягування */
+#drag-ghost{position:fixed; z-index:200; width:var(--cell); height:var(--cell); pointer-events:none;
+  display:flex; align-items:center; justify-content:center; font-size:2.2rem;
+  background:linear-gradient(180deg,#2c4a7d,#1b3157); border:2px solid #ffd873; border-radius:14px;
+  box-shadow:0 12px 26px rgba(0,0,0,.5); transform:translate(-50%,-50%) scale(1.05); opacity:.96}
+#drag-ghost[hidden]{display:none}
+
+.hint{padding:0 16px 14px; font-size:.74rem; color:#9fb2d6}
+.hint b{color:#ffd98a}
+
+/* адаптив */
+@media (max-width:820px){
+  .ek-body{grid-template-columns:1fr; }
+  .slots{grid-template-columns:repeat(4,var(--cell))}
+}
+@media (max-width:560px){ :root{--cell:72px} .slots{grid-template-columns:repeat(3,var(--cell))} }
+</style>
+</head>
+<body>
+
+<button id="reopen">🎒 Відкрити екіпіровку</button>
+
+<div class="ek-back" id="ekBack">
+  <div class="ek" role="dialog" aria-label="Екіпіровка героя">
+    <div class="ek-head">
+      <span class="ico">🛡️</span>
+      <b>Екіпіровка героя</b>
+      <button class="ek-x" id="ekClose" aria-label="Закрити">✕</button>
+    </div>
+
+    <div class="ek-body">
+      <!-- ЛІВА: герой -->
+      <section class="hero-card">
+        <div class="lvl">
+          <div class="shield" id="lvlNum">12</div>
+          <div class="xpwrap">
+            <div class="t" id="xpTxt">2450 / 3000</div>
+            <div class="xpbar"><i id="xpFill" style="width:82%"></i></div>
+          </div>
+        </div>
+        <div class="hc-art">
+          <div class="hc-land"></div>
+          <img id="heroImg"
+               src="img/ava/knight-green-boy-full.webp"
+               onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/natalikazichuk/schoolkingdoms/main/img/ava/knight-green-boy-full.webp'"
+               alt="Герой">
+        </div>
+
+        <div class="bars">
+          <div class="bar hp">
+            <span class="b-ico">❤️</span>
+            <span class="track"><i id="hpFill"></i><span class="val" id="hpVal">—</span></span>
+          </div>
+          <div class="bar mp">
+            <span class="b-ico">💧</span>
+            <span class="track"><i id="mpFill"></i><span class="val" id="mpVal">—</span></span>
+          </div>
+        </div>
+
+        <div class="stats" id="statGrid"></div>
+      </section>
+
+      <!-- СЕРЕДИНА: слоти -->
+      <section class="slots" id="slots"></section>
+
+      <!-- ПРАВА: інвентар -->
+      <section class="inv">
+        <div class="inv-head">
+          <b>Інвентар</b>
+          <span class="coins">🪙 <span id="coins">540</span></span>
+        </div>
+        <div class="tabs" id="tabs"></div>
+        <div class="grid" id="invGrid"></div>
+      </section>
+    </div>
+
+    <div class="hint">Перетягни річ з інвентаря у відповідний слот, або <b>тапни</b> по речі, щоб одягнути. Тап по одягненій речі — зняти.</div>
+  </div>
+</div>
+
+<div id="drag-ghost" hidden></div>
+
+<script>
+'use strict';
+/* ═══════════════ ДАНІ (demo — заміниться базою) ═══════════════ */
+
+/* стати героя: базові значення (без екіпіровки) */
+const BASE = { health:800, mana:400, agility:70, accuracy:64, armor:88, magicResist:52, magicDamage:78, damage:88 };
+const LEVEL = { level:12, xp:2450, xpMax:3000 };
+
+/* категорія речі → який слот приймає */
+const CATS = {
+  head:'головні убори', body:'обладунки', gloves:'рукавиці', bracers:'наручі',
+  belt:'пояс', pants:'штани', boots:'взуття', weapon:'зброя',
+  ring:'кільце', amulet:'амулет', other:'інше'
+};
+/* слот → категорія, яку він приймає */
+const SLOT_CAT = {
+  helmet:'head', armor:'body', gloves:'gloves', bracers:'bracers',
+  belt:'belt', pants:'pants', boots:'boots',
+  weaponR:'weapon', weaponL:'weapon', ring1:'ring', ring2:'ring', amulet:'amulet'
+};
+/* порядок і підписи слотів — 6 рядів по 2 (симетрія):
+   кільце1,2 в одному ряду; рука1,2 в одному ряду; наручі↔рукавиці; пояс↔штани */
+const SLOT_DEFS = [
+  ['helmet','Шолом','⛑️'],   ['armor','Обладунки','🥋'],
+  ['gloves','Рукавиці','🧤'], ['bracers','Наручі','🦾'],
+  ['belt','Пояс','🪢'],       ['pants','Штани','👖'],
+  ['boots','Взуття','👢'],    ['amulet','Амулет','📿'],
+  ['weaponR','Зброя\nправа рука','⚔️'], ['weaponL','Зброя\nліва рука','🗡️'],
+  ['ring1','Кільце 1','💍'],  ['ring2','Кільце 2','💍'],
+];
+
+/* ярлик статів для підказки бонусів */
+const STAT_UK = { agility:'спритність', accuracy:'точність', damage:'урон', armor:'броня',
+  health:"здоров'я", mana:'мана', magicDamage:'магічний урон', magicResist:'магічна стійкість', critDamage:'критичний урон' };
+
+let uid = 1;
+function it(name,cat,icon,qty,stats){ return {uid:'i'+(uid++), name,cat,icon,qty,stats:stats||{}}; }
+
+/* стартовий інвентар (як на макеті) */
+let INV = [
+  // зброя
+  it('Меч','weapon','⚔️',1,{damage:14}),
+  it('Щит','weapon','🛡️',1,{armor:12}),
+  it('Посох','weapon','🪄',1,{magicDamage:16}),
+  it('Лук','weapon','🏹',2,{accuracy:8,damage:6}),
+  it('Стріли','other','🎯',5,{}),
+  // броня
+  it('Обладунки','body','🥋',1,{armor:18,health:40}),
+  it('Плащ','body','🧥',2,{armor:6,magicResist:8}),
+  it('Рукавиці','gloves','🧤',1,{agility:6,armor:4}),
+  it('Наручі','bracers','🦾',1,{armor:6,agility:3}),
+  it('Пояс','belt','🪢',1,{armor:5,health:20}),
+  it('Штани','pants','👖',1,{armor:7,agility:5}),
+  it('Чоботи','boots','👢',1,{agility:9,armor:4}),
+  // прикраси
+  it('Перстень','ring','💍',1,{magicDamage:10}),
+  it('Амулет','amulet','💜',1,{magicResist:12,mana:30}),
+  it('Кулон','amulet','🔱',1,{health:60}),
+  // інше
+  it('Зілля здоров’я','other','🧪',3,{}),
+  it('Зілля мани','other','🧴',5,{}),
+  it('Сувій','other','📜',2,{}),
+  it('Книга','other','📖',1,{}),
+  it('Ключ','other','🗝️',1,{}),
+  it('Скриня','other','🧰',1,{}),
+  it('Мішечок','other','💰',8,{}),
+  it('Кристал','other','💎',4,{}),
+  it('Перо','other','🪶',3,{}),
+  it('Трава','other','🌿',6,{}),
+  it('М’ясо','other','🥩',2,{}),
+  it('Яблуко','other','🍎',7,{}),
+  it('Гриб','other','🍄',4,{}),
+];
+
+/* одягнене */
+let EQUIP = { helmet:null, armor:null, gloves:null, bracers:null, belt:null, pants:null,
+  boots:null, weaponR:null, weaponL:null, ring1:null, ring2:null, amulet:null };
+
+/* вкладки */
+const TABS = [
+  ['all','Усі','🎒', ()=>true],
+  ['weapon','Зброя','⚔️', c=>c==='weapon'],
+  ['armor','Броня','🛡️', c=>['body','head','gloves','bracers','belt','pants','boots'].includes(c)],
+  ['other','Інше','🧪', c=>['other','ring','amulet'].includes(c)],
+];
+let curTab='all';
+
+/* ═══════════════ РЕНДЕР ═══════════════ */
+const $=id=>document.getElementById(id);
+function chipHTML(item){ return '<span class="chip" draggable="false">'+item.icon+'</span>'; }
+
+function renderStats(){
+  const t = totals();
+  $('lvlNum').textContent = LEVEL.level;
+  $('xpTxt').textContent  = LEVEL.xp+' / '+LEVEL.xpMax;
+  $('xpFill').style.width = Math.min(100, LEVEL.xp/LEVEL.xpMax*100)+'%';
+
+  $('hpVal').textContent = t.health+' / '+t.health;
+  $('mpVal').textContent = t.mana+' / '+t.mana;
+  $('hpFill').style.width='100%'; $('mpFill').style.width='100%';
+
+  const tiles = [
+    ['dmg','⚔️','Урон',        t.damage],
+    ['arm','🛡️','Броня',      t.armor],
+    ['acc','🎯','Точність',   t.accuracy],
+    ['mdmg','✨','Магічний урон',      t.magicDamage],
+    ['mres','🔮','Магічна стійкість', t.magicResist],
+    ['agi','👟','Спритність', t.agility],
+  ];
+  $('statGrid').innerHTML = tiles.map(([c,ic,l,v])=>
+    '<div class="stat '+c+'"><div class="si">'+ic+'</div><div class="sl">'+l+'</div><div class="sv">'+v+'</div></div>'
+  ).join('');
+}
+
+/* сума базових + бонуси з одягненого */
+function totals(){
+  const t = Object.assign({}, BASE);
+  Object.values(EQUIP).forEach(item=>{ if(!item)return;
+    for(const k in item.stats){ t[k]=(t[k]||0)+item.stats[k]; }
+  });
+  ['health','mana','agility','accuracy','armor','magicResist','magicDamage','damage'].forEach(k=>{ if(t[k]==null)t[k]=0; });
+  return t;
+}
+
+function slotBonusTitle(item){
+  const parts=[]; for(const k in item.stats) parts.push((STAT_UK[k]||k)+' +'+item.stats[k]);
+  return item.name + (parts.length?' — '+parts.join(', '):'');
+}
+
+function renderSlots(){
+  $('slots').innerHTML = SLOT_DEFS.map(([id,lab,ghost])=>{
+    const item = EQUIP[id];
+    const filled = item?' filled':'';
+    const inner = item
+      ? '<span class="chip drag" data-src="slot" data-slot="'+id+'" title="'+slotBonusTitle(item).replace(/"/g,'&quot;')+'">'+item.icon+'</span>'
+      : '<span class="ghost">'+ghost+'</span>';
+    return '<div class="slot'+filled+'" data-slot="'+id+'">'+inner+
+      '<span class="lab">'+lab.replace(/\n/g,'<br>')+'</span></div>';
+  }).join('');
+}
+
+function renderInv(){
+  const f = TABS.find(t=>t[0]===curTab)[3];
+  const list = INV.filter(i=>i.qty>0 && f(i.cat));
+  const g = $('invGrid');
+  if(!list.length){ g.innerHTML='<div class="empty">Порожньо</div>'; return; }
+  g.innerHTML = list.map(i=>
+    '<div class="cell" data-uid="'+i.uid+'">'+
+      '<span class="chip drag" data-src="inv" data-uid="'+i.uid+'" title="'+slotBonusTitle(i).replace(/"/g,'&quot;')+'">'+i.icon+'</span>'+
+      (i.qty>1?'<span class="qty">'+i.qty+'</span>':'')+
+    '</div>'
+  ).join('');
+}
+
+function renderTabs(){
+  $('tabs').innerHTML = TABS.map(([id,l,ic])=>
+    '<span class="tab'+(id===curTab?' on':'')+'" data-tab="'+id+'">'+ic+' '+l+'</span>'
+  ).join('');
+}
+
+function renderAll(){ renderTabs(); renderSlots(); renderInv(); renderStats(); }
+
+/* ═══════════════ ЛОГІКА ЕКІПІРОВКИ ═══════════════ */
+function findInv(uid){ return INV.find(i=>i.uid===uid); }
+function compat(cat,slotId){ return SLOT_CAT[slotId]===cat; }
+function firstFreeSlot(cat){ for(const s in SLOT_CAT){ if(SLOT_CAT[s]===cat && !EQUIP[s]) return s; }
+  // якщо вільних немає — перший сумісний (замінимо)
+  for(const s in SLOT_CAT){ if(SLOT_CAT[s]===cat) return s; } return null; }
+
+function invAdd(item){                       // повернути річ в інвентар (склеїти стек)
+  const same = INV.find(i=>i.name===item.name && i.cat===item.cat);
+  if(same) same.qty += (item.qty||1);
+  else INV.push(Object.assign({}, item, {uid:'i'+(uid++), qty:item.qty||1}));
+}
+function invTakeOne(inv){ inv.qty--; }        // взяти 1 зі стеку
+
+/* одягнути річ з інвентаря у слот */
+function equipFromInv(invUid, slotId){
+  const inv = findInv(invUid); if(!inv || inv.qty<1) return;
+  if(!compat(inv.cat, slotId)) return;
+  if(EQUIP[slotId]) invAdd(EQUIP[slotId]);    // те що було — назад
+  EQUIP[slotId] = { name:inv.name, cat:inv.cat, icon:inv.icon, stats:inv.stats, qty:1 };
+  invTakeOne(inv);
+  renderAll();
+}
+/* зняти зі слота в інвентар */
+function unequip(slotId){
+  if(!EQUIP[slotId]) return;
+  invAdd(EQUIP[slotId]); EQUIP[slotId]=null; renderAll();
+}
+/* перекласти зі слота в інший сумісний слот (зі свапом) */
+function moveSlot(fromId, toId){
+  if(fromId===toId) return;
+  if(!compat(EQUIP[fromId].cat, toId)) return;
+  const tmp = EQUIP[toId]; EQUIP[toId]=EQUIP[fromId]; EQUIP[fromId]=tmp; renderAll();
+}
+
+/* ═══════════════ DRAG & DROP (мишка + тач) ═══════════════ */
+const ghost = $('drag-ghost');
+let drag = null;   // {src,uid?,slot?,cat,icon}
+
+function startDrag(el, x, y){
+  const src = el.dataset.src;
+  let cat, icon;
+  if(src==='inv'){ const i=findInv(el.dataset.uid); if(!i)return; cat=i.cat; icon=i.icon;
+    drag={src, uid:el.dataset.uid, cat, icon}; }
+  else { const s=el.dataset.slot; const item=EQUIP[s]; if(!item)return; cat=item.cat; icon=item.icon;
+    drag={src, slot:s, cat, icon}; }
+  ghost.textContent = icon; ghost.hidden=false; moveGhost(x,y);
+  // підсвітити сумісні слоти
+  document.querySelectorAll('.slot').forEach(sl=>{
+    if(compat(cat, sl.dataset.slot)) sl.classList.add('compat');
+  });
+  document.body.style.userSelect='none';
+}
+function moveGhost(x,y){ ghost.style.left=x+'px'; ghost.style.top=y+'px'; }
+function targetAt(x,y){
+  ghost.style.visibility='hidden';
+  const el = document.elementFromPoint(x,y);
+  ghost.style.visibility='';
+  if(!el) return null;
+  const slot = el.closest('.slot'); if(slot) return {type:'slot', id:slot.dataset.slot, el:slot};
+  const inv  = el.closest('.inv');  if(inv)  return {type:'inv'};
+  return null;
+}
+function highlightOver(t){
+  document.querySelectorAll('.slot.over').forEach(s=>s.classList.remove('over'));
+  if(t && t.type==='slot' && t.el.classList.contains('compat')) t.el.classList.add('over');
+}
+function endDrag(x,y){
+  const t = targetAt(x,y);
+  if(drag && t){
+    if(t.type==='slot' && compat(drag.cat, t.id)){
+      if(drag.src==='inv') equipFromInv(drag.uid, t.id);
+      else moveSlot(drag.slot, t.id);
+    } else if(t.type==='inv' && drag.src==='slot'){
+      unequip(drag.slot);
+    }
+  }
+  cleanupDrag();
+}
+function cleanupDrag(){
+  drag=null; ghost.hidden=true;
+  document.querySelectorAll('.slot.compat,.slot.over').forEach(s=>s.classList.remove('compat','over'));
+  document.body.style.userSelect='';
+}
+
+/* pointer events — працює і мишкою, і пальцем */
+let down=null;
+document.addEventListener('pointerdown', e=>{
+  const el = e.target.closest('.drag'); if(!el) return;
+  down = {el, x:e.clientX, y:e.clientY, started:false};
+});
+document.addEventListener('pointermove', e=>{
+  if(!down) return;
+  if(!down.started){
+    if(Math.hypot(e.clientX-down.x, e.clientY-down.y) < 7) return;
+    down.started=true; startDrag(down.el, e.clientX, e.clientY);
+  }
+  if(drag){ moveGhost(e.clientX,e.clientY); highlightOver(targetAt(e.clientX,e.clientY)); e.preventDefault(); }
+},{passive:false});
+document.addEventListener('pointerup', e=>{
+  if(down && down.started){ endDrag(e.clientX, e.clientY); }
+  else if(down){ tap(down.el); }   // клік без перетягування = тап
+  down=null;
+});
+document.addEventListener('pointercancel', ()=>{ cleanupDrag(); down=null; });
+
+/* тап: одягнути з інвентаря / зняти зі слота */
+function tap(el){
+  if(el.dataset.src==='inv'){
+    const i=findInv(el.dataset.uid); if(!i)return;
+    const slot=firstFreeSlot(i.cat); if(slot) equipFromInv(el.dataset.uid, slot);
+  } else if(el.dataset.src==='slot'){
+    unequip(el.dataset.slot);
+  }
+}
+
+/* вкладки */
+$('tabs').addEventListener('click', e=>{
+  const t=e.target.closest('.tab'); if(!t)return; curTab=t.dataset.tab; renderTabs(); renderInv();
+});
+
+/* закриття / відкриття (для перегляду) */
+$('ekClose').addEventListener('click', ()=>{ $('ekBack').hidden=true; $('reopen').style.display='inline-block'; });
+$('reopen').addEventListener('click', ()=>{ $('ekBack').hidden=false; $('reopen').style.display='none'; });
+
+/* старт */
+renderAll();
+</script>
+</body>
+</html>
