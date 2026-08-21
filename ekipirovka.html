@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Екіпіровка героя — прототип</title>
+<script type="module" src="firebase-config.js"></script>
 <style>
 /* ══════════════════════════════════════════════════════════════════
    sk-equip — поп-ап «Екіпіровка героя» (Ф0 прототип для перевірки)
@@ -531,6 +532,39 @@ $('reopen').addEventListener('click', ()=>{ $('ekBack').hidden=false; $('reopen'
 
 /* старт */
 renderAll();
+
+/* ── реальні характеристики Героя з бази перекривають demo-значення ──
+   Джерело правди — документ heroes/{id} (health, mana, agility, accuracy,
+   level, xp, coins), як і в hero.html. Речі/слоти лишаються локальними (Ф0).
+   Похідні тайли без поля в базі (Урон, Броня, Магічний урон, Магічна
+   стійкість) поки що беруться з demo-BASE — джерела для них ще немає. */
+(function(){
+  function whenSK(cb){
+    var n=0;
+    (function wait(){
+      if(window.SK && window.SK.ready){ cb(); return; }
+      if(n++ < 100) setTimeout(wait, 50);
+    })();
+  }
+  whenSK(function(){
+    window.SK.ready.then(async function(){
+      // тільки для сесії Героя; у режимі перегляду лишаємо demo
+      if(window.SK.isHeroSession && !window.SK.isHeroSession()) return;
+      try{
+        var h = window.SK.getHero ? await window.SK.getHero() : null;
+        if(!h) return;
+        if(h.health   != null) BASE.health   = h.health;
+        if(h.mana     != null) BASE.mana     = h.mana;
+        if(h.agility  != null) BASE.agility  = h.agility;
+        if(h.accuracy != null) BASE.accuracy = h.accuracy;
+        if(h.level    != null) LEVEL.level   = h.level;
+        if(h.xp       != null) LEVEL.xp      = h.xp;
+        if(h.coins    != null){ var c=$('coins'); if(c) c.textContent = h.coins; }
+        renderStats();
+      }catch(e){ console.warn('[ekipirovka] не вдалося завантажити стати героя:', e); }
+    });
+  });
+})();
 </script>
 </body>
 </html>
