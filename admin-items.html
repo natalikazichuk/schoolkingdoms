@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Предмети — Школа Королівство</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<!-- Спільна дизайн-система адмінки (та сама, що в admin.html / admin-books.html) -->
+<link rel="stylesheet" href="sk-styles.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#9ad6f5; --bg-2:#2f74c8;
+    --panel:rgba(22,29,66,.72); --panel-2:rgba(30,39,86,.6);
+    --border:rgba(140,155,255,.22);
+    --gold:#f5c542; --gold-2:#e0a83a;
+    --text:#e9ecff; --muted:#9aa3d0;
+    --danger:#ff6b7a; --ok:#58d68d; --radius:16px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0}
+  body{
+    font-family:'Nunito',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    color:var(--text);min-height:100vh;line-height:1.5;
+    background:
+      radial-gradient(1200px 700px at 80% -10%, rgba(124,92,255,.18), transparent 60%),
+      radial-gradient(900px 600px at 0% 100%, rgba(47,111,237,.16), transparent 55%),
+      linear-gradient(180deg,var(--bg),var(--bg-2));
+  }
+  #wrap{max-width:960px;margin:0 auto;padding:24px 18px 80px}
+
+  h1,h2,h3{font-family:'Fredoka One',cursive;font-weight:400;letter-spacing:.3px;margin:0}
+  h1{font-size:1.9rem;color:var(--gold)}
+  h2{font-size:1.2rem}
+  a{color:var(--gold)}
+  #root > h1{color:#123a6b;text-shadow:0 1px 2px rgba(255,255,255,.5)}
+  #root > .sub{color:#2b4a72}
+
+  /* Шапка — темний текст на світлому фоні (гасимо .topbar зі sk-styles.css локально). */
+  .topbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:none;box-shadow:none;
+    margin-bottom:22px;padding:0 0 16px;border-bottom:1px solid rgba(20,50,100,.25);
+    justify-content:flex-start;text-align:left}
+  .brand{display:flex;align-items:center;gap:10px;text-decoration:none}
+  .brand .crown{font-size:1.6rem;filter:drop-shadow(0 2px 6px rgba(0,0,0,.35))}
+  .brand .bt-name{font-family:'Fredoka One',cursive;font-size:1.3rem;color:#123a6b;
+    text-shadow:0 1px 2px rgba(255,255,255,.5);line-height:1.1;display:block}
+  .brand .bt-sub{font-size:.76rem;color:#2b4a72;font-weight:700}
+  .spacer{flex:1}
+  .nav{display:flex;gap:8px;flex-wrap:wrap}
+  .nav a,.nav button{font-family:'Nunito',sans-serif;font-weight:800;font-size:.82rem;
+    background:var(--panel-2);border:1px solid var(--border);color:var(--text);
+    padding:7px 12px;border-radius:11px;cursor:pointer;text-decoration:none;transition:.15s;
+    display:inline-flex;align-items:center;gap:6px;width:auto;margin:0}
+  .nav a:hover,.nav button:hover{transform:translateY(-1px);border-color:var(--gold)}
+
+  .sub{color:#2b4a72;font-weight:600;font-size:.92rem;margin:0 0 16px}
+
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+    padding:18px;margin-bottom:16px;backdrop-filter:blur(6px);box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  .panel h2{display:flex;align-items:center;gap:8px;margin:0 0 12px;color:#fff}
+  .panel .sub{color:var(--muted);margin:0 0 12px}
+
+  /* Кнопки — гасимо глобальне .btn{width:100%} зі sk-styles.css. */
+  .btn{width:auto;margin:0;font-family:'Nunito',sans-serif;font-weight:800;font-size:.9rem;
+    border:1px solid var(--gold-2);border-radius:12px;padding:11px 18px;cursor:pointer;transition:.15s;
+    display:inline-flex;align-items:center;gap:7px;
+    background:linear-gradient(180deg,var(--gold),var(--gold-2));color:#2a1e06;
+    box-shadow:0 6px 16px rgba(245,197,66,.28)}
+  .btn:hover{transform:translateY(-1px)}
+  .btn:active{transform:translateY(1px)}
+  .btn.ghost{background:var(--panel-2);color:var(--text);border-color:var(--border);box-shadow:none}
+  .btn.ghost:hover{border-color:var(--gold)}
+  .savebar{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+
+  /* Фільтр: чипи-категорії + пошук */
+  .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .chip{font-family:'Nunito',sans-serif;font-weight:800;font-size:.8rem;
+    background:var(--panel-2);border:1px solid var(--border);color:var(--text);
+    padding:6px 12px;border-radius:999px;cursor:pointer;transition:.15s}
+  .chip:hover{border-color:var(--gold)}
+  .chip.on{background:linear-gradient(180deg,var(--gold),var(--gold-2));color:#2a1e06;border-color:var(--gold-2)}
+  .chip .n{opacity:.7;font-weight:700;margin-left:4px}
+  #search{max-width:260px}
+
+  /* Список предметів — рядки як .brow в admin-books */
+  .ilist{display:flex;flex-direction:column;gap:8px}
+  .cat-h{font-family:'Fredoka One',cursive;color:var(--gold);font-size:.98rem;margin:12px 2px 2px}
+  .cat-h:first-child{margin-top:0}
+  .irow{display:flex;align-items:center;gap:12px;background:var(--panel-2);
+    border:1px solid var(--border);border-radius:14px;padding:10px 12px}
+  .irow.off{opacity:.55}
+  .irow .cv{font-size:1.5rem;line-height:1;width:42px;height:42px;flex:0 0 42px;display:grid;place-items:center;
+    border-radius:11px;background:rgba(9,13,35,.4);border:1px solid var(--border);overflow:hidden}
+  .irow .cv img{width:100%;height:100%;object-fit:cover}
+  .irow .info{flex:1;min-width:0}
+  .irow .it-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .irow .code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);
+    background:rgba(9,13,35,.45);border:1px solid var(--border);border-radius:6px;padding:1px 6px}
+  .irow .nm{font-family:'Fredoka One',cursive;font-size:1rem;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .irow .meta{font-size:.76rem;color:var(--muted);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap}
+  .pill{display:inline-flex;align-items:center;gap:4px;font-weight:800;font-size:.72rem;
+    border-radius:999px;padding:2px 8px;border:1px solid var(--border);background:rgba(9,13,35,.35);color:#cdd4f5}
+  .pill.armor{color:#bcd0ff;border-color:rgba(120,160,255,.4)}
+  .pill.magic{color:#e3c9ff;border-color:rgba(190,140,255,.4)}
+  .pill.agi{color:#bff0cf;border-color:rgba(88,214,141,.4)}
+  .pill.dmg{color:#ffc9a8;border-color:rgba(255,150,90,.45)}
+  .pill.mdmg{color:#ffb8d8;border-color:rgba(255,120,190,.45)}
+  .pill.cons{color:#ffe6a3;border-color:rgba(245,197,66,.45)}
+  .irow .acts{display:flex;gap:6px;flex-shrink:0}
+  .mini{font-family:'Nunito',sans-serif;font-weight:800;font-size:.78rem;
+    border:1px solid var(--border);background:var(--panel-2);color:var(--text);
+    border-radius:9px;padding:6px 10px;cursor:pointer;transition:.15s}
+  .mini:hover{transform:translateY(-1px);border-color:var(--gold)}
+  .mini.on{background:rgba(88,214,141,.22);border-color:var(--ok);color:#c7f5cd}
+  .mini.off{background:var(--panel-2);color:var(--muted)}
+  .mini.danger{background:rgba(255,107,122,.14);border-color:rgba(255,107,122,.4);color:#ffc9ca}
+  .mini.danger:hover{background:rgba(255,107,122,.22)}
+  .empty{color:var(--muted);font-style:italic;font-weight:600;font-size:.88rem;padding:8px 2px}
+  .count-note{color:var(--muted);font-weight:700;font-size:.82rem;margin:0 0 10px}
+
+  /* Форма */
+  .field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+  .field label{font-size:.8rem;font-weight:800;color:#b7bfe6}
+  .field input,.field textarea,.field select,
+  input[type=text],input[type=number],select,textarea{
+    font-family:'Nunito',sans-serif;font-size:.95rem;color:var(--text);
+    background:rgba(9,13,35,.55);border:1px solid var(--border);border-radius:10px;
+    padding:10px 12px;width:100%}
+  .field input:focus,.field textarea:focus,.field select:focus,
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(245,197,66,.18)}
+  input:disabled{opacity:.6;cursor:not-allowed}
+  select option{background:#1a2350;color:#fff}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  .inline-note{font-size:.76rem;color:var(--muted);margin-top:2px}
+  .chk{display:flex;align-items:center;gap:8px;font-weight:800;color:var(--text);cursor:pointer;font-size:.9rem}
+  .chk input{width:auto}
+  .code-input{font-family:ui-monospace,Menlo,Consolas,monospace}
+
+  .img-prev{margin-top:8px}
+  .img-prev-el{max-height:120px;max-width:100%;border-radius:10px;display:block;border:1px solid var(--border)}
+  .img-prev-err{display:none;color:#ffb3b4;font-weight:800;font-size:.82rem}
+
+  .msg{margin-top:10px;font-weight:800;min-height:20px}
+  .msg.ok{color:#8fe3ad}.msg.err{color:#ffb3b4}
+
+  /* гейт доступу */
+  .gate{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+    padding:26px;text-align:center;margin-top:30px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  .gate h1{color:var(--gold)}
+  .gate .sub{color:var(--muted)}
+  .gate .big{font-size:2.6rem;margin-bottom:8px}
+  .spinner{width:34px;height:34px;border:4px solid rgba(255,255,255,.2);border-top-color:var(--gold);border-radius:50%;animation:sp .8s linear infinite;margin:16px auto}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  @media(max-width:560px){.grid,.grid3{grid-template-columns:1fr}.irow .acts{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <header class="topbar">
+    <a class="brand" href="index.html">
+      <span class="crown">👑</span>
+      <span><span class="bt-name">Предмети</span><span class="bt-sub">School Kingdom · екіпіровка</span></span>
+    </a>
+    <div class="spacer"></div>
+    <nav class="nav">
+      <a href="admin.html">🏠 Головна (Адмінка)</a>
+      <a href="admin-books.html">📖 Книги</a>
+      <button id="logoutBtn" style="display:none">🚪 Вийти</button>
+    </nav>
+  </header>
+  <div id="root">
+    <div class="gate"><div class="spinner"></div><p class="sub" style="margin:0">Перевіряємо доступ…</p></div>
+  </div>
+</div>
+
+<script type="module" src="firebase-config.js"></script>
+<script>
+/* ============================================================
+   ПРЕДМЕТИ / ЕКІПІРОВКА (admin-only).
+   Один предмет:
+     { id:"IT-001", category, name, img, stat,
+       valueMin, valueMax, consumable, durability, active, order }
+   valueMin/valueMax — характеристика: рівні (звичайне значення) або
+   різні (діапазон урону зброї), або null (без значення).
+   consumable=true → разовий предмет (durability=null).
+   id ("IT-001") стабільний: наступним кроком ігри/тренажери
+   посилатимуться на предмет саме за цим id.
+
+   Пише в колекцію items через SK.saveItem / listItems /
+   deleteItem / setItemActive.
+   ============================================================ */
+'use strict';
+
+/* ---- Стартовий список (для одноразового імпорту) ---- */
+var SEED_ITEMS=[
+  {id:"IT-001",order:1,category:"Шоломи",name:"Старий капелюх мага",img:"",stat:"Магічний захист",valueMin:2,valueMax:2,consumable:false,durability:2500,active:true},
+  {id:"IT-002",order:2,category:"Шоломи",name:"Пробковий шолом",img:"",stat:"Броня",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-003",order:3,category:"Шоломи",name:"Шапка школяра",img:"",stat:"Спритність",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-004",order:4,category:"Шоломи",name:"Солом'яний капелюх",img:"",stat:"Магічний захист",valueMin:1,valueMax:1,consumable:false,durability:2500,active:true},
+  {id:"IT-005",order:5,category:"Шоломи",name:"Пов'язка учня",img:"",stat:"Магічний захист",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-006",order:6,category:"Шоломи",name:"Капелюх відмінника",img:"",stat:"Магічний захист",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-007",order:7,category:"Шоломи",name:"Пов'язка забіяки",img:"",stat:"Спритність",valueMin:3,valueMax:3,consumable:false,durability:5000,active:true},
+  {id:"IT-008",order:8,category:"Шоломи",name:"Капелюх мандрівника",img:"",stat:"Магічний захист",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-009",order:9,category:"Шоломи",name:"Зламаний лицарський шолом",img:"",stat:"Броня",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-010",order:10,category:"Шоломи",name:"Залізний шолом",img:"",stat:"Броня",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-011",order:11,category:"Шоломи",name:"Бронзовий шолом",img:"",stat:"Броня",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-012",order:12,category:"Шоломи",name:"Сталевий шолом",img:"",stat:"Броня",valueMin:3,valueMax:3,consumable:false,durability:5000,active:true},
+  {id:"IT-013",order:13,category:"Шоломи",name:"Шолом капітана",img:"",stat:"Броня",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-014",order:14,category:"Шоломи",name:"Друшлак",img:"",stat:"Спритність",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-015",order:15,category:"Шоломи",name:"Кастрюля",img:"",stat:"Броня",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-016",order:16,category:"Обладунки",name:"Дерев'яні обладунки",img:"",stat:"Броня",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-017",order:17,category:"Обладунки",name:"Рваний обладунок",img:"",stat:"Броня",valueMin:1,valueMax:1,consumable:false,durability:2500,active:true},
+  {id:"IT-018",order:18,category:"Обладунки",name:"Шкільний жакет",img:"",stat:"Спритність",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-019",order:19,category:"Обладунки",name:"Куртка учня",img:"",stat:"Спритність",valueMin:3,valueMax:3,consumable:false,durability:5000,active:true},
+  {id:"IT-020",order:20,category:"Обладунки",name:"Жакет відмінника",img:"",stat:"Магічний захист",valueMin:4,valueMax:4,consumable:false,durability:5000,active:true},
+  {id:"IT-021",order:21,category:"Обладунки",name:"Куртка забіяки",img:"",stat:"Спритність",valueMin:3,valueMax:3,consumable:false,durability:5000,active:true},
+  {id:"IT-022",order:22,category:"Обладунки",name:"Посилений шкіряний обладунок",img:"",stat:"Броня",valueMin:3,valueMax:3,consumable:false,durability:5000,active:true},
+  {id:"IT-023",order:23,category:"Обладунки",name:"Дерев'яна броня",img:"",stat:"Броня",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-024",order:24,category:"Обладунки",name:"Бронзові обладунки",img:"",stat:"Броня",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-025",order:25,category:"Обладунки",name:"Залізні обладунки",img:"",stat:"Броня",valueMin:3,valueMax:3,consumable:false,durability:5000,active:true},
+  {id:"IT-026",order:26,category:"Обладунки",name:"Сталеві обладунки",img:"",stat:"Броня",valueMin:4,valueMax:4,consumable:false,durability:5000,active:true},
+  {id:"IT-027",order:27,category:"Обладунки",name:"Шкіряна куртка авантюриста",img:"",stat:"Спритність",valueMin:4,valueMax:4,consumable:false,durability:5000,active:true},
+  {id:"IT-028",order:28,category:"Обладунки",name:"Куртка дослідника",img:"",stat:"Магічний захист",valueMin:3,valueMax:3,consumable:false,durability:5000,active:true},
+  {id:"IT-029",order:29,category:"Обладунки",name:"Посилений шкіряний обладунок",img:"",stat:"Спритність",valueMin:3,valueMax:3,consumable:false,durability:5000,active:true},
+  {id:"IT-030",order:30,category:"Обладунки",name:"Халат",img:"",stat:"Магічний захист",valueMin:2,valueMax:2,consumable:false,durability:2500,active:true},
+  {id:"IT-031",order:31,category:"Обладунки",name:"Блискуча червона рубашка",img:"",stat:"Магічний захист",valueMin:3,valueMax:3,consumable:false,durability:5000,active:true},
+  {id:"IT-032",order:32,category:"Обладунки",name:"Вишита золотом куртка",img:"",stat:"Магічний захист",valueMin:4,valueMax:4,consumable:false,durability:5000,active:true},
+  {id:"IT-033",order:33,category:"Обладунки",name:"Панцирь вартового",img:"",stat:"Броня",valueMin:4,valueMax:4,consumable:false,durability:5000,active:true},
+  {id:"IT-034",order:34,category:"Обладунки",name:"Куфайка",img:"",stat:"Спритність",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-035",order:35,category:"Обладунки",name:"Спец роба",img:"",stat:"Спритність",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-036",order:36,category:"Рукавиці",name:"Рукавиці з таємничими символами",img:"",stat:"Магічний захист",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-037",order:37,category:"Рукавиці",name:"Дерев'яні рукавиці",img:"",stat:"Броня",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-038",order:38,category:"Рукавиці",name:"Рвані рукавиці",img:"",stat:"Спритність",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-039",order:39,category:"Рукавиці",name:"Шкільні рукавиці",img:"",stat:"Спритність",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-040",order:40,category:"Рукавиці",name:"Рукавиці учня",img:"",stat:"Магічний захист",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-041",order:41,category:"Рукавиці",name:"Рукавиці відмінника",img:"",stat:"Магічний захист",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-042",order:42,category:"Рукавиці",name:"Рукавиці забіяки обрізані",img:"",stat:"Спритність",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-043",order:43,category:"Рукавиці",name:"Рукавиці мандрівника",img:"",stat:"Магічний захист",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-044",order:44,category:"Рукавиці",name:"Шкіряні рукавиці",img:"",stat:"Броня",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-045",order:45,category:"Рукавиці",name:"Бронзові рукавиці",img:"",stat:"Броня",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-046",order:46,category:"Рукавиці",name:"Залізні рукавиці",img:"",stat:"Броня",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-047",order:47,category:"Рукавиці",name:"Сталеві рукавиці",img:"",stat:"Броня",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-048",order:48,category:"Штани",name:"Шаровари",img:"",stat:"Спритність",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-049",order:49,category:"Штани",name:"Дерев'яні штани",img:"",stat:"Броня",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-050",order:50,category:"Штани",name:"Рвані штани",img:"",stat:"Спритність",valueMin:1,valueMax:1,consumable:false,durability:2500,active:true},
+  {id:"IT-051",order:51,category:"Штани",name:"Шкільні штани",img:"",stat:"Спритність",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-052",order:52,category:"Штани",name:"Штани учня",img:"",stat:"Магічний захист",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-053",order:53,category:"Штани",name:"Штани відмінника",img:"",stat:"Магічний захист",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-054",order:54,category:"Штани",name:"Штани забіяки",img:"",stat:"Спритність",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-055",order:55,category:"Штани",name:"Штани мандрівника",img:"",stat:"Магічний захист",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-056",order:56,category:"Штани",name:"Шорти",img:"",stat:"Спритність",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-057",order:57,category:"Штани",name:"Шкіряні штани",img:"",stat:"Броня",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-058",order:58,category:"Штани",name:"Бронзові штани",img:"",stat:"Броня",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-059",order:59,category:"Штани",name:"Залізні штани",img:"",stat:"Броня",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-060",order:60,category:"Штани",name:"Сталеві штани",img:"",stat:"Броня",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-061",order:61,category:"Пояси",name:"Пояс з метелевою бляхою",img:"",stat:"Броня",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-062",order:62,category:"Пояси",name:"Шкіряний пояс",img:"",stat:"Спритність",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-063",order:63,category:"Пояси",name:"Шкільний пояс",img:"",stat:"Спритність",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-064",order:64,category:"Пояси",name:"Пояс піжона",img:"",stat:"Магічний захист",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-065",order:65,category:"Пояси",name:"Ремень",img:"",stat:"Броня",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-066",order:66,category:"Пояси",name:"Пояс авантюриста",img:"",stat:"Магічний захист",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-067",order:67,category:"Пояси",name:"Товстий плетений канат",img:"",stat:"Броня",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-068",order:68,category:"Взуття",name:"Черевички Гінгеми",img:"",stat:"Спритність",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-069",order:69,category:"Взуття",name:"Старі черевики",img:"",stat:"Спритність",valueMin:1,valueMax:1,consumable:false,durability:2500,active:true},
+  {id:"IT-070",order:70,category:"Взуття",name:"Рвані черевики",img:"",stat:"Спритність",valueMin:0,valueMax:0,consumable:false,durability:2500,active:true},
+  {id:"IT-071",order:71,category:"Взуття",name:"Шкільні черевики",img:"",stat:"Магічний захист",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-072",order:72,category:"Взуття",name:"Туфлі відмінника",img:"",stat:"Магічний захист",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-073",order:73,category:"Взуття",name:"Сандалі забіяки",img:"",stat:"Спритність",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-074",order:74,category:"Взуття",name:"Шкіряні черевики",img:"",stat:"Спритність",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-075",order:75,category:"Взуття",name:"Дерев'яні черевики",img:"",stat:"Броня",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-076",order:76,category:"Взуття",name:"Бронзові черевики",img:"",stat:"Броня",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-077",order:77,category:"Взуття",name:"Залізні черевики",img:"",stat:"Броня",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-078",order:78,category:"Взуття",name:"Чоботи скороходи",img:"",stat:"Спритність",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-079",order:79,category:"Зброя",name:"Посох скитальця",img:"",stat:"Магічний урон",valueMin:4,valueMax:12,consumable:false,durability:5000,active:true},
+  {id:"IT-080",order:80,category:"Зброя",name:"Дерев'яна сабля",img:"",stat:"Урон",valueMin:2,valueMax:10,consumable:false,durability:5000,active:true},
+  {id:"IT-081",order:81,category:"Зброя",name:"Указка вчителя",img:"",stat:"Магічний урон",valueMin:3,valueMax:9,consumable:false,durability:5000,active:true},
+  {id:"IT-082",order:82,category:"Зброя",name:"Шкільний меч",img:"",stat:"Урон",valueMin:1,valueMax:4,consumable:false,durability:5000,active:true},
+  {id:"IT-083",order:83,category:"Зброя",name:"Кастет забіяки",img:"",stat:"Урон",valueMin:2,valueMax:8,consumable:false,durability:5000,active:true},
+  {id:"IT-084",order:84,category:"Зброя",name:"Іграшкова сабля",img:"",stat:"Урон",valueMin:1,valueMax:5,consumable:false,durability:5000,active:true},
+  {id:"IT-085",order:85,category:"Зброя",name:"Бронзовий меч",img:"",stat:"Урон",valueMin:1,valueMax:5,consumable:false,durability:5000,active:true},
+  {id:"IT-086",order:86,category:"Зброя",name:"Залізний меч",img:"",stat:"Урон",valueMin:2,valueMax:8,consumable:false,durability:5000,active:true},
+  {id:"IT-087",order:87,category:"Зброя",name:"Сталевий меч",img:"",stat:"Урон",valueMin:3,valueMax:12,consumable:false,durability:5000,active:true},
+  {id:"IT-088",order:88,category:"Зброя",name:"Викідний ніж хулігана",img:"",stat:"Урон",valueMin:3,valueMax:9,consumable:false,durability:5000,active:true},
+  {id:"IT-089",order:89,category:"Зброя",name:"Дерев'яна дубіна",img:"",stat:"Урон",valueMin:1,valueMax:10,consumable:false,durability:5000,active:true},
+  {id:"IT-090",order:90,category:"Зброя",name:"Двуручний меч",img:"",stat:"Урон",valueMin:5,valueMax:20,consumable:false,durability:5000,active:true},
+  {id:"IT-091",order:91,category:"Зброя",name:"Дерев'яний киянок",img:"",stat:"Урон",valueMin:3,valueMax:12,consumable:false,durability:5000,active:true},
+  {id:"IT-092",order:92,category:"Зброя",name:"Черпак",img:"",stat:"Урон",valueMin:2,valueMax:8,consumable:false,durability:5000,active:true},
+  {id:"IT-093",order:93,category:"Зброя",name:"Плетка вихователя",img:"",stat:"Урон",valueMin:1,valueMax:10,consumable:false,durability:5000,active:true},
+  {id:"IT-094",order:94,category:"Зброя",name:"Дубіна Тролля",img:"",stat:"Урон",valueMin:6,valueMax:18,consumable:false,durability:5000,active:true},
+  {id:"IT-095",order:95,category:"Щити",name:"Хрустальний шар",img:"",stat:"Магічний захист",valueMin:4,valueMax:4,consumable:false,durability:5000,active:true},
+  {id:"IT-096",order:96,category:"Щити",name:"Дерев'яний щит",img:"",stat:"Броня",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-097",order:97,category:"Щити",name:"Шкільний щит",img:"",stat:"Броня",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-098",order:98,category:"Щити",name:"Бронзовий щит",img:"",stat:"Броня",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-099",order:99,category:"Щити",name:"Сталевий щит",img:"",stat:"Броня",valueMin:4,valueMax:4,consumable:false,durability:5000,active:true},
+  {id:"IT-100",order:100,category:"Щити",name:"Залізний щит",img:"",stat:"Броня",valueMin:3,valueMax:3,consumable:false,durability:5000,active:true},
+  {id:"IT-101",order:101,category:"Щити",name:"Тряпка",img:"",stat:"Магічний захист",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-102",order:102,category:"Щити",name:"Кусок кори старого дерева",img:"",stat:"Магічний захист",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-103",order:103,category:"Щити",name:"Кришка від кастрюлі",img:"",stat:"Спритність",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-104",order:104,category:"Щити",name:"Плащ матадора",img:"",stat:"Спритність",valueMin:4,valueMax:4,consumable:false,durability:5000,active:true},
+  {id:"IT-105",order:105,category:"Кільце",name:"Кільце винахідника",img:"",stat:"Магічний захист",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-106",order:106,category:"Кільце",name:"Перстень відмінника",img:"",stat:"Магічний захист",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-107",order:107,category:"Кільце",name:"Перстень хулігана",img:"",stat:"Магічний захист",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-108",order:108,category:"Кільце",name:"Перстень вчителя",img:"",stat:"Магічний захист",valueMin:3,valueMax:3,consumable:false,durability:5000,active:true},
+  {id:"IT-109",order:109,category:"Кільце",name:"Залізне кільце",img:"",stat:"Броня",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-110",order:110,category:"Кільце",name:"Перстень Гудвіна",img:"",stat:"Спритність",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-111",order:111,category:"Кільце",name:"Ржаве кільце",img:"",stat:"Спритність",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-112",order:112,category:"Кільце",name:"Загадкове кільце",img:"",stat:"Магічний захист",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-113",order:113,category:"Амулет",name:"Амулет з рубіном",img:"",stat:"Магічний захист",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-114",order:114,category:"Амулет",name:"Амулет кажана",img:"",stat:"Магічний захист",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-115",order:115,category:"Амулет",name:"Амулет з чорним камнем",img:"",stat:"Магічний захист",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-116",order:116,category:"Амулет",name:"Амулет у вигляді таракана",img:"",stat:"Магічний захист",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-117",order:117,category:"Амулет",name:"Камень з диркою на шнурочку",img:"",stat:"Магічний захист",valueMin:2,valueMax:2,consumable:false,durability:5000,active:true},
+  {id:"IT-118",order:118,category:"Амулет",name:"Залізиний цеп",img:"",stat:"Броня",valueMin:1,valueMax:1,consumable:false,durability:5000,active:true},
+  {id:"IT-119",order:119,category:"Зелья",name:"Зелья маг. захисту",img:"",stat:"Магічний захист",valueMin:5,valueMax:5,consumable:true,durability:null,active:true},
+  {id:"IT-120",order:120,category:"Зелья",name:"Зелья здоров'я",img:"",stat:"",valueMin:null,valueMax:null,consumable:true,durability:null,active:true},
+  {id:"IT-121",order:121,category:"Зелья",name:"Зелья антидот",img:"",stat:"",valueMin:null,valueMax:null,consumable:true,durability:null,active:true},
+  {id:"IT-122",order:122,category:"Зелья",name:"Камяна шкіра",img:"",stat:"Спритність",valueMin:5,valueMax:5,consumable:true,durability:null,active:true},
+  {id:"IT-123",order:123,category:"Зелья",name:"Зелье точності",img:"",stat:"",valueMin:null,valueMax:null,consumable:true,durability:null,active:true},
+  {id:"IT-124",order:124,category:"Зелья",name:"Зелье уворота",img:"",stat:"Спритність",valueMin:5,valueMax:5,consumable:true,durability:null,active:true},
+  {id:"IT-125",order:125,category:"Зелья",name:"Зелье удачі",img:"",stat:"",valueMin:null,valueMax:null,consumable:true,durability:null,active:true},
+  {id:"IT-126",order:126,category:"Свиток",name:"Свиток страха",img:"",stat:"",valueMin:null,valueMax:null,consumable:true,durability:null,active:true},
+  {id:"IT-127",order:127,category:"Свиток",name:"Виклик молнії",img:"",stat:"Магічний урон",valueMin:20,valueMax:40,consumable:true,durability:null,active:true},
+  {id:"IT-128",order:128,category:"Свиток",name:"Вогняний шар",img:"",stat:"Магічний урон",valueMin:20,valueMax:40,consumable:true,durability:null,active:true},
+  {id:"IT-129",order:129,category:"Свиток",name:"Кислотний пар",img:"",stat:"Магічний урон",valueMin:20,valueMax:40,consumable:true,durability:null,active:true},
+  {id:"IT-130",order:130,category:"Свиток",name:"Захисний барєр",img:"",stat:"",valueMin:null,valueMax:null,consumable:true,durability:null,active:true}
+];
+
+var CATEGORIES=['Шоломи','Обладунки','Рукавиці','Штани','Пояси','Взуття','Зброя','Щити','Кільце','Амулет','Зелья','Свиток'];
+var STATS=['Броня','Магічний захист','Спритність','Урон','Магічний урон'];
+var CAT_ICON={ 'Шоломи':'⛑️','Обладунки':'🦺','Рукавиці':'🧤','Штани':'👖','Пояси':'🧵',
+  'Взуття':'🥾','Зброя':'⚔️','Щити':'🛡️','Кільце':'💍','Амулет':'📿','Зелья':'🧪','Свиток':'📜' };
+
+var root=document.getElementById('root');
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function el(sel){ return document.querySelector(sel); }
+function toNum(v){ v=String(v==null?'':v).trim(); if(v==='') return null; var n=Number(v); return isNaN(n)?null:n; }
+function catIcon(c){ return CAT_ICON[c]||'🎁'; }
+
+var ITEMS=[];       // усі предмети з бази
+var M=null;         // модель у редакторі
+var FILTER='__all';  // активна категорія-чип
+var SEARCH='';
+
+/* наступний вільний код IT-XXX */
+function nextCode(){
+  var max=0;
+  ITEMS.forEach(function(it){
+    var m=/^IT-(\d+)$/.exec(String(it.id||''));
+    if(m){ var n=parseInt(m[1],10); if(n>max) max=n; }
+  });
+  var n=max+1, s=String(n); while(s.length<3) s='0'+s;
+  return 'IT-'+s;
+}
+function nextOrder(){
+  var max=0; ITEMS.forEach(function(it){ var o=Number(it.order)||0; if(o>max) max=o; });
+  return max+1;
+}
+
+function blankItem(){
+  return { id:nextCode(), category:'Шоломи', name:'', img:'', stat:'Броня',
+    valueMin:1, valueMax:1, _ranged:false, consumable:false, durability:5000,
+    active:true, order:nextOrder(), _isNew:true };
+}
+
+/* ---- показ характеристики ---- */
+function valueText(it){
+  var a=it.valueMin, b=it.valueMax;
+  if(a==null && b==null) return '';
+  if(a!=null && b!=null && a!==b) return a+'–'+b;
+  return String(a!=null?a:b);
+}
+function statPillClass(stat){
+  if(stat==='Броня') return 'armor';
+  if(stat==='Магічний захист') return 'magic';
+  if(stat==='Спритність') return 'agi';
+  if(stat==='Урон') return 'dmg';
+  if(stat==='Магічний урон') return 'mdmg';
+  return '';
+}
+function metaPills(it){
+  var out='';
+  var vt=valueText(it);
+  if(it.stat){ out+='<span class="pill '+statPillClass(it.stat)+'">'+esc(it.stat)+(vt?' '+esc(vt):'')+'</span>'; }
+  else if(vt){ out+='<span class="pill">'+esc(vt)+'</span>'; }
+  if(it.consumable){ out+='<span class="pill cons">разовий</span>'; }
+  else { out+='<span class="pill">міцність '+esc(it.durability!=null?it.durability:'—')+'</span>'; }
+  return out;
+}
+
+/* мініатюра */
+function imgMini(it){
+  var u=String(it.img||'').trim();
+  if(/^https?:\/\//i.test(u)){
+    return '<img src="'+esc(u)+'" alt="" onerror="this.replaceWith(document.createTextNode(\''+catIcon(it.category)+'\'))">';
+  }
+  return catIcon(it.category);
+}
+
+/* ---- лічильники по категоріях ---- */
+function catCounts(){
+  var m={}; ITEMS.forEach(function(it){ var c=it.category||'—'; m[c]=(m[c]||0)+1; });
+  return m;
+}
+
+/* ---- рендер чипів ---- */
+function renderChips(){
+  var host=el('#chips'); if(!host) return;
+  var counts=catCounts();
+  var html='<button class="chip'+(FILTER==='__all'?' on':'')+'" data-cat="__all">Всі<span class="n">'+ITEMS.length+'</span></button>';
+  CATEGORIES.forEach(function(c){
+    var n=counts[c]||0;
+    html+='<button class="chip'+(FILTER===c?' on':'')+'" data-cat="'+esc(c)+'">'+esc(c)+'<span class="n">'+n+'</span></button>';
+  });
+  // категорії, яких немає у списку CATEGORIES, але є в базі
+  Object.keys(counts).forEach(function(c){
+    if(CATEGORIES.indexOf(c)<0){
+      html+='<button class="chip'+(FILTER===c?' on':'')+'" data-cat="'+esc(c)+'">'+esc(c)+'<span class="n">'+counts[c]+'</span></button>';
+    }
+  });
+  host.innerHTML=html;
+}
+
+/* ---- рендер списку ---- */
+function passFilter(it){
+  if(FILTER!=='__all' && (it.category||'')!==FILTER) return false;
+  if(SEARCH){
+    var q=SEARCH.toLowerCase();
+    var hay=((it.name||'')+' '+(it.id||'')+' '+(it.category||'')+' '+(it.stat||'')).toLowerCase();
+    if(hay.indexOf(q)<0) return false;
+  }
+  return true;
+}
+function renderList(){
+  var host=el('#itemList'); if(!host) return;
+  var list=ITEMS.filter(passFilter);
+  if(!list.length){
+    host.innerHTML='<div class="empty">'+(ITEMS.length? 'Нічого не знайдено за фільтром.' : 'Список порожній. Імпортуй стартовий набір нижче або створи предмет 👇')+'</div>';
+    return;
+  }
+  var html='', lastCat=null;
+  var grouped=(FILTER==='__all' && !SEARCH);
+  list.forEach(function(it){
+    if(grouped && it.category!==lastCat){
+      lastCat=it.category;
+      html+='<div class="cat-h">'+catIcon(it.category)+' '+esc(it.category||'—')+'</div>';
+    }
+    var on=it.active!==false;
+    html+='<div class="irow'+(on?'':' off')+'">'
+      +'<span class="cv">'+imgMini(it)+'</span>'
+      +'<div class="info">'
+        +'<div class="it-top"><span class="code">'+esc(it.id)+'</span><span class="nm">'+esc(it.name||'(без назви)')+'</span></div>'
+        +'<div class="meta">'+metaPills(it)+'</div>'
+      +'</div>'
+      +'<div class="acts">'
+        +'<button class="mini '+(on?'on':'off')+'" data-act="toggle" data-id="'+esc(it.id)+'">'+(on?'✓':'○')+'</button>'
+        +'<button class="mini" data-act="edit" data-id="'+esc(it.id)+'">✏️</button>'
+        +'<button class="mini danger" data-act="del" data-id="'+esc(it.id)+'">🗑</button>'
+      +'</div>'
+    +'</div>';
+  });
+  host.innerHTML=html;
+}
+
+/* ---- datalist категорій ---- */
+function catOptions(){
+  var seen={}, out=[];
+  CATEGORIES.forEach(function(c){ if(!seen[c]){ seen[c]=1; out.push('<option value="'+esc(c)+'">'); } });
+  ITEMS.forEach(function(it){ var c=(it.category||'').trim(); if(c && !seen[c]){ seen[c]=1; out.push('<option value="'+esc(c)+'">'); } });
+  return out.join('');
+}
+
+/* прев'ю картинки */
+function imgPrevHtml(val){
+  val=String(val==null?'':val).trim();
+  if(!val) return '';
+  if(/^https?:\/\//i.test(val)){
+    return '<img class="img-prev-el" src="'+esc(val)+'" alt="" '
+      +'onload="this.nextElementSibling.style.display=\'none\'" '
+      +'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'">'
+      +'<span class="img-prev-err">⚠️ Картинку не знайдено за цим посиланням</span>';
+  }
+  return '<span class="img-prev-err" style="display:block;color:var(--muted)">Встав повне посилання (https://…) на зображення.</span>';
+}
+
+/* ---- рендер редактора ---- */
+function statOptions(sel){
+  var html='<option value=""'+(!sel?' selected':'')+'>(немає)</option>';
+  STATS.forEach(function(s){ html+='<option value="'+esc(s)+'"'+(sel===s?' selected':'')+'>'+esc(s)+'</option>'; });
+  return html;
+}
+function valueBlock(){
+  if(M._ranged){
+    return '<div class="grid">'
+      +'<div class="field"><label>Значення — від</label><input type="number" id="m_valMin" value="'+esc(M.valueMin!=null?M.valueMin:'')+'"></div>'
+      +'<div class="field"><label>Значення — до</label><input type="number" id="m_valMax" value="'+esc(M.valueMax!=null?M.valueMax:'')+'"></div>'
+      +'</div>';
+  }
+  return '<div class="field"><label>Значення характеристики</label>'
+    +'<input type="number" id="m_val" value="'+esc(M.valueMin!=null?M.valueMin:'')+'" placeholder="напр. 2 (порожньо = без значення)">'
+    +'<div class="inline-note">Для звичайних предметів — одне число. Для зброї/уронів увімкни «діапазон».</div></div>';
+}
+function durBlock(){
+  if(M.consumable) return '<div class="inline-note" style="margin-bottom:12px">Разовий предмет — міцність не задається.</div>';
+  return '<div class="field"><label>Міцність (напр. 5000 / 2500)</label>'
+    +'<input type="number" id="m_dur" value="'+esc(M.durability!=null?M.durability:'')+'" placeholder="5000"></div>';
+}
+function renderEditor(){
+  var idField = M._isNew
+    ? '<div class="field"><label>Код предмета (id)</label><input type="text" id="m_id" class="code-input" value="'+esc(M.id)+'" placeholder="IT-131"><div class="inline-note">Унікальний код. На нього посилатимуться ігри й тренажери — краще лишити запропонований.</div></div>'
+    : '<div class="field"><label>Код предмета (id)</label><input type="text" class="code-input" value="'+esc(M.id)+'" disabled><div class="inline-note">🔒 id незмінний — на нього вже можуть посилатися ігри/тренажери.</div></div>';
+
+  el('#editor').innerHTML=
+     '<div class="grid">'
+    +  idField
+    +'  <div class="field"><label>Категорія</label><input type="text" id="m_category" list="catlist" value="'+esc(M.category||'')+'"><datalist id="catlist">'+catOptions()+'</datalist></div>'
+    +'</div>'
+    +'<div class="field"><label>Назва</label><input type="text" id="m_name" value="'+esc(M.name||'')+'" placeholder="Напр.: Сталевий шолом"></div>'
+    +'<div class="field"><label>Картинка — посилання (додамо пізніше)</label>'
+      +'<input type="text" id="m_img" value="'+esc(M.img||'')+'" placeholder="https://…/item.png">'
+      +'<div class="img-prev" id="imgprev">'+imgPrevHtml(M.img)+'</div></div>'
+    +'<div class="grid">'
+    +'  <div class="field"><label>Характеристика</label><select id="m_stat">'+statOptions(M.stat)+'</select></div>'
+    +'  <div class="field" style="justify-content:flex-end"><label class="chk" style="margin-bottom:10px"><input type="checkbox" id="m_ranged"'+(M._ranged?' checked':'')+'> Діапазон (зброя/урон, напр. 4–12)</label></div>'
+    +'</div>'
+    +valueBlock()
+    +'<label class="chk" style="margin:2px 0 12px"><input type="checkbox" id="m_consumable"'+(M.consumable?' checked':'')+'> 🧪 Разовий предмет (зілля/свиток — без міцності)</label>'
+    +durBlock()
+    +'<label class="chk" style="margin-bottom:14px"><input type="checkbox" id="m_active"'+(M.active!==false?' checked':'')+'> Предмет активний (доступний)</label>'
+    +'<div class="savebar">'
+    +'  <button class="btn" data-act="save">💾 Зберегти</button>'
+    +'  <button class="btn ghost" data-act="new">＋ Новий предмет</button>'
+    +(!M._isNew?'  <button class="btn ghost" data-act="delcur" style="color:#ffc9ca">🗑 Видалити цей</button>':'')
+    +'</div>'
+    +'<div class="msg" id="msg"></div>';
+}
+
+/* ---- форма -> модель ---- */
+function collectForm(){
+  if(!el('#m_name')) return;
+  if(M._isNew && el('#m_id')) M.id=(el('#m_id').value||'').trim();
+  M.category=(el('#m_category').value||'').trim();
+  M.name=el('#m_name').value;
+  M.img=(el('#m_img').value||'').trim();
+  M.stat=el('#m_stat').value;
+  M.consumable=el('#m_consumable').checked;
+  M._ranged=el('#m_ranged').checked;
+  if(M._ranged){
+    if(el('#m_valMin')) M.valueMin=toNum(el('#m_valMin').value);
+    if(el('#m_valMax')) M.valueMax=toNum(el('#m_valMax').value);
+  } else if(el('#m_val')){
+    var v=toNum(el('#m_val').value);
+    M.valueMin=v; M.valueMax=v;
+  }
+  if(!M.consumable && el('#m_dur')) M.durability=toNum(el('#m_dur').value);
+  M.active=el('#m_active').checked;
+}
+
+/* ---- чистий об'єкт для збереження ---- */
+function buildClean(){
+  collectForm();
+  var vmin=M.valueMin, vmax=M.valueMax;
+  if(M._ranged){
+    if(vmin!=null && vmax!=null && vmin>vmax){ var t=vmin; vmin=vmax; vmax=t; }
+  } else { vmax=vmin; }
+  var out={
+    id:(M.id||'').trim(),
+    category:(M.category||'').trim(),
+    name:(M.name||'').trim(),
+    img:(M.img||'').trim(),
+    stat:(M.stat||'').trim(),
+    valueMin: vmin,
+    valueMax: vmax,
+    consumable: !!M.consumable,
+    durability: M.consumable ? null : (M.durability!=null?M.durability:null),
+    active: !!M.active,
+    order: Number(M.order)||nextOrder()
+  };
+  return out;
+}
+
+function setMsg(text, ok){
+  var m=el('#msg'); if(!m) return;
+  m.textContent=text; m.className='msg '+(ok?'ok':'err');
+}
+
+/* ---- дії редактора ---- */
+function editorInput(e){
+  var t=e.target;
+  if(t && t.id==='m_img'){ var p=el('#imgprev'); if(p) p.innerHTML=imgPrevHtml(t.value); }
+}
+function editorClick(e){
+  var b=e.target.closest('[data-act]'); if(!b) return;
+  var act=b.getAttribute('data-act');
+  if(act==='save'){ doSave(); return; }
+  if(act==='new'){ M=blankItem(); renderEditor(); window.scrollTo(0, el('#editor').offsetTop-10); return; }
+  if(act==='delcur'){ if(!M._isNew) doDelete(M.id); return; }
+}
+function editorChange(e){
+  var t=e.target;
+  if(t && (t.id==='m_ranged' || t.id==='m_consumable')){ collectForm(); renderEditor(); }
+}
+
+function doSave(){
+  var clean=buildClean();
+  if(!clean.id){ setMsg('Вкажи код предмета (id).', false); return; }
+  if(!clean.name){ setMsg('Додай назву предмета.', false); return; }
+  if(M._isNew && ITEMS.some(function(x){ return x.id===clean.id; })){
+    setMsg('Предмет з кодом «'+clean.id+'» уже існує. Обери інший код.', false); return;
+  }
+  setMsg('💾 Зберігаємо…', true);
+  SK.saveItem(clean).then(function(){
+    return SK.listItems();
+  }).then(function(list){
+    ITEMS=list||[];
+    // лишаємось на збереженому предметі в режимі редагування
+    var saved=ITEMS.filter(function(x){ return x.id===clean.id; })[0];
+    if(saved){ loadIntoEditor(saved); } else { M=blankItem(); renderEditor(); }
+    renderChips(); renderList();
+    setMsg('✅ Збережено!', true);
+  }).catch(function(err){ setMsg('⚠️ Помилка збереження: '+(err&&err.message||err), false); });
+}
+
+function doDelete(id){
+  if(!confirm('Видалити предмет «'+id+'» назавжди?')) return;
+  SK.deleteItem(id).then(function(){ return SK.listItems(); })
+    .then(function(list){
+      ITEMS=list||[];
+      M=blankItem(); renderEditor(); renderChips(); renderList();
+    })
+    .catch(function(err){ alert('Не вдалося видалити: '+(err&&err.message||err)); });
+}
+
+/* ---- завантажити наявний предмет у редактор ---- */
+function loadIntoEditor(it){
+  M=JSON.parse(JSON.stringify(it));
+  M._isNew=false;
+  M._ranged=(M.valueMin!=null && M.valueMax!=null && M.valueMin!==M.valueMax);
+  if(M.consumable) M.durability=(M.durability!=null?M.durability:null);
+  else if(M.durability==null) M.durability=5000;
+  renderEditor();
+}
+
+/* ---- кліки по списку ---- */
+function listClick(e){
+  var b=e.target.closest('[data-act]'); if(!b) return;
+  var act=b.getAttribute('data-act');
+  var id=b.getAttribute('data-id');
+  var it=ITEMS.filter(function(x){ return x.id===id; })[0];
+  if(act==='edit'){
+    if(!it) return;
+    loadIntoEditor(it);
+    window.scrollTo(0, el('#editor').offsetTop-10);
+  } else if(act==='toggle'){
+    if(!it) return;
+    var next=(it.active===false);
+    SK.setItemActive(id, next).then(function(){ it.active=next; renderList(); })
+      .catch(function(err){ alert('Помилка: '+(err&&err.message||err)); });
+  } else if(act==='del'){
+    doDelete(id);
+  }
+}
+
+/* ---- фільтр ---- */
+function chipClick(e){
+  var b=e.target.closest('[data-cat]'); if(!b) return;
+  FILTER=b.getAttribute('data-cat');
+  renderChips(); renderList();
+}
+
+/* ---- імпорт стартового набору ---- */
+function doSeed(){
+  if(typeof SEED_ITEMS==='undefined' || !SEED_ITEMS.length){ el('#seedMsg').textContent='Стартовий список недоступний.'; el('#seedMsg').className='msg err'; return; }
+  var have={}; ITEMS.forEach(function(it){ have[it.id]=1; });
+  var toAdd=SEED_ITEMS.filter(function(s){ return !have[s.id]; });
+  var skipped=SEED_ITEMS.length-toAdd.length;
+  if(!toAdd.length){
+    el('#seedMsg').textContent='Усі '+SEED_ITEMS.length+' предметів уже в базі — нічого додавати.';
+    el('#seedMsg').className='msg ok'; return;
+  }
+  if(!confirm('Додати '+toAdd.length+' предметів у базу?'+(skipped?' ('+skipped+' уже наявних пропущу — ваші правки не чіпаю)':''))) return;
+  var btn=el('#btnSeed'); if(btn){ btn.disabled=true; btn.textContent='Імпортую…'; }
+  el('#seedMsg').textContent='Додаю '+toAdd.length+' предметів…'; el('#seedMsg').className='msg ok';
+  // послідовно, щоб не перевантажити
+  var i=0, added=0;
+  function step(){
+    if(i>=toAdd.length){ finish(); return; }
+    var s=Object.assign({}, toAdd[i]);
+    delete s._ranged; delete s._isNew;
+    SK.saveItem(s).then(function(){ added++; i++;
+      if(btn) btn.textContent='Імпортую… '+added+'/'+toAdd.length;
+      step();
+    }).catch(function(err){
+      el('#seedMsg').textContent='⚠️ Помилка на '+s.id+': '+(err&&err.message||err);
+      el('#seedMsg').className='msg err';
+      if(btn){ btn.disabled=false; btn.textContent='🌱 Імпортувати стартовий список'; }
+    });
+  }
+  function finish(){
+    SK.listItems().then(function(list){
+      ITEMS=list||[]; renderChips(); renderList();
+      el('#seedMsg').textContent='✅ Додано '+added+' предметів.'+(skipped?' Пропущено наявних: '+skipped+'.':'');
+      el('#seedMsg').className='msg ok';
+      if(btn){ btn.disabled=false; btn.textContent='🌱 Імпортувати стартовий список'; }
+    });
+  }
+  step();
+}
+
+/* ---- каркас після перевірки доступу ---- */
+function renderAdminUI(){
+  root.innerHTML=
+     '<h1>🛡 Предмети та екіпіровка</h1>'
+    +'<p class="sub">Броня, зброя, зілля й свитки. Кожен предмет має стабільний код (IT-XXX) — наступним кроком ігри й тренажери видаватимуть предмети за цим кодом. Картинки додаються посиланням.</p>'
+    +'<div class="panel"><h2>🗂 Список предметів</h2>'
+      +'<div class="filters" id="filtersRow">'
+        +'<div class="filters" id="chips" style="margin:0"></div>'
+      +'</div>'
+      +'<div class="field" style="max-width:280px;margin-bottom:12px"><input type="text" id="search" placeholder="🔎 Пошук за назвою / кодом…"></div>'
+      +'<div class="ilist" id="itemList"></div>'
+    +'</div>'
+    +'<div class="panel"><h2>✏️ Редактор предмета</h2><div id="editor"></div></div>'
+    +'<div class="panel"><h2>🌱 Стартовий список</h2>'
+      +'<p class="sub">Одноразово залити базовий набір ('+((typeof SEED_ITEMS!=='undefined'&&SEED_ITEMS.length)||0)+' предметів). Наявні коди пропускаються — ваші правки не перезаписуються.</p>'
+      +'<button class="btn ghost" id="btnSeed">🌱 Імпортувати стартовий список</button>'
+      +'<div class="msg" id="seedMsg"></div>'
+    +'</div>';
+
+  M=blankItem();
+  renderChips(); renderList(); renderEditor();
+
+  el('#chips').addEventListener('click', chipClick);
+  el('#itemList').addEventListener('click', listClick);
+  el('#editor').addEventListener('click', editorClick);
+  el('#editor').addEventListener('input', editorInput);
+  el('#editor').addEventListener('change', editorChange);
+  el('#btnSeed').addEventListener('click', doSeed);
+  el('#search').addEventListener('input', function(e){ SEARCH=(e.target.value||'').trim(); renderList(); });
+}
+
+function gate(msg){
+  root.innerHTML='<div class="gate"><div class="big">🔒</div>'
+    +'<h1 style="font-size:1.3rem">Доступ обмежено</h1>'
+    +'<p class="sub" style="margin:8px 0 14px">'+esc(msg)+'</p>'
+    +'<a class="btn ghost" href="login.html">Увійти</a></div>';
+}
+
+(function whenSK(){
+  var tries=0;
+  (function tick(){
+    if(window.SK && SK.ready){
+      SK.ready.then(function(){
+        if(!SK.currentUser || !SK.currentUser()){ gate('Увійди адміністратором, щоб керувати предметами.'); return; }
+        SK.isAdmin().then(function(isA){
+          if(!isA){ gate('Ця сторінка лише для адміністраторів.'); return; }
+          var lo=document.getElementById('logoutBtn');
+          if(lo){ lo.style.display=''; lo.onclick=function(){ SK.logout().then(function(){ location.href='login.html'; }); }; }
+          SK.listItems().then(function(list){ ITEMS=list||[]; renderAdminUI(); })
+            .catch(function(){ ITEMS=[]; renderAdminUI(); });
+        }).catch(function(){ gate('Не вдалося перевірити права доступу.'); });
+      });
+      return;
+    }
+    if(tries++<100) setTimeout(tick,50);
+    else gate('Не вдалося підключитися до бази.');
+  })();
+})();
+</script>
+</body>
+</html>

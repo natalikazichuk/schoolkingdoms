@@ -846,6 +846,77 @@ const SK = {
     });
   },
 
+  /* ===== ПРЕДМЕТИ / ЕКІПІРОВКА (адмінка admin-items.html) =====
+     Колекція items. id документа — читабельний код «IT-001», щоб ігри й
+     тренажери потім посилались на предмет за стабільним id. Схема одного
+     предмета:
+       { category, name, img, stat, valueMin, valueMax,
+         consumable, durability, active, order }
+     valueMin/valueMax — число характеристики: рівні між собою для звичайного
+     значення (напр. Броня 2), різні для діапазону (Зброя, урон 4–12), або
+     обидва null, якщо значення немає (деякі зілля). consumable=true →
+     разовий предмет (міцності немає, durability=null). */
+
+  // Усі предмети (для admin-items.html). -> [{ id, ...item }]
+  async listItems() {
+    const snap = await getDocs(collection(db, 'items'));
+    const out = [];
+    snap.forEach(d => out.push(Object.assign({ id: d.id }, d.data())));
+    out.sort((a, b) =>
+      (Number(a.order) || 0) - (Number(b.order) || 0) ||
+      String(a.id || '').localeCompare(String(b.id || ''), 'uk'));
+    return out;
+  },
+
+  // Лише активні предмети (для майбутньої видачі в іграх/тренажерах).
+  async listActiveItems() {
+    const snap = await getDocs(collection(db, 'items'));
+    const out = [];
+    snap.forEach(d => {
+      const it = d.data();
+      if (it.active === false) return;
+      out.push(Object.assign({ id: d.id }, it));
+    });
+    out.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
+    return out;
+  },
+
+  // Один предмет за id. -> { id, ...item } | null
+  async getItem(id) {
+    if (!id) return null;
+    const s = await getDoc(doc(db, 'items', id));
+    return s.exists() ? Object.assign({ id: s.id }, s.data()) : null;
+  },
+
+  // Створити/оновити предмет. Якщо є id (напр. «IT-001») — пише саме туди
+  // (setDoc merge), щоб id лишався стабільним. Без id — генерує випадковий.
+  // -> id
+  async saveItem(item) {
+    if (!item || typeof item !== 'object') throw new Error('empty-item');
+    const { id, ...data } = item;
+    data.updatedAt = serverTimestamp();
+    if (id) {
+      await setDoc(doc(db, 'items', String(id)), data, { merge: true });
+      return String(id);
+    }
+    data.createdAt = serverTimestamp();
+    const ref = await addDoc(collection(db, 'items'), data);
+    return ref.id;
+  },
+
+  async deleteItem(id) {
+    if (!id) return;
+    await deleteDoc(doc(db, 'items', String(id)));
+  },
+
+  async setItemActive(id, active) {
+    if (!id) return;
+    await updateDoc(doc(db, 'items', String(id)), {
+      active: !!active,
+      updatedAt: serverTimestamp()
+    });
+  },
+
   /* ===== ЧИТАЦЬКА БІБЛІОТЕКА ГЕРОЯ (heroes/{id}.library) ===== */
 
   // Прочитані книги активного Героя. -> [{ bookId, title, correct, total, readAt }]
