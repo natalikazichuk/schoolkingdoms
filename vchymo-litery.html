@@ -88,7 +88,7 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
   color:#fff;background:var(--cardc,var(--blue))}
 .lc-big{font-family:'Fredoka';font-size:96px;line-height:.9;text-shadow:0 4px 0 rgba(0,0,0,.12)}
 .lc-small{font-family:'Fredoka';font-size:54px;line-height:.9;opacity:.9;text-shadow:0 3px 0 rgba(0,0,0,.12)}
-.lc-pic{background:#f5eeda;display:flex;align-items:center;justify-content:center;position:relative;padding:10px}
+.lc-pic{background:#f5eeda;display:flex;align-items:center;justify-content:center;position:relative;padding:10px;min-height:clamp(160px,40vh,350px)}
 .lc-pic img{max-height:clamp(140px,36vh,330px);max-width:100%;width:auto;height:auto;object-fit:contain;display:block}
 .lc-emoji{font-size:96px;line-height:1}
 .lc-draft{position:absolute;left:10px;bottom:8px;font-size:11px;font-weight:800;color:#b9ad93;
@@ -395,6 +395,16 @@ const ABC=[
 const PAL=['var(--red)','var(--orange)','var(--yellow)','var(--green)','var(--teal)','var(--blue)','var(--indigo)','var(--purple)','var(--pink)'];
 function colorFor(i){ return PAL[i%PAL.length]; }
 
+/* ── Назви літер для озвучки (щоб TTS не читав «Ж» як «жіночий») ── */
+const LETTER_SAY={
+ 'А':'а','Б':'бе','В':'ве','Г':'ге','Ґ':'ґе','Д':'де','Е':'е','Є':'є',
+ 'Ж':'же','З':'зе','И':'и','І':'і','Ї':'ї','Й':'ій','К':'ка','Л':'ел',
+ 'М':'ем','Н':'ен','О':'о','П':'пе','Р':'ер','С':'ес','Т':'те','У':'у',
+ 'Ф':'еф','Х':'ха','Ц':'це','Ч':'че','Ш':'ша','Щ':'ща','Ь':'мʼякий знак',
+ 'Ю':'ю','Я':'я'
+};
+function sayLetter(L){ return LETTER_SAY[L] || L; }
+
 /* ── СЛОВА для ігор (з малюнками-емодзі) ── */
 const WORDS=[
  {w:'КІТ',e:'🐱'},{w:'ЛИС',e:'🦊'},{w:'РАК',e:'🦀'},{w:'СОМ',e:'🐟'},{w:'ЖУК',e:'🐞'},
@@ -447,12 +457,15 @@ function renderCard(){
     wEl.innerHTML=a+'<span class="hl">'+b+'</span>'+c;
   } else { wEl.textContent=it.w; }
   document.getElementById('lcNote').textContent=it.note||'';
-  // малюнок: справжній або емодзі-чернетка
+  // малюнок: справжній, емодзі-чернетка — лише як резерв, якщо файлу нема
   const pic=document.getElementById('lcPic');
-  pic.innerHTML='<span class="lc-emoji">'+it.e+'</span><span class="lc-draft">чернетка</span>';
+  pic.innerHTML='';                    // не показуємо емодзі наперед (без блимання)
   const im=new Image();
-  im.onload=()=>{ pic.innerHTML=''; pic.appendChild(im); };
-  im.alt=it.w; im.src='img/abetka_'+it.id+'.webp';
+  im.alt=it.w;
+  im.onload =()=>{ pic.innerHTML=''; pic.appendChild(im); };
+  im.onerror=()=>{ pic.innerHTML='<span class="lc-emoji">'+it.e+'</span><span class="lc-draft">чернетка</span>'; };
+  im.src='img/abetka_'+it.id+'.webp';
+  if(im.complete && im.naturalWidth){ im.onload(); }  // кеш → миттєво, без порожнечі
   // прогрес/навігація
   document.getElementById('navMid').textContent=(idx+1)+' / '+ALL;
   document.getElementById('prevB').disabled=idx===0;
@@ -477,7 +490,7 @@ function updateLearnBar(){
 function speakCard(){
   userGesture=true;
   const it=ABC[idx];
-  const text=it.speak || (it.L+'. '+it.w+'.');
+  const text=it.speak || (sayLetter(it.L)+', '+it.w.toLowerCase());
   playAudio('audio/abetka_'+it.id+'.mp3', text, 'cardSpeak');
 }
 
@@ -575,7 +588,7 @@ function buildChoice(key){
       const it=ABC[randInt(ABC.length)];
       const opts=distinctLetters(it.L,4);
       rounds.push({kind:'litera', letter:it.L, audio:'audio/abetka_'+it.id+'.mp3',
-        speak:it.speak||it.L, autoSpeak:true, answerLabel:it.L,
+        speak:it.speak||sayLetter(it.L), autoSpeak:true, answerLabel:it.L,
         options:shuffle(opts.map(L=>({label:L,correct:L===it.L})))});
     } else if(key==='persha'){
       const wd=usedWords[k%usedWords.length];
