@@ -153,8 +153,8 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .qbox{background:#fff;border:3px solid var(--line);border-radius:24px;box-shadow:var(--shadow);
   padding:22px 18px;text-align:center;position:relative}
 .qlabel{color:var(--soft);font-weight:800;font-size:14px;text-transform:uppercase;letter-spacing:.5px;margin:0 0 10px}
-.q-emoji{font-size:88px;line-height:1;margin:2px 0}
-.q-emoji img{width:150px;height:110px;object-fit:cover;border-radius:14px}
+.q-emoji{font-size:88px;line-height:1;margin:2px 0;min-height:150px;display:flex;align-items:center;justify-content:center}
+.q-emoji img{max-width:190px;max-height:150px;width:auto;height:auto;object-fit:contain;display:block}
 .q-word{font-family:'Fredoka';font-size:46px;letter-spacing:4px;margin:6px 0 2px}
 .q-word .gap{color:var(--red);border-bottom:5px solid var(--red);border-radius:2px}
 .q-speak{margin-top:10px;background:var(--blue);color:#fff;border:none;border-radius:14px;
@@ -399,13 +399,12 @@ const LETTER_SAY={
 };
 function sayLetter(L){ return LETTER_SAY[L] || L; }
 
-/* ── СЛОВА для ігор (з малюнками-емодзі) ── */
-const WORDS=[
- {w:'КІТ',e:'🐱'},{w:'ЛИС',e:'🦊'},{w:'РАК',e:'🦀'},{w:'СОМ',e:'🐟'},{w:'ЖУК',e:'🐞'},
- {w:'СОВА',e:'🦉'},{w:'РИБА',e:'🐟'},{w:'ЖАБА',e:'🐸'},{w:'МИША',e:'🐭'},{w:'ХАТА',e:'🏡'},
- {w:'СЛОН',e:'🐘'},{w:'ТИГР',e:'🐯'},{w:'ВОВК',e:'🐺'},{w:'ЛЕВ',e:'🦁'},{w:'ГУСКА',e:'🪿'},
- {w:'ЗЕБРА',e:'🦓'},{w:'БАНАН',e:'🍌'},{w:'СОНЦЕ',e:'☀️'},{w:'ЇЖАК',e:'🦔'},{w:'ЧАШКА',e:'☕'},
-];
+/* картинка слова з ABC (резерв — емодзі, якщо файлу нема) */
+function picBox(id,emoji,alt){
+  if(!id) return '<div class="q-emoji">'+emoji+'</div>';
+  return '<div class="q-emoji"><img src="img/abetka_'+id+'.webp" alt="'+esc(alt||'')+'" '+
+         'onerror="this.onerror=null;this.parentNode.textContent=\''+emoji+'\'"></div>';
+}
 
 /* ══════ СТАН ══════ */
 const SAVE_KEY='sk-litery-v1';
@@ -576,7 +575,7 @@ function playAdvance(){
 /* ── МНОЖИННИЙ ВИБІР: litera / persha / propushchena ── */
 function buildChoice(key){
   const rounds=[]; const N=8;
-  const usedWords=shuffle(WORDS.slice()).slice(0,N);
+  const usedWords=shuffle(ABC.filter(x=>x.w.length>=3)).slice(0,N);
   for(let k=0;k<N;k++){
     if(key==='litera'){
       const it=ABC[randInt(ABC.length)];
@@ -586,18 +585,20 @@ function buildChoice(key){
         options:shuffle(opts.map(L=>({label:L,correct:L===it.L})))});
     } else if(key==='persha'){
       const wd=usedWords[k%usedWords.length];
-      const first=wd.w[0];
+      const W=wd.w.toUpperCase();
+      const first=W[0];
       const opts=distinctLetters(first,4);
-      rounds.push({kind:'persha', emoji:wd.e, word:wd.w, speak:capFirst(wd.w),
+      rounds.push({kind:'persha', id:wd.id, emoji:wd.e, word:W, speak:capFirst(wd.w),
         audio:null, answerLabel:first,
         options:shuffle(opts.map(L=>({label:L,correct:L===first})))});
     } else { // propushchena
       const wd=usedWords[k%usedWords.length];
-      const pos=1+randInt(wd.w.length-1);           // не перша літера
-      const miss=wd.w[pos];
-      const shown=wd.w.slice(0,pos)+'_'+wd.w.slice(pos+1);
+      const W=wd.w.toUpperCase();
+      const pos=1+randInt(W.length-1);              // не перша літера
+      const miss=W[pos];
+      const shown=W.slice(0,pos)+'_'+W.slice(pos+1);
       const opts=distinctLetters(miss,4);
-      rounds.push({kind:'propushchena', emoji:wd.e, shown, word:wd.w, speak:capFirst(wd.w),
+      rounds.push({kind:'propushchena', id:wd.id, emoji:wd.e, shown, word:W, speak:capFirst(wd.w),
         audio:null, answerLabel:miss,
         options:shuffle(opts.map(L=>({label:L,correct:L===miss})))});
     }
@@ -614,14 +615,14 @@ function renderChoice(r){
         '<p class="q-sub">Вибери літеру, яку почув</p>';
   } else if(r.kind==='persha'){
     top='<p class="qlabel">Гра · Перша літера</p>'+
-        '<div class="q-emoji">'+r.emoji+'</div>'+
+        picBox(r.id,r.emoji,r.word)+
         '<div class="q-word" style="font-size:30px;letter-spacing:2px">'+r.word+'</div>'+
         '<button class="q-speak" onclick="playAudio(null,\''+esc(r.speak)+'\',null)">🔊 '+r.word+'</button>'+
         '<p class="q-sub">З якої літери починається?</p>';
   } else {
     const wHtml=r.shown.split('').map(ch=>ch==='_'?'<span class="gap">&nbsp;&nbsp;</span>':ch).join('');
     top='<p class="qlabel">Гра · Пропущена літера</p>'+
-        '<div class="q-emoji">'+r.emoji+'</div>'+
+        picBox(r.id,r.emoji,r.word)+
         '<div class="q-word">'+wHtml+'</div>'+
         '<button class="q-speak" onclick="playAudio(null,\''+esc(r.speak)+'\',null)">🔊 '+r.word+'</button>'+
         '<p class="q-sub">Якої літери не вистачає?</p>';
@@ -650,9 +651,10 @@ function chooseOpt(btn,o,r){
 
 /* ── СКЛАДИ СЛОВО ── */
 function buildSklad(){
-  const pool=shuffle(WORDS.filter(w=>w.w.length>=3&&w.w.length<=5)).slice(0,6);
-  return pool.map(wd=>({kind:'sklad', word:wd.w, emoji:wd.e, speak:capFirst(wd.w),
-    answerLabel:wd.w, filled:'', order:shuffle(wd.w.split('').map((ch,i)=>({ch,i})))}));
+  const pool=shuffle(ABC.filter(w=>w.w.length>=3&&w.w.length<=5)).slice(0,6);
+  return pool.map(wd=>{ const W=wd.w.toUpperCase();
+    return {kind:'sklad', id:wd.id, word:W, emoji:wd.e, speak:capFirst(wd.w),
+      answerLabel:W, filled:'', order:shuffle(W.split('').map((ch,i)=>({ch,i})))}; });
 }
 function renderSklad(r){
   const body=document.getElementById('playBody');
@@ -662,7 +664,7 @@ function renderSklad(r){
     '<button class="tile" id="tile'+i+'" onclick="tapTile('+i+')">'+t.ch+'</button>').join('');
   body.innerHTML='<div class="qbox">'+
       '<p class="qlabel">Гра · Склади слово</p>'+
-      '<div class="q-emoji">'+r.emoji+'</div>'+
+      picBox(r.id,r.emoji,r.word)+
       '<button class="q-speak" onclick="playAudio(null,\''+esc(r.speak)+'\',null)">🔊 '+r.word+'</button>'+
       '<div class="slots">'+slots+'</div>'+
       '<p class="q-sub">Постав літери по порядку</p>'+
