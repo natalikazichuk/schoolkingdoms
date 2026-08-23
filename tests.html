@@ -142,6 +142,10 @@
   a.tr-card:hover{transform:translateY(-4px);border-color:var(--gold);box-shadow:0 16px 34px rgba(0,0,0,.46)}
   a.tr-card:active{transform:translateY(-1px)}
   .tr-card .tr-emoji{font-size:2.5rem;line-height:1;filter:drop-shadow(0 3px 6px rgba(0,0,0,.4))}
+  .tr-card .tr-thumb{width:100%;height:88px;border-radius:14px;overflow:hidden;display:flex;
+    align-items:center;justify-content:center;background:rgba(255,255,255,.05);box-shadow:0 4px 12px rgba(0,0,0,.28)}
+  .tr-card .tr-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .tr-card .tr-thumb .tr-fb{font-size:2.5rem;filter:drop-shadow(0 3px 6px rgba(0,0,0,.4))}
   .tr-card .tr-name{font-family:'Playfair Display',serif;font-weight:800;font-size:1rem}
   .tr-card .tr-desc{font-size:.75rem;color:#c6d3ea;font-weight:600;line-height:1.3;padding-bottom:10px}
   .tr-card .tr-play{margin-top:auto;padding-top:0;display:inline-flex;align-items:center;gap:6px;
@@ -215,6 +219,7 @@
     .tr-grid{grid-template-columns:1fr 1fr;gap:10px}
     a.tr-card{padding:14px 9px 12px;gap:5px;border-radius:16px}
     .tr-card .tr-emoji{font-size:2rem}
+    .tr-card .tr-thumb{height:74px}
     .tr-card .tr-name{font-size:.9rem;line-height:1.15}
     .tr-card .tr-desc{font-size:.68rem;line-height:1.25;padding-bottom:6px}
     .tr-card .tr-play{padding:6px 14px;font-size:.78rem}
@@ -390,8 +395,15 @@ function subjectHtml(s, tier, grade){
           + slinks.map(function(l){
               var tgt = l.blank ? ' target="_blank" rel="noopener"' : '';
               var d = l.desc ? '<span class="tr-desc">'+esc(l.desc)+'</span>' : '';
+              var emo = esc(l.icon||'🎮');
+              var im = trainerImg(l.href, l.label);
+              var visual = im
+                ? '<span class="tr-thumb"><img src="'+esc(im)+'" alt="" loading="lazy" '
+                    + 'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
+                    + '<span class="tr-fb" style="display:none">'+emo+'</span></span>'
+                : '<span class="tr-emoji">'+emo+'</span>';
               return '<a class="tr-card" href="'+esc(l.href)+'"'+tgt+'>'
-                   + '<span class="tr-emoji">'+esc(l.icon||'🎮')+'</span>'
+                   + visual
                    + '<span class="tr-name">'+esc(l.label||l.href)+'</span>'
                    + d
                    + '<span class="tr-play">Грати ▶</span>'
@@ -528,6 +540,25 @@ function subjectLinksFor(s, tier, grade){
         && (l.tier  ? slTierMatch(tier, l.tier)   : true)
         && (l.grade ? slGradeMatch(grade, l.grade) : true);
   });
+}
+
+/* Картинки для карток тренажерів. Дані тренажерів приходять із бази,
+   тож картинку добираємо тут за посиланням або назвою. Якщо файлу немає —
+   картка автоматично падає назад на емодзі (onerror). */
+var TRAINER_IMG = [
+  { keys:['vchymo-litery','вчимо літери','вчимо лiтери'], img:'img/tr/vchymo-litery.webp' },
+  { keys:['chytaemo-sklady','читаємо склади'],            img:'img/tr/chytaemo-sklady.webp' }
+];
+function trainerImg(href, label){
+  var h = slNorm(href), n = slNorm(label);
+  for(var i=0;i<TRAINER_IMG.length;i++){
+    var e = TRAINER_IMG[i];
+    for(var k=0;k<e.keys.length;k++){
+      var key = slNorm(e.keys[k]);
+      if((h && h.indexOf(key)>=0) || (n && n.indexOf(key)>=0)) return e.img;
+    }
+  }
+  return '';
 }
 
 function testChip(t){
