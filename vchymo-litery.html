@@ -229,7 +229,9 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .q-emoji{font-size:64px;line-height:1;margin:0;min-height:100px;display:flex;align-items:center;justify-content:center}
 .q-emoji img{max-width:150px;max-height:100px;width:auto;height:auto;object-fit:contain;display:block}
 .q-word{font-family:'Fredoka';font-size:40px;letter-spacing:4px;margin:4px 0 2px}
-.q-word .gap{color:var(--coral);border-bottom:5px solid var(--coral);border-radius:2px}
+.q-word .gap{display:inline-block;min-width:.62em;text-align:center;color:var(--coral);border-bottom:5px solid var(--coral);border-radius:2px}
+.q-word .gap.filled{color:var(--good);border-bottom-color:var(--good);animation:gappop .35s ease}
+@keyframes gappop{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.25)}100%{transform:scale(1)}}
 .q-speak{margin-top:8px;background:var(--blue);color:#fff;border:none;border-radius:14px;
   padding:9px 16px;font-family:'Fredoka';font-size:16px;cursor:pointer;box-shadow:0 4px 0 #2f8fd6}
 .q-speak:active{transform:translateY(3px);box-shadow:0 1px 0 #2f8fd6}
@@ -828,6 +830,11 @@ function finishRound(ok){
   fb.innerHTML = ok ? (pick(['🎉 Молодець!','⭐ Правильно!','👏 Так!','🥳 Супер!'])) 
                     : ('Правильно: <b>'+(r.answerLabel||'')+'</b>');
   setMascot(ok?pick(['Так тримати!','Молодець!','Ти супер!']):'Нічого, ось вона!');
+  // «Пропущена літера»: підставляємо правильну літеру у слово над рискою
+  if(r.kind==='propushchena'){
+    const g=document.getElementById('gapSlot');
+    if(g){ g.textContent=r.answerLabel||''; g.classList.add('filled'); }
+  }
   const nb=document.getElementById('playNext');
   nb.style.display='block';
   nb.textContent=(game.i>=game.rounds.length-1)?'Побачити результат →':'Далі →';
@@ -893,7 +900,7 @@ function renderChoice(r){
         '<button class="q-speak" onclick="playAudio(null,\''+esc(r.speak)+'\',null)">🔊 '+r.word+'</button>'+
         '<p class="q-sub">З якої літери починається?</p>';
   } else {
-    const wHtml=r.shown.split('').map(ch=>ch==='_'?'<span class="gap">&nbsp;&nbsp;</span>':ch).join('');
+    const wHtml=r.shown.split('').map(ch=>ch==='_'?'<span class="gap" id="gapSlot">&nbsp;&nbsp;</span>':ch).join('');
     top='<p class="qlabel">🧩 Знайди літеру!</p>'+
         picBox(r.id,r.emoji,r.word)+
         '<div class="q-word">'+wHtml+'</div>'+
