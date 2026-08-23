@@ -6,13 +6,26 @@
 <title>Вчимо літери — тренажер для малят</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
 <style>
 :root{
   --ink:#2c2b3a;--soft:#6b6a7d;--paper:#fff9ef;--line:#ece3d2;--card:#fff;
   --red:#ff6b6b;--orange:#ffa94d;--yellow:#ffd43b;--green:#51cf66;--teal:#22b8cf;
   --blue:#4dabf7;--indigo:#748ffc;--purple:#cc5de8;--pink:#f783ac;
   --good:#37b26f;--good-bg:#e4f7ec;--bad:#e06666;--bad-bg:#fbe7e7;
+
+  /* ── СЕМАНТИКА КОЛЬОРІВ (ролі, а не просто кольори) ── */
+  --coral:#ff7a5c;          /* літера / поточне завдання — фірмовий колір алфавіту */
+  --primary:var(--blue);    /* основна дія */
+  --success:var(--green);   /* успіх */
+  --learn:var(--teal);      /* навчальний контент (прогрес) */
+  --nav:#16294f;            /* навігація */
+
+  /* ── ЄДИНА СИСТЕМА ELEVATION (мʼякі тіні для поверхонь) ── */
+  --e1:0 1px 3px rgba(44,43,58,.14);    /* рівень 1 — дрібні контроли (іконки) */
+  --e2:0 5px 16px rgba(44,43,58,.10);   /* рівень 2 — картки / поверхні */
+  --e3:0 12px 28px rgba(44,43,58,.16);  /* рівень 3 — оверлеї / модалки */
+  /* тактильна база для натискних кнопок (суцільний зсув) */
   --shadow:0 6px 0 rgba(44,43,58,.13);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -39,12 +52,16 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .iconbtn{width:44px;height:44px;border:2px solid var(--line);background:#fff;border-radius:14px;
   font-size:20px;cursor:pointer;display:grid;place-items:center;flex:none;color:var(--ink)}
 .iconbtn.off{opacity:.4}
+.abcbtn{font-family:'Fredoka',sans-serif;font-weight:700;font-size:15px;letter-spacing:.5px;color:var(--coral)}
+.sndbtn svg{width:22px;height:22px;display:block}
 .iconbtn:active{transform:translateY(2px)}
 .big-btn{border:none;border-radius:18px;padding:16px 20px;font-family:'Fredoka';font-size:20px;
-  cursor:pointer;color:#fff;background:var(--green);box-shadow:0 6px 0 #37a052;width:100%}
-.big-btn:active{transform:translateY(3px);box-shadow:0 3px 0 #37a052}
-.big-btn.blue{background:var(--blue);box-shadow:0 6px 0 #2f8fd6}
+  cursor:pointer;color:#fff;background:var(--primary);box-shadow:0 6px 0 #2f8fd6;width:100%}
+.big-btn:active{transform:translateY(3px);box-shadow:0 3px 0 #2f8fd6}
+.big-btn.blue{background:var(--primary);box-shadow:0 6px 0 #2f8fd6}
 .big-btn.blue:active{box-shadow:0 3px 0 #2f8fd6}
+.big-btn.success{background:var(--success);box-shadow:0 6px 0 #37a052}
+.big-btn.success:active{box-shadow:0 3px 0 #37a052}
 .big-btn:disabled{filter:grayscale(.5);opacity:.65;cursor:not-allowed}
 
 /* ══════════════ START ══════════════ */
@@ -67,7 +84,7 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .topbar .title small{display:block;font-family:'Nunito';font-weight:800;font-size:12px;color:var(--soft)}
 .progress-line{flex:1;min-width:0}
 .bar{height:12px;background:#f0e7d6;border-radius:8px;overflow:hidden}
-.bar>span{display:block;height:100%;background:linear-gradient(90deg,var(--green),var(--teal));
+.bar>span{display:block;height:100%;background:linear-gradient(90deg,var(--learn),#63d3e3);
   border-radius:8px;transition:width .45s}
 .progress-line .pt{font-weight:800;font-size:12px;color:var(--soft);margin:3px 2px 0;display:block}
 
@@ -81,13 +98,19 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 /* ══════════════ LEARN — картка літери ══════════════ */
 #learn{gap:12px}
 .card-stage{flex:1;display:flex;flex-direction:column;justify-content:center}
-.letter-card{background:var(--card);border-radius:28px;box-shadow:0 10px 0 rgba(44,43,58,.14);
+.letter-card{background:var(--card);border-radius:28px;box-shadow:var(--e2);
   border:4px solid #fff;overflow:hidden;position:relative;cursor:pointer;transition:transform .12s}
 .letter-card:active{transform:scale(.985)}
 .lc-head{padding:16px 18px 10px;display:flex;align-items:flex-end;justify-content:center;gap:6px;
-  color:#fff;background:var(--cardc,var(--blue))}
-.lc-big{font-family:'Fredoka';font-size:96px;line-height:.9;text-shadow:0 4px 0 rgba(0,0,0,.12)}
-.lc-small{font-family:'Fredoka';font-size:54px;line-height:.9;opacity:.9;text-shadow:0 3px 0 rgba(0,0,0,.12)}
+  color:#fff;background:linear-gradient(180deg,#ff8a6b,#ff6f52)}
+.lc-big{font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:104px;line-height:.9;
+  background:linear-gradient(180deg,#fff 0%,#fff 52%,#e7ecf6 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;
+  filter:drop-shadow(0 3px 0 rgba(0,0,0,.16)) drop-shadow(0 7px 9px rgba(0,0,0,.20))}
+.lc-small{font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:58px;line-height:.9;opacity:.96;
+  background:linear-gradient(180deg,#fff 0%,#fff 52%,#e7ecf6 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;
+  filter:drop-shadow(0 2px 0 rgba(0,0,0,.14)) drop-shadow(0 5px 7px rgba(0,0,0,.18))}
 .lc-pic{background:#f5eeda;display:flex;align-items:center;justify-content:center;position:relative;padding:10px;min-height:clamp(160px,40vh,350px)}
 .lc-pic img{max-height:clamp(140px,36vh,330px);max-width:100%;width:auto;height:auto;object-fit:contain;display:block}
 .lc-emoji{font-size:96px;line-height:1}
@@ -95,11 +118,16 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
   background:rgba(255,255,255,.8);border-radius:8px;padding:2px 8px}
 .lc-word{padding:12px 14px 16px;text-align:center;background:#fff}
 .lc-word b{font-family:'Fredoka';font-size:30px;display:block}
-.lc-word b .hl{color:var(--red)}
+.lc-word b .hl{color:var(--coral)}
 .lc-word .note{color:var(--soft);font-weight:800;font-size:13px;margin-top:2px;display:block}
-.lc-speak{position:absolute;top:12px;right:12px;width:46px;height:46px;border-radius:50%;border:none;
-  background:rgba(255,255,255,.92);font-size:22px;cursor:pointer;box-shadow:0 4px 10px rgba(0,0,0,.2);z-index:2}
-.lc-speak.on{background:var(--yellow);animation:pulse 1s infinite}
+.lc-listen{display:inline-flex;align-items:center;gap:8px;margin-top:12px;border:none;cursor:pointer;
+  background:var(--blue);color:#fff;font-family:'Fredoka';font-weight:600;font-size:18px;
+  padding:12px 22px;border-radius:999px;box-shadow:0 5px 0 #2f8fd6}
+.lc-listen:active{transform:translateY(3px);box-shadow:0 2px 0 #2f8fd6}
+.lc-listen .ic{font-size:20px;line-height:1;display:inline-flex}
+.lc-listen .ic svg{width:20px;height:20px;display:block}
+.lc-listen b{font-weight:700}
+.lc-listen.on{animation:pulse 1s infinite}
 @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
 
 .nav-row{display:flex;align-items:center;gap:10px}
@@ -113,11 +141,40 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
   padding:14px;text-align:center;font-weight:800;color:var(--good);display:none}
 .done-banner.on{display:block}
 
+/* ── СВЯТКОВА НАГОРОДА ── */
+.win-ov{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
+  padding:18px;background:rgba(28,27,42,.62);overflow:hidden}
+.win-ov.on{display:flex}
+.win-confetti{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.win-card{position:relative;z-index:1;width:100%;max-width:400px;background:var(--paper);
+  border-radius:26px;padding:24px 20px 20px;text-align:center;box-shadow:var(--e3);
+  animation:winpop .42s cubic-bezier(.2,1.35,.4,1) both}
+@keyframes winpop{from{opacity:0;transform:scale(.82) translateY(18px)}to{opacity:1;transform:none}}
+.win-emoji{font-size:46px;line-height:1}
+.win-title{font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:24px;color:var(--coral);margin:6px 0 2px}
+.win-sub{color:var(--ink);font-weight:800;font-size:15px;margin:0 0 14px}
+.win-coins{display:inline-flex;align-items:center;gap:8px;background:#fff6df;border:2px solid #f4c842;
+  color:#8a5e16;font-family:'Fredoka';font-weight:700;font-size:20px;padding:8px 18px;border-radius:999px;margin-bottom:16px}
+.reward-item{position:relative;display:flex;align-items:center;gap:14px;text-align:left;background:#fff;
+  border:3px solid var(--line);border-radius:20px;padding:14px;box-shadow:var(--e2);margin-bottom:18px}
+.reward-new{position:absolute;top:-9px;left:12px;background:var(--coral);color:#fff;font-family:'Fredoka';
+  font-weight:700;font-size:10px;letter-spacing:.5px;padding:2px 9px;border-radius:8px}
+.reward-item .pic{width:88px;height:88px;flex:none;border-radius:16px;display:grid;place-items:center;
+  font-size:46px;background:linear-gradient(160deg,#efe4ff,#d3bcff);box-shadow:inset 0 -4px 0 rgba(0,0,0,.08)}
+.reward-item .pic img{width:100%;height:100%;object-fit:contain;padding:8px}
+.reward-item .rx{flex:1;min-width:0}
+.reward-item .rname{font-family:'Fredoka';font-weight:700;font-size:17px;color:var(--ink);margin-bottom:5px;line-height:1.15}
+.reward-item .rstat{display:inline-block;background:var(--good-bg);color:var(--good);font-weight:800;font-size:13px;padding:3px 10px;border-radius:8px}
+.reward-item .rmeta{color:var(--soft);font-weight:700;font-size:12px;margin-top:5px}
+.win-actions{display:flex;flex-direction:column;gap:8px}
+.win-close{background:none;border:none;color:var(--soft);font-family:'Nunito',sans-serif;font-weight:800;
+  font-size:15px;cursor:pointer;padding:6px}
+
 /* ── сітка всіх літер ── */
 .grid-ov{position:fixed;inset:0;background:rgba(44,43,58,.55);z-index:50;display:none;
   padding:16px;overflow:auto}
 .grid-ov.on{display:block;animation:pop .25s ease}
-.grid-inner{max-width:540px;margin:0 auto;background:var(--paper);border-radius:22px;padding:16px}
+.grid-inner{max-width:540px;margin:0 auto;background:var(--paper);border-radius:22px;padding:16px;box-shadow:var(--e3)}
 .grid-inner h3{margin:2px 0 12px;text-align:center;font-size:20px}
 .abc-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
 .gcell{aspect-ratio:1;border-radius:14px;border:none;font-family:'Fredoka';font-size:24px;
@@ -135,8 +192,8 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .games-list{display:flex;flex-direction:column;gap:12px}
 .games-list.locked{opacity:.45;pointer-events:none;filter:grayscale(.6)}
 .gtile{display:flex;align-items:center;gap:14px;background:#fff;border:3px solid var(--line);
-  border-radius:20px;padding:14px;cursor:pointer;box-shadow:var(--shadow);transition:transform .12s}
-.gtile:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(44,43,58,.13)}
+  border-radius:20px;padding:14px;cursor:pointer;box-shadow:var(--e2);transition:transform .12s,box-shadow .12s}
+.gtile:active{transform:translateY(1px) scale(.99);box-shadow:var(--e1)}
 .gtile .ic{width:60px;height:60px;border-radius:18px;flex:none;display:grid;place-items:center;
   font-size:30px;color:#fff;box-shadow:inset 0 -4px 0 rgba(0,0,0,.12)}
 .gtile .tx{flex:1;min-width:0}
@@ -150,13 +207,13 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .dots-row{display:flex;gap:5px;flex:1;flex-wrap:wrap}
 .dots-row i{flex:1;min-width:12px;height:11px;border-radius:4px;background:#ecdfca}
 .dots-row i.ok{background:var(--green)}.dots-row i.no{background:var(--bad)}
-.qbox{background:#fff;border:3px solid var(--line);border-radius:24px;box-shadow:var(--shadow);
+.qbox{background:#fff;border:3px solid var(--line);border-radius:24px;box-shadow:var(--e2);
   padding:14px 16px;text-align:center;position:relative}
-.qlabel{color:var(--soft);font-weight:800;font-size:13px;text-transform:uppercase;letter-spacing:.5px;margin:0 0 6px}
+.qlabel{color:var(--coral);font-weight:800;font-size:13px;text-transform:uppercase;letter-spacing:.5px;margin:0 0 6px}
 .q-emoji{font-size:76px;line-height:1;margin:2px 0;min-height:120px;display:flex;align-items:center;justify-content:center}
 .q-emoji img{max-width:160px;max-height:120px;width:auto;height:auto;object-fit:contain;display:block}
 .q-word{font-family:'Fredoka';font-size:40px;letter-spacing:4px;margin:4px 0 2px}
-.q-word .gap{color:var(--red);border-bottom:5px solid var(--red);border-radius:2px}
+.q-word .gap{color:var(--coral);border-bottom:5px solid var(--coral);border-radius:2px}
 .q-speak{margin-top:8px;background:var(--blue);color:#fff;border:none;border-radius:14px;
   padding:9px 16px;font-family:'Fredoka';font-size:16px;cursor:pointer;box-shadow:0 4px 0 #2f8fd6}
 .q-speak:active{transform:translateY(3px);box-shadow:0 1px 0 #2f8fd6}
@@ -197,7 +254,7 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 
 /* результат */
 .result-card{background:#fff;border:3px solid var(--line);border-radius:26px;padding:26px 20px;
-  box-shadow:var(--shadow);text-align:center}
+  box-shadow:var(--e2);text-align:center}
 .big-stars{font-size:52px;letter-spacing:8px}
 .big-stars .s{color:#e5dcc9}
 .big-stars .s.f{color:var(--yellow);animation:star .4s ease both}
@@ -208,7 +265,7 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .btn-row .big-btn{font-size:17px;padding:15px}
 
 .foot{text-align:center;color:var(--soft);font-size:12px;font-weight:800;padding:12px 0 2px}
-.no-voice .lc-speak,.no-voice .q-speak,.no-voice .voice-row{display:none!important}
+.no-voice .lc-listen,.no-voice .q-speak,.no-voice .voice-row{display:none!important}
 @media(max-width:380px){.lc-big{font-size:80px}.lc-small{font-size:46px}.abc-grid{grid-template-columns:repeat(5,1fr)}}
 
 /* ───── СПІЛЬНИЙ ФУТЕР ГЕРОЯ (як на hero/tests/igry/biblioteka) ───── */
@@ -250,8 +307,8 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
         <div class="bar"><span id="learnBar" style="width:0%"></span></div>
         <span class="pt" id="learnPt">0 / 33</span>
       </div>
-      <button class="iconbtn" onclick="openGrid()" title="Усі літери">▦</button>
-      <button class="iconbtn sndbtn" onclick="toggleSound()" title="Звук">🔊</button>
+      <button class="iconbtn abcbtn" onclick="openGrid()" title="Уся абетка" aria-label="Уся абетка">АБВ</button>
+      <button class="iconbtn sndbtn" onclick="toggleSound()" title="Звук уроку" aria-label="Звук уроку"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a8 8 0 0 1 0 12"/></svg></button>
     </div>
     <div class="voice-row hidden" id="voiceRow">
       <span>🎙</span><select id="voiceSel" aria-label="Голос"></select>
@@ -259,16 +316,17 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 
     <div class="card-stage">
       <div class="letter-card" id="letterCard" onclick="speakCard()">
-        <button class="lc-speak" id="cardSpeak" onclick="event.stopPropagation();speakCard()" aria-label="Слухати">🔊</button>
         <div class="lc-head" id="lcHead"><span class="lc-big" id="lcBig">А</span><span class="lc-small" id="lcSmall">а</span></div>
         <div class="lc-pic" id="lcPic"></div>
-        <div class="lc-word"><b id="lcWord">Ананас</b><span class="note" id="lcNote"></span></div>
+        <div class="lc-word"><b id="lcWord">Ананас</b><span class="note" id="lcNote"></span>
+          <button class="lc-listen" id="cardSpeak" onclick="event.stopPropagation();speakCard()" aria-label="Прослухати літеру"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a8 8 0 0 1 0 12"/></svg></span> Прослухати <b id="listenL">А</b></button>
+        </div>
       </div>
     </div>
 
     <div class="done-banner" id="doneBanner">
-      🎉 Ти вивчив усі літери! <br>
-      <button class="big-btn blue" style="margin-top:8px" onclick="goGames()">🎮 Грати в ігри ▶</button>
+      🏆 Ти вивчив усю абетку!<br>
+      <button class="big-btn success" style="margin-top:8px" onclick="openWin()">🏆 Забрати нагороду</button>
     </div>
 
     <div class="nav-row">
@@ -283,7 +341,7 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
     <div class="topbar">
       <button class="iconbtn" onclick="goStart()" title="Назад">←</button>
       <div class="title">Ігри зі словами<small id="gamesSub">Склади слово, знайди літеру…</small></div>
-      <button class="iconbtn sndbtn" onclick="toggleSound()" title="Звук">🔊</button>
+      <button class="iconbtn sndbtn" onclick="toggleSound()" title="Звук уроку" aria-label="Звук уроку"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a8 8 0 0 1 0 12"/></svg></button>
     </div>
 
     <div class="games-lock" id="gamesLock">
@@ -308,7 +366,7 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
     <div class="play-top">
       <button class="iconbtn" onclick="goGames()" title="До ігор">←</button>
       <div class="dots-row" id="playDots"></div>
-      <button class="iconbtn sndbtn" onclick="toggleSound()" title="Звук">🔊</button>
+      <button class="iconbtn sndbtn" onclick="toggleSound()" title="Звук уроку" aria-label="Звук уроку"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a8 8 0 0 1 0 12"/></svg></button>
     </div>
     <div id="playBody"></div>
     <div class="feedback" id="playFb"></div>
@@ -323,6 +381,30 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
     <h3>Обери літеру</h3>
     <div class="abc-grid" id="abcGrid"></div>
     <button class="big-btn blue" style="margin-top:14px" onclick="closeGrid()">Закрити</button>
+  </div>
+</div>
+
+<!-- ══════ СВЯТКОВА НАГОРОДА ══════ -->
+<div class="win-ov" id="winOv" onclick="if(event.target===this)closeWin()">
+  <canvas class="win-confetti" id="winConfetti"></canvas>
+  <div class="win-card">
+    <div class="win-emoji">🎉</div>
+    <div class="win-title">Вітаємо!</div>
+    <div class="win-sub">Ти вивчив українську абетку!</div>
+    <div class="win-coins">+10 <span>🪙</span> монет</div>
+    <div class="reward-item">
+      <span class="reward-new">НОВЕ</span>
+      <div class="pic"><img src="img/items/IT-001.webp" alt="Старий капелюх мага" onerror="this.onerror=null;this.parentNode.textContent='🎩'"></div>
+      <div class="rx">
+        <div class="rname">Старий капелюх мага</div>
+        <span class="rstat">🛡️ Магічний захист +2</span>
+        <div class="rmeta">Шоломи · міцність 2500</div>
+      </div>
+    </div>
+    <div class="win-actions">
+      <button class="big-btn success" onclick="claimAndPlay()">🎮 Грати далі</button>
+      <button class="win-close" onclick="closeWin()">Закрити</button>
+    </div>
   </div>
 </div>
 
@@ -408,6 +490,7 @@ function picBox(id,emoji,alt){
 
 /* ══════ СТАН ══════ */
 const SAVE_KEY='sk-litery-v1';
+const REWARD_KEY='sk-litery-reward-v1';
 const ALL=ABC.length;
 let state={learned:{},soundOn:true};
 let idx=0;                 // поточна картка
@@ -442,7 +525,7 @@ function renderCard(){
   const it=ABC[idx];
   document.getElementById('lcBig').textContent=it.L;
   document.getElementById('lcSmall').textContent=it.l;
-  document.getElementById('lcHead').style.setProperty('--cardc',colorFor(idx));
+  const ll=document.getElementById('listenL'); if(ll) ll.textContent=it.L;
   // слово з підсвіткою потрібної літери
   const wEl=document.getElementById('lcWord');
   if(it.hl!=null){
@@ -467,6 +550,8 @@ function renderCard(){
   document.getElementById('doneBanner').classList.toggle('on',allLearned());
   // позначаємо вивченою + озвучуємо (якщо була взаємодія)
   if(!state.learned[it.id]){ state.learned[it.id]=true; save(); }
+  // святкова нагорода — один раз, коли вперше пройдено всю абетку
+  if(allLearned() && !localStorage.getItem(REWARD_KEY) && userGesture){ setTimeout(openWin,450); }
   if(userGesture) speakCard();
 }
 function move(d){
@@ -496,6 +581,57 @@ function openGrid(){
   document.getElementById('gridOv').classList.add('on');
 }
 function closeGrid(){ document.getElementById('gridOv').classList.remove('on'); }
+
+/* ══════ СВЯТКОВА НАГОРОДА ══════ */
+let confettiRAF=null;
+function openWin(){
+  document.getElementById('winOv').classList.add('on');
+  launchConfetti();
+}
+function closeWin(){
+  document.getElementById('winOv').classList.remove('on');
+  if(confettiRAF){ cancelAnimationFrame(confettiRAF); confettiRAF=null; }
+}
+function claimAndPlay(){ grantReward(); closeWin(); goGames(); }
+
+/* Нарахування нагороди. Поки система нагород (sk-rewards.js) та збереження
+   інвентаря не реалізовані — лише позначаємо, що нагороду показано (один раз).
+   Коли будуватимемо sk-rewards.js, реальне нарахування монет+предмета IT-001
+   підключається саме тут. */
+function grantReward(){
+  try{ localStorage.setItem(REWARD_KEY,'1'); }catch(e){}
+  // TODO(sk-rewards): SK.awardReward({coins:10, items:['IT-001']}) — one-time, at completion
+}
+
+function launchConfetti(){
+  const cv=document.getElementById('winConfetti'); if(!cv) return;
+  const ctx=cv.getContext('2d'); const dpr=Math.min(window.devicePixelRatio||1,2);
+  const W=cv.clientWidth, H=cv.clientHeight;
+  cv.width=W*dpr; cv.height=H*dpr; ctx.scale(dpr,dpr);
+  const cols=['#ff7a5c','#4dabf7','#51cf66','#ffd43b','#cc5de8','#22b8cf'];
+  const N=140, parts=[];
+  for(let i=0;i<N;i++){
+    parts.push({x:Math.random()*W, y:-20-Math.random()*H*0.5,
+      w:6+Math.random()*7, h:8+Math.random()*8,
+      vy:2+Math.random()*3.5, vx:-1.5+Math.random()*3,
+      rot:Math.random()*Math.PI, vr:-0.2+Math.random()*0.4,
+      c:cols[i%cols.length], sway:Math.random()*6.28});
+  }
+  const start=performance.now(); const DUR=2600;
+  function frame(t){
+    const el=t-start; ctx.clearRect(0,0,W,H);
+    parts.forEach(p=>{
+      p.sway+=0.05; p.x+=p.vx+Math.sin(p.sway)*0.6; p.y+=p.vy; p.rot+=p.vr;
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot);
+      ctx.fillStyle=p.c; ctx.globalAlpha=el>DUR-600?Math.max(0,(DUR-el)/600):1;
+      ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h); ctx.restore();
+    });
+    if(el<DUR){ confettiRAF=requestAnimationFrame(frame); }
+    else { ctx.clearRect(0,0,W,H); confettiRAF=null; }
+  }
+  if(confettiRAF) cancelAnimationFrame(confettiRAF);
+  confettiRAF=requestAnimationFrame(frame);
+}
 
 /* свайп по картці */
 (function(){
@@ -815,10 +951,15 @@ function stopAudio(){
 function setSpeakOn(btnId,on){
   if(!btnId)return; const b=document.getElementById(btnId); if(b)b.classList.toggle('on',!!on);
 }
+const SND_ON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a8 8 0 0 1 0 12"/></svg>';
+const SND_OFF='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 9l4 6M21 9l-4 6"/></svg>';
+function renderSndBtns(){
+  document.querySelectorAll('.sndbtn').forEach(b=>{ b.classList.toggle('off',!state.soundOn); b.innerHTML=state.soundOn?SND_ON:SND_OFF; });
+}
 function toggleSound(){
   state.soundOn=!state.soundOn; save();
   if(!state.soundOn) stopAudio();
-  document.querySelectorAll('.sndbtn').forEach(b=>{ b.classList.toggle('off',!state.soundOn); b.textContent=state.soundOn?'🔊':'🔇'; });
+  renderSndBtns();
 }
 function rankVoices(){
   const vs=(window.speechSynthesis?speechSynthesis.getVoices():[])||[];
@@ -845,7 +986,7 @@ rankVoices();
 if('speechSynthesis' in window) speechSynthesis.onvoiceschanged=rankVoices;
 
 /* ── старт ── */
-if(!state.soundOn) document.querySelectorAll('.sndbtn').forEach(b=>{b.classList.add('off');b.textContent='🔇';});
+renderSndBtns();
 refreshStart();
 </script>
 
