@@ -234,6 +234,15 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
   padding:9px 16px;font-family:'Fredoka';font-size:16px;cursor:pointer;box-shadow:0 4px 0 #2f8fd6}
 .q-speak:active{transform:translateY(3px);box-shadow:0 1px 0 #2f8fd6}
 .q-sub{color:var(--soft);font-weight:800;margin:8px 0 0;font-size:15px}
+.q-ask{font-family:'Fredoka';font-weight:700;color:var(--ink);font-size:20px;margin:2px 0 2px}
+.sound-fx{position:relative;width:150px;height:150px;margin:2px auto;display:grid;place-items:center;cursor:pointer}
+.sound-fx .sf-ic{font-size:62px;z-index:2;filter:drop-shadow(0 3px 5px rgba(0,0,0,.18));animation:sfbob 1.6s ease-in-out infinite}
+.sound-fx .sf-wave{position:absolute;width:78px;height:78px;border-radius:50%;border:4px solid var(--blue);opacity:0;animation:sfpulse 1.9s ease-out infinite}
+.sound-fx .sf-wave:nth-child(2){animation-delay:.63s}
+.sound-fx .sf-wave:nth-child(3){animation-delay:1.26s}
+@keyframes sfpulse{0%{transform:scale(.55);opacity:.55}70%{opacity:.08}100%{transform:scale(2.2);opacity:0}}
+@keyframes sfbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@media(prefers-reduced-motion:reduce){.sound-fx .sf-ic,.sound-fx .sf-wave{animation:none}.sound-fx .sf-wave{opacity:.3}}
 
 .opts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
 .opt{background:#fff;border:3px solid var(--line);border-radius:20px;padding:14px 10px;
@@ -384,7 +393,7 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 
     <div class="games-list" id="gamesList">
       <div class="gtile" onclick="playGame('sklad')"><div class="ic" style="background:var(--red)">🔤</div><div class="tx"><b>Склади слово</b><span>Постав літери по порядку</span></div><div class="go">▶</div></div>
-      <div class="gtile" onclick="playGame('litera')"><div class="ic" style="background:var(--orange)">👂</div><div class="tx"><b>Яку літеру чуєш?</b><span>Послухай і вибери літеру</span></div><div class="go">▶</div></div>
+      <div class="gtile" onclick="playGame('litera')"><div class="ic" style="background:var(--orange)">🎧</div><div class="tx"><b>Яку літеру чуєш?</b><span>Послухай і вибери літеру</span></div><div class="go">▶</div></div>
       <div class="gtile" onclick="playGame('persha')"><div class="ic" style="background:var(--green)">🎯</div><div class="tx"><b>Перша літера</b><span>З якої літери починається слово?</span></div><div class="go">▶</div></div>
       <div class="gtile" onclick="playGame('para')"><div class="ic" style="background:var(--purple)">🧩</div><div class="tx"><b>Знайди пару</b><span>Велика і маленька літера</span></div><div class="go">▶</div></div>
       <div class="gtile" onclick="playGame('propushchena')"><div class="ic" style="background:var(--blue)">🕳️</div><div class="tx"><b>Пропущена літера</b><span>Якої літери не вистачає?</span></div><div class="go">▶</div></div>
@@ -783,10 +792,14 @@ function renderChoice(r){
   const body=document.getElementById('playBody');
   let top='';
   if(r.kind==='litera'){
-    top='<p class="qlabel">Гра · Яку літеру чуєш?</p>'+
-        '<div class="q-emoji">👂</div>'+
-        '<button class="q-speak" onclick="playAudio(\''+(r.audio||'')+'\',\''+esc(r.speak)+'\',null)">🔊 Послухати ще</button>'+
-        '<p class="q-sub">Вибери літеру, яку почув</p>';
+    const play='playAudio(\''+(r.audio||'')+'\',\''+esc(r.speak)+'\',null)';
+    top='<p class="qlabel">🎧 Відгадай звук!</p>'+
+        '<p class="q-ask">Яку літеру ти почув?</p>'+
+        '<div class="sound-fx" role="button" aria-label="Послухати звук" onclick="'+play+'">'+
+          '<span class="sf-wave"></span><span class="sf-wave"></span><span class="sf-wave"></span>'+
+          '<span class="sf-ic">🔊</span>'+
+        '</div>'+
+        '<button class="q-speak" onclick="'+play+'">🔊 Послухати звук ще раз</button>';
   } else if(r.kind==='persha'){
     top='<p class="qlabel">Гра · Перша літера</p>'+
         picBox(r.id,r.emoji,r.word)+
