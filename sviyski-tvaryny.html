@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Свійські тварини — тренажер для малят</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<style>
+:root{
+  --ink:#2c2b3a;--soft:#6b6a7d;--paper:#fff9ef;--line:#ece3d2;--card:#fff;
+  --red:#ff6b6b;--orange:#ffa94d;--yellow:#ffd43b;--green:#51cf66;--teal:#22b8cf;
+  --blue:#4dabf7;--indigo:#748ffc;--purple:#cc5de8;--pink:#f783ac;
+  --good:#37b26f;--good-bg:#e4f7ec;--bad:#e06666;--bad-bg:#fbe7e7;
+
+  /* ── СЕМАНТИКА КОЛЬОРІВ (ролі, а не просто кольори) ── */
+  --syl:var(--green);         /* склад / поточне завдання — фірмовий колір складів */
+  --primary:var(--green);     /* основна дія */
+  --success:var(--green);     /* успіх */
+  --learn:var(--teal);        /* навчальний контент (прогрес) */
+  --nav:#16294f;              /* навігація */
+
+  /* ── ЄДИНА СИСТЕМА ELEVATION (мʼякі тіні для поверхонь) ── */
+  --e1:0 1px 3px rgba(44,43,58,.14);    /* рівень 1 — дрібні контроли */
+  --e2:0 5px 16px rgba(44,43,58,.10);   /* рівень 2 — картки / поверхні */
+  --e3:0 12px 28px rgba(44,43,58,.16);  /* рівень 3 — оверлеї / модалки */
+  --shadow:0 6px 0 rgba(44,43,58,.13);  /* тактильна база для натискних кнопок */
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  font-family:'Nunito',system-ui,sans-serif;color:var(--ink);
+  background:
+    radial-gradient(circle at 12% 8%,rgba(255,212,59,.28),transparent 42%),
+    radial-gradient(circle at 88% 14%,rgba(77,171,247,.26),transparent 44%),
+    radial-gradient(circle at 78% 92%,rgba(204,93,232,.22),transparent 46%),
+    radial-gradient(circle at 8% 86%,rgba(81,207,102,.24),transparent 44%),
+    var(--paper);
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  padding:14px;padding-bottom:calc(82px + env(safe-area-inset-bottom));
+}
+.wrap{width:100%;max-width:540px;flex:1;display:flex;flex-direction:column}
+h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px}
+.screen{display:none;flex:1;flex-direction:column}
+.screen.on{display:flex;animation:pop .32s ease}
+@keyframes pop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ── дрібні кнопки ── */
+.iconbtn{width:44px;height:44px;border:2px solid var(--line);background:#fff;border-radius:14px;
+  font-size:20px;cursor:pointer;display:grid;place-items:center;flex:none;color:var(--ink)}
+.iconbtn.off{opacity:.4}
+.iconbtn:active{transform:translateY(2px)}
+.big-btn{border:none;border-radius:18px;padding:16px 20px;font-family:'Fredoka';font-size:20px;
+  cursor:pointer;color:#fff;background:var(--green);box-shadow:0 6px 0 #37a052;width:100%}
+.big-btn:active{transform:translateY(3px);box-shadow:0 3px 0 #37a052}
+.big-btn.blue{background:var(--blue);box-shadow:0 6px 0 #2f8fd6}
+.big-btn.blue:active{box-shadow:0 3px 0 #2f8fd6}
+.big-btn:disabled{filter:grayscale(.5);opacity:.65;cursor:not-allowed}
+
+/* ══════════════ START ══════════════ */
+#start{justify-content:flex-start;text-align:center;gap:14px;padding-top:12px}
+.abc-blocks{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:6px 0 2px}
+.ab{position:relative;width:64px;height:64px;border-radius:18px;display:grid;place-items:center;
+  font-family:'Fredoka';font-weight:700;font-size:26px;color:#fff;transform:rotate(var(--r));
+  box-shadow:0 6px 0 rgba(0,0,0,.14),inset 0 -5px 0 rgba(0,0,0,.12),inset 0 3px 0 rgba(255,255,255,.28)}
+.ab::after{content:attr(data-o);position:absolute;right:-9px;bottom:-9px;font-size:23px;
+  filter:drop-shadow(0 1px 1px rgba(0,0,0,.25))}
+.ab:nth-child(1){background:var(--blue);--r:-6deg}.ab:nth-child(2){background:var(--green);--r:5deg}
+.ab:nth-child(3){background:var(--purple);--r:-4deg}
+#start h1{font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:38px;margin:8px 0 0;line-height:1.05;color:#1e3a6b}
+.sub{color:var(--soft);font-weight:800;margin:0;font-size:16px}
+.rhyme{background:#fff;border:3px dashed #cdd8ea;border-radius:20px;padding:13px 18px;
+  font-style:italic;color:#3a5a8c;font-weight:800;max-width:400px;margin:2px auto 0;box-shadow:var(--e1)}
+.start-hero{max-width:460px;width:100%;margin:2px auto 0}
+.start-hero img{width:100%;height:auto;display:block}
+.start-btns{display:flex;flex-direction:column;gap:10px;max-width:440px;margin:2px auto 0;width:100%}
+.big-btn.blue.locked{background:#3d76bd;box-shadow:0 6px 0 #2d5990}
+.big-btn.blue.locked:active{box-shadow:0 3px 0 #2d5990}
+.prog-card{display:flex;align-items:center;gap:12px;background:#fff;border:3px solid var(--line);
+  border-radius:20px;padding:12px 16px;max-width:440px;margin:2px auto 0;width:100%;box-shadow:var(--e2)}
+.prog-card .pc-ic{font-size:26px;flex:none}
+.prog-card .pc-body{flex:1;min-width:0;text-align:left}
+.prog-card .pc-txt{font-family:'Fredoka';font-weight:700;color:var(--ink);font-size:16px;margin-bottom:7px}
+.prog-card .pc-dots{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+.prog-card .pc-dots i{width:12px;height:12px;border-radius:50%;background:#e6ddc9}
+.prog-card .pc-dots i.on{background:var(--success)}
+.prog-card .pc-star{font-size:22px;flex:none}
+
+/* ── верхня панель ── */
+.topbar{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.topbar .title{flex:1;min-width:0;font-family:'Fredoka';font-size:20px;line-height:1.1}
+.topbar .title small{display:block;font-family:'Nunito';font-weight:800;font-size:12px;color:var(--soft)}
+.progress-line{flex:1;min-width:0}
+.bar{height:12px;background:#f0e7d6;border-radius:8px;overflow:hidden}
+.bar>span{display:block;height:100%;background:linear-gradient(90deg,var(--green),var(--teal));
+  border-radius:8px;transition:width .45s}
+.progress-line .pt{font-weight:800;font-size:12px;color:var(--soft);margin:3px 2px 0;display:block}
+
+/* вибір голосу */
+.voice-row{display:flex;align-items:center;gap:8px;font-size:.82rem;color:var(--soft);
+  font-weight:800;margin:0 0 10px;padding:6px 10px;background:#fff;border:2px solid var(--line);border-radius:12px}
+.voice-row.hidden{display:none}
+.voice-row select{font:800 .82rem 'Nunito',sans-serif;color:var(--ink);border:none;background:transparent;flex:1;min-width:0}
+.voice-row select:focus{outline:2px solid var(--yellow)}
+
+/* ══════════════ LEARN — картка літери ══════════════ */
+#learn{gap:12px}
+.card-stage{flex:1;display:flex;flex-direction:column;justify-content:center}
+.letter-card{background:var(--card);border-radius:28px;box-shadow:0 10px 0 rgba(44,43,58,.14);
+  border:4px solid #fff;overflow:hidden;position:relative;cursor:pointer;transition:transform .12s}
+.letter-card:active{transform:scale(.985)}
+.lc-head{padding:16px 18px 10px;display:flex;align-items:flex-end;justify-content:center;gap:6px;
+  color:#fff;background:var(--cardc,var(--blue))}
+.lc-big{font-family:'Fredoka';font-size:96px;line-height:.9;text-shadow:0 4px 0 rgba(0,0,0,.12)}
+.lc-small{font-family:'Fredoka';font-size:54px;line-height:.9;opacity:.9;text-shadow:0 3px 0 rgba(0,0,0,.12)}
+.lc-pic{aspect-ratio:16/11;background:#f5eeda;display:grid;place-items:center;position:relative}
+.lc-pic img{width:100%;height:100%;object-fit:cover;display:block}
+.lc-emoji{font-size:96px;line-height:1}
+.lc-draft{position:absolute;left:10px;bottom:8px;font-size:11px;font-weight:800;color:#b9ad93;
+  background:rgba(255,255,255,.8);border-radius:8px;padding:2px 8px}
+.lc-word{padding:12px 14px 16px;text-align:center;background:#fff}
+.lc-word b{font-family:'Fredoka';font-size:30px;display:block}
+.lc-word b .hl{color:var(--red)}
+.lc-word .note{color:var(--soft);font-weight:800;font-size:13px;margin-top:2px;display:block}
+.lc-speak{position:absolute;top:12px;right:12px;width:46px;height:46px;border-radius:50%;border:none;
+  background:rgba(255,255,255,.92);font-size:22px;cursor:pointer;box-shadow:0 4px 10px rgba(0,0,0,.2);z-index:2}
+.lc-speak.on{background:var(--yellow);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+
+.nav-row{display:flex;align-items:center;gap:10px}
+.navb{flex:none;width:56px;height:56px;border-radius:18px;border:none;background:#fff;
+  border:2px solid var(--line);font-size:26px;cursor:pointer;box-shadow:var(--shadow);color:var(--ink)}
+.navb:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(44,43,58,.13)}
+.navb:disabled{opacity:.35;cursor:default}
+.nav-mid{flex:1;text-align:center;font-family:'Fredoka';font-weight:700;color:var(--soft);font-size:15px}
+.hearword{margin-top:2px}
+.hearword button{border:none;background:var(--yellow);color:var(--ink);font-family:'Fredoka';
+  border-radius:14px;padding:12px;font-size:17px;width:100%;cursor:pointer;box-shadow:0 5px 0 #e0b90f}
+.hearword button:active{transform:translateY(3px);box-shadow:0 2px 0 #e0b90f}
+
+.done-banner{background:var(--good-bg);border:3px solid var(--good);border-radius:18px;
+  padding:14px;text-align:center;font-weight:800;color:var(--good);display:none}
+.done-banner.on{display:block}
+
+/* ── сітка всіх літер ── */
+.grid-ov{position:fixed;inset:0;background:rgba(44,43,58,.55);z-index:50;display:none;
+  padding:16px;overflow:auto}
+.grid-ov.on{display:block;animation:pop .25s ease}
+.grid-inner{max-width:540px;margin:0 auto;background:var(--paper);border-radius:22px;padding:16px}
+.grid-inner h3{margin:2px 0 12px;text-align:center;font-size:20px}
+.abc-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.gcell{aspect-ratio:1;border-radius:14px;border:none;font-family:'Fredoka';font-size:24px;
+  color:#fff;cursor:pointer;position:relative;box-shadow:inset 0 -4px 0 rgba(0,0,0,.12)}
+.gcell.learned::after{content:"✓";position:absolute;top:2px;right:5px;font-size:11px;color:#fff}
+.gcell.cur{outline:3px solid var(--ink);outline-offset:2px}
+
+/* ══════════════ GAMES HUB ══════════════ */
+#games{gap:12px}
+.games-lock{background:#fff;border:3px dashed var(--line);border-radius:20px;padding:22px 18px;
+  text-align:center;display:none}
+.games-lock.on{display:block}
+.games-lock .lk{font-size:44px}
+.games-lock h3{margin:8px 0 4px;font-size:22px}
+.games-list{display:flex;flex-direction:column;gap:12px}
+.games-list.locked{opacity:.45;pointer-events:none;filter:grayscale(.6)}
+.gtile{display:flex;align-items:center;gap:14px;background:#fff;border:3px solid var(--line);
+  border-radius:20px;padding:14px;cursor:pointer;box-shadow:var(--shadow);transition:transform .12s}
+.gtile:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(44,43,58,.13)}
+.gtile .ic{width:60px;height:60px;border-radius:18px;flex:none;display:grid;place-items:center;
+  font-size:30px;color:#fff;box-shadow:inset 0 -4px 0 rgba(0,0,0,.12)}
+.gtile .tx{flex:1;min-width:0}
+.gtile .tx b{font-family:'Fredoka';font-size:19px;display:block;line-height:1.1}
+.gtile .tx span{color:var(--soft);font-size:13px;font-weight:800}
+.gtile .go{font-size:24px;color:var(--soft)}
+
+/* ══════════════ PLAY ══════════════ */
+#play{gap:14px}
+.play-top{display:flex;align-items:center;gap:10px}
+.dots-row{display:flex;gap:5px;flex:1;flex-wrap:wrap}
+.dots-row i{flex:1;min-width:12px;height:11px;border-radius:4px;background:#ecdfca}
+.dots-row i.ok{background:var(--green)}.dots-row i.no{background:var(--bad)}
+.qbox{background:#fff;border:3px solid var(--line);border-radius:24px;box-shadow:var(--shadow);
+  padding:22px 18px;text-align:center;position:relative}
+.qlabel{color:var(--soft);font-weight:800;font-size:14px;text-transform:uppercase;letter-spacing:.5px;margin:0 0 10px}
+.q-emoji{font-size:88px;line-height:1;margin:2px 0}
+.q-emoji img{width:150px;height:110px;object-fit:cover;border-radius:14px}
+.q-word{font-family:'Fredoka';font-size:46px;letter-spacing:4px;margin:6px 0 2px}
+.q-word .gap{color:var(--red);border-bottom:5px solid var(--red);border-radius:2px}
+.q-speak{margin-top:10px;background:var(--blue);color:#fff;border:none;border-radius:14px;
+  padding:10px 18px;font-family:'Fredoka';font-size:16px;cursor:pointer;box-shadow:0 4px 0 #2f8fd6}
+.q-speak:active{transform:translateY(3px);box-shadow:0 1px 0 #2f8fd6}
+.q-sub{color:var(--soft);font-weight:800;margin:14px 0 0;font-size:16px}
+
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.opt{background:#fff;border:3px solid var(--line);border-radius:20px;padding:20px 10px;
+  font-family:'Fredoka';font-size:34px;cursor:pointer;box-shadow:var(--shadow);transition:transform .1s;color:var(--ink)}
+.opt.word{font-size:22px}
+.opt:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(44,43,58,.13)}
+.opt.correct{background:var(--good-bg);border-color:var(--good);color:var(--good)}
+.opt.wrong{background:var(--bad-bg);border-color:var(--bad);color:var(--bad)}
+.opt:disabled{cursor:default}
+
+/* склади слово */
+.slots{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:14px 0 4px}
+.slot{width:52px;height:60px;border-radius:14px;border:3px dashed var(--line);background:#faf4e6;
+  display:grid;place-items:center;font-family:'Fredoka';font-size:34px;color:var(--ink)}
+.slot.full{border-style:solid;border-color:var(--green);background:var(--good-bg);color:var(--good)}
+.tiles{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:6px}
+.tile{width:56px;height:64px;border-radius:16px;border:none;background:var(--blue);color:#fff;
+  font-family:'Fredoka';font-size:34px;cursor:pointer;box-shadow:0 5px 0 #2f8fd6}
+.tile:active{transform:translateY(3px);box-shadow:0 2px 0 #2f8fd6}
+.tile.used{opacity:.28;pointer-events:none}
+
+/* пам'ять / знайди пару */
+.mem-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.mem{aspect-ratio:1;border-radius:16px;border:none;font-family:'Fredoka';font-size:30px;cursor:pointer;
+  background:var(--indigo);color:transparent;box-shadow:inset 0 -5px 0 rgba(0,0,0,.14)}
+.mem.up{color:#fff;background:var(--purple)}
+.mem.matched{background:var(--good);color:#fff;pointer-events:none;box-shadow:inset 0 -5px 0 rgba(0,0,0,.14)}
+.mem.wrong{background:var(--bad);color:#fff}
+
+.feedback{border-radius:18px;padding:14px;text-align:center;font-weight:800;font-size:17px;display:none}
+.feedback.on{display:block}
+.feedback.good{background:var(--good-bg);color:var(--good)}
+.feedback.bad{background:var(--bad-bg);color:var(--bad)}
+
+/* результат */
+.result-card{background:#fff;border:3px solid var(--line);border-radius:26px;padding:26px 20px;
+  box-shadow:var(--shadow);text-align:center}
+.big-stars{font-size:52px;letter-spacing:8px}
+.big-stars .s{color:#e5dcc9}
+.big-stars .s.f{color:var(--yellow);animation:star .4s ease both}
+.big-stars .s.f:nth-child(2){animation-delay:.15s}.big-stars .s.f:nth-child(3){animation-delay:.3s}
+@keyframes star{from{transform:scale(0) rotate(-40deg)}to{transform:none}}
+.result-card h2{font-size:28px;margin:10px 0 4px}
+.btn-row{display:flex;gap:10px}
+.btn-row .big-btn{font-size:17px;padding:15px}
+
+.foot{text-align:center;color:var(--soft);font-size:12px;font-weight:800;padding:12px 0 2px}
+.no-voice .lc-speak,.no-voice .q-speak,.no-voice .hearword,.no-voice .voice-row{display:none!important}
+@media(max-width:380px){.lc-big{font-size:80px}.lc-small{font-size:46px}.abc-grid{grid-template-columns:repeat(5,1fr)}}
+
+/* ───── СПІЛЬНИЙ ФУТЕР ГЕРОЯ (як на hero/tests/igry/biblioteka) ───── */
+.botnav{position:fixed;left:0;right:0;bottom:0;z-index:40;
+  background:linear-gradient(180deg,#1e3a6b,#16294f);
+  border-top:3px solid #e0a42a;display:flex;align-items:center;
+  gap:2px;padding:6px 8px calc(6px + env(safe-area-inset-bottom));overflow-x:auto;scrollbar-width:none}
+.botnav::-webkit-scrollbar{display:none}
+.botnav a,.botnav button{display:flex;flex-direction:column;align-items:center;gap:2px;
+  color:#cfe0f5;background:none;border:none;cursor:pointer;font-family:inherit;
+  font-weight:800;font-size:.66rem;padding:5px 12px;border-radius:12px;text-decoration:none;
+  white-space:nowrap;flex:1;min-width:52px;transition:.15s}
+.botnav .ic{font-size:1.2rem}
+.botnav a.active{background:linear-gradient(180deg,#f4c842,#e0a42a);color:#5a3d05;box-shadow:0 3px 10px rgba(0,0,0,.3)}
+.botnav a:hover:not(.active){background:rgba(255,255,255,.1);color:#fff}
+
+
+/* ── СВІЙСЬКІ (ДОМАШНІ) ТВАРИНИ ── */
+.wrap{position:relative}
+.exit-top{position:absolute;top:2px;left:2px;z-index:6}
+.abc-blocks.emoji .ab{font-size:34px}
+.lc-head.emoji{align-items:center;justify-content:center;padding:22px 18px 20px}
+.lc-emoji{font-size:120px;line-height:1;filter:drop-shadow(0 6px 6px rgba(0,0,0,.18))}
+.lc-word{padding:14px 14px 4px}
+.lc-word b{font-family:'Fredoka';font-size:32px;display:block}
+.lc-sound{padding:0 14px 18px;text-align:center;background:#fff}
+.lc-sound .say{color:var(--soft);font-weight:800;font-size:15px}
+.lc-sound .snd{font-family:'Fredoka';font-size:28px;color:#e8590c;display:inline-block;margin-left:6px}
+/* сітка всіх тварин */
+.ani-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.acell{border:none;border-radius:16px;padding:12px 6px 10px;color:#fff;cursor:pointer;
+  box-shadow:inset 0 -5px 0 rgba(0,0,0,.14);position:relative;text-align:center}
+.acell:active{transform:translateY(2px)}
+.acell .ae{font-size:44px;line-height:1;display:block}
+.acell .an{font-family:'Fredoka';font-weight:700;font-size:14px;margin-top:4px;display:block}
+.acell.learned::after{content:"✓";position:absolute;top:4px;right:8px;font-size:12px}
+.acell.cur{outline:3px solid var(--ink);outline-offset:2px}
+/* варіанти у грі */
+.opt.emoji{font-size:54px;padding:14px 8px}
+.q-bigsound{font-family:'Fredoka';font-size:46px;color:var(--red);margin:6px 0 2px;text-shadow:0 3px 0 rgba(0,0,0,.06)}
+.mem.name{font-size:15px!important;padding:4px}
+@media(max-width:380px){.lc-emoji{font-size:100px}.opt.emoji{font-size:46px}}
+</style>
+<body>
+<div class="wrap">
+
+  <!-- ══════ START ══════ -->
+  <section id="start" class="screen on">
+    <div class="exit-top"><button class="iconbtn" onclick="exitTrainer()" title="Назад">←</button></div>
+    <div class="abc-blocks emoji">
+      <div class="ab" style="background:var(--blue);--r:-6deg">🐮</div>
+      <div class="ab" style="background:var(--green);--r:5deg">🐱</div>
+      <div class="ab" style="background:var(--purple);--r:-4deg">🐶</div>
+    </div>
+    <h1>Свійські тварини!</h1>
+    <p class="sub">Хто живе поруч із людиною · 10 тварин</p>
+    <p class="rhyme">Хто нявчить, хто гавкає,<br>а хто «му-у» співає? 🐾</p>
+
+    <div class="start-hero" id="startHero">
+      <img src="img/tvaryny-hero.webp" alt="" onerror="this.closest('.start-hero').style.display='none'">
+    </div>
+
+    <div class="start-btns">
+      <button class="big-btn" onclick="startLearn()">🐾 Знайомитись ▶</button>
+      <button class="big-btn blue" id="startGamesBtn" onclick="goGames()">🎮 Гратися в ігри</button>
+    </div>
+
+    <div class="prog-card">
+      <span class="pc-ic">🐾</span>
+      <div class="pc-body">
+        <div class="pc-txt" id="startProgTxt">Пізнано 0 з 10</div>
+        <div class="pc-dots" id="startProgDots"></div>
+      </div>
+      <span class="pc-star">⭐</span>
+    </div>
+  </section>
+
+  <!-- ══════ LEARN ══════ -->
+  <section id="learn" class="screen">
+    <div class="topbar">
+      <button class="iconbtn" onclick="goStart()" title="Назад">←</button>
+      <div class="progress-line"><div class="bar"><span id="learnBar" style="width:0%"></span></div><span class="pt" id="learnPt">0 / 10</span></div>
+      <button class="iconbtn" onclick="openGrid()" title="Усі тварини">▦</button>
+      <button class="iconbtn sndbtn" onclick="toggleSound()" title="Звук">🔊</button>
+    </div>
+    <div class="voice-row hidden" id="voiceRow"><span>🎙</span><select id="voiceSel" aria-label="Голос"></select></div>
+    <div class="card-stage">
+      <div class="letter-card" id="aCard" onclick="speakCard()">
+        <button class="lc-speak" id="cardSpeak" onclick="event.stopPropagation();speakCard()" aria-label="Слухати">🔊</button>
+        <div class="lc-head emoji" id="aHead"><span class="lc-emoji" id="aEmoji">🐄</span></div>
+        <div class="lc-word"><b id="aName">Корова</b></div>
+        <div class="lc-sound"><span class="say">каже:</span><span class="snd" id="aSound">Му-у!</span></div>
+      </div>
+    </div>
+    <div class="hearword"><button onclick="speakCard()">🔊 Послухати</button></div>
+    <div class="done-banner" id="doneBanner">🎉 Ти пізнав усіх тварин!<br><button class="big-btn blue" style="margin-top:8px" onclick="goGames()">🎮 Грати в ігри ▶</button></div>
+    <div class="nav-row"><button class="navb" id="prevB" onclick="move(-1)">←</button><div class="nav-mid" id="navMid">1 / 10</div><button class="navb" id="nextB" onclick="move(1)">→</button></div>
+  </section>
+
+  <!-- ══════ GAMES ══════ -->
+  <section id="games" class="screen">
+    <div class="topbar"><button class="iconbtn" onclick="goStart()" title="Назад">←</button>
+      <div class="title">Ігри з тваринами<small>Хто це · який звук · знайди пару</small></div>
+      <button class="iconbtn sndbtn" onclick="toggleSound()" title="Звук">🔊</button></div>
+    <div class="games-lock" id="gamesLock"><div class="lk">🔒</div><h3>Спочатку — усі тварини!</h3><p class="sub" id="lockText">Пізнай усіх тварин, і відкриються 3 гри.</p><button class="big-btn" style="margin-top:10px" onclick="startLearn()">🐾 Знайомитись ▶</button></div>
+    <div class="games-list" id="gamesList">
+      <div class="gtile" onclick="playGame('khto')"><div class="ic" style="background:var(--red)">🔍</div><div class="tx"><b>Хто це?</b><span>Подивись і назви тварину</span></div><div class="go">▶</div></div>
+      <div class="gtile" onclick="playGame('zvuk')"><div class="ic" style="background:var(--orange)">👂</div><div class="tx"><b>Хто так говорить?</b><span>Послухай звук — вибери тварину</span></div><div class="go">▶</div></div>
+      <div class="gtile" onclick="playGame('para')"><div class="ic" style="background:var(--purple)">🔗</div><div class="tx"><b>Знайди пару</b><span>Тварина і її назва</span></div><div class="go">▶</div></div>
+    </div>
+    <div class="foot">Прогрес зберігається на цьому пристрої</div>
+  </section>
+
+  <!-- ══════ PLAY ══════ -->
+  <section id="play" class="screen">
+    <div class="play-top"><button class="iconbtn" onclick="goGames()" title="До ігор">←</button><div class="dots-row" id="playDots"></div><button class="iconbtn sndbtn" onclick="toggleSound()" title="Звук">🔊</button></div>
+    <div id="playBody"></div>
+    <div class="feedback" id="playFb"></div>
+    <button class="big-btn" id="playNext" style="display:none" onclick="playAdvance()">Далі →</button>
+  </section>
+
+</div>
+
+<div class="grid-ov" id="gridOv" onclick="if(event.target===this)closeGrid()">
+  <div class="grid-inner"><h3>Усі тварини</h3>
+    <div class="ani-grid" id="aniGrid"></div>
+    <button class="big-btn blue" style="margin-top:14px" onclick="closeGrid()">Закрити</button>
+  </div>
+</div>
+
+<nav class="botnav">
+  <a href="hero.html"><span class="ic">🏠</span>Головна</a>
+  <a href="tests.html"><span class="ic">📜</span>Тести</a>
+  <a href="biblioteka.html"><span class="ic">📚</span>Бібліотека</a>
+  <a href="arena.html"><span class="ic">⚔️</span>Арена</a>
+  <button id="heroBackBtn"><span class="ic">⬅️</span>Назад</button>
+</nav>
+<script>
+/* ============================================================
+   СВІЙСЬКІ (ДОМАШНІ) ТВАРИНИ — самодостатній тренажер.
+   Прогрес: localStorage 'sk-tvaryny-v1'.
+   Озвучка (за бажанням): audio/tvaryna_<id>.mp3
+     (напр. корова → audio/tvaryna_korova.mp3). Без файлів — синтез мовлення.
+   ============================================================ */
+const ANIMALS=[
+  {id:'korova', name:'Корова', emoji:'🐄', sound:'Му-у!',     say:'му',        color:'var(--blue)'},
+  {id:'koza',   name:'Коза',   emoji:'🐐', sound:'Ме-е!',     say:'ме',        color:'var(--green)'},
+  {id:'vivtsya',name:'Вівця',  emoji:'🐑', sound:'Бе-е!',     say:'бе',        color:'var(--teal)'},
+  {id:'kishka', name:'Кішка',  emoji:'🐱', sound:'Няв!',      say:'няв',       color:'var(--orange)'},
+  {id:'sobaka', name:'Собака', emoji:'🐶', sound:'Гав-гав!',  say:'гав гав',   color:'var(--red)'},
+  {id:'kin',    name:'Кінь',   emoji:'🐴', sound:'Іго-го!',   say:'і-го-го',   color:'var(--purple)'},
+  {id:'krolyk', name:'Кролик', emoji:'🐰', sound:'Туп-туп!',  say:'туп туп',   color:'var(--pink)'},
+  {id:'kurka',  name:'Курка',  emoji:'🐔', sound:'Ко-ко-ко!', say:'ко ко ко',  color:'var(--yellow)'},
+  {id:'papuha', name:'Папуга', emoji:'🦜', sound:'Привіт!',   say:'привіт',    color:'var(--indigo)'},
+  {id:'homyak', name:"Хом'як", emoji:'🐹', sound:'Пі-пі!',    say:'пі пі',     color:'var(--teal)'}
+];
+const SAVE_KEY='sk-tvaryny-v1';
+const ALL=ANIMALS.length;
+let state={learned:{},soundOn:true};
+let idx=0, userGesture=false;
+function load(){ try{const s=JSON.parse(localStorage.getItem(SAVE_KEY)); if(s){state.learned=s.learned||{}; state.soundOn=s.soundOn!==false;}}catch(e){} }
+function save(){ try{localStorage.setItem(SAVE_KEY,JSON.stringify(state));}catch(e){} }
+function learnedCount(){ return ANIMALS.filter(a=>state.learned[a.id]).length; }
+function allLearned(){ return learnedCount()>=ALL; }
+load();
+
+/* ── навігація екранами ── */
+function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on')); document.getElementById(id).classList.add('on'); window.scrollTo(0,0); }
+function goStart(){ stopAudio(); show('start'); refreshStart(); }
+function startLearn(){ show('learn'); renderCard(); }
+function goGames(){ stopAudio(); show('games'); renderGamesHub(); }
+function exitTrainer(){ stopAudio(); if(history.length>1) history.back(); else location.href='tests.html'; }
+function refreshStart(){
+  const n=learnedCount();
+  document.getElementById('startProgTxt').textContent='Пізнано '+n+' з '+ALL;
+  const DOTS=10, filled=n===0?0:Math.max(1,Math.round(n/ALL*DOTS));
+  let h=''; for(let i=0;i<DOTS;i++) h+='<i class="'+(i<filled?'on':'')+'"></i>';
+  document.getElementById('startProgDots').innerHTML=h;
+  const gb=document.getElementById('startGamesBtn');
+  const locked=!allLearned();
+  gb.textContent=locked?'🔒 Ігри (пізнай усіх тварин)':'🎮 Гратися в ігри';
+  gb.classList.toggle('locked',locked);
+}
+
+/* ── helpers ── */
+function randInt(n){ return Math.floor(Math.random()*n); }
+function pick(a){ return a[randInt(a.length)]; }
+function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=randInt(i+1);[a[i],a[j]]=[a[j],a[i]];} return a; }
+function esc(s){ return String(s).replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+function byId(id){ return ANIMALS.find(a=>a.id===id); }
+
+/* ══════ LEARN ══════ */
+function renderCard(){
+  const a=ANIMALS[idx];
+  document.getElementById('aEmoji').textContent=a.emoji;
+  document.getElementById('aName').textContent=a.name;
+  document.getElementById('aSound').textContent=a.sound;
+  document.getElementById('aHead').style.setProperty('--cardc',a.color);
+  if(!state.learned[a.id]){ state.learned[a.id]=true; save(); }
+  document.getElementById('navMid').textContent=(idx+1)+' / '+ALL;
+  document.getElementById('prevB').disabled=idx<=0;
+  document.getElementById('nextB').disabled=idx>=ALL-1;
+  updateLearnBar();
+  document.getElementById('doneBanner').classList.toggle('on', allLearned());
+  if(userGesture) speakCard();
+}
+function move(d){ userGesture=true; const n=idx+d; if(n<0||n>=ALL)return; idx=n; renderCard(); }
+function updateLearnBar(){ const c=learnedCount(); document.getElementById('learnBar').style.width=Math.round(c/ALL*100)+'%'; document.getElementById('learnPt').textContent=c+' / '+ALL; }
+function speakCard(){ userGesture=true; const a=ANIMALS[idx]; playAudio('audio/tvaryna_'+a.id+'.mp3', a.name+'. '+a.say, 'cardSpeak'); }
+
+/* ── сітка всіх тварин ── */
+function openGrid(){
+  const g=document.getElementById('aniGrid');
+  g.innerHTML=ANIMALS.map((a,i)=>'<button class="acell'+(state.learned[a.id]?' learned':'')+(i===idx?' cur':'')+'" style="background:'+a.color+'" onclick="jumpTo('+i+')"><span class="ae">'+a.emoji+'</span><span class="an">'+a.name+'</span></button>').join('');
+  document.getElementById('gridOv').classList.add('on');
+}
+function closeGrid(){ document.getElementById('gridOv').classList.remove('on'); }
+function jumpTo(i){ idx=i; userGesture=true; closeGrid(); renderCard(); }
+
+/* ══════ GAMES HUB ══════ */
+function renderGamesHub(){
+  const locked=!allLearned();
+  document.getElementById('gamesLock').classList.toggle('on',locked);
+  document.getElementById('gamesList').classList.toggle('locked',locked);
+  document.getElementById('lockText').textContent='Пізнано '+learnedCount()+' із '+ALL+'. Пізнай усіх тварин — і відкриються 3 гри!';
+}
+function playGame(key){ if(!allLearned())return; startGame(key); }
+
+/* ══════ ІГРОВИЙ ДВИГУН ══════ */
+let game=null, memBusy=false;
+function startGame(key){
+  game={key,i:0,correct:0};
+  show('play');
+  document.getElementById('playFb').className='feedback';
+  document.getElementById('playNext').style.display='none';
+  if(key==='para'){ game.mem=buildPara(); renderMem(); }
+  else { game.rounds=buildChoice(key); renderRound(); }
+}
+function renderDots(){
+  const d=document.getElementById('playDots'); d.innerHTML='';
+  if(!game.rounds){ return; }
+  game.rounds.forEach(r=>{ const el=document.createElement('i'); if(r.answered) el.classList.add(r.ok?'ok':'no'); d.appendChild(el); });
+}
+
+/* --- ігри з вибором: «Хто це?» та «Хто так говорить?» --- */
+function buildChoice(key){
+  const base=shuffle(ANIMALS).slice(0, Math.min(6,ALL));
+  return base.map(t=>{
+    const others=shuffle(ANIMALS.filter(a=>a.id!==t.id)).slice(0,3);
+    const opts=shuffle([t,...others]).map(a=>({id:a.id,name:a.name,emoji:a.emoji}));
+    return {kind:key, target:t, opts, correctId:t.id, ok:false, answered:false};
+  });
+}
+function renderRound(){
+  const r=game.rounds[game.i];
+  const body=document.getElementById('playBody');
+  let q='';
+  if(r.kind==='khto'){
+    q='<div class="qbox"><p class="qlabel">Хто це?</p>'+
+      '<div class="q-emoji">'+r.target.emoji+'</div>'+
+      '<button class="q-speak" onclick="playAudio(null,\''+esc(r.target.name)+'\',null)">🔊 Назва</button></div>'+
+      '<div class="opts" id="opts"></div>';
+  } else {
+    q='<div class="qbox"><p class="qlabel">Хто так говорить?</p>'+
+      '<div class="q-bigsound">'+r.target.sound+'</div>'+
+      '<button class="q-speak" onclick="playAudio(\'audio/tvaryna_'+r.target.id+'.mp3\',\''+esc(r.target.say)+'\',null)">🔊 Ще раз</button></div>'+
+      '<div class="opts" id="opts"></div>';
+  }
+  body.innerHTML=q;
+  const ow=document.getElementById('opts');
+  r.opts.forEach(o=>{
+    const b=document.createElement('button');
+    if(r.kind==='khto'){ b.className='opt word'; b.textContent=o.name; }
+    else { b.className='opt emoji'; b.textContent=o.emoji; }
+    b.onclick=()=>chooseOpt(b,o,r);
+    ow.appendChild(b);
+  });
+  document.getElementById('playFb').className='feedback';
+  document.getElementById('playNext').style.display='none';
+  renderDots();
+  if(r.kind==='zvuk' && userGesture) setTimeout(()=>playAudio('audio/tvaryna_'+r.target.id+'.mp3', r.target.say, null),260);
+}
+function chooseOpt(btn,o,r){
+  if(r.answered)return; r.answered=true;
+  const ow=btn.parentNode; ow.querySelectorAll('.opt').forEach(x=>x.disabled=true);
+  const fb=document.getElementById('playFb');
+  if(o.id===r.correctId){
+    btn.classList.add('correct'); r.ok=true; game.correct++;
+    fb.className='feedback good on'; fb.textContent='✅ Правильно!';
+    playAudio('audio/tvaryna_'+r.target.id+'.mp3', r.target.name, null);
+  } else {
+    btn.classList.add('wrong');
+    ow.querySelectorAll('.opt').forEach(x=>{
+      const match=(r.kind==='khto')? x.textContent===r.target.name : x.textContent===r.target.emoji;
+      if(match) x.classList.add('correct');
+    });
+    fb.className='feedback bad on'; fb.textContent='Це '+r.target.name+' '+r.target.emoji;
+  }
+  renderDots();
+  const nb=document.getElementById('playNext');
+  nb.style.display='block';
+  nb.textContent=(game.i>=game.rounds.length-1)?'Побачити результат →':'Далі →';
+}
+function playAdvance(){ game.i++; if(game.i>=game.rounds.length){endGame();return;} renderRound(); }
+
+/* --- «Знайди пару» (пам'ять): тварина ↔ назва --- */
+function buildPara(){
+  const picks=shuffle(ANIMALS).slice(0,4);
+  let cards=[];
+  picks.forEach(a=>{ cards.push({id:a.id,kind:'e',face:a.emoji}); cards.push({id:a.id,kind:'n',face:a.name}); });
+  return {cards:shuffle(cards), open:[], matched:0, total:picks.length};
+}
+function renderMem(){
+  const m=game.mem;
+  document.getElementById('playDots').innerHTML='';
+  const body=document.getElementById('playBody');
+  body.innerHTML='<p class="qlabel" style="text-align:center">Знайди пару: тварина і її назва</p><div class="mem-grid" id="memGrid"></div>';
+  const g=document.getElementById('memGrid');
+  m.cards.forEach((c,i)=>{
+    const b=document.createElement('button');
+    b.className='mem'+(c.kind==='n'?' name':'');
+    b.setAttribute('data-i',i); b.textContent=''; b.onclick=()=>tapMem(i,b);
+    g.appendChild(b);
+  });
+  document.getElementById('playFb').className='feedback';
+  document.getElementById('playNext').style.display='none';
+}
+function tapMem(i,btn){
+  if(memBusy)return;
+  const m=game.mem, c=m.cards[i];
+  if(btn.classList.contains('matched')||btn.classList.contains('up'))return;
+  btn.classList.add('up'); btn.textContent=c.face;
+  if(c.kind==='e') playAudio('audio/tvaryna_'+c.id+'.mp3', byId(c.id).say, null);
+  m.open.push(i);
+  if(m.open.length<2)return;
+  memBusy=true;
+  const a=m.open[0], b=m.open[1];
+  const ba=document.querySelector('.mem[data-i="'+a+'"]'), bb=document.querySelector('.mem[data-i="'+b+'"]');
+  if(m.cards[a].id===m.cards[b].id){
+    setTimeout(()=>{ ba.classList.add('matched'); bb.classList.add('matched'); m.open=[]; memBusy=false; m.matched++;
+      if(m.matched>=m.total){ game.correct=m.total; endGame(); } },420);
+  } else {
+    setTimeout(()=>{ ba.classList.add('wrong'); bb.classList.add('wrong'); },120);
+    setTimeout(()=>{ [ba,bb].forEach(x=>{ x.classList.remove('up','wrong'); x.textContent=''; }); m.open=[]; memBusy=false; },840);
+  }
+}
+
+/* ══════ РЕЗУЛЬТАТ ══════ */
+function endGame(){
+  const key=game.key;
+  const total=key==='para'?game.mem.total:game.rounds.length;
+  const acc=key==='para'?1:game.correct/total;
+  const stars=acc>=.9?3:acc>=.6?2:1;
+  const body=document.getElementById('playBody');
+  document.getElementById('playFb').className='feedback';
+  document.getElementById('playNext').style.display='none';
+  document.getElementById('playDots').innerHTML='';
+  const msg=stars===3?'Ідеально!':stars===2?'Гарна робота!':'Молодець, що спробував!';
+  const starHtml=[0,1,2].map(i=>'<span class="s'+(i<stars?' f':'')+'">★</span>').join('');
+  body.innerHTML='<div class="result-card"><div class="big-stars">'+starHtml+'</div><h2>'+msg+'</h2>'+
+    (key==='para'?'<p class="sub">Усі пари знайдено!</p>':'<p class="sub">Правильних: <b>'+game.correct+' з '+total+'</b></p>')+'</div>'+
+    '<div class="btn-row" style="margin-top:14px"><button class="big-btn blue" onclick="startGame(\''+key+'\')">↻ Ще раз</button><button class="big-btn" onclick="goGames()">До ігор →</button></div>';
+  try{ if(window.navigator.vibrate) navigator.vibrate(stars>=3?[40,60,40]:30); }catch(e){}
+}
+
+/* ══════ ОЗВУЧКА ══════ */
+let curAudio=null, ukVoices=[], chosenVoice=null;
+function playAudio(url, text, btnId){
+  if(!state.soundOn) return;
+  stopAudio();
+  if(url){
+    const a=new Audio(); let fell=false; a.src=url;
+    a.onplaying=()=>setSpeakOn(btnId,true); a.onended=()=>setSpeakOn(btnId,false);
+    a.onerror=()=>{ if(!fell){fell=true; speakTTS(text,btnId);} };
+    curAudio=a;
+    const pr=a.play();
+    if(pr&&pr.catch) pr.catch(()=>{ if(!fell){fell=true; speakTTS(text,btnId);} });
+  } else { speakTTS(text,btnId); }
+}
+function speakTTS(text,btnId){
+  if(!('speechSynthesis' in window)||!text) return;
+  try{ speechSynthesis.cancel(); }catch(e){}
+  const u=new SpeechSynthesisUtterance(text);
+  if(chosenVoice){ u.voice=chosenVoice; u.lang=chosenVoice.lang; } else { u.lang='uk-UA'; }
+  u.rate=0.85; u.pitch=1.05;
+  u.onstart=()=>setSpeakOn(btnId,true);
+  u.onend=()=>setSpeakOn(btnId,false);
+  try{ speechSynthesis.speak(u); }catch(e){}
+}
+function stopAudio(){
+  if(curAudio){ try{curAudio.pause();curAudio.currentTime=0;}catch(e){} curAudio=null; }
+  if('speechSynthesis' in window){ try{speechSynthesis.cancel();}catch(e){} }
+  setSpeakOn('cardSpeak',false);
+}
+function setSpeakOn(btnId,on){ if(!btnId)return; const b=document.getElementById(btnId); if(b)b.classList.toggle('on',!!on); }
+function toggleSound(){
+  state.soundOn=!state.soundOn; save();
+  if(!state.soundOn) stopAudio();
+  document.querySelectorAll('.sndbtn').forEach(b=>{ b.classList.toggle('off',!state.soundOn); b.textContent=state.soundOn?'🔊':'🔇'; });
+}
+function rankVoices(){
+  const vs=(window.speechSynthesis?speechSynthesis.getVoices():[])||[];
+  const uk=vs.filter(v=>/uk|ukrain/i.test(v.lang)||/україн|ukrain/i.test(v.name));
+  const score=v=>(/natural|neural|online|premium|enhanced/i.test(v.name)?3:/google/i.test(v.name)?2:1);
+  uk.sort((a,b)=>score(b)-score(a));
+  ukVoices=uk;
+  const saved=localStorage.getItem('sk_tvaryny_voice');
+  chosenVoice=uk.find(v=>v.name===saved)||uk[0]||null;
+  buildVoicePicker();
+  document.body.classList.toggle('no-voice', ukVoices.length===0 && !('speechSynthesis' in window));
+}
+function buildVoicePicker(){
+  const row=document.getElementById('voiceRow'), sel=document.getElementById('voiceSel');
+  if(!row||!sel)return;
+  if(ukVoices.length<2){ row.classList.add('hidden'); return; }
+  row.classList.remove('hidden');
+  sel.innerHTML=ukVoices.map(v=>'<option value="'+v.name+'">'+v.name.replace(/\s*\(.*?\)\s*$/,'')+'</option>').join('');
+  if(chosenVoice) sel.value=chosenVoice.name;
+  sel.onchange=()=>{ chosenVoice=ukVoices.find(v=>v.name===sel.value)||null;
+    if(chosenVoice) localStorage.setItem('sk_tvaryny_voice',chosenVoice.name); speakCard(); };
+}
+rankVoices();
+if('speechSynthesis' in window) speechSynthesis.onvoiceschanged=rankVoices;
+
+/* ── старт ── */
+if(!state.soundOn) document.querySelectorAll('.sndbtn').forEach(b=>{b.classList.add('off');b.textContent='🔇';});
+refreshStart();
+</script>
+
+<!-- Firebase лише для кнопки «Вийти» у спільному футері -->
+<script type="module" src="firebase-config.js"></script>
+<script>
+(function(){
+  var outBtn=document.getElementById('heroBackBtn');
+  if(outBtn) outBtn.addEventListener('click', async function(){
+    if(history.length>1){ history.back(); }else{ location.href='hero.html'; }
+  });
+})();
+</script>
+</body>
+</html>
