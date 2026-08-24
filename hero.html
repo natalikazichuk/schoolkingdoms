@@ -129,6 +129,20 @@
       <span class="go">▶</span>
     </a>
 
+    <!-- ПОСИЛАННЯ НА ВИПРОБУВАННЯ (тренажери) -->
+    <a class="academy-link" href="tests.html" style="margin-top:12px">
+      <span class="ic">🎮</span>
+      <span class="tx">
+        <b>Випробування</b>
+        <small>Проходь тренажери-випробування за предметами — тренуй Героя! ⚔️</small>
+        <span class="tst-prog" id="vyproProg" hidden>
+          <span class="tst-prog-track"><i id="vyproProgFill"></i></span>
+          <b id="vyproProgTx"></b>
+        </span>
+      </span>
+      <span class="go">▶</span>
+    </a>
+
 
     <!-- МОЯ КОМАНДА: брати/сестри та друзі -->
     <h2 class="sec-title" style="margin-top:18px">Моя команда</h2>
@@ -144,22 +158,6 @@
       </div>
     </div>
 
-    <div class="lower">
-      <div>
-        <h2 class="sec-title" style="font-size:1.05rem;margin:0 0 10px">Характеристики Героя <span class="sec-sub">(тисни, щоб перейти до тестів)</span></h2>
-        <div class="locked-grid">
-          <a class="lock-card open" href="tests.html"><span class="ic">⚔️</span><span class="nm">Сила <small>(Strength)</small></span><span class="lv" id="lk-str">1</span><span class="pad">→</span></a>
-          <a class="lock-card open" href="tests.html"><span class="ic">🛡️</span><span class="nm">Захист <small>(Defense)</small></span><span class="lv" id="lk-def">1</span><span class="pad">→</span></a>
-          <a class="lock-card open" href="tests.html"><span class="ic">🧠</span><span class="nm">Інтелект <small>(Intelligence)</small></span><span class="lv" id="lk-int">1</span><span class="pad">→</span></a>
-          <a class="lock-card open" href="tests.html"><span class="ic">💎</span><span class="nm">Мудрість <small>(Wisdom)</small></span><span class="lv" id="lk-wis">1</span><span class="pad">→</span></a>
-          <a class="lock-card open" href="tests.html"><span class="ic">🍀</span><span class="nm">Удача <small>(Luck)</small></span><span class="lv" id="lk-luck">1</span><span class="pad">→</span></a>
-          <a class="lock-card open" href="tests.html"><span class="ic">⭐</span><span class="nm">Пам'ять <small>(Memory)</small></span><span class="lv" id="lk-mem">1</span><span class="pad">→</span></a>
-          <a class="lock-card open" href="tests.html"><span class="ic">👥</span><span class="nm">Харизма <small>(Charisma)</small></span><span class="lv" id="lk-cha">1</span><span class="pad">→</span></a>
-          <div class="lock-card" style="opacity:.55;border-style:dashed"><span class="ic">➕</span><span class="nm" style="color:#9aa6b8">Скоро…</span><span class="lv">?</span></div>
-          <div class="lock-note"><span class="ic">🎯</span>Тисни на будь-яку характеристику — і вперед до тестів! Результати підвищують показники Героя.</div>
-        </div>
-      </div>
-    </div>
   </main>
 </div>
 
@@ -243,11 +241,6 @@ const data = {
   books: profile.books, sport: profile.sport
 };
 
-// заблоковані стати 1 класу — поки без формул; показуємо те, що реально лежить
-// у документі Героя (за відсутності поля — стартове значення з шаблону створення)
-const lockedStats = {strength:2, defense:1, intelligence:1, wisdom:1, luck:1, memory:1, charisma:1};
-const lockedMap = {strength:'lk-str',defense:'lk-def',intelligence:'lk-int',wisdom:'lk-wis',luck:'lk-luck',memory:'lk-mem',charisma:'lk-cha'};
-
 /* ════ RENDER ════ */
 const $=id=>document.getElementById(id);
 // безпечний запис тексту: елемент міг бути прибраний із розмітки (напр. гаманець/аватар у хедері)
@@ -262,10 +255,6 @@ function render(){
   $('heroName').textContent=profile.name||'…';
   $('heroGrade').textContent=profile.grade;
   $('heroTitle').textContent=profile.title;
-  // заблоковані стати (поки без формул — стартові значення; перезапишуться,
-  // якщо відповідне поле раптом з'явиться в документі Героя)
-  Object.keys(lockedMap).forEach(k=>{ const el=$(lockedMap[k]); if(el) el.textContent=lockedStats[k]; });
-
   // активні бойові стати (health/agility/mana/accuracy/level/xp/coins) —
   // ЄДИНЕ джерело: Firestore. Поки дані не прийшли — нейтральний стан очікування.
   renderLoadingStats();
@@ -342,11 +331,6 @@ function renderHeroStats(h){
   setTxt('mpCur',mana);      setBar('mpBar',pct(mana,100));
   setTxt('accCur',accuracy); setBar('accBar',pct(accuracy,100));
   setTxt('w-coins',coins); setTxt('coins2',coins);
-
-  // якщо колись з'являться формули для заблокованих статів — підхоплюємо їх з документа
-  Object.keys(lockedMap).forEach(function(k){
-    if(h[k]!=null){ const el=$(lockedMap[k]); if(el) el.textContent=h[k]; }
-  });
 }
 
 /* -- Задані завдання (від дорослих). Джерело з'явиться пізніше: якщо SK матиме
@@ -539,6 +523,7 @@ async function toggleTask(id, status, testId, btn){
 render();
 loadTasks();
 loadTestsProgress();
+loadVyproProgress();
 
 /* ── Смужка пройдених тестів у картці «Тести». ──
    Пройдено рахуємо ТОЧНО так само, як смужки предметів і Досягнення на
@@ -597,6 +582,76 @@ async function loadTestsProgress(){
   let passed=0;
   list.forEach(function(t){
     if(_isTestPassed(t.id, _testLevels(t), lsGet, pgGet)) passed++;
+  });
+  if(passed>total) passed=total;
+  fill.style.width=Math.round(passed/total*100)+'%';
+  tx.textContent=passed+' / '+total+' пройдено';
+  wrap.hidden=false;
+}
+
+/* ── Смужка пройдених ВИПРОБУВАНЬ (тренажерів) у картці «Випробування». ──
+   Список тренажерів — curriculum/trainers (керується з адмінки) або вбудований
+   за замовчуванням. Рахуємо лише валідні рядки (href + subject), без дублів за
+   сторінкою. «Пройдено» = або мітка sk_vypro_<key>='1' (localStorage ∪ Firebase
+   progress) — на майбутнє, коли сторінки-тренажери почнуть її ставити; або вже
+   є локальний прогрес самого тренажера (його SAVE_KEY зі stars/xp>0 чи нагорода)
+   — щоб смужка працювала вже зараз. key = імʼя файлу тренажера без шляху та .html. */
+var VYPRO_DEFAULT_LINKS = [
+  { href:'english-reading.html', subject:'eng' },
+  { href:'ukrainian-abetka.html', subject:'україн' }
+];
+/* Відомі ключі збереження існуючих тренажерів (localStorage). Щоб додати новий —
+   допиши рядок «імʼя-файлу-без-html: { save:'…', reward:'…' }». */
+var VYPRO_SAVE_KEYS = {
+  'english-reading':  { save:'sk-reading-v1' },
+  'ukrainian-abetka': { save:'sk-abetka-v1' },
+  'vchymo-litery':    { save:'sk-litery-v1', reward:'sk-litery-reward-v1' },
+  'chytaemo-sklady':  { save:'sk-sklad-v1' }
+};
+function _vyproKey(href){
+  var s=String(href||'').split(/[?#]/)[0].split('/').pop();
+  return s.replace(/\.html?$/i,'').toLowerCase();
+}
+function _vyproSaveDone(key, lsGet){
+  var m=VYPRO_SAVE_KEYS[key]; if(!m) return false;
+  if(m.reward && lsGet(m.reward)==='1') return true;
+  var raw=m.save?lsGet(m.save):null; if(!raw) return false;
+  try{ var o=JSON.parse(raw); return (Number(o.stars)>0)||(Number(o.xp)>0); }
+  catch(e){ return false; }
+}
+async function loadVyproProgress(){
+  const wrap=$('vyproProg'), fill=$('vyproProgFill'), tx=$('vyproProgTx');
+  if(!wrap || !fill || !tx) return;
+  try{
+    await new Promise(function(res){ let n=0;
+      (function w(){ if(window.SK && window.SK.ready) return res();
+        if(n++<100) setTimeout(w,50); else res(); })(); });
+  }catch(e){}
+  let links=VYPRO_DEFAULT_LINKS, prog={};
+  try{
+    if(window.SK && window.SK.ready) await window.SK.ready;
+    if(window.SK && window.SK.getTrainers){
+      const tr=await window.SK.getTrainers();
+      if(tr && Array.isArray(tr.links) && tr.links.length) links=tr.links;
+    }
+    if(window.SK && window.SK.isHeroSession && window.SK.isHeroSession() && window.SK.getHero){
+      const h=await window.SK.getHero();
+      prog=(h && h.progress)?h.progress:{};
+    }
+  }catch(e){}
+  const seen={}, valid=[];
+  (links||[]).forEach(function(l){
+    if(!l || !l.href || !l.subject) return;   // порожні/незаповнені рядки — пропускаємо
+    const k=_vyproKey(l.href);
+    if(seen[k]) return; seen[k]=1; valid.push(k);
+  });
+  const total=valid.length;
+  if(!total){ wrap.hidden=true; return; }     // тренажерів немає — смужку не показуємо
+  function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+  function pgGet(k){ return (prog && prog[k]!=null) ? prog[k] : null; }
+  let passed=0;
+  valid.forEach(function(k){
+    if(lsGet('sk_vypro_'+k)==='1' || pgGet('sk_vypro_'+k)==='1' || _vyproSaveDone(k, lsGet)) passed++;
   });
   if(passed>total) passed=total;
   fill.style.width=Math.round(passed/total*100)+'%';
@@ -678,6 +733,7 @@ async function loadTestsProgress(){
     let busy=false;
     function refreshHeroStats(){
       loadTestsProgress();
+      loadVyproProgress();
       loadTasks();
       if(busy) return;
       if(!(window.SK && window.SK.ready)) return;
