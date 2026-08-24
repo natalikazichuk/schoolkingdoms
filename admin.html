@@ -283,6 +283,18 @@
   .tr-card.col{opacity:.96}
   .tr-empty{color:var(--muted);font-style:italic;font-weight:600;font-size:.88rem;padding:10px 2px}
 
+  /* ── Випробування: нагороди ── */
+  .tr-rewards{display:flex;align-items:flex-start;gap:8px;margin-top:6px}
+  .tr-rewards > .map-lvl{margin-top:7px;flex:0 0 auto}
+  .rw-wrap{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:6px}
+  .tr-reward{display:flex;align-items:center;gap:8px}
+  .tr-reward .rw-badge{font-size:.7rem;font-weight:900;color:var(--muted);border:1px solid var(--border);
+    border-radius:6px;padding:3px 7px;white-space:nowrap;flex:0 0 auto}
+  .tr-reward input[list]{flex:1 1 auto;min-width:0;padding:6px 9px;font-size:.88rem}
+  .tr-reward .rw-coins{width:104px;flex:0 0 auto;text-align:right;padding:6px 9px;font-size:.88rem}
+  .tr-reward .rw-unit{flex:0 0 auto;font-size:1rem}
+  @media (max-width:720px){ .tr-reward{flex-wrap:wrap} .tr-reward input[list]{flex:1 1 100%} .tr-reward .rw-coins{width:96px} }
+
   /* Форми */
   .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
   .field{display:flex;flex-direction:column;gap:6px}
@@ -425,7 +437,7 @@
     <div class="who">Ви: <b id="adminEmail">—</b></div>
     <button class="btn ghost sm" id="btnHome">🏠 Головна</button>
     <button class="btn ghost sm" id="btnMap">🗺 Структура</button>
-    <button class="btn ghost sm" id="btnTrainers">🎮 Тренажери</button>
+    <button class="btn ghost sm" id="btnTrainers">🎮 Випробування</button>
     <button class="btn ghost sm" id="btnGames">🕹 Ігри</button>
     <a class="btn ghost sm" href="admin-books.html">📖 Книги</a>
     <a class="btn ghost sm" href="admin-items.html">🛡 Предмети</a>
@@ -447,8 +459,8 @@
       </button>
       <button class="home-card" id="homeTrainers" type="button">
         <span class="ic">🎮</span>
-        <span class="ttl">Тренажери</span>
-        <span class="sub">Посилання-тренажери під предметами</span>
+        <span class="ttl">Випробування</span>
+        <span class="sub">Сторінки/відео під предметами + нагороди й картинки</span>
       </button>
       <a class="home-card" href="admin-books.html">
         <span class="ic">📖</span>
@@ -638,22 +650,27 @@
     <div class="toolbar">
       <button class="btn ghost" id="trBack">🏠 Головна</button>
       <div class="spacer"></div>
-      <button class="btn gold" id="trSave">💾 Зберегти тренажери</button>
+      <button class="btn gold" id="trSave">💾 Зберегти випробування</button>
     </div>
     <div class="panel">
-      <h2>🎮 Тренажери</h2>
+      <h2>🎮 Випробування</h2>
       <p class="hint" style="margin:8px 0 14px">
-        Тренажер — це посилання на окрему сторінку або відео, яке зʼявляється під
-        предметом на сторінці «Тести» (блок 🎮 Тренажери). Обери предмет, дай назву
-        й встав посилання. Можна вказати внутрішню сторінку (напр. <code>english-reading.html</code>)
-        або зовнішнє посилання/відео (<code>https://…</code>).
-        <br>Порожні рядки не зберігаються. Ступінь і клас — необовʼязкові фільтри:
-        залиш «усі ступені»/«усі класи», щоб тренажер показувався скрізь із цим предметом.
-        Обери клас (1–4), щоб тренажер зʼявлявся тільки в тому класі.
+        Випробування — це посилання на окрему сторінку або відео, яке зʼявляється під
+        предметом на сторінці «Тести». Обери предмет, дай назву й встав посилання —
+        внутрішню сторінку (напр. <code>english-reading.html</code>) або зовнішнє
+        посилання/відео (<code>https://…</code>).
+        <br>Ступінь і клас — необовʼязкові фільтри: залиш «усі ступені»/«усі класи»,
+        щоб випробування показувалось скрізь із цим предметом. Обери клас (1–4),
+        щоб зʼявлялось тільки в тому класі.
+        <br><b>Нагороди</b> (до трьох): ID предмета з інвентаря (напр. <code>IT-001</code>)
+        та/або монетки — за проходження. <b>Картинки</b>: одна на плашці у списку,
+        друга на першій сторінці випробування. Порожні рядки не зберігаються.
       </p>
+      <datalist id="trItems"></datalist>
       <div class="toolbar" style="margin:4px 0 12px">
-        <button class="btn xs" id="trAdd">＋ Тренажер</button>
+        <button class="btn xs" id="trAdd">＋ Випробування</button>
         <div class="spacer"></div>
+        <button class="btn xs" id="trSortTier">⇅ За ступенем</button>
         <button class="btn xs" id="trSortSubj">⇅ За предметом</button>
         <button class="btn xs" id="trCollapseAll">▸ Згорнути все</button>
         <button class="btn xs" id="trExpandAll">▾ Розгорнути все</button>
@@ -677,8 +694,8 @@
         <b>Група</b>. Групу пишеш вільно (можна вибрати з підказок) — напр. «Математика»,
         «Логіка та памʼять», «Аркади». Ігри з однаковою групою стають однією згортуваною
         секцією; порожня група потрапляє в «Інші».
-        <br>Тут вирішуєш сама, що́ гра, а що́ тренажер: тренажери-посилання під предметами —
-        у вкладці «🎮 Тренажери», а ігротека — тут.
+        <br>Тут вирішуєш сама, що́ гра, а що́ випробування: посилання-випробування під предметами —
+        у вкладці «🎮 Випробування», а ігротека — тут.
         <br>Порожні рядки не зберігаються.
       </p>
       <datalist id="gmGroups"></datalist>
@@ -784,6 +801,7 @@ const SK_API = {
   saveTrainers:(l) => window.SK.saveTrainers(l),
   getGames:    ()  => window.SK.getGames(),
   saveGames:   (g) => window.SK.saveGames(g),
+  listItems:   ()  => (window.SK.listActiveItems ? window.SK.listActiveItems() : Promise.resolve([])),
 };
 
 
@@ -1016,11 +1034,11 @@ function renderMap(){
         const trIdx = subjTrainerIdx(sj, tier, g);
         html += '<div class="tr-section">'
           + '<div class="tr-section-head">'
-            + '<span class="map-lvl">🎮 ТРЕНУВАННЯ</span>'
-            + '<span class="tr-hint">Окремі сторінки-тренажери або відео. Дитина бачить їх як міні-ігри (іконка · назва · опис).</span>'
+            + '<span class="map-lvl">🎮 ВИПРОБУВАННЯ</span>'
+            + '<span class="tr-hint">Окремі сторінки-випробування або відео. Дитина бачить їх як міні-ігри (іконка · назва · опис).</span>'
           + '</div>';
         trIdx.forEach(gi => { html += trRowInMap(gi, pS); });
-        html += '<button class="btn xs" data-a="subjtr.add" data-p="' + pS + '" style="margin-top:6px">＋ Тренажер</button>'
+        html += '<button class="btn xs" data-a="subjtr.add" data-p="' + pS + '" style="margin-top:6px">＋ Випробування</button>'
           + '</div>';  // .tr-section
 
         html += '</div>'   // .map-kids
@@ -1161,7 +1179,7 @@ function onMapClick(e){
       }
     } else if(a === 'del'){
       const l = TRAINERS[gi];
-      if(!confirm('Видалити тренажер «' + ((l && l.label) || 'без назви') + '»?')) return;
+      if(!confirm('Видалити випробування «' + ((l && l.label) || 'без назви') + '»?')) return;
       TRAINERS.splice(gi, 1);
     }
     renderMap();
@@ -1505,7 +1523,7 @@ function trRowInMap(gi, pS){
   const l = TRAINERS[gi]; if(!l) return '';
   return '<div class="tr-mini">'
     + '<div class="map-head">'
-      + '<span class="map-lvl">🎮 ТРЕНАЖЕР</span>'
+      + '<span class="map-lvl">🎮 ВИПРОБУВАННЯ</span>'
       + '<input type="text" class="grow" data-mtf="label" data-tri="' + gi + '" placeholder="Назва (напр. Вчимось читати!)" value="' + esc(l.label || '') + '">'
       + '<select data-mtf="type" data-tri="' + gi + '" style="width:auto" title="Посилання на сторінку чи відео">' + trTypeOpts(l.type || 'page') + '</select>'
       + '<input type="text" class="w-ic" data-mtf="icon" data-tri="' + gi + '" value="' + esc(l.icon || '') + '" title="Емодзі-іконка">'
@@ -1576,17 +1594,52 @@ function trSortBySubject(){
   renderTrainers();
 }
 
+/* Порядок ступенів: дошкільна → молодша школа → старша школа → інші/без ступеня.
+   Розпізнаємо за ключовим коренем назви, тож працює й для «Дошкільна підготовка». */
+function trTierRank(v){
+  const n = trSlNorm(v);
+  if(!n) return 9;
+  if(n.indexOf('дошкіль') >= 0) return 0;
+  if(n.indexOf('молодш')  >= 0) return 1;
+  if(n.indexOf('старш')   >= 0) return 2;
+  return 3;
+}
+/* Сортує за ступенем (дошкільна → молодша → старша), а в межах ступеня —
+   за предметом, потім за назвою випробування. */
+function trSortByTier(){
+  if(!TRAINERS) return;
+  TRAINERS.sort((a, b) => {
+    const ra = trTierRank(a.tier), rb = trTierRank(b.tier);
+    if(ra !== rb) return ra - rb;
+    return trSlNorm(a.subject).localeCompare(trSlNorm(b.subject), 'uk')
+        || trSlNorm(a.label).localeCompare(trSlNorm(b.label), 'uk');
+  });
+  COLLAPSED_TR.clear();
+  renderTrainers();
+}
+
 function renderTrainers(){
   if(!TRAINERS || !TRAINERS.length){
-    $('trList').innerHTML = '<div class="tr-empty">Тренажерів ще немає. Натисни «＋ Тренажер».</div>';
+    $('trList').innerHTML = '<div class="tr-empty">Випробувань ще немає. Натисни «＋ Випробування».</div>';
     return;
   }
   let html = '';
   TRAINERS.forEach((l, i) => {
+    const rw = Array.isArray(l.rewards) ? l.rewards : [];
+    let rwRows = '';
+    for(let r = 0; r < 3; r++){
+      const x = rw[r] || {};
+      rwRows += '<div class="tr-reward">'
+        + '<span class="rw-badge">🎁 ' + (r + 1) + '</span>'
+        + '<input type="text" list="trItems" data-tf="rItem" data-i="' + i + '" data-r="' + r + '" placeholder="ID предмета (напр. IT-001) — необовʼязково" value="' + esc(x.item || '') + '">'
+        + '<input type="number" class="rw-coins" min="0" step="1" data-tf="rCoins" data-i="' + i + '" data-r="' + r + '" placeholder="монетки" value="' + (x.coins ? esc(String(x.coins)) : '') + '">'
+        + '<span class="rw-unit" title="монетки">🪙</span>'
+      + '</div>';
+    }
     html += '<div class="tr-card' + trColCls(i) + '">'
       + '<div class="map-head">'
         + trColBtn(i, l.subject || '')
-        + '<span class="map-lvl">ТРЕНАЖЕР</span>'
+        + '<span class="map-lvl">ВИПРОБУВАННЯ</span>'
         + '<input type="text" class="grow" data-tf="label" data-i="' + i + '" placeholder="Назва (напр. Вчимось читати!)" value="' + esc(l.label || '') + '">'
         + '<span class="map-btns">'
           + '<button class="btn xs" data-ta="up" data-i="' + i + '" title="Вище">↑</button>'
@@ -1611,8 +1664,20 @@ function renderTrainers(){
         + '<input type="text" class="w-ic" data-tf="icon" data-i="' + i + '" value="' + esc(l.icon || '') + '" title="Емодзі-іконка">'
         + '<label class="switch" style="flex:0 0 auto">'
           + '<input type="checkbox" data-tf="blank" data-i="' + i + '"' + (l.blank ? ' checked' : '') + '>'
-          + '<span class="track"></span><span class="sw-txt">↗ нова вкладка</span>'
+          + '<span class="track"></span><span class="sw-txt">↗ окрема сторінка</span>'
         + '</label>'
+      + '</div>'
+      + '<div class="map-head">'
+        + '<span class="map-lvl">КАРТИНКА · ПЛАШКА</span>'
+        + '<input type="text" class="grow" data-tf="imgCard" data-i="' + i + '" placeholder="Посилання на картинку для плашки (напр. img/…/….webp)" value="' + esc(l.imgCard || '') + '">'
+      + '</div>'
+      + '<div class="map-head">'
+        + '<span class="map-lvl">КАРТИНКА · 1-ША СТОР.</span>'
+        + '<input type="text" class="grow" data-tf="imgPage" data-i="' + i + '" placeholder="Посилання на картинку для першої сторінки випробування" value="' + esc(l.imgPage || '') + '">'
+      + '</div>'
+      + '<div class="tr-rewards">'
+        + '<span class="map-lvl">НАГОРОДИ</span>'
+        + '<div class="rw-wrap">' + rwRows + '</div>'
       + '</div>'
       + '</div>'
     + '</div>';
@@ -1635,6 +1700,17 @@ function onTrInput(e){
     case 'href':    l.href = el.value; break;
     case 'icon':    l.icon = el.value; break;
     case 'blank':   l.blank = el.checked; break;
+    case 'imgCard': l.imgCard = el.value; break;
+    case 'imgPage': l.imgPage = el.value; break;
+    case 'rItem':
+    case 'rCoins': {
+      const r = Number(el.dataset.r) || 0;
+      if(!Array.isArray(l.rewards)) l.rewards = [];
+      while(l.rewards.length <= r) l.rewards.push({ item:'', coins:0 });
+      if(f === 'rItem') l.rewards[r].item = el.value.trim();
+      else l.rewards[r].coins = Math.max(0, Math.floor(Number(el.value) || 0));
+      break;
+    }
     case 'type':
       l.type = el.value;
       // підставляємо типову іконку, якщо поле порожнє або лишалась типова іншого типу
@@ -1662,10 +1738,25 @@ function onTrClick(e){
   else if(a === 'down') move(TRAINERS, i, +1);
   else if(a === 'del'){
     const l = TRAINERS[i];
-    if(!confirm('Видалити тренажер «' + ((l && l.label) || 'без назви') + '»?')) return;
+    if(!confirm('Видалити випробування «' + ((l && l.label) || 'без назви') + '»?')) return;
     TRAINERS.splice(i, 1);
   }
   renderTrainers();
+}
+
+/* Наповнити <datalist id="trItems"> активними предметами інвентаря —
+   щоб у полях «нагороди» адмін бачив ID (IT-001) з назвою. Тягнемо раз. */
+let TR_ITEMS_LOADED = false;
+async function trFillItemsDatalist(){
+  if(TR_ITEMS_LOADED) return;
+  const dl = $('trItems'); if(!dl) return;
+  let items = [];
+  try { items = await SK_API.listItems(); } catch(e){ items = []; }
+  if(!Array.isArray(items) || !items.length) return;   // спробуємо ще раз наступного разу
+  dl.innerHTML = items.map(it =>
+    '<option value="' + esc(it.id || '') + '">' + esc((it.id || '') + ' — ' + (it.name || '')) + '</option>'
+  ).join('');
+  TR_ITEMS_LOADED = true;
 }
 
 async function openTrainers(){
@@ -1679,6 +1770,7 @@ async function openTrainers(){
 
   // потрібна карта — з неї беремо список предметів/ступенів
   try { await ensureMap(); } catch(e){ /* працюємо із запасною */ }
+  trFillItemsDatalist();   // підказки ID предметів для полів «нагороди»
 
   if(!TRAINERS){
     let doc = null;
@@ -1693,8 +1785,8 @@ async function openTrainers(){
         const rt = c.tier ? trResolveSubj_tier(c.tier) : ''; if(rt) c.tier = rt;
         return c;
       });
-      $('trMsg').innerHTML = '<div class="map-ok">ℹ У базі ще немає списку — показано вбудовані тренажери. '
-        + 'Натисни «Зберегти тренажери», щоб закріпити (після цього список береться з бази).</div>';
+      $('trMsg').innerHTML = '<div class="map-ok">ℹ У базі ще немає списку — показано вбудовані випробування. '
+        + 'Натисни «Зберегти випробування», щоб закріпити (після цього список береться з бази).</div>';
     }
   }
   renderTrainers();
@@ -1709,6 +1801,15 @@ function trResolveSubj_tier(v){
   return '';
 }
 
+/* Звести нагороди до чистого вигляду: лишаємо тільки заповнені (є предмет
+   або монетки), нормалізуємо монетки в число. Порожній масив прибираємо. */
+function trCleanRewards(l){
+  const out = (Array.isArray(l.rewards) ? l.rewards : [])
+    .map(r => ({ item: String((r && r.item) || '').trim(), coins: Math.max(0, Math.floor(Number(r && r.coins) || 0)) }))
+    .filter(r => r.item || r.coins);
+  if(out.length) l.rewards = out; else delete l.rewards;
+}
+
 async function saveTrainersDoc(){
   if(!TRAINERS) return;
   // прибираємо геть порожні рядки (без назви й без посилання)
@@ -1716,21 +1817,22 @@ async function saveTrainersDoc(){
   const bad = clean.filter(l => !(l.subject && l.subject.trim()) || !(l.href && l.href.trim()));
   if(bad.length){
     $('trMsg').innerHTML = '<div class="map-warn">✘ У ' + bad.length
-      + ' тренажер(ів) не заповнено предмет або посилання. Заповни або видали ці рядки.</div>';
+      + ' випробуванн(ях) не заповнено предмет або посилання. Заповни або видали ці рядки.</div>';
     toast('Заповни предмет і посилання', true);
     return;
   }
+  clean.forEach(trCleanRewards);   // нормалізуємо нагороди перед записом
   try {
     await SK_API.saveTrainers(clean);
     TRAINERS = clean;
     renderTrainers();
-    $('trMsg').innerHTML = '<div class="map-ok">✔ Збережено. Тепер тренажери беруться з бази.</div>';
-    toast('Тренажери збережено ✔');
+    $('trMsg').innerHTML = '<div class="map-ok">✔ Збережено. Тепер випробування беруться з бази.</div>';
+    toast('Випробування збережено ✔');
   } catch(e){
     console.error(e);
     $('trMsg').innerHTML = '<div class="map-warn">✘ Не вдалося зберегти. '
       + 'Можливо, у правилах Firestore закрито документ <code>curriculum/trainers</code>.</div>';
-    toast('Не вдалося зберегти тренажери', true);
+    toast('Не вдалося зберегти випробування', true);
   }
 }
 
@@ -2050,7 +2152,7 @@ async function exportListsTxt(){
     try { const dt = await SK_API.getTrainers(); tr = (dt && Array.isArray(dt.links)) ? dt.links : TRAINERS_DEFAULT; }
     catch(e){ tr = TRAINERS_DEFAULT; }
   }
-  L(RULE); L('ТРЕНАЖЕРИ (' + tr.length + ')'); L(RULE); L('');
+  L(RULE); L('ВИПРОБУВАННЯ (' + tr.length + ')'); L(RULE); L('');
   {
     const grp = {}, order = [];
     tr.forEach(l => {
@@ -2642,13 +2744,14 @@ function bindEvents(){
   $('trSave').onclick = saveTrainersDoc;
   $('trAdd').onclick = () => {
     if(!TRAINERS) TRAINERS = [];
-    TRAINERS.push({ subject:'', tier:'', href:'', icon:'🔗', label:'', type:'page', blank:false });
+    TRAINERS.push({ subject:'', tier:'', grade:'', href:'', icon:'🔗', label:'', type:'page', blank:false, imgCard:'', imgPage:'', rewards:[] });
     renderTrainers();
   };
   $('trBack').onclick = goHome;
   $('trList').addEventListener('input',  onTrInput);
   $('trList').addEventListener('change', onTrInput);
   $('trList').addEventListener('click',  onTrClick);
+  $('trSortTier').onclick    = trSortByTier;
   $('trSortSubj').onclick    = trSortBySubject;
   $('trCollapseAll').onclick = trCollapseAll;
   $('trExpandAll').onclick   = trExpandAll;
