@@ -187,6 +187,12 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .win-actions{display:flex;flex-direction:column;gap:8px}
 .win-close{background:none;border:none;color:var(--soft);font-family:'Nunito',sans-serif;font-weight:800;
   font-size:15px;cursor:pointer;padding:6px}
+.win-unlock{display:flex;align-items:center;justify-content:center;gap:8px;background:var(--good-bg);
+  color:var(--good);font-weight:800;font-size:15px;border-radius:14px;padding:11px 12px;margin:2px 0 8px}
+.win-hint{color:var(--soft);font-weight:800;font-size:14px;margin:0 0 12px}
+.win-actions .win-cta{font-size:19px;padding:16px;animation:ctaPulse 1.4s ease-in-out infinite}
+@keyframes ctaPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
+@media (prefers-reduced-motion:reduce){ .win-actions .win-cta{animation:none} }
 
 /* ── сітка всіх літер ── */
 .grid-ov{position:fixed;inset:0;background:rgba(44,43,58,.55);z-index:50;display:none;
@@ -361,9 +367,11 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .botnav a:hover:not(.active){background:rgba(255,255,255,.1);color:#fff}
 
 /* ── ЦИФРИ: лічба предметів ── */
-.count-box{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center;min-height:110px;padding:8px}
+.count-box{display:flex;flex-direction:column;gap:10px;justify-content:center;align-items:center;min-height:110px;padding:8px}
+.cb-row{display:flex;gap:10px;justify-content:center;align-items:center}
 .count-box span{font-size:44px;line-height:1;animation:cbpop .3s ease both}
 .count-box.many{gap:7px}
+.count-box.many .cb-row{gap:7px}
 .count-box.many span{font-size:34px}
 .count-box.zero{flex-direction:column;gap:4px}
 .count-box.zero .cz-ic{font-size:64px;opacity:.55}
@@ -526,9 +534,11 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
         <div class="rmeta">Шоломи · міцність 2500</div>
       </div>
     </div>
+    <div class="win-unlock">🔓 Усі ігри з цифрами відкрито!</div>
+    <div class="win-hint">Тепер тисни зелену кнопку — і грайся! 👇</div>
     <div class="win-actions">
-      <button class="big-btn success" onclick="claimAndPlay()">🎮 Грати далі</button>
-      <button class="win-close" onclick="closeWin()">Закрити</button>
+      <button class="big-btn success win-cta" onclick="claimAndPlay()">🎮 Грати в ігри →</button>
+      <button class="win-close" onclick="closeWin()">↩ Ще погортати цифри</button>
     </div>
   </div>
 </div>
@@ -583,20 +593,32 @@ function distinctNums(correct,n){
 }
 
 /* картинка слова з NUM (резерв — емодзі, якщо файлу нема) */
+/* Скільки емодзі в одному рядку — залежить від числа (гарні фігури: 2/4/5). */
+const NUM_COLS={1:1,2:2,3:2,4:2,5:5,6:2,7:5,8:4,9:5,10:5};
+function colsFor(n){ return NUM_COLS[n] || (n<=5 ? n : 5); }
 function countHTML(it){
   if(it.cnt===0){
     return '<div class="count-box zero"><span class="cz-ic">'+it.e+'</span>'+
            '<span class="cz-t">нічого · 0</span></div>';
   }
+  const cols = colsFor(it.cnt);
   const many = it.cnt>6 ? ' many' : '';
   let out='<div class="count-box'+many+'">';
-  for(let i=0;i<it.cnt;i++) out+='<span>'+it.e+'</span>';
+  let left=it.cnt;
+  while(left>0){
+    const row=Math.min(cols,left);
+    out+='<div class="cb-row">';
+    for(let k=0;k<row;k++) out+='<span>'+it.e+'</span>';
+    out+='</div>';
+    left-=row;
+  }
   return out+'</div>';
 }
 
 /* ══════ СТАН ══════ */
 const SAVE_KEY='sk-tsyfry-v1';
 const REWARD_KEY='sk-tsyfry-reward-v1';
+const REWARD_SHOWN_KEY='sk-tsyfry-reward-shown-v1';  // авто-показ нагороди — лише один раз
 const ALL=NUM.length;
 let state={learned:{},soundOn:true};
 let idx=0;                 // поточна картка
@@ -648,7 +670,10 @@ function renderCard(){
   updateLearnBar();
   document.getElementById('doneBanner').classList.toggle('on',allLearned());
   if(!state.learned[it.id]){ state.learned[it.id]=true; save(); }
-  if(allLearned() && !localStorage.getItem(REWARD_KEY) && userGesture){ setTimeout(openWin,450); }
+  if(allLearned() && !localStorage.getItem(REWARD_SHOWN_KEY) && userGesture){
+    try{ localStorage.setItem(REWARD_SHOWN_KEY,'1'); }catch(e){}  // більше не показувати автоматично
+    setTimeout(openWin,450);
+  }
   if(userGesture) speakCard();
 }
 function move(d){
