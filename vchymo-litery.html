@@ -562,7 +562,7 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 <script>
 /* ============================================================
    ВЧИМО ЛІТЕРИ — самодостатній тренажер для малят.
-   Прогрес: localStorage ключ 'sk-litery-v1'.
+   Прогрес: localStorage ключ 'sk_litery_v1' (простір sk_* — синхронізується per-Hero).
 
    МАЛЮНКИ (встав свої):  img/abetka_<id>.webp   (id — латинка, див. поле id; прозорий фон)
      напр. А → img/abetka_a.webp,  Ж → img/abetka_zh.webp
@@ -631,8 +631,13 @@ function picBox(id,emoji,alt){
 }
 
 /* ══════ СТАН ══════ */
-const SAVE_KEY='sk-litery-v1';
-const REWARD_KEY='sk-litery-reward-v1';
+const SAVE_KEY='sk_litery_v1';
+const REWARD_KEY='sk_litery_reward_v1';
+/* Старі ключі писались через дефіс (sk-litery-…). firebase-config синхронізує
+   лише простір sk_* (підкреслення), тож дефісні ключі не прив'язувались до Героя
+   й були спільні для всіх на пристрої (звідси «100% у всіх»). Прибираємо їх
+   один раз, щоб протікання зникло; далі прогрес живе в sk_litery_* per-Hero. */
+const LEGACY_KEYS=['sk-litery-v1','sk-litery-reward-v1'];
 const ALL=ABC.length;
 let state={learned:{},soundOn:true};
 let idx=0;                 // поточна картка
@@ -640,6 +645,7 @@ let userGesture=false;     // чи вже була взаємодія (для а
 let againShown=false;      // «ти вже знаєш літери» — показуємо раз за сесію
 
 function load(){
+  try{ LEGACY_KEYS.forEach(k=>localStorage.removeItem(k)); }catch(e){}   // прибрати старе device-global протікання
   try{ const s=JSON.parse(localStorage.getItem(SAVE_KEY)); if(s){ state.learned=s.learned||{}; state.soundOn=s.soundOn!==false; } }catch(e){}
 }
 function save(){ try{ localStorage.setItem(SAVE_KEY,JSON.stringify(state)); }catch(e){} }
