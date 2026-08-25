@@ -282,6 +282,8 @@
   .tr-card.col > .map-kids{display:none}
   .tr-card.col{opacity:.96}
   .tr-empty{color:var(--muted);font-style:italic;font-weight:600;font-size:.88rem;padding:10px 2px}
+  .tr-cover-note{font-size:.78rem;color:var(--muted);line-height:1.4;flex:1 1 auto;min-width:120px}
+  .tr-cover-note code{background:rgba(255,255,255,.08);padding:1px 6px;border-radius:6px;font-weight:800;color:#cfe0ff}
 
   /* ── Випробування: нагороди ── */
   .tr-rewards{display:flex;align-items:flex-start;gap:8px;margin-top:6px}
@@ -666,8 +668,12 @@
         <br><b>Нагороди</b> — до 4 речей. У кожному слоті: ID предмета з інвентаря
         (напр. <code>IT-001</code>), шанс випадіння 0–100% (крок 10%) і, за бажанням,
         монетки. Слот спрацьовує за своїм шансом; дитині нагороди не показуються —
-        це таємниця. <b>Картинки</b>: одна на плашці у списку, друга на першій
-        сторінці випробування. Порожні рядки не зберігаються.
+        це таємниця. <b>Картинка — одна на все випробування:</b> поклади файл
+        <code>img/tr/&lt;назва-сторінки&gt;.webp</code> з тією самою назвою, що й сторінка в
+        посиланні (напр. посилання <code>vchymo-tsyfry.html</code> → файл
+        <code>img/tr/vchymo-tsyfry.webp</code>). Вона показується і на плашці, і на першій
+        сторінці випробування. Немає файлу — показується емодзі-іконка.
+        Порожні рядки не зберігаються.
       </p>
       <datalist id="trItems"></datalist>
       <div class="toolbar" style="margin:4px 0 12px">
@@ -1545,6 +1551,10 @@ function trRowInMap(gi, pS){
       + '<input type="text" class="grow" data-mtf="href" data-tri="' + gi + '" placeholder="english-reading.html  або  https://…" value="' + esc(l.href || '') + '">'
     + '</div>'
     + '<div class="map-head">'
+      + '<span class="map-lvl">🖼 ОБКЛАДИНКА</span>'
+      + '<span class="tr-cover-note">' + trCoverNoteInner(l.href, l.type) + '</span>'
+    + '</div>'
+    + '<div class="map-head">'
       + '<span class="map-lvl">ОПИС</span>'
       + '<input type="text" class="grow" data-mtf="desc" data-tri="' + gi + '" placeholder="Короткий опис (як у грі)" value="' + esc(l.desc || '') + '">'
     + '</div>'
@@ -1634,6 +1644,23 @@ function trChanceOpts(sel){
   return html;
 }
 
+/* Обкладинка тренажера — ОДИН файл, назва як у html-сторінки з посилання:
+   img/tr/<назва>.webp. Те саме правило, що й у tests.html (+ ті самі аліаси). */
+var TR_COVER_ALIAS = { 'ukrainian-abetka':'vchymo-litery' };
+function trCoverName(href){
+  var h = String(href||'').split('#')[0].split('?')[0];
+  h = h.substring(h.lastIndexOf('/')+1).replace(/\.html?$/i,'').toLowerCase().replace(/[’\'`ʼ]/g,'');
+  return TR_COVER_ALIAS[h] || h;
+}
+function trCoverNoteInner(href, type){
+  var raw = String(href||'').trim();
+  if(type === 'video') return 'Для відео обкладинка не потрібна — показується емодзі-іконка (поле вище).';
+  if(!raw) return 'Спершу встав посилання на сторінку — і тут зʼявиться назва файлу картинки.';
+  if(/^https?:\/\//i.test(raw)) return 'Зовнішнє посилання: обкладинкою буде емодзі-іконка (поле вище).';
+  var n = trCoverName(raw);
+  if(!n) return 'Обкладинкою буде емодзі-іконка.';
+  return 'Поклади один файл: <code>img/tr/'+esc(n)+'.webp</code> — та сама назва, що й сторінка. Показується і на плашці у списку, і на 1-й сторінці. Немає файлу → емодзі-іконка.';
+}
 function renderTrainers(){
   if(!TRAINERS || !TRAINERS.length){
     $('trList').innerHTML = '<div class="tr-empty">Випробувань ще немає. Натисни «＋ Випробування».</div>';
@@ -1685,12 +1712,8 @@ function renderTrainers(){
         + '</label>'
       + '</div>'
       + '<div class="map-head">'
-        + '<span class="map-lvl">КАРТИНКА · ПЛАШКА</span>'
-        + '<input type="text" class="grow" data-tf="imgCard" data-i="' + i + '" placeholder="Посилання на картинку для плашки (напр. img/…/….webp)" value="' + esc(l.imgCard || '') + '">'
-      + '</div>'
-      + '<div class="map-head">'
-        + '<span class="map-lvl">КАРТИНКА · 1-ША СТОР.</span>'
-        + '<input type="text" class="grow" data-tf="imgPage" data-i="' + i + '" placeholder="Посилання на картинку для першої сторінки випробування" value="' + esc(l.imgPage || '') + '">'
+        + '<span class="map-lvl">🖼 ОБКЛАДИНКА</span>'
+        + '<span class="tr-cover-note" id="trCover' + i + '">' + trCoverNoteInner(l.href, l.type) + '</span>'
       + '</div>'
       + '<div class="tr-rewards">'
         + '<span class="map-lvl">НАГОРОДИ</span>'
@@ -1714,7 +1737,7 @@ function onTrInput(e){
     case 'subject': l.subject = el.value; break;
     case 'tier':    l.tier = el.value; break;
     case 'grade':   l.grade = el.value; break;
-    case 'href':    l.href = el.value; break;
+    case 'href':    l.href = el.value; { var _cn = document.getElementById('trCover'+i); if(_cn) _cn.innerHTML = trCoverNoteInner(l.href, l.type); } break;
     case 'icon':    l.icon = el.value; break;
     case 'blank':   l.blank = el.checked; break;
     case 'imgCard': l.imgCard = el.value; break;
