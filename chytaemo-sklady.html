@@ -60,7 +60,11 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .big-btn:disabled{filter:grayscale(.5);opacity:.65;cursor:not-allowed}
 
 /* ══════════════ START ══════════════ */
-#start{justify-content:flex-start;text-align:center;gap:14px;padding-top:12px}
+#start{justify-content:flex-start;text-align:center;gap:11px;padding-top:6px;position:relative}
+/* Стартовий екран вміщаємо над фіксованим футером, щоб прогрес-бар було
+   видно без прокрутки. Картинка героя — гнучка: стискається, коли місця мало. */
+#start.screen{min-height:0}
+#start.screen.on{flex:0 0 auto;height:calc(100dvh - 96px - env(safe-area-inset-bottom));overflow-y:auto}
 .abc-blocks{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:6px 0 2px}
 .ab{position:relative;width:64px;height:64px;border-radius:18px;display:grid;place-items:center;
   font-family:'Fredoka';font-weight:700;font-size:26px;color:#fff;transform:rotate(var(--r));
@@ -73,8 +77,9 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .sub{color:var(--soft);font-weight:800;margin:0;font-size:16px}
 .rhyme{background:#fff;border:3px dashed #cdd8ea;border-radius:20px;padding:13px 18px;
   font-style:italic;color:#3a5a8c;font-weight:800;max-width:400px;margin:2px auto 0;box-shadow:var(--e1)}
-.start-hero{max-width:460px;width:100%;margin:2px auto 0}
-.start-hero img{width:100%;height:auto;display:block}
+.start-hero{max-width:440px;width:100%;margin:0 auto;flex:1 1 auto;min-height:0;
+  max-height:clamp(170px,34vh,340px);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.start-hero img{max-width:100%;max-height:100%;width:auto;height:auto;display:block}
 .start-btns{display:flex;flex-direction:column;gap:10px;max-width:440px;margin:2px auto 0;width:100%}
 .big-btn.blue.locked{background:#3d76bd;box-shadow:0 6px 0 #2d5990}
 .big-btn.blue.locked:active{box-shadow:0 3px 0 #2d5990}
@@ -83,10 +88,13 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .prog-card .pc-ic{font-size:26px;flex:none}
 .prog-card .pc-body{flex:1;min-width:0;text-align:left}
 .prog-card .pc-txt{font-family:'Fredoka';font-weight:700;color:var(--ink);font-size:16px;margin-bottom:7px}
-.prog-card .pc-dots{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
-.prog-card .pc-dots i{width:12px;height:12px;border-radius:50%;background:#e6ddc9}
-.prog-card .pc-dots i.on{background:var(--success)}
-.prog-card .pc-star{font-size:22px;flex:none}
+.prog-card .pc-bar{height:12px;background:#efe6d3;border-radius:999px;overflow:hidden}
+.prog-card .pc-bar>span{display:block;height:100%;width:0;border-radius:999px;
+  background:linear-gradient(90deg,#51cf66,#94e08a);transition:width .5s ease}
+.prog-card .pc-star{font-size:22px;flex:none;filter:grayscale(1) opacity(.55);transition:filter .3s,transform .3s}
+.prog-card.done{border-color:#f4c842;box-shadow:0 0 0 3px #fff3c9,var(--e2)}
+.prog-card.done .pc-star{filter:none;animation:pcstar 1.2s ease-in-out infinite}
+@keyframes pcstar{0%,100%{transform:scale(1)}50%{transform:scale(1.18) rotate(8deg)}}
 
 /* ── верхня панель ── */
 .topbar{display:flex;align-items:center;gap:10px;margin-bottom:12px}
@@ -140,10 +148,6 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
   border-radius:14px;padding:12px;font-size:17px;width:100%;cursor:pointer;box-shadow:0 5px 0 #e0b90f}
 .hearword button:active{transform:translateY(3px);box-shadow:0 2px 0 #e0b90f}
 
-.done-banner{background:var(--good-bg);border:3px solid var(--good);border-radius:18px;
-  padding:14px;text-align:center;font-weight:800;color:var(--good);display:none}
-.done-banner.on{display:block}
-
 /* ── сітка всіх літер ── */
 .grid-ov{position:fixed;inset:0;background:rgba(44,43,58,.55);z-index:50;display:none;
   padding:16px;overflow:auto}
@@ -194,6 +198,20 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
   padding:10px 18px;font-family:'Fredoka';font-size:16px;cursor:pointer;box-shadow:0 4px 0 #2f8fd6}
 .q-speak:active{transform:translateY(3px);box-shadow:0 1px 0 #2f8fd6}
 .q-sub{color:var(--soft);font-weight:800;margin:14px 0 0;font-size:16px}
+
+/* ── МАСКОТ (герой-помічник унизу гри) ── */
+.mascot{margin-top:auto;display:flex;flex-direction:row;align-items:flex-end;justify-content:flex-end;
+  gap:10px;opacity:.96;pointer-events:none;padding:4px 2px 0;width:100%}
+.mascot .m-ic{line-height:0}
+.mascot .m-ic img.m-full{height:132px;width:auto;display:block;filter:drop-shadow(0 5px 6px rgba(0,0,0,.22))}
+.mascot .m-bubble{position:relative;align-self:center;margin-bottom:28px;background:#fff;border:2px solid var(--line);
+  border-radius:16px;padding:8px 14px;font-family:'Fredoka';font-weight:700;font-size:14px;color:var(--soft);box-shadow:var(--e1)}
+.mascot .m-bubble::after{content:"";position:absolute;right:-8px;top:50%;transform:translateY(-50%);
+  border:7px solid transparent;border-left-color:#fff}
+@media(max-height:760px){.mascot .m-ic img.m-full{height:106px}.mascot .m-bubble{margin-bottom:22px}}
+@media(max-height:680px){.mascot .m-ic img.m-full{height:86px}.mascot .m-bubble{font-size:12px;padding:6px 10px;margin-bottom:16px}}
+@media(max-height:600px){.mascot{display:none}}
+@media(prefers-reduced-motion:reduce){.mascot .m-ic{animation:none}}
 
 .opts{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .opt{background:#fff;border:3px solid var(--line);border-radius:20px;padding:20px 10px;
@@ -250,7 +268,7 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .exit-top{position:absolute;top:2px;left:2px;z-index:6}
 .syl-example{display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 8px 0;font-family:'Fredoka',sans-serif;font-size:24px;color:var(--ink)}
 .syl-example .em{font-size:44px}
-.syl-example .ex-img{width:104px;height:104px;object-fit:cover;border-radius:18px;box-shadow:var(--e2);display:block}
+.syl-example .ex-img{width:104px;height:104px;object-fit:contain;background:#fff;border-radius:18px;box-shadow:var(--e2);display:block}
 .syl-example b{font-family:'Fredoka',sans-serif}
 .syl-chips{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:14px}
 .syl-chip{border:none;border-radius:16px;padding:16px 0;font-family:'Fredoka',sans-serif;font-size:34px;color:#fff;cursor:pointer;box-shadow:inset 0 -5px 0 rgba(0,0,0,.14)}
@@ -266,6 +284,69 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .tbl th{font-family:'Fredoka',sans-serif;color:var(--soft);font-size:15px;padding:2px 4px}
 .tcell{border:none;border-radius:10px;padding:9px 12px;font-family:'Fredoka',sans-serif;font-size:19px;color:#fff;cursor:pointer;box-shadow:inset 0 -4px 0 rgba(0,0,0,.12);width:100%}
 .tcell:active{transform:translateY(2px)}
+
+/* ── СВЯТКОВА НАГОРОДА ── */
+.win-ov{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
+  padding:18px;background:rgba(28,27,42,.62);overflow:hidden}
+.win-ov.on{display:flex}
+.win-confetti{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.win-card{position:relative;z-index:1;width:100%;max-width:400px;background:var(--paper);
+  border-radius:26px;padding:24px 20px 20px;text-align:center;box-shadow:var(--e3);
+  animation:winpop .42s cubic-bezier(.2,1.35,.4,1) both}
+@keyframes winpop{from{opacity:0;transform:scale(.82) translateY(18px)}to{opacity:1;transform:none}}
+.win-emoji{font-size:46px;line-height:1}
+.win-title{font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:24px;color:var(--green);margin:6px 0 2px}
+.win-sub{color:var(--ink);font-weight:800;font-size:15px;margin:0 0 14px}
+.win-coins{display:inline-flex;align-items:center;gap:8px;background:#fff6df;border:2px solid #f4c842;
+  color:#8a5e16;font-family:'Fredoka';font-weight:700;font-size:20px;padding:8px 18px;border-radius:999px;margin-bottom:16px}
+.reward-item{position:relative;display:flex;align-items:center;gap:14px;text-align:left;background:#fff;
+  border:3px solid var(--line);border-radius:20px;padding:14px;box-shadow:var(--e2);margin-bottom:18px}
+.reward-new{position:absolute;top:-9px;left:12px;background:var(--green);color:#fff;font-family:'Fredoka';
+  font-weight:700;font-size:10px;letter-spacing:.5px;padding:2px 9px;border-radius:8px}
+.reward-item .pic{width:88px;height:88px;flex:none;border-radius:16px;display:grid;place-items:center;
+  font-size:46px;background:linear-gradient(160deg,#e4f7ec,#bfe9cf);box-shadow:inset 0 -4px 0 rgba(0,0,0,.08)}
+.reward-item .pic img{width:100%;height:100%;object-fit:contain;padding:8px}
+.reward-item .rx{flex:1;min-width:0}
+.reward-item .rname{font-family:'Fredoka';font-weight:700;font-size:17px;color:var(--ink);margin-bottom:5px;line-height:1.15}
+.reward-item .rstat{display:inline-block;background:var(--good-bg);color:var(--good);font-weight:800;font-size:13px;padding:3px 10px;border-radius:8px}
+.reward-item .rmeta{color:var(--soft);font-weight:700;font-size:12px;margin-top:5px}
+.win-actions{display:flex;flex-direction:column;gap:8px}
+.win-close{background:none;border:none;color:var(--soft);font-family:'Nunito',sans-serif;font-weight:800;
+  font-size:15px;cursor:pointer;padding:6px}
+
+/* ── друк складової таблиці ── */
+.tbl-actions{display:flex;gap:10px;margin-top:14px}
+.tbl-actions .big-btn{font-size:17px;padding:14px}
+#printArea{display:none}
+
+/* ── адаптив стартового екрана (телефон) ── */
+@media(max-width:440px){
+  .abc-blocks{gap:8px;margin:2px 0;padding-left:44px}  /* місце під стрілку зліва */
+  .ab{width:56px;height:56px;border-radius:14px;font-size:22px}
+  .ab::after{font-size:19px;right:-7px;bottom:-7px}
+  #start{gap:8px;padding-top:8px}
+  #start h1{font-size:30px}
+  .sub{font-size:14px}
+  .rhyme{padding:9px 14px;font-size:14px;border-radius:16px}
+  .start-btns{gap:8px}
+  #start .big-btn{padding:13px 18px;font-size:18px}
+  .prog-card{padding:10px 14px}
+  .prog-card .pc-txt{margin-bottom:5px}
+}
+
+@media print{
+  @page{size:A4 landscape;margin:8mm}
+  html,body{background:#fff!important;margin:0;padding:0}
+  body>*{display:none!important}
+  #printArea{display:block!important;color:#111}
+  #printArea .pa-head{text-align:center;margin:0 0 2.5mm}
+  #printArea .pa-head h1{font-family:'Comfortaa','Fredoka',sans-serif;font-size:17pt;margin:0 0 1mm;color:#1e3a6b}
+  #printArea .pa-head p{font-size:9pt;color:#555;margin:0;font-family:'Nunito',sans-serif}
+  #printArea .pa-tbl{border-collapse:collapse;width:100%;table-layout:fixed;page-break-inside:avoid}
+  #printArea .pa-tbl th,#printArea .pa-tbl td{border:1pt solid #333;text-align:center;padding:0.9mm 1mm;line-height:1.05;
+    font-family:'Fredoka',sans-serif;font-size:12pt;color:#111}
+  #printArea .pa-tbl thead th,#printArea .pa-tbl tbody th{background:#eee;font-size:13pt}
+}
 </style>
 </head>
 <body>
@@ -290,13 +371,13 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
       <button class="big-btn blue" id="startGamesBtn" onclick="goGames()">🎮 Гратися в ігри</button>
     </div>
 
-    <div class="prog-card">
+    <div class="prog-card" id="startProgCard">
       <span class="pc-ic">📖</span>
       <div class="pc-body">
         <div class="pc-txt" id="startProgTxt">Вивчено 0 з 16</div>
-        <div class="pc-dots" id="startProgDots"></div>
+        <div class="pc-bar"><span id="startProgFill" style="width:0%"></span></div>
       </div>
-      <span class="pc-star">⭐</span>
+      <span class="pc-star" id="startProgStar">⭐</span>
     </div>
   </section>
 
@@ -318,7 +399,6 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
       </div>
     </div>
     <div class="hearword"><button onclick="speakAll()">🔊 Прочитати склади</button></div>
-    <div class="done-banner" id="doneBanner">🎉 Ти прочитав усі склади!<br><button class="big-btn blue" style="margin-top:8px" onclick="goGames()">🎮 Грати в ігри ▶</button></div>
     <div class="nav-row"><button class="navb" id="prevB" onclick="move(-1)">←</button><div class="nav-mid" id="navMid">1 / 16</div><button class="navb" id="nextB" onclick="move(1)">→</button></div>
   </section>
 
@@ -344,6 +424,10 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
     <div id="playBody"></div>
     <div class="feedback" id="playFb"></div>
     <button class="big-btn" id="playNext" style="display:none" onclick="playAdvance()">Далі →</button>
+    <div class="mascot" aria-hidden="true">
+      <div class="m-bubble" id="mascotBubble">Ти зможеш!</div>
+      <div class="m-ic"><img class="m-full" src="img/mascot.webp" alt="" onerror="this.closest('.mascot').style.display='none'"></div>
+    </div>
   </section>
 
 </div>
@@ -351,9 +435,52 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 <div class="grid-ov" id="tableOv" onclick="if(event.target===this)closeTable()">
   <div class="grid-inner"><h3>Складова таблиця</h3>
     <div id="tblWrap" style="overflow-x:auto"></div>
-    <button class="big-btn blue" style="margin-top:14px" onclick="closeTable()">Закрити</button>
+    <div class="tbl-actions">
+      <button class="big-btn" onclick="printTable()">🖨️ Роздрукувати A4</button>
+      <button class="big-btn blue" onclick="closeTable()">Закрити</button>
+    </div>
   </div>
 </div>
+
+<!-- ══════ СВЯТКОВА НАГОРОДА (перше проходження) ══════ -->
+<div class="win-ov" id="winOv" onclick="if(event.target===this)closeWin()">
+  <canvas class="win-confetti" id="winConfetti"></canvas>
+  <div class="win-card">
+    <div class="win-emoji">🎉</div>
+    <div class="win-title">Ти прочитав усі склади!</div>
+    <div class="win-sub">Тепер ти вмієш складати букви у склади!</div>
+    <div class="win-coins">+10 <span>🪙</span> монет</div>
+    <div class="reward-item">
+      <span class="reward-new">НОВЕ</span>
+      <div class="pic">📖</div>
+      <div class="rx">
+        <div class="rname">Чарівний буквар</div>
+        <span class="rstat">📖 Читання складів</span>
+        <div class="rmeta">Книги · твоя перша нагорода</div>
+      </div>
+    </div>
+    <div class="win-actions">
+      <button class="big-btn" onclick="claimAndPlay()">🎮 Грати далі</button>
+      <button class="win-close" onclick="closeWin()">Закрити</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ ПОВТОРНЕ ПРОХОДЖЕННЯ (уже вміє читати склади) ══════ -->
+<div class="win-ov" id="againOv" onclick="if(event.target===this)closeAgain()">
+  <div class="win-card">
+    <div class="win-emoji">🌟</div>
+    <div class="win-title">Молодець!</div>
+    <div class="win-sub">Ти вже читаєш склади. Іграй та навчись читати! 🎮</div>
+    <div class="win-actions">
+      <button class="big-btn" onclick="againPlay()">🎮 Гратися в ігри</button>
+      <button class="win-close" onclick="closeAgain()">Ще погортати склади</button>
+    </div>
+  </div>
+</div>
+
+<!-- зона для друку складової таблиці на A4 (видима лише під час друку) -->
+<div id="printArea"></div>
 
 <script src="sk-footer.js?v=1" data-back="tests.html"></script>
 
@@ -418,9 +545,13 @@ function exPic(ex){
 
 /* стан */
 const SAVE_KEY='sk-sklad-v1';
+/* Ключ нагороди — у просторі sk_* (підкреслення), щоб синхронізувався per-Hero
+   (firebase-config синхронізує лише sk_*). */
+const REWARD_KEY='sk_sklad_reward_v1';
 const ALL=CONS.length;
 let state={learned:{},soundOn:true};
 let idx=0, userGesture=false;
+let againShown=false;      // «ти вже читаєш склади» — показуємо раз за сесію
 function load(){ try{const s=JSON.parse(localStorage.getItem(SAVE_KEY)); if(s){state.learned=s.learned||{}; state.soundOn=s.soundOn!==false;}}catch(e){} }
 function save(){ try{localStorage.setItem(SAVE_KEY,JSON.stringify(state));}catch(e){} }
 function learnedCount(){ return CONS.filter(c=>state.learned[c.id]).length; }
@@ -433,15 +564,16 @@ function startLearn(){ show('learn'); renderCons(); }
 function goGames(){ stopAudio(); show('games'); renderGamesHub(); }
 function exitTrainer(){ stopAudio(); if(history.length>1) history.back(); else location.href='tests.html'; }
 function refreshStart(){
-  const n=learnedCount();
-  document.getElementById('startProgTxt').textContent='Вивчено '+n+' з '+ALL;
-  const DOTS=12, filled=n===0?0:Math.max(1,Math.round(n/ALL*DOTS));
-  let h=''; for(let i=0;i<DOTS;i++) h+='<i class="'+(i<filled?'on':'')+'"></i>';
-  document.getElementById('startProgDots').innerHTML=h;
+  const n=learnedCount(), done=n>=ALL;
+  document.getElementById('startProgTxt').textContent =
+    done ? '🎉 Усі склади прочитано!' : ('Вивчено '+n+' з '+ALL);
+  const fill=document.getElementById('startProgFill');
+  if(fill) fill.style.width=Math.round(n/ALL*100)+'%';   // точно до 100% на 16/16
+  const card=document.getElementById('startProgCard');
+  if(card) card.classList.toggle('done',done);            // 100% → зірка «загоряється»
   const gb=document.getElementById('startGamesBtn');
-  const locked=!allLearned();
-  gb.textContent=locked?'🔒 Ігри (вивчи всі склади)':'🎮 Гратися в ігри';
-  gb.classList.toggle('locked',locked);
+  gb.textContent=done?'🎮 Гратися в ігри':'🔒 Ігри (вивчи всі склади)';
+  gb.classList.toggle('locked',!done);
 }
 
 /* helpers */
@@ -471,8 +603,16 @@ function renderCons(){
   document.getElementById('prevB').disabled=idx===0;
   document.getElementById('nextB').disabled=idx===ALL-1;
   updateLearnBar();
-  document.getElementById('doneBanner').classList.toggle('on',allLearned());
   if(!state.learned[c.id]){ state.learned[c.id]=true; save(); }
+  // поп-ап завершення: перше проходження → нагорода; повторне → «ти вже читаєш склади»
+  if(allLearned() && userGesture){
+    if(!localStorage.getItem(REWARD_KEY)){
+      setTimeout(openWin,450);
+    } else if(idx===ALL-1 && !againShown){
+      againShown=true;
+      setTimeout(openAgain,450);
+    }
+  }
   if(userGesture) speakAll();
 }
 function move(d){ userGesture=true; const n=idx+d; if(n<0||n>=ALL)return; idx=n; renderCons(); }
@@ -496,6 +636,70 @@ function openTable(){
 }
 function closeTable(){ document.getElementById('tableOv').classList.remove('on'); }
 
+/* друк складової таблиці на A4 (чистий макет, лише таблиця) */
+function printTable(){
+  const area=document.getElementById('printArea'); if(!area)return;
+  let h='<div class="pa-head"><h1>Складова таблиця</h1>'+
+        '<p>Читаємо склади · приголосна + голосна = склад · читай згори вниз і зліва направо</p></div>';
+  h+='<table class="pa-tbl"><thead><tr><th></th>'+
+     VOWELS.map(v=>'<th>'+v.L+'</th>').join('')+'</tr></thead><tbody>';
+  CONS.forEach(c=>{
+    h+='<tr><th>'+c.L+'</th>'+VOWELS.map(v=>'<td>'+c.L+v.L+'</td>').join('')+'</tr>';
+  });
+  h+='</tbody></table>';
+  area.innerHTML=h;
+  setTimeout(()=>window.print(),60);
+}
+
+/* ══════ СВЯТКОВА НАГОРОДА ══════ */
+let confettiRAF=null;
+function openWin(){ document.getElementById('winOv').classList.add('on'); launchConfetti(); }
+function closeWin(){ document.getElementById('winOv').classList.remove('on');
+  if(confettiRAF){ cancelAnimationFrame(confettiRAF); confettiRAF=null; } }
+function claimAndPlay(){ grantReward(); closeWin(); goGames(); }
+
+/* ══════ ПОВТОРНЕ ПРОХОДЖЕННЯ ══════ */
+function openAgain(){ const el=document.getElementById('againOv'); if(el) el.classList.add('on'); }
+function closeAgain(){ const el=document.getElementById('againOv'); if(el) el.classList.remove('on'); }
+function againPlay(){ closeAgain(); goGames(); }
+
+/* Нарахування нагороди. Поки система нагород (sk-rewards.js) та збереження
+   інвентаря не реалізовані — лише позначаємо, що нагороду показано (один раз). */
+function grantReward(){
+  try{ localStorage.setItem(REWARD_KEY,'1'); }catch(e){}
+  // TODO(sk-rewards): SK.awardReward({coins:10, items:[...]}) — one-time, at completion
+}
+
+function launchConfetti(){
+  const cv=document.getElementById('winConfetti'); if(!cv) return;
+  const ctx=cv.getContext('2d'); const dpr=Math.min(window.devicePixelRatio||1,2);
+  const W=cv.clientWidth, H=cv.clientHeight;
+  cv.width=W*dpr; cv.height=H*dpr; ctx.scale(dpr,dpr);
+  const cols=['#ff7a5c','#4dabf7','#51cf66','#ffd43b','#cc5de8','#22b8cf'];
+  const N=140, parts=[];
+  for(let i=0;i<N;i++){
+    parts.push({x:Math.random()*W, y:-20-Math.random()*H*0.5,
+      w:6+Math.random()*7, h:8+Math.random()*8,
+      vy:2+Math.random()*3.5, vx:-1.5+Math.random()*3,
+      rot:Math.random()*Math.PI, vr:-0.2+Math.random()*0.4,
+      c:cols[i%cols.length], sway:Math.random()*6.28});
+  }
+  const start=performance.now(); const DUR=2600;
+  function frame(t){
+    const el=t-start; ctx.clearRect(0,0,W,H);
+    parts.forEach(p=>{
+      p.sway+=0.05; p.x+=p.vx+Math.sin(p.sway)*0.6; p.y+=p.vy; p.rot+=p.vr;
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot);
+      ctx.fillStyle=p.c; ctx.globalAlpha=el>DUR-600?Math.max(0,(DUR-el)/600):1;
+      ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h); ctx.restore();
+    });
+    if(el<DUR){ confettiRAF=requestAnimationFrame(frame); }
+    else { ctx.clearRect(0,0,W,H); confettiRAF=null; }
+  }
+  if(confettiRAF) cancelAnimationFrame(confettiRAF);
+  confettiRAF=requestAnimationFrame(frame);
+}
+
 /* свайп + клавіші */
 (function(){ const card=document.getElementById('sylCard'); let tx=0;
   card.addEventListener('touchstart',e=>{tx=e.changedTouches[0].clientX;},{passive:true});
@@ -514,6 +718,8 @@ function playGame(key){ if(!allLearned())return; startGame(key); }
 
 /* ── ігровий рушій ── */
 let game=null;
+const MASCOT_HINT={sklad:'Збери слово!',chuty:'Слухай уважно!',persha:'Дивись на перший!',propushchena:'Якого бракує?',para:'Знайди пару!'};
+function setMascot(t){ const b=document.getElementById('mascotBubble'); if(b)b.textContent=t; }
 function startGame(key){
   show('play'); game={key,i:0,correct:0,answered:false};
   if(key==='sklad') game.rounds=buildSklad();
@@ -526,6 +732,7 @@ function startGame(key){
 function renderDots(){ const d=document.getElementById('playDots'); d.innerHTML=''; game.rounds.forEach((r,i)=>{const el=document.createElement('i'); if(i<game.i)el.classList.add(game.rounds[i].ok?'ok':'no'); d.appendChild(el);}); }
 function renderRound(){
   game.answered=false; renderDots();
+  setMascot(MASCOT_HINT[game.key]||'Ти зможеш!');
   document.getElementById('playFb').className='feedback';
   document.getElementById('playNext').style.display='none';
   const r=game.rounds[game.i];
