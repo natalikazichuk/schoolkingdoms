@@ -558,6 +558,7 @@ const ALL=CONS.length;
 let state={learned:{},soundOn:true};
 let idx=0, userGesture=false;
 let againShown=false;      // «ти вже читаєш склади» — показуємо раз за сесію
+let winShown=false;        // «Вітаємо» — захист від повторного запуску в межах сесії
 function load(){ try{const s=JSON.parse(localStorage.getItem(SAVE_KEY)); if(s){state.learned=s.learned||{}; state.soundOn=s.soundOn!==false;}}catch(e){} }
 function save(){ try{localStorage.setItem(SAVE_KEY,JSON.stringify(state));}catch(e){} }
 function learnedCount(){ return CONS.filter(c=>state.learned[c.id]).length; }
@@ -612,7 +613,8 @@ function renderCons(){
   if(!state.learned[c.id]){ state.learned[c.id]=true; save(); }
   // поп-ап завершення: перше проходження → нагорода; повторне → «ти вже читаєш склади»
   if(allLearned() && userGesture){
-    if(!localStorage.getItem(REWARD_KEY)){
+    if(!winShown && !localStorage.getItem(REWARD_KEY)){
+      winShown=true;
       setTimeout(openWin,450);
     } else if(idx===ALL-1 && !againShown){
       againShown=true;
@@ -659,7 +661,12 @@ function printTable(){
 
 /* ══════ СВЯТКОВА НАГОРОДА ══════ */
 let confettiRAF=null;
-function openWin(){ document.getElementById('winOv').classList.add('on'); launchConfetti(); }
+function openWin(){
+  // Позначаємо показ одразу при відкритті — щоб попап більше не зʼявлявся
+  // навіть якщо закрити через «Закрити» (а не «Грати далі»).
+  try{ localStorage.setItem(REWARD_KEY,'1'); }catch(e){}
+  document.getElementById('winOv').classList.add('on'); launchConfetti();
+}
 function closeWin(){ document.getElementById('winOv').classList.remove('on');
   if(confettiRAF){ cancelAnimationFrame(confettiRAF); confettiRAF=null; } }
 function claimAndPlay(){ grantReward(); closeWin(); goGames(); }
