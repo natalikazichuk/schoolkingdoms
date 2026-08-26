@@ -185,7 +185,9 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
   padding:22px 18px;text-align:center;position:relative}
 .qlabel{color:var(--soft);font-weight:800;font-size:14px;text-transform:uppercase;letter-spacing:.5px;margin:0 0 10px}
 .q-emoji{font-size:88px;line-height:1;margin:2px 0}
-.q-emoji img{width:150px;height:110px;object-fit:cover;border-radius:14px}
+.q-emoji img{width:auto;max-width:200px;max-height:180px;height:auto;object-fit:contain;border-radius:18px;box-shadow:var(--e2)}
+.mem .mem-pic{width:100%;height:100%;object-fit:cover;border-radius:16px;display:block}
+.mem.pic.reveal{background:#fff;padding:0;overflow:hidden}
 .q-word{font-family:'Fredoka';font-size:46px;letter-spacing:4px;margin:6px 0 2px}
 .q-word .gap{color:var(--red);border-bottom:5px solid var(--red);border-radius:2px}
 .q-speak{margin-top:10px;background:var(--blue);color:#fff;border:none;border-radius:14px;
@@ -388,14 +390,22 @@ function colorFor(i){ return PAL[i%PAL.length]; }
 
 /* слова зі складів (усі — два відкриті склади) */
 const WORDS=[
- {w:'МАМА',s:['МА','МА'],e:'🤱'},{w:'ТАТО',s:['ТА','ТО'],e:'👨'},{w:'РИБА',s:['РИ','БА'],e:'🐟'},
- {w:'КОЗА',s:['КО','ЗА'],e:'🐐'},{w:'ЛИСА',s:['ЛИ','СА'],e:'🦊'},{w:'РОЗА',s:['РО','ЗА'],e:'🌹'},
- {w:'ВАЗА',s:['ВА','ЗА'],e:'🏺'},{w:'КАША',s:['КА','ША'],e:'🥣'},{w:'МУХА',s:['МУ','ХА'],e:'🪰'},
- {w:'НОГА',s:['НО','ГА'],e:'🦵'},{w:'РУКА',s:['РУ','КА'],e:'✋'},{w:'ГОРА',s:['ГО','РА'],e:'⛰️'},
- {w:'ВОДА',s:['ВО','ДА'],e:'💧'},{w:'ЖАБА',s:['ЖА','БА'],e:'🐸'},{w:'ЛАПА',s:['ЛА','ПА'],e:'🐾'},
- {w:'САНИ',s:['СА','НИ'],e:'🛷'},{w:'ЗИМА',s:['ЗИ','МА'],e:'❄️'},{w:'СОВА',s:['СО','ВА'],e:'🦉'},
- {w:'КОТИ',s:['КО','ТИ'],e:'🐱'},{w:'ДІТИ',s:['ДІ','ТИ'],e:'🧒'},
+ {w:'МАМА',s:['МА','МА'],e:'🤱',img:'mama'},{w:'ТАТО',s:['ТА','ТО'],e:'👨',img:'tato'},{w:'РИБА',s:['РИ','БА'],e:'🐟',img:'ryba'},
+ {w:'КОЗА',s:['КО','ЗА'],e:'🐐',img:'koza'},{w:'ЛИСА',s:['ЛИ','СА'],e:'🦊',img:'lysa'},{w:'РОЗА',s:['РО','ЗА'],e:'🌹',img:'roza'},
+ {w:'ВАЗА',s:['ВА','ЗА'],e:'🏺',img:'vaza'},{w:'КАША',s:['КА','ША'],e:'🥣',img:'kasha'},{w:'МУХА',s:['МУ','ХА'],e:'🪰',img:'muha'},
+ {w:'НОГА',s:['НО','ГА'],e:'🦵',img:'noha'},{w:'РУКА',s:['РУ','КА'],e:'✋',img:'ruka'},{w:'ГОРА',s:['ГО','РА'],e:'⛰️',img:'hora'},
+ {w:'ВОДА',s:['ВО','ДА'],e:'💧',img:'voda'},{w:'ЖАБА',s:['ЖА','БА'],e:'🐸',img:'zhaba'},{w:'ЛАПА',s:['ЛА','ПА'],e:'🐾',img:'lapa'},
+ {w:'САНИ',s:['СА','НИ'],e:'🛷',img:'sany'},{w:'ЗИМА',s:['ЗИ','МА'],e:'❄️',img:'zyma'},{w:'СОВА',s:['СО','ВА'],e:'🦉',img:'sova'},
+ {w:'КОТИ',s:['КО','ТИ'],e:'🐱',img:'koty'},{w:'ДІТИ',s:['ДІ','ТИ'],e:'🧒',img:'dity'},
 ];
+/* картинка слова: img/sklady/<img>.webp; якщо файла нема — падаємо на emoji */
+function skPic(img,emoji){
+  if(img){
+    return '<div class="q-emoji"><img src="img/sklady/'+img+'.webp" alt="" '+
+           'onerror="this.onerror=null;this.parentNode.textContent=\''+emoji+'\'"></div>';
+  }
+  return '<div class="q-emoji">'+emoji+'</div>';
+}
 
 /* стан */
 const SAVE_KEY='sk-sklad-v1';
@@ -536,11 +546,11 @@ function buildChoice(key){
         options:distinctSyl(syl,4).map(s=>({label:s,correct:s===syl}))});
     } else if(key==='persha'){
       const wd=words[k%words.length]; const first=wd.s[0];
-      rounds.push({kind:'persha', emoji:wd.e, word:wd.w, speak:wd.w, answerLabel:first,
+      rounds.push({kind:'persha', emoji:wd.e, img:wd.img, word:wd.w, speak:wd.w, answerLabel:first,
         options:distinctSyl(first,4).map(s=>({label:s,correct:s===first}))});
     } else {
       const wd=words[k%words.length]; const pos=randInt(wd.s.length); const miss=wd.s[pos];
-      rounds.push({kind:'propushchena', emoji:wd.e, word:wd.w, syl:wd.s, pos, speak:wd.w, answerLabel:miss,
+      rounds.push({kind:'propushchena', emoji:wd.e, img:wd.img, word:wd.w, syl:wd.s, pos, speak:wd.w, answerLabel:miss,
         options:distinctSyl(miss,4).map(s=>({label:s,correct:s===miss}))});
     }
   }
@@ -553,13 +563,13 @@ function renderChoice(r){
         '<button class="q-speak" onclick="playAudio(\''+(r.audio||'')+'\',\''+esc(r.speak)+'\',null)">🔊 Ще раз</button>'+
         '<p class="q-sub">Вибери склад, який почув</p>';
   } else if(r.kind==='persha'){
-    top='<p class="qlabel">Гра · Перший склад</p><div class="q-emoji">'+r.emoji+'</div>'+
+    top='<p class="qlabel">Гра · Перший склад</p>'+skPic(r.img,r.emoji)+
         '<div class="q-word" style="font-size:30px;letter-spacing:1px">'+r.word+'</div>'+
         '<button class="q-speak" onclick="playAudio(null,\''+esc(r.speak)+'\',null)">🔊 '+r.word+'</button>'+
         '<p class="q-sub">З якого складу починається?</p>';
   } else {
     const shown=r.syl.map((s,i)=>i===r.pos?'<span class="gap">?</span>':s).join('<span class="dot">·</span>');
-    top='<p class="qlabel">Гра · Пропущений склад</p><div class="q-emoji">'+r.emoji+'</div>'+
+    top='<p class="qlabel">Гра · Пропущений склад</p>'+skPic(r.img,r.emoji)+
         '<div class="q-word" style="font-size:30px">'+shown+'</div>'+
         '<button class="q-speak" onclick="playAudio(null,\''+esc(r.speak)+'\',null)">🔊 '+r.word+'</button>'+
         '<p class="q-sub">Якого складу бракує?</p>';
@@ -578,14 +588,14 @@ function chooseOpt(btn,o,r){
 /* sklad: склади слово зі складів */
 function buildSklad(){
   const pool=shuffle(WORDS.slice()).slice(0,6);
-  return pool.map(wd=>({kind:'sklad', word:wd.w, syl:wd.s, emoji:wd.e, speak:wd.w, answerLabel:wd.w,
+  return pool.map(wd=>({kind:'sklad', word:wd.w, syl:wd.s, emoji:wd.e, img:wd.img, speak:wd.w, answerLabel:wd.w,
     filled:0, order:shuffle(wd.s.map((s,i)=>({s,i})))}));
 }
 function renderSklad(r){
   const body=document.getElementById('playBody');
   const slots=r.syl.map((s,i)=>'<div class="slot syl'+(i<r.filled?' full':'')+'" id="slot'+i+'">'+(i<r.filled?r.syl[i]:'')+'</div>').join('<span class="dot">·</span>');
   const tiles=r.order.map((t,i)=>'<button class="tile syl" id="tile'+i+'" onclick="tapTile('+i+')">'+t.s+'</button>').join('');
-  body.innerHTML='<div class="qbox"><p class="qlabel">Гра · Склади слово</p><div class="q-emoji">'+r.emoji+'</div>'+
+  body.innerHTML='<div class="qbox"><p class="qlabel">Гра · Склади слово</p>'+skPic(r.img,r.emoji)+
     '<button class="q-speak" onclick="playAudio(null,\''+esc(r.speak)+'\',null)">🔊 '+r.word+'</button>'+
     '<div class="slots">'+slots+'</div><p class="q-sub">Постав склади по порядку</p></div>'+
     '<div class="tiles">'+tiles+'</div>';
@@ -604,7 +614,12 @@ function buildPara(){
   const seen=new Set(); const uniq=[];
   shuffle(WORDS.slice()).forEach(w=>{ if(!seen.has(w.s[0])){seen.add(w.s[0]); uniq.push(w);} });
   const picks=uniq.slice(0,6); const cards=[];
-  picks.forEach(w=>{ cards.push({k:w.w,t:w.s[0],role:'syl'}); cards.push({k:w.w,t:w.e,role:'pic'}); });
+  picks.forEach(w=>{
+    cards.push({k:w.w, role:'syl', reveal:w.s[0]});
+    cards.push({k:w.w, role:'pic', reveal:(w.img
+      ? '<img class="mem-pic" src="img/sklady/'+w.img+'.webp" alt="" onerror="this.onerror=null;this.parentNode.textContent=\''+w.e+'\'">'
+      : w.e)});
+  });
   return [{kind:'para', cards:shuffle(cards), open:[], matched:0, total:picks.length}];
 }
 function renderPara(r){
@@ -613,13 +628,13 @@ function renderPara(r){
     '<p class="q-sub" style="margin:0 0 12px">Склад і малюнок, що з нього починається</p>'+
     '<div class="mem-grid" id="memGrid"></div></div>';
   const g=document.getElementById('memGrid');
-  r.cards.forEach((c,i)=>{ const b=document.createElement('button'); b.className='mem'+(c.role==='syl'?' syl':''); b.dataset.t=c.t; b.textContent=''; b.onclick=()=>tapMem(i,b); g.appendChild(b); });
+  r.cards.forEach((c,i)=>{ const b=document.createElement('button'); b.className='mem'+(c.role==='syl'?' syl':' pic'); b.innerHTML=''; b.onclick=()=>tapMem(i,b); g.appendChild(b); });
 }
 let memBusy=false;
 function tapMem(i,btn){
   const r=game.rounds[0];
   if(memBusy||btn.classList.contains('matched')||r.open.some(o=>o.i===i))return;
-  btn.textContent=btn.dataset.t; btn.classList.add('reveal');
+  btn.innerHTML=r.cards[i].reveal; btn.classList.add('reveal');
   r.open.push({i,card:r.cards[i],btn});
   if(r.open.length<2)return; memBusy=true;
   const a=r.open[0], b=r.open[1];
@@ -628,7 +643,7 @@ function tapMem(i,btn){
       if(r.matched>=r.total){ game.correct=game.rounds.length; finishRound(true); } },420);
   } else {
     a.btn.classList.add('wrong'); b.btn.classList.add('wrong');
-    setTimeout(()=>{ [a,b].forEach(o=>{o.btn.classList.remove('wrong','reveal'); o.btn.textContent='';}); r.open=[]; memBusy=false; },650);
+    setTimeout(()=>{ [a,b].forEach(o=>{o.btn.classList.remove('wrong','reveal'); o.btn.innerHTML='';}); r.open=[]; memBusy=false; },650);
   }
 }
 
