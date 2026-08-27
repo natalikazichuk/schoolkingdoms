@@ -147,9 +147,19 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
   border-radius:14px;padding:12px;font-size:17px;width:100%;cursor:pointer;box-shadow:0 5px 0 #e0b90f}
 .hearword button:active{transform:translateY(3px);box-shadow:0 2px 0 #e0b90f}
 
-.done-banner{background:var(--good-bg);border:3px solid var(--good);border-radius:18px;
-  padding:14px;text-align:center;font-weight:800;color:var(--good);display:none}
-.done-banner.on{display:block}
+.win-ov{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
+  padding:18px;background:rgba(44,43,58,.62)}
+.win-ov.on{display:flex}
+.win-card{width:100%;max-width:380px;background:var(--paper);border-radius:26px;
+  padding:26px 22px 20px;text-align:center;box-shadow:var(--e3);
+  animation:winpop .42s cubic-bezier(.2,1.35,.4,1) both}
+@keyframes winpop{from{opacity:0;transform:scale(.82) translateY(18px)}to{opacity:1;transform:none}}
+.win-emoji{font-size:52px;line-height:1}
+.win-title{font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:24px;color:var(--good);margin:8px 0 4px}
+.win-sub{color:var(--ink);font-weight:800;font-size:15px;margin:0 0 18px}
+.win-actions{display:flex;flex-direction:column;gap:8px}
+.win-close{background:none;border:none;color:var(--soft);font-family:'Nunito',sans-serif;font-weight:800;
+  font-size:14px;padding:8px;cursor:pointer}
 
 /* ── сітка всіх літер ── */
 .grid-ov{position:fixed;inset:0;background:rgba(44,43,58,.55);z-index:50;display:none;
@@ -329,7 +339,6 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
       </div>
     </div>
     <div class="hearword"><button onclick="speakCard()">🔊 Послухати</button></div>
-    <div class="done-banner" id="doneBanner">🎉 Ти пізнав усіх тварин!<br><button class="big-btn blue" style="margin-top:8px" onclick="goGames()">🎮 Грати в ігри ▶</button></div>
     <div class="nav-row"><button class="navb" id="prevB" onclick="move(-1)">←</button><div class="nav-mid" id="navMid">1 / 10</div><button class="navb" id="nextB" onclick="move(1)">→</button></div>
   </section>
 
@@ -364,6 +373,19 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
   </div>
 </div>
 
+<!-- ══════ ВІТАЛЬНИЙ ПОП-АП (усі тварини пізнані) ══════ -->
+<div class="win-ov" id="winOv" onclick="if(event.target===this)closeWin()">
+  <div class="win-card">
+    <div class="win-emoji">🎉</div>
+    <div class="win-title">Ти пізнав усіх тварин!</div>
+    <div class="win-sub">Молодець! Тепер можна гратися 🎮</div>
+    <div class="win-actions">
+      <button class="big-btn blue" onclick="winPlay()">🎮 Гратися в ігри</button>
+      <button class="win-close" onclick="closeWin()">Ще погортати</button>
+    </div>
+  </div>
+</div>
+
 <script src="sk-footer.js?v=1" data-back="tests.html"></script>
 <script>
 /* ============================================================
@@ -387,7 +409,7 @@ const ANIMALS=[
 const SAVE_KEY='sk-tvaryny-v1';
 const ALL=ANIMALS.length;
 let state={learned:{},soundOn:true};
-let idx=0, userGesture=false;
+let idx=0, userGesture=false, winShown=false;
 function load(){ try{const s=JSON.parse(localStorage.getItem(SAVE_KEY)); if(s){state.learned=s.learned||{}; state.soundOn=s.soundOn!==false;}}catch(e){} }
 function save(){ try{localStorage.setItem(SAVE_KEY,JSON.stringify(state));}catch(e){} }
 function learnedCount(){ return ANIMALS.filter(a=>state.learned[a.id]).length; }
@@ -434,7 +456,7 @@ function renderCard(){
   document.getElementById('prevB').disabled=idx<=0;
   document.getElementById('nextB').disabled=idx>=ALL-1;
   updateLearnBar();
-  document.getElementById('doneBanner').classList.toggle('on', allLearned());
+  if(allLearned() && userGesture && idx===ALL-1 && !winShown){ winShown=true; setTimeout(openWin,450); }
   if(userGesture) speakCard();
 }
 function move(d){ userGesture=true; const n=idx+d; if(n<0||n>=ALL)return; idx=n; renderCard(); }
@@ -449,6 +471,9 @@ function openGrid(){
 }
 function closeGrid(){ document.getElementById('gridOv').classList.remove('on'); }
 function jumpTo(i){ idx=i; userGesture=true; closeGrid(); renderCard(); }
+function openWin(){ document.getElementById('winOv').classList.add('on'); }
+function closeWin(){ document.getElementById('winOv').classList.remove('on'); }
+function winPlay(){ closeWin(); goGames(); }
 
 /* ══════ GAMES HUB ══════ */
 function renderGamesHub(){
