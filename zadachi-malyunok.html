@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@600;700&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="sk-game.css">
 <style>
 
@@ -17,12 +17,23 @@
   #stage{flex:1 1 auto; display:flex; flex-direction:column; align-items:center;
     justify-content:center; gap:10px; padding:6px 10px; overflow-y:auto;}
 
-  /* ── сцена з малюнком ── */
+  /* ── сюжетна сцена ── */
   #scene{max-width:560px; width:100%; border-radius:20px; padding:12px;
+    position:relative; overflow:hidden;
     background:linear-gradient(180deg,rgba(38,48,107,.95),rgba(18,22,60,.95));
     border:2px solid rgba(255,207,77,.3); box-shadow:0 5px 0 rgba(0,0,0,.28), 0 8px 18px rgba(0,0,0,.35);
-    display:flex; align-items:center; justify-content:center; gap:6px; min-height:112px; flex-wrap:nowrap;}
-  .grp{display:flex; flex-wrap:wrap; align-content:center; justify-content:center;
+    display:flex; align-items:center; justify-content:center; gap:6px; min-height:132px; flex-wrap:nowrap;}
+  /* тематичне «дно» сцени */
+  #scene::after{content:""; position:absolute; left:0; right:0; bottom:0; height:26px; z-index:0;
+    background:linear-gradient(180deg,transparent,rgba(124,195,90,.55));}
+  #scene.th-pond::after{background:linear-gradient(180deg,transparent,rgba(90,163,230,.6));}
+  #scene.th-branch::after{background:linear-gradient(180deg,transparent,rgba(150,110,60,.5));}
+  #scene.th-meadow::after{background:linear-gradient(180deg,transparent,rgba(124,195,90,.5));}
+  #scene.th-garden::after{background:linear-gradient(180deg,transparent,rgba(124,195,90,.55));}
+  .decor{position:absolute; bottom:2px; right:8px; font-size:34px; opacity:.55; z-index:0;
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,.4)); pointer-events:none;}
+
+  .grp{display:flex; flex-wrap:wrap; align-content:center; justify-content:center; position:relative; z-index:1;
     gap:clamp(3px,1.2vw,7px); padding:8px; border-radius:14px; flex:1 1 0; min-width:0;
     background:rgba(255,255,255,.05); border:2px solid rgba(255,255,255,.1);}
   .grp.gone{background:rgba(255,139,139,.08); border-color:rgba(255,139,139,.35); border-style:dashed;}
@@ -31,18 +42,42 @@
     font-size:clamp(20px,6vw,34px); line-height:1;
     filter:drop-shadow(0 2px 4px rgba(0,0,0,.45)); animation:pop .3s backwards;}
   .thing img{width:100%; height:100%; object-fit:contain; display:block;}
-  .grp.gone .thing{opacity:.42; filter:grayscale(.85); position:relative;}
-  .grp.gone .thing::after{content:"✕"; position:absolute; inset:0; display:flex;
+  .thing.arrive{animation:arrive .5s backwards;}
+  .thing.leave{opacity:.42; filter:grayscale(.85); position:relative; animation:leave .6s both;}
+  .thing.leave::after{content:"✕"; position:absolute; inset:0; display:flex;
     align-items:center; justify-content:center; color:var(--red); font-size:.85em; opacity:.9;
     filter:none; text-shadow:0 1px 3px rgba(0,0,0,.7);}
-  .sign{flex:0 0 auto; font-size:clamp(24px,7vw,38px); font-weight:700; color:var(--gold);
+  .thing.poof{animation:poof .3s both;}
+  .sign{flex:0 0 auto; font-size:clamp(22px,6.5vw,34px); font-weight:700; color:var(--gold); z-index:1;
     text-shadow:0 2px 8px rgba(0,0,0,.5); padding:0 2px;}
+
+  /* ── дві сторони для «Де більше?» ── */
+  #scene.compare{gap:10px;}
+  .side{flex:1 1 0; min-width:0; align-self:stretch; cursor:pointer;
+    display:flex; flex-wrap:wrap; align-content:center; justify-content:center;
+    gap:clamp(3px,1.2vw,7px); padding:8px; border-radius:16px; position:relative; z-index:1;
+    background:rgba(255,255,255,.05); border:2px solid rgba(255,255,255,.16); transition:transform .1s;}
+  .side:active{transform:scale(.97);}
+  .side.good{background:rgba(123,224,164,.18); border-color:var(--green);}
+  .side.wrong{animation:shake .34s;}
+
   @keyframes pop{0%{transform:scale(.3); opacity:0}70%{transform:scale(1.12)}100%{transform:scale(1); opacity:1}}
+  @keyframes arrive{0%{transform:translate(46px,-18px) scale(.3); opacity:0}
+    70%{transform:translate(0,0) scale(1.12); opacity:1}100%{transform:scale(1)}}
+  @keyframes leave{0%{transform:translate(0,0); opacity:1; filter:none}
+    100%{transform:translate(26px,-22px) scale(.7); opacity:.42; filter:grayscale(.85)}}
+  @keyframes poof{0%{transform:scale(1); opacity:1}100%{transform:scale(.2) rotate(20deg); opacity:0}}
 
-  #question{max-width:560px; width:100%; text-align:center; font-size:clamp(15px,4.2vw,19px);
-    line-height:1.4; padding:0 4px;}
-  #hint{font-weight:600; font-size:13px; opacity:.8; min-height:18px; text-align:center;}
+  /* ── запитання ── */
+  #question{max-width:560px; width:100%; text-align:center; display:flex; align-items:center;
+    justify-content:center; gap:8px; font-size:clamp(16px,4.4vw,20px); line-height:1.35; padding:0 4px;}
+  #qIcon{font-size:1.25em; line-height:1;}
+  #sayBtn{cursor:pointer; font-family:inherit; flex:0 0 auto; font-size:18px; line-height:1;
+    background:rgba(20,26,68,.72); border:2px solid rgba(255,207,77,.35); color:var(--text);
+    border-radius:12px; padding:6px 10px;}
+  #hint{font-weight:600; font-size:13px; opacity:.85; min-height:18px; text-align:center;}
 
+  /* ── нижня панель відповідей ── */
   #tray{display:flex; align-items:center; justify-content:center; gap:clamp(8px,3vw,16px);
     flex-wrap:wrap; padding:8px 12px calc(env(safe-area-inset-bottom) + 14px);}
   .piece{cursor:pointer; font-family:inherit; font-weight:700; color:#4a3300;
@@ -54,11 +89,66 @@
   .piece.wrong{animation:shake .34s;}
   .piece.good{background:linear-gradient(180deg,#a8f0c6,var(--green-d)); color:#06371c;
     box-shadow:0 6px 0 #1c6b38, 0 10px 20px rgba(0,0,0,.4);}
-  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}
-    40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+  /* кнопка «порівну» */
+  .cmp{cursor:pointer; font-family:inherit; font-weight:700; font-size:16px; color:#4a3300;
+    background:linear-gradient(180deg,#FFE7A0,var(--gold-deep)); border:none; border-radius:16px;
+    padding:12px 20px; box-shadow:0 5px 0 #a9761a; transition:transform .1s;}
+  .cmp:active{transform:translateY(2px); box-shadow:0 3px 0 #a9761a;}
+  .cmp.wrong{animation:shake .34s;}
+  .cmp.good{background:linear-gradient(180deg,#a8f0c6,var(--green-d)); color:#06371c; box-shadow:0 5px 0 #1c6b38;}
+  /* кнопка «додати» для «Збери N» */
+  .addbtn{cursor:pointer; font-family:inherit; font-weight:700; color:#4a3300;
+    width:clamp(64px,20vw,90px); height:clamp(64px,20vw,90px); font-size:clamp(34px,10vw,46px);
+    background:linear-gradient(180deg,#FFE7A0,var(--gold-deep)); border:none; border-radius:22px;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 6px 0 #a9761a, 0 10px 20px rgba(0,0,0,.4); transition:transform .1s;}
+  .addbtn:active{transform:translateY(3px); box-shadow:0 3px 0 #a9761a;}
+  #scene.make .grp{cursor:default;}
+  #scene.make .thing{cursor:pointer;}
 
   .title{font-size:26px; font-weight:700; color:var(--gold); line-height:1.12;}
   .sub{font-size:15px; opacity:.86; max-width:360px; line-height:1.45;}
+
+  /* ══ стартовий екран — вигляд як у тренажері «Вчимо літери» ══ */
+  #startScreen{background:linear-gradient(180deg,#fff9ef,#fdf3e2); backdrop-filter:none;
+    justify-content:flex-start; text-align:center; gap:11px; overflow-y:auto;
+    padding:calc(env(safe-area-inset-top) + 16px) 20px calc(env(safe-area-inset-bottom) + 20px);}
+  #startScreen .start-top{position:absolute; top:calc(env(safe-area-inset-top) + 10px); left:14px; z-index:5;}
+  #startScreen .iconbtn{width:44px; height:44px; border:2px solid #ece3d2; background:#fff; border-radius:14px;
+    font-family:inherit; font-weight:700; font-size:20px; color:#2c2b3a; cursor:pointer;
+    display:grid; place-items:center; box-shadow:0 1px 3px rgba(44,43,58,.14);}
+  #startScreen .iconbtn:active{transform:translateY(2px);}
+  #startScreen .num-blocks{display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin:6px 0 2px; padding-left:48px;}
+  #startScreen .nb{position:relative; width:58px; height:58px; border-radius:16px; display:grid; place-items:center;
+    font-family:"Comfortaa","Fredoka",sans-serif; font-weight:700; font-size:30px; color:#fff; transform:rotate(var(--r));
+    box-shadow:0 6px 0 rgba(0,0,0,.14), inset 0 -5px 0 rgba(0,0,0,.12), inset 0 3px 0 rgba(255,255,255,.28);}
+  #startScreen .nb::after{content:attr(data-o); position:absolute; right:-8px; bottom:-8px; font-size:20px;
+    filter:drop-shadow(0 1px 1px rgba(0,0,0,.25));}
+  #startScreen .nb:nth-child(1){background:#ff6b6b; --r:-7deg;}
+  #startScreen .nb:nth-child(2){background:#ffa94d; --r:5deg;}
+  #startScreen .nb:nth-child(3){background:#51cf66; --r:-4deg;}
+  #startScreen .nb:nth-child(4){background:#4dabf7; --r:6deg;}
+  #startScreen .nb:nth-child(5){background:#cc5de8; --r:-5deg;}
+  #startScreen h1{font-family:"Comfortaa","Fredoka",sans-serif; font-weight:700; font-size:34px;
+    margin:8px 0 0; line-height:1.1; color:#1e3a6b;}
+  #startScreen .start-sub{color:#6b6a7d; font-weight:800; margin:0; font-size:16px; opacity:1; max-width:none;}
+  #startScreen .rhyme{background:#fff; border:3px dashed #cdd8ea; border-radius:20px; padding:13px 18px;
+    font-style:italic; color:#3a5a8c; font-weight:800; max-width:400px; margin:2px auto 0;
+    box-shadow:0 1px 3px rgba(44,43,58,.14); line-height:1.4;}
+  #startScreen .start-hero{max-width:440px; width:100%; margin:2px auto 0;
+    max-height:clamp(140px,28vh,290px); display:flex; align-items:center; justify-content:center; overflow:hidden;}
+  #startScreen .start-hero img{max-width:100%; max-height:100%; width:auto; height:auto; display:block;}
+  #startScreen .hero-emoji{font-size:60px; letter-spacing:6px; filter:drop-shadow(0 4px 8px rgba(0,0,0,.2));}
+  #startScreen .start-btns{display:flex; flex-direction:column; gap:10px; max-width:440px; margin:4px auto 0; width:100%;}
+  #startScreen .big-btn{border:none; border-radius:18px; padding:16px 20px; width:100%; cursor:pointer;
+    font-family:"Fredoka",sans-serif; font-weight:700; font-size:20px; color:#fff;
+    background:#4dabf7; box-shadow:0 6px 0 #2f8fd6;}
+  #startScreen .big-btn:active{transform:translateY(3px); box-shadow:0 3px 0 #2f8fd6;}
+  @media (max-height:640px){
+    #startScreen .nb{width:50px; height:50px; font-size:26px;}
+    #startScreen h1{font-size:28px;}
+    #startScreen .start-hero{max-height:22vh;}
+  }
 </style>
 </head>
 <body>
@@ -74,18 +164,31 @@
 
   <div id="stage">
     <div id="scene"></div>
-    <div id="question"></div>
+    <div id="question"><span id="qIcon">🔢</span><span id="qText"></span><button id="sayBtn" aria-label="Повторити">🔊</button></div>
     <div id="hint">Порахуй на малюнку 👀</div>
   </div>
 
   <div id="tray"></div>
 
   <div class="screen" id="startScreen">
-    <div class="crown">🖼️</div>
-    <div class="title">Задачі за малюнком</div>
-    <div class="sub">Подивись на малюнок, прочитай запитання й вибери правильну відповідь. Перекреслені — це ті, що пішли. 12 задач.</div>
-    <button class="cta" id="playBtn">Грати ▶</button>
-    <a class="linkbtn" href="igry.html">← До ігор</a>
+    <div class="start-top">
+      <button class="iconbtn" onclick="location.href='igry.html'" title="До ігор" aria-label="До ігор">←</button>
+    </div>
+    <div class="num-blocks">
+      <div class="nb" data-o="🍎">1</div><div class="nb" data-o="🐟">2</div><div class="nb" data-o="🐦">3</div><div class="nb" data-o="🌸">4</div><div class="nb" data-o="🎈">5</div>
+    </div>
+    <h1>Задачі за малюнком</h1>
+    <p class="start-sub">Малюнкова математика · для найменших</p>
+    <p class="rhyme">Подивись на малюнок уважно —<br>полічи, і задача не важка!</p>
+
+    <div class="start-hero" id="startHero">
+      <img src="img/tr/zadachi-malyunok.webp?v=1" alt="" onerror="this.style.display='none';var e=this.parentNode.querySelector('.hero-emoji');if(e)e.style.display='block'">
+      <span class="hero-emoji" style="display:none">🍎🐦🐟🎈</span>
+    </div>
+
+    <div class="start-btns">
+      <button class="big-btn" id="playBtn">Грати ▶</button>
+    </div>
   </div>
 
   <div class="screen hidden" id="winScreen">
@@ -102,40 +205,44 @@
 <script>
 (function(){
   "use strict";
+  var Z = window.ZAD;
   var TOTAL = 12;
+  var MAX   = 10;
+  /* механіки по колу: порахуй → зміна(±) → де більше → збери N */
+  var ORDER = ["count", "change", "compare", "make"];
 
   /* ── МАЛЮНКИ ──
-     Спрайти шукаються за шляхом img/<sprite>.png (див. sk-zadachi.js, поле sprite).
-     Поки файлу немає — автоматично показується емодзі. Тобто гра працює вже зараз,
-     а щойно ти покладеш png у img/ — картинки підхопляться самі, без правок коду.
-     Потрібні файли: img/zad-apple.png, zad-pear.png, zad-candy.png, zad-flower.png,
-     zad-mushroom.png, zad-ball.png, zad-star.png, zad-nut.png, zad-balloon.png,
-     zad-book.png, zad-bird.png, zad-fish.png, zad-butterfly.png, zad-bunny.png
-     Формат: квадрат ~200×200, прозорий фон, один предмет по центру. */
-  var SPRITE_OK = {};   // sprite -> true/false (перевіряється один раз)
+     Спрайти шукаються за шляхом img/<sprite>.png (поле sprite у sk-zadachi.js).
+     Поки файлу немає — показується емодзі, тож гра працює вже зараз. Коли покладеш
+     png у img/ (напр. img/zad-apple.png, ~200×200, прозорий фон, один предмет по центру) —
+     картинки підхопляться самі, без правок коду. */
+  var SPRITE_OK = {};
 
   var sceneEl = document.getElementById("scene");
-  var qEl     = document.getElementById("question");
+  var qTextEl = document.getElementById("qText");
+  var qIconEl = document.getElementById("qIcon");
   var trayEl  = document.getElementById("tray");
   var hintEl  = document.getElementById("hint");
   var scoreEl = document.getElementById("score");
   var qNumEl  = document.getElementById("qNum");
   var fillEl  = document.getElementById("barFill");
+  var sayBtn  = document.getElementById("sayBtn");
 
   var score = 0, qIndex = 0, mistakes = 0;
-  var task = null, locked = false;
+  var task = null, locked = false, sayText = "";
 
-  function maxFor(i){ return i < 5 ? 8 : 12; }   // на малюнку багато предметів не вміститься
-
-  function thingHTML(task, i){
-    var delay = 'style="animation-delay:' + (i * 40) + 'ms"';
-    if(SPRITE_OK[task.sprite]){
-      return '<span class="thing" ' + delay + '><img src="img/' + task.sprite +
-             '.png" alt="" draggable="false"></span>';
-    }
-    return '<span class="thing" ' + delay + '>' + task.emoji + '</span>';
+  /* ── озвучка (для тих, хто ще не читає) ── */
+  function speak(t){
+    try{
+      if(!("speechSynthesis" in window) || !t) return;
+      var u = new SpeechSynthesisUtterance(t);
+      u.lang = "uk-UA"; u.rate = 0.95;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    }catch(e){}
   }
 
+  /* ── спрайти ── */
   function probeSprite(sprite, done){
     if(SPRITE_OK.hasOwnProperty(sprite)) return done();
     var im = new Image();
@@ -143,71 +250,193 @@
     im.onerror = function(){ SPRITE_OK[sprite] = false; done(); };
     im.src = "img/" + sprite + ".png";
   }
-
-  function drawScene(){
-    var i, html = "";
-    var g1 = "", g2 = "";
-    for(i = 0; i < task.a; i++) g1 += thingHTML(task, i);
-    if(task.op === "add"){
-      for(i = 0; i < task.b; i++) g2 += thingHTML(task, task.a + i);
-      html = '<div class="grp">' + g1 + '</div><span class="sign">+</span>' +
-             '<div class="grp">' + g2 + '</div>';
-    } else {
-      // залишилися + перекреслені (ті, що пішли) — разом дають початкове число
-      var stay = "", gone = "";
-      for(i = 0; i < task.a - task.b; i++) stay += thingHTML(task, i);
-      for(i = 0; i < task.b; i++) gone += thingHTML(task, task.a - task.b + i);
-      html = '<div class="grp">' + stay + '</div><span class="sign">−</span>' +
-             '<div class="grp gone">' + gone + '</div>';
-    }
-    sceneEl.innerHTML = html;
+  function inner(t){
+    return SPRITE_OK[t.sprite]
+      ? '<img src="img/' + t.sprite + '.png" alt="" draggable="false">'
+      : t.emoji;
+  }
+  function thing(t, i, cls){
+    var c = "thing" + (cls ? " " + cls : "");
+    return '<span class="' + c + '" style="animation-delay:' + (i * 45) + 'ms">' + inner(t) + '</span>';
+  }
+  function things(t, n, cls, from){
+    from = from || 0;
+    var s = "";
+    for(var i = 0; i < n; i++) s += thing(t, from + i, cls);
+    return s;
   }
 
-  function questionText(){
-    var m = task.many;
-    if(task.op === "add") return "Скільки " + m + " разом?";
-    return "Скільки " + m + " залишилося?";
+  /* ── тема сцени за категорією іменника ── */
+  function themeOf(nn){
+    var c = nn[6];
+    if(c === "bird")   return { cls: "th-branch", decor: "🌿" };
+    if(c === "fish")   return { cls: "th-pond",   decor: "🌊" };
+    if(c === "animal") return { cls: "th-meadow", decor: "🌸" };
+    return { cls: "th-garden", decor: "🌳" };
+  }
+  function setScene(cls, decor, html){
+    sceneEl.className = cls;
+    sceneEl.innerHTML = html + '<span class="decor">' + decor + '</span>';
   }
 
+  /* ── побудова задачі ── */
   function newTask(){
-    task = ZAD.makeTask({ max: maxFor(qIndex) });
-    if(task.op === "sub" && task.a - task.b < 1) task.b = task.a - 1;
     locked = false;
-    qEl.textContent = questionText();
-    hintEl.textContent = task.op === "add"
-      ? "Порахуй обидві купки 👀"
-      : "Перекреслені вже пішли — рахуй решту 👀";
+    var mech = ORDER[qIndex % ORDER.length];
+    var nn = Z.pick(Z.NOUNS);
+    task = { mech: mech, nn: nn, sprite: nn[5], emoji: nn[4], many: Z.many(nn) };
+
+    if(mech === "count"){
+      task.answer = Z.rnd(3, 9);
+    } else if(mech === "change"){
+      task.op = Math.random() < 0.5 ? "add" : "sub";
+      if(task.op === "add"){
+        task.a = Z.rnd(2, 6);
+        task.b = Z.rnd(1, Math.min(6, MAX - task.a));
+        task.answer = task.a + task.b;
+      } else {
+        task.a = Z.rnd(3, 9);
+        task.b = Z.rnd(1, task.a - 1);
+        task.answer = task.a - task.b;
+      }
+    } else if(mech === "compare"){
+      task.x = Z.rnd(2, 9);
+      task.y = Z.rnd(2, 9);
+      if(Math.random() < 0.25) task.y = task.x;         // час від часу — порівну
+      task.correct = task.x > task.y ? "L" : (task.y > task.x ? "R" : "eq");
+    } else { // make
+      task.target = Z.rnd(3, 8);
+      task.cur = 0;
+    }
+
     qNumEl.textContent = (qIndex + 1) + "/" + TOTAL;
     fillEl.style.width = (qIndex / TOTAL * 100) + "%";
-    probeSprite(task.sprite, function(){
-      drawScene();
-      buildTray();
-    });
+    probeSprite(task.sprite, function(){ render(); });
   }
 
-  function buildTray(){
-    var o = ZAD.answerOptions(task.answer, 4, maxFor(qIndex));
+  function render(){
+    var th = themeOf(task.nn), m = task.many;
+
+    if(task.mech === "count"){
+      qIconEl.textContent = "🔢";
+      qTextEl.textContent = "Скільки " + m + "?";
+      hintEl.textContent  = "Порахуй усе на малюнку 👀";
+      setScene(th.cls, th.decor, '<div class="grp">' + things(task, task.answer) + '</div>');
+      buildNumbers(task.answer);
+
+    } else if(task.mech === "change"){
+      if(task.op === "add"){
+        qIconEl.textContent = "➕";
+        qTextEl.textContent = "Скільки " + m + " стало?";
+        hintEl.textContent  = "Порахуй обидві купки 👀";
+        setScene(th.cls, th.decor,
+          '<div class="grp">' + things(task, task.a) + '</div>' +
+          '<span class="sign">+</span>' +
+          '<div class="grp">' + things(task, task.b, "arrive", task.a) + '</div>');
+      } else {
+        qIconEl.textContent = "➖";
+        qTextEl.textContent = "Скільки " + m + " залишилося?";
+        hintEl.textContent  = "Хто пішов — того не рахуй 👀";
+        setScene(th.cls, th.decor,
+          '<div class="grp">' +
+            things(task, task.a - task.b) +
+            things(task, task.b, "leave", task.a - task.b) +
+          '</div>');
+      }
+      buildNumbers(task.answer);
+
+    } else if(task.mech === "compare"){
+      qIconEl.textContent = "⚖️";
+      qTextEl.textContent = "Де більше " + m + "?";
+      hintEl.textContent  = "Тисни, де купка більша 👀";
+      setScene(th.cls, th.decor,
+        '<div class="side" data-side="L">' + things(task, task.x) + '</div>' +
+        '<div class="side" data-side="R">' + things(task, task.y, null, task.x) + '</div>');
+      sceneEl.classList.add("compare");
+      trayEl.innerHTML = '<button class="cmp" data-cmp="eq">⚖️ Порівну</button>';
+
+    } else { // make
+      qIconEl.textContent = "🎯";
+      qTextEl.textContent = "Збери " + Z.numa(task.target, task.nn);
+      updateMakeHint();
+      setScene(th.cls, th.decor, '<div class="grp"></div>');
+      sceneEl.classList.add("make");
+      trayEl.innerHTML = '<button class="addbtn" id="addBtn">＋</button>';
+    }
+
+    sayText = qTextEl.textContent;
+    speak(sayText);
+  }
+
+  function buildNumbers(ans){
+    var o = Z.answerOptions(ans, 4, MAX);
     trayEl.innerHTML = o.options.map(function(v){
       return '<button class="piece" data-v="' + v + '">' + v + '</button>';
     }).join("");
   }
 
-  function onPiece(btn){
-    if(locked) return;
-    var v = parseInt(btn.getAttribute("data-v"), 10);
-    if(v !== task.answer){
-      btn.classList.add("wrong");
-      setTimeout(function(){ btn.classList.remove("wrong"); }, 360);
-      mistakes++;
-      hintEl.textContent = "Ще раз порахуй уважно 🔎";
-      return;
-    }
+  function updateMakeHint(){
+    hintEl.innerHTML = "Тисни ＋ · Зараз: <b>" + task.cur + "</b> · Треба: <b>" + task.target + "</b>";
+  }
+
+  /* ── реакції ── */
+  function solved(){
     locked = true;
-    btn.classList.add("good");
     score += 10;
     scoreEl.textContent = score;
-    hintEl.textContent = task.expr + " = " + task.answer + " 🎉";
     setTimeout(next, 900);
+  }
+  function wrong(el, cls){
+    mistakes++;
+    el.classList.add(cls);
+    setTimeout(function(){ el.classList.remove(cls); }, 360);
+    hintEl.textContent = "Спробуй ще 🔎";
+  }
+
+  function onNumber(btn){
+    if(locked) return;
+    var v = parseInt(btn.getAttribute("data-v"), 10);
+    if(v !== task.answer){ wrong(btn, "wrong"); return; }
+    btn.classList.add("good");
+    hintEl.textContent = "Правильно! 🎉";
+    solved();
+  }
+
+  function onCompare(sideEl, isEq){
+    if(locked) return;
+    var pick = isEq ? "eq" : sideEl.getAttribute("data-side");
+    if(pick !== task.correct){ wrong(sideEl, "wrong"); return; }
+    if(isEq){ sideEl.classList.add("good"); }
+    else {
+      sideEl.classList.add("good");
+    }
+    hintEl.textContent = "Правильно! 🎉";
+    solved();
+  }
+
+  function addOne(){
+    if(locked || task.cur >= task.target + 3) return;
+    task.cur++;
+    var span = document.createElement("span");
+    span.className = "thing pop";
+    span.innerHTML = inner(task);
+    sceneEl.querySelector(".grp").appendChild(span);
+    checkMake();
+  }
+  function removeOne(span){
+    if(locked) return;
+    task.cur--;
+    span.classList.add("poof");
+    setTimeout(function(){ if(span.parentNode) span.parentNode.removeChild(span); }, 280);
+    checkMake();
+  }
+  function checkMake(){
+    if(task.cur === task.target){
+      hintEl.textContent = "Саме стільки! 🎉";
+      solved();
+    } else {
+      updateMakeHint();
+    }
   }
 
   function next(){
@@ -224,6 +453,7 @@
       mistakes === 0 ? "Жодної помилки — гостре око!" :
       "Помилок: " + mistakes + ". Очки: " + score + ".";
     document.getElementById("winScreen").classList.remove("hidden");
+    speak("Молодець! Усі малюнки розгадано.");
   }
 
   function start(){
@@ -234,13 +464,31 @@
     newTask();
   }
 
+  /* ── події ── */
   trayEl.addEventListener("click", function(e){
-    var b = e.target.closest(".piece");
-    if(b) onPiece(b);
+    var num = e.target.closest(".piece");
+    if(num){ onNumber(num); return; }
+    var eq = e.target.closest(".cmp");
+    if(eq){ onCompare(eq, true); return; }
+    var add = e.target.closest("#addBtn");
+    if(add){ addOne(); return; }
   });
+  sceneEl.addEventListener("click", function(e){
+    if(locked) return;
+    if(task && task.mech === "compare"){
+      var side = e.target.closest(".side");
+      if(side){ onCompare(side, false); return; }
+    }
+    if(task && task.mech === "make"){
+      var th = e.target.closest(".thing");
+      if(th){ removeOne(th); return; }
+    }
+  });
+  sayBtn.addEventListener("click", function(){ speak(sayText); });
   document.getElementById("playBtn").addEventListener("click", start);
   document.getElementById("againBtn").addEventListener("click", start);
   document.getElementById("menuBtn").addEventListener("click", function(){
+    window.speechSynthesis && window.speechSynthesis.cancel();
     document.getElementById("startScreen").classList.remove("hidden");
   });
 })();
