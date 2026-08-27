@@ -154,6 +154,13 @@
     border-radius:999px;padding:10px 22px;box-shadow:0 6px 16px rgba(0,0,0,.28);
     transition:filter .15s,transform .12s}
   a.tr-card:hover .tr-name{filter:brightness(1.06)}
+  /* підсвітка випробування, з якого щойно повернулись (стрілка ← у тренажері) */
+  @keyframes skReturnGlow{
+    0%{box-shadow:0 0 0 0 rgba(242,199,92,0)}
+    16%{box-shadow:0 0 0 4px rgba(242,199,92,.92),0 0 24px 4px rgba(242,199,92,.5)}
+    100%{box-shadow:0 0 0 0 rgba(242,199,92,0)}
+  }
+  .sk-return-glow{animation:skReturnGlow 2.6s ease-out 1;border-radius:16px;position:relative;z-index:2}
   /* заблокований тест: не клікається, приглушений */
   .chip.ready.locked{pointer-events:none;opacity:.5;filter:grayscale(.45);box-shadow:none;cursor:not-allowed}
   /* підказка-замок поруч із закритим тестом */
@@ -785,14 +792,81 @@ function applyAchievements(prog){
   });
 })();
 
+/* ── повернення у розділ, з якого пішли у випробування ──────────────
+   При кліку по картці тренажера / чіпу тесту запамʼятовуємо його href.
+   Повертаючись сюди (стрілка ← у тренажері веде на tests.html), відкриваємо
+   саме той ступінь + предмет, прокручуємо й підсвічуємо те випробування.
+   Усе на боці tests.html — тренажери правити не треба.                    */
+function hrefKey(u){
+  if(!u) return '';
+  var s = String(u).trim().replace(/^https?:\/\/[^/]+/i,'');   // прибрати origin
+  var h = s.split('#')[0];                                     // прибрати #hash
+  var q = '', qi = h.indexOf('?');
+  if(qi >= 0){ q = h.slice(qi); h = h.slice(0, qi); }          // зберегти ?id=…
+  var file = h.substring(h.lastIndexOf('/') + 1);              // лише імʼя файла
+  return (file + q).toLowerCase();
+}
+/* клік ловимо у capture — щоб записати ДО переходу на сторінку тренажера */
+document.addEventListener('click', function(e){
+  var a = (e.target && e.target.closest) ? e.target.closest('a.tr-card, a.chip.ready, a.chip-learn') : null;
+  if(!a || a.classList.contains('locked')) return;
+  var k = hrefKey(a.getAttribute('href'));
+  if(k && /\.html/.test(k)){ try{ sessionStorage.setItem('sk_return_test', k); }catch(_){} }
+}, true);
+/* звідки повернулись: спершу маркер кліку, інакше — document.referrer */
+function findReturnKey(){
+  var k = '';
+  try{ k = sessionStorage.getItem('sk_return_test') || ''; }catch(_){}
+  if(!k){
+    try{
+      var rk = hrefKey(document.referrer || '');
+      if(rk && rk.indexOf('tests.html') !== 0 && /\.html/.test(rk)) k = rk;
+    }catch(_){}
+  }
+  return k;
+}
+/* відкрити ступінь+предмет цілі, прокрутити й підсвітити. true — якщо знайшли */
+function revealReturn(key){
+  var root = document.getElementById('root');
+  if(!root || !key) return false;
+  var links = root.querySelectorAll('a.tr-card, a.chip.ready, a.chip-learn');
+  var hit = null;
+  for(var i=0;i<links.length;i++){
+    if(hrefKey(links[i].getAttribute('href')) === key){ hit = links[i]; break; }
+  }
+  if(!hit) return false;
+  for(var el = hit.parentNode; el && el !== root; el = el.parentNode){
+    if(el.tagName && el.tagName.toLowerCase() === 'details') el.open = true;   // ступінь + предмет
+  }
+  var card = hit.closest('.tr-card') || hit.closest('.chip-group') || hit;
+  requestAnimationFrame(function(){
+    try{ card.scrollIntoView({behavior:'smooth', block:'center'}); }
+    catch(_){ try{ card.scrollIntoView(); }catch(__){} }
+    card.classList.add('sk-return-glow');
+    setTimeout(function(){ card.classList.remove('sk-return-glow'); }, 2600);
+  });
+  try{ sessionStorage.removeItem('sk_return_test'); }catch(_){}   // щоб оновлення не відкривало знову
+  return true;
+}
+
 /* ── рендер дорожньої карти ── */
 function render(){
+  var retKey = findReturnKey();
+  // повертаємось із випробування → не форсуємо junior, відкриємо потрібний ступінь нижче
   document.getElementById('root').innerHTML =
-    CURRICULUM.map(function(t){ return tierHtml(t, t.id==='junior'); }).join('');
+    CURRICULUM.map(function(t){ return tierHtml(t, !retKey && t.id==='junior'); }).join('');
   fillLevelProgress();
   applyLocks();
   applyAchievements();
   fillSubjectProgress();
+  if(retKey && !revealReturn(retKey)){
+    // ціль не знайшли (напр., тренажера вже нема в карті) → відкриваємо junior як завжди
+    var idx = -1;
+    CURRICULUM.forEach(function(t,i){ if(t.id==='junior') idx = i; });
+    var tiers = document.querySelectorAll('#root details.tier');
+    if(idx >= 0 && tiers[idx]) tiers[idx].open = true;
+    else if(tiers[0]) tiers[0].open = true;
+  }
 }
 
 /* первинний стан — щоб не блимала порожня сторінка */
