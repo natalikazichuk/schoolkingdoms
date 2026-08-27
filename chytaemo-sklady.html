@@ -271,7 +271,7 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 
 /* ── ЧИТАЄМО СКЛАДИ ── */
 .wrap{position:relative}
-.exit-top{position:absolute;top:2px;left:2px;z-index:6}
+.start-top{position:absolute;top:0;left:0;width:auto;margin:0;z-index:5}
 .syl-example{display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 8px 0;font-family:'Fredoka',sans-serif;font-size:24px;color:var(--ink)}
 .syl-example .em{font-size:44px}
 .syl-example .ex-img{width:104px;height:104px;object-fit:contain;background:#fff;border-radius:18px;box-shadow:var(--e2);display:block}
@@ -360,7 +360,7 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 
   <!-- START -->
   <section id="start" class="screen on">
-    <div class="exit-top"><button class="iconbtn" onclick="exitTrainer()" title="Назад">←</button></div>
+    <div class="start-top"><button class="iconbtn" onclick="stopAudio();location.href='tests.html'" title="Назад до тестів" aria-label="Назад до тестів">←</button></div>
     <div class="abc-blocks">
       <div class="ab" data-o="🐄">МО</div><div class="ab" data-o="🌿">ЛО</div><div class="ab" data-o="🥛">КО</div>
     </div>
@@ -369,7 +369,7 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
     <p class="rhyme">Склали букви — вийшов склад.<br>Склади разом — і вже слово! 🎉</p>
 
     <div class="start-hero" id="startHero">
-      <img src="img/sklady-hero.webp" alt="" onerror="this.closest('.start-hero').style.display='none'">
+      <img src="img/tr/chytaemo-sklady.webp?v=1" alt="" onerror="this.closest('.start-hero').style.display='none'">
     </div>
 
     <div class="start-btns">
@@ -492,7 +492,7 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 
 <script>
 /* ============================================================
-   ЧИТАЄМО СКЛАДИ — самодостатній тренажер. Прогрес: localStorage 'sk-sklad-v1'.
+   ЧИТАЄМО СКЛАДИ — самодостатній тренажер. Прогрес: localStorage 'sk_sklad_v1' (простір sk_* — синхронізується per-Hero).
    ОЗВУЧКА складів (за бажанням): audio/sklad_<id>.mp3  (напр. МА → audio/sklad_ma.mp3)
      id = приголосна+голосна латинкою:
        М→m Т→t Н→n Л→l Р→r К→k С→s В→v З→z Б→b Г→h Д→d П→p Х→kh Ш→sh Ж→zh ; А→a О→o У→u И→y Е→e І→i
@@ -550,16 +550,22 @@ function exPic(ex){
 }
 
 /* стан */
-const SAVE_KEY='sk-sklad-v1';
+const SAVE_KEY='sk_sklad_v1';
 /* Ключ нагороди — у просторі sk_* (підкреслення), щоб синхронізувався per-Hero
    (firebase-config синхронізує лише sk_*). */
 const REWARD_KEY='sk_sklad_reward_v1';
+/* Старі ключі писались через дефіс (sk-sklad-…) — device-global, не привʼязані до
+   Героя. Прибираємо їх один раз; далі прогрес живе в sk_sklad_* per-Hero. */
+const LEGACY_KEYS=['sk-sklad-v1','sk-sklad-reward-v1'];
 const ALL=CONS.length;
 let state={learned:{},soundOn:true};
 let idx=0, userGesture=false;
 let againShown=false;      // «ти вже читаєш склади» — показуємо раз за сесію
 let winShown=false;        // «Вітаємо» — захист від повторного запуску в межах сесії
-function load(){ try{const s=JSON.parse(localStorage.getItem(SAVE_KEY)); if(s){state.learned=s.learned||{}; state.soundOn=s.soundOn!==false;}}catch(e){} }
+function load(){
+  try{ LEGACY_KEYS.forEach(k=>localStorage.removeItem(k)); }catch(e){}   // прибрати старе device-global протікання
+  try{const s=JSON.parse(localStorage.getItem(SAVE_KEY)); if(s){state.learned=s.learned||{}; state.soundOn=s.soundOn!==false;}}catch(e){}
+}
 function save(){ try{localStorage.setItem(SAVE_KEY,JSON.stringify(state));}catch(e){} }
 function learnedCount(){ return CONS.filter(c=>state.learned[c.id]).length; }
 function allLearned(){ return learnedCount()>=ALL; }
@@ -569,7 +575,6 @@ function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.r
 function goStart(){ stopAudio(); show('start'); refreshStart(); }
 function startLearn(){ show('learn'); renderCons(); }
 function goGames(){ stopAudio(); show('games'); renderGamesHub(); }
-function exitTrainer(){ stopAudio(); if(history.length>1) history.back(); else location.href='tests.html'; }
 function refreshStart(){
   const n=learnedCount(), done=n>=ALL;
   document.getElementById('startProgTxt').textContent =
@@ -961,6 +966,7 @@ refreshStart();
 </script>
 
 <!-- Firebase лише для кнопки «Вийти» у спільному футері -->
+<script src="sk-avatar.js"></script>
 <script type="module" src="firebase-config.js"></script>
 
 </body>

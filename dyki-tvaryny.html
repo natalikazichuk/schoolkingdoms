@@ -83,10 +83,13 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .prog-card .pc-ic{font-size:26px;flex:none}
 .prog-card .pc-body{flex:1;min-width:0;text-align:left}
 .prog-card .pc-txt{font-family:'Fredoka';font-weight:700;color:var(--ink);font-size:16px;margin-bottom:7px}
-.prog-card .pc-dots{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
-.prog-card .pc-dots i{width:12px;height:12px;border-radius:50%;background:#e6ddc9}
-.prog-card .pc-dots i.on{background:var(--success)}
-.prog-card .pc-star{font-size:22px;flex:none}
+.prog-card .pc-bar{height:12px;background:#efe6d3;border-radius:999px;overflow:hidden}
+.prog-card .pc-bar>span{display:block;height:100%;width:0;border-radius:999px;
+  background:linear-gradient(90deg,var(--learn),var(--success));transition:width .4s ease}
+.prog-card .pc-star{font-size:22px;flex:none;filter:grayscale(1) opacity(.55);transition:filter .3s,transform .3s}
+.prog-card.done{border-color:#f4c842;box-shadow:0 0 0 3px #fff3c9,var(--e2)}
+.prog-card.done .pc-star{filter:none;animation:pcstar 1.2s ease-in-out infinite}
+@keyframes pcstar{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
 
 /* ── верхня панель ── */
 .topbar{display:flex;align-items:center;gap:10px;margin-bottom:12px}
@@ -117,6 +120,10 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .lc-small{font-family:'Fredoka';font-size:54px;line-height:.9;opacity:.9;text-shadow:0 3px 0 rgba(0,0,0,.12)}
 .lc-pic{aspect-ratio:16/11;background:#f5eeda;display:grid;place-items:center;position:relative}
 .lc-pic img{width:100%;height:100%;object-fit:cover;display:block}
+/* Фото тварини в картці — як у «Вчимо літери»: бежевий фон, велике, contain, резерв emoji */
+.acard-pic{background:#f5eeda;display:flex;align-items:center;justify-content:center;position:relative;padding:10px;min-height:clamp(180px,44vh,420px)}
+.acard-pic img{max-height:clamp(160px,44vh,430px);max-width:100%;width:auto;height:auto;object-fit:contain;display:block}
+.acard-pic .lc-emoji{font-size:clamp(110px,30vw,190px);line-height:1}
 .lc-emoji{font-size:96px;line-height:1}
 .lc-draft{position:absolute;left:10px;bottom:8px;font-size:11px;font-weight:800;color:#b9ad93;
   background:rgba(255,255,255,.8);border-radius:8px;padding:2px 8px}
@@ -303,7 +310,7 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
     <p class="rhyme">У лісі й у савані<br>живуть звірята гарні! 🐾</p>
 
     <div class="start-hero" id="startHero">
-      <img src="img/dyki-hero.webp" alt="" onerror="this.closest('.start-hero').style.display='none'">
+      <img src="img/tr/dyki-tvaryny.webp?v=1" alt="" onerror="this.closest('.start-hero').style.display='none'">
     </div>
 
     <div class="start-btns">
@@ -311,13 +318,13 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
       <button class="big-btn blue" id="startGamesBtn" onclick="goGames()">🎮 Гратися в ігри</button>
     </div>
 
-    <div class="prog-card">
+    <div class="prog-card" id="startProgCard">
       <span class="pc-ic">🐾</span>
       <div class="pc-body">
         <div class="pc-txt" id="startProgTxt">Пізнано 0 з 10</div>
-        <div class="pc-dots" id="startProgDots"></div>
+        <div class="pc-bar"><span id="startProgFill" style="width:0%"></span></div>
       </div>
-      <span class="pc-star">⭐</span>
+      <span class="pc-star" id="startProgStar">⭐</span>
     </div>
   </section>
 
@@ -333,7 +340,7 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
     <div class="card-stage">
       <div class="letter-card" id="aCard" onclick="speakCard()">
         <button class="lc-speak" id="cardSpeak" onclick="event.stopPropagation();speakCard()" aria-label="Слухати">🔊</button>
-        <div class="lc-head emoji" id="aHead"><span class="lc-emoji" id="aEmoji">🐄</span></div>
+        <div class="acard-pic" id="aPic"></div>
         <div class="lc-word"><b id="aName">Корова</b></div>
         <div class="lc-sound"><span class="say">каже:</span><span class="snd" id="aSound">Му-у!</span></div>
       </div>
@@ -385,17 +392,17 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
      (напр. ведмідь → audio/tvaryna_vedmid.mp3). Без файлів — синтез мовлення.
    ============================================================ */
 /* img — ілюстрація тварини. 5 уже є в наборі абетки (беремо повторно),
-   5 нових треба згенерувати як img/tvaryny_<id>.webp (256×256, прозорий фон).
+   5 нових треба згенерувати як img/tvaryny/<id>.webp (256×256, прозорий фон).
    Якщо файлу немає — автоматично показується емодзі (onerror-фолбек). */
 const ANIMALS=[
-  {id:'vedmid',  name:'Ведмідь', emoji:'🐻', img:'img/tvaryny_vedmid.webp', sound:'Р-р-р!',    say:'р-р-р',   baby:'Ведмежа',  color:'var(--orange)'},
+  {id:'vedmid',  name:'Ведмідь', emoji:'🐻', img:'img/tvaryny/vedmid.webp', sound:'Р-р-р!',    say:'р-р-р',   baby:'Ведмежа',  color:'var(--orange)'},
   {id:'vovk',    name:'Вовк',    emoji:'🐺', img:'img/abetka_v.webp',       sound:'Ау-у-у!',   say:'ау-у-у',  baby:'Вовченя',  color:'var(--indigo)'},
   {id:'lysytsia',name:'Лисиця',  emoji:'🦊', img:'img/abetka_l.webp',       sound:'Тяв-тяв!',  say:'тяв тяв', baby:'Лисеня',   color:'var(--red)'},
-  {id:'zayets',  name:'Заєць',   emoji:'🐇', img:'img/tvaryny_zayets.webp', sound:'Туп-туп!',  say:'туп туп', baby:'Зайченя',  color:'var(--teal)'},
-  {id:'bilka',   name:'Білка',   emoji:'🐿️', img:'img/tvaryny_bilka.webp',  sound:'Цок-цок!',  say:'цок цок', baby:'Білченя',  color:'var(--orange)'},
+  {id:'zayets',  name:'Заєць',   emoji:'🐇', img:'img/tvaryny/zayets.webp', sound:'Туп-туп!',  say:'туп туп', baby:'Зайченя',  color:'var(--teal)'},
+  {id:'bilka',   name:'Білка',   emoji:'🐿️', img:'img/tvaryny/bilka.webp',  sound:'Цок-цок!',  say:'цок цок', baby:'Білченя',  color:'var(--orange)'},
   {id:'yizhak',  name:'Їжак',    emoji:'🦔', img:'img/abetka_ji.webp',      sound:'Пирх-пирх!',say:'пирх пирх',baby:'Їжаченя', color:'var(--green)'},
-  {id:'olen',    name:'Олень',   emoji:'🦌', img:'img/tvaryny_olen.webp',   sound:'Тру-у!',    say:'тру-у',   baby:'Оленя',    color:'var(--purple)'},
-  {id:'lev',     name:'Лев',     emoji:'🦁', img:'img/tvaryny_lev.webp',    sound:'Р-р-ав!',   say:'р-р-ав',  baby:'Левеня',   color:'var(--yellow)'},
+  {id:'olen',    name:'Олень',   emoji:'🦌', img:'img/tvaryny/olen.webp',   sound:'Тру-у!',    say:'тру-у',   baby:'Оленя',    color:'var(--purple)'},
+  {id:'lev',     name:'Лев',     emoji:'🦁', img:'img/tvaryny/lev.webp',    sound:'Р-р-ав!',   say:'р-р-ав',  baby:'Левеня',   color:'var(--yellow)'},
   {id:'slon',    name:'Слон',    emoji:'🐘', img:'img/abetka_s.webp',       sound:'Ту-ру-у!',  say:'ту-ру-у', baby:'Слоненя',  color:'var(--blue)'},
   {id:'tygr',    name:'Тигр',    emoji:'🐯', img:'img/abetka_t.webp',       sound:'Гр-р-ау!',  say:'гр-р-ау', baby:'Тигреня',  color:'var(--pink)'}
 ];
@@ -416,15 +423,13 @@ function startLearn(){ show('learn'); renderCard(); }
 function goGames(){ stopAudio(); show('games'); renderGamesHub(); }
 function exitTrainer(){ stopAudio(); if(history.length>1) history.back(); else location.href='tests.html'; }
 function refreshStart(){
-  const n=learnedCount();
-  document.getElementById('startProgTxt').textContent='Пізнано '+n+' з '+ALL;
-  const DOTS=10, filled=n===0?0:Math.max(1,Math.round(n/ALL*DOTS));
-  let h=''; for(let i=0;i<DOTS;i++) h+='<i class="'+(i<filled?'on':'')+'"></i>';
-  document.getElementById('startProgDots').innerHTML=h;
+  const n=learnedCount(), done=n>=ALL;
+  document.getElementById('startProgTxt').textContent = done ? '🎉 Усіх тварин пізнано!' : ('Пізнано '+n+' з '+ALL);
+  const fill=document.getElementById('startProgFill'); if(fill) fill.style.width=Math.round(n/ALL*100)+'%';
+  const card=document.getElementById('startProgCard'); if(card) card.classList.toggle('done',done);
   const gb=document.getElementById('startGamesBtn');
-  const locked=!allLearned();
-  gb.textContent=locked?'🔒 Ігри (пізнай усіх тварин)':'🎮 Гратися в ігри';
-  gb.classList.toggle('locked',locked);
+  gb.textContent = done ? '🎮 Гратися в ігри' : '🔒 Ігри (пізнай усіх тварин)';
+  gb.classList.toggle('locked',!done);
 }
 
 /* ── helpers ── */
@@ -443,7 +448,13 @@ function picFace(a){
 /* ══════ LEARN ══════ */
 function renderCard(){
   const a=ANIMALS[idx];
-  document.getElementById('aEmoji').innerHTML=picFace(a);
+  // фото тварини (велике, contain — як у «Вчимо літери») з резервом на емодзі
+  const pic=document.getElementById('aPic'); pic.innerHTML='';
+  const im=new Image(); im.alt=a.name;
+  im.onload =()=>{ pic.innerHTML=''; pic.appendChild(im); };
+  im.onerror=()=>{ pic.innerHTML='<span class="lc-emoji">'+a.emoji+'</span>'; };
+  im.src='img/tvaryny/'+a.id+'.webp';
+  if(im.complete && im.naturalWidth){ im.onload(); }   // кеш → миттєво
   document.getElementById('aName').textContent=a.name;
   document.getElementById('aSound').textContent=a.sound;
   document.getElementById('aCard').style.setProperty('--ac',a.color);
