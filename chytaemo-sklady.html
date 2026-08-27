@@ -280,6 +280,15 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .mem.reveal{color:#fff}
 .dot{color:var(--soft);font-weight:800;margin:0 3px;align-self:center;font-family:'Fredoka',sans-serif}
 .q-word .gap{display:inline-block;min-width:46px;color:var(--red);border-bottom:5px solid var(--red);border-radius:2px;text-align:center}
+/* Пропущений склад: правильний склад «прилітає» на своє місце */
+.syl-fly{position:fixed;left:0;top:0;z-index:90;font-family:'Fredoka',sans-serif;font-weight:700;
+  font-size:30px;letter-spacing:1px;color:var(--good);background:var(--good-bg);
+  border:3px solid var(--good);border-radius:16px;padding:5px 14px;pointer-events:none;
+  box-shadow:0 10px 20px rgba(0,0,0,.20);will-change:transform}
+.q-word .gap-filled{display:inline-block;min-width:46px;text-align:center;color:var(--good);
+  border-bottom:5px solid var(--good);border-radius:2px;
+  animation:sylland .34s cubic-bezier(.34,1.56,.55,1)}
+@keyframes sylland{0%{transform:scale(.45);opacity:.3}55%{transform:scale(1.2)}100%{transform:none;opacity:1}}
 .tbl{border-collapse:separate;border-spacing:5px;margin:0 auto}
 .tbl th{font-family:'Fredoka',sans-serif;color:var(--soft);font-size:15px;padding:2px 4px}
 .tcell{border:none;border-radius:10px;padding:9px 12px;font-family:'Fredoka',sans-serif;font-size:19px;color:#fff;cursor:pointer;box-shadow:inset 0 -4px 0 rgba(0,0,0,.12);width:100%}
@@ -806,11 +815,45 @@ function renderChoice(r){
   const ow=document.getElementById('optWrap');
   r.options.forEach(o=>{ const b=document.createElement('button'); b.className='opt syl'; b.textContent=o.label; b.onclick=()=>chooseOpt(b,o,r); ow.appendChild(b); });
 }
+/* Правильний склад «прилітає» на своє місце (дуга + приземлення) */
+function flySyl(fromEl,gapEl,label,done){
+  const fin=()=>{ if(gapEl){ gapEl.textContent=label; gapEl.classList.remove('gap'); gapEl.classList.add('gap-filled'); } if(done)done(); };
+  if(!fromEl||!gapEl||typeof fromEl.animate!=='function'){ fin(); return; }
+  const fr=fromEl.getBoundingClientRect(), gr=gapEl.getBoundingClientRect();
+  const fly=document.createElement('div'); fly.className='syl-fly'; fly.textContent=label;
+  document.body.appendChild(fly);
+  const fw=fly.offsetWidth, fh=fly.offsetHeight;
+  const sx=fr.left+fr.width/2, sy=fr.top+fr.height/2;
+  const ex=gr.left+gr.width/2, ey=gr.top+gr.height/2;
+  fly.style.left=(sx-fw/2)+'px'; fly.style.top=(sy-fh/2)+'px';
+  const dx=ex-sx, dy=ey-sy, lift=Math.min(72,30+Math.abs(dx)*0.22);
+  let done1=false; const finish=()=>{ if(done1)return; done1=true; fly.remove(); fin(); };
+  try{
+    const a=fly.animate([
+      {transform:'translate(0,0) scale(1.06)',offset:0},
+      {transform:'translate('+(dx*0.5)+'px,'+(dy*0.5-lift)+'px) scale(1.14)',offset:0.55},
+      {transform:'translate('+dx+'px,'+dy+'px) scale(1)',offset:1}
+    ],{duration:520,easing:'cubic-bezier(.34,1.02,.4,1)',fill:'forwards'});
+    a.onfinish=finish;
+  }catch(e){ finish(); return; }
+  setTimeout(finish,700);
+}
 function chooseOpt(btn,o,r){
   if(game.answered)return;
+  game.answered=true;
   const wrap=document.getElementById('optWrap'); [...wrap.children].forEach(c=>c.disabled=true);
-  if(o.correct){ btn.classList.add('correct'); finishRound(true); }
-  else{ btn.classList.add('wrong'); [...wrap.children].forEach(c=>{ if(c.textContent===r.answerLabel)c.classList.add('correct'); }); finishRound(false); }
+  const gap=(r.kind==='propushchena')?document.querySelector('#playBody .q-word .gap'):null;
+  if(o.correct){
+    btn.classList.add('correct');
+    if(gap){ flySyl(btn,gap,o.label,()=>finishRound(true)); }
+    else{ finishRound(true); }
+  } else {
+    btn.classList.add('wrong');
+    const cb=[...wrap.children].find(c=>c.textContent===r.answerLabel);
+    if(cb)cb.classList.add('correct');
+    if(gap&&cb){ setTimeout(()=>flySyl(cb,gap,r.answerLabel,()=>finishRound(false)),400); }
+    else{ finishRound(false); }
+  }
 }
 
 /* sklad: склади слово зі складів */
