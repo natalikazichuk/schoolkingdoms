@@ -344,17 +344,28 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 }
 
 @media print{
-  @page{size:A4 landscape;margin:8mm}
-  html,body{background:#fff!important;margin:0;padding:0}
+  @page{size:A4 landscape;margin:7mm}
+  html,body{background:#fff!important;margin:0;padding:0;width:100%;height:100%}
   body>*{display:none!important}
-  #printArea{display:block!important;color:#111}
-  #printArea .pa-head{text-align:center;margin:0 0 2.5mm}
-  #printArea .pa-head h1{font-family:'Comfortaa','Fredoka',sans-serif;font-size:17pt;margin:0 0 1mm;color:#1e3a6b}
-  #printArea .pa-head p{font-size:9pt;color:#555;margin:0;font-family:'Nunito',sans-serif}
-  #printArea .pa-tbl{border-collapse:collapse;width:100%;table-layout:fixed;page-break-inside:avoid}
-  #printArea .pa-tbl th,#printArea .pa-tbl td{border:1pt solid #333;text-align:center;padding:0.9mm 1mm;line-height:1.05;
-    font-family:'Fredoka',sans-serif;font-size:12pt;color:#111}
-  #printArea .pa-tbl thead th,#printArea .pa-tbl tbody th{background:#eee;font-size:13pt}
+  /* друкуємо на всю сторінку: шапка зверху, таблиця тягнеться на решту висоти */
+  #printArea{display:flex!important;flex-direction:column;width:100%;height:100%;
+    color:#111;position:relative;overflow:hidden}
+  /* водяний знак — по центру, крізь прозорі клітинки таблиці */
+  #printArea .pa-wm{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    width:60%;max-width:165mm;opacity:.9;z-index:0;pointer-events:none;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #printArea .pa-head{flex:0 0 auto;text-align:center;margin:0 0 2mm;position:relative;z-index:1}
+  #printArea .pa-head h1{font-family:'Comfortaa','Fredoka',sans-serif;font-size:18pt;margin:0 0 1mm;color:#1e3a6b}
+  #printArea .pa-head p{font-size:9.5pt;color:#555;margin:0;font-family:'Nunito',sans-serif}
+  #printArea .pa-tbl{flex:1 1 auto;min-height:0;border-collapse:collapse;width:100%;
+    table-layout:fixed;position:relative;z-index:1;page-break-inside:avoid}
+  #printArea .pa-tbl th,#printArea .pa-tbl td{border:1.2pt solid #333;text-align:center;padding:0;line-height:1;
+    font-family:'Comfortaa','Fredoka',sans-serif;font-size:17pt;color:#111}
+  /* тіло-клітинки прозорі — щоб було видно водяний знак */
+  #printArea .pa-tbl td{background:transparent}
+  #printArea .pa-tbl thead th,#printArea .pa-tbl tbody th{background:#e9eef7;font-weight:700;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #printArea .pa-tbl thead th:first-child{background:transparent;border:none}
 }
 </style>
 </head>
@@ -521,6 +532,9 @@ const CONS=[
  {L:'Ш',id:'sh',ex:{w:'ШУБА',e:'🧥',img:'shuba'}},
  {L:'Ж',id:'zh',ex:{w:'ЖАБА',e:'🐸',img:'zhaba'}},
 ];
+/* Повна складова таблиця (лише для довідкової таблиці й друку A4) —
+   гру/картки-флешки НЕ чіпаємо: там працює CONS. */
+const TBL_CONS=CONS.concat([{L:'Ц'},{L:'Ч'},{L:'Щ'},{L:'Ф'},{L:'Ґ'}]);
 const ALL_SYL=[]; CONS.forEach(c=>VOWELS.forEach(v=>ALL_SYL.push(c.L+v.L)));
 const PAL=['var(--red)','var(--orange)','var(--yellow)','var(--green)','var(--teal)','var(--blue)','var(--indigo)','var(--purple)','var(--pink)'];
 function colorFor(i){ return PAL[i%PAL.length]; }
@@ -640,7 +654,7 @@ function speakCard(){ speakAll(); }
 /* складова таблиця */
 function openTable(){
   let html='<table class="tbl"><tr><th></th>'+VOWELS.map(v=>'<th>'+v.L+'</th>').join('')+'</tr>';
-  CONS.forEach((c,ci)=>{
+  TBL_CONS.forEach((c,ci)=>{
     html+='<tr><th>'+c.L+'</th>'+VOWELS.map((v,vi)=>{
       const syl=c.L+v.L;
       return '<td><button class="tcell" style="background:'+VC[vi]+'" onclick="speakSyl(\''+syl+'\')">'+syl+'</button></td>';
@@ -655,11 +669,12 @@ function closeTable(){ document.getElementById('tableOv').classList.remove('on')
 /* друк складової таблиці на A4 (чистий макет, лише таблиця) */
 function printTable(){
   const area=document.getElementById('printArea'); if(!area)return;
-  let h='<div class="pa-head"><h1>Складова таблиця</h1>'+
-        '<p>Читаємо склади · приголосна + голосна = склад · читай згори вниз і зліва направо</p></div>';
+  let h='<img class="pa-wm" src="logo-watermark-25.webp" alt="" aria-hidden="true" onerror="this.style.display=\'none\'">';
+  h+='<div class="pa-head"><h1>Складова таблиця</h1>'+
+     '<p>Читаємо склади · приголосна + голосна = склад · читай згори вниз і зліва направо</p></div>';
   h+='<table class="pa-tbl"><thead><tr><th></th>'+
      VOWELS.map(v=>'<th>'+v.L+'</th>').join('')+'</tr></thead><tbody>';
-  CONS.forEach(c=>{
+  TBL_CONS.forEach(c=>{
     h+='<tr><th>'+c.L+'</th>'+VOWELS.map(v=>'<td>'+c.L+v.L+'</td>').join('')+'</tr>';
   });
   h+='</tbody></table>';
