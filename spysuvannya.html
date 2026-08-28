@@ -150,6 +150,10 @@ textarea:focus{outline:none;border-color:var(--gold)}
       <label class="chk"><input type="checkbox" id="chkName" checked> Рядок «Ім'я / Дата»</label>
     </div>
 
+    <div class="grp">
+      <label class="chk"><input type="checkbox" id="chkDecor" checked> Оздоблення (для друку кольором)</label>
+    </div>
+
     <div class="print">
       <button onclick="printPaper('A4')">🖨 Друк A4</button>
       <button onclick="printPaper('A5')">🖨 Друк A5</button>
@@ -173,6 +177,7 @@ textarea:focus{outline:none;border-color:var(--gold)}
   var SVG=document.getElementById('page');
   var txt=document.getElementById('txt');
   var chkName=document.getElementById('chkName');
+  var chkDecor=document.getElementById('chkDecor');
 
   var state={ paper:'liniya', style:'dot', size:'big', mode:'trace' };
 
@@ -183,7 +188,11 @@ textarea:focus{outline:none;border-color:var(--gold)}
     {k:"Малі літери",   v: LO,        paper:'liniya'},
     {k:"Склади",        v: "ма мо му ми ме\nна но ну ни не\nла ло лу ли ле\nса со су си се", paper:'liniya'},
     {k:"Короткі речення", v: "Мама мила раму.\nМи йдемо в парк.\nУ лісі тихо.\nКотик спить.", paper:'liniya'},
-    {k:"Цифри",         v: "1 2 3 4 5 6 7 8 9 0", paper:'grid'}
+    {k:"Цифри",         v: "1 2 3 4 5 6 7 8 9 0", paper:'grid'},
+    {k:"Прописи (абетка)", paper:'liniya', size:'mid', v:
+      "Аа Бб Вв Гг Ґґ Дд\nЕе Єє Жж Зз Ии Іі\nЇї Йй Кк Лл Мм Нн\n"+
+      "Оо Пп Рр Сс Тт Уу\nФф Хх Цц Чч Шш Щщ\nЬь Юю Яя\n"+
+      "Aa Bb Cc Dd Ee Ff Gg\nHh Ii Jj Kk Ll Mm Nn\nOo Pp Qq Rr Ss Tt Uu\nVv Ww Xx Yy Zz"}
   ];
 
   var mcv=document.createElement('canvas'), mctx=mcv.getContext('2d');
@@ -212,30 +221,115 @@ textarea:focus{outline:none;border-color:var(--gold)}
     }
   }
 
+  /* ---- декоративні елементи (вектор, у стилі шаблонів) ---- */
+  function P(d,attrs){ attrs=attrs||{}; attrs.d=d; return el("path",attrs); }
+  function starPath(cx,cy,R,r,rotDeg){
+    var out="", rot=(rotDeg==null?-90:rotDeg)*Math.PI/180;
+    for(var i=0;i<10;i++){
+      var ang=rot+i*Math.PI/5, rad=(i%2===0)?R:r;
+      out+=(i?" L":"M")+(cx+rad*Math.cos(ang)).toFixed(2)+","+(cy+rad*Math.sin(ang)).toFixed(2);
+    }
+    return out+" Z";
+  }
+  function heart(cx,cy,s,fill,stroke,sw){
+    var d="M"+cx+","+(cy+s*0.9)
+      +" C"+(cx-s*1.1)+","+(cy-s*0.2)+" "+(cx-s*0.5)+","+(cy-s*1.0)+" "+cx+","+(cy-s*0.25)
+      +" C"+(cx+s*0.5)+","+(cy-s*1.0)+" "+(cx+s*1.1)+","+(cy-s*0.2)+" "+cx+","+(cy+s*0.9)+" Z";
+    return P(d,{fill:fill||"none",stroke:stroke||"none","stroke-width":sw||0,"stroke-linejoin":"round"});
+  }
+  function plane(g){
+    g.appendChild(el("polygon",{points:"7,8 45,12.5 22,19",fill:"#a9d1f7",stroke:"#5f97e0","stroke-width":0.25,"stroke-linejoin":"round"}));
+    g.appendChild(el("polygon",{points:"7,8 22,19 16,26",fill:"#6aa9ee",stroke:"#3f86d8","stroke-width":0.25,"stroke-linejoin":"round"}));
+    g.appendChild(el("polygon",{points:"22,19 45,12.5 26,23",fill:"#3f86d8"}));
+    g.appendChild(el("line",{x1:7,y1:8,x2:26,y2:23,stroke:"#2f6fc8","stroke-width":0.25}));
+  }
+  function trail(g){
+    g.appendChild(P("M53,18 C63,10 77,10 87,15 C93,18 96,16 97,13",{fill:"none",stroke:"#8fbdf0","stroke-width":0.5,"stroke-dasharray":"1.6 1.5","stroke-linecap":"round"}));
+    g.appendChild(heart(51,17,1.7,"none","#8fbdf0",0.5));
+  }
+  function clip(g){
+    g.appendChild(el("polygon",{points:"158.5,15 171.5,15 168.5,6 161.5,6",fill:"#2f7fd0",stroke:"#2569b4","stroke-width":0.2,"stroke-linejoin":"round"}));
+    g.appendChild(el("polygon",{points:"161.5,6 168.5,6 168,8.4 162,8.4",fill:"#57a0e4"}));
+    g.appendChild(P("M162.6,6 C161.4,-0.4 166.2,-0.4 165,6",{fill:"none",stroke:"#7fb8ee","stroke-width":0.8,"stroke-linecap":"round"}));
+    g.appendChild(P("M164,6 C163.2,1.6 167,1.6 166.2,6",{fill:"none",stroke:"#a9d1f7","stroke-width":0.7,"stroke-linecap":"round"}));
+  }
+  function starFace(g,cx,cy,R,r){
+    g.appendChild(P(starPath(cx,cy,R,r,-90),{fill:"#ffde59",stroke:"#f2a63a","stroke-width":0.4,"stroke-linejoin":"round"}));
+    g.appendChild(el("ellipse",{cx:cx-2,cy:cy-0.4,rx:0.9,ry:1.25,fill:"#3a2a10"}));
+    g.appendChild(el("ellipse",{cx:cx+2,cy:cy-0.4,rx:0.9,ry:1.25,fill:"#3a2a10"}));
+    g.appendChild(P("M"+(cx-1.9)+","+(cy+1.6)+" Q"+cx+","+(cy+3.3)+" "+(cx+1.9)+","+(cy+1.6),{fill:"none",stroke:"#3a2a10","stroke-width":0.5,"stroke-linecap":"round"}));
+    g.appendChild(el("circle",{cx:cx-3.4,cy:cy+1.4,r:0.9,fill:"#ff9fb6",opacity:0.85}));
+    g.appendChild(el("circle",{cx:cx+3.4,cy:cy+1.4,r:0.9,fill:"#ff9fb6",opacity:0.85}));
+  }
+  function pencil(tx,ty,rot,body,dark){
+    var g=el("g",{transform:"translate("+tx+","+ty+") rotate("+rot+")"});
+    var w=4.0, cone=5.6, L=28;
+    g.appendChild(el("polygon",{points:"0,0 "+(-w/2)+","+cone+" "+(w/2)+","+cone,fill:"#f0c98c",stroke:"#d9a95f","stroke-width":0.2}));
+    g.appendChild(el("polygon",{points:"0,0 "+(-w*0.2)+","+(cone*0.52)+" "+(w*0.2)+","+(cone*0.52),fill:"#4a4a4a"}));
+    g.appendChild(el("rect",{x:-w/2,y:cone,width:w,height:L,fill:body,stroke:dark,"stroke-width":0.2}));
+    g.appendChild(el("rect",{x:-w/2+0.5,y:cone,width:w*0.26,height:L,fill:"#ffffff",opacity:0.28}));
+    g.appendChild(el("rect",{x:w/2-1.0,y:cone,width:1.0,height:L,fill:dark,opacity:0.35}));
+    g.appendChild(el("rect",{x:-w/2,y:cone+L,width:w,height:1.4,fill:dark}));
+    return g;
+  }
+  function eraser(tx,ty,rot){
+    var g=el("g",{transform:"translate("+tx+","+ty+") rotate("+rot+")"});
+    g.appendChild(el("rect",{x:0,y:0,width:14,height:6.4,rx:2.2,fill:"#ff9fb6",stroke:"#f07b98","stroke-width":0.25}));
+    g.appendChild(el("rect",{x:0,y:2.3,width:14,height:1.9,fill:"#ffffff",opacity:0.85}));
+    return g;
+  }
+  function corner(g){
+    g.appendChild(P("M210,270 L210,297 L184,297 C196,290 205,281 210,270 Z",{fill:"#dfe6f2"}));
+    g.appendChild(P("M210,270 C205,281 196,290 184,297",{fill:"none",stroke:"#c2cee4","stroke-width":0.4}));
+    g.appendChild(heart(193,289,3,"none","#3f9be8",0.6));
+    g.appendChild(P(starPath(201,283,2.6,1.2,-90),{fill:"#ffde59",stroke:"#f2a63a","stroke-width":0.25}));
+    [[188,282],[204,290],[197,294]].forEach(function(p){
+      g.appendChild(P(starPath(p[0],p[1],1.2,0.4,-90),{fill:"#7fb0ea"}));
+    });
+  }
+  function holes(g,y0,y1){
+    var n=7;
+    for(var i=0;i<n;i++){
+      var y=y0+(y1-y0)*i/(n-1);
+      g.appendChild(el("circle",{cx:10,cy:y,r:2.3,fill:"#ffffff",stroke:"#c3cfe6","stroke-width":0.45}));
+    }
+  }
+  function appendDecor(blockTop,blockBottom){
+    var g=el("g",{});
+    plane(g); trail(g); clip(g); starFace(g,160,26,8.5,4);
+    g.appendChild(pencil(15,251,-12,"#29a6f0","#1f74c4"));
+    g.appendChild(pencil(24,252,-3,"#ffce3a","#e0a41f"));
+    g.appendChild(eraser(9,285,-9));
+    corner(g);
+    holes(g, Math.max(34,blockTop-1), Math.min(250,blockBottom+1));
+    SVG.appendChild(g);
+  }
+
   /* ---- спільні частини аркуша ---- */
-  function drawPageBase(){
+  function drawPageBase(TOP, decor){
     while(SVG.firstChild) SVG.removeChild(SVG.firstChild);
     SVG.appendChild(el("rect",{x:0,y:0,width:PAGE_W,height:PAGE_H,fill:"#ffffff"}));
-    var blockTop=M.top;
+    var blockTop=TOP;
     if(chkName.checked){
-      var ny=M.top+5;
+      var ny=TOP+6;
+      var rEnd = decor ? 148 : (PAGE_W-M.right);
       var t1=el("text",{x:M.left, y:ny, "font-size":3.6, "font-family":"Nunito, sans-serif", "font-weight":800, fill:"#5a6a8a"}); t1.textContent="Ім'я:";
-      var t2=el("text",{x:M.left+72, y:ny, "font-size":3.6, "font-family":"Nunito, sans-serif", "font-weight":800, fill:"#5a6a8a"}); t2.textContent="Дата:";
+      var t2=el("text",{x:M.left+70, y:ny, "font-size":3.6, "font-family":"Nunito, sans-serif", "font-weight":800, fill:"#5a6a8a"}); t2.textContent="Дата:";
       SVG.appendChild(t1); SVG.appendChild(t2);
-      SVG.appendChild(line(M.left+15, ny+0.6, M.left+66, ny+0.6, "#c3d0ea", 0.25));
-      SVG.appendChild(line(M.left+88, ny+0.6, PAGE_W-M.right, ny+0.6, "#c3d0ea", 0.25));
-      blockTop=M.top+12;
+      SVG.appendChild(line(M.left+15, ny+0.6, M.left+64, ny+0.6, "#c3d0ea", 0.25));
+      SVG.appendChild(line(M.left+86, ny+0.6, rEnd, ny+0.6, "#c3d0ea", 0.25));
+      blockTop=TOP+12;
     }
     return blockTop;
   }
 
   /* ---- КОСА ЛІНІЙКА (літери) ---- */
-  function renderLiniya(blockTop){
+  function renderLiniya(blockTop, BOTLIM){
     var rowH = state.size==='big' ? 13 : 10;
-    var fs=rowH*0.82;
+    var fs=rowH*0.76;
     var writeW=PAGE_W-M.left-M.right-3;
 
-    var avail=(PAGE_H-M.bottom)-blockTop;
+    var avail=BOTLIM-blockTop;
     var N=Math.floor(avail/rowH); if(N<1)N=1;
     var blockBottom=blockTop+N*rowH, blockH=blockBottom-blockTop;
 
@@ -287,7 +381,7 @@ textarea:focus{outline:none;border-color:var(--gold)}
     if(state.mode==='trace'){ for(var r=0;r<visual.length&&r<N;r++) rowsText[r]=visual[r]; }
     else{ var rr=0; for(var vi=0; vi<visual.length && rr<N; vi++){ if(visual[vi].trim()==='')continue; rowsText[rr]=visual[vi]; rr+=2; } }
 
-    var baseOff=rowH*0.80;
+    var baseOff=rowH*0.84;
     for(var rw=0; rw<N; rw++){
       var T=rowsText[rw]; if(T==null||T==='')continue;
       var tEl=el("text",{x:M.left+2.2, y:blockTop+rw*rowH+baseOff,
@@ -297,13 +391,13 @@ textarea:focus{outline:none;border-color:var(--gold)}
   }
 
   /* ---- КЛІТИНКА (цифри) ---- */
-  function renderGrid(blockTop){
+  function renderGrid(blockTop, BOTLIM){
     var cell = state.size==='big' ? 10 : 7;
-    var fs=cell*0.8;
+    var fs=cell*0.66;
 
     var usableW=PAGE_W-M.right-M.left;
     var cols=Math.floor(usableW/cell); if(cols<1)cols=1;
-    var avail=(PAGE_H-M.bottom)-blockTop;
+    var avail=BOTLIM-blockTop;
     var rows=Math.floor(avail/cell); if(rows<1)rows=1;
     var gridW=cols*cell, gridH=rows*cell;
     var gridBottom=blockTop+gridH, gridRight=M.left+gridW;
@@ -332,9 +426,9 @@ textarea:focus{outline:none;border-color:var(--gold)}
         if(ch===' '){ col++; if(col>=cols){col=0; gr++; if(gr>=rows)return;} continue; }
         if(col>=cols){ col=0; gr++; if(gr>=rows) return; }
         var cx=M.left+col*cell+cell/2;
-        var cy=blockTop+gr*cell+cell*0.76;
+        var cy=blockTop+gr*cell+cell/2;
         var tEl=el("text",{x:cx, y:cy, "font-family":DIGIT_FONT, "font-size":fs,
-          "font-weight":800, "text-anchor":"middle"});
+          "font-weight":800, "text-anchor":"middle", "dominant-baseline":"central"});
         styleMark(tEl,true,true); tEl.textContent=ch; SVG.appendChild(tEl);
         col++;
       }
@@ -348,9 +442,13 @@ textarea:focus{outline:none;border-color:var(--gold)}
   }
 
   function render(){
-    var blockTop=drawPageBase();
-    if(state.paper==='grid') renderGrid(blockTop);
-    else renderLiniya(blockTop);
+    var decor=chkDecor.checked;
+    var TOP = decor?30:16;
+    var BOTLIM = decor?248:(PAGE_H-14);
+    var blockTop=drawPageBase(TOP, decor);
+    if(decor) appendDecor(blockTop, BOTLIM);
+    if(state.paper==='grid') renderGrid(blockTop, BOTLIM);
+    else renderLiniya(blockTop, BOTLIM);
   }
 
   window.printPaper=function(size){
@@ -374,6 +472,7 @@ textarea:focus{outline:none;border-color:var(--gold)}
     b.onclick=function(){
       txt.value=t.v;
       if(t.paper){ state.paper=t.paper; activateSeg('segPaper', t.paper); }
+      if(t.size){ state.size=t.size; activateSeg('segSize', t.size); }
       render();
     };
     chips.appendChild(b);
@@ -393,6 +492,7 @@ textarea:focus{outline:none;border-color:var(--gold)}
 
   txt.addEventListener('input', render);
   chkName.addEventListener('change', render);
+  chkDecor.addEventListener('change', render);
 
   txt.value="а б в г ґ д е\nма мо му ми ме\nМама мила раму.";
 
