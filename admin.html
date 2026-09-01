@@ -196,9 +196,11 @@
   .subj-group.is-collapsed .subj-body{display:none}
   .subj-body{display:grid;gap:10px;padding:12px 14px}
   .grade-sub{
-    font-size:.72rem;font-weight:900;letter-spacing:.04em;color:var(--muted);
-    text-transform:uppercase;margin-top:4px;padding-left:2px;
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+    color:var(--muted);margin-top:6px;padding-left:2px;
   }
+  .grade-sub .grade-name{font-size:.72rem;font-weight:900;letter-spacing:.04em;text-transform:uppercase}
+  .grade-sub .grade-sum{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-left:auto}
   .subj-body > .grade-sub:first-child{margin-top:0}
 
   /* Перемикач "активний" */
@@ -2520,13 +2522,23 @@ function renderList(){
     const collapsed = COLLAPSED_SUBJ.has(subj);
     const subjName  = subj || 'Без предмета';
 
-    /* Картки з міні-підзаголовками класів */
-    let lastGrade = null;
-    const cards = items.map(t => {
+    /* Підгрупи за класом — з підсумками (к-сть тестів + одиниці характеристик) */
+    const byGrade = new Map();
+    items.forEach(t => {
       const g = t.grade ?? 1;
-      let head = '';
-      if (g !== lastGrade){ lastGrade = g; head = `<div class="grade-sub">Клас ${g}</div>`; }
-      return head + testCardHtml(t);
+      if (!byGrade.has(g)) byGrade.set(g, []);
+      byGrade.get(g).push(t);
+    });
+    const cards = [...byGrade.keys()].sort((a, b) => a - b).map(g => {
+      const gi = byGrade.get(g);
+      return `
+        <div class="grade-sub">
+          <span class="grade-name">Клас ${g}</span>
+          <span class="grade-sum">
+            <span class="badge count">${gi.length} тест.</span>
+            ${statSumsHtml(gi)}
+          </span>
+        </div>` + gi.map(testCardHtml).join('');
     }).join('');
 
     return `
