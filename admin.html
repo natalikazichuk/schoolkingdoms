@@ -171,6 +171,36 @@
   .badge.reward{background:rgba(88,214,141,.14);color:#8be0ac;border-color:rgba(88,214,141,.35)}
   .test-card .actions{display:flex;gap:8px;align-items:center}
 
+  /* Загальний підсумок над списком */
+  .test-summary{
+    display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;justify-content:space-between;
+    background:var(--panel-2);border:1px solid var(--border);border-radius:12px;
+    padding:10px 14px;margin-bottom:14px;
+  }
+  .test-summary .sum-count{font-weight:800;color:var(--text);font-size:.95rem}
+  .test-summary .sum-count b{color:var(--gold)}
+  .test-summary .sum-stats{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .badge.count{background:rgba(140,155,255,.16);color:#c9d2ff;border-color:rgba(140,155,255,.35)}
+
+  /* Групи тестів за предметом — згортаються */
+  .subj-group{border:1px solid var(--border);border-radius:14px;background:var(--panel-2);margin-bottom:12px;overflow:hidden}
+  .subj-head{
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    padding:12px 14px;cursor:pointer;user-select:none;background:rgba(140,155,255,.06);
+  }
+  .subj-head:hover{background:rgba(140,155,255,.12)}
+  .subj-head .caret{color:var(--muted);transition:transform .18s;font-size:.9rem;flex:0 0 auto}
+  .subj-head .subj-name{font-family:'Fredoka One',cursive;font-size:1.05rem;color:var(--gold)}
+  .subj-head .subj-sum{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-left:auto}
+  .subj-group.is-collapsed .caret{transform:rotate(-90deg)}
+  .subj-group.is-collapsed .subj-body{display:none}
+  .subj-body{display:grid;gap:10px;padding:12px 14px}
+  .grade-sub{
+    font-size:.72rem;font-weight:900;letter-spacing:.04em;color:var(--muted);
+    text-transform:uppercase;margin-top:4px;padding-left:2px;
+  }
+  .subj-body > .grade-sub:first-child{margin-top:0}
+
   /* Перемикач "активний" */
   .switch{position:relative;display:inline-flex;align-items:center;gap:10px;cursor:pointer;font-size:.8rem;color:var(--muted);font-weight:700}
   .switch input{position:absolute;opacity:0;width:0;height:0;pointer-events:none}
@@ -508,12 +538,15 @@
       <button class="btn ghost" id="btnExportAll">⬇ Експорт усіх</button>
       <button class="btn ghost" id="btnPrintLists">📄 Списки для друку</button>
       <div class="spacer"></div>
+      <button class="btn xs" id="listCollapseAll">▸ Згорнути все</button>
+      <button class="btn xs" id="listExpandAll">▾ Розгорнути все</button>
       <select id="filterSubject" aria-label="Фільтр за предметом" style="max-width:220px">
         <option value="">Усі предмети</option>
       </select>
     </div>
 
     <div class="panel">
+      <div class="test-summary hidden" id="testSummary"></div>
       <div class="test-list" id="testList"></div>
       <div class="empty hidden" id="emptyState">
         <div class="big">📜</div>
@@ -527,6 +560,7 @@
     <div class="toolbar">
       <button class="btn ghost" id="btnBack">← Назад до списку</button>
       <div class="spacer"></div>
+      <button class="btn ghost danger hidden" id="btnDelete" title="Видалити цей тест">🗑 Видалити тест</button>
       <button class="btn" id="btnExportOne">⬇ Експорт цього тесту</button>
       <button class="btn gold" id="btnSave">💾 Зберегти тест</button>
     </div>
@@ -2389,18 +2423,44 @@ function applySubjectStat(){
   }
 }
 
-function renderList(){
-  const filter = $('filterSubject').value;
-  const rows = TESTS.filter(t => !filter || t.subject === filter);
-  const list = $('testList');
-  $('emptyState').classList.toggle('hidden', rows.length !== 0);
+/* Стан згорнутих груп-предметів (зберігається між перемальовуваннями) */
+const COLLAPSED_SUBJ = new Set();
 
-  list.innerHTML = rows.map(t => {
-    const isLv = t.format === 'levels' || (Array.isArray(t.levels) && t.levels.length);
-    const lv = isLv ? (t.levels || []) : null;
-    const qn = isLv ? lv.reduce((s, L) => s + ((L.questions || []).length), 0) : (t.questions || []).length;
-    const st = t.statMode === 'perCorrect' ? `${t.statValue}/правильну` : `+${t.statValue}`;
-    return `
+/* Скільки питань у тесті (плоский або з рівнями) */
+function countQ(t){
+  const isLv = t.format === 'levels' || (Array.isArray(t.levels) && t.levels.length);
+  return isLv ? (t.levels || []).reduce((s, L) => s + ((L.questions || []).length), 0)
+              : (t.questions || []).length;
+}
+/* Скільки одиниць характеристики дає тест (для підсумку) */
+function testStatTotal(t){
+  const v = +t.statValue || 0;
+  return t.statMode === 'perCorrect' ? v * countQ(t) : v;
+}
+/* Бейджі «сума характеристик» для набору тестів, згруповані за статом */
+function statSumsHtml(list){
+  const m = new Map();
+  list.forEach(t => { m.set(t.stat, (m.get(t.stat) || 0) + testStatTotal(t)); });
+  const html = [...m.entries()]
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([k, v]) => `<span class="badge stat">${esc(statLabel(k))} +${v}</span>`)
+    .join('');
+  return html || '<span class="badge">без нагород</span>';
+}
+/* Порядок предметів: як у SUBJECTS; невідомі — далі; порожній — останнім */
+function subjectOrder(name){
+  const i = SUBJECTS.indexOf(name);
+  return i === -1 ? (name ? 900 : 999) : i;
+}
+
+/* Картка одного тесту (без кнопки видалення — вона тепер у редакторі) */
+function testCardHtml(t){
+  const isLv = t.format === 'levels' || (Array.isArray(t.levels) && t.levels.length);
+  const lv = isLv ? (t.levels || []) : null;
+  const qn = countQ(t);
+  const st = t.statMode === 'perCorrect' ? `${t.statValue}/правильну` : `+${t.statValue}`;
+  return `
       <div class="test-card" data-id="${t.id}">
         <div>
           <div class="title">${esc(t.title || 'Без назви')}</div>
@@ -2419,11 +2479,79 @@ function renderList(){
             <span class="track"></span>
           </label>
           <button class="btn sm" data-edit="${t.id}">✏ Редагувати</button>
-          <button class="btn sm danger" data-del="${t.id}">🗑</button>
         </div>
       </div>`;
+}
+
+function renderList(){
+  const filter = $('filterSubject').value;
+  const rows = TESTS.filter(t => !filter || t.subject === filter);
+  const list = $('testList');
+  $('emptyState').classList.toggle('hidden', rows.length !== 0);
+
+  /* Загальний підсумок: к-сть тестів + сума характеристик */
+  const sum = $('testSummary');
+  if (rows.length){
+    sum.classList.remove('hidden');
+    sum.innerHTML =
+      `<span class="sum-count">Усього тестів: <b>${rows.length}</b></span>`
+      + `<span class="sum-stats">${statSumsHtml(rows)}</span>`;
+  } else {
+    sum.classList.add('hidden');
+    sum.innerHTML = '';
+  }
+
+  /* Групування за предметом */
+  const groups = new Map();
+  rows.forEach(t => {
+    const key = t.subject || '';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(t);
+  });
+  const orderedSubjects = [...groups.keys()].sort((a, b) =>
+    subjectOrder(a) - subjectOrder(b) || a.localeCompare(b, 'uk'));
+
+  list.innerHTML = orderedSubjects.map(subj => {
+    /* Сортування всередині предмета: за класом, потім за назвою */
+    const items = groups.get(subj).slice().sort((a, b) =>
+      ((a.grade ?? 0) - (b.grade ?? 0)) ||
+      String(a.title || '').localeCompare(String(b.title || ''), 'uk'));
+
+    const collapsed = COLLAPSED_SUBJ.has(subj);
+    const subjName  = subj || 'Без предмета';
+
+    /* Картки з міні-підзаголовками класів */
+    let lastGrade = null;
+    const cards = items.map(t => {
+      const g = t.grade ?? 1;
+      let head = '';
+      if (g !== lastGrade){ lastGrade = g; head = `<div class="grade-sub">Клас ${g}</div>`; }
+      return head + testCardHtml(t);
+    }).join('');
+
+    return `
+      <section class="subj-group ${collapsed ? 'is-collapsed' : ''}" data-subj="${esc(subj)}">
+        <header class="subj-head" data-subjtoggle="${esc(subj)}">
+          <span class="caret">▾</span>
+          <span class="subj-name">${esc(subjName)}</span>
+          <span class="subj-sum">
+            <span class="badge count">${items.length} тест.</span>
+            ${statSumsHtml(items)}
+          </span>
+        </header>
+        <div class="subj-body">${cards}</div>
+      </section>`;
   }).join('');
 }
+
+/* Згорнути / розгорнути всі групи (в межах поточного фільтра) */
+function listCollapseAll(){
+  const filter = $('filterSubject').value;
+  TESTS.filter(t => !filter || t.subject === filter)
+       .forEach(t => COLLAPSED_SUBJ.add(t.subject || ''));
+  renderList();
+}
+function listExpandAll(){ COLLAPSED_SUBJ.clear(); renderList(); }
 
 /* ============================================================
    РЕДАКТОР
@@ -2446,6 +2574,7 @@ function openEditor(test){
   if (draft.format==='levels' && !draft.levels.length)    draft.levels    = [ blankLevel(1) ];
 
   $('editTitle').textContent = draft.id ? 'Редагування тесту' : 'Новий тест';
+  $('btnDelete').classList.toggle('hidden', !draft.id);   // видалити — лише для наявного тесту
   $('fTitle').value    = draft.title;
   $('fSubject').value  = draft.subject;
   $('fTopic').value    = draft.topic || '';
@@ -2756,6 +2885,21 @@ function bindEvents(){
   $('btnBack').onclick       = closeEditor;
   $('btnSave').onclick       = saveDraft;
   $('filterSubject').onchange= renderList;
+  $('listCollapseAll').onclick = listCollapseAll;
+  $('listExpandAll').onclick   = listExpandAll;
+
+  // Видалення тесту — тепер із редактора
+  $('btnDelete').onclick = async () => {
+    if (!draft || !draft.id) return;
+    const t = TESTS.find(x => x.id === draft.id);
+    if (!confirm(`Видалити тест «${t?.title || draft.title || ''}»? Дію не скасувати.`)) return;
+    try {
+      await SK_API.remove(draft.id);
+      toast('Тест видалено');
+      closeEditor();
+      await loadTests();
+    } catch(err){ console.error(err); toast('Не вдалося видалити', true); }
+  };
 
   // ---- Стат із предмета ----
   $('fSubject').addEventListener('input',  applySubjectStat);
@@ -2835,17 +2979,18 @@ function bindEvents(){
   $('btnAddLevel').onclick = () => { draft.levels.push(blankLevel(draft.levels.length+1)); renderLevels(); };
 
   // Делеговані кліки в списку тестів
-  $('testList').addEventListener('click', async (e) => {
-    const edit = e.target.closest('[data-edit]');
-    const del  = e.target.closest('[data-del]');
-    if (edit){ openEditor(TESTS.find(t => t.id === edit.dataset.edit)); }
-    if (del){
-      const t = TESTS.find(x => x.id === del.dataset.del);
-      if (confirm(`Видалити тест «${t?.title||''}»? Дію не скасувати.`)){
-        try { await SK_API.remove(del.dataset.del); toast('Тест видалено'); await loadTests(); }
-        catch(err){ console.error(err); toast('Не вдалося видалити', true); }
-      }
+  $('testList').addEventListener('click', (e) => {
+    // Згортання / розгортання групи-предмета
+    const head = e.target.closest('[data-subjtoggle]');
+    if (head){
+      const subj = head.getAttribute('data-subjtoggle');
+      const sec  = head.closest('.subj-group');
+      if (COLLAPSED_SUBJ.has(subj)){ COLLAPSED_SUBJ.delete(subj); sec.classList.remove('is-collapsed'); }
+      else { COLLAPSED_SUBJ.add(subj); sec.classList.add('is-collapsed'); }
+      return;
     }
+    const edit = e.target.closest('[data-edit]');
+    if (edit){ openEditor(TESTS.find(t => t.id === edit.dataset.edit)); }
   });
   $('testList').addEventListener('change', async (e) => {
     const sw = e.target.closest('[data-active]');
