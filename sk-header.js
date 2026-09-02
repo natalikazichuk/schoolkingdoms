@@ -220,9 +220,11 @@
     return guessId;
   }
 
-  function subjectRow(tier, subj){
+  function subjectRow(tier, grade, subj){
     var ac = subj.accent || '#5C6BC0';
-    var href = BASE+'tests.html#open='+enc(tier.id)+'&subj='+enc(subj.id);
+    var href = BASE+'tests.html#open='+enc(tier.id)
+             + (grade ? '&grade='+enc(grade.id) : '')
+             + '&subj='+enc(subj.id);
     return '<a class="sk-hd__sub" style="--ac:'+esc(ac)+'" href="'+href+'">'
          +   '<span class="sic">'+esc(subj.icon||'📘')+'</span>'
          +   '<span>'+esc(subj.name||'Предмет')+'</span>'
@@ -246,7 +248,7 @@
         html += '<div class="sk-hd__grade">'
              +    '<a class="sk-hd__glab'+cur+'" href="'+ghref+'">📖 '+esc(g.name||(g.gradeNum+' клас'))+'</a>'
              +    '<div class="sk-hd__subs">'
-             +      (g.subjects||[]).map(function(s){ return subjectRow(tier, s); }).join('')
+             +      (g.subjects||[]).map(function(s){ return subjectRow(tier, g, s); }).join('')
              +    '</div>'
              +  '</div>';
       });

@@ -161,6 +161,21 @@
     100%{box-shadow:0 0 0 0 rgba(242,199,92,0)}
   }
   .sk-return-glow{animation:skReturnGlow 2.6s ease-out 1;border-radius:16px;position:relative;z-index:2}
+  /* приземлення з навігації хедера: яскраве кільце + легкий «стрибок» + спалах шапки */
+  @keyframes skNavRing{
+    0%{box-shadow:0 0 0 0 rgba(242,199,92,0),0 0 0 0 rgba(242,199,92,0)}
+    12%{box-shadow:0 0 0 4px rgba(242,199,92,.95),0 0 30px 8px rgba(242,199,92,.6)}
+    55%{box-shadow:0 0 0 3px rgba(242,199,92,.5),0 0 18px 5px rgba(242,199,92,.28)}
+    100%{box-shadow:0 0 0 0 rgba(242,199,92,0),0 0 0 0 rgba(242,199,92,0)}
+  }
+  @keyframes skNavPop{0%{transform:scale(1)}12%{transform:scale(1.03)}34%{transform:scale(.997)}100%{transform:scale(1)}}
+  @keyframes skNavFlash{0%{background:transparent}15%{background:rgba(242,199,92,.22)}100%{background:transparent}}
+  .sk-nav-land{animation:skNavRing 1.9s ease-out 1,skNavPop .6s ease-out 1;border-radius:16px;position:relative;z-index:3}
+  .sk-nav-land>summary{animation:skNavFlash 1.9s ease-out 1}
+  .grade-name.sk-nav-land{display:inline-block;padding:4px 12px;border-radius:12px;animation:skNavRing 1.9s ease-out 1,skNavFlash 1.9s ease-out 1,skNavPop .6s ease-out 1}
+  @media(prefers-reduced-motion:reduce){
+    .sk-nav-land,.sk-nav-land>summary,.grade-name.sk-nav-land{animation:skNavFlash 1.2s ease-out 1}
+  }
   /* заблокований тест: не клікається, приглушений */
   .chip.ready.locked{pointer-events:none;opacity:.5;filter:grayscale(.45);box-shadow:none;cursor:not-allowed}
   /* підказка-замок поруч із закритим тестом */
@@ -426,7 +441,7 @@ function subjectHtml(s, tier, grade){
   if(!body){
     body = '<p style="color:#9aa6c6;font-weight:600;font-size:.85rem;font-style:italic;margin:2px 0">Тестів поки немає — додай їх в адмін-панелі.</p>';
   }
-  return '<details class="subj" data-tier="'+esc(tier.id)+'" data-subj="'+esc(s.id)+'" style="--accent:'+accent+';--accent-soft:'+withA(accent,'24')+';--accent-line:'+withA(accent,'66')+'">'
+  return '<details class="subj" data-tier="'+esc(tier.id)+'" data-grade="'+esc(grade&&grade.id||'')+'" data-subj="'+esc(s.id)+'" style="--accent:'+accent+';--accent-soft:'+withA(accent,'24')+';--accent-line:'+withA(accent,'66')+'">'
     + '<summary><span class="subj-ic">'+s.icon+'</span>'
     + '<span class="subj-tt"><span class="subj-name">'+s.name+'</span>'
     + '<span class="subj-stat"><b>'+s.stat+'</b></span>'
@@ -886,12 +901,17 @@ function cssEsc(v){
   v = String(v == null ? '' : v);
   return (window.CSS && CSS.escape) ? CSS.escape(v) : v.replace(/["\\\]]/g, '\\$&');
 }
-function glow(el){
+/* приземлення з меню хедера: підкрутити до цілі + помітна коротка анімація */
+function landOn(el){
+  // для предмета зручніше показати його «шапку» (summary), а не центр розкритого блоку
+  var scrollTo = (el.matches && el.matches('details.subj') && el.querySelector('summary')) || el;
+  el.classList.remove('sk-nav-land');   // перезапуск, якщо клікнули повторно
+  void el.offsetWidth;                   // reflow → анімація стартує знову
   requestAnimationFrame(function(){
-    try{ el.scrollIntoView({behavior:'smooth', block:'center'}); }
-    catch(_){ try{ el.scrollIntoView(); }catch(__){} }
-    el.classList.add('sk-return-glow');
-    setTimeout(function(){ el.classList.remove('sk-return-glow'); }, 2600);
+    try{ scrollTo.scrollIntoView({behavior:'smooth', block:'center'}); }
+    catch(_){ try{ scrollTo.scrollIntoView(); }catch(__){} }
+    el.classList.add('sk-nav-land');
+    setTimeout(function(){ el.classList.remove('sk-nav-land'); }, 2100);
   });
 }
 function openFromHash(){
@@ -902,18 +922,19 @@ function openFromHash(){
 
   var tierEl = tierId ? root.querySelector('details.tier[data-tier="'+cssEsc(tierId)+'"]') : null;
 
-  // предмет — найточніша ціль
+  // предмет — найточніша ціль (клас + предмет)
   if(p.subj){
-    var sel = tierId
-      ? 'details.subj[data-tier="'+cssEsc(tierId)+'"][data-subj="'+cssEsc(p.subj)+'"]'
-      : 'details.subj[data-subj="'+cssEsc(p.subj)+'"]';
-    var subjEl = root.querySelector(sel);
+    var base = 'details.subj[data-subj="'+cssEsc(p.subj)+'"]';
+    var subjEl =
+        (tierId && p.grade && root.querySelector('details.subj[data-tier="'+cssEsc(tierId)+'"][data-grade="'+cssEsc(p.grade)+'"][data-subj="'+cssEsc(p.subj)+'"]'))
+     || (tierId && root.querySelector('details.subj[data-tier="'+cssEsc(tierId)+'"]'+base.replace('details.subj','')))
+     || root.querySelector(base);
     if(subjEl){
       for(var el = subjEl.parentNode; el && el !== root; el = el.parentNode){
         if(el.tagName && el.tagName.toLowerCase() === 'details') el.open = true;
       }
       subjEl.open = true;
-      glow(subjEl);
+      landOn(subjEl);
       return true;
     }
   }
@@ -921,10 +942,10 @@ function openFromHash(){
   if(p.grade){
     var gEl = root.querySelector('.grade-name[data-tier="'+cssEsc(tierId)+'"][data-grade="'+cssEsc(p.grade)+'"]')
            || root.querySelector('.grade-name[data-grade="'+cssEsc(p.grade)+'"]');
-    if(gEl){ if(tierEl) tierEl.open = true; glow(gEl); return true; }
+    if(gEl){ if(tierEl) tierEl.open = true; landOn(gEl); return true; }
   }
   // ступінь
-  if(tierEl){ tierEl.open = true; glow(tierEl); return true; }
+  if(tierEl){ tierEl.open = true; landOn(tierEl); return true; }
   return false;
 }
 /* якщо вже на tests.html і хеш змінився (клік у меню хедера) — відкрити ціль без перезавантаження */
