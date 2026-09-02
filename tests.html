@@ -426,7 +426,7 @@ function subjectHtml(s, tier, grade){
   if(!body){
     body = '<p style="color:#9aa6c6;font-weight:600;font-size:.85rem;font-style:italic;margin:2px 0">Тестів поки немає — додай їх в адмін-панелі.</p>';
   }
-  return '<details class="subj" style="--accent:'+accent+';--accent-soft:'+withA(accent,'24')+';--accent-line:'+withA(accent,'66')+'">'
+  return '<details class="subj" data-tier="'+esc(tier.id)+'" data-subj="'+esc(s.id)+'" style="--accent:'+accent+';--accent-soft:'+withA(accent,'24')+';--accent-line:'+withA(accent,'66')+'">'
     + '<summary><span class="subj-ic">'+s.icon+'</span>'
     + '<span class="subj-tt"><span class="subj-name">'+s.name+'</span>'
     + '<span class="subj-stat"><b>'+s.stat+'</b></span>'
@@ -439,14 +439,14 @@ function tierHtml(t, openFirst){
   var inner = '';
   if(Array.isArray(t.grades) && t.grades.length){
     t.grades.forEach(function(g){
-      inner += '<div class="grade-name">📖 '+g.name+'</div>';
+      inner += '<div class="grade-name" data-tier="'+esc(t.id)+'" data-grade="'+esc(g.id)+'">📖 '+g.name+'</div>';
       inner += (g.subjects||[]).map(function(s){ return subjectHtml(s, t, g); }).join('');
     });
   } else {
     inner = '<p style="color:#c6d3ea;font-weight:600;font-size:.9rem;padding:6px 4px 4px">'
           + (t.note || 'У розробці.') + '</p>';
   }
-  return '<details class="tier"'+(openFirst?' open':'')
+  return '<details class="tier" data-tier="'+esc(t.id)+'"'+(openFirst?' open':'')
     + ' style="--tier:'+tint+';--tier-soft:'+withA(tint,'26')+';--tier-line:'+withA(tint,'66')
     + ';background:linear-gradient(165deg,'+withA(tint,'2e')+',rgba(11,26,52,.66) 62%)'
     + ';box-shadow:0 12px 30px rgba(0,0,0,.42),0 0 28px -12px '+tint+'">'
@@ -867,7 +867,68 @@ function render(){
     if(idx >= 0 && tiers[idx]) tiers[idx].open = true;
     else if(tiers[0]) tiers[0].open = true;
   }
+  if(!retKey) openFromHash();      // прихід із навігації хедера: #open=<tier>&subj=<id>|&grade=<id>
 }
+
+/* ── відкрити ступінь/клас/предмет за хешем із навігації хедера ──
+   Формат: tests.html#open=<tierId>[&subj=<subjId>][&grade=<gradeId>] */
+function hashParams(){
+  var h = (location.hash || '').replace(/^#/, '');
+  var p = {};
+  if(!h) return p;
+  h.split('&').forEach(function(kv){
+    var a = kv.split('=');
+    if(a[0]) p[decodeURIComponent(a[0])] = decodeURIComponent(a[1] || '');
+  });
+  return p;
+}
+function cssEsc(v){
+  v = String(v == null ? '' : v);
+  return (window.CSS && CSS.escape) ? CSS.escape(v) : v.replace(/["\\\]]/g, '\\$&');
+}
+function glow(el){
+  requestAnimationFrame(function(){
+    try{ el.scrollIntoView({behavior:'smooth', block:'center'}); }
+    catch(_){ try{ el.scrollIntoView(); }catch(__){} }
+    el.classList.add('sk-return-glow');
+    setTimeout(function(){ el.classList.remove('sk-return-glow'); }, 2600);
+  });
+}
+function openFromHash(){
+  var root = document.getElementById('root');
+  var p = hashParams();
+  var tierId = p.open || p.tier;
+  if(!root || (!tierId && !p.subj)) return false;
+
+  var tierEl = tierId ? root.querySelector('details.tier[data-tier="'+cssEsc(tierId)+'"]') : null;
+
+  // предмет — найточніша ціль
+  if(p.subj){
+    var sel = tierId
+      ? 'details.subj[data-tier="'+cssEsc(tierId)+'"][data-subj="'+cssEsc(p.subj)+'"]'
+      : 'details.subj[data-subj="'+cssEsc(p.subj)+'"]';
+    var subjEl = root.querySelector(sel);
+    if(subjEl){
+      for(var el = subjEl.parentNode; el && el !== root; el = el.parentNode){
+        if(el.tagName && el.tagName.toLowerCase() === 'details') el.open = true;
+      }
+      subjEl.open = true;
+      glow(subjEl);
+      return true;
+    }
+  }
+  // клас
+  if(p.grade){
+    var gEl = root.querySelector('.grade-name[data-tier="'+cssEsc(tierId)+'"][data-grade="'+cssEsc(p.grade)+'"]')
+           || root.querySelector('.grade-name[data-grade="'+cssEsc(p.grade)+'"]');
+    if(gEl){ if(tierEl) tierEl.open = true; glow(gEl); return true; }
+  }
+  // ступінь
+  if(tierEl){ tierEl.open = true; glow(tierEl); return true; }
+  return false;
+}
+/* якщо вже на tests.html і хеш змінився (клік у меню хедера) — відкрити ціль без перезавантаження */
+window.addEventListener('hashchange', function(){ openFromHash(); });
 
 /* первинний стан — щоб не блимала порожня сторінка */
 document.getElementById('root').innerHTML =
