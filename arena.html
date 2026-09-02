@@ -645,11 +645,16 @@ body.scr-battle .wrap{max-width:1500px}
 #wtabGear{--ek-cell:78px;--ek-gap:8px}
 .ek-body{display:grid;grid-template-columns:280px minmax(180px,auto) 1fr;gap:12px;align-items:stretch}
 .ek-card{background:linear-gradient(180deg,#1c3357,#111f3c);border:2px solid rgba(224,164,42,.5);border-radius:16px;padding:10px;position:relative}
-.ek-art{position:relative;border-radius:12px;overflow:hidden;background:linear-gradient(180deg,#bfe3fb 0%,#8fc3ee 55%,#7ab98f 100%);aspect-ratio:1/1;display:flex;align-items:flex-end;justify-content:center}
+.ek-art{position:relative;border-radius:12px;overflow:hidden;background:#bfe3fb url(img/portrait-bg.webp) center/cover no-repeat;box-shadow:inset 0 -60px 60px -30px rgba(0,0,0,.28);aspect-ratio:1/1;display:flex;align-items:flex-end;justify-content:center}
 .ek-art img{width:96%;height:98%;object-fit:contain;object-position:center bottom;filter:drop-shadow(0 8px 10px rgba(0,0,0,.25))}
 .ek-land{position:absolute;inset:0;background:radial-gradient(120% 60% at 50% 120%,rgba(60,120,70,.55),transparent 60%),radial-gradient(90% 40% at 20% 10%,rgba(255,255,255,.35),transparent 60%)}
 .ek-lvl{position:absolute;top:6px;left:6px;display:flex;align-items:center;gap:8px;z-index:3}
 .ek-shield{width:42px;height:48px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.15rem;color:#3a2a06;background:linear-gradient(180deg,#FFE29A,#E7B23E);border:2px solid #b9822a;clip-path:polygon(50% 0,100% 12%,100% 66%,50% 100%,0 66%,0 12%);box-shadow:0 3px 6px rgba(0,0,0,.35)}
+/* банер з іменем (спільний вигляд з Головною) */
+.ek-namebar{text-align:center;margin:0 0 10px}
+.ek-ribbon{position:relative;display:block;background:linear-gradient(180deg,#2f6fc4,#21539c);border:2px solid #fff;border-radius:14px;padding:8px 34px 9px;color:#fff;box-shadow:0 6px 14px rgba(20,40,80,.3);font-family:'Fredoka';font-weight:800;font-size:1.25rem;line-height:1}
+.ek-edit{position:absolute;top:6px;right:8px;background:rgba(255,255,255,.2);border:none;border-radius:8px;width:24px;height:24px;font-size:.8rem;color:#fff;line-height:24px;cursor:pointer;padding:0}
+.ek-grade{display:inline-block;margin-top:7px;background:linear-gradient(180deg,#f4c842,#e0a42a);color:#5a3d05;font-weight:900;font-size:.8rem;padding:3px 16px;border-radius:20px;border:2px solid #fff;box-shadow:0 3px 8px rgba(0,0,0,.2)}
 .ek-xpwrap{background:rgba(9,18,38,.72);border:1.5px solid rgba(224,164,42,.6);border-radius:12px;padding:5px 10px;min-width:140px}
 .ek-xpwrap .t{font-size:.6rem;font-weight:800;color:#ffe9b8;letter-spacing:.03em;margin-bottom:3px}
 .ek-xpbar{height:8px;border-radius:6px;background:rgba(0,0,0,.4);overflow:hidden}
@@ -932,11 +937,15 @@ body.scr-battle .wrap{max-width:1500px}
     <div id="wtabGear">
       <div class="ek-body">
         <section class="ek-card">
+          <div class="ek-namebar">
+            <div class="ek-ribbon"><button class="ek-edit" id="ek-editName" type="button" title="Змінити ім'я" aria-label="Змінити ім'я">✏️</button><span id="ek-heroName">Герой</span></div>
+            <span class="ek-grade" id="ek-heroGrade">Перший клас</span>
+          </div>
           <div class="ek-lvltop">
             <div class="ek-shield" id="ek-lvl">12</div>
             <div class="ek-xpwrap"><div class="t" id="ek-xpTxt">2450 / 3000</div><div class="ek-xpbar"><i id="ek-xpFill" style="width:82%"></i></div></div>
           </div>
-          <div class="ek-art"><div class="ek-land"></div><img id="ek-heroImg" alt="Герой"><button class="ek-avapick" id="ek-avatarPick" title="Змінити образ" aria-label="Змінити образ">🎭</button></div>
+          <div class="ek-art"><img id="ek-heroImg" alt="Герой"></div>
           <div class="ek-bars">
             <div class="ek-bar hp"><span class="ek-bico">❤️</span><span class="ek-track"><i id="ek-hpFill"></i><span class="ek-val" id="ek-hpVal">—</span></span></div>
             <div class="ek-bar mp"><span class="ek-bico">💧</span><span class="ek-track"><i id="ek-mpFill"></i><span class="ek-val" id="ek-mpVal">—</span></span></div>
@@ -1281,7 +1290,8 @@ body.scr-battle .wrap{max-width:1500px}
     });
   }
 
-  function ekHeroData(){ return { health:hero.health, mana:hero.mana, agility:hero.agility, accuracy:hero.accuracy, coins:hero.coins, level:arena.level, xp:arena.xp, xpMax:arena.level*CFG.xpPerLvl, baseHP:CFG.baseHP }; }
+  function heroGrade(){ try{ var p=JSON.parse(localStorage.getItem('sk_hero_profile')||'{}'); return p.grade || 'Перший клас'; }catch(e){ return 'Перший клас'; } }
+  function ekHeroData(){ return { health:hero.health, mana:hero.mana, agility:hero.agility, accuracy:hero.accuracy, coins:hero.coins, level:arena.level, xp:arena.xp, xpMax:arena.level*CFG.xpPerLvl, baseHP:CFG.baseHP, name:(hero.name||'Герой'), grade:heroGrade() }; }
   function openWardrobe(){
     buildLookGrid();
     if(window.EKEQUIP){ EKEQUIP.render(hero.avatar, ekHeroData()); }
@@ -1713,6 +1723,15 @@ body.scr-battle .wrap{max-width:1500px}
     $('itemsBack').addEventListener('click', function(){ switchWTab('gear'); });
     var lb=$('lookBack'); if(lb) lb.addEventListener('click', function(){ switchWTab('gear'); });
     window.__openLook=function(){ buildLookGrid(); switchWTab('look'); };
+    var eb=$('ek-editName'); if(eb) eb.addEventListener('click', function(){
+      var cur=(hero.name||''); var v=prompt("Ім'я героя:", cur);
+      if(v && v.trim()){ v=v.trim().slice(0,16); hero.name=v;
+        try{ var p=JSON.parse(localStorage.getItem('sk_hero_profile')||'{}'); p.name=v; localStorage.setItem('sk_hero_profile',JSON.stringify(p)); }catch(e){}
+        var nn=$('ek-heroName'); if(nn) nn.textContent=v;
+        var pn=$('pName'); if(pn) pn.textContent=v;
+        try{ if(window.SK && SK.pushLocal) SK.pushLocal(); }catch(e){}
+      }
+    });
     // збільшення аватарів на сцені бою
     var ps=$('pScene'); if(ps) ps.addEventListener('click', function(){ openBig('p'); });
     var os=$('oScene'); if(os) os.addEventListener('click', function(){ openBig('o'); });
@@ -2002,9 +2021,9 @@ document.addEventListener('pointermove',function(e){if(!down)return;if(!down.sta
  if(drag){moveGhost(e.clientX,e.clientY);highlightOver(targetAt(e.clientX,e.clientY));e.preventDefault();}},{passive:false});
 document.addEventListener('pointerup',function(e){if(down&&down.started)endDrag(e.clientX,e.clientY);else if(down)tap(down.el);down=null;});
 document.addEventListener('pointercancel',function(){cleanup();down=null;});
-document.addEventListener('click',function(e){if(e.target.closest&&e.target.closest('#ek-avatarPick')){if(window.__openLook)window.__openLook();return;}var t=e.target.closest?e.target.closest('#ek-tabs .ek-tab'):null;if(!t)return;curTab=t.getAttribute('data-tab');renderTabs();renderInv();});
+document.addEventListener('click',function(e){var t=e.target.closest?e.target.closest('#ek-tabs .ek-tab'):null;if(!t)return;curTab=t.getAttribute('data-tab');renderTabs();renderInv();});
 
-window.EKEQUIP={render:function(token,hd){if(hd){['health','mana','agility','accuracy','coins','baseHP'].forEach(function(k){if(hd[k]!=null)HERO[k]=hd[k];});if(hd.level!=null)LEVEL.level=hd.level;if(hd.xp!=null)LEVEL.xp=hd.xp;if(hd.xpMax!=null&&hd.xpMax>0)LEVEL.xpMax=hd.xpMax;}paintAvatar(token);renderAll();}};
+window.EKEQUIP={render:function(token,hd){if(hd){['health','mana','agility','accuracy','coins','baseHP'].forEach(function(k){if(hd[k]!=null)HERO[k]=hd[k];});if(hd.level!=null)LEVEL.level=hd.level;if(hd.xp!=null)LEVEL.xp=hd.xp;if(hd.xpMax!=null&&hd.xpMax>0)LEVEL.xpMax=hd.xpMax;if(hd.name!=null){var nn=document.getElementById('ek-heroName');if(nn)nn.textContent=hd.name;}if(hd.grade!=null){var gg=document.getElementById('ek-heroGrade');if(gg)gg.textContent=hd.grade;}}paintAvatar(token);renderAll();}};
 function init(){renderAll();paintAvatar(null);}
 if(document.readyState!=='loading')init();else document.addEventListener('DOMContentLoaded',init);
 })();

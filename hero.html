@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="hero.css?v=7">
+<link rel="stylesheet" href="hero.css?v=8">
 <script src="sk-avatar.js"></script>
 <script type="module" src="firebase-config.js"></script>
 </head>
@@ -28,6 +28,12 @@
         <h1 id="heroName">…</h1>
       </div>
       <span class="grade-chip" id="heroGrade">Перший клас</span>
+    </div>
+
+    <!-- бойовий рівень + XP (спільний вигляд з ареною) -->
+    <div class="ek-lvltop">
+      <div class="ek-shield" id="heroLvl">1</div>
+      <div class="ek-xpwrap"><div class="t" id="heroXpTxt">0 / 120</div><div class="ek-xpbar"><i id="heroXpFill" style="width:0%"></i></div></div>
     </div>
 
     <div class="portrait">
@@ -53,9 +59,10 @@
       <input type="file" id="avaFile" accept="image/*" hidden>
     </div>
 
-    <div class="info">
-      <div class="info-row"><span class="ic">🎖️</span><span class="k">Титул:</span><span class="v" id="heroTitle">Лицар Знань</span></div>
-      <div class="info-row"><span class="ic">🪙</span><span class="k">Монети:</span><span class="v" id="coins2">540</span></div>
+    <!-- здоровʼя та мана під аватаром (спільний вигляд з ареною) -->
+    <div class="ek-bars">
+      <div class="ek-bar hp"><span class="ek-bico">❤️</span><span class="ek-track"><i id="heroHpFill"></i><span class="ek-val" id="heroHpVal">—</span></span></div>
+      <div class="ek-bar mp"><span class="ek-bico">💧</span><span class="ek-track"><i id="heroMpFill"></i><span class="ek-val" id="heroMpVal">—</span></span></div>
     </div>
 
     <!-- ПРИГОДИ — під рядом з аватаром, у лівій панелі -->
@@ -76,12 +83,7 @@
   <!-- RIGHT CONTENT -->
   <main class="content">
     <h2 class="sec-title">Активні характеристики</h2>
-    <div class="locked-grid active-grid">
-      <a class="lock-card act hp" href="biblioteka.html"><span class="ic">❤️</span><span class="nm">Здоров'я <small>(HP)</small></span><span class="lv" id="hpCur">50</span><span class="pad">→</span></a>
-      <a class="lock-card act agi" href="tests.html"><span class="ic">🪶</span><span class="nm">Спритність <small>(Agility)</small></span><span class="lv" id="agiCur">50</span><span class="pad">→</span></a>
-      <a class="lock-card act mp" href="tests.html"><span class="ic">🔵</span><span class="nm">Мана <small>(MP)</small></span><span class="lv" id="mpCur">20</span><span class="pad">→</span></a>
-      <a class="lock-card act acc" href="tests.html"><span class="ic">🎯</span><span class="nm">Точність <small>(Accuracy)</small></span><span class="lv" id="accCur">50</span><span class="pad">→</span></a>
-    </div>
+    <div class="ek-stats" id="heroStatGrid"></div>
 
     <!-- ЗАДАНІ ЗАВДАННЯ (від дорослих) — дизайн у стилі блоку «Пригоди» -->
     <section class="tasks-card">
@@ -254,7 +256,7 @@ function render(){
   // identity
   $('heroName').textContent=profile.name||'…';
   $('heroGrade').textContent=profile.grade;
-  $('heroTitle').textContent=profile.title;
+  setTxt('heroTitle',profile.title);
   // активні бойові стати (health/agility/mana/accuracy/level/xp/coins) —
   // ЄДИНЕ джерело: Firestore. Поки дані не прийшли — нейтральний стан очікування.
   renderLoadingStats();
@@ -268,12 +270,13 @@ function render(){
 }
 
 function renderLoadingStats(){
-  ['w-coins','coins2','hpCur','agiCur','mpCur','accCur'].forEach(function(id){
+  ['w-coins','heroLvl','heroXpTxt','heroHpVal','heroMpVal'].forEach(function(id){
     const el=$(id); if(el) el.textContent='…';
   });
-  ['hpBar','agiBar','mpBar','accBar'].forEach(function(id){
+  ['heroXpFill','heroHpFill','heroMpFill'].forEach(function(id){
     const el=$(id); if(el) el.style.width='0%';
   });
+  const g=$('heroStatGrid'); if(g) g.innerHTML='';
 }
 
 
@@ -326,11 +329,25 @@ function renderHeroStats(h){
   const accuracy = h.accuracy!=null ? h.accuracy : 50;
   const coins    = h.coins!=null    ? h.coins    : 0;
 
-  setTxt('hpCur',health);    setBar('hpBar',pct(health,100));
-  setTxt('agiCur',agility);  setBar('agiBar',pct(agility,100));
-  setTxt('mpCur',mana);      setBar('mpBar',pct(mana,100));
-  setTxt('accCur',accuracy); setBar('accBar',pct(accuracy,100));
+  // бойовий рівень + XP — те саме джерело, що й арена (sk_arena_level / sk_arena_xp)
+  let lvl=1, xp=0;
+  try{ lvl=+localStorage.getItem('sk_arena_level')||1; xp=+localStorage.getItem('sk_arena_xp')||0; }catch(e){}
+  const xpMax=lvl*120;
+  setTxt('heroLvl',lvl);
+  setTxt('heroXpTxt',xp+' / '+xpMax);
+  setBar('heroXpFill',xpMax?Math.min(100,xp/xpMax*100):0);
+
+  // здоровʼя та мана під аватаром
+  setTxt('heroHpVal',health+' / '+health); setBar('heroHpFill',100);
+  setTxt('heroMpVal',mana+' / '+mana);     setBar('heroMpFill',100);
+
   setTxt('w-coins',coins); setTxt('coins2',coins);
+
+  // сітка характеристик — той самий набір, що в інвентарі арени
+  const tiles=[['dmg','⚔️','Урон',0],['arm','🛡️','Броня',0],['acc','🎯','Точність',accuracy],
+    ['mdmg','✨','Магічний урон',0],['mres','🔮','Магічна стійкість',0],['agi','👟','Спритність',agility]];
+  const grid=$('heroStatGrid');
+  if(grid) grid.innerHTML=tiles.map(function(a){return '<div class="ek-stat '+a[0]+'"><div class="ek-si">'+a[1]+'</div><div class="ek-sl">'+a[2]+'</div><div class="ek-sv">'+a[3]+'</div></div>';}).join('');
 }
 
 /* -- Задані завдання (від дорослих). Джерело з'явиться пізніше: якщо SK матиме
