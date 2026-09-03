@@ -40,9 +40,9 @@ body{
   min-height:100vh;display:flex;flex-direction:column;align-items:center;
   padding:14px;padding-bottom:calc(82px + env(safe-area-inset-bottom));
 }
-.wrap{width:100%;max-width:540px;flex:1;display:flex;flex-direction:column}
+.wrap{width:100%;max-width:540px;flex:1;display:flex;flex-direction:column;min-height:0}
 h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px}
-.screen{display:none;flex:1;flex-direction:column}
+.screen{display:none;flex:1;flex-direction:column;min-height:0}
 .screen.on{display:flex;animation:pop .32s ease}
 @keyframes pop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -121,8 +121,8 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .lc-pic{aspect-ratio:16/11;background:#f5eeda;display:grid;place-items:center;position:relative}
 .lc-pic img{width:100%;height:100%;object-fit:cover;display:block}
 /* Фото тварини в картці — як у «Вчимо літери»: бежевий фон, велике, contain, резерв emoji */
-.acard-pic{background:#f5eeda;display:flex;align-items:center;justify-content:center;position:relative;padding:10px;flex:1;min-height:0}
-.acard-pic img{max-height:100%;max-width:100%;width:100%;height:100%;object-fit:contain;display:block}
+.acard-pic{background:#f5eeda;display:flex;align-items:center;justify-content:center;position:relative;padding:10px;flex:1;min-height:0;overflow:hidden}
+.acard-pic img{position:absolute;inset:8px;width:calc(100% - 16px);height:calc(100% - 16px);object-fit:contain;display:block}
 .acard-pic .lc-emoji{font-size:clamp(110px,30vw,190px);line-height:1}
 .lc-emoji{font-size:96px;line-height:1}
 .lc-draft{position:absolute;left:10px;bottom:8px;font-size:11px;font-weight:800;color:#b9ad93;
@@ -143,13 +143,13 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .navb:disabled{opacity:.35;cursor:default}
 .nav-mid{flex:1;text-align:center;font-family:'Fredoka';font-weight:700;color:var(--soft);font-size:15px}
 .pic-wrap{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
-.card-nav{position:absolute;top:50%;transform:translateY(-50%);width:52px;height:52px;border-radius:50%;
-  border:none;background:rgba(255,255,255,.9);color:var(--ink);font-family:'Fredoka';font-size:34px;line-height:0;
-  display:grid;place-items:center;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.22);z-index:3;transition:transform .1s}
-.card-nav.prev{left:10px}
-.card-nav.next{right:10px}
-.card-nav:active{transform:translateY(-50%) scale(.9)}
-.card-nav:disabled{opacity:.26;pointer-events:none;box-shadow:none}
+.word-row{display:flex;align-items:center;gap:8px;background:#fff;padding:2px 10px}
+.word-col{flex:1;min-width:0}
+.card-nav{flex:none;width:46px;height:46px;border-radius:50%;
+  border:none;background:#fff;color:var(--ink);font-family:'Fredoka';font-size:30px;line-height:0;
+  display:grid;place-items:center;cursor:pointer;box-shadow:0 4px 10px rgba(0,0,0,.18);z-index:3;transition:transform .1s}
+.card-nav:active{transform:scale(.9)}
+.card-nav:disabled{opacity:.28;pointer-events:none;box-shadow:none}
 .card-pos{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);pointer-events:none;
   background:rgba(44,43,58,.55);color:#fff;font-family:'Fredoka';font-weight:700;font-size:13px;
   padding:3px 12px;border-radius:999px;z-index:3}
@@ -348,12 +348,16 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
         <button class="lc-speak" id="cardSpeak" onclick="event.stopPropagation();speakCard()" aria-label="Слухати">🔊</button>
         <div class="pic-wrap">
           <div class="acard-pic" id="aPic"></div>
-          <button class="card-nav prev" id="prevB" onclick="event.stopPropagation();move(-1)" aria-label="Попередня">‹</button>
-          <button class="card-nav next" id="nextB" onclick="event.stopPropagation();move(1)" aria-label="Наступна">›</button>
           <div class="card-pos" id="navMid">1 / 10</div>
         </div>
-        <div class="lc-word"><b id="aName">Корова</b></div>
-        <div class="lc-sound"><span class="say">каже:</span><span class="snd" id="aSound">Му-у!</span></div>
+        <div class="word-row">
+          <button class="card-nav prev" id="prevB" onclick="event.stopPropagation();move(-1)" aria-label="Попередня">‹</button>
+          <div class="word-col">
+            <div class="lc-word"><b id="aName">Корова</b></div>
+            <div class="lc-sound"><span class="say">каже:</span><span class="snd" id="aSound">Му-у!</span></div>
+          </div>
+          <button class="card-nav next" id="nextB" onclick="event.stopPropagation();move(1)" aria-label="Наступна">›</button>
+        </div>
       </div>
     </div>
     <div class="hearword"><button onclick="speakCard()">🔊 Послухати</button></div>
