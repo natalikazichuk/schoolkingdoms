@@ -110,9 +110,9 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 
 /* ══════════════ LEARN — картка літери ══════════════ */
 #learn{gap:12px}
-.card-stage{flex:1;display:flex;flex-direction:column;justify-content:center}
+.card-stage{flex:1;display:flex;flex-direction:column;min-height:0}
 .letter-card{background:var(--card);border-radius:28px;box-shadow:0 10px 0 rgba(44,43,58,.14);
-  border:4px solid #fff;overflow:hidden;position:relative;cursor:pointer;transition:transform .12s}
+  border:4px solid #fff;overflow:hidden;position:relative;cursor:pointer;transition:transform .12s;display:flex;flex-direction:column;flex:1;min-height:0}
 .letter-card:active{transform:scale(.985)}
 .lc-head{padding:16px 18px 10px;display:flex;align-items:flex-end;justify-content:center;gap:6px;
   color:#fff;background:var(--cardc,var(--blue))}
@@ -121,8 +121,8 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .lc-pic{aspect-ratio:16/11;background:#f5eeda;display:grid;place-items:center;position:relative}
 .lc-pic img{width:100%;height:100%;object-fit:cover;display:block}
 /* Фото тварини в картці — як у «Вчимо літери»: бежевий фон, велике, contain, резерв emoji */
-.acard-pic{background:#f5eeda;display:flex;align-items:center;justify-content:center;position:relative;padding:10px;min-height:clamp(180px,44vh,420px)}
-.acard-pic img{max-height:clamp(160px,44vh,430px);max-width:100%;width:auto;height:auto;object-fit:contain;display:block}
+.acard-pic{background:#f5eeda;display:flex;align-items:center;justify-content:center;position:relative;padding:10px;flex:1;min-height:0}
+.acard-pic img{max-height:100%;max-width:100%;width:100%;height:100%;object-fit:contain;display:block}
 .acard-pic .lc-emoji{font-size:clamp(110px,30vw,190px);line-height:1}
 .lc-emoji{font-size:96px;line-height:1}
 .lc-draft{position:absolute;left:10px;bottom:8px;font-size:11px;font-weight:800;color:#b9ad93;
@@ -142,6 +142,17 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .navb:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(44,43,58,.13)}
 .navb:disabled{opacity:.35;cursor:default}
 .nav-mid{flex:1;text-align:center;font-family:'Fredoka';font-weight:700;color:var(--soft);font-size:15px}
+.pic-wrap{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
+.card-nav{position:absolute;top:50%;transform:translateY(-50%);width:52px;height:52px;border-radius:50%;
+  border:none;background:rgba(255,255,255,.9);color:var(--ink);font-family:'Fredoka';font-size:34px;line-height:0;
+  display:grid;place-items:center;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.22);z-index:3;transition:transform .1s}
+.card-nav.prev{left:10px}
+.card-nav.next{right:10px}
+.card-nav:active{transform:translateY(-50%) scale(.9)}
+.card-nav:disabled{opacity:.26;pointer-events:none;box-shadow:none}
+.card-pos{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);pointer-events:none;
+  background:rgba(44,43,58,.55);color:#fff;font-family:'Fredoka';font-weight:700;font-size:13px;
+  padding:3px 12px;border-radius:999px;z-index:3}
 .hearword{margin-top:2px}
 .hearword button{border:none;background:var(--yellow);color:var(--ink);font-family:'Fredoka';
   border-radius:14px;padding:12px;font-size:17px;width:100%;cursor:pointer;box-shadow:0 5px 0 #e0b90f}
@@ -333,15 +344,19 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
     </div>
     <div class="voice-row hidden" id="voiceRow"><span>🎙</span><select id="voiceSel" aria-label="Голос"></select></div>
     <div class="card-stage">
-      <div class="letter-card" id="aCard" onclick="speakCard()">
+      <div class="letter-card" id="aCard" onclick="cardTap(event)">
         <button class="lc-speak" id="cardSpeak" onclick="event.stopPropagation();speakCard()" aria-label="Слухати">🔊</button>
-        <div class="acard-pic" id="aPic"></div>
+        <div class="pic-wrap">
+          <div class="acard-pic" id="aPic"></div>
+          <button class="card-nav prev" id="prevB" onclick="event.stopPropagation();move(-1)" aria-label="Попередня">‹</button>
+          <button class="card-nav next" id="nextB" onclick="event.stopPropagation();move(1)" aria-label="Наступна">›</button>
+          <div class="card-pos" id="navMid">1 / 10</div>
+        </div>
         <div class="lc-word"><b id="aName">Корова</b></div>
         <div class="lc-sound"><span class="say">каже:</span><span class="snd" id="aSound">Му-у!</span></div>
       </div>
     </div>
     <div class="hearword"><button onclick="speakCard()">🔊 Послухати</button></div>
-    <div class="nav-row"><button class="navb" id="prevB" onclick="move(-1)">←</button><div class="nav-mid" id="navMid">1 / 10</div><button class="navb" id="nextB" onclick="move(1)">→</button></div>
   </section>
 
   <!-- ══════ GAMES ══════ -->
@@ -453,9 +468,10 @@ function renderCard(){
   const a=ANIMALS[idx];
   // фото тварини (велике, contain — як у «Вчимо літери») з резервом на емодзі
   const pic=document.getElementById('aPic'); pic.innerHTML='';
+  const tok=(renderCard._tok=(renderCard._tok||0)+1);   // токен рендеру: ігнорувати застаріле завантаження
   const im=new Image(); im.alt=a.name;
-  im.onload =()=>{ pic.innerHTML=''; pic.appendChild(im); };
-  im.onerror=()=>{ pic.innerHTML='<span class="lc-emoji">'+a.emoji+'</span>'; };
+  im.onload =()=>{ if(tok!==renderCard._tok) return; pic.innerHTML=''; pic.appendChild(im); };
+  im.onerror=()=>{ if(tok!==renderCard._tok) return; pic.innerHTML='<span class="lc-emoji">'+a.emoji+'</span>'; };
   im.src='img/tvaryny/'+a.id+'.webp';
   if(im.complete && im.naturalWidth){ im.onload(); }   // кеш → миттєво
   document.getElementById('aName').textContent=a.name;
@@ -467,6 +483,12 @@ function renderCard(){
   updateLearnBar();
   if(allLearned() && userGesture && idx===ALL-1 && !winShown){ winShown=true; setTimeout(openWin,450); }
   if(userGesture) speakCard();
+}
+function cardTap(e){
+  if(e && e.target && e.target.closest && e.target.closest('.card-nav, .lc-speak')) return;
+  const r=e.currentTarget.getBoundingClientRect();
+  const x=(e.clientX!=null?e.clientX:(e.changedTouches&&e.changedTouches[0]?e.changedTouches[0].clientX:r.left+r.width/2))-r.left;
+  move(x < r.width/2 ? -1 : 1);
 }
 function move(d){ userGesture=true; const n=idx+d; if(n<0||n>=ALL)return; idx=n; renderCard(); }
 function updateLearnBar(){ const c=learnedCount(); document.getElementById('learnBar').style.width=Math.round(c/ALL*100)+'%'; document.getElementById('learnPt').textContent=c+' / '+ALL; }
