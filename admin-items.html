@@ -393,12 +393,16 @@ function metaPills(it){
 }
 
 /* мініатюра */
+function itemImgSrc(it){
+  var u=String((it&&it.img)||'').trim();
+  if(/^https?:\/\//i.test(u)) return u;              // ручне перевизначення посиланням
+  if(it&&it.id) return 'img/items/'+it.id+'.webp';   // авто за id → img/items/<id>.webp
+  return '';
+}
 function imgMini(it){
-  var u=String(it.img||'').trim();
-  if(/^https?:\/\//i.test(u)){
-    return '<img src="'+esc(u)+'" alt="" onerror="this.replaceWith(document.createTextNode(\''+catIcon(it.category)+'\'))">';
-  }
-  return catIcon(it.category);
+  var src=itemImgSrc(it);
+  if(!src) return catIcon(it.category);
+  return '<img src="'+esc(src)+'" alt="" loading="lazy" onerror="this.replaceWith(document.createTextNode(\''+catIcon(it.category)+'\'))">';
 }
 
 /* ---- лічильники по категоріях ---- */
@@ -475,16 +479,21 @@ function catOptions(){
 }
 
 /* прев'ю картинки */
-function imgPrevHtml(val){
+function imgPrevHtml(val, id){
   val=String(val==null?'':val).trim();
-  if(!val) return '';
+  var src, note;
   if(/^https?:\/\//i.test(val)){
-    return '<img class="img-prev-el" src="'+esc(val)+'" alt="" '
-      +'onload="this.nextElementSibling.style.display=\'none\'" '
-      +'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'">'
-      +'<span class="img-prev-err">⚠️ Картинку не знайдено за цим посиланням</span>';
+    src=val; note='⚠️ Картинку не знайдено за цим посиланням';
+  } else if(id){
+    src='img/items/'+id+'.webp';
+    note='ℹ️ Файлу img/items/'+id+'.webp ще немає — залий його або встав посилання https://…';
+  } else {
+    return '<span class="img-prev-err" style="display:block;color:var(--muted)">Встав повне посилання (https://…) на зображення.</span>';
   }
-  return '<span class="img-prev-err" style="display:block;color:var(--muted)">Встав повне посилання (https://…) на зображення.</span>';
+  return '<img class="img-prev-el" src="'+esc(src)+'" alt="" '
+    +'onload="this.nextElementSibling.style.display=\'none\'" '
+    +'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'">'
+    +'<span class="img-prev-err">'+esc(note)+'</span>';
 }
 
 /* ---- рендер редактора ---- */
@@ -520,9 +529,10 @@ function renderEditor(){
     +'  <div class="field"><label>Категорія</label><input type="text" id="m_category" list="catlist" value="'+esc(M.category||'')+'"><datalist id="catlist">'+catOptions()+'</datalist></div>'
     +'</div>'
     +'<div class="field"><label>Назва</label><input type="text" id="m_name" value="'+esc(M.name||'')+'" placeholder="Напр.: Сталевий шолом"></div>'
-    +'<div class="field"><label>Картинка — посилання (додамо пізніше)</label>'
-      +'<input type="text" id="m_img" value="'+esc(M.img||'')+'" placeholder="https://…/item.png">'
-      +'<div class="img-prev" id="imgprev">'+imgPrevHtml(M.img)+'</div></div>'
+    +'<div class="field"><label>Картинка</label>'
+      +'<div class="inline-note" style="margin-bottom:6px">За замовчуванням береться <b>img/items/'+esc(M.id||'&lt;id&gt;')+'.webp</b>. Посилання нижче — лише щоб перевизначити.</div>'
+      +'<input type="text" id="m_img" value="'+esc(M.img||'')+'" placeholder="https://…/item.png (необов’язково)">'
+      +'<div class="img-prev" id="imgprev">'+imgPrevHtml(M.img, M.id)+'</div></div>'
     +'<div class="grid">'
     +'  <div class="field"><label>Характеристика</label><select id="m_stat">'+statOptions(M.stat)+'</select></div>'
     +'  <div class="field" style="justify-content:flex-end"><label class="chk" style="margin-bottom:10px"><input type="checkbox" id="m_ranged"'+(M._ranged?' checked':'')+'> Діапазон (зброя/урон, напр. 4–12)</label></div>'
@@ -591,7 +601,7 @@ function setMsg(text, ok){
 /* ---- дії редактора ---- */
 function editorInput(e){
   var t=e.target;
-  if(t && t.id==='m_img'){ var p=el('#imgprev'); if(p) p.innerHTML=imgPrevHtml(t.value); }
+  if(t && t.id==='m_img'){ var p=el('#imgprev'); if(p) p.innerHTML=imgPrevHtml(t.value, M.id); }
 }
 function editorClick(e){
   var b=e.target.closest('[data-act]'); if(!b) return;
