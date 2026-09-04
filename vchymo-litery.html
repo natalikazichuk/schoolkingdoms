@@ -122,9 +122,10 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 
 /* ══════════════ LEARN — картка літери ══════════════ */
 #learn{gap:12px}
-.card-stage{flex:1;display:flex;flex-direction:column;justify-content:center}
+.card-stage{flex:1;display:flex;flex-direction:column;min-height:0}
 .letter-card{background:var(--card);border-radius:28px;box-shadow:var(--e2);
-  border:4px solid #fff;overflow:hidden;position:relative;cursor:pointer;transition:transform .12s}
+  border:4px solid #fff;overflow:hidden;position:relative;cursor:pointer;transition:transform .12s;
+  display:flex;flex-direction:column;flex:1;min-height:0}
 .letter-card:active{transform:scale(.985)}
 .lc-head{padding:26px 18px 14px;display:flex;align-items:flex-end;justify-content:center;gap:6px;
   color:#fff;background:linear-gradient(180deg,#ff8a6b,#ff6f52)}
@@ -138,12 +139,17 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
   background:linear-gradient(180deg,#fff 0%,#fff 52%,#e7ecf6 100%);
   -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;
   filter:drop-shadow(0 2px 0 rgba(0,0,0,.14)) drop-shadow(0 5px 7px rgba(0,0,0,.18))}
-.lc-pic{background:#f5eeda;display:flex;align-items:center;justify-content:center;position:relative;padding:10px;min-height:clamp(180px,44vh,420px)}
-.lc-pic img{max-height:clamp(160px,44vh,430px);max-width:100%;width:auto;height:auto;object-fit:contain;display:block}
+/* Блок зображення завжди максимального розміру (flex:1), картинка підлаштовується (contain) */
+.pic-wrap{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
+.lc-pic{background:#f5eeda;display:flex;align-items:center;justify-content:center;position:relative;padding:10px;flex:1;min-height:0;overflow:hidden}
+.lc-pic img{position:absolute;inset:8px;width:calc(100% - 16px);height:calc(100% - 16px);object-fit:contain;display:block}
+.card-pos{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);pointer-events:none;
+  background:rgba(44,43,58,.55);color:#fff;font-family:'Fredoka';font-weight:700;font-size:13px;
+  padding:3px 12px;border-radius:999px;z-index:3}
 .lc-emoji{font-size:96px;line-height:1}
 .lc-draft{position:absolute;left:10px;bottom:8px;font-size:11px;font-weight:800;color:#b9ad93;
   background:rgba(255,255,255,.8);border-radius:8px;padding:2px 8px}
-.lc-word{padding:12px 14px 16px;text-align:center;background:#fff}
+.lc-word{padding:6px 4px 4px;text-align:center;background:#fff}
 .lc-word b{font-family:'Fredoka';font-size:30px;display:block}
 .lc-word b .hl{color:var(--coral)}
 .lc-word .note{color:var(--soft);font-weight:800;font-size:13px;margin-top:2px;display:block}
@@ -157,12 +163,14 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .lc-listen.on{animation:pulse 1s infinite}
 @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
 
-.nav-row{display:flex;align-items:center;gap:10px}
-.navb{flex:none;width:56px;height:56px;border-radius:18px;border:none;background:#fff;
-  border:2px solid var(--line);font-size:26px;cursor:pointer;box-shadow:var(--shadow);color:var(--ink)}
-.navb:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(44,43,58,.13)}
-.navb:disabled{opacity:.35;cursor:default}
-.nav-mid{flex:1;text-align:center;font-family:'Fredoka';font-weight:700;color:var(--soft);font-size:15px}
+/* Ряд надписів зі стрілками навігації по боках */
+.word-row{display:flex;align-items:center;gap:8px;background:#fff;padding:4px 10px 8px}
+.word-col{flex:1;min-width:0}
+.card-nav{flex:none;width:46px;height:46px;border-radius:50%;
+  border:none;background:#fff;color:var(--ink);font-family:'Fredoka';font-size:30px;line-height:0;
+  display:grid;place-items:center;cursor:pointer;box-shadow:0 4px 10px rgba(0,0,0,.18);z-index:3;transition:transform .1s}
+.card-nav:active{transform:scale(.9)}
+.card-nav:disabled{opacity:.28;pointer-events:none;box-shadow:none}
 
 /* ── Екран літери вміщається над фіксованим футером (десктоп / низька висота вікна).
    Раніше на десктопі картка (min-height 40vh) + банер + стрілки виходили за екран,
@@ -170,20 +178,19 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
    а картинка стискається, щоб «←  X/33  →» завжди були видимі. ── */
 #learn.screen{min-height:0}
 #learn.screen.on{flex:0 0 auto;height:calc(100dvh - 96px - env(safe-area-inset-bottom))}
-#learn .card-stage{flex:1 1 auto;min-height:0;overflow:auto}
-#learn .letter-card{display:flex;flex-direction:column;max-height:min(100%,720px);margin:auto}
-#learn .lc-head,#learn .lc-word{flex:none}
-#learn .lc-pic{flex:1 1 auto;min-height:clamp(200px,42vh,430px)}
-#learn .lc-pic img{max-height:min(100%,48vh)}
+#learn .card-stage{flex:1 1 auto;min-height:0}
+#learn .letter-card{flex:1 1 auto;min-height:0;max-height:min(100%,760px);margin:0 auto;width:100%}
+#learn .lc-head,#learn .word-row{flex:none}
+#learn .lc-pic{flex:1 1 auto;min-height:0}
 /* низькі вікна (десктоп-ландшафт): стискаємо картку, щоб кнопка й стрілки не підрізались */
 @media (max-height:760px){
   #learn .lc-head{padding:10px 16px 6px}
   #learn .lc-big{font-size:74px}
   #learn .lc-small{font-size:42px}
-  #learn .lc-word{padding:8px 14px 10px}
+  #learn .word-row{padding:2px 10px 6px}
+  #learn .lc-word{padding:6px 8px 6px}
   #learn .lc-word b{font-size:24px}
   #learn .lc-listen{margin-top:8px;padding:9px 18px;font-size:16px}
-  #learn .lc-pic{min-height:44px}
 }
 
 /* ── СВЯТКОВА НАГОРОДА ── */
@@ -441,17 +448,20 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
     <div class="card-stage">
       <div class="letter-card" id="letterCard" onclick="speakCard()">
         <div class="lc-head" id="lcHead"><span class="lc-big" id="lcBig">А</span><span class="lc-small" id="lcSmall">а</span></div>
-        <div class="lc-pic" id="lcPic"></div>
-        <div class="lc-word"><b id="lcWord">Ананас</b><span class="note" id="lcNote"></span>
-          <button class="lc-listen" id="cardSpeak" onclick="event.stopPropagation();speakCard()" aria-label="Прослухати літеру"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a8 8 0 0 1 0 12"/></svg></span> Прослухати <b id="listenL">А</b></button>
+        <div class="pic-wrap">
+          <div class="lc-pic" id="lcPic"></div>
+          <div class="card-pos" id="navMid">1 / 33</div>
+        </div>
+        <div class="word-row">
+          <button class="card-nav prev" id="prevB" onclick="event.stopPropagation();move(-1)" aria-label="Попередня літера">‹</button>
+          <div class="word-col">
+            <div class="lc-word"><b id="lcWord">Ананас</b><span class="note" id="lcNote"></span>
+              <button class="lc-listen" id="cardSpeak" onclick="event.stopPropagation();speakCard()" aria-label="Прослухати літеру"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a8 8 0 0 1 0 12"/></svg></span> Прослухати <b id="listenL">А</b></button>
+            </div>
+          </div>
+          <button class="card-nav next" id="nextB" onclick="event.stopPropagation();move(1)" aria-label="Наступна літера">›</button>
         </div>
       </div>
-    </div>
-
-    <div class="nav-row">
-      <button class="navb" id="prevB" onclick="move(-1)">←</button>
-      <div class="nav-mid" id="navMid">1 / 33</div>
-      <button class="navb" id="nextB" onclick="move(1)">→</button>
     </div>
   </section>
 
