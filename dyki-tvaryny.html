@@ -281,7 +281,7 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .btn-row .big-btn{font-size:17px;padding:15px}
 
 .foot{text-align:center;color:var(--soft);font-size:12px;font-weight:800;padding:12px 0 2px}
-.no-voice .lc-speak,.no-voice .q-speak,.no-voice .hearword,.no-voice .voice-row{display:none!important}
+.no-voice .q-speak,.no-voice .hearword,.no-voice .voice-row{display:none!important}
 @media(max-width:380px){.lc-big{font-size:80px}.lc-small{font-size:46px}.abc-grid{grid-template-columns:repeat(5,1fr)}}
 
 
@@ -309,6 +309,10 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 /* варіанти у грі */
 .opt.emoji{font-size:54px;padding:14px 8px}
 .q-bigsound{font-family:'Fredoka';font-size:46px;color:var(--red);margin:6px 0 2px;text-shadow:0 3px 0 rgba(0,0,0,.06)}
+.q-bigplay{width:104px;height:104px;border-radius:50%;border:none;cursor:pointer;font-size:48px;line-height:1;background:var(--red);color:#fff;box-shadow:0 6px 0 rgba(0,0,0,.14);margin:10px auto 6px;display:block;transition:transform .08s}
+.q-bigplay:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(0,0,0,.14)}
+.q-bigplay.on{animation:sndpulse .6s ease}
+@keyframes sndpulse{0%{transform:scale(1)}30%{transform:scale(1.08)}100%{transform:scale(1)}}
 .mem.name{font-size:15px!important;padding:4px}
 @media(max-width:380px){.lc-emoji{font-size:100px}.lc-emoji img{height:150px}.opt.emoji{font-size:46px}.opt.emoji img{width:54px;height:54px}}
 </style>
@@ -365,7 +369,6 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
           <button class="card-nav prev" id="prevB" onclick="event.stopPropagation();move(-1)" aria-label="Попередня">‹</button>
           <div class="word-col">
             <div class="lc-word"><b id="aName">Корова</b></div>
-            <div class="lc-sound"><span class="say">каже:</span><span class="snd" id="aSound">Му-у!</span></div>
           </div>
           <button class="card-nav next" id="nextB" onclick="event.stopPropagation();move(1)" aria-label="Наступна">›</button>
         </div>
@@ -444,6 +447,9 @@ const ANIMALS=[
   {id:'tygr',    name:'Тигр',    emoji:'🐯', img:'img/litery/t.webp',       sound:'Гр-р-ау!',  say:'гр-р-ау', baby:'Тигреня',  color:'var(--pink)'}
 ];
 const SAVE_KEY='sk-dyki-v1';
+/* тварини зі справжнім звуком (mp3). Беззвучних (заєць/білка/їжак) не пускаємо у гру «Хто так говорить?» */
+const SND_IDS=new Set(['vedmid','vovk','lysytsia','olen','lev','slon','tygr','korova','koza','vivtsya','kishka','sobaka','kin','kurka','papuha']);
+function hasSnd(a){ return SND_IDS.has(a.id); }
 const ALL=ANIMALS.length;
 let state={learned:{},soundOn:true};
 let idx=0, userGesture=false, winShown=false;
@@ -494,7 +500,6 @@ function renderCard(){
   im.src=a.img;
   if(im.complete && im.naturalWidth){ im.onload(); }   // кеш → миттєво
   document.getElementById('aName').textContent=a.name;
-  document.getElementById('aSound').textContent=a.sound;
   document.getElementById('aCard').style.setProperty('--ac',a.color);
   if(!state.learned[a.id]){ state.learned[a.id]=true; save(); }
   document.getElementById('prevB').disabled=idx<=0;
@@ -511,7 +516,7 @@ function cardTap(e){
 }
 function move(d){ userGesture=true; const n=idx+d; if(n<0||n>=ALL)return; idx=n; renderCard(); }
 function updateLearnBar(){ const c=learnedCount(); document.getElementById('learnBar').style.width=Math.round(c/ALL*100)+'%'; document.getElementById('learnPt').textContent=c+' / '+ALL; }
-function speakCard(){ userGesture=true; const a=ANIMALS[idx]; playAudio('audio/tvaryna_'+a.id+'.mp3', a.name+'. '+a.say, 'cardSpeak'); }
+function speakCard(){ userGesture=true; const a=ANIMALS[idx]; playAudio('audio/tvaryna_'+a.id+'.mp3', a.name, 'cardSpeak'); }
 
 /* ── сітка всіх тварин ── */
 function openGrid(){
@@ -552,7 +557,8 @@ function renderDots(){
 
 /* --- ігри з вибором: «Хто це?» та «Хто так говорить?» --- */
 function buildChoice(key){
-  const base=shuffle(ANIMALS).slice(0, Math.min(6,ALL));
+  const pool=(key==='zvuk')?ANIMALS.filter(hasSnd):ANIMALS;
+  const base=shuffle(pool).slice(0, Math.min(6,pool.length));
   return base.map(t=>{
     const others=shuffle(ANIMALS.filter(a=>a.id!==t.id)).slice(0,3);
     const opts=shuffle([t,...others]).map(a=>({id:a.id,name:a.name,emoji:a.emoji,img:a.img,baby:a.baby}));
@@ -576,8 +582,8 @@ function renderRound(){
       '<div class="opts" id="opts"></div>';
   } else {
     q='<div class="qbox"><p class="qlabel">Хто так говорить?</p>'+
-      '<div class="q-bigsound">'+r.target.sound+'</div>'+
-      '<button class="q-speak" onclick="playAudio(\'audio/tvaryna_'+r.target.id+'.mp3\',\''+esc(r.target.say)+'\',null)">🔊 Ще раз</button></div>'+
+      '<button class="q-bigplay" onclick="playAudio(\'audio/tvaryna_'+r.target.id+'.mp3\',\'\',null)" aria-label="Слухати">🔊</button>'+
+      '<p class="q-sub">Натисни та послухай</p></div>'+
       '<div class="opts" id="opts"></div>';
   }
   body.innerHTML=q;
@@ -594,7 +600,7 @@ function renderRound(){
   document.getElementById('playFb').className='feedback';
   document.getElementById('playNext').style.display='none';
   renderDots();
-  if(r.kind==='zvuk' && userGesture) setTimeout(()=>playAudio('audio/tvaryna_'+r.target.id+'.mp3', r.target.say, null),260);
+  if(r.kind==='zvuk' && userGesture) setTimeout(()=>playAudio('audio/tvaryna_'+r.target.id+'.mp3', '', null),260);
 }
 function chooseOpt(btn,o,r){
   if(r.answered)return; r.answered=true;
@@ -651,7 +657,7 @@ function tapMem(i,btn){
   const m=game.mem, c=m.cards[i];
   if(btn.classList.contains('matched')||btn.classList.contains('up'))return;
   btn.classList.add('up');
-  if(c.kind==='e'){ btn.innerHTML=picFace(byId(c.id)); playAudio('audio/tvaryna_'+c.id+'.mp3', byId(c.id).say, null); }
+  if(c.kind==='e'){ btn.innerHTML=picFace(byId(c.id)); playAudio('audio/tvaryna_'+c.id+'.mp3', byId(c.id).name, null); }
   else { btn.textContent=c.face; }
   m.open.push(i);
   if(m.open.length<2)return;
