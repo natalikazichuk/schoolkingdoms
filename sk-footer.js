@@ -98,5 +98,16 @@ body{padding-bottom:calc(82px + env(safe-area-inset-bottom))}
     }
     /* fb === 'self' → нічого не вішаємо: сторінка має власний обробник */
   }
-  /* last === 'logout' → кнопку Вийти вішає сама сторінка hero (doLogout) */
+  /* ── «жучок» 🐞 «Повідомити про помилку»: підвантажуємо на кожній
+        сторінці з футером (усі тренажери). Дублі не страшні:
+        sk-report.js має власний захист window.__skReportMounted,
+        а спільний id 'sk-report-loader' збігається з тим, що вантажить
+        sk-header.js, тож двічі не завантажиться. ── */
+  if(!window.__skReportMounted && !document.getElementById('sk-report-loader')){
+    var rep = document.createElement('script');
+    rep.id = 'sk-report-loader';
+    rep.src = base + 'sk-report.js?v=2';
+    rep.defer = true;
+    document.body.appendChild(rep);
+  }
 })();

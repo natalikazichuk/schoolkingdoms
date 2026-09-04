@@ -172,8 +172,8 @@
     var css = document.createElement('style');
     css.id = 'sk-report-css';
     css.textContent =
-      '.sk-bug-btn{position:fixed;right:12px;'
-    + 'bottom:calc(92px + env(safe-area-inset-bottom));z-index:45;'
+      '.sk-bug-btn{position:fixed;right:10px;'
+    + 'top:calc(64px + env(safe-area-inset-top));z-index:50;'
     + 'width:40px;height:40px;border-radius:50%;border:2px solid rgba(242,199,92,.7);'
     + 'background:linear-gradient(180deg,rgba(30,52,92,.92),rgba(12,28,54,.92));'
     + 'color:#fff;font-size:20px;line-height:1;display:flex;align-items:center;'
