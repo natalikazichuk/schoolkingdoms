@@ -140,12 +140,9 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
   -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;
   filter:drop-shadow(0 2px 0 rgba(0,0,0,.14)) drop-shadow(0 5px 7px rgba(0,0,0,.18))}
 /* Блок зображення завжди максимального розміру (flex:1), картинка підлаштовується (contain) */
-.pic-wrap{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
+.pic-wrap{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;cursor:pointer}
 .lc-pic{background:#f5eeda;display:flex;align-items:center;justify-content:center;position:relative;padding:10px;flex:1;min-height:0;overflow:hidden}
 .lc-pic img{position:absolute;inset:8px;width:calc(100% - 16px);height:calc(100% - 16px);object-fit:contain;display:block}
-.card-pos{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);pointer-events:none;
-  background:rgba(44,43,58,.55);color:#fff;font-family:'Fredoka';font-weight:700;font-size:13px;
-  padding:3px 12px;border-radius:999px;z-index:3}
 .lc-emoji{font-size:96px;line-height:1}
 .lc-draft{position:absolute;left:10px;bottom:8px;font-size:11px;font-weight:800;color:#b9ad93;
   background:rgba(255,255,255,.8);border-radius:8px;padding:2px 8px}
@@ -448,9 +445,8 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
     <div class="card-stage">
       <div class="letter-card" id="letterCard" onclick="speakCard()">
         <div class="lc-head" id="lcHead"><span class="lc-big" id="lcBig">А</span><span class="lc-small" id="lcSmall">а</span></div>
-        <div class="pic-wrap">
+        <div class="pic-wrap" onclick="event.stopPropagation();move(1)" title="Наступна літера">
           <div class="lc-pic" id="lcPic"></div>
-          <div class="card-pos" id="navMid">1 / 33</div>
         </div>
         <div class="word-row">
           <button class="card-nav prev" id="prevB" onclick="event.stopPropagation();move(-1)" aria-label="Попередня літера">‹</button>
@@ -699,8 +695,7 @@ function renderCard(){
   im.onerror=()=>{ pic.innerHTML='<span class="lc-emoji">'+it.e+'</span><span class="lc-draft">чернетка</span>'; };
   im.src='img/litery/'+it.id+'.webp';
   if(im.complete && im.naturalWidth){ im.onload(); }  // кеш → миттєво, без порожнечі
-  // прогрес/навігація
-  document.getElementById('navMid').textContent=(idx+1)+' / '+ALL;
+  // прогрес/навігація (лічильник позиції — у верхньому рядку прогресу)
   document.getElementById('prevB').disabled=idx===0;
   document.getElementById('nextB').disabled=idx===ALL-1;
   updateLearnBar();
