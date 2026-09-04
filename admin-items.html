@@ -826,40 +826,56 @@ function chipClick(e){
   renderChips(); renderList();
 }
 
-/* ---- імпорт стартового набору ---- */
-function doSeed(){
+/* ---- імпорт/оновлення зі стартового набору ---- */
+function cleanSeed(s){ var o=Object.assign({}, s); delete o._ranged; delete o._isNew; return o; }
+/* mode: 'add' — лише відсутні; 'fields' — дописати ціну/навички/клас наявним (решту не чіпати) + додати відсутні;
+   'overwrite' — повністю перезаписати наявні з набору + додати відсутні */
+function buildSeedJobs(mode){
+  var byId={}; ITEMS.forEach(function(it){ byId[it.id]=it; });
+  var jobs=[], added=0, updated=0;
+  SEED_ITEMS.forEach(function(s){
+    var ex=byId[s.id];
+    if(!ex){ jobs.push(cleanSeed(s)); added++; return; }
+    if(mode==='add') return;
+    if(mode==='overwrite'){ jobs.push(cleanSeed(s)); updated++; return; }
+    if(mode==='fields'){
+      var merged=Object.assign({}, ex, { grade:s.grade, price:s.price, addStats:s.addStats });
+      delete merged._ranged; delete merged._isNew;
+      jobs.push(merged); updated++;
+    }
+  });
+  return { jobs:jobs, added:added, updated:updated };
+}
+function doSeed(mode){
   if(typeof SEED_ITEMS==='undefined' || !SEED_ITEMS.length){ el('#seedMsg').textContent='Стартовий список недоступний.'; el('#seedMsg').className='msg err'; return; }
-  var have={}; ITEMS.forEach(function(it){ have[it.id]=1; });
-  var toAdd=SEED_ITEMS.filter(function(s){ return !have[s.id]; });
-  var skipped=SEED_ITEMS.length-toAdd.length;
-  if(!toAdd.length){
-    el('#seedMsg').textContent='Усі '+SEED_ITEMS.length+' предметів уже в базі — нічого додавати.';
-    el('#seedMsg').className='msg ok'; return;
-  }
-  if(!confirm('Додати '+toAdd.length+' предметів у базу?'+(skipped?' ('+skipped+' уже наявних пропущу — ваші правки не чіпаю)':''))) return;
-  var btn=el('#btnSeed'); if(btn){ btn.disabled=true; btn.textContent='Імпортую…'; }
-  el('#seedMsg').textContent='Додаю '+toAdd.length+' предметів…'; el('#seedMsg').className='msg ok';
-  // послідовно, щоб не перевантажити
-  var i=0, added=0;
+  var plan=buildSeedJobs(mode);
+  if(!plan.jobs.length){ el('#seedMsg').textContent='Нічого оновлювати — усі '+SEED_ITEMS.length+' предметів уже в базі.'; el('#seedMsg').className='msg ok'; return; }
+  var q;
+  if(mode==='add') q='Додати '+plan.added+' відсутніх предметів у базу?';
+  else if(mode==='fields') q='Дописати ціну/навички/клас до '+plan.updated+' наявних предметів'+(plan.added?' і додати '+plan.added+' відсутніх':'')+'?\n\nНазви й характеристики НЕ змінюються.';
+  else q='⚠️ ПОВНІСТЮ перезаписати '+plan.updated+' наявних предметів даними з набору'+(plan.added?' і додати '+plan.added+' відсутніх':'')+'?\n\nЦе замінить назви, характеристики та міцність на значення з набору — ручні правки в базі буде втрачено.';
+  if(!confirm(q)) return;
+  var btns=document.querySelectorAll('[data-seed]'); btns.forEach(function(b){ b.disabled=true; });
+  el('#seedMsg').className='msg ok';
+  var i=0, done=0, total=plan.jobs.length;
   function step(){
-    if(i>=toAdd.length){ finish(); return; }
-    var s=Object.assign({}, toAdd[i]);
-    delete s._ranged; delete s._isNew;
-    SK.saveItem(s).then(function(){ added++; i++;
-      if(btn) btn.textContent='Імпортую… '+added+'/'+toAdd.length;
+    if(i>=total){ finish(); return; }
+    var s=plan.jobs[i];
+    SK.saveItem(s).then(function(){ done++; i++;
+      el('#seedMsg').textContent='Записую… '+done+'/'+total;
       step();
     }).catch(function(err){
       el('#seedMsg').textContent='⚠️ Помилка на '+s.id+': '+(err&&err.message||err);
       el('#seedMsg').className='msg err';
-      if(btn){ btn.disabled=false; btn.textContent='🌱 Імпортувати стартовий список'; }
+      btns.forEach(function(b){ b.disabled=false; });
     });
   }
   function finish(){
     SK.listItems().then(function(list){
       ITEMS=list||[]; renderView();
-      el('#seedMsg').textContent='✅ Додано '+added+' предметів.'+(skipped?' Пропущено наявних: '+skipped+'.':'');
+      el('#seedMsg').textContent='✅ Готово. '+(plan.added?('Додано: '+plan.added+'. '):'')+(plan.updated?('Оновлено: '+plan.updated+'.'):'');
       el('#seedMsg').className='msg ok';
-      if(btn){ btn.disabled=false; btn.textContent='🌱 Імпортувати стартовий список'; }
+      btns.forEach(function(b){ b.disabled=false; });
     });
   }
   step();
@@ -880,9 +896,14 @@ function renderAdminUI(){
       +'</div>'
     +'</div>'
     +'<div class="panel"><h2>✏️ Редактор предмета</h2><div id="editor"></div></div>'
-    +'<div class="panel"><h2>🌱 Стартовий список</h2>'
-      +'<p class="sub">Одноразово залити базовий набір ('+((typeof SEED_ITEMS!=='undefined'&&SEED_ITEMS.length)||0)+' предметів). Наявні коди пропускаються — ваші правки не перезаписуються.</p>'
-      +'<button class="btn ghost" id="btnSeed">🌱 Імпортувати стартовий список</button>'
+    +'<div class="panel"><h2>🌱 Стартовий набір / оновлення</h2>'
+      +'<p class="sub">Набір містить '+((typeof SEED_ITEMS!=="undefined"&&SEED_ITEMS.length)||0)+' предметів (з цінами, класами й додатковими навичками).</p>'
+      +'<div class="savebar">'
+        +'<button class="btn ghost" data-seed="add">🌱 Додати відсутні</button>'
+        +'<button class="btn" data-seed="fields">➕ Дописати ціни/навички/клас наявним</button>'
+        +'<button class="btn ghost" data-seed="overwrite" style="color:#ffc9ca;border-color:rgba(255,107,122,.4)">🔄 Перезаписати наявні повністю</button>'
+      +'</div>'
+      +'<div class="inline-note" style="margin-top:8px">«Дописати» додає нові поля наявним предметам, не чіпаючи їхні назви й характеристики. «Перезаписати» замінює наявні дані значеннями з набору (обережно — затре ручні правки).</div>'
       +'<div class="msg" id="seedMsg"></div>'
     +'</div>';
 
@@ -903,7 +924,9 @@ function renderAdminUI(){
   el('#editor').addEventListener('click', editorClick);
   el('#editor').addEventListener('input', editorInput);
   el('#editor').addEventListener('change', editorChange);
-  el('#btnSeed').addEventListener('click', doSeed);
+  document.querySelectorAll('[data-seed]').forEach(function(b){
+    b.addEventListener('click', function(){ doSeed(b.getAttribute('data-seed')); });
+  });
   el('#search').addEventListener('input', function(e){ SEARCH=(e.target.value||'').trim(); renderList(); });
 }
 
