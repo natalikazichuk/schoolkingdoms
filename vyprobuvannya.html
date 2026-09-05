@@ -62,34 +62,31 @@
 <script>
 (function(){
   'use strict';
-  var MAP=null, LINKS=[], BY={}, view='classes', selGrade=null, selSubj=null;
+  var MAP=null, LINKS=[], MG={}, view='classes', selGrade=null, selSubj=null;
   var GRADES=[1,2,3,4,5,6,7,8,9,10,11];
   function q(id){return document.getElementById(id);}
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 
-  function build(){
-    BY={};
-    (LINKS||[]).forEach(function(l){
-      if(!l||!l.href) return;
-      var g=String(l.grade==null?'':l.grade).trim();
-      var s=String(l.subject==null?'':l.subject).trim();
-      if(!g||!s) return;                 // без класу/предмета не показуємо у цій навігації
-      (BY[g]=BY[g]||{}); (BY[g][s]=BY[g][s]||[]).push(l);
-    });
-  }
-  function gradeHas(n){var g=BY[String(n)];if(!g)return false;return Object.keys(g).some(function(k){return g[k].length>0;});}
-  function subjectsForGrade(n){
-    var out=[], seen={};
+  function normName(s){return String(s==null?'':s).trim().toLowerCase();}
+  function buildMapIndex(){
+    MG={};
     (MAP&&MAP.tiers||[]).forEach(function(t){(t.grades||[]).forEach(function(g){
-      if(String(g.gradeNum)===String(n)){(g.subjects||[]).forEach(function(sj){
-        if(sj&&sj.name&&!seen[sj.name]){seen[sj.name]=1;out.push({name:sj.name,icon:sj.icon||'📘'});}
-      });}
+      var k=String(g.gradeNum); MG[k]=MG[k]||{};
+      (g.subjects||[]).forEach(function(sj){ if(sj&&sj.name) MG[k][normName(sj.name)]={name:sj.name,icon:sj.icon||'📘'}; });
     });});
-    var bg=BY[String(n)]||{};
-    Object.keys(bg).forEach(function(name){ if(!seen[name]){seen[name]=1;out.push({name:name,icon:'🎯'});} });
+  }
+  function validLink(l){ return !!(l&&l.href&&String(l.subject==null?'':l.subject).trim()); }
+  /* порожній клас у записі = «усі класи» → показуємо в кожному класі; проставлений — лише в ньому */
+  function belongs(l,n){ var g=String(l.grade==null?'':l.grade).trim(); return g ? (g===String(n)) : true; }
+  function classCount(n){ var c=0; LINKS.forEach(function(l){ if(validLink(l)&&belongs(l,n)) c++; }); return c; }
+  function classHas(n){ return classCount(n)>0; }
+  function subjectsForGrade(n){
+    var out=[], seen={}, mg=MG[String(n)]||{};
+    Object.keys(mg).forEach(function(k){ if(!seen[k]){seen[k]=1; out.push(mg[k]);} });
+    LINKS.forEach(function(l){ if(validLink(l)&&belongs(l,n)){ var k=normName(l.subject); if(!seen[k]){seen[k]=1; out.push({name:l.subject,icon:'🎯'});} } });
     return out;
   }
-  function linksFor(n,subj){return (BY[String(n)]&&BY[String(n)][subj])||[];}
+  function linksFor(n,subj){ var s=normName(subj); return LINKS.filter(function(l){ return validLink(l)&&normName(l.subject)===s&&belongs(l,n); }); }
   function trImg(l){
     if(l.imgCard) return l.imgCard;
     var h=String(l.href||'').replace(/\.html?$/i,'').replace(/^.*\//,'');
@@ -98,11 +95,11 @@
 
   function renderClasses(){
     q('sub').textContent='Обери клас.';
-    var any=GRADES.some(gradeHas);
+    var any=GRADES.some(classHas);
     if(!any){ q('screen').innerHTML='<div class="empty">Випробувань ще немає. Додай їх у адмінці → «Випробування» (вкажи клас і предмет).</div>'; return; }
     q('screen').innerHTML='<div class="grid">'+GRADES.map(function(n){
-      var has=gradeHas(n);
-      var cnt=0; if(has){var g=BY[String(n)];Object.keys(g).forEach(function(k){cnt+=g[k].length;});}
+      var has=classHas(n);
+      var cnt=has?classCount(n):0;
       return '<button class="cardbtn'+(has?'':' dis')+'" '+(has?'data-grade="'+n+'"':'disabled')+'>'
         +'<span class="big">'+n+'</span><span class="lbl">клас</span>'
         +'<span class="cnt">'+(has?cnt+' випроб.':'—')+'</span></button>';
@@ -160,8 +157,8 @@
       MAP=res[0]||(window.SKCUR&&SKCUR.map)||{tiers:[]};
       var tr=res[1];
       LINKS=(tr&&Array.isArray(tr.links))?tr.links:((window.SKCUR)?[]:[]);
-      build(); render();
-    }).catch(function(){ MAP={tiers:[]}; LINKS=[]; build(); render(); });
+      buildMapIndex(); render();
+    }).catch(function(){ MAP={tiers:[]}; LINKS=[]; buildMapIndex(); render(); });
   }
   if(document.readyState!=='loading') boot();
   else document.addEventListener('DOMContentLoaded', boot);
