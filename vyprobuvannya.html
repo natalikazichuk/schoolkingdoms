@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Випробування — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Comfortaa:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0e1533;--bg-2:#080c22;--panel:rgba(22,29,66,.72);--panel-2:rgba(30,40,86,.6);
+    --border:rgba(120,140,220,.22);--text:#e9ecff;--muted:#9fb0d8;--gold:#f5c542;--green:#7be0a4;}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:linear-gradient(160deg,var(--bg),var(--bg-2));
+    color:var(--text);font-family:'Fredoka',system-ui,sans-serif}
+  #root{max-width:960px;margin:0 auto;padding:16px 14px}
+  h1{font-family:'Comfortaa',cursive;color:var(--gold);margin:6px 0 2px;font-size:1.5rem}
+  .sub{color:var(--muted);margin:0 0 16px;font-weight:600;font-size:.95rem}
+  .back{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);
+    background:var(--panel-2);color:var(--text);border-radius:12px;padding:9px 15px;
+    font-family:inherit;font-weight:700;cursor:pointer;margin-bottom:14px}
+  .back:hover{border-color:var(--gold)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px}
+  .cardbtn{aspect-ratio:1/1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:4px;background:linear-gradient(180deg,var(--panel-2),rgba(9,13,35,.5));
+    border:1px solid var(--border);border-radius:20px;cursor:pointer;color:var(--text);
+    font-family:inherit;transition:.15s;box-shadow:0 8px 22px rgba(0,0,0,.25);text-align:center;padding:10px}
+  .cardbtn:hover:not(.dis){transform:translateY(-2px);border-color:var(--gold)}
+  .cardbtn .big{font-family:'Comfortaa',cursive;font-size:2.4rem;color:var(--gold);line-height:1}
+  .cardbtn .ico{font-size:2.4rem;line-height:1}
+  .cardbtn .lbl{font-family:'Comfortaa',cursive;font-size:1rem;color:#fff;line-height:1.15}
+  .cardbtn .cnt{font-size:.76rem;color:var(--muted);font-weight:700;margin-top:4px}
+  .cardbtn.dis{opacity:.4;cursor:default;filter:grayscale(.5)}
+  .cardbtn.dis .big,.cardbtn.dis .lbl{color:var(--muted)}
+  /* список випробувань */
+  .tr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+  .tr-card{display:flex;flex-direction:column;align-items:center;gap:6px;text-decoration:none;
+    background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:12px;color:var(--text);
+    transition:.15s}
+  .tr-card:hover{transform:translateY(-2px);border-color:var(--gold)}
+  .tr-thumb{width:100%;aspect-ratio:1/1;border-radius:14px;overflow:hidden;background:#f5eeda;
+    display:flex;align-items:center;justify-content:center}
+  .tr-thumb img{width:100%;height:100%;object-fit:contain}
+  .tr-emoji{font-size:3rem}
+  .tr-name{font-weight:700;text-align:center;line-height:1.2;font-size:.95rem}
+  .tr-badge{font-size:.7rem;font-weight:800;color:#ffe6a3;border:1px solid rgba(245,197,66,.4);
+    border-radius:999px;padding:2px 9px}
+  .empty{color:var(--muted);padding:30px 10px;text-align:center;font-weight:600}
+  .loading{color:var(--muted);padding:30px 10px;text-align:center}
+</style>
+<script src="sk-curriculum.js"></script>
+<script type="module" src="firebase-config.js"></script>
+</head>
+<body>
+<div id="root">
+  <h1>🏆 Випробування</h1>
+  <p class="sub" id="sub">Пройди випробування — і отримай нагороду для героя.</p>
+  <div id="screen"><div class="loading">Завантаження…</div></div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var MAP=null, LINKS=[], BY={}, view='classes', selGrade=null, selSubj=null;
+  var GRADES=[1,2,3,4,5,6,7,8,9,10,11];
+  function q(id){return document.getElementById(id);}
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+
+  function build(){
+    BY={};
+    (LINKS||[]).forEach(function(l){
+      if(!l||!l.href) return;
+      var g=String(l.grade==null?'':l.grade).trim();
+      var s=String(l.subject==null?'':l.subject).trim();
+      if(!g||!s) return;                 // без класу/предмета не показуємо у цій навігації
+      (BY[g]=BY[g]||{}); (BY[g][s]=BY[g][s]||[]).push(l);
+    });
+  }
+  function gradeHas(n){var g=BY[String(n)];if(!g)return false;return Object.keys(g).some(function(k){return g[k].length>0;});}
+  function subjectsForGrade(n){
+    var out=[], seen={};
+    (MAP&&MAP.tiers||[]).forEach(function(t){(t.grades||[]).forEach(function(g){
+      if(String(g.gradeNum)===String(n)){(g.subjects||[]).forEach(function(sj){
+        if(sj&&sj.name&&!seen[sj.name]){seen[sj.name]=1;out.push({name:sj.name,icon:sj.icon||'📘'});}
+      });}
+    });});
+    var bg=BY[String(n)]||{};
+    Object.keys(bg).forEach(function(name){ if(!seen[name]){seen[name]=1;out.push({name:name,icon:'🎯'});} });
+    return out;
+  }
+  function linksFor(n,subj){return (BY[String(n)]&&BY[String(n)][subj])||[];}
+  function trImg(l){
+    if(l.imgCard) return l.imgCard;
+    var h=String(l.href||'').replace(/\.html?$/i,'').replace(/^.*\//,'');
+    return h?('img/tr/'+h+'.webp'):'';
+  }
+
+  function renderClasses(){
+    q('sub').textContent='Обери клас.';
+    var any=GRADES.some(gradeHas);
+    if(!any){ q('screen').innerHTML='<div class="empty">Випробувань ще немає. Додай їх у адмінці → «Випробування» (вкажи клас і предмет).</div>'; return; }
+    q('screen').innerHTML='<div class="grid">'+GRADES.map(function(n){
+      var has=gradeHas(n);
+      var cnt=0; if(has){var g=BY[String(n)];Object.keys(g).forEach(function(k){cnt+=g[k].length;});}
+      return '<button class="cardbtn'+(has?'':' dis')+'" '+(has?'data-grade="'+n+'"':'disabled')+'>'
+        +'<span class="big">'+n+'</span><span class="lbl">клас</span>'
+        +'<span class="cnt">'+(has?cnt+' випроб.':'—')+'</span></button>';
+    }).join('')+'</div>';
+  }
+  function renderSubjects(){
+    q('sub').textContent=selGrade+' клас — обери предмет.';
+    var subs=subjectsForGrade(selGrade);
+    var html='<button class="back" data-back="classes">← Класи</button>';
+    if(!subs.length){ html+='<div class="empty">У цьому класі ще немає предметів із випробуваннями.</div>'; q('screen').innerHTML=html; return; }
+    html+='<div class="grid">'+subs.map(function(sj){
+      var n=linksFor(selGrade,sj.name).length; var has=n>0;
+      return '<button class="cardbtn'+(has?'':' dis')+'" '+(has?'data-subj="'+esc(sj.name)+'"':'disabled')+'>'
+        +'<span class="ico">'+esc(sj.icon)+'</span><span class="lbl">'+esc(sj.name)+'</span>'
+        +'<span class="cnt">'+(has?n+' випроб.':'немає')+'</span></button>';
+    }).join('')+'</div>';
+    q('screen').innerHTML=html;
+  }
+  function renderList(){
+    q('sub').textContent=selGrade+' клас · '+selSubj;
+    var list=linksFor(selGrade,selSubj);
+    var html='<button class="back" data-back="subjects">← Предмети</button>';
+    if(!list.length){ html+='<div class="empty">Немає випробувань.</div>'; q('screen').innerHTML=html; return; }
+    html+='<div class="tr-grid">'+list.map(function(l){
+      var tgt=l.blank?' target="_blank" rel="noopener"':'';
+      var im=trImg(l), emo=esc(l.icon||'🏆');
+      var visual=im
+        ? '<span class="tr-thumb"><img src="'+esc(im)+'" alt="" loading="lazy" onerror="this.parentNode.className=\'tr-emoji\';this.parentNode.innerHTML=\''+emo+'\'"></span>'
+        : '<span class="tr-emoji">'+emo+'</span>';
+      var rw=(Array.isArray(l.rewards)&&l.rewards.length)?'<span class="tr-badge">🎁 нагорода</span>':'';
+      return '<a class="tr-card" href="'+esc(l.href)+'"'+tgt+'>'+visual
+        +'<span class="tr-name">'+esc(l.label||l.href)+'</span>'+rw+'</a>';
+    }).join('')+'</div>';
+    q('screen').innerHTML=html;
+  }
+  function render(){
+    if(view==='classes') renderClasses();
+    else if(view==='subjects') renderSubjects();
+    else renderList();
+  }
+
+  q('screen').addEventListener('click',function(e){
+    var b=e.target.closest('[data-grade]');
+    if(b){ selGrade=Number(b.getAttribute('data-grade')); view='subjects'; render(); window.scrollTo(0,0); return; }
+    var s=e.target.closest('[data-subj]');
+    if(s){ selSubj=s.getAttribute('data-subj'); view='list'; render(); window.scrollTo(0,0); return; }
+    var bk=e.target.closest('[data-back]');
+    if(bk){ view=bk.getAttribute('data-back'); render(); window.scrollTo(0,0); return; }
+  });
+
+  function boot(){
+    var ready=(window.SKCUR&&SKCUR.ready)?SKCUR.ready:Promise.resolve(null);
+    var trP=(window.SK&&SK.ready)?SK.ready.then(function(){return SK.getTrainers?SK.getTrainers():null;}).catch(function(){return null;}):Promise.resolve(null);
+    Promise.all([ready,trP]).then(function(res){
+      MAP=res[0]||(window.SKCUR&&SKCUR.map)||{tiers:[]};
+      var tr=res[1];
+      LINKS=(tr&&Array.isArray(tr.links))?tr.links:((window.SKCUR)?[]:[]);
+      build(); render();
+    }).catch(function(){ MAP={tiers:[]}; LINKS=[]; build(); render(); });
+  }
+  if(document.readyState!=='loading') boot();
+  else document.addEventListener('DOMContentLoaded', boot);
+})();
+</script>
+
+<script>window.SK_HEADER_SUB='Випробування';</script>
+<script src="sk-header.js"></script>
+<script src="sk-footer.js?v=2" data-active="vypr" data-back="hero.html"></script>
+</body>
+</html>

@@ -77,7 +77,7 @@ body{padding-bottom:calc(82px + env(safe-area-inset-bottom))}
   nav.innerHTML =
       tab('home',       'hero.html',       '\uD83C\uDFE0', 'Головна') +
       tab('tests',      'tests.html',      '\uD83D\uDCDC', 'Тести') +
-      tab('biblioteka', 'biblioteka.html', '\uD83D\uDCDA', 'Бібліотека') +
+      tab('vypr',       'vyprobuvannya.html', '\uD83C\uDFC6', 'Випробування') +
       tab('arena',      'arena.html',      '\u2694\uFE0F', 'Арена') +
       lastBtn;
 
