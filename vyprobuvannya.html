@@ -62,7 +62,7 @@
 <script>
 (function(){
   'use strict';
-  var MAP=null, LINKS=[], MG={}, view='classes', selGrade=null, selSubj=null;
+  var MAP=null, LINKS=[], MG={}, view='classes', selGrade=null, selSubj=null, _dbg='';
   var GRADES=[1,2,3,4,5,6,7,8,9,10,11];
   function q(id){return document.getElementById(id);}
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
@@ -96,7 +96,7 @@
   function renderClasses(){
     q('sub').textContent='Обери клас.';
     var any=GRADES.some(classHas);
-    if(!any){ q('screen').innerHTML='<div class="empty">Випробувань ще немає. Додай їх у адмінці → «Випробування» (вкажи клас і предмет).</div>'; return; }
+    if(!any){ q('screen').innerHTML='<div class="empty">Випробувань ще немає. Додай їх у адмінці → «Випробування» (вкажи предмет) і натисни «Зберегти».<br><span style="opacity:.6;font-size:.8rem">'+_dbg+'</span></div>'; return; }
     q('screen').innerHTML='<div class="grid">'+GRADES.map(function(n){
       var has=classHas(n);
       var cnt=has?classCount(n):0;
@@ -150,15 +150,23 @@
     if(bk){ view=bk.getAttribute('data-back'); render(); window.scrollTo(0,0); return; }
   });
 
+  function whenSK(cb){ var t=0; (function tick(){ if(window.SK&&window.SK.ready) return cb(window.SK); if(t++<120) setTimeout(tick,50); else cb(null); })(); }
   function boot(){
-    var ready=(window.SKCUR&&SKCUR.ready)?SKCUR.ready:Promise.resolve(null);
-    var trP=(window.SK&&SK.ready)?SK.ready.then(function(){return SK.getTrainers?SK.getTrainers():null;}).catch(function(){return null;}):Promise.resolve(null);
-    Promise.all([ready,trP]).then(function(res){
+    var mapP=(window.SKCUR&&SKCUR.ready)?SKCUR.ready:Promise.resolve(null);
+    var trP=new Promise(function(res){
+      whenSK(function(SK){
+        if(!SK||!SK.getTrainers){ _dbg='(SK недоступний)'; res(null); return; }
+        SK.ready.then(function(){ return SK.getTrainers(); }).then(res).catch(function(e){ _dbg='(помилка getTrainers)'; res(null); });
+      });
+    });
+    Promise.all([mapP,trP]).then(function(res){
       MAP=res[0]||(window.SKCUR&&SKCUR.map)||{tiers:[]};
       var tr=res[1];
-      LINKS=(tr&&Array.isArray(tr.links))?tr.links:((window.SKCUR)?[]:[]);
+      LINKS=(tr&&Array.isArray(tr.links))?tr.links:[];
+      var valid=LINKS.filter(function(l){return l&&l.href&&String(l.subject==null?'':l.subject).trim();}).length;
+      if(!_dbg) _dbg='отримано записів: '+LINKS.length+', придатних (предмет+посилання): '+valid;
       buildMapIndex(); render();
-    }).catch(function(){ MAP={tiers:[]}; LINKS=[]; buildMapIndex(); render(); });
+    }).catch(function(){ MAP={tiers:[]}; LINKS=[]; if(!_dbg)_dbg='(помилка завантаження)'; buildMapIndex(); render(); });
   }
   if(document.readyState!=='loading') boot();
   else document.addEventListener('DOMContentLoaded', boot);
