@@ -700,6 +700,15 @@ body.scr-battle .wrap{max-width:1500px}
 .ek-tab:hover{background:rgba(255,255,255,.1)}
 .ek-tab.ek-on{background:linear-gradient(180deg,#FFE7A0,#E0A93A);color:#5a3d08;border-color:#C9942F}
 .ek-grid{display:grid;grid-template-columns:repeat(auto-fill,var(--ek-cell));column-gap:var(--ek-gap);row-gap:var(--ek-gap);justify-content:center;align-content:space-between;overflow:auto;padding:2px;flex:1 1 auto;min-height:0}
+.ek-beltbar{margin-top:10px;background:linear-gradient(180deg,#1c3357,#111f3c);border:2px solid rgba(224,164,42,.5);border-radius:14px;padding:8px 10px}
+.ek-belt-lbl{color:#ffe9b8;font-family:'Fredoka';font-weight:700;margin-bottom:6px}
+.ek-belt-c{color:#9fb0d8;font-weight:700;font-size:.85rem}
+.ek-belt{display:flex;gap:8px;flex-wrap:wrap}
+.ek-bslot{width:var(--ek-cell);height:var(--ek-cell);border-radius:12px;border:2px dashed rgba(224,164,42,.4);background:rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;position:relative}
+.ek-bslot.ek-filled{border-style:solid;background:rgba(224,164,42,.12)}
+.ek-bslot.ek-compat{border-color:#7ef0a0}
+.ek-bslot.ek-over{background:rgba(126,240,160,.22)}
+.ek-belt-empty{color:#9fb0d8;font-size:.85rem;padding:6px 2px}
 .ek-cell{background:radial-gradient(120% 120% at 50% 20%,#22406e,#14274a);border:2px solid rgba(224,164,42,.3);box-shadow:inset 0 2px 8px rgba(0,0,0,.4)}
 .ek-qty{position:absolute;right:4px;bottom:3px;font-size:.68rem;font-weight:900;color:#fff;background:rgba(9,18,38,.85);border:1px solid rgba(224,164,42,.6);border-radius:8px;padding:0 5px;line-height:1.4;z-index:2}
 .ek-empty{grid-column:1/-1;text-align:center;color:#9fb2d6;padding:22px 8px;font-weight:700}
@@ -959,6 +968,7 @@ body.scr-battle .wrap{max-width:1500px}
           <div class="ek-grid" id="ek-invGrid"></div>
         </section>
       </div>
+      <section class="ek-beltbar"><div class="ek-belt-lbl">🪢 Пояс <span class="ek-belt-c" id="ek-beltCount"></span></div><div class="ek-belt" id="ek-belt"></div></section>
       <div class="ek-hint2">Перетягни річ у слот або <b>тапни</b>, щоб одягнути. Тап по одягненій речі — зняти.</div>
     </div>
 
@@ -1888,6 +1898,7 @@ body.scr-battle .wrap{max-width:1500px}
 })();
 </script>
 
+<script src="sk-items.js"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
    Дані ЗАРАЗ demo (локально). Крок 2: джерело речей → Firestore (адмінка).
@@ -1907,39 +1918,31 @@ var SLOT_DEFS=[
  ['weaponR','Зброя|права рука','⚔️'],['weaponL','Зброя|ліва рука','🗡️'],
  ['ring1','Кільце 1','💍'],['ring2','Кільце 2','💍']
 ];
-var STAT_UK={agility:'спритність',accuracy:'точність',damage:'урон',armor:'броня',health:"здоров'я",mana:'мана',magicDamage:'магічний урон',magicResist:'магічна стійкість',critDamage:'критичний урон'};
-var uid=1;function it(name,cat,icon,qty,stats){return {uid:'i'+(uid++),name:name,cat:cat,icon:icon,qty:qty,stats:stats||{}};}
-var INV=[
- it('Меч','weapon','⚔️',1,{damage:14}),
- it('Щит','weapon','🛡️',1,{armor:12}),
- it('Посох','weapon','🪄',1,{magicDamage:16}),
- it('Лук','weapon','🏹',2,{accuracy:8,damage:6}),
- it('Стріли','other','🎯',5,{}),
- it('Капелюх мага','head','img/items/mage-hat.webp',1,{}),
- it('Обладунки','body','🥋',1,{armor:18,health:40}),
- it('Плащ','body','🧥',2,{armor:6,magicResist:8}),
- it('Рукавиці','gloves','🧤',1,{agility:6,armor:4}),
- it('Наручі','bracers','🦾',1,{armor:6,agility:3}),
- it('Пояс','belt','🪢',1,{armor:5,health:20}),
- it('Штани','pants','👖',1,{armor:7,agility:5}),
- it('Чоботи','boots','👢',1,{agility:9,armor:4}),
- it('Перстень','ring','💍',1,{magicDamage:10}),
- it('Амулет','amulet','💜',1,{magicResist:12,mana:30}),
- it('Кулон','amulet','🔱',1,{health:60}),
- it('Зілля здоровʼя','other','🧪',3,{}),
- it('Зілля мани','other','🧴',5,{}),
- it('Сувій','other','📜',2,{}),
- it('Книга','other','📖',1,{}),
- it('Ключ','other','🗝️',1,{}),
- it('Скриня','other','🧰',1,{}),
- it('Мішечок','other','💰',8,{}),
- it('Кристал','other','💎',4,{}),
- it('Перо','other','🪶',3,{}),
- it('Трава','other','🌿',6,{}),
- it('Мʼясо','other','🥩',2,{}),
- it('Яблуко','other','🍎',7,{}),
- it('Гриб','other','🍄',4,{})
-];
+var STAT_UK={agility:'спритність',accuracy:'точність',damage:'урон',armor:'броня',health:"здоров'я",mana:'мана',magicDamage:'магічний урон',magicResist:'магічна стійкість',critDamage:'шанс крит. урону',block:'шанс блоку',stun:'оглушення',healthRegen:"відновлення здоров'я",extraAttack:'додаткова атака',beltSlots:'комірки пояса'};
+var CATALOG=[], BYID={}, ALL_INST=[], INV=[], loaded=false, loading=false;
+var CATMAP={'Шоломи':'head','Обладунки':'body','Рукавиці':'gloves','Наручі':'bracers','Пояси':'belt','Штани':'pants','Взуття':'boots','Зброя':'weapon','Щити':'weapon','Кільце':'ring','Амулет':'amulet','Зелья':'other','Свиток':'other'};
+function mapCat(c){return CATMAP[c]||'other';}
+function entryOf(inst){var base=BYID[inst.id];if(!base)return null;return {uid:inst.uid,id:inst.id,qty:inst.qty||1,name:base.name,cat:mapCat(base.category),icon:'img/items/'+base.id+'.webp',_inst:inst,bonus:inst.bonus,identified:inst.identified,usable:!!base.consumable};}
+var BELT=[];
+function rebuild(){
+ for(var s in EQUIP)EQUIP[s]=null;
+ var beltInst=[],rest=[];
+ ALL_INST.forEach(function(inst){var e=entryOf(inst);if(!e)return;
+   if(inst.slot&&/^belt\d+$/.test(inst.slot)){beltInst.push(inst);return;}
+   if(inst.slot&&SLOT_CAT[inst.slot]!==undefined&&!EQUIP[inst.slot]&&compat(e.cat,inst.slot)){EQUIP[inst.slot]=e;}
+   else{inst.slot=null;rest.push(e);}
+ });
+ var bc=beltCount();BELT=[];for(var i=0;i<bc;i++)BELT.push(null);
+ beltInst.forEach(function(inst){var e=entryOf(inst);var idx=parseInt(inst.slot.slice(4),10);
+   if(e&&e.usable&&idx>=0&&idx<bc&&!BELT[idx]){BELT[idx]=e;}else{inst.slot=null;rest.push(e);}});
+ INV=rest;
+}
+function beltCount(){var b=EQUIP.belt;if(!b||!b._inst||!BYID[b.id])return 0;if(!(window.SKIT&&SKIT.effective))return 0;var eff=SKIT.effective(BYID[b.id],b._inst);var n=0;(eff.addStats||[]).forEach(function(e){if(!e.flag&&SKIT.canon(e.stat)==='beltSlots')n+=(e.value||0);});return n;}
+function firstFreeBelt(){for(var i=0;i<BELT.length;i++)if(!BELT[i])return i;return -1;}
+function equipToBelt(u,idx){var inst=findInst(u);if(!inst)return;var e=entryOf(inst);if(!e||!e.usable)return;if(idx<0||idx>=BELT.length)return;var cur=BELT[idx];if(cur&&cur._inst)cur._inst.slot=null;inst.slot='belt'+idx;rebuild();renderAll();persist();}
+function unequipBelt(idx){var e=BELT[idx];if(!e||!e._inst)return;e._inst.slot=null;rebuild();renderAll();persist();}
+function moveBelt(a,b){if(a===b)return;var ea=BELT[a];if(!ea)return;var eb=BELT[b];if(ea._inst)ea._inst.slot='belt'+b;if(eb&&eb._inst)eb._inst.slot='belt'+a;rebuild();renderAll();persist();}
+function persist(){try{if(window.SK&&SK.saveInventory)SK.saveInventory(ALL_INST);}catch(e){}}
 var EQUIP={helmet:null,armor:null,gloves:null,bracers:null,belt:null,pants:null,boots:null,weaponR:null,weaponL:null,ring1:null,ring2:null,amulet:null};
 var TABS=[
  ['all','Усі','🎒',function(){return true;}],
@@ -1950,12 +1953,19 @@ var TABS=[
 var curTab='all';
 
 function isImg(ic){return typeof ic==='string'&&/\.(webp|png|jpe?g|svg|gif)$/i.test(ic);}
-function iconHTML(ic){if(isImg(ic))return '<img class="ek-img" src="'+ic+'" alt="" onerror="this.onerror=null;this.src=this.src.replace(\'.webp\',\'.png\')">';return ic;}
+function iconHTML(ic){if(isImg(ic))return '<img class="ek-img" src="'+ic+'" alt="" onerror="this.onerror=null;this.style.display=\'none\'">';return ic;}
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
-function totals(){var t={health:HERO.health||0,mana:HERO.mana||0,agility:HERO.agility||0,accuracy:HERO.accuracy||0,armor:0,magicResist:0,magicDamage:0,damage:0};
- for(var s in EQUIP){var item=EQUIP[s];if(!item)continue;for(var k2 in item.stats)t[k2]=(t[k2]||0)+item.stats[k2];}
+function totals(){var baseHero={health:HERO.health||0,mana:HERO.mana||0,agility:HERO.agility||0,accuracy:HERO.accuracy||0};
+ var bases=[],insts=[];for(var s in EQUIP){var e=EQUIP[s];if(e&&e._inst&&BYID[e.id]){bases.push(BYID[e.id]);insts.push(e._inst);}}
+ var t={health:0,mana:0,agility:0,accuracy:0,armor:0,magicResist:0,magicDamage:0,damage:0};
+ if(window.SKIT&&SKIT.combine){var c=SKIT.combine(baseHero,bases,insts);for(var k in c.stats)t[k]=c.stats[k];t._pctOnly=c.pctOnly;}else{t.health=baseHero.health;t.mana=baseHero.mana;t.agility=baseHero.agility;t.accuracy=baseHero.accuracy;}
  return t;}
-function bonusTitle(item){var p=[];for(var k in item.stats)p.push((STAT_UK[k]||k)+' +'+item.stats[k]);return item.name+(p.length?' — '+p.join(', '):'');}
+function bonusTitle(x){var base=BYID[x.id];if(!base)return x.name||'';var eff=(window.SKIT&&SKIT.effective)?SKIT.effective(base,x._inst||{bonus:1}):null;var p=[];
+ if(eff&&eff.stat&&eff.valueMax!=null){var vt=eff.valueMin===eff.valueMax?eff.valueMin:(eff.valueMin+'–'+eff.valueMax);p.push((STAT_UK[SKIT.canon(eff.stat)]||eff.stat)+' '+vt);}
+ var see=(window.SKIT&&SKIT.canSeeAddStats)?SKIT.canSeeAddStats(x._inst||{},HERO):false;
+ if(eff&&eff.addStats.length){if(see){eff.addStats.forEach(function(e){if(e.flag||SKIT.isFlagEntry(e))p.push(e.stat);else p.push((STAT_UK[SKIT.canon(e.stat)]||e.stat)+' +'+e.value+(e.pct?'%':''));});}else{p.push('🔒 '+eff.addStats.length+' прихованих навичок');}}
+ var bl=x.bonus>1.15?' ✨+20%':(x.bonus>1?' ✨+10%':(x.bonus<1?' ⬇−10%':''));
+ return x.name+bl+(p.length?' — '+p.join(', '):'');}
 
 function paintAvatar(token){var img=q('ek-heroImg');if(!img)return;var S=window.SKAVA;
  if(S&&S.isHeroToken&&S.isHeroToken(token)&&S.has&&S.has(S.idOf(token))){var id=S.idOf(token);
@@ -1984,37 +1994,51 @@ function renderInv(){var f=null;for(var i=0;i<TABS.length;i++)if(TABS[i][0]===cu
   (x.qty>1?'<span class="ek-qty">'+x.qty+'</span>':'')+'</div>';}).join('');}
 
 function renderTabs(){q('ek-tabs').innerHTML=TABS.map(function(t){return '<span class="ek-tab'+(t[0]===curTab?' ek-on':'')+'" data-tab="'+t[0]+'">'+t[2]+' '+t[1]+'</span>';}).join('');}
-function renderAll(){renderTabs();renderSlots();renderInv();renderStats();}
+function renderBelt(){var host=q('ek-belt');if(!host)return;var bc=BELT.length;var cnt=q('ek-beltCount');if(cnt)cnt.textContent=bc?('('+BELT.filter(Boolean).length+'/'+bc+')'):'';
+ if(!bc){host.innerHTML='<div class="ek-belt-empty">Вдягни пояс із комірками, щоб класти зілля та свитки.</div>';return;}
+ var out='';for(var i=0;i<bc;i++){var e=BELT[i];
+  if(e)out+='<div class="ek-bslot ek-filled" data-belt="'+i+'"><span class="ek-chip ek-drag" data-src="belt" data-belt="'+i+'" title="'+esc(bonusTitle(e))+'">'+iconHTML(e.icon)+'</span></div>';
+  else out+='<div class="ek-bslot" data-belt="'+i+'"><span class="ek-gh">➕</span></div>';}
+ host.innerHTML=out;}
+function renderAll(){renderTabs();renderSlots();renderInv();renderBelt();renderStats();}
 
 function findInv(u){for(var i=0;i<INV.length;i++)if(INV[i].uid===u)return INV[i];return null;}
+function findInst(u){for(var i=0;i<ALL_INST.length;i++)if(ALL_INST[i].uid===u)return ALL_INST[i];return null;}
 function compat(cat,slotId){return SLOT_CAT[slotId]===cat;}
 function firstFree(cat){var s;for(s in SLOT_CAT)if(SLOT_CAT[s]===cat&&!EQUIP[s])return s;for(s in SLOT_CAT)if(SLOT_CAT[s]===cat)return s;return null;}
-function invAdd(item){for(var i=0;i<INV.length;i++)if(INV[i].name===item.name&&INV[i].cat===item.cat){INV[i].qty+=(item.qty||1);return;}INV.push({uid:'i'+(uid++),name:item.name,cat:item.cat,icon:item.icon,stats:item.stats,qty:item.qty||1});}
-function equipFromInv(u,slotId){var inv=findInv(u);if(!inv||inv.qty<1)return;if(!compat(inv.cat,slotId))return;
- if(EQUIP[slotId])invAdd(EQUIP[slotId]);EQUIP[slotId]={name:inv.name,cat:inv.cat,icon:inv.icon,stats:inv.stats,qty:1};inv.qty--;renderAll();}
-function unequip(slotId){if(!EQUIP[slotId])return;invAdd(EQUIP[slotId]);EQUIP[slotId]=null;renderAll();}
-function moveSlot(a,b){if(a===b)return;if(!compat(EQUIP[a].cat,b))return;var t=EQUIP[b];EQUIP[b]=EQUIP[a];EQUIP[a]=t;renderAll();}
+function equipFromInv(u,slotId){var inst=findInst(u);if(!inst)return;var e=entryOf(inst);if(!e||!compat(e.cat,slotId))return;var cur=EQUIP[slotId];if(cur&&cur._inst)cur._inst.slot=null;inst.slot=slotId;rebuild();renderAll();persist();}
+function unequip(slotId){var e=EQUIP[slotId];if(!e||!e._inst)return;e._inst.slot=null;rebuild();renderAll();persist();}
+function moveSlot(a,b){if(a===b)return;var ea=EQUIP[a];if(!ea)return;if(!compat(ea.cat,b))return;var eb=EQUIP[b];if(ea._inst)ea._inst.slot=b;if(eb&&eb._inst)eb._inst.slot=a;rebuild();renderAll();persist();}
 
 var ghost=null;function mkGhost(){if(ghost)return;ghost=document.createElement('div');ghost.id='ek-ghost';ghost.hidden=true;document.body.appendChild(ghost);}
 var drag=null,down=null;
-function startDrag(el,x,y){var src=el.getAttribute('data-src'),cat,icon;
- if(src==='inv'){var i=findInv(el.getAttribute('data-uid'));if(!i)return;cat=i.cat;icon=i.icon;drag={src:src,uid:el.getAttribute('data-uid'),cat:cat,icon:icon};}
+function startDrag(el,x,y){var src=el.getAttribute('data-src'),cat,icon,usable=false;
+ if(src==='inv'){var i=findInv(el.getAttribute('data-uid'));if(!i)return;cat=i.cat;icon=i.icon;usable=!!i.usable;drag={src:src,uid:el.getAttribute('data-uid'),cat:cat,icon:icon,usable:usable};}
+ else if(src==='belt'){var bi=parseInt(el.getAttribute('data-belt'),10);var be=BELT[bi];if(!be)return;cat=be.cat;icon=be.icon;usable=true;drag={src:src,belt:bi,cat:cat,icon:icon,usable:true};}
  else{var s=el.getAttribute('data-slot'),item=EQUIP[s];if(!item)return;cat=item.cat;icon=item.icon;drag={src:src,slot:s,cat:cat,icon:icon};}
  mkGhost();ghost.innerHTML=iconHTML(icon);ghost.hidden=false;moveGhost(x,y);
  var slots=document.querySelectorAll('#ek-slots .ek-slot');for(var k=0;k<slots.length;k++)if(compat(cat,slots[k].getAttribute('data-slot')))slots[k].classList.add('ek-compat');
+ if(usable){var bs=document.querySelectorAll('#ek-belt .ek-bslot');for(var j=0;j<bs.length;j++)bs[j].classList.add('ek-compat');}
  document.body.style.userSelect='none';}
 function moveGhost(x,y){ghost.style.left=x+'px';ghost.style.top=y+'px';}
 function targetAt(x,y){ghost.style.visibility='hidden';var el=document.elementFromPoint(x,y);ghost.style.visibility='';if(!el)return null;
  var slot=el.closest('.ek-slot');if(slot)return {type:'slot',id:slot.getAttribute('data-slot'),el:slot};
+ var bsl=el.closest('.ek-bslot');if(bsl)return {type:'belt',idx:parseInt(bsl.getAttribute('data-belt'),10),el:bsl};
  var inv=el.closest('.ek-inv');if(inv)return {type:'inv'};return null;}
-function highlightOver(t){var o=document.querySelectorAll('.ek-slot.ek-over');for(var i=0;i<o.length;i++)o[i].classList.remove('ek-over');
- if(t&&t.type==='slot'&&t.el.classList.contains('ek-compat'))t.el.classList.add('ek-over');}
+function highlightOver(t){var o=document.querySelectorAll('.ek-slot.ek-over,.ek-bslot.ek-over');for(var i=0;i<o.length;i++)o[i].classList.remove('ek-over');
+ if(t&&t.type==='slot'&&t.el.classList.contains('ek-compat'))t.el.classList.add('ek-over');
+ if(t&&t.type==='belt'&&t.el&&t.el.classList.contains('ek-compat'))t.el.classList.add('ek-over');}
 function endDrag(x,y){var t=targetAt(x,y);if(drag&&t){
-  if(t.type==='slot'&&compat(drag.cat,t.id)){if(drag.src==='inv')equipFromInv(drag.uid,t.id);else moveSlot(drag.slot,t.id);}
-  else if(t.type==='inv'&&drag.src==='slot')unequip(drag.slot);}cleanup();}
-function cleanup(){drag=null;if(ghost)ghost.hidden=true;var c=document.querySelectorAll('.ek-slot.ek-compat,.ek-slot.ek-over');for(var i=0;i<c.length;i++)c[i].classList.remove('ek-compat','ek-over');document.body.style.userSelect='';}
-function tap(el){if(el.getAttribute('data-src')==='inv'){var i=findInv(el.getAttribute('data-uid'));if(!i)return;var s=firstFree(i.cat);if(s)equipFromInv(el.getAttribute('data-uid'),s);}
- else if(el.getAttribute('data-src')==='slot')unequip(el.getAttribute('data-slot'));}
+  if(t.type==='slot'&&compat(drag.cat,t.id)){if(drag.src==='inv')equipFromInv(drag.uid,t.id);else if(drag.src==='slot')moveSlot(drag.slot,t.id);}
+  else if(t.type==='belt'&&drag.usable){if(drag.src==='inv')equipToBelt(drag.uid,t.idx);else if(drag.src==='belt')moveBelt(drag.belt,t.idx);}
+  else if(t.type==='inv'){if(drag.src==='slot')unequip(drag.slot);else if(drag.src==='belt')unequipBelt(drag.belt);}}cleanup();}
+function cleanup(){drag=null;if(ghost)ghost.hidden=true;var c=document.querySelectorAll('.ek-slot.ek-compat,.ek-slot.ek-over,.ek-bslot.ek-compat,.ek-bslot.ek-over');for(var i=0;i<c.length;i++)c[i].classList.remove('ek-compat','ek-over');document.body.style.userSelect='';}
+function tap(el){var src=el.getAttribute('data-src');
+ if(src==='inv'){var i=findInv(el.getAttribute('data-uid'));if(!i)return;
+   if(i.usable){var bi=firstFreeBelt();if(bi>=0)equipToBelt(el.getAttribute('data-uid'),bi);return;}
+   var s=firstFree(i.cat);if(s)equipFromInv(el.getAttribute('data-uid'),s);}
+ else if(src==='belt'){unequipBelt(parseInt(el.getAttribute('data-belt'),10));}
+ else if(src==='slot'){unequip(el.getAttribute('data-slot'));}}
 
 document.addEventListener('pointerdown',function(e){var el=e.target.closest?e.target.closest('.ek-drag'):null;if(!el)return;down={el:el,x:e.clientX,y:e.clientY,started:false};});
 document.addEventListener('pointermove',function(e){if(!down)return;if(!down.started){if(Math.hypot(e.clientX-down.x,e.clientY-down.y)<7)return;down.started=true;startDrag(down.el,e.clientX,e.clientY);}
@@ -2023,8 +2047,10 @@ document.addEventListener('pointerup',function(e){if(down&&down.started)endDrag(
 document.addEventListener('pointercancel',function(){cleanup();down=null;});
 document.addEventListener('click',function(e){var t=e.target.closest?e.target.closest('#ek-tabs .ek-tab'):null;if(!t)return;curTab=t.getAttribute('data-tab');renderTabs();renderInv();});
 
-window.EKEQUIP={render:function(token,hd){if(hd){['health','mana','agility','accuracy','coins','baseHP'].forEach(function(k){if(hd[k]!=null)HERO[k]=hd[k];});if(hd.level!=null)LEVEL.level=hd.level;if(hd.xp!=null)LEVEL.xp=hd.xp;if(hd.xpMax!=null&&hd.xpMax>0)LEVEL.xpMax=hd.xpMax;if(hd.name!=null){var nn=document.getElementById('ek-heroName');if(nn)nn.textContent=hd.name;}if(hd.grade!=null){var gg=document.getElementById('ek-heroGrade');if(gg)gg.textContent=hd.grade;}}paintAvatar(token);renderAll();}};
-function init(){renderAll();paintAvatar(null);}
+function loadData(){if(loaded||loading)return Promise.resolve();loading=true;
+ return (window.SK&&SK.ready?SK.ready:Promise.resolve()).then(function(){var pC=(window.SK&&SK.listItems)?SK.listItems():Promise.resolve([]);var pI=(window.SK&&SK.getInventory)?SK.getInventory():Promise.resolve([]);return Promise.all([pC,pI]);}).then(function(res){CATALOG=res[0]||[];BYID={};CATALOG.forEach(function(b){BYID[b.id]=b;});ALL_INST=(res[1]||[]).filter(function(x){return x&&x.id;});loaded=true;loading=false;rebuild();renderAll();}).catch(function(){loading=false;});}
+window.EKEQUIP={render:function(token,hd){if(hd){['health','mana','agility','accuracy','coins','baseHP'].forEach(function(k){if(hd[k]!=null)HERO[k]=hd[k];});if(hd.level!=null)LEVEL.level=hd.level;if(hd.xp!=null)LEVEL.xp=hd.xp;if(hd.xpMax!=null&&hd.xpMax>0)LEVEL.xpMax=hd.xpMax;if(hd.name!=null){var nn=document.getElementById('ek-heroName');if(nn)nn.textContent=hd.name;}if(hd.grade!=null){var gg=document.getElementById('ek-heroGrade');if(gg)gg.textContent=hd.grade;}}paintAvatar(token);renderAll();loadData();},reload:function(){loaded=false;return loadData();}};
+function init(){renderAll();paintAvatar(null);loadData();}
 if(document.readyState!=='loading')init();else document.addEventListener('DOMContentLoaded',init);
 })();
 </script>
