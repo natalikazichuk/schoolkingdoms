@@ -1178,6 +1178,32 @@ const SK = {
   async deleteReport(id) {
     if (!id) return;
     await deleteDoc(doc(db, 'reports', id));
+  },
+
+  /* ===== ІНВЕНТАР ГЕРОЯ =========================================
+     Зберігаємо в документі Героя: heroes/{id}.inventory — масив
+     екземплярів { uid, id, qty, bonus, durMax, durCur, identified }.
+     Пишемо лише свій документ (ті самі права, що saveHeroStats). */
+  async getInventory() {
+    const heroId = SK._heroUid();
+    if (!heroId) return [];
+    const s = await getDoc(doc(db, 'heroes', heroId));
+    const d = s.exists() ? s.data() : null;
+    return (d && Array.isArray(d.inventory)) ? d.inventory : [];
+  },
+  async saveInventory(list) {
+    const heroId = SK._heroUid();
+    if (!heroId) return false;
+    await setDoc(doc(db, 'heroes', heroId),
+      { inventory: Array.isArray(list) ? list : [], updatedAt: serverTimestamp() },
+      { merge: true });
+    return true;
+  },
+  // Додати екземпляри до наявного інвентаря (не перезаписує решту).
+  async addToInventory(instances) {
+    const cur = await SK.getInventory();
+    const next = cur.concat(Array.isArray(instances) ? instances : [instances]);
+    return SK.saveInventory(next);
   }
 };
 

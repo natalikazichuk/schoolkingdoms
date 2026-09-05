@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Інвентар героя — SchoolKingdom</title>
+<link rel="stylesheet" href="sk-styles.css">
+<style>
+  :root{--bg:#0e1533;--bg-2:#080c22;--panel:rgba(22,29,66,.72);--panel-2:rgba(30,40,86,.6);
+    --border:rgba(120,140,220,.22);--text:#e9ecff;--muted:#9fb0d8;--gold:#f5c542;}
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(160deg,var(--bg),var(--bg-2));color:var(--text);
+    font-family:'Nunito',system-ui,sans-serif;min-height:100vh;padding:16px}
+  #root{max-width:1000px;margin:0 auto}
+  h1{font-family:'Fredoka One',cursive;color:var(--gold);margin:6px 0 2px}
+  .sub{color:var(--muted);margin:0 0 16px;font-weight:600}
+  .bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+  .btn{border:1px solid var(--border);background:var(--panel-2);color:var(--text);
+    border-radius:12px;padding:10px 16px;font-weight:800;cursor:pointer;font-family:inherit}
+  .btn.gold{background:linear-gradient(180deg,#ffd93b,#f0a92b);color:#3a2a00;border-color:#e0a020}
+  .btn.danger{color:#ffc9ca;border-color:rgba(255,107,122,.4)}
+  .btn:disabled{opacity:.5;cursor:default}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:12px;position:relative}
+  .card .pic{width:100%;aspect-ratio:1/1;background:#f5eeda;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:8px}
+  .card .pic img{width:100%;height:100%;object-fit:contain}
+  .code{font-family:ui-monospace,monospace;font-size:.72rem;color:var(--muted)}
+  .nm{font-weight:800;margin:2px 0 6px}
+  .bonus{position:absolute;top:10px;right:10px;font-weight:900;border-radius:999px;padding:3px 9px;font-size:.8rem}
+  .bonus.up{background:rgba(80,220,120,.18);color:#7ef0a0;border:1px solid rgba(80,220,120,.5)}
+  .bonus.big{background:rgba(245,197,66,.18);color:#ffd93b;border:1px solid rgba(245,197,66,.6)}
+  .bonus.down{background:rgba(255,107,122,.16);color:#ff9aa5;border:1px solid rgba(255,107,122,.5)}
+  .bonus.none{display:none}
+  .pill{display:inline-block;border:1px solid var(--border);border-radius:999px;padding:2px 8px;margin:2px 3px 0 0;font-size:.78rem;font-weight:800}
+  .pill.main{color:#bfe3ff}
+  .pill.add{color:#ffe066;border-color:rgba(245,210,90,.45);background:rgba(245,210,90,.08)}
+  .pill.flag{color:#ffd9a8;border-color:rgba(255,170,80,.5);background:rgba(255,150,60,.12)}
+  .pill.hidden{color:var(--muted);font-style:italic}
+  .coin.gold{color:#ffd93b;font-weight:900}.coin.silver{color:#cfd8e6;font-weight:900}
+  .durwrap{margin-top:8px}
+  .durbar{height:8px;border-radius:999px;background:rgba(255,255,255,.1);overflow:hidden}
+  .durfill{height:100%;background:linear-gradient(90deg,#5fd0ff,#3aa0e0)}
+  .row{display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:8px;font-size:.85rem}
+  .mini{border:1px solid var(--border);background:var(--panel-2);color:var(--text);border-radius:8px;padding:4px 8px;font-weight:800;cursor:pointer;font-size:.78rem}
+  .msg{margin-top:10px;font-weight:800}
+  .empty{color:var(--muted);padding:24px;text-align:center}
+</style>
+<script type="module" src="firebase-config.js"></script>
+<script src="sk-items.js"></script>
+</head>
+<body>
+<div id="root">
+  <h1>🎒 Інвентар героя</h1>
+  <p class="sub" id="who">Завантаження…</p>
+  <div class="bar">
+    <button class="btn gold" id="giveAll">🧪 Дати всі речі (тест)</button>
+    <button class="btn" id="reload">↻ Оновити</button>
+    <button class="btn danger" id="clear">🗑 Очистити інвентар</button>
+  </div>
+  <div class="msg" id="msg"></div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var CATALOG=[], BYID={}, INV=[];
+  function q(id){return document.getElementById(id);}
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function coins(silver){var s=Math.max(0,Math.round(Number(silver)||0)),g=Math.floor(s/100),r=s%100,o=[];
+    if(g>0)o.push('<span class="coin gold">'+g+' зол</span>'); if(r>0||g===0)o.push('<span class="coin silver">'+r+' сріб</span>'); return o.join(' ');}
+  function bonusBadge(b){ if(b>1.15) return '<span class="bonus big">+20%</span>'; if(b>1) return '<span class="bonus up">+10%</span>'; if(b<1) return '<span class="bonus down">−10%</span>'; return '<span class="bonus none"></span>';}
+
+  function valText(e){ if(e.valueMin==null) return ''; return e.valueMin===e.valueMax?(''+e.valueMin):(e.valueMin+'–'+e.valueMax); }
+
+  function card(inst){
+    var base=BYID[inst.id];
+    if(!base) return '';
+    var e=SKIT.effective(base, inst);
+    var see=SKIT.canSeeAddStats(inst, window.__HERO||{});
+    var pills='';
+    if(e.stat){ var vt=valText(e); pills+='<span class="pill main">'+esc(e.stat)+(vt?' '+esc(vt):'')+'</span>'; }
+    // додаткові навички — лише якщо опізнано / є вміння
+    if(e.addStats.length){
+      if(see){
+        pills+=e.addStats.map(function(a){
+          if(a.flag||SKIT.isFlagEntry(a)){ var ic=a.stat==='Разовий предмет'?'🧪':'✋'; return '<span class="pill flag">'+ic+' '+esc(a.stat)+'</span>'; }
+          var v=(a.value!=null?('+'+a.value+(a.pct?'%':'')):'');
+          return '<span class="pill add">'+esc(a.stat)+(v?' '+esc(v):'')+'</span>';
+        }).join('');
+      } else {
+        pills+='<span class="pill hidden">🔒 '+e.addStats.length+' прихованих навичок</span>';
+      }
+    }
+    var durHtml='';
+    if(e.durMax!=null){
+      var ratio=e.durMax?Math.max(0,Math.min(1,e.durCur/e.durMax)):0;
+      durHtml='<div class="durwrap"><div class="durbar"><div class="durfill" style="width:'+Math.round(ratio*100)+'%"></div></div>'
+        +'<div class="row"><span>Міцність '+e.durCur+' / '+e.durMax+'</span><span>💰 '+coins(e.priceNow)+'</span></div></div>';
+    } else {
+      durHtml='<div class="row"><span></span><span>💰 '+coins(e.priceNow)+'</span></div>';
+    }
+    return '<div class="card">'+bonusBadge(inst.bonus)
+      +'<div class="pic"><img src="img/items/'+esc(base.id)+'.webp" alt="" loading="lazy" onerror="this.style.display=\'none\'"></div>'
+      +'<div class="code">'+esc(base.id)+'</div><div class="nm">'+esc(base.name||'—')+'</div>'
+      +'<div>'+pills+'</div>'+durHtml
+      +'<div class="row"><button class="mini" data-idf="'+esc(inst.uid)+'">'+(inst.identified?'✓ опізнано':'🔍 опізнати')+'</button>'
+      +'<button class="mini" data-dmg="'+esc(inst.uid)+'">−10% міцн.</button></div>'
+      +'</div>';
+  }
+
+  function render(){
+    var g=q('grid');
+    if(!INV.length){ g.innerHTML='<div class="empty">Інвентар порожній. Натисни «Дати всі речі (тест)».</div>'; return; }
+    g.innerHTML=INV.map(card).join('');
+  }
+  function setMsg(t,ok){ var m=q('msg'); m.textContent=t; m.style.color=ok===false?'#ff9aa5':(ok?'#7ef0a0':'var(--muted)'); }
+
+  async function boot(){
+    await window.SK.ready;
+    var hero=await SK.getActiveHero();
+    if(!hero){ q('who').textContent='Увійди як герой, щоб бачити інвентар.'; ['giveAll','clear','reload'].forEach(function(i){q(i).disabled=true;}); return; }
+    window.__HERO=hero;
+    q('who').textContent='Герой: '+(hero.name||hero.login||'—');
+    CATALOG=await SK.listItems(); BYID={}; CATALOG.forEach(function(b){BYID[b.id]=b;});
+    INV=await SK.getInventory(); render();
+  }
+
+  q('giveAll').addEventListener('click', async function(){
+    if(!confirm('Видати героєві всі '+CATALOG.length+' предметів (для тесту)? Кожен отримає випадковий бонус.')) return;
+    this.disabled=true; setMsg('Створюю екземпляри…');
+    var list=CATALOG.map(function(b){ return SKIT.makeInstance(b); });
+    try{ await SK.saveInventory(list); INV=list; render(); setMsg('✅ Видано '+list.length+' речей.',true); }
+    catch(e){ setMsg('⚠️ '+(e&&e.message||e),false); }
+    this.disabled=false;
+  });
+  q('clear').addEventListener('click', async function(){
+    if(!confirm('Очистити весь інвентар героя?')) return;
+    try{ await SK.saveInventory([]); INV=[]; render(); setMsg('Інвентар очищено.'); }catch(e){ setMsg('⚠️ '+(e&&e.message||e),false); }
+  });
+  q('reload').addEventListener('click', async function(){ INV=await SK.getInventory(); render(); setMsg('Оновлено.'); });
+
+  q('grid').addEventListener('click', async function(ev){
+    var idf=ev.target.closest('[data-idf]'), dmg=ev.target.closest('[data-dmg]');
+    if(idf){ var u=idf.getAttribute('data-idf'); var it=INV.find(function(x){return x.uid===u;}); if(it){ it.identified=!it.identified; render(); await SK.saveInventory(INV); } }
+    if(dmg){ var u2=dmg.getAttribute('data-dmg'); var it2=INV.find(function(x){return x.uid===u2;});
+      if(it2 && it2.durMax){ it2.durCur=Math.max(0, it2.durCur - Math.round(it2.durMax*0.1)); render(); await SK.saveInventory(INV); } }
+  });
+
+  boot().catch(function(e){ setMsg('⚠️ '+(e&&e.message||e),false); });
+})();
+</script>
+</body>
+</html>
