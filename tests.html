@@ -367,12 +367,27 @@
   }
   window.addEventListener('hashchange', openFromHash);
 
+  /* firebase-config.js — це ES-модуль з імпортами Firebase з CDN, тож window.SK
+     зʼявляється ПІСЛЯ DOMContentLoaded. Тому не перевіряємо його один раз, а
+     чекаємо в циклі (як стара сторінка) — інакше тести не встигають підтягнутись. */
+  function whenSK(cb){
+    var t=0;
+    (function tick(){
+      if(window.SK && SK.ready) return cb(window.SK);
+      if(t++ < 200) setTimeout(tick, 50);   // до ~10 c
+      else cb(null);
+    })();
+  }
   /* ── старт: карта + активні тести з бази → індекс → рендер ── */
   function boot(){
-    Promise.all([
-      SKCUR.ready,
-      (window.SK && SK.ready) ? SK.ready.then(function(){ return SK.listActiveTests(); }).catch(function(){ return []; }) : Promise.resolve([])
-    ]).then(function(res){
+    var mapP = SKCUR.ready;
+    var trP = new Promise(function(res){
+      whenSK(function(SK){
+        if(!SK || !SK.listActiveTests){ res([]); return; }
+        SK.ready.then(function(){ return SK.listActiveTests(); }).then(res).catch(function(){ res([]); });
+      });
+    });
+    Promise.all([mapP, trP]).then(function(res){
       CURRICULUM = SKCUR.clone((res[0] && res[0].tiers) || SKCUR.map.tiers);
       buildGradeMeta();
       IDX = buildIndex(res[1] || []);
@@ -387,20 +402,16 @@
 
   /* ── прогрес Героя з Firebase → перерендер поточного екрана ── */
   function loadHeroProgress(){
-    var tries=0;
-    (function whenSK(){
-      if(window.SK && SK.ready){
-        SK.ready.then(function(){
-          try{
-            if(SK.isHeroSession && SK.isHeroSession() && SK.getHero){
-              SK.getHero().then(function(h){ if(h){ PROG=h.progress||{}; render(); } }).catch(function(){});
-            }
-          }catch(e){}
-        });
-        return;
-      }
-      if(tries++ < 100) setTimeout(whenSK, 50);
-    })();
+    whenSK(function(SK){
+      if(!SK || !SK.getHero || !SK.isHeroSession) return;
+      SK.ready.then(function(){
+        try{
+          if(SK.isHeroSession()){
+            SK.getHero().then(function(h){ if(h){ PROG=h.progress||{}; render(); } }).catch(function(){});
+          }
+        }catch(e){}
+      });
+    });
   }
 
   if(document.readyState!=='loading') boot();
