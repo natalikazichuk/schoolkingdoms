@@ -1438,6 +1438,9 @@ function belTypeOpts(cur){
        + '<option value="trainer"'+(cur==='trainer'?' selected':'')+'>🎮 Випробування</option>';
 }
 function belFindTest(id){ return (TESTS||[]).find(function(t){ return t && t.id===id; }); }
+function belSlug(h){ return String(h||'').replace(/[?#].*$/,'').replace(/\.html?$/i,'').replace(/^.*\//,'').replace(/[^a-z0-9а-яіїєґ_-]+/gi,'-').replace(/^-+|-+$/g,'').slice(0,40) || 'page'; }
+function belStatForSubject(subj){ try{ if(typeof statForSubject==='function'){ var s=statForSubject(subj,1); if(s) return s; } }catch(e){} return ''; }
+function belIsLinkTest(t){ return !!(t && t.format==='link' && t.linkHref); }
 
 function renderBelong(){
   if(!$('belTree')) return;
@@ -1447,8 +1450,10 @@ function renderBelong(){
     if(!t || !t.id || !t.title) return;
     if(t.hidden && !showHidden) return;
     var cls = (Number(t.grade)===0) ? 'p' : String(t.grade==null?1:t.grade);
+    var flags = (t.hidden?' <span class="bel-badge">сховано</span>':'')
+              + (belIsLinkTest(t)?' <span class="bel-badge tr">посилання</span>':'');
     rows+='<div class="bel-row" data-btype="test" data-bid="'+esc(t.id)+'">'
-      + '<span class="bel-name">'+esc(t.title)+(t.hidden?' <span class="bel-badge">сховано</span>':'')+'</span>'
+      + '<span class="bel-name">'+esc(t.title)+flags+'</span>'
       + '<select class="bel-type" title="Тип">'+belTypeOpts('test')+'</select>'
       + '<select class="bel-subj" title="Предмет">'+belSubjOpts(t.subject)+'</select>'
       + '<select class="bel-class" title="Клас">'+belClassOpts(cls,false)+'</select>'
@@ -1480,6 +1485,20 @@ function belSetTrainerClass(l, v){
 }
 async function belConvertTestToTrainer(id){
   var t=belFindTest(id); if(!t) return;
+  // тест-посилання → назад у зовнішнє випробування (обгортку видаляємо)
+  if(belIsLinkTest(t)){
+    if(!TRAINERS) TRAINERS=[];
+    var preL = Number(t.grade)===0;
+    TRAINERS.push({ subject:t.subject||'', tier: preL?belPreTierName():'', grade: preL?'':String(t.grade||''),
+      href:String(t.linkHref), icon:'🎮', label:t.title||'Випробування', type:'page', blank:false, imgCard:'', imgPage:'', rewards:[] });
+    var okDel=true; try{ await SK_API.remove(id); }catch(e){ console.error(e); okDel=false; toast('Не вдалося видалити тест-обгортку', true); }
+    TESTS=(TESTS||[]).filter(function(x){ return x.id!==id; });
+    var okT=await belSaveTrainers();
+    renderBelong();
+    if(okDel&&okT) toast('Повернено як випробування ✔');
+    return;
+  }
+  // звичайний тест → випробування (посилання на сам тест) + ховаємо тест
   var href='test.html?id='+encodeURIComponent(id);
   var exists=(TRAINERS||[]).some(function(l){ return String(l.href||'')===href; });
   if(!exists){
@@ -1496,15 +1515,30 @@ async function belConvertTestToTrainer(id){
 async function belConvertTrainerToTest(idx){
   var l=TRAINERS[idx]; if(!l) return;
   var m=String(l.href||'').match(/test\.html\?id=([^&]+)/);
-  if(!m){ toast('Це зовнішнє випробування — його не можна зробити тестом', true); renderBelong(); return; }
-  var id=decodeURIComponent(m[1]);
-  var t=belFindTest(id);
-  if(!t){ toast('Пов’язаного тесту немає в базі', true); renderBelong(); return; }
-  t.hidden=false;
+  if(m){
+    // раніше сконвертований тест → просто повертаємо його з-під «сховано»
+    var id=decodeURIComponent(m[1]);
+    var t=belFindTest(id);
+    if(!t){ toast('Пов’язаного тесту немає в базі', true); renderBelong(); return; }
+    t.hidden=false;
+    TRAINERS.splice(idx,1);
+    var ok1=await belSaveTest(t); var ok2=await belSaveTrainers();
+    renderBelong();
+    if(ok1&&ok2) toast('Повернено як тест ✔');
+    return;
+  }
+  // зовнішня сторінка → «тест-посилання»: тест, що веде на цю сторінку
+  var pre = belIsPreTier(l.tier);
+  var newId = 'lnk-' + belSlug(l.href) + '-' + Date.now().toString(36);
+  var lt = { id:newId, title:(l.label||l.href||'Випробування'), subject:(l.subject||''),
+    grade: pre?0:(Number(l.grade)||1), format:'link', linkHref:String(l.href||''),
+    stat: belStatForSubject(l.subject), statMode:'fixed', statValue:1, active:true };
   TRAINERS.splice(idx,1);
-  var ok1=await belSaveTest(t); var ok2=await belSaveTrainers();
+  if(!TESTS) TESTS=[];
+  TESTS.push(lt);
+  var okS=await belSaveTest(lt); var okT=await belSaveTrainers();
   renderBelong();
-  if(ok1&&ok2) toast('Повернено як тест ✔');
+  if(okS&&okT) toast('Сторінку зроблено тестом-посиланням ✔');
 }
 async function onBelChange(e){
   var row=e.target.closest('.bel-row'); if(!row) return;

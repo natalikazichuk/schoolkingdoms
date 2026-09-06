@@ -220,10 +220,14 @@
 
   /* ── побудова індексу «клас → предмет → тести» зі спільної розкладки ── */
   function toTestObj(t, subjIcon){
-    var lv = (t.format==='levels' || (Array.isArray(t.levels) && t.levels.length));
-    return { id:t.id, title:t.title||'Тест', href:'test.html?id='+encodeURIComponent(t.id),
+    var isLink = !!(t.format==='link' && t.linkHref);
+    var lv = !isLink && (t.format==='levels' || (Array.isArray(t.levels) && t.levels.length));
+    var href = isLink ? String(t.linkHref) : ('test.html?id='+encodeURIComponent(t.id));
+    var img = t.imgCard||t.cover||'';
+    if(isLink && !img){ var slug=String(t.linkHref).replace(/[?#].*$/,'').replace(/\.html?$/i,'').replace(/^.*\//,''); if(slug) img='img/tr/'+slug+'.webp'; }
+    return { id:t.id, title:t.title||'Тест', href:href, isLink:isLink,
       isLevels:!!lv, levelCount: lv ? (Array.isArray(t.levels)?t.levels.length:0) : 0,
-      icon:(subjIcon||'📝'), imgCard: t.imgCard||t.cover||'' };
+      icon:(subjIcon||'📝'), imgCard: img };
   }
   function buildIndex(tests){
     var P = SKCUR.placeTests(CURRICULUM, tests);
@@ -329,10 +333,11 @@
     if(!s || !s.tests.length){ html+='<div class="empty">Тестів поки немає — додай їх в адмін-панелі.</div>'; q('screen').innerHTML=html; return; }
     html+='<div class="grid">'+s.tests.map(function(t){
       var label, cls='';
-      if(t.isLevels){ var d=doneLevels(t.id); if(d>t.levelCount)d=t.levelCount;
+      if(t.isLink){ var pdl=isPassed(t); label=pdl?'✅ пройдено':'▶ відкрити'; if(pdl) cls='done'; }
+      else if(t.isLevels){ var d=doneLevels(t.id); if(d>t.levelCount)d=t.levelCount;
         label='🧩 '+d+'/'+t.levelCount+' рівнів'; if(t.levelCount && d>=t.levelCount) cls='done'; }
       else { var pd=isPassed(t); label=pd?'✅ пройдено':'▶ не пройдено'; if(pd) cls='done'; }
-      return '<a class="tcard" href="'+esc(t.href)+'" data-testid="'+esc(t.id)+'">'
+      return '<a class="tcard" href="'+esc(t.href)+'" data-testid="'+esc(t.id)+'"'+(t.isLink?' data-link="1"':'')+'>'
         + testVisual(t)
         + '<span class="tname">'+esc(t.title)+'</span>'
         + bar(testFrac(t), label, cls) + '</a>';
@@ -358,6 +363,14 @@
   q('screen').addEventListener('click',function(e){
     var a=e.target.closest('a.tcard'); if(!a) return;
     try{ sessionStorage.setItem('sk_tests_view', JSON.stringify({g:selGrade,s:selSubj})); }catch(_){}
+    // тест-посилання: зараховуємо на вході (тап) — синхронно у localStorage + best-effort у Firebase
+    if(a.getAttribute('data-link')==='1'){
+      var id=a.getAttribute('data-testid');
+      if(id){
+        try{ localStorage.setItem('sk_testpass_'+id,'1'); }catch(_){}
+        try{ if(window.SK && SK.pushLocal) SK.pushLocal(); }catch(_){}
+      }
+    }
   }, true);
   function restoreView(){
     var raw=null; try{ raw=sessionStorage.getItem('sk_tests_view'); }catch(_){}
