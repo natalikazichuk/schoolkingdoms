@@ -222,7 +222,9 @@
   function toTestObj(t, subjIcon){
     var isLink = !!((t.format==='link'||t.format==='html') && t.linkHref);
     var lv = !isLink && (t.format==='levels' || (Array.isArray(t.levels) && t.levels.length));
-    var href = isLink ? String(t.linkHref) : ('test.html?id='+encodeURIComponent(t.id));
+    var href = isLink
+      ? (String(t.linkHref) + (String(t.linkHref).indexOf('?')>=0?'&':'?') + 'skdone=t:' + encodeURIComponent(t.id) + '&skback=tests.html')
+      : ('test.html?id='+encodeURIComponent(t.id));
     var img = t.imgCard||t.cover||'';
     if(isLink && !img){ var slug=String(t.linkHref).replace(/[?#].*$/,'').replace(/\.html?$/i,'').replace(/^.*\//,''); if(slug) img='img/tr/'+slug+'.webp'; }
     return { id:t.id, title:t.title||'Тест', href:href, isLink:isLink,
@@ -359,18 +361,12 @@
     var b=e.target.closest('[data-back]');
     if(b){ view=b.getAttribute('data-back'); render(); window.scrollTo(0,0); return; }
   });
-  /* при переході на тест — запамʼятати клас+предмет, щоб повернутись саме сюди */
+  /* при переході на тест — запамʼятати клас+предмет, щоб повернутись саме сюди.
+     Зарахування тесту-посилання тепер відбувається ПРИ ЗАВЕРШЕННІ на самій
+     сторінці тренажера (sk-finish.js), а не на вході. */
   q('screen').addEventListener('click',function(e){
     var a=e.target.closest('a.tcard'); if(!a) return;
     try{ sessionStorage.setItem('sk_tests_view', JSON.stringify({g:selGrade,s:selSubj})); }catch(_){}
-    // тест-посилання: зараховуємо на вході (тап) — синхронно у localStorage + best-effort у Firebase
-    if(a.getAttribute('data-link')==='1'){
-      var id=a.getAttribute('data-testid');
-      if(id){
-        try{ localStorage.setItem('sk_testpass_'+id,'1'); }catch(_){}
-        try{ if(window.SK && SK.pushLocal) SK.pushLocal(); }catch(_){}
-      }
-    }
   }, true);
   function restoreView(){
     var raw=null; try{ raw=sessionStorage.getItem('sk_tests_view'); }catch(_){}

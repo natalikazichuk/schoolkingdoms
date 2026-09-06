@@ -62,7 +62,7 @@
 <script>
 (function(){
   'use strict';
-  var MAP=null, LINKS=[], MG={}, SICON={}, view='classes', selGrade=null, selSubj=null, _dbg='';
+  var MAP=null, LINKS=[], MG={}, SICON={}, PROG=null, view='classes', selGrade=null, selSubj=null, _dbg='';
   var GRADES=[1,2,3,4,5,6,7,8,9,10,11];
   function q(id){return document.getElementById(id);}
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
@@ -104,6 +104,12 @@
     if(l.imgCard) return l.imgCard;
     var h=String(l.href||'').replace(/\.html?$/i,'').replace(/^.*\//,'');
     return h?('img/tr/'+h+'.webp'):'';
+  }
+  function trSlug(l){ return String(l.href||'').replace(/[?#].*$/,'').replace(/\.html?$/i,'').replace(/^.*\//,''); }
+  function trDone(l){
+    var k='sk_trainer_'+trSlug(l);
+    try{ if(localStorage.getItem(k)==='1') return true; }catch(e){}
+    return !!(PROG && (PROG[k]==='1'||PROG[k]===1||PROG[k]===true));
   }
 
   function renderClasses(){
@@ -148,9 +154,15 @@
       var visual=im
         ? '<span class="tr-thumb"><img src="'+esc(im)+'" alt="" loading="lazy" onerror="this.parentNode.className=\'tr-emoji\';this.parentNode.innerHTML=\''+emo+'\'"></span>'
         : '<span class="tr-emoji">'+emo+'</span>';
-      var rw=(Array.isArray(l.rewards)&&l.rewards.length)?'<span class="tr-badge">🎁 нагорода</span>':'';
-      return '<a class="tr-card" href="'+esc(l.href)+'"'+tgt+'>'+visual
-        +'<span class="tr-name">'+esc(l.label||l.href)+'</span>'+rw+'</a>';
+      var done=trDone(l);
+      var badge = done
+        ? '<span class="tr-badge" style="background:#2e7d32;color:#eaffea">✅ виконано</span>'
+        : ((Array.isArray(l.rewards)&&l.rewards.length)?'<span class="tr-badge">🎁 нагорода</span>':'');
+      // відкриваємо сторінку з маркером завершення (окрім зовнішніх у новій вкладці)
+      var slug=trSlug(l), href=l.href;
+      if(!l.blank && slug){ href = String(l.href)+(String(l.href).indexOf('?')>=0?'&':'?')+'skdone=x:'+encodeURIComponent(slug)+'&skback=vyprobuvannya.html'; }
+      return '<a class="tr-card" href="'+esc(href)+'"'+tgt+'>'+visual
+        +'<span class="tr-name">'+esc(l.label||l.href)+'</span>'+badge+'</a>';
     }).join('')+'</div>';
     q('screen').innerHTML=html;
   }
@@ -185,7 +197,16 @@
       var valid=LINKS.filter(function(l){return l&&l.href&&String(l.subject==null?'':l.subject).trim();}).length;
       if(!_dbg) _dbg='отримано записів: '+LINKS.length+', придатних (предмет+посилання): '+valid;
       buildMapIndex(); render();
+      loadProg();
     }).catch(function(){ MAP={tiers:[]}; LINKS=[]; if(!_dbg)_dbg='(помилка завантаження)'; buildMapIndex(); render(); });
+  }
+  function loadProg(){
+    whenSK(function(SK){
+      if(!SK || !SK.getHero || !SK.isHeroSession) return;
+      SK.ready.then(function(){
+        try{ if(SK.isHeroSession()){ SK.getHero().then(function(h){ if(h){ PROG=h.progress||{}; render(); } }).catch(function(){}); } }catch(e){}
+      });
+    });
   }
   if(document.readyState!=='loading') boot();
   else document.addEventListener('DOMContentLoaded', boot);
