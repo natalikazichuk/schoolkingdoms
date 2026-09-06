@@ -430,6 +430,17 @@
   .spin{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 14px}
   @keyframes spin{to{transform:rotate(360deg)}}
 
+  /* ── менеджер приналежності ── */
+  .bel-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+    border:1px solid var(--border);border-radius:10px;padding:8px 10px;margin:6px 0;background:var(--panel-2)}
+  .bel-row .bel-name{flex:1 1 200px;min-width:140px;font-weight:700;font-size:.92rem;
+    overflow:hidden;text-overflow:ellipsis}
+  .bel-row select{width:auto;min-width:96px}
+  .bel-row select.bel-type{min-width:130px}
+  .bel-badge{display:inline-block;font-size:.66rem;font-weight:800;border-radius:6px;padding:1px 6px;
+    margin-left:6px;background:#5a4a1a;color:#ffe08a;vertical-align:middle}
+  .bel-badge.tr{background:#1e3a5a;color:#9fd0ff}
+  @media(max-width:560px){ .bel-row .bel-name{flex:1 1 100%} .bel-row select{flex:1 1 30%} }
   .hidden{display:none !important}
 
   @media (max-width:640px){
@@ -583,7 +594,7 @@
         </div>
         <div class="field">
           <label for="fGrade">Клас</label>
-          <input type="number" id="fGrade" min="1" max="4" value="1" />
+          <select id="fGrade"><option value="0">Дошкільнята</option><option value="1" selected>1 клас</option><option value="2">2 клас</option><option value="3">3 клас</option><option value="4">4 клас</option></select>
         </div>
         <div class="field">
           <label for="fStat">Розвиває характеристику</label>
@@ -681,6 +692,25 @@
       </div>
       <div id="mapMsg"></div>
       <div id="mapTree"></div>
+    </div>
+
+    <div class="panel">
+      <h2>🔀 Приналежність</h2>
+      <p class="hint" style="margin:8px 0 12px">
+        Тут зібрано <b>всі тести й випробування</b>. Для кожного можна змінити тип
+        (тест ↔ випробування), предмет і клас — зокрема <b>дошкільнят</b>. Зміни зберігаються одразу.
+        <br>«Тест → Випробування» створює посилання на <code>test.html?id=…</code> і ховає тест зі
+        сторінки «Тести». Зворотне повертає тест назад.
+      </p>
+      <div class="toolbar" style="margin:2px 0 10px">
+        <label style="display:inline-flex;gap:7px;align-items:center;font-weight:700;font-size:.9rem;cursor:pointer">
+          <input type="checkbox" id="belShowHidden"> Показати сховані тести
+        </label>
+        <div class="spacer"></div>
+        <button class="btn xs" id="belRefresh">↻ Оновити список</button>
+      </div>
+      <div id="belMsg"></div>
+      <div id="belTree"></div>
     </div>
   </section>
 
@@ -864,7 +894,7 @@ let MAP = null;                       // редагована карта (чер
    порожній екран без жодного слова. Тепер невідповідність видно одразу.
    Перевіряємо і версію, і кожен потрібний експорт — на випадок, якщо версію
    забули підняти. Оновлюючи цей список, підніми API_VERSION у модулі. */
-const SKCUR_NEEDS = 5;
+const SKCUR_NEEDS = 6;
 const SKCUR_USES = ['DEFAULT_MAP','normalize','chains','norm','clone',
                     'STATS','statLabel','statKeyFrom',
                     'indexTests','findTest','migrateRefs','chainIndex','placeTests'];
@@ -1297,7 +1327,7 @@ function checkMap(){
   MAP.tiers.forEach(tier => {
     if(!String(tier.name || '').trim()) errs.push('Ступінь без назви');
     (tier.grades || []).forEach(g => {
-      if(!g.gradeNum) errs.push('Клас «' + g.name + '» без номера — тести не зіставляться');
+      if(!(g.gradeNum === 0 || Number(g.gradeNum) >= 1)) errs.push('Клас «' + g.name + '» без номера — тести не зіставляться');
       (g.subjects || []).forEach(sj => {
         if(!String(sj.name || '').trim()) errs.push('Предмет без назви у «' + g.name + '»');
         if(!(sj.keys || []).length) warns.push('Предмет «' + sj.name + '» без ключів — тести підуть у «Інші тести»');
@@ -1365,6 +1395,148 @@ function openList(){
   try{ window.scrollTo(0,0); }catch(e){}
 }
 
+/* ============================================================
+   МЕНЕДЖЕР ПРИНАЛЕЖНОСТІ (🔀) — у виді «Структура».
+   Показує всі тести + випробування; дозволяє змінити тип,
+   предмет і клас (включно з дошкільнятами, grade 0).
+   ============================================================ */
+function belPreTierName(){
+  var n='Дошкільна підготовка';
+  if(MAP && MAP.tiers) for(var i=0;i<MAP.tiers.length;i++){
+    var t=MAP.tiers[i]; var s=(String(t.id||'')+' '+String(t.name||'')).toLowerCase();
+    if(s.indexOf('preschool')>=0 || s.indexOf('дошкіл')>=0){ if(t.name) n=t.name; break; }
+  }
+  return n;
+}
+function belIsPreTier(v){ var s=String(v||'').toLowerCase(); return s.indexOf('preschool')>=0 || s.indexOf('дошкіл')>=0; }
+function belGradeNums(){
+  var set={}, arr=[];
+  if(MAP && MAP.tiers) MAP.tiers.forEach(function(t){ (t.grades||[]).forEach(function(g){ var n=Number(g.gradeNum); if(n>=1 && !set[n]){ set[n]=1; arr.push(n); } }); });
+  arr.sort(function(a,b){ return a-b; });
+  return arr.length ? arr : [1,2,3,4];
+}
+function belSubjList(cur){
+  var seen={}, out=[];
+  (SUBJECTS||[]).forEach(function(s){ var k=s.toLowerCase(); if(!seen[k]){ seen[k]=1; out.push(s); } });
+  if(MAP && MAP.tiers) MAP.tiers.forEach(function(t){ (t.grades||[]).forEach(function(g){ (g.subjects||[]).forEach(function(sj){
+    if(sj && sj.name){ var k=sj.name.toLowerCase(); if(!seen[k]){ seen[k]=1; out.push(sj.name); } }
+  }); }); });
+  if(cur && !seen[String(cur).toLowerCase()]) out.push(cur);
+  return out;
+}
+function belSubjOpts(cur){
+  return belSubjList(cur).map(function(s){ return '<option value="'+esc(s)+'"'+(String(cur||'')===s?' selected':'')+'>'+esc(s)+'</option>'; }).join('');
+}
+function belClassOpts(cur, withAll){
+  var html='<option value="p"'+(String(cur)==='p'?' selected':'')+'>Дошкільнята</option>';
+  belGradeNums().forEach(function(n){ html+='<option value="'+n+'"'+(String(cur)===String(n)?' selected':'')+'>'+n+' клас</option>'; });
+  if(withAll) html+='<option value=""'+(cur===''?' selected':'')+'>усі класи</option>';
+  return html;
+}
+function belTypeOpts(cur){
+  return '<option value="test"'+(cur==='test'?' selected':'')+'>📝 Тест</option>'
+       + '<option value="trainer"'+(cur==='trainer'?' selected':'')+'>🎮 Випробування</option>';
+}
+function belFindTest(id){ return (TESTS||[]).find(function(t){ return t && t.id===id; }); }
+
+function renderBelong(){
+  if(!$('belTree')) return;
+  var showHidden = $('belShowHidden') && $('belShowHidden').checked;
+  var rows='';
+  (TESTS||[]).forEach(function(t){
+    if(!t || !t.id || !t.title) return;
+    if(t.hidden && !showHidden) return;
+    var cls = (Number(t.grade)===0) ? 'p' : String(t.grade==null?1:t.grade);
+    rows+='<div class="bel-row" data-btype="test" data-bid="'+esc(t.id)+'">'
+      + '<span class="bel-name">'+esc(t.title)+(t.hidden?' <span class="bel-badge">сховано</span>':'')+'</span>'
+      + '<select class="bel-type" title="Тип">'+belTypeOpts('test')+'</select>'
+      + '<select class="bel-subj" title="Предмет">'+belSubjOpts(t.subject)+'</select>'
+      + '<select class="bel-class" title="Клас">'+belClassOpts(cls,false)+'</select>'
+      + '</div>';
+  });
+  (TRAINERS||[]).forEach(function(l,i){
+    if(!l) return;
+    if(!((l.label && l.label.trim()) || (l.href && l.href.trim()))) return;
+    var cls = belIsPreTier(l.tier) ? 'p' : String(l.grade==null?'':l.grade);
+    rows+='<div class="bel-row" data-btype="trainer" data-bidx="'+i+'">'
+      + '<span class="bel-name">'+esc(l.label||l.href)+' <span class="bel-badge tr">випроб.</span></span>'
+      + '<select class="bel-type" title="Тип">'+belTypeOpts('trainer')+'</select>'
+      + '<select class="bel-subj" title="Предмет">'+belSubjOpts(l.subject)+'</select>'
+      + '<select class="bel-class" title="Клас">'+belClassOpts(cls,true)+'</select>'
+      + '</div>';
+  });
+  $('belTree').innerHTML = rows || '<div class="empty">Немає тестів чи випробувань.</div>';
+}
+
+async function belSaveTest(t){ try{ await SK_API.save(t); return true; }catch(e){ console.error(e); toast('Помилка збереження тесту', true); return false; } }
+async function belSaveTrainers(){
+  try{ await SK_API.saveTrainers((TRAINERS||[]).filter(function(l){ return (l.label&&l.label.trim())||(l.href&&l.href.trim()); })); return true; }
+  catch(e){ console.error(e); toast('Помилка збереження випробувань', true); return false; }
+}
+function belSetTrainerClass(l, v){
+  if(v==='p'){ l.tier=belPreTierName(); l.grade=''; }
+  else if(v===''){ l.tier=''; l.grade=''; }
+  else { l.tier=''; l.grade=String(v); }
+}
+async function belConvertTestToTrainer(id){
+  var t=belFindTest(id); if(!t) return;
+  var href='test.html?id='+encodeURIComponent(id);
+  var exists=(TRAINERS||[]).some(function(l){ return String(l.href||'')===href; });
+  if(!exists){
+    if(!TRAINERS) TRAINERS=[];
+    var pre = Number(t.grade)===0;
+    TRAINERS.push({ subject:t.subject||'', tier: pre?belPreTierName():'', grade: pre?'':String(t.grade||''),
+      href:href, icon:'📝', label:t.title||'Тест', type:'page', blank:false, imgCard:'', imgPage:'', rewards:[] });
+  }
+  t.hidden=true;
+  var ok1=await belSaveTest(t); var ok2=await belSaveTrainers();
+  renderBelong();
+  if(ok1&&ok2) toast('Перетворено на випробування; тест сховано ✔');
+}
+async function belConvertTrainerToTest(idx){
+  var l=TRAINERS[idx]; if(!l) return;
+  var m=String(l.href||'').match(/test\.html\?id=([^&]+)/);
+  if(!m){ toast('Це зовнішнє випробування — його не можна зробити тестом', true); renderBelong(); return; }
+  var id=decodeURIComponent(m[1]);
+  var t=belFindTest(id);
+  if(!t){ toast('Пов’язаного тесту немає в базі', true); renderBelong(); return; }
+  t.hidden=false;
+  TRAINERS.splice(idx,1);
+  var ok1=await belSaveTest(t); var ok2=await belSaveTrainers();
+  renderBelong();
+  if(ok1&&ok2) toast('Повернено як тест ✔');
+}
+async function onBelChange(e){
+  var row=e.target.closest('.bel-row'); if(!row) return;
+  var btype=row.getAttribute('data-btype');
+  var isTest=(btype==='test');
+  var t = isTest ? belFindTest(row.getAttribute('data-bid')) : null;
+  var l = isTest ? null : TRAINERS[+row.getAttribute('data-bidx')];
+  if(e.target.classList.contains('bel-subj')){
+    if(isTest){ if(t){ t.subject=e.target.value; if(await belSaveTest(t)) toast('Предмет оновлено ✔'); } }
+    else if(l){ l.subject=e.target.value; if(await belSaveTrainers()) toast('Предмет оновлено ✔'); }
+    return;
+  }
+  if(e.target.classList.contains('bel-class')){
+    var v=e.target.value;
+    if(isTest){ if(t){ t.grade=(v==='p')?0:(v===''?1:Number(v)); if(await belSaveTest(t)) toast('Клас оновлено ✔'); } }
+    else if(l){ belSetTrainerClass(l,v); if(await belSaveTrainers()) toast('Клас оновлено ✔'); }
+    return;
+  }
+  if(e.target.classList.contains('bel-type')){
+    var nt=e.target.value;
+    if(isTest && nt==='trainer'){ await belConvertTestToTrainer(row.getAttribute('data-bid')); }
+    else if(!isTest && nt==='test'){ await belConvertTrainerToTest(+row.getAttribute('data-bidx')); }
+    else { renderBelong(); }
+    return;
+  }
+}
+async function refreshBelong(){
+  try{ TESTS = await SK_API.list() || TESTS; }catch(e){}
+  try{ await ensureTrainers(); }catch(e){}
+  renderBelong();
+}
+
 async function openMap(){
   $('viewHome').classList.add('hidden');
   $('viewList').classList.add('hidden');
@@ -1398,6 +1570,9 @@ async function openMap(){
             + MAP_UNRESOLVED.map(esc).join(', ') + '</div>'
           : '');
   }
+  // менеджер приналежності: потрібні свіжі тести
+  if(!TESTS || !TESTS.length){ try{ TESTS = await SK_API.list() || []; }catch(e){} }
+  renderBelong();
 }
 
 async function saveMap(){
@@ -2405,7 +2580,7 @@ function statForSubject(subjectName, grade){
 let statTouched = false;
 
 function applySubjectStat(){
-  const want = statForSubject($('fSubject').value, +$('fGrade').value || 1);
+  const want = statForSubject($('fSubject').value, Number($('fGrade').value) || 0);
   const hint = $('statHint');
   if(!want){
     if(hint) hint.innerHTML = 'Предмета немає на карті — стат обери вручну.';
@@ -2813,7 +2988,8 @@ function collectForm(){
   draft.title     = $('fTitle').value.trim();
   draft.subject   = $('fSubject').value.trim();
   draft.topic     = $('fTopic').value.trim();
-  draft.grade     = +$('fGrade').value || 1;
+  draft.grade     = ($('fGrade').value === '' ? 1 : (Number($('fGrade').value)));  // 0 = дошкілля
+  if(Number.isNaN(draft.grade)) draft.grade = 1;
   draft.stat      = $('fStat').value;
   draft.format    = $('fFormat').value === 'levels' ? 'levels' : 'flat';
   draft.statMode  = $('fStatMode').value;
@@ -2929,6 +3105,10 @@ function bindEvents(){
   // ---- Редактор карти ----
   $('btnMap').onclick   = openMap;
   $('mapSave').onclick  = saveMap;
+  // ---- Менеджер приналежності ----
+  if($('belTree'))       $('belTree').addEventListener('change', onBelChange);
+  if($('belShowHidden')) $('belShowHidden').onchange = renderBelong;
+  if($('belRefresh'))    $('belRefresh').onclick = refreshBelong;
   $('mapCheck').onclick = () => { checkMap(); };
   $('mapBack').onclick  = goHome;
   $('mapReset').onclick = () => {

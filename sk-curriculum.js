@@ -24,7 +24,7 @@
          admin.html/checkMap (одне правило), і копії розійшлися: перевірка
          звітувала про «сиріт», яких у дитини видно нормально, і мовчала про
          тести, що реально випадали через клас/предмет/однакову назву. */
-var API_VERSION = 5;
+var API_VERSION = 6;
 
 var PASS_RATIO = 0.55;
 
@@ -161,7 +161,8 @@ function normalize(map){
           id:       String(g.id || ('g' + gi)),
           name:     String(g.name || ((g.gradeNum || gi + 1) + ' клас')),
           status:   (g.status === 'ready' || g.status === 'wip' || g.status === 'soon') ? g.status : 'wip',
-          gradeNum: Number(g.gradeNum) || (gi + 1),
+          gradeNum: (g.gradeNum === 0 || g.gradeNum === '0') ? 0 : (Number(g.gradeNum) || (gi + 1)),  // 0 = дошкілля
+
           subjects: (Array.isArray(g.subjects) ? g.subjects : []).map(function(s, si){
             // Стат: джерело істини — statKey. Старі карти мали лише підпис —
             // впізнаємо його і піднімаємо до ключа, щоб нічого не загубилось.
@@ -365,7 +366,7 @@ function placeTests(map, tests){
           }
           return;
         }
-        if(Number(t.grade || 1) !== Number(e.grade.gradeNum)){
+        if(((t.grade == null || t.grade === '') ? 1 : Number(t.grade)) !== Number(e.grade.gradeNum)){
           if(via === 'ref'){
             dropped.push({ test: t, reason: 'grade', topic: tp.topic, subject: e.subj.name,
                            expected: e.grade.gradeNum, got: t.grade });
@@ -407,7 +408,7 @@ function placeTests(map, tests){
     }
     for(var i = 0; i < slots.length; i++){
       var e = slots[i];
-      if(Number(t.grade) === Number(e.grade.gradeNum) && subjectMatches(e.subj, t.subject)){
+      if(((t.grade == null || t.grade === '') ? 1 : Number(t.grade)) === Number(e.grade.gradeNum) && subjectMatches(e.subj, t.subject)){
         extra[i].tests.push(t);
         usedId[t.id] = true;
         byId[t.id] = { subject: e.subj.name, topic: null };

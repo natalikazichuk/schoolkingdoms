@@ -251,11 +251,17 @@
       CURRICULUM.forEach(function(t){ if(isPreschoolTier(t)) return;
         (t.grades||[]).forEach(function(g){ if(firstKey==null) firstKey=String(Number(g.gradeNum)||1); }); });
       if(firstKey==null) firstKey='1';
-      var gr=ensureGrade(firstKey);
-      var s=gr.subs['other'];
-      if(!s){ s={id:'other',name:'Інші тести',icon:'📦',accent:'#8a8fb0',stat:'',tests:[],_seen:{}}; gr.subs['other']=s; gr.order.push('other'); }
-      P.leftovers.forEach(function(t){ if(s._seen[t.id]) return; s._seen[t.id]=1;
-        var o=toTestObj(t,'📦'); if(Number(t.grade) && String(Number(t.grade))!==firstKey) o.title='['+t.grade+' кл] '+o.title;
+      function otherSubj(key, name){
+        var gr=ensureGrade(key); var s=gr.subs['other'];
+        if(!s){ s={id:'other',name:name,icon:'📦',accent:'#8a8fb0',stat:'',tests:[],_seen:{}}; gr.subs['other']=s; gr.order.push('other'); }
+        return s;
+      }
+      P.leftovers.forEach(function(t){
+        var isPre = Number(t.grade)===0;                       // дошкільні тести (grade 0)
+        var s = isPre ? otherSubj('p','Інші (дошкілля)') : otherSubj(firstKey,'Інші тести');
+        if(s._seen[t.id]) return; s._seen[t.id]=1;
+        var o=toTestObj(t,'📦');
+        if(!isPre && Number(t.grade) && String(Number(t.grade))!==firstKey) o.title='['+t.grade+' кл] '+o.title;
         s.tests.push(o);
       });
     }
@@ -421,7 +427,9 @@
     Promise.all([mapP, trP]).then(function(res){
       CURRICULUM = SKCUR.clone((res[0] && res[0].tiers) || SKCUR.map.tiers);
       buildGradeMeta();
-      IDX = buildIndex(res[1] || []);
+      // ховаємо тести, перетворені на випробування (hidden) — вони живуть як посилання
+      var tlist = (res[1] || []).filter(function(t){ return !(t && t.hidden); });
+      IDX = buildIndex(tlist);
       if(!openFromHash()){ restoreView(); render(); }
       loadHeroProgress();
     }).catch(function(){
