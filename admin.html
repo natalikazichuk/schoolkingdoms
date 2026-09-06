@@ -606,6 +606,7 @@
           <select id="fFormat">
             <option value="flat">Звичайний — один список питань</option>
             <option value="levels">Рівні — кілька рівнів із різною к-стю питань</option>
+            <option value="link">🔗 HTML-сторінка — без питань (веде на тренажер)</option>
           </select>
           <span class="hint" id="formatHint"></span>
         </div>
@@ -662,6 +663,16 @@
           <button class="btn sm gold" id="btnAddLevel">＋ Рівень</button>
         </div>
         <div class="lv-list" id="lvList"></div>
+      </div>
+
+      <!-- РЕДАКТОР: HTML-СТОРІНКА (посилання) -->
+      <div id="linkEditor" class="hidden">
+        <div class="section-title">🔗 HTML-сторінка</div>
+        <div class="field full">
+          <label for="fLinkHref">Посилання на сторінку</label>
+          <input type="text" id="fLinkHref" placeholder="напр. budynochky-chysel.html" />
+          <span class="hint">Пряме посилання на сторінку-тренажер (без питань). Дитина відкриває її з розділу «Тести»; проходження зараховується при відкритті.</span>
+        </div>
       </div>
     </div>
   </section>
@@ -1440,7 +1451,7 @@ function belTypeOpts(cur){
 function belFindTest(id){ return (TESTS||[]).find(function(t){ return t && t.id===id; }); }
 function belSlug(h){ return String(h||'').replace(/[?#].*$/,'').replace(/\.html?$/i,'').replace(/^.*\//,'').replace(/[^a-z0-9а-яіїєґ_-]+/gi,'-').replace(/^-+|-+$/g,'').slice(0,40) || 'page'; }
 function belStatForSubject(subj){ try{ if(typeof statForSubject==='function'){ var s=statForSubject(subj,1); if(s) return s; } }catch(e){} return ''; }
-function belIsLinkTest(t){ return !!(t && t.format==='link' && t.linkHref); }
+function belIsLinkTest(t){ return !!(t && (t.format==='link'||t.format==='html') && t.linkHref); }
 
 function renderBelong(){
   if(!$('belTree')) return;
@@ -2801,7 +2812,8 @@ function openEditor(test){
   $('fTopic').value    = draft.topic || '';
   $('fGrade').value    = draft.grade ?? 1;
   $('fStat').value     = draft.stat;
-  $('fFormat').value   = draft.format;
+  $('fFormat').value   = (draft.format==='html') ? 'link' : draft.format;
+  $('fLinkHref').value = draft.linkHref || '';
   $('fStatMode').value = draft.statMode;
   $('fStatValue').value= draft.statValue;
   $('fActive').checked = !!draft.active;
@@ -2820,29 +2832,32 @@ function openEditor(test){
 
 /* Показати потрібний редактор (плоский / рівні) */
 function renderEditor(){
+  const isLink = (draft.format==='link' || draft.format==='html');
   const levels = draft.format==='levels';
-  $('flatEditor').classList.toggle('hidden', levels);
+  $('flatEditor').classList.toggle('hidden', levels || isLink);
   $('levelsEditor').classList.toggle('hidden', !levels);
-  if (levels) renderLevels(); else renderQuestions();
+  $('linkEditor').classList.toggle('hidden', !isLink);
+  if (!isLink){ if (levels) renderLevels(); else renderQuestions(); }
   updateHints();
 }
 
 /* Перемикання формату: переносимо наявні питання, щоб не втратити роботу */
 function onFormatChange(){
-  const fmt = $('fFormat').value === 'levels' ? 'levels' : 'flat';
+  const v = $('fFormat').value;
+  const fmt = (v==='levels') ? 'levels' : (v==='link' ? 'link' : 'flat');
   draft.format = fmt;
   if (fmt==='levels'){
     if (!Array.isArray(draft.levels) || !draft.levels.length){
       const seed = (draft.questions||[]).filter(q => (q.q||'').trim());
       draft.levels = [ { level:1, name:'', questions: seed.length ? deepClone(seed) : [ blankQuestion() ] } ];
     }
-  } else {
+  } else if (fmt==='flat'){
     if (!Array.isArray(draft.questions) || !draft.questions.length){
       const seed = [];
       (draft.levels||[]).forEach(L => (L.questions||[]).forEach(q => { if ((q.q||'').trim()) seed.push(q); }));
       draft.questions = seed.length ? deepClone(seed) : [ blankQuestion() ];
     }
-  }
+  } // link — без питань, нічого не сіємо
   renderEditor();
 }
 
@@ -3012,9 +3027,12 @@ function updateHints(){
     ? `+${$('fStatValue').value||0} до «${statLabel($('fStat').value)}» за кожну правильну.`
     : `+${$('fStatValue').value||0} до «${statLabel($('fStat').value)}» за ${perUnit}.`;
   const fh = $('formatHint');
-  if (fh) fh.textContent = $('fFormat').value === 'levels'
+  const _fv2 = $('fFormat').value;
+  if (fh) fh.textContent = _fv2==='levels'
     ? 'Дитина проходить рівні по черзі; кожен пройдений відкриває наступний.'
-    : 'Один список питань поспіль.';
+    : (_fv2==='link'
+        ? 'Без питань — веде на HTML-сторінку тренажера; зараховується при відкритті.'
+        : 'Один список питань поспіль.');
 }
 
 /* ---- Зчитати форму в draft ---- */
@@ -3025,7 +3043,9 @@ function collectForm(){
   draft.grade     = ($('fGrade').value === '' ? 1 : (Number($('fGrade').value)));  // 0 = дошкілля
   if(Number.isNaN(draft.grade)) draft.grade = 1;
   draft.stat      = $('fStat').value;
-  draft.format    = $('fFormat').value === 'levels' ? 'levels' : 'flat';
+  var _fv = $('fFormat').value;
+  draft.format    = (_fv==='levels') ? 'levels' : (_fv==='link' ? 'link' : 'flat');
+  if (draft.format==='link') draft.linkHref = ($('fLinkHref').value||'').trim();
   draft.statMode  = $('fStatMode').value;
   draft.statValue = Math.max(0, +$('fStatValue').value || 0);
   draft.active    = $('fActive').checked;
@@ -3043,6 +3063,11 @@ function validate(){
   collectForm();
   if (!draft.title) return 'Вкажи назву тесту.';
   if (!draft.subject) return 'Вкажи предмет.';
+
+  if (draft.format==='link'){
+    if (!draft.linkHref) return 'Вкажи посилання на HTML-сторінку.';
+    return null;
+  }
 
   if (draft.format==='levels'){
     if (!draft.levels.length) return 'Додай хоча б один рівень.';
@@ -3075,11 +3100,13 @@ async function saveDraft(){
     q.correct = Math.max(0, q.options.indexOf(correctText));
     if (q.visual){ const nv = normVisual(q.visual); if (nv) q.visual = nv; else delete q.visual; }
   };
-  if (draft.format==='levels'){
+  if (draft.format==='link'){
+    draft.questions = []; draft.levels = [];
+  } else if (draft.format==='levels'){
     draft.levels.forEach((L, i) => { L.level = i+1; L.name = (L.name||'').trim(); L.questions.forEach(stripOpts); });
     draft.questions = [];   // очищаємо невикористаний масив (перезаписує старе значення при merge)
   } else {
-    draft.questions.forEach(stripOpts);
+    (draft.questions||[]).forEach(stripOpts);
     draft.levels = [];
   }
   try {
