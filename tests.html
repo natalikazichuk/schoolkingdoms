@@ -165,6 +165,13 @@
   function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
   function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
   function pgGet(k){ return (PROG && PROG[k]!=null) ? PROG[k] : null; }
+  /* дошкільний ступінь — за id/назвою («preschool» / «дошкіл…»). Його вміст
+     виноситься в окрему картку «Дошкільна освіта» ПЕРЕД 1 класом. */
+  function isPreschoolTier(t){
+    if(!t) return false;
+    var s=(String(t.id||'')+' '+String(t.name||'')).toLowerCase();
+    return s.indexOf('preschool')>=0 || s.indexOf('дошкіл')>=0;
+  }
 
   /* ── підрахунок пройдених рівнів зі збереженого стану ── */
   function countDoneLevels(v){
@@ -232,36 +239,49 @@
       // placeTests повертає запис на КОЖЕН розділ карти, навіть порожній —
       // тож порожні розділи створювали б предмети-дублі («немає»). Пропускаємо їх.
       if(!b.tests || !b.tests.length) return;
-      var n=Number(b.grade.gradeNum)||0; var gr=ensureGrade(n); var s=ensureSubj(gr,b.subj);
+      var key = isPreschoolTier(b.tier) ? 'p' : String(Number(b.grade.gradeNum)||0);
+      var gr=ensureGrade(key); var s=ensureSubj(gr,b.subj);
       b.tests.forEach(function(t){ if(s._seen[t.id]) return; s._seen[t.id]=1; s.tests.push(toTestObj(t,b.subj.icon)); });
     }
     P.topics.forEach(addBucket);
     P.subjects.forEach(addBucket);
     // катч-ол: несопоставлені тести → «Інші тести» до першого класу карти
     if(P.leftovers && P.leftovers.length){
-      var firstNum=null;
-      CURRICULUM.forEach(function(t){ (t.grades||[]).forEach(function(g){ if(firstNum==null) firstNum=Number(g.gradeNum)||1; }); });
-      if(firstNum==null) firstNum=1;
-      var gr=ensureGrade(firstNum);
+      var firstKey=null;
+      CURRICULUM.forEach(function(t){ if(isPreschoolTier(t)) return;
+        (t.grades||[]).forEach(function(g){ if(firstKey==null) firstKey=String(Number(g.gradeNum)||1); }); });
+      if(firstKey==null) firstKey='1';
+      var gr=ensureGrade(firstKey);
       var s=gr.subs['other'];
       if(!s){ s={id:'other',name:'Інші тести',icon:'📦',accent:'#8a8fb0',stat:'',tests:[],_seen:{}}; gr.subs['other']=s; gr.order.push('other'); }
       P.leftovers.forEach(function(t){ if(s._seen[t.id]) return; s._seen[t.id]=1;
-        var o=toTestObj(t,'📦'); if(Number(t.grade) && Number(t.grade)!==firstNum) o.title='['+t.grade+' кл] '+o.title;
+        var o=toTestObj(t,'📦'); if(Number(t.grade) && String(Number(t.grade))!==firstKey) o.title='['+t.grade+' кл] '+o.title;
         s.tests.push(o);
       });
     }
-    var nums=Object.keys(G).map(Number).sort(function(a,b){return a-b;});
-    return { grades:G, nums:nums };
+    return { grades:G };
   }
   function buildGradeMeta(){
     ALL_GRADES=[]; GRADE_ID2NUM={};
-    var seen={};
-    CURRICULUM.forEach(function(t){ (t.grades||[]).forEach(function(g){
-      var n=Number(g.gradeNum)||0; GRADE_ID2NUM[g.id]=n;
-      if(!seen[n]){ seen[n]=1; ALL_GRADES.push({num:n, id:g.id, name:g.name||(n+' клас')}); }
-    }); });
-    ALL_GRADES.sort(function(a,b){return a.num-b.num;});
+    var pre=null, nums=[], seen={};
+    CURRICULUM.forEach(function(t){
+      if(isPreschoolTier(t)){
+        if(!pre) pre={key:'p', preschool:true, icon:(t.icon||'🌱'), label:'Дошкільна освіта'};
+        (t.grades||[]).forEach(function(g){ GRADE_ID2NUM[g.id]='p'; });
+        return;
+      }
+      (t.grades||[]).forEach(function(g){
+        var n=Number(g.gradeNum)||0; GRADE_ID2NUM[g.id]=String(n);
+        if(!seen[n]){ seen[n]=1; nums.push({key:String(n), num:n, name:g.name||(n+' клас')}); }
+      });
+    });
+    nums.sort(function(a,b){return a.num-b.num;});
+    // дошкільна картка завжди перша (навіть якщо ступеня нема в карті)
+    if(!pre) pre={key:'p', preschool:true, icon:'🌱', label:'Дошкільна освіта'};
+    ALL_GRADES = [pre].concat(nums);
   }
+  function secByKey(k){ for(var i=0;i<ALL_GRADES.length;i++){ if(ALL_GRADES[i].key===String(k)) return ALL_GRADES[i]; } return null; }
+  function secTitle(k){ var s=secByKey(k); return (s&&s.preschool)?'Дошкільна освіта':(k+' клас'); }
 
   /* ── рендер ── */
   function renderClasses(){
@@ -270,16 +290,19 @@
       q('screen').innerHTML='<div class="empty">Класів ще немає. Додай їх у адмінці → «🗺 Структура».</div>'; return;
     }
     q('screen').innerHTML='<div class="grid">'+ALL_GRADES.map(function(g){
-      var gr=IDX.grades[g.num]; var p=gradeProg(gr); var has=p.total>0;
+      var gr=IDX.grades[g.key]; var p=gradeProg(gr); var has=p.total>0;
       var prog = has ? bar(p.passed/p.total, p.passed+' / '+p.total+' пройдено') : '';
-      return '<button class="cardbtn'+(has?'':' dis')+'" '+(has?'data-grade="'+g.num+'"':'disabled')+'>'
-        + '<span class="big">'+g.num+'</span><span class="lbl">клас</span>'
+      var head = g.preschool
+        ? '<span class="ico">'+esc(g.icon)+'</span><span class="lbl">'+esc(g.label)+'</span>'
+        : '<span class="big">'+g.num+'</span><span class="lbl">клас</span>';
+      return '<button class="cardbtn'+(has?'':' dis')+'" '+(has?'data-grade="'+esc(g.key)+'"':'disabled')+'>'
+        + head
         + '<span class="cnt">'+(has?p.total+' тест.':'скоро')+'</span>'
         + prog + '</button>';
     }).join('')+'</div>';
   }
   function renderSubjects(){
-    q('pgSub').textContent=selGrade+' клас — обери предмет.';
+    q('pgSub').textContent=secTitle(selGrade)+' — обери предмет.';
     var gr=IDX.grades[selGrade];
     var html='<button class="back" data-back="classes">← Класи</button>';
     if(!gr || !gr.order.length){ html+='<div class="empty">У цьому класі ще немає предметів із тестами.</div>'; q('screen').innerHTML=html; return; }
@@ -295,7 +318,7 @@
   }
   function renderTests(){
     var gr=IDX.grades[selGrade]; var s=gr && gr.subs[selSubj];
-    q('pgSub').textContent=selGrade+' клас · '+(s?s.name:'');
+    q('pgSub').textContent=secTitle(selGrade)+' · '+(s?s.name:'');
     var html='<button class="back" data-back="subjects">← Предмети</button>';
     if(!s || !s.tests.length){ html+='<div class="empty">Тестів поки немає — додай їх в адмін-панелі.</div>'; q('screen').innerHTML=html; return; }
     html+='<div class="grid">'+s.tests.map(function(t){
@@ -319,7 +342,7 @@
   /* ── навігація картками + збереження позиції для повернення ── */
   q('screen').addEventListener('click',function(e){
     var g=e.target.closest('[data-grade]');
-    if(g){ selGrade=Number(g.getAttribute('data-grade')); selSubj=null; view='subjects'; render(); window.scrollTo(0,0); return; }
+    if(g){ selGrade=g.getAttribute('data-grade'); selSubj=null; view='subjects'; render(); window.scrollTo(0,0); return; }
     var s=e.target.closest('[data-subj]');
     if(s){ selSubj=s.getAttribute('data-subj'); view='tests'; render(); window.scrollTo(0,0); return; }
     var b=e.target.closest('[data-back]');
@@ -336,8 +359,8 @@
     try{ sessionStorage.removeItem('sk_tests_view'); }catch(_){}
     var v; try{ v=JSON.parse(raw); }catch(_){ return false; }
     if(!v || v.g==null) return false;
-    var gr=IDX.grades[Number(v.g)]; if(!gr) return false;
-    selGrade=Number(v.g);
+    var gr=IDX.grades[v.g]; if(!gr) return false;
+    selGrade=v.g;
     if(v.s && gr.subs[v.s]){ selSubj=v.s; view='tests'; } else { view='subjects'; }
     return true;
   }
@@ -358,10 +381,15 @@
     if(!IDX) return false;
     var p=hashParams();
     if(!p.open && !p.tier && !p.grade && !p.subj) return false;
-    var num = p.grade ? GRADE_ID2NUM[p.grade] : null;
-    if(num && IDX.grades[num]){
-      selGrade=num;
-      if(p.subj && IDX.grades[num].subs[p.subj]){ selSubj=p.subj; view='tests'; }
+    var key = p.grade ? GRADE_ID2NUM[p.grade] : null;
+    // ступінь без класу: якщо це дошкілля — відкриваємо дошкільну секцію
+    if(!key){
+      var tv=String(p.open||p.tier||'').toLowerCase();
+      if((tv.indexOf('preschool')>=0 || tv.indexOf('дошкіл')>=0) && IDX.grades['p']) key='p';
+    }
+    if(key && IDX.grades[key]){
+      selGrade=key;
+      if(p.subj && IDX.grades[key].subs[p.subj]){ selSubj=p.subj; view='tests'; }
       else { selSubj=null; view='subjects'; }
       render(); window.scrollTo(0,0); landGlow(); return true;
     }

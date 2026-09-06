@@ -62,31 +62,44 @@
 <script>
 (function(){
   'use strict';
-  var MAP=null, LINKS=[], MG={}, view='classes', selGrade=null, selSubj=null, _dbg='';
+  var MAP=null, LINKS=[], MG={}, SICON={}, view='classes', selGrade=null, selSubj=null, _dbg='';
   var GRADES=[1,2,3,4,5,6,7,8,9,10,11];
   function q(id){return document.getElementById(id);}
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 
   function normName(s){return String(s==null?'':s).trim().toLowerCase();}
   function buildMapIndex(){
-    MG={};
+    MG={}; SICON={};
     (MAP&&MAP.tiers||[]).forEach(function(t){(t.grades||[]).forEach(function(g){
       var k=String(g.gradeNum); MG[k]=MG[k]||{};
-      (g.subjects||[]).forEach(function(sj){ if(sj&&sj.name) MG[k][normName(sj.name)]={name:sj.name,icon:sj.icon||'📘'}; });
+      (g.subjects||[]).forEach(function(sj){ if(sj&&sj.name){ MG[k][normName(sj.name)]={name:sj.name,icon:sj.icon||'📘'}; if(sj.icon) SICON[normName(sj.name)]=sj.icon; } });
     });});
   }
   function validLink(l){ return !!(l&&l.href&&String(l.subject==null?'':l.subject).trim()); }
   /* порожній клас у записі = «усі класи» → показуємо в кожному класі; проставлений — лише в ньому */
   function belongs(l,n){ var g=String(l.grade==null?'':l.grade).trim(); return g ? (g===String(n)) : true; }
-  function classCount(n){ var c=0; LINKS.forEach(function(l){ if(validLink(l)&&belongs(l,n)) c++; }); return c; }
+  /* дошкільне випробування — за ступенем (tier містить «дошкіл…»/«preschool»).
+     Виноситься в окрему картку «Дошкільна освіта» ПЕРЕД 1 класом і не показується
+     в жодному числовому класі. */
+  function isPre(l){ var t=normName(l.tier); return t.indexOf('preschool')>=0 || t.indexOf('дошкіл')>=0; }
+  function inClass(l,n){ return !isPre(l) && belongs(l,n); }
+  function preCount(){ var c=0; LINKS.forEach(function(l){ if(validLink(l)&&isPre(l)) c++; }); return c; }
+  function secLabel(n){ return n==='p' ? 'Дошкільна освіта' : (n+' клас'); }
+  function classCount(n){ var c=0; LINKS.forEach(function(l){ if(validLink(l)&&inClass(l,n)) c++; }); return c; }
   function classHas(n){ return classCount(n)>0; }
   function subjectsForGrade(n){
-    var out=[], seen={}, mg=MG[String(n)]||{};
+    var out=[], seen={};
+    if(n==='p'){
+      LINKS.forEach(function(l){ if(validLink(l)&&isPre(l)){ var k=normName(l.subject); if(!seen[k]){seen[k]=1; out.push({name:l.subject,icon:SICON[k]||'🎯'});} } });
+      return out;
+    }
+    var mg=MG[String(n)]||{};
     Object.keys(mg).forEach(function(k){ if(!seen[k]){seen[k]=1; out.push(mg[k]);} });
-    LINKS.forEach(function(l){ if(validLink(l)&&belongs(l,n)){ var k=normName(l.subject); if(!seen[k]){seen[k]=1; out.push({name:l.subject,icon:'🎯'});} } });
+    LINKS.forEach(function(l){ if(validLink(l)&&inClass(l,n)){ var k=normName(l.subject); if(!seen[k]){seen[k]=1; out.push({name:l.subject,icon:SICON[k]||'🎯'});} } });
     return out;
   }
-  function linksFor(n,subj){ var s=normName(subj); return LINKS.filter(function(l){ return validLink(l)&&normName(l.subject)===s&&belongs(l,n); }); }
+  function linksFor(n,subj){ var s=normName(subj);
+    return LINKS.filter(function(l){ return validLink(l)&&normName(l.subject)===s&&(n==='p'?isPre(l):inClass(l,n)); }); }
   function trImg(l){
     if(l.imgCard) return l.imgCard;
     var h=String(l.href||'').replace(/\.html?$/i,'').replace(/^.*\//,'');
@@ -95,18 +108,24 @@
 
   function renderClasses(){
     q('sub').textContent='Обери клас.';
-    var any=GRADES.some(classHas);
+    var pre=preCount();
+    var any=(pre>0)||GRADES.some(classHas);
     if(!any){ q('screen').innerHTML='<div class="empty">Випробувань ще немає. Додай їх у адмінці → «Випробування» (вкажи предмет) і натисни «Зберегти».<br><span style="opacity:.6;font-size:.8rem">'+_dbg+'</span></div>'; return; }
-    q('screen').innerHTML='<div class="grid">'+GRADES.map(function(n){
+    // дошкільна картка — завжди перша
+    var cards='<button class="cardbtn'+(pre>0?'':' dis')+'" '+(pre>0?'data-grade="p"':'disabled')+'>'
+      +'<span class="ico">🌱</span><span class="lbl">Дошкільна освіта</span>'
+      +'<span class="cnt">'+(pre>0?pre+' випроб.':'—')+'</span></button>';
+    cards+=GRADES.map(function(n){
       var has=classHas(n);
       var cnt=has?classCount(n):0;
       return '<button class="cardbtn'+(has?'':' dis')+'" '+(has?'data-grade="'+n+'"':'disabled')+'>'
         +'<span class="big">'+n+'</span><span class="lbl">клас</span>'
         +'<span class="cnt">'+(has?cnt+' випроб.':'—')+'</span></button>';
-    }).join('')+'</div>';
+    }).join('');
+    q('screen').innerHTML='<div class="grid">'+cards+'</div>';
   }
   function renderSubjects(){
-    q('sub').textContent=selGrade+' клас — обери предмет.';
+    q('sub').textContent=secLabel(selGrade)+' — обери предмет.';
     var subs=subjectsForGrade(selGrade);
     var html='<button class="back" data-back="classes">← Класи</button>';
     if(!subs.length){ html+='<div class="empty">У цьому класі ще немає предметів із випробуваннями.</div>'; q('screen').innerHTML=html; return; }
@@ -119,7 +138,7 @@
     q('screen').innerHTML=html;
   }
   function renderList(){
-    q('sub').textContent=selGrade+' клас · '+selSubj;
+    q('sub').textContent=secLabel(selGrade)+' · '+selSubj;
     var list=linksFor(selGrade,selSubj);
     var html='<button class="back" data-back="subjects">← Предмети</button>';
     if(!list.length){ html+='<div class="empty">Немає випробувань.</div>'; q('screen').innerHTML=html; return; }
@@ -143,7 +162,7 @@
 
   q('screen').addEventListener('click',function(e){
     var b=e.target.closest('[data-grade]');
-    if(b){ selGrade=Number(b.getAttribute('data-grade')); view='subjects'; render(); window.scrollTo(0,0); return; }
+    if(b){ selGrade=b.getAttribute('data-grade'); view='subjects'; render(); window.scrollTo(0,0); return; }
     var s=e.target.closest('[data-subj]');
     if(s){ selSubj=s.getAttribute('data-subj'); view='list'; render(); window.scrollTo(0,0); return; }
     var bk=e.target.closest('[data-back]');
