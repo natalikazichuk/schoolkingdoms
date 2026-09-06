@@ -2,263 +2,102 @@
 <html lang="uk">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Тести — School Kingdoms</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=Nunito:wght@500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="sk-styles.css">
 <style>
-  /* ── шапка (беремо .topbar зі sk-styles) ── */
-  .brand{display:flex;align-items:center;gap:12px;text-decoration:none}
-  .brand .crest{font-size:1.8rem;filter:drop-shadow(0 2px 4px rgba(0,0,0,.45))}
-  .brand-name{font-family:'Playfair Display',serif;font-weight:900;font-size:clamp(1.2rem,3vw,1.6rem);color:#fff;text-shadow:0 2px 5px rgba(0,0,0,.45)}
-  .brand-name b{color:var(--gold)}
-  .brand-sub{font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:#ffe9b8;font-weight:700;margin-top:2px}
-  .nav-links{display:flex;gap:10px;flex-wrap:wrap}
-  .nav-btn{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.08);
-    border:1.5px solid rgba(242,199,92,.5);color:#fff;text-decoration:none;border-radius:12px;
-    padding:9px 16px;font-weight:800;font-size:.85rem;transition:transform .15s,background .15s}
-  .nav-btn:hover{transform:translateY(-2px);background:rgba(255,255,255,.16)}
+  /* ── контейнер сторінки (на голубому небі зі sk-styles.css) ── */
+  .wrap{max-width:960px;margin:0 auto;padding:20px 16px calc(94px + env(safe-area-inset-bottom))}
+  .page-head{text-align:left;margin:2px 4px 16px}
+  .page-head h1{font-family:'Playfair Display',serif;font-weight:900;
+    font-size:clamp(1.4rem,4vw,1.9rem);color:var(--gold);margin:0;
+    text-shadow:0 2px 6px rgba(0,0,0,.45)}
+  .page-head .sub{color:#eaf1ff;font-weight:700;font-size:.95rem;margin:4px 0 0;
+    text-shadow:0 1px 3px rgba(0,0,0,.4)}
 
-  /* ── заголовок сторінки ── */
-  .page-head{max-width:940px;margin:0 auto;padding:clamp(18px,4vh,40px) 20px 6px;text-align:center}
+  /* ── кнопка «назад» усередині drill-down ── */
+  .back{display:inline-flex;align-items:center;gap:7px;border:1.5px solid rgba(242,199,92,.5);
+    background:linear-gradient(180deg,rgba(30,52,92,.7),rgba(12,28,54,.78));color:#fff;
+    border-radius:12px;padding:9px 16px;font-family:inherit;font-weight:800;font-size:.9rem;
+    cursor:pointer;margin:0 0 14px;transition:transform .15s,border-color .15s}
+  .back:hover{transform:translateY(-2px);border-color:var(--gold)}
 
-  /* ── смужка Героя (якщо увійшов Герой) ── */
-  .hero-strip{max-width:720px;margin:22px auto 0;display:none;
-    background:linear-gradient(180deg,rgba(16,33,62,.85),rgba(10,22,46,.9));
-    border:2px solid var(--gold);border-radius:16px;padding:12px 18px;
-    box-shadow:0 10px 26px rgba(0,0,0,.4)}
-  .hero-strip.show{display:block}
-  .hs-name{font-family:'Playfair Display',serif;font-weight:800;color:#FBEFD0;font-size:1.05rem;margin-bottom:8px}
-  .hs-stats{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
-  .hs-stat{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.07);
-    border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:5px 12px;font-weight:800;font-size:.85rem;color:#eaf1ff}
-  .hs-stat b{color:var(--gold)}
-  .hs-guest{max-width:720px;margin:20px auto 0;text-align:center;color:#cdd8ef;font-weight:600;font-size:.9rem;
-    background:rgba(255,255,255,.05);border:1px dashed rgba(242,199,92,.45);border-radius:14px;padding:12px 16px;display:none}
-  .hs-guest.show{display:block}
-  .hs-guest a{color:var(--gold);font-weight:800}
+  /* ── сітка карток ── */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+  @media(max-width:560px){.grid{grid-template-columns:1fr 1fr;gap:12px}}
 
-  /* ── контейнер ── */
-  .wrap{max-width:940px;margin:0 auto;padding:24px 18px 70px}
+  /* базова картка-квадрат (клас / предмет) */
+  .cardbtn{position:relative;aspect-ratio:1/1;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:6px;text-align:center;
+    padding:16px 12px 34px;border-radius:22px;cursor:pointer;color:#fff;font-family:inherit;
+    background:linear-gradient(165deg,rgba(30,52,92,.62),rgba(12,28,54,.7));
+    border:2px solid rgba(242,199,92,.45);box-shadow:0 12px 30px rgba(0,0,0,.38);
+    transition:transform .15s,border-color .15s,box-shadow .15s}
+  .cardbtn:hover:not(.dis){transform:translateY(-3px);border-color:var(--gold);
+    box-shadow:0 16px 34px rgba(0,0,0,.46)}
+  .cardbtn:active:not(.dis){transform:translateY(-1px)}
+  .cardbtn .big{font-family:'Playfair Display',serif;font-weight:900;font-size:2.7rem;
+    color:var(--gold);line-height:1;text-shadow:0 2px 5px rgba(0,0,0,.4)}
+  .cardbtn .ico{font-size:2.6rem;line-height:1;filter:drop-shadow(0 3px 6px rgba(0,0,0,.4))}
+  .cardbtn .lbl{font-family:'Playfair Display',serif;font-weight:800;font-size:1.02rem;
+    color:#fff;line-height:1.16}
+  .cardbtn .cnt{font-size:.76rem;color:#c6d3ea;font-weight:700}
+  .cardbtn.dis{opacity:.45;cursor:default;filter:grayscale(.5)}
+  .cardbtn.dis .big{color:#c6d3ea}
 
-  /* ── ступінь (tier) ── */
-  details.tier{margin:0 0 16px;border-radius:20px;overflow:hidden;
-    background:linear-gradient(165deg,rgba(30,52,92,.55),rgba(12,28,54,.62));
-    border:3px solid rgba(242,199,92,.62);box-shadow:0 12px 30px rgba(0,0,0,.4)}
-  details.tier > summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:14px;
-    padding:18px 20px;user-select:none}
-  details.tier > summary::-webkit-details-marker{display:none}
-  .tier-ic{font-size:2.7rem;line-height:1;flex-shrink:0;width:74px;height:74px;display:grid;
-    place-items:center;border-radius:20px;background:var(--tier-soft,rgba(255,255,255,.06));
-    border:2px solid var(--tier-line,rgba(255,255,255,.14));
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 4px 12px rgba(0,0,0,.3);
-    filter:drop-shadow(0 2px 4px rgba(0,0,0,.4))}
-  .tier-tt{flex:1 1 auto;min-width:0}
-  .tier-name{font-family:'Playfair Display',serif;font-weight:800;font-size:clamp(1.2rem,3vw,1.55rem);color:#fff}
-  .tier-note{font-size:.82rem;color:#c6d3ea;font-weight:600;margin-top:2px}
-  .tier-arrow{font-size:1.1rem;color:#f0d9a6;transition:transform .25s;flex-shrink:0}
-  details.tier[open] > summary .tier-arrow{transform:rotate(180deg)}
-  .pill{font-size:.66rem;font-weight:800;letter-spacing:.03em;padding:3px 10px;border-radius:999px;white-space:nowrap}
-  .pill.ready{background:rgba(120,220,150,.18);color:#9be6b0;border:1px solid rgba(120,220,150,.35)}
-  .pill.wip{background:rgba(242,199,92,.16);color:#f2d68a;border:1px solid rgba(242,199,92,.4)}
-  .pill.soon{background:rgba(255,255,255,.08);color:#c9cbe0;border:1px solid rgba(255,255,255,.18)}
-  .pill.new{background:rgba(255,110,64,.16);color:#ffb38f;border:1px solid rgba(255,110,64,.45)}
-  .pill.pop{background:rgba(255,196,64,.16);color:#ffd680;border:1px solid rgba(255,196,64,.45)}
-  .tier-body{padding:4px 18px 20px}
+  /* картка тесту (емодзі/обкладинка → назва → прогрес унизу) */
+  .tcard{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;
+    text-decoration:none;color:#fff;padding:14px 12px 14px;border-radius:20px;
+    background:linear-gradient(165deg,rgba(30,52,92,.62),rgba(12,28,54,.7));
+    border:2px solid rgba(242,199,92,.45);box-shadow:0 12px 30px rgba(0,0,0,.38);
+    transition:transform .15s,border-color .15s,box-shadow .15s}
+  .tcard:hover{transform:translateY(-3px);border-color:var(--gold);box-shadow:0 16px 34px rgba(0,0,0,.46)}
+  .tcard:active{transform:translateY(-1px)}
+  .tcard .thumb{width:100%;aspect-ratio:1/1;border-radius:14px;overflow:hidden;background:#f5eeda;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.26)}
+  .tcard .thumb img{width:100%;height:100%;object-fit:contain}
+  .tcard .emoji{font-size:3rem;line-height:1;padding:8px 0;filter:drop-shadow(0 3px 6px rgba(0,0,0,.4))}
+  .tcard .tname{font-family:'Playfair Display',serif;font-weight:800;font-size:.96rem;
+    line-height:1.18;text-align:center}
+  .tcard .cprog{width:100%;margin-top:auto}
 
-  /* ── клас ── */
-  .grade-name{font-family:'Playfair Display',serif;font-weight:800;color:var(--gold);
-    font-size:1.05rem;margin:14px 4px 10px;display:flex;align-items:center;gap:8px}
+  /* ── прогрес унизу картки ── */
+  .cprog{display:flex;flex-direction:column;gap:4px}
+  .cardbtn .cprog{position:absolute;left:14px;right:14px;bottom:12px}
+  .cprog .track{height:9px;border-radius:999px;overflow:hidden;
+    background:rgba(0,0,0,.34);border:1px solid rgba(255,255,255,.16)}
+  .cprog .track>i{display:block;height:100%;width:0;border-radius:999px;
+    background:linear-gradient(90deg,#7be0a4,#f5c542);
+    box-shadow:0 0 8px -2px rgba(245,197,66,.8);transition:width .55s ease}
+  .cprog .ptx{font-size:.68rem;font-weight:800;color:#e6edff;white-space:nowrap;line-height:1}
+  .cprog.done .track>i{background:linear-gradient(90deg,#7be0a4,#4bc47f)}
+  .cprog.done .ptx{color:#bff0cd}
 
-  /* ── предмет ── */
-  details.subj{margin:0 0 12px;border-radius:16px;overflow:hidden;
-    background:linear-gradient(100deg,var(--accent-soft,rgba(255,255,255,.05)),rgba(9,20,42,.55) 46%);
-    border:1.5px solid var(--accent-line,rgba(255,255,255,.12));transition:border-color .15s,box-shadow .15s}
-  details.subj:hover{box-shadow:0 6px 18px -8px var(--accent,#5C6BC0)}
-  details.subj > summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;
-    padding:13px 16px;border-left:8px solid var(--accent,#5C6BC0)}
-  details.subj > summary::-webkit-details-marker{display:none}
-  .subj-ic{font-size:1.7rem;line-height:1;flex-shrink:0;width:50px;height:50px;display:grid;
-    place-items:center;border-radius:14px;background:var(--accent-soft,rgba(255,255,255,.06));
-    border:1.5px solid var(--accent-line,rgba(255,255,255,.18))}
-  .subj-tt{flex:1 1 auto;min-width:0;display:flex;flex-direction:column}
-  .subj-name{font-weight:800;font-size:1.02rem;color:#fff}
-  .subj-stat{font-size:.74rem;color:#b9c4e0;font-weight:700;margin-top:2px}
-  .subj-stat b{color:var(--accent,#8fa2e6)}
-  /* смужка «пройдено/усього» у підсумку предмета (колір — акцент предмета) */
-  .subj-bar{display:flex;align-items:center;gap:8px;margin-top:6px;max-width:260px}
-  .subj-bar[hidden]{display:none}
-  .subj-bar-track{flex:1;min-width:56px;height:8px;border-radius:999px;
-    background:rgba(0,0,0,.32);border:1px solid rgba(255,255,255,.14);overflow:hidden}
-  .subj-bar-track>i{display:block;height:100%;width:0;border-radius:999px;
-    background:var(--accent,#5C6BC0);box-shadow:0 0 8px -2px var(--accent,#5C6BC0);transition:width .5s ease}
-  .subj-bar>b{font-size:.7rem;font-weight:800;color:#dfe7ff;white-space:nowrap}
-  .subj-arrow{font-size:1rem;color:#cfd4ff;transition:transform .25s;flex-shrink:0}
-  details.subj[open] > summary .subj-arrow{transform:rotate(180deg)}
-  /* бейдж прогресу предмета (рівень + ХР), напр. біля Математики */
-  .subj-prog{flex-shrink:0;display:inline-flex;align-items:center;gap:7px;font-size:.72rem;
-    font-weight:800;color:#eaf1ff;background:rgba(255,255,255,.07);
-    border:1px solid rgba(255,255,255,.16);padding:5px 12px;border-radius:999px;white-space:nowrap}
-  .subj-prog .lvl{color:var(--gold)}
-  .subj-prog .xp{color:var(--gold)}
-  .subj-body{padding:12px 16px 16px}
-  .grp-title{font-weight:800;font-size:.72rem;letter-spacing:.05em;color:#c3c8f0;margin:2px 0 8px;text-transform:uppercase}
-  .grp-soon{color:#8a94b4;font-weight:600;font-size:.8rem;font-style:italic;margin:0 0 10px}
-  .grp-title:not(:first-child){margin-top:14px}
+  .empty{grid-column:1/-1;color:#eaf1ff;font-weight:700;text-align:center;
+    padding:34px 12px;line-height:1.6;text-shadow:0 1px 3px rgba(0,0,0,.4)}
+  .empty span{opacity:.7;font-weight:600;font-size:.82rem}
 
-  /* ── теми/тести (чіпи) ── */
-  .chips{display:flex;flex-wrap:wrap;gap:8px}
-  .chip{display:inline-flex;align-items:center;gap:7px;font-size:.85rem;font-weight:700;
-    padding:9px 13px;border-radius:11px;text-decoration:none;transition:filter .15s,transform .1s}
-  .chip.ready{background:var(--accent,#5C6BC0);color:#fff;box-shadow:0 3px 0 rgba(0,0,0,.32)}
-  .chip.ready:hover{filter:brightness(1.12);transform:translateY(-1px)}
-  .chip-xp{font-size:.72rem;font-weight:800;color:var(--gold);
-    background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.18);
-    padding:2px 8px;border-radius:999px;white-space:nowrap}
-  /* бейдж пройдених рівнів поруч із тестом, напр. «🧩 3/10 рівнів» */
-  .chip-lvprog{display:inline-flex;align-items:center;gap:6px;font-size:.74rem;font-weight:800;
-    color:#eaf1ff;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);
-    padding:7px 12px;border-radius:11px;white-space:nowrap}
-  .chip-lvprog b{color:var(--gold)}
-  .chip-lvprog.done{border-color:rgba(120,220,150,.5);color:#bff0cd;background:rgba(120,220,150,.1)}
-  .chip-lvprog.done b{color:#9be6b0}
-  /* тест разом із бейджами тримаємо однією групою */
-  .chip-group{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
-  /* посилання на навчальний ролик — окремим рядком під тестом */
-  .chip-learn{flex-basis:100%;width:fit-content;display:inline-flex;align-items:center;gap:6px;
-    font-size:.8rem;font-weight:700;color:#ffe08a;text-decoration:none;
-    background:rgba(255,201,74,.12);border:1px solid rgba(255,201,74,.42);
-    border-radius:10px;padding:4px 12px;transition:background .15s,transform .12s}
-  .chip-learn:hover{background:rgba(255,201,74,.22);transform:translateY(-1px)}
-  /* ── Тренажери-картки: 2 в ряд, картинка → опис → назва-кнопка ── */
-  .tr-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  a.tr-card{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;
-    border-radius:20px;padding:18px 16px 16px;text-decoration:none;color:#fff;
-    background:linear-gradient(165deg,rgba(30,52,92,.6),rgba(12,28,54,.66));
-    border:2px solid rgba(242,199,92,.5);box-shadow:0 12px 30px rgba(0,0,0,.38);
-    transition:transform .15s,box-shadow .15s,border-color .15s}
-  a.tr-card:hover{transform:translateY(-4px);border-color:var(--gold);box-shadow:0 16px 34px rgba(0,0,0,.46)}
-  a.tr-card:active{transform:translateY(-1px)}
-  .tr-card .tr-emoji{font-size:3.4rem;line-height:1;filter:drop-shadow(0 3px 6px rgba(0,0,0,.4))}
-  .tr-card .tr-thumb{width:100%;height:190px;border-radius:16px;overflow:hidden;display:flex;
-    align-items:center;justify-content:center;background:rgba(255,255,255,.05);box-shadow:0 4px 12px rgba(0,0,0,.28)}
-  .tr-card .tr-thumb img{width:100%;height:100%;object-fit:cover;display:block}
-  .tr-card .tr-thumb .tr-fb{font-size:3.4rem;filter:drop-shadow(0 3px 6px rgba(0,0,0,.4))}
-  .tr-card .tr-desc{font-size:.92rem;color:#c6d3ea;font-weight:600;line-height:1.35;margin:0}
-  /* назва = кнопка (внизу картки) */
-  .tr-card .tr-name{margin-top:auto;font-family:'Playfair Display',serif;font-weight:900;
-    font-size:1.12rem;line-height:1.15;color:#5a3d08;
-    background:linear-gradient(180deg,#FFE7A0,#E0A93A);border:2px solid var(--gold-d);
-    border-radius:999px;padding:10px 22px;box-shadow:0 6px 16px rgba(0,0,0,.28);
-    transition:filter .15s,transform .12s}
-  a.tr-card:hover .tr-name{filter:brightness(1.06)}
-  /* підсвітка випробування, з якого щойно повернулись (стрілка ← у тренажері) */
-  @keyframes skReturnGlow{
-    0%{box-shadow:0 0 0 0 rgba(242,199,92,0)}
-    16%{box-shadow:0 0 0 4px rgba(242,199,92,.92),0 0 24px 4px rgba(242,199,92,.5)}
-    100%{box-shadow:0 0 0 0 rgba(242,199,92,0)}
-  }
-  .sk-return-glow{animation:skReturnGlow 2.6s ease-out 1;border-radius:16px;position:relative;z-index:2}
-  /* приземлення з навігації хедера: яскраве кільце + легкий «стрибок» + спалах шапки */
+  /* приземлення з навігації хедера: золоте кільце + легкий «стрибок» */
   @keyframes skNavRing{
-    0%{box-shadow:0 0 0 0 rgba(242,199,92,0),0 0 0 0 rgba(242,199,92,0)}
+    0%{box-shadow:0 0 0 0 rgba(242,199,92,0)}
     12%{box-shadow:0 0 0 4px rgba(242,199,92,.95),0 0 30px 8px rgba(242,199,92,.6)}
     55%{box-shadow:0 0 0 3px rgba(242,199,92,.5),0 0 18px 5px rgba(242,199,92,.28)}
-    100%{box-shadow:0 0 0 0 rgba(242,199,92,0),0 0 0 0 rgba(242,199,92,0)}
-  }
-  @keyframes skNavPop{0%{transform:scale(1)}12%{transform:scale(1.03)}34%{transform:scale(.997)}100%{transform:scale(1)}}
-  @keyframes skNavFlash{0%{background:transparent}15%{background:rgba(242,199,92,.22)}100%{background:transparent}}
-  .sk-nav-land{animation:skNavRing 1.9s ease-out 1,skNavPop .6s ease-out 1;border-radius:16px;position:relative;z-index:3}
-  .sk-nav-land>summary{animation:skNavFlash 1.9s ease-out 1}
-  .grade-name.sk-nav-land{display:inline-block;padding:4px 12px;border-radius:12px;animation:skNavRing 1.9s ease-out 1,skNavFlash 1.9s ease-out 1,skNavPop .6s ease-out 1}
-  @media(prefers-reduced-motion:reduce){
-    .sk-nav-land,.sk-nav-land>summary,.grade-name.sk-nav-land{animation:skNavFlash 1.2s ease-out 1}
-  }
-  /* заблокований тест: не клікається, приглушений */
-  .chip.ready.locked{pointer-events:none;opacity:.5;filter:grayscale(.45);box-shadow:none;cursor:not-allowed}
-  /* підказка-замок поруч із закритим тестом */
-  .chip-lock{display:inline-flex;align-items:center;gap:6px;font-size:.72rem;font-weight:800;
-    color:#f2d68a;background:rgba(242,199,92,.12);border:1px solid rgba(242,199,92,.4);
-    padding:7px 12px;border-radius:11px;white-space:nowrap}
-  .chip.plan{background:rgba(255,255,255,.05);color:#aeb6d6;border:1px solid rgba(255,255,255,.14);cursor:default}
-  .chip .num{opacity:.65;font-weight:800}
-  .chip .dot{color:var(--accent,#8fa2e6);font-weight:900}
+    100%{box-shadow:0 0 0 0 rgba(242,199,92,0)}}
+  @keyframes skNavPop{0%{transform:scale(1)}12%{transform:scale(1.04)}34%{transform:scale(.997)}100%{transform:scale(1)}}
+  .sk-nav-land{animation:skNavRing 1.9s ease-out 1,skNavPop .6s ease-out 1;border-radius:22px;position:relative;z-index:3}
+  @media(prefers-reduced-motion:reduce){.sk-nav-land{animation:none}}
 
-  /* ── 🏆 Досягнення (завершені на 100% тести) ── */
-  .ach{max-width:940px;margin:0 auto;padding:22px 18px 0;display:none}
-  .ach.show{display:block}
-  .ach-card{position:relative;overflow:hidden;border-radius:20px;padding:16px 18px 18px;
-    background:linear-gradient(165deg,rgba(74,58,18,.55),rgba(34,26,8,.55));
-    border:3px solid var(--gold);box-shadow:0 12px 30px rgba(0,0,0,.42),0 0 30px -14px rgba(255,214,120,.8)}
-  .ach-card::before{content:"";position:absolute;top:-45%;right:-8%;width:230px;height:230px;
-    background:radial-gradient(circle,rgba(255,224,138,.3),transparent 68%);pointer-events:none}
-  .ach-head{position:relative;display:flex;align-items:center;gap:14px;margin-bottom:12px}
-  .ach-ic{font-size:2.5rem;line-height:1;flex-shrink:0;filter:drop-shadow(0 2px 6px rgba(0,0,0,.45));
-    animation:achGlow 3.2s ease-in-out infinite}
-  @keyframes achGlow{0%,100%{filter:drop-shadow(0 2px 6px rgba(0,0,0,.45))}
-    50%{filter:drop-shadow(0 2px 6px rgba(0,0,0,.45)) drop-shadow(0 0 12px rgba(255,214,120,.75))}}
-  @media(prefers-reduced-motion:reduce){.ach-ic{animation:none}}
-  .ach-tt{flex:1 1 auto;min-width:0}
-  .ach-name{font-family:'Playfair Display',serif;font-weight:800;font-size:clamp(1.15rem,3vw,1.5rem);color:var(--gold)}
-  .ach-sub{font-size:.8rem;color:#e8d9a6;font-weight:600;margin-top:2px}
-  .ach-count{flex-shrink:0;font-size:.72rem;font-weight:800;color:#ffe9b8;white-space:nowrap;
-    background:rgba(255,207,77,.14);border:1px solid rgba(255,207,77,.4);padding:5px 12px;border-radius:999px}
-  .ach-list{display:flex;flex-wrap:wrap;gap:8px}
-  /* картка стала кнопкою: показує лише лічильник, повний список — у модалці */
-  .ach-card{cursor:pointer;transition:transform .14s,border-color .14s}
-  .ach-card:hover{transform:translateY(-2px);border-color:var(--gold)}
-  .ach-card:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
-  .ach-more{position:relative;display:inline-flex;align-items:center;gap:6px;margin-top:12px;
-    font-size:.82rem;font-weight:800;color:#5a3d08;
-    background:linear-gradient(180deg,#ffe7a0,#e6b24a);border:1.5px solid var(--gold-d,#C9942F);
-    border-radius:999px;padding:8px 16px;box-shadow:0 4px 12px rgba(216,159,34,.35)}
-  /* модалка з повним списком */
-  .achm{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;
-    padding:18px;background:rgba(8,20,44,.72);backdrop-filter:blur(3px)}
-  .achm.show{display:flex}
-  .achm-box{width:100%;max-width:640px;max-height:82vh;overflow:auto;border-radius:20px;padding:18px;
-    background:linear-gradient(165deg,rgba(39,81,140,.96),rgba(16,40,82,.98));
-    border:2px solid rgba(242,199,92,.75);box-shadow:0 18px 44px rgba(0,0,0,.5)}
-  .achm-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
-  .achm-title{flex:1 1 auto;font-family:'Playfair Display',serif;font-weight:800;
-    font-size:clamp(1.1rem,3vw,1.4rem);color:var(--gold)}
-  .achm-x{flex-shrink:0;cursor:pointer;font-family:inherit;font-weight:800;font-size:1rem;
-    background:rgba(0,0,0,.24);border:1px solid rgba(242,199,92,.42);color:#fff;
-    border-radius:999px;padding:7px 14px}
-  .achm-empty{color:#cdd9ef;font-weight:600;text-align:center;padding:18px 6px}
-  .chip-passed{display:inline-flex;align-items:center;gap:6px;font-size:.74rem;font-weight:800;
-    color:#bff0cd;background:rgba(120,220,150,.14);border:1px solid rgba(120,220,150,.5);
-    padding:7px 12px;border-radius:11px;white-space:nowrap}
-
-  .foot{max-width:940px;margin:0 auto;padding:0 20px 40px;color:#a9b6d4;font-size:.82rem;text-align:center;line-height:1.6}
-  .foot b{color:var(--gold)}
-  .foot code{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:1px 6px;color:#ffe9b8;font-size:.9em}
-
-  @media(max-width:560px){
-    .nav-links .nav-btn span{display:none}
-    .nav-btn{padding:9px 12px}
-    /* тренажери на телефоні: 2 в ряд, менший шрифт і картинка */
-    .subj-body{padding:12px 12px 14px}
-    .tr-grid{grid-template-columns:1fr 1fr;gap:10px}
-    a.tr-card{padding:12px 9px 12px;gap:7px;border-radius:16px}
-    .tr-card .tr-emoji{font-size:2.2rem}
-    .tr-card .tr-thumb{height:96px;border-radius:12px}
-    .tr-card .tr-thumb .tr-fb{font-size:2.2rem}
-    .tr-card .tr-desc{font-size:.72rem;line-height:1.25}
-    .tr-card .tr-name{font-size:.9rem;padding:7px 14px;border-width:1.5px}
-  }
-
-  /* ═══ ФУТЕР — золота орнаментальна панель з ромбами (ідентична hero.html) ═══ */
+  /* ── футер: активний пункт + ромби-роздільники (як на hero.html) ── */
   body{padding-bottom:calc(82px + env(safe-area-inset-bottom))}
-  /* ромб-роздільник між пунктами (крім останнього) */
-  .botnav > *:not(:last-child)::after{content:"◈";position:absolute;right:-3px;top:50%;transform:translateY(-50%);
-    color:#e0a42a;font-size:.72rem;opacity:.85;text-shadow:0 1px 2px rgba(0,0,0,.55);pointer-events:none}
-  /* активний пункт — золота обрамлена плитка */
-  .botnav a.active{background:linear-gradient(180deg,#fdeeb6,#f4c842);color:#5a3d05;border:2px solid #fff6d8;
-    box-shadow:0 3px 10px rgba(0,0,0,.35),0 0 16px -3px rgba(244,200,66,.8),inset 0 1px 0 rgba(255,255,255,.6);
-    transform:translateY(-2px)}
+  .botnav > *:not(:last-child)::after{content:"◈";position:absolute;right:-3px;top:50%;
+    transform:translateY(-50%);color:#e0a42a;font-size:.72rem;opacity:.85;
+    text-shadow:0 1px 2px rgba(0,0,0,.55);pointer-events:none}
+  .botnav a.active{background:linear-gradient(180deg,#fdeeb6,#f4c842);color:#5a3d05;
+    border:2px solid #fff6d8;box-shadow:0 3px 10px rgba(0,0,0,.35),0 0 16px -3px rgba(244,200,66,.8),
+    inset 0 1px 0 rgba(255,255,255,.6);transform:translateY(-2px)}
   .botnav a.active .ic{filter:none}
   .botnav a:hover:not(.active),.botnav button:hover{background:rgba(255,255,255,.08);color:#fff}
 </style>
@@ -270,57 +109,23 @@
 
   <!-- СПІЛЬНИЙ ХЕДЕР (бренд + шкала Героя) вставляється через sk-header.js -->
 
-  <!-- 🏆 ДОСЯГНЕННЯ (тести, пройдені на 100% рівнів) — заповнюється з JS -->
-  <section class="ach" id="skAch">
-    <div class="ach-card" id="skAchCard" role="button" tabindex="0"
-         aria-label="Показати повний список досягнень">
-      <div class="ach-head">
-        <span class="ach-ic">🏆</span>
-        <span class="ach-tt">
-          <span class="ach-name">Досягнення</span>
-          <span class="ach-sub">Тести, пройдені на 100% правильних відповідей</span>
-        </span>
-        <span class="ach-count" id="skAchCount">0 тестів</span>
-      </div>
-      <span class="ach-more" aria-hidden="true">Переглянути досягнення →</span>
+  <main class="wrap">
+    <div class="page-head">
+      <h1>📜 Тести королівства</h1>
+      <p class="sub" id="pgSub">Завантаження…</p>
     </div>
-  </section>
-
-  <!-- 🏆 ПОВНИЙ СПИСОК ДОСЯГНЕНЬ -->
-  <div class="achm" id="skAchModal" role="dialog" aria-modal="true" aria-labelledby="skAchmTitle">
-    <div class="achm-box">
-      <div class="achm-head">
-        <span class="ach-ic">🏆</span>
-        <span class="achm-title" id="skAchmTitle">Досягнення</span>
-        <button class="achm-x" id="skAchClose">Закрити</button>
-      </div>
-      <div class="ach-list" id="skAchList"></div>
-      <div class="achm-empty hidden" id="skAchEmpty">Поки порожньо. Пройди тест на всі рівні — і він зʼявиться тут.</div>
-    </div>
-  </div>
-
-  <!-- ДОРОЖНЯ КАРТА -->
-  <main class="wrap" id="root"></main>
-
-  <div class="foot">
-    Тести додаються в <b>адмін-панелі</b> й одразу з'являються тут.
-    Кожен пройдений тест додає <b>XP</b>, що підвищує характеристику предмета Героя.
-    Схему впливу узгоджуємо окремо.
-  </div>
+    <div id="screen"><div class="empty">Завантаження тестів…</div></div>
+  </main>
 
 <script src="sk-footer.js?v=1" data-active="tests"></script>
 
-<!-- Спільна карта королівства. МАЄ йти перед інлайн-скриптом нижче:
-     той читає SKCUR під час парсингу. Звичайний (не module) скрипт —
-     тож виконується синхронно й SKCUR гарантовано вже існує. -->
+<!-- Спільна карта королівства. МАЄ йти перед інлайн-скриптом нижче -->
 <script src="sk-curriculum.js"></script>
 <script>
-/* ── Запобіжник: sk-curriculum.js має бути завантажений і не старіший за потрібний.
-   Без нього рядки нижче (var norm = SKCUR.norm) кинули б ReferenceError і
-   сторінка лишилась би порожньою без пояснень. throw зупиняє лише цей скрипт. */
+/* ── Запобіжник: sk-curriculum.js має бути свіжим ── */
 (function(){
   var need = 5;
-  var uses = ['norm','clone','chains','chainIndex','chainPrev','findTest','indexTests','subjectMatches','placeTests','PASS_RATIO','ready','map'];
+  var uses = ['norm','clone','subjectMatches','placeTests','PASS_RATIO','ready','map'];
   var bad = null;
   if(!window.SKCUR) bad = 'Файл sk-curriculum.js не завантажився.';
   else {
@@ -330,748 +135,284 @@
       bad = 'Файл sk-curriculum.js застарілий (версія ' + (window.SKCUR.API_VERSION||'?') + ', потрібна ' + need + ').';
   }
   if(!bad) return;
-  console.error('[School Kingdoms] ' + bad + ' Залий свіжий sk-curriculum.js поруч із цією сторінкою.');
-  var r = document.getElementById('root');
-  if(r) r.innerHTML = '<p style="text-align:center;color:#ffd7db;font-weight:700;padding:26px 14px;line-height:1.6">'
-    + '😔 Королівство лагодиться. Спробуй трохи згодом!'
-    + '<br><span style="color:#9aa6c6;font-size:.8rem;font-weight:600">' + bad + '</span></p>';
+  var r = document.getElementById('screen');
+  if(r) r.innerHTML = '<p class="empty">😔 Королівство лагодиться. Спробуй трохи згодом!'
+    + '<br><span>' + bad + '</span></p>';
   throw new Error('SKCUR: ' + bad);
 })();
 
 /* ============================================================
-   ДОРОЖНЯ КАРТА
-   Кістяк (ступені/класи/предмети/розділи) БІЛЬШЕ НЕ ЗАШИТИЙ ТУТ —
-   він приходить із sk-curriculum.js (документ curriculum/map у базі,
-   редагується в адмінці → «🗺 Карта»). Запасна карта — у тому ж файлі.
-   Тести підтягуються з бази (SK.listActiveTests) і розкладаються
-   по предметах за полями grade + subject, а всередині предмета —
-   по розділах. Несопоставлені тести йдуть у «Інші тести».
+   ТЕСТИ — покрокова навігація картками:
+     Клас (1–11) → Предмет → Тести.
+   Кістяк (класи/предмети/розділи) приходить із sk-curriculum.js
+   (документ curriculum/map, редагується в адмінці). Тести — з бази
+   (SK.listActiveTests) і розкладаються по предметах спільною логікою
+   SKCUR.placeTests (та сама, що й у перевірці карти в адмінці).
+   Прогрес — з Firebase (heroes/{id}.progress) ∪ localStorage.
    ============================================================ */
-var CURRICULUM = [];        // заповнюється у loadFromDB() з SKCUR.map
-
-/* ── рендер ── */
-function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
-/* Додає альфу до 6-значного hex (напр. '#37B98A'+'22'). Якщо колір не hex —
-   безпечний нейтральний тон, щоб не зламати верстку. */
-function withA(hex, aa){ return /^#[0-9a-fA-F]{6}$/.test(String(hex||'')) ? hex+aa : 'rgba(255,255,255,.06)'; }
-/* Колір ступеня. За id (стабільно), інакше — циклом за позицією в карті. */
-var TIER_TINT  = { preschool:'#37B98A', junior:'#6E77E0', senior:'#9B6BD6' };
-var TIER_CYCLE = ['#37B98A','#6E77E0','#9B6BD6','#E0954E','#D6577A'];
-function tierTint(t){
-  if(t && TIER_TINT[t.id]) return TIER_TINT[t.id];
-  var i = 0; try{ i = Math.max(0, CURRICULUM.indexOf(t)); }catch(e){}
-  return TIER_CYCLE[i % TIER_CYCLE.length];
-}
-function pill(status){
-  if(status==='ready') return '<span class="pill ready">✅ Доступно</span>';
-  if(status==='wip')   return '<span class="pill wip">🔧 Готуємо</span>';
-  if(status==='new')   return '<span class="pill new">🔥 Новинка</span>';
-  if(status==='pop')   return '<span class="pill pop">⭐ Популярне</span>';
-  return '<span class="pill soon">🔒 Скоро</span>';
-}
-function chip(it, accent){
-  if(it.status==='ready' && it.href){
-    var badge = it.levels
-      ? ' <span class="chip-xp">🧩 рівні</span>'
-      : (it.xpKey ? ' <span class="chip-xp" data-xpkey="'+it.xpKey+'">0 XP</span>' : '');
-    var tgt = it.db ? '' : ' target="_blank" rel="noopener"';
-    // замок: чіп починає життя заблокованим, applyLocks() відкриє його за умовою
-    var locked   = !!it.lockPreId;
-    var lockAttr = locked ? ' data-lock-preid="'+it.lockPreId+'" data-lock-prelevels="'+(it.lockPreLevels||0)+'"' : '';
-    var lockCls  = locked ? ' locked' : '';
-    var dataAttr = (it.db && it.testId) ? ' data-testid="'+esc(it.testId)+'" data-levels="'+(it.levelCount||0)+'"' : '';
-    var parts = '<a class="chip ready'+lockCls+'" href="'+it.href+'"'+tgt+lockAttr+dataAttr+' style="--accent:'+accent+'">▶ '+esc(it.label)+badge+'</a>';
-    if(locked){
-      parts += '<span class="chip-lock">🔒 Пройди «'+esc(it.lockPreTitle||'')+'» на 55%</span>';
-    }
-    // окремий бейдж прогресу рівнів поруч із тестом (для тестів формату «рівні»)
-    if(it.levels && it.testId){
-      var total = it.levelCount||0;
-      var lvStyle = locked ? ' style="display:none"' : '';
-      parts += '<span class="chip-lvprog" data-lvkey="sk_lvtest_'+it.testId+'_done" data-lvtotal="'+total+'"'+lvStyle+'>🧩 <b>0</b>/'+total+' рівнів</span>';
-    }
-    if(it.learn){
-      parts += '<a class="chip-learn" href="'+it.learn+'">🎬 Подивись тут!</a>';
-    }
-    return '<span class="chip-group">'+parts+'</span>';
-  }
-  return '<span class="chip plan" style="--accent:'+accent+'"><span class="dot">•</span> '+esc(it.label)+'</span>';
-}
-function subjectHtml(s, tier, grade){
-  var accent = s.accent || '#5C6BC0';
-  var body = '';
-  // тренажери-сторінки предмета (з SUBJECT_LINKS) — показуємо першими
-  var slinks = subjectLinksFor(s, tier, grade);
-  if(slinks.length){
-    body += '<div class="grp-title">🎮 Випробування</div><div class="tr-grid">'
-          + slinks.map(function(l){
-              var tgt = l.blank ? ' target="_blank" rel="noopener"' : '';
-              var d = l.desc ? '<span class="tr-desc">'+esc(l.desc)+'</span>' : '';
-              var emo = esc(l.icon||'🎮');
-              var im = trainerImg(l.href, l.label);
-              var visual = im
-                ? '<span class="tr-thumb"><img src="'+esc(im)+'" alt="" loading="lazy" '
-                    + 'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
-                    + '<span class="tr-fb" style="display:none">'+emo+'</span></span>'
-                : '<span class="tr-emoji">'+emo+'</span>';
-              return '<a class="tr-card" href="'+esc(l.href)+'"'+tgt+'>'
-                   + visual
-                   + d
-                   + '<span class="tr-name">'+esc(l.label||l.href)+'</span>'
-                   + '</a>';
-            }).join('') + '</div>';
-  }
-  if(Array.isArray(s.groups)){
-    s.groups.forEach(function(g){
-      body += '<div class="grp-title">'+g.title+'</div>';
-      if(g.items && g.items.length){
-        body += '<div class="chips">'+ g.items.map(function(i){return chip(i,accent);}).join('') +'</div>';
-      } else {
-        body += '<p class="grp-soon">🔜 Скоро — тести додаються</p>';
-      }
-    });
-  }
-  if(Array.isArray(s.items) && s.items.length){
-    body += '<div class="grp-title">📚 Теми ('+s.items.length+')</div><div class="chips">'
-          + s.items.map(function(i,idx){
-              var c = chip(i,accent);
-              return c.replace('<span class="dot">•</span> ','<span class="num">'+(idx+1)+'.</span> ');
-            }).join('') + '</div>';
-  }
-  if(!body){
-    body = '<p style="color:#9aa6c6;font-weight:600;font-size:.85rem;font-style:italic;margin:2px 0">Тестів поки немає — додай їх в адмін-панелі.</p>';
-  }
-  return '<details class="subj" data-tier="'+esc(tier.id)+'" data-grade="'+esc(grade&&grade.id||'')+'" data-subj="'+esc(s.id)+'" style="--accent:'+accent+';--accent-soft:'+withA(accent,'24')+';--accent-line:'+withA(accent,'66')+'">'
-    + '<summary><span class="subj-ic">'+s.icon+'</span>'
-    + '<span class="subj-tt"><span class="subj-name">'+s.name+'</span>'
-    + '<span class="subj-stat"><b>'+s.stat+'</b></span>'
-    + '<span class="subj-bar" hidden><span class="subj-bar-track"><i></i></span><b></b></span></span>'
-    + '<span class="subj-arrow">▾</span></summary>'
-    + '<div class="subj-body">'+body+'</div></details>';
-}
-function tierHtml(t, openFirst){
-  var tint = tierTint(t);
-  var inner = '';
-  if(Array.isArray(t.grades) && t.grades.length){
-    t.grades.forEach(function(g){
-      inner += '<div class="grade-name" data-tier="'+esc(t.id)+'" data-grade="'+esc(g.id)+'">📖 '+g.name+'</div>';
-      inner += (g.subjects||[]).map(function(s){ return subjectHtml(s, t, g); }).join('');
-    });
-  } else {
-    inner = '<p style="color:#c6d3ea;font-weight:600;font-size:.9rem;padding:6px 4px 4px">'
-          + (t.note || 'У розробці.') + '</p>';
-  }
-  return '<details class="tier" data-tier="'+esc(t.id)+'"'+(openFirst?' open':'')
-    + ' style="--tier:'+tint+';--tier-soft:'+withA(tint,'26')+';--tier-line:'+withA(tint,'66')
-    + ';background:linear-gradient(165deg,'+withA(tint,'2e')+',rgba(11,26,52,.66) 62%)'
-    + ';box-shadow:0 12px 30px rgba(0,0,0,.42),0 0 28px -12px '+tint+'">'
-    + '<summary><span class="tier-ic">'+t.icon+'</span>'
-    + '<span class="tier-tt"><span class="tier-name">'+t.name+'</span>'
-    + '<span class="tier-note">'+t.note+'</span></span>'
-    + pill(t.status)
-    + '<span class="tier-arrow">▾</span></summary>'
-    + '<div class="tier-body">'+inner+'</div></details>';
-}
-/* ── зіставлення тесту з предметом дорожньої карти ── */
-var norm = SKCUR.norm;
-var subjectMatches = SKCUR.subjectMatches;
-function isLevelsTest(t){ return !!(t && (t.format==='levels' || (Array.isArray(t.levels) && t.levels.length))); }
-
-var PASS_RATIO = SKCUR.PASS_RATIO;
-/* Ланцюги й «пройдено на 55%» рахує спільний модуль sk-curriculum.js —
-   тож tests.html і test.html фізично не можуть розійтися. */
-/* Ланцюги рахуються на id тестів (див. sk-curriculum.js).
-   CHAINX — готова таблиця сусідів { [id]: {prev,next} }, будується раз у distribute(). */
-var CHAINX = {};
-function isTestPassed(pre, lookup){
-  if(!pre || !pre.id) return false;
-  var mark=lookup('sk_testpass_'+pre.id);
-  if(mark==='1'||mark===1||mark===true) return true;
-  if(pre.levels>0){
-    var done=countDoneLevels(lookup('sk_lvtest_'+pre.id+'_done'));
-    return (done/pre.levels)>=PASS_RATIO;
-  }
-  return false;
-}
-
-/* Навчальні ролики під тестами. Ключ — назва тесту або його id.
-   Найпростіше додати нове відео: допиши сюди рядок "Назва тесту": "learn/файл.html".
-   Якщо в самому тесті задано поле learnUrl — воно має пріоритет над цим списком. */
-var LEARN_LINKS = {
-  "Комп'ютер і його частини": "learn/learn_kompyuter.html"
-};
-
-/* Тренажери-сторінки, привʼязані до ПРЕДМЕТА (не з бази тестів — це окремі
-   самодостатні сторінки). Ключ — id предмета з карти (sk-curriculum.js) або
-   його назва. Щоб додати новий тренажер — допиши сюди рядок.
-   ВАЖЛИВО: тут, а не в даних карти, бо normalize() лишає у предметі лише
-   id/icon/name/accent/statKey/stat/keys/topics — кастомне поле було б відрізане. */
-var SUBJECT_LINKS_DEFAULT = [
-  { subject:'eng', href:'english-reading.html', icon:'📖', label:'Вчимось читати!' },
-  // абетка — це дошкільна підготовка, тож привʼязуємо до ступеня «Дошкільна…», а не до 1 класу.
-  // subject:'україн' зловить назву «Українська мова» / ключ «україн» незалежно від id з адмінки.
-  { tier:'Дошкільн', subject:'україн', href:'ukrainian-abetka.html', icon:'🔤', label:'Українська абетка' }
-];
-/* Реальний список тренажерів. До приходу відповіді з бази — вбудований.
-   Якщо в базі є документ curriculum/trainers (керується з адмінки), він
-   ПОВНІСТЮ заміняє вбудований — тож джерело стає одне. */
-var SUBJECT_LINKS = SUBJECT_LINKS_DEFAULT;
-/* Зіставлення посилання з предметом/ступенем. subject зіставляється за id (точно)
-   або входженням у назву/keys[] — тож не залежимо від id, що згенерувала адмінка,
-   і від точного написання назви. tier у записі — необовʼязковий фільтр (id точно
-   або входження в назву ступеня). */
-function slNorm(s){ return String(s==null?'':s).toLowerCase().replace(/[’'`ʼ]/g,'').replace(/\s+/g,' ').trim(); }
-function slSubjMatch(s, sel){
-  if(!sel) return true;
-  var n = slNorm(sel);
-  if(slNorm(s.id) === n) return true;
-  if(slNorm(s.name).indexOf(n) >= 0) return true;
-  var keys = s.keys || [];
-  for(var i=0;i<keys.length;i++){ if(slNorm(keys[i]).indexOf(n) >= 0) return true; }
-  return false;
-}
-function slTierMatch(t, sel){
-  if(!sel) return true;
-  if(!t) return false;
-  var n = slNorm(sel);
-  if(slNorm(t.id) === n) return true;
-  return slNorm(t.name).indexOf(n) >= 0;
-}
-/* Клас у записі — необовʼязковий фільтр. Порожній → показуємо в усіх класах.
-   Заданий (1–4) → лише в класі з таким gradeNum. */
-function slGradeMatch(g, sel){
-  if(!sel) return true;
-  if(!g) return true;   // немає контексту класу — не ховаємо
-  return Number(g.gradeNum) === Number(sel);
-}
-function subjectLinksFor(s, tier, grade){
-  return [];   /* випробування винесено в окремий розділ vyprobuvannya.html — у «Тестах» лишається лише навчальна програма */
-}
-
-/* Обкладинка тренажера — ОДИН файл: img/tr/<імʼя-сторінки>.webp, той самий,
-   що й на першій сторінці тренажера (картка лише показує його меншим).
-   Додаєш новий тренажер → кладеш одну картинку з такою ж назвою, як html-сторінка.
-   Код правити не треба. Якщо файлу немає — картка падає на емодзі (onerror).
-   ALIAS — тільки для сторінок-обгорток, чиє посилання не збігається з файлом. */
-var TRAINER_IMG_ALIAS = { 'ukrainian-abetka':'vchymo-litery' };
-function trainerImg(href){
-  var h = String(href||'').split('#')[0].split('?')[0];
-  h = h.substring(h.lastIndexOf('/')+1).replace(/\.html?$/i,'').toLowerCase().replace(/[’'`ʼ]/g,'');
-  if(!h) return '';
-  return 'img/tr/'+(TRAINER_IMG_ALIAS[h]||h)+'.webp?v=3';
-}
-
-function testChip(t){
-  var lv = isLevelsTest(t);
-  var c = { db:true, status:'ready', label:t.title||'Тест',
-    href:'test.html?id='+encodeURIComponent(t.id),
-    levels:lv, testId:t.id,
-    levelCount: lv ? (Array.isArray(t.levels)?t.levels.length:0) : 0,
-    learn: t.learnUrl || LEARN_LINKS[t.id] || LEARN_LINKS[t.title] || '',
-    grade:t.grade };
-  // замок лише для тестів у «ланцюгу»: відкривається, коли попередній тест
-  // ланцюга пройдено на 55%. Немає попереднього серед активних → fail-open.
-  var pre = (CHAINX[t.id] || {}).prev;
-  if(pre && pre.id){
-    c.lockPreId     = pre.id;
-    c.lockPreTitle  = pre.title;
-    c.lockPreLevels = isLevelsTest(pre) ? (Array.isArray(pre.levels)?pre.levels.length:0) : 0;
-  }
-  return c;
-}
-
-/* ── розкласти тести з бази по предметах і розділах (мутуємо CURRICULUM) ──
-   Правила розкладки — у SKCUR.placeTests (sk-curriculum.js), спільні з
-   перевіркою карти в адмінці. Коротко: тест потрапляє в розділ, якщо
-   (а) його id/назва є у списку розділу, (б) поле topic тесту == назва розділу,
-   (в) назва тесту починається з назви розділу — і в усіх трьох випадках
-   клас тесту має збігатися з класом на карті. */
-function distribute(tests){
-  CURRICULUM.forEach(function(tier){
-    (tier.grades||[]).forEach(function(g){
-      (g.subjects||[]).forEach(function(s){ s.items = []; s.groups = null; });
-    });
-  });
-
-  // Таблиця ланцюгів — рахуємо один раз на весь рендер, а не в кожному
-  // testChip (інакше O(n²) на кожне перемальовування).
-  CHAINX = SKCUR.chainIndex(SKCUR.map, tests);
-
-  // САМА РОЗКЛАДКА — у sk-curriculum.js. Тут лишається тільки перетворення
-  // тестів на плитки. Так адмінка при перевірці карти бачить рівно ту саму
-  // картину, що й дитина: раніше це були дві різні функції, і вони розійшлися.
-  var P = SKCUR.placeTests(CURRICULUM, tests);
-
-  // 1) предмети з розділами → групи (по одній на КОЖЕН розділ, у порядку карти)
-  P.topics.forEach(function(b){
-    if(!b.subj.groups) b.subj.groups = [];
-    b.subj.groups.push({
-      title: (b.topic.chain ? '🔗 ' : '') + esc(b.topic.topic),
-      items: b.tests.map(testChip)
-    });
-  });
-
-  // 2) решта тестів → у предмет за grade + subject (без розділів)
-  P.subjects.forEach(function(b){ b.subj.items = b.tests.map(testChip); });
-
-  // 3) катч-ол: нічого не губимо — усе несопоставлене йде в «Інші тести»
-  //    до найпершого класу, що є на карті
-  var leftovers = P.leftovers;
-  if(leftovers.length){
-    var firstGrade = null;
-    CURRICULUM.forEach(function(tier){
-      (tier.grades||[]).forEach(function(g){ if(!firstGrade) firstGrade = g; });
-    });
-    if(firstGrade){
-      firstGrade.subjects.push({ id:'other', icon:'📦', name:'Інші тести', accent:'#8a8fb0',
-        stat:'—', keys:[], topics:[], items: leftovers.map(function(t){
-          var c = testChip(t);
-          if(Number(t.grade) && Number(t.grade) !== Number(firstGrade.gradeNum)){
-            c.label = '['+t.grade+' кл] ' + c.label;
-          }
-          return c;
-        }) });
-    }
-  }
-}
-
-/* ── підрахунок пройдених рівнів із збереженого стану ── */
-function countDoneLevels(v){
-  try{ var o=(typeof v==='string')?JSON.parse(v):v;
-    if(Array.isArray(o)) return o.length;
-    return (o && typeof o==='object') ? Object.keys(o).length : 0;
-  }catch(e){ return 0; }
-}
-/* заповнити бейджі «X/N рівнів» зі стану на цьому пристрої (localStorage) */
-function fillLevelProgress(){
-  document.querySelectorAll('.chip-lvprog[data-lvkey]').forEach(function(el){
-    var key   = el.getAttribute('data-lvkey');
-    var total = parseInt(el.getAttribute('data-lvtotal')||'0',10)||0;
-    var done  = 0;
-    try{ var ls=localStorage.getItem(key); if(ls) done=countDoneLevels(ls); }catch(e){}
-    if(total && done>total) done=total;
-    el.innerHTML = '🧩 <b>'+done+'</b>/'+total+' рівнів';
-    el.classList.toggle('done', !!(total && done>=total));
-  });
-}
-/* відкрити/лишити закритими тести-замки. prog (Firebase) — необовʼязковий,
-   беремо максимум із локальним станом пристрою (localStorage) */
-/* ── смужка «пройдено / усього» на КОЖЕН предмет ──
-   Рахуємо по всіх тест-чіпах предмета (data-testid), НЕЗАЛЕЖНО від того, чи
-   applyAchievements() сховав 100%-тести. «Пройдено» = isTestPassed() (той самий
-   поріг і два джерела — localStorage + Firebase, що й у замках). */
-function fillSubjectProgress(prog){
-  function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
-  function pgGet(k){ return (prog && prog[k]!=null) ? prog[k] : null; }
-  document.querySelectorAll('#root details.subj').forEach(function(subj){
-    var bar = subj.querySelector('.subj-bar'); if(!bar) return;
-    var total=0, passed=0, seen={};
-    subj.querySelectorAll('.chip.ready[data-testid]').forEach(function(a){
-      var id=a.getAttribute('data-testid'); if(!id || seen[id]) return; seen[id]=1;
-      total++;
-      var pre={ id:id, levels: parseInt(a.getAttribute('data-levels')||'0',10)||0 };
-      if(isTestPassed(pre, lsGet) || isTestPassed(pre, pgGet)) passed++;
-    });
-    if(!total){ bar.hidden=true; return; }
-    if(passed>total) passed=total;
-    var fill=bar.querySelector('i'), tx=bar.querySelector('b');
-    if(fill) fill.style.width=Math.round(passed/total*100)+'%';
-    if(tx) tx.textContent=passed+' / '+total+' пройдено';
-    bar.hidden=false;
-  });
-}
-function applyLocks(prog){
-  function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
-  function pgGet(k){ return (prog && prog[k]!=null) ? prog[k] : null; }
-  document.querySelectorAll('.chip-group').forEach(function(g){
-    var a = g.querySelector('.chip.ready[data-lock-preid]');
-    if(!a) return;
-    var pre = { id: a.getAttribute('data-lock-preid'),
-                levels: parseInt(a.getAttribute('data-lock-prelevels')||'0',10)||0 };
-    // пройдено на 55% локально АБО за даними Firebase → відкрито
-    var unlocked = isTestPassed(pre, lsGet) || isTestPassed(pre, pgGet);
-    a.classList.toggle('locked', !unlocked);
-    var lock = g.querySelector('.chip-lock');   if(lock) lock.style.display = unlocked ? 'none' : '';
-    var lv   = g.querySelector('.chip-lvprog'); if(lv)   lv.style.display   = unlocked ? '' : 'none';
-  });
-}
-
-/* ── 🏆 Досягнення: тести, пройдені на 100% рівнів, переносяться сюди
-      (оригінал у рідній темі ховаємо, порожню тему теж) ── */
-function achPlural(n){
-  n=Math.abs(n)%100; var d=n%10;
-  if(n>10 && n<20) return 'тестів';
-  if(d===1) return 'тест';
-  if(d>=2 && d<=4) return 'тести';
-  return 'тестів';
-}
-function applyAchievements(prog){
-  var sec=document.getElementById('skAch');
-  var list=document.getElementById('skAchList');
-  if(!sec || !list) return;
-  list.innerHTML='';
-  var count=0;
-  /* Дані з Firebase (heroes/{id}.progress) — той самий обʼєкт, що вже живить
-     бейджі рівнів і смужки предметів. Читаємо і тут, інакше тест, який бейдж
-     показує «8/8», а смужка предмета рахує пройденим, губився з 🏆 (лічильник
-     занижувався), бо applyAchievements() дивилась лише в localStorage. */
-  function pgGet(k){ return (prog && prog[k]!=null) ? prog[k] : null; }
-  function mergedDone(key){
-    var a=0,b=0;
-    try{ a=countDoneLevels(localStorage.getItem(key)); }catch(e){}
-    try{ b=countDoneLevels(pgGet(key)); }catch(e){}
-    return Math.max(a,b);
-  }
-
-  /* 1) знайти тести, ВИКОНАНІ на 100% (прапорець sk_test100_<id>) — будь-якого типу,
-        сховати оригінал у рідній темі, клон → Досягнення. Розблокування ланцюга — окремо, на 55%. */
-  document.querySelectorAll('#root .chip-group').forEach(function(grp){
-    var link=grp.querySelector('.chip.ready');
-    if(!link) return;                                 // не тест-посилання — пропускаємо
-    var href=link.getAttribute('href')||'';
-    var id='';
-    try{ id=new URL(href, location.href).searchParams.get('id')||''; }
-    catch(e){ var m=/[?&]id=([^&]+)/.exec(href); id=m?decodeURIComponent(m[1]):''; }
-    /* Тест вважається виконаним на 100%, якщо є ПРАПОРЕЦЬ sk_test100_<id>
-       АБО (для тестів-рівнів) у прогресі пройдено всі рівні. Одного прапорця
-       мало: він пишеться лише в мить ідеального фінішу, тож усе, що пройдене
-       раніше за появу прапорця, або дописане з іншого пристрою, губилось.
-       isTestPassed() поруч уже давно читає два джерела — робимо так само. */
-    var full=false;
-    if(id){ try{ full = localStorage.getItem('sk_test100_'+id)==='1'; }catch(e){} }
-    if(!full && id && pgGet('sk_test100_'+id)==='1') full=true;   // прапорець із Firebase
-    if(!full){
-      var lp=grp.querySelector('.chip-lvprog');
-      if(lp){
-        var tot=parseInt(lp.getAttribute('data-lvtotal'),10)||0;
-        var done=mergedDone(lp.getAttribute('data-lvkey'));       // localStorage ∪ Firebase
-        if(tot>0 && done>=tot){
-          full=true;
-          try{ if(id) localStorage.setItem('sk_test100_'+id,'1'); }catch(e){}   // дописуємо, щоб синхронізувалось
-        }
-      }
-    }
-    if(!full){ grp.style.display=''; return; }         // ще не на 100%
-
-    grp.style.display='none';                          // ховаємо у рідній темі
-    count++;
-    var accent=(link.style.getPropertyValue('--accent').trim()) || '#5C6BC0';
-    var tn=link.childNodes[0];
-    var name=(tn && tn.nodeValue!=null ? tn.nodeValue : link.textContent||'').replace(/^\s*▶\s*/,'').trim();
-    var cg=document.createElement('span');
-    cg.className='chip-group';
-    cg.innerHTML='<a class="chip ready" href="'+href+'" style="--accent:'+accent+'">🏆 '+esc(name)+'</a>'
-               +'<span class="chip-passed">✅ 100%</span>';
-    list.appendChild(cg);
-  });
-
-  /* 2) сховати теми, що лишились без жодного видимого тесту */
-  document.querySelectorAll('#root .chips').forEach(function(ch){
-    var kids=ch.children, visible=0;
-    for(var i=0;i<kids.length;i++){ if(kids[i].style.display!=='none') visible++; }
-    var empty=(visible===0);
-    ch.style.display=empty ? 'none' : '';
-    var prev=ch.previousElementSibling;
-    if(prev && prev.classList.contains('grp-title')) prev.style.display=empty ? 'none' : '';
-  });
-
-  /* 3) сам блок Досягнень показуємо лише коли є що показати */
-  sec.classList.toggle('show', count>0);
-  var cnt=document.getElementById('skAchCount');
-  if(cnt) cnt.textContent=count+' '+achPlural(count);
-  var emp=document.getElementById('skAchEmpty');
-  if(emp) emp.classList.toggle('hidden', count>0);
-}
-
-/* ── модалка з повним списком ── */
-(function achModal(){
-  var card=document.getElementById('skAchCard');
-  var box =document.getElementById('skAchModal');
-  var x   =document.getElementById('skAchClose');
-  if(!card || !box) return;
-  function open(){ box.classList.add('show'); if(x) x.focus(); }
-  function close(){ box.classList.remove('show'); card.focus(); }
-  card.addEventListener('click', open);
-  card.addEventListener('keydown', function(e){
-    if(e.key==='Enter' || e.key===' '){ e.preventDefault(); open(); }
-  });
-  if(x) x.addEventListener('click', close);
-  box.addEventListener('click', function(e){ if(e.target===box) close(); });
-  document.addEventListener('keydown', function(e){
-    if(e.key==='Escape' && box.classList.contains('show')) close();
-  });
-})();
-
-/* ── повернення у розділ, з якого пішли у випробування ──────────────
-   При кліку по картці тренажера / чіпу тесту запамʼятовуємо його href.
-   Повертаючись сюди (стрілка ← у тренажері веде на tests.html), відкриваємо
-   саме той ступінь + предмет, прокручуємо й підсвічуємо те випробування.
-   Усе на боці tests.html — тренажери правити не треба.                    */
-function hrefKey(u){
-  if(!u) return '';
-  var s = String(u).trim().replace(/^https?:\/\/[^/]+/i,'');   // прибрати origin
-  var h = s.split('#')[0];                                     // прибрати #hash
-  var q = '', qi = h.indexOf('?');
-  if(qi >= 0){ q = h.slice(qi); h = h.slice(0, qi); }          // зберегти ?id=…
-  var file = h.substring(h.lastIndexOf('/') + 1);              // лише імʼя файла
-  return (file + q).toLowerCase();
-}
-/* клік ловимо у capture — щоб записати ДО переходу на сторінку тренажера */
-document.addEventListener('click', function(e){
-  var a = (e.target && e.target.closest) ? e.target.closest('a.tr-card, a.chip.ready, a.chip-learn') : null;
-  if(!a || a.classList.contains('locked')) return;
-  var k = hrefKey(a.getAttribute('href'));
-  if(k && /\.html/.test(k)){ try{ sessionStorage.setItem('sk_return_test', k); }catch(_){} }
-}, true);
-/* звідки повернулись: спершу маркер кліку, інакше — document.referrer */
-function findReturnKey(){
-  var k = '';
-  try{ k = sessionStorage.getItem('sk_return_test') || ''; }catch(_){}
-  if(!k){
-    try{
-      var rk = hrefKey(document.referrer || '');
-      if(rk && rk.indexOf('tests.html') !== 0 && /\.html/.test(rk)) k = rk;
-    }catch(_){}
-  }
-  return k;
-}
-/* відкрити ступінь+предмет цілі, прокрутити й підсвітити. true — якщо знайшли */
-function revealReturn(key){
-  var root = document.getElementById('root');
-  if(!root || !key) return false;
-  var links = root.querySelectorAll('a.tr-card, a.chip.ready, a.chip-learn');
-  var hit = null;
-  for(var i=0;i<links.length;i++){
-    if(hrefKey(links[i].getAttribute('href')) === key){ hit = links[i]; break; }
-  }
-  if(!hit) return false;
-  for(var el = hit.parentNode; el && el !== root; el = el.parentNode){
-    if(el.tagName && el.tagName.toLowerCase() === 'details') el.open = true;   // ступінь + предмет
-  }
-  var card = hit.closest('.tr-card') || hit.closest('.chip-group') || hit;
-  requestAnimationFrame(function(){
-    try{ card.scrollIntoView({behavior:'smooth', block:'center'}); }
-    catch(_){ try{ card.scrollIntoView(); }catch(__){} }
-    card.classList.add('sk-return-glow');
-    setTimeout(function(){ card.classList.remove('sk-return-glow'); }, 2600);
-  });
-  try{ sessionStorage.removeItem('sk_return_test'); }catch(_){}   // щоб оновлення не відкривало знову
-  return true;
-}
-
-/* ── рендер дорожньої карти ── */
-function render(){
-  var retKey = findReturnKey();
-  // повертаємось із випробування → не форсуємо junior, відкриємо потрібний ступінь нижче
-  document.getElementById('root').innerHTML =
-    CURRICULUM.map(function(t){ return tierHtml(t, !retKey && t.id==='junior'); }).join('');
-  fillLevelProgress();
-  applyLocks();
-  applyAchievements();
-  fillSubjectProgress();
-  if(retKey && !revealReturn(retKey)){
-    // ціль не знайшли (напр., тренажера вже нема в карті) → відкриваємо junior як завжди
-    var idx = -1;
-    CURRICULUM.forEach(function(t,i){ if(t.id==='junior') idx = i; });
-    var tiers = document.querySelectorAll('#root details.tier');
-    if(idx >= 0 && tiers[idx]) tiers[idx].open = true;
-    else if(tiers[0]) tiers[0].open = true;
-  }
-  if(!retKey) openFromHash();      // прихід із навігації хедера: #open=<tier>&subj=<id>|&grade=<id>
-}
-
-/* ── відкрити ступінь/клас/предмет за хешем із навігації хедера ──
-   Формат: tests.html#open=<tierId>[&subj=<subjId>][&grade=<gradeId>] */
-function hashParams(){
-  var h = (location.hash || '').replace(/^#/, '');
-  var p = {};
-  if(!h) return p;
-  h.split('&').forEach(function(kv){
-    var a = kv.split('=');
-    if(a[0]) p[decodeURIComponent(a[0])] = decodeURIComponent(a[1] || '');
-  });
-  return p;
-}
-function cssEsc(v){
-  v = String(v == null ? '' : v);
-  return (window.CSS && CSS.escape) ? CSS.escape(v) : v.replace(/["\\\]]/g, '\\$&');
-}
-/* приземлення з меню хедера: підкрутити до цілі + помітна коротка анімація */
-function landOn(el){
-  // для предмета зручніше показати його «шапку» (summary), а не центр розкритого блоку
-  var scrollTo = (el.matches && el.matches('details.subj') && el.querySelector('summary')) || el;
-  el.classList.remove('sk-nav-land');   // перезапуск, якщо клікнули повторно
-  void el.offsetWidth;                   // reflow → анімація стартує знову
-  requestAnimationFrame(function(){
-    try{ scrollTo.scrollIntoView({behavior:'smooth', block:'center'}); }
-    catch(_){ try{ scrollTo.scrollIntoView(); }catch(__){} }
-    el.classList.add('sk-nav-land');
-    setTimeout(function(){ el.classList.remove('sk-nav-land'); }, 2100);
-  });
-}
-function openFromHash(){
-  var root = document.getElementById('root');
-  var p = hashParams();
-  var tierId = p.open || p.tier;
-  if(!root || (!tierId && !p.subj)) return false;
-
-  var tierEl = tierId ? root.querySelector('details.tier[data-tier="'+cssEsc(tierId)+'"]') : null;
-
-  // предмет — найточніша ціль (клас + предмет)
-  if(p.subj){
-    var base = 'details.subj[data-subj="'+cssEsc(p.subj)+'"]';
-    var subjEl =
-        (tierId && p.grade && root.querySelector('details.subj[data-tier="'+cssEsc(tierId)+'"][data-grade="'+cssEsc(p.grade)+'"][data-subj="'+cssEsc(p.subj)+'"]'))
-     || (tierId && root.querySelector('details.subj[data-tier="'+cssEsc(tierId)+'"]'+base.replace('details.subj','')))
-     || root.querySelector(base);
-    if(subjEl){
-      for(var el = subjEl.parentNode; el && el !== root; el = el.parentNode){
-        if(el.tagName && el.tagName.toLowerCase() === 'details') el.open = true;
-      }
-      subjEl.open = true;
-      landOn(subjEl);
-      return true;
-    }
-  }
-  // клас
-  if(p.grade){
-    var gEl = root.querySelector('.grade-name[data-tier="'+cssEsc(tierId)+'"][data-grade="'+cssEsc(p.grade)+'"]')
-           || root.querySelector('.grade-name[data-grade="'+cssEsc(p.grade)+'"]');
-    if(gEl){ if(tierEl) tierEl.open = true; landOn(gEl); return true; }
-  }
-  // ступінь
-  if(tierEl){ tierEl.open = true; landOn(tierEl); return true; }
-  return false;
-}
-/* якщо вже на tests.html і хеш змінився (клік у меню хедера) — відкрити ціль без перезавантаження */
-window.addEventListener('hashchange', function(){ openFromHash(); });
-
-/* первинний стан — щоб не блимала порожня сторінка */
-document.getElementById('root').innerHTML =
-  '<p style="text-align:center;color:#c6d3ea;font-weight:600;padding:26px 10px">Завантаження тестів…</p>';
-
-/* дочекатись SK → підтягнути активні тести з бази → розкласти → відрендерити */
-(function loadFromDB(){
-  var tries = 0;
-  (function tick(){
-    if(window.SK && SK.ready){
-      // карта (curriculum/map або запасна) + активні тести + тренажери — паралельно
-      Promise.all([
-        SKCUR.ready,
-        SK.ready.then(function(){ return SK.listActiveTests(); }).catch(function(){ return []; }),
-        SK.ready.then(function(){ return SK.getTrainers ? SK.getTrainers() : null; }).catch(function(){ return null; })
-      ]).then(function(res){
-        var tr = res[2];
-        // документ у базі є → він повністю заміняє вбудований список
-        if(tr && Array.isArray(tr.links)) SUBJECT_LINKS = tr.links;
-        CURRICULUM = SKCUR.clone(res[0].tiers);
-        distribute(res[1] || []);
-        render();
-      }).catch(function(){
-        CURRICULUM = SKCUR.clone(SKCUR.map.tiers);
-        distribute([]); render();
-      });
-      return;
-    }
-    if(tries++ < 100) setTimeout(tick, 50);
-    else { CURRICULUM = SKCUR.clone(SKCUR.map.tiers); distribute([]); render(); }
-  })();
-})();</script>
-
-<!-- смужка характеристик активного Героя (читання з Firebase) -->
-<script type="module" src="firebase-config.js"></script>
-<!-- прогрес дорожньої карти (бейджі рівнів, замки, XP тем). Шкалу Героя
-     тепер малює спільний хедер sk-header.js, тож тут її немає. -->
-<script>
 (function(){
-  var tries = 0;
-  (function whenSK(){
-    if(window.SK && SK.ready){
-      SK.ready.then(function(){
-        try{
-          if(SK.isHeroSession && SK.isHeroSession()){
-            SK.getHero().then(function(h){
-              if(!h) return;
-              var prog = h.progress || {};
-              function countSet(v){
-                try{ var o=JSON.parse(v);
-                  if(Array.isArray(o)) return o.length;
-                  return (o && typeof o==='object') ? Object.keys(o).length : 0;
-                }catch(e){ return 0; }
-              }
+  'use strict';
 
-              /* Прогрес із Firebase застосовуємо ЛИШЕ коли плитки вже намальовані.
-                 Інакше цей блок (getHero — один документ) випереджає render()
-                 (listActiveTests — вся колекція), застосовується до порожнього
-                 DOM і мовчки нічого не робить → усе лишається замкненим. */
-              (function applyProg(tries){
-                tries = tries || 0;
-                if(!document.querySelector('.chip.ready') && tries < 120){
-                  return setTimeout(function(){ applyProg(tries + 1); }, 50);
-                }
+  var CURRICULUM = [];      // клон SKCUR.map.tiers
+  var IDX = null;           // { grades:{num:{num,order[],subs{}}}, nums[] }
+  var ALL_GRADES = [];      // усі класи з карти (для сітки, навіть порожні)
+  var GRADE_ID2NUM = {};    // gradeId → gradeNum (для навігації з хедера)
+  var PROG = null;          // прогрес Героя з Firebase (heroes/{id}.progress)
 
-              /* ── бейджі «X/N рівнів»: максимум із локальним станом ── */
-              document.querySelectorAll('.chip-lvprog[data-lvkey]').forEach(function(el){
-                var key   = el.getAttribute('data-lvkey');
-                var total = parseInt(el.getAttribute('data-lvtotal')||'0',10)||0;
-                var b     = el.querySelector('b');
-                var cur   = b ? (parseInt(b.textContent,10)||0) : 0;
-                var fromProg = (prog[key]!=null) ? countSet(prog[key]) : 0;
-                var done = Math.max(cur, fromProg);
-                if(total && done>total) done=total;
-                el.innerHTML = '🧩 <b>'+done+'</b>/'+total+' рівнів';
-                el.classList.toggle('done', !!(total && done>=total));
-              });
+  var view = 'classes', selGrade = null, selSubj = null;
 
-              /* ── замки: перерахувати з урахуванням прогресу з Firebase ── */
-              if(typeof applyLocks==='function') applyLocks(prog);
+  function q(id){ return document.getElementById(id); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+  function pgGet(k){ return (PROG && PROG[k]!=null) ? PROG[k] : null; }
 
-              /* ── ХР біля кожної теми (з progress відповідного тесту) ── */
-              document.querySelectorAll('.chip-xp[data-xpkey]').forEach(function(el){
-                var key = el.getAttribute('data-xpkey');
-                var v = 0;
-                if(prog[key]!=null){ var n=parseFloat(prog[key]); if(!isNaN(n)) v=n; }
-                el.textContent = v + ' XP';
-              });
+  /* ── підрахунок пройдених рівнів зі збереженого стану ── */
+  function countDoneLevels(v){
+    try{ var o=(typeof v==='string')?JSON.parse(v):v;
+      if(Array.isArray(o)) return o.length;
+      return (o && typeof o==='object') ? Object.keys(o).length : 0;
+    }catch(e){ return 0; }
+  }
+  function doneLevels(id){
+    return Math.max(countDoneLevels(lsGet('sk_lvtest_'+id+'_done')),
+                    countDoneLevels(pgGet('sk_lvtest_'+id+'_done')));
+  }
+  function truthy(v){ return v==='1'||v===1||v===true; }
+  /* пройдено = прапорець проходження / 100% АБО (тести-рівні) ≥ PASS_RATIO рівнів —
+     точно ті самі правила, що були на старій сторінці */
+  function isPassed(t){
+    if(truthy(lsGet('sk_testpass_'+t.id)) || truthy(pgGet('sk_testpass_'+t.id))) return true;
+    if(truthy(lsGet('sk_test100_'+t.id)) || truthy(pgGet('sk_test100_'+t.id))) return true;
+    if(t.isLevels && t.levelCount>0) return (doneLevels(t.id)/t.levelCount) >= SKCUR.PASS_RATIO;
+    return false;
+  }
+  /* дріб для смужки на КАРТЦІ ТЕСТУ (гранулярно): рівні або 0/1 */
+  function testFrac(t){
+    if(t.isLevels && t.levelCount>0){ var d=doneLevels(t.id); if(d>t.levelCount)d=t.levelCount; return d/t.levelCount; }
+    return isPassed(t) ? 1 : 0;
+  }
+  function subjProg(s){ var passed=0; s.tests.forEach(function(t){ if(isPassed(t)) passed++; }); return {total:s.tests.length, passed:passed}; }
+  function gradeProg(gr){ var total=0,passed=0; if(gr) gr.order.forEach(function(sid){ gr.subs[sid].tests.forEach(function(t){ total++; if(isPassed(t)) passed++; }); }); return {total:total,passed:passed}; }
 
-              /* ── перенести завершені тести в 🏆 Досягнення (після оновлення бейджів) ──
-                 передаємо prog, щоб 100%-тести з Firebase теж потрапляли в 🏆 ── */
-              if(typeof applyAchievements==='function') applyAchievements(prog);
+  /* ── смужка прогресу унизу картки ── */
+  function bar(frac, label, cls){
+    var pct=Math.max(0,Math.min(100,Math.round(frac*100)));
+    var done=(frac>=1)?' done':'';
+    return '<span class="cprog'+done+(cls?' '+cls:'')+'"><span class="track"><i style="width:'+pct+'%"></i></span>'
+         + '<span class="ptx">'+esc(label)+'</span></span>';
+  }
 
-              /* ── смужки предметів: перерахувати з урахуванням прогресу Firebase ── */
-              if(typeof fillSubjectProgress==='function') fillSubjectProgress(prog);
-              })();   /* /applyProg */
-            }).catch(function(){});
-          }
-        }catch(e){}
-      });
-      return;
+  /* ── обкладинка тесту: якщо в базі задано imgCard — показуємо, інакше емодзі предмета ── */
+  function testVisual(t){
+    if(t.imgCard){
+      return '<span class="thumb"><img src="'+esc(t.imgCard)+'" alt="" loading="lazy" '
+           + 'onerror="this.parentNode.outerHTML=\'<span class=&quot;emoji&quot;>'+esc(t.icon)+'</span>\'"></span>';
     }
-    if(tries++ < 100) setTimeout(whenSK, 50);
-  })();
+    return '<span class="emoji">'+esc(t.icon)+'</span>';
+  }
+
+  /* ── побудова індексу «клас → предмет → тести» зі спільної розкладки ── */
+  function toTestObj(t, subjIcon){
+    var lv = (t.format==='levels' || (Array.isArray(t.levels) && t.levels.length));
+    return { id:t.id, title:t.title||'Тест', href:'test.html?id='+encodeURIComponent(t.id),
+      isLevels:!!lv, levelCount: lv ? (Array.isArray(t.levels)?t.levels.length:0) : 0,
+      icon:(subjIcon||'📝'), imgCard: t.imgCard||t.cover||'' };
+  }
+  function buildIndex(tests){
+    var P = SKCUR.placeTests(CURRICULUM, tests);
+    var G = {};
+    function ensureGrade(n){ return G[n] || (G[n]={num:n, order:[], subs:{}}); }
+    function ensureSubj(gr, subj){
+      var s = gr.subs[subj.id];
+      if(!s){ s={id:subj.id,name:subj.name,icon:subj.icon||'📘',accent:subj.accent||'#5C6BC0',
+        stat:subj.stat||'',tests:[],_seen:{}}; gr.subs[subj.id]=s; gr.order.push(subj.id); }
+      return s;
+    }
+    function addBucket(b){
+      var n=Number(b.grade.gradeNum)||0; var gr=ensureGrade(n); var s=ensureSubj(gr,b.subj);
+      b.tests.forEach(function(t){ if(s._seen[t.id]) return; s._seen[t.id]=1; s.tests.push(toTestObj(t,b.subj.icon)); });
+    }
+    P.topics.forEach(addBucket);
+    P.subjects.forEach(addBucket);
+    // катч-ол: несопоставлені тести → «Інші тести» до першого класу карти
+    if(P.leftovers && P.leftovers.length){
+      var firstNum=null;
+      CURRICULUM.forEach(function(t){ (t.grades||[]).forEach(function(g){ if(firstNum==null) firstNum=Number(g.gradeNum)||1; }); });
+      if(firstNum==null) firstNum=1;
+      var gr=ensureGrade(firstNum);
+      var s=gr.subs['other'];
+      if(!s){ s={id:'other',name:'Інші тести',icon:'📦',accent:'#8a8fb0',stat:'',tests:[],_seen:{}}; gr.subs['other']=s; gr.order.push('other'); }
+      P.leftovers.forEach(function(t){ if(s._seen[t.id]) return; s._seen[t.id]=1;
+        var o=toTestObj(t,'📦'); if(Number(t.grade) && Number(t.grade)!==firstNum) o.title='['+t.grade+' кл] '+o.title;
+        s.tests.push(o);
+      });
+    }
+    var nums=Object.keys(G).map(Number).sort(function(a,b){return a-b;});
+    return { grades:G, nums:nums };
+  }
+  function buildGradeMeta(){
+    ALL_GRADES=[]; GRADE_ID2NUM={};
+    var seen={};
+    CURRICULUM.forEach(function(t){ (t.grades||[]).forEach(function(g){
+      var n=Number(g.gradeNum)||0; GRADE_ID2NUM[g.id]=n;
+      if(!seen[n]){ seen[n]=1; ALL_GRADES.push({num:n, id:g.id, name:g.name||(n+' клас')}); }
+    }); });
+    ALL_GRADES.sort(function(a,b){return a.num-b.num;});
+  }
+
+  /* ── рендер ── */
+  function renderClasses(){
+    q('pgSub').textContent='Обери клас.';
+    if(!ALL_GRADES.length){
+      q('screen').innerHTML='<div class="empty">Класів ще немає. Додай їх у адмінці → «🗺 Структура».</div>'; return;
+    }
+    q('screen').innerHTML='<div class="grid">'+ALL_GRADES.map(function(g){
+      var gr=IDX.grades[g.num]; var p=gradeProg(gr); var has=p.total>0;
+      var prog = has ? bar(p.passed/p.total, p.passed+' / '+p.total+' пройдено') : '';
+      return '<button class="cardbtn'+(has?'':' dis')+'" '+(has?'data-grade="'+g.num+'"':'disabled')+'>'
+        + '<span class="big">'+g.num+'</span><span class="lbl">клас</span>'
+        + '<span class="cnt">'+(has?p.total+' тест.':'скоро')+'</span>'
+        + prog + '</button>';
+    }).join('')+'</div>';
+  }
+  function renderSubjects(){
+    q('pgSub').textContent=selGrade+' клас — обери предмет.';
+    var gr=IDX.grades[selGrade];
+    var html='<button class="back" data-back="classes">← Класи</button>';
+    if(!gr || !gr.order.length){ html+='<div class="empty">У цьому класі ще немає предметів із тестами.</div>'; q('screen').innerHTML=html; return; }
+    html+='<div class="grid">'+gr.order.map(function(sid){
+      var s=gr.subs[sid]; var p=subjProg(s); var has=p.total>0;
+      var prog = has ? bar(p.passed/p.total, p.passed+' / '+p.total+' пройдено') : '';
+      return '<button class="cardbtn'+(has?'':' dis')+'" '+(has?'data-subj="'+esc(s.id)+'"':'disabled')+'>'
+        + '<span class="ico">'+esc(s.icon)+'</span><span class="lbl">'+esc(s.name)+'</span>'
+        + '<span class="cnt">'+(has?p.total+' тест.':'немає')+'</span>'
+        + prog + '</button>';
+    }).join('')+'</div>';
+    q('screen').innerHTML=html;
+  }
+  function renderTests(){
+    var gr=IDX.grades[selGrade]; var s=gr && gr.subs[selSubj];
+    q('pgSub').textContent=selGrade+' клас · '+(s?s.name:'');
+    var html='<button class="back" data-back="subjects">← Предмети</button>';
+    if(!s || !s.tests.length){ html+='<div class="empty">Тестів поки немає — додай їх в адмін-панелі.</div>'; q('screen').innerHTML=html; return; }
+    html+='<div class="grid">'+s.tests.map(function(t){
+      var label, cls='';
+      if(t.isLevels){ var d=doneLevels(t.id); if(d>t.levelCount)d=t.levelCount;
+        label='🧩 '+d+'/'+t.levelCount+' рівнів'; if(t.levelCount && d>=t.levelCount) cls='done'; }
+      else { var pd=isPassed(t); label=pd?'✅ пройдено':'▶ не пройдено'; if(pd) cls='done'; }
+      return '<a class="tcard" href="'+esc(t.href)+'" data-testid="'+esc(t.id)+'">'
+        + testVisual(t)
+        + '<span class="tname">'+esc(t.title)+'</span>'
+        + bar(testFrac(t), label, cls) + '</a>';
+    }).join('')+'</div>';
+    q('screen').innerHTML=html;
+  }
+  function render(){
+    if(view==='subjects' && IDX && IDX.grades[selGrade]) renderSubjects();
+    else if(view==='tests' && IDX && IDX.grades[selGrade] && IDX.grades[selGrade].subs[selSubj]) renderTests();
+    else { view='classes'; renderClasses(); }
+  }
+
+  /* ── навігація картками + збереження позиції для повернення ── */
+  q('screen').addEventListener('click',function(e){
+    var g=e.target.closest('[data-grade]');
+    if(g){ selGrade=Number(g.getAttribute('data-grade')); selSubj=null; view='subjects'; render(); window.scrollTo(0,0); return; }
+    var s=e.target.closest('[data-subj]');
+    if(s){ selSubj=s.getAttribute('data-subj'); view='tests'; render(); window.scrollTo(0,0); return; }
+    var b=e.target.closest('[data-back]');
+    if(b){ view=b.getAttribute('data-back'); render(); window.scrollTo(0,0); return; }
+  });
+  /* при переході на тест — запамʼятати клас+предмет, щоб повернутись саме сюди */
+  q('screen').addEventListener('click',function(e){
+    var a=e.target.closest('a.tcard'); if(!a) return;
+    try{ sessionStorage.setItem('sk_tests_view', JSON.stringify({g:selGrade,s:selSubj})); }catch(_){}
+  }, true);
+  function restoreView(){
+    var raw=null; try{ raw=sessionStorage.getItem('sk_tests_view'); }catch(_){}
+    if(!raw) return false;
+    try{ sessionStorage.removeItem('sk_tests_view'); }catch(_){}
+    var v; try{ v=JSON.parse(raw); }catch(_){ return false; }
+    if(!v || v.g==null) return false;
+    var gr=IDX.grades[Number(v.g)]; if(!gr) return false;
+    selGrade=Number(v.g);
+    if(v.s && gr.subs[v.s]){ selSubj=v.s; view='tests'; } else { view='subjects'; }
+    return true;
+  }
+
+  /* ── приземлення з навігації хедера: #open=<tier>&grade=<gradeId>&subj=<subjId> ── */
+  function hashParams(){
+    var h=(location.hash||'').replace(/^#/,''); var p={};
+    if(!h) return p;
+    h.split('&').forEach(function(kv){ var a=kv.split('='); if(a[0]) p[decodeURIComponent(a[0])]=decodeURIComponent(a[1]||''); });
+    return p;
+  }
+  function landGlow(){
+    var el=q('screen').querySelector('.cardbtn:not(.dis), .tcard'); if(!el) return;
+    el.classList.remove('sk-nav-land'); void el.offsetWidth;
+    requestAnimationFrame(function(){ el.classList.add('sk-nav-land'); setTimeout(function(){ el.classList.remove('sk-nav-land'); },2000); });
+  }
+  function openFromHash(){
+    if(!IDX) return false;
+    var p=hashParams();
+    if(!p.open && !p.tier && !p.grade && !p.subj) return false;
+    var num = p.grade ? GRADE_ID2NUM[p.grade] : null;
+    if(num && IDX.grades[num]){
+      selGrade=num;
+      if(p.subj && IDX.grades[num].subs[p.subj]){ selSubj=p.subj; view='tests'; }
+      else { selSubj=null; view='subjects'; }
+      render(); window.scrollTo(0,0); landGlow(); return true;
+    }
+    // лише ступінь → показуємо перелік класів
+    view='classes'; render(); window.scrollTo(0,0); return true;
+  }
+  window.addEventListener('hashchange', openFromHash);
+
+  /* ── старт: карта + активні тести з бази → індекс → рендер ── */
+  function boot(){
+    Promise.all([
+      SKCUR.ready,
+      (window.SK && SK.ready) ? SK.ready.then(function(){ return SK.listActiveTests(); }).catch(function(){ return []; }) : Promise.resolve([])
+    ]).then(function(res){
+      CURRICULUM = SKCUR.clone((res[0] && res[0].tiers) || SKCUR.map.tiers);
+      buildGradeMeta();
+      IDX = buildIndex(res[1] || []);
+      if(!openFromHash()){ restoreView(); render(); }
+      loadHeroProgress();
+    }).catch(function(){
+      CURRICULUM = SKCUR.clone(SKCUR.map.tiers);
+      buildGradeMeta(); IDX = buildIndex([]);
+      render();
+    });
+  }
+
+  /* ── прогрес Героя з Firebase → перерендер поточного екрана ── */
+  function loadHeroProgress(){
+    var tries=0;
+    (function whenSK(){
+      if(window.SK && SK.ready){
+        SK.ready.then(function(){
+          try{
+            if(SK.isHeroSession && SK.isHeroSession() && SK.getHero){
+              SK.getHero().then(function(h){ if(h){ PROG=h.progress||{}; render(); } }).catch(function(){});
+            }
+          }catch(e){}
+        });
+        return;
+      }
+      if(tries++ < 100) setTimeout(whenSK, 50);
+    })();
+  }
+
+  if(document.readyState!=='loading') boot();
+  else document.addEventListener('DOMContentLoaded', boot);
 })();
 </script>
+
+<!-- шкала характеристик Героя (Firebase) -->
+<script type="module" src="firebase-config.js"></script>
 
 <!-- СПІЛЬНИЙ ХЕДЕР -->
 <script>window.SK_HEADER_SUB='Тести королівства';</script>
 <script src="sk-header.js"></script>
-<!-- нижня навігація: Налаштування + Вихід (самодостатньо, як на сторінці Героя) -->
-<script>
-(function(){
-  var PKEY='sk_hero_profile';
-  function loadP(){ try{ return JSON.parse(localStorage.getItem(PKEY)||'{}')||{}; }catch(e){ return {}; } }
-  function saveP(p){ try{ localStorage.setItem(PKEY, JSON.stringify(p)); }catch(e){} }
-  var setBtn=document.getElementById('settingsBtn');
-  if(setBtn) setBtn.addEventListener('click',function(){
-    var p=loadP();
-    var choice=prompt("Налаштування героя:\n1 — змінити ім'я\n2 — змінити титул\n3 — змінити опис\n4 — скинути профіль\n\nВведи номер:");
-    if(choice==='1'){ var v=prompt("Ім'я героя:",p.name||''); if(v&&v.trim()){p.name=v.trim().slice(0,16);saveP(p);} }
-    else if(choice==='2'){ var v=prompt("Титул:",p.title||''); if(v&&v.trim()){p.title=v.trim().slice(0,28);saveP(p);} }
-    else if(choice==='3'){ var v=prompt("Про героя:",p.about||''); if(v&&v.trim()){p.about=v.trim().slice(0,160);saveP(p);} }
-    else if(choice==='4'){ if(confirm("Скинути ім'я/титул/опис до початкових?")){ try{localStorage.removeItem(PKEY);}catch(e){} } }
-  });
-})();
-</script>
 </body>
 </html>
-
