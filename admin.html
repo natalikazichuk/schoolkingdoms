@@ -387,6 +387,25 @@
   .hint{font-size:.75rem;color:var(--muted)}
   .reward-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
+  /* ── Нова навігація «Структура»: предмети → записи → картка ── */
+  .mapgrade-card .emoji{font-size:1.8rem;line-height:1}
+  .drill-typebar{display:inline-flex;gap:4px;padding:4px;border:1px solid var(--border);
+    border-radius:12px;background:rgba(9,13,35,.45);margin:2px 0 14px}
+  .drill-seg{border:1px solid transparent;background:transparent;color:var(--muted);
+    font-weight:800;font-size:.9rem;padding:8px 16px;border-radius:9px;cursor:pointer;transition:.15s;font-family:inherit}
+  .drill-seg:hover{color:var(--text)}
+  .drill-seg.on{background:linear-gradient(180deg,var(--gold),var(--gold-2));color:#2a1e06;border-color:var(--gold-2)}
+  .drill-rec{display:flex;align-items:center;gap:10px;width:100%;text-align:left;cursor:pointer;
+    background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-top:8px;transition:.15s;font-family:inherit;color:var(--text)}
+  .drill-rec:hover{border-color:var(--gold);transform:translateY(-1px)}
+  .drill-rec .ic{font-size:1.35rem;line-height:1;flex:0 0 auto}
+  .drill-rec .nm{flex:1 1 auto;font-weight:800;font-size:.98rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .drill-rec .meta{flex:0 0 auto;color:var(--muted);font-weight:700;font-size:.78rem}
+  .drill-rec .chev{flex:0 0 auto;color:var(--muted);font-size:1.25rem;font-weight:900}
+  .drill-empty{padding:18px 6px;text-align:center;color:var(--muted);font-weight:700}
+  .drill-card-note{font-size:.78rem;color:var(--muted);align-self:center}
+  .btn.ghost.danger:hover{border-color:var(--danger);color:var(--danger)}
+
   /* Питання */
   .q-list{display:grid;gap:8px;margin-top:6px}
   .q-item{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:9px 11px}
@@ -795,6 +814,48 @@
           <button class="btn xs" id="mapExpandAll">▾ Розгорнути все</button>
         </div>
         <div id="mapTree"></div>
+      </div>
+    </div>
+
+    <!-- ЕКРАН 3: ПРЕДМЕТИ -->
+    <div id="mapScrSubjects" class="hidden">
+      <div class="panel">
+        <button class="back-lnk" id="mapSubjBack">← Класи</button>
+        <div class="map-crumb" id="mapSubjCrumb"></div>
+        <p class="hint" style="margin:2px 0 10px">Обери предмет.</p>
+        <div class="mapgrade-grid" id="mapSubjGrid"></div>
+        <div class="toolbar" style="margin:14px 0 0">
+          <div class="spacer"></div>
+          <button class="btn xs ghost" id="mapEditStruct" title="Ступені, предмети, розділи, порядок">⚙ Редагувати структуру класу</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ЕКРАН 4: ЗАПИСИ -->
+    <div id="mapScrRecs" class="hidden">
+      <div class="panel">
+        <button class="back-lnk" id="mapRecsBack">← Предмети</button>
+        <div class="map-crumb" id="mapRecsCrumb"></div>
+        <p class="hint" id="mapRecsHint" style="margin:2px 0 12px"></p>
+        <div id="mapRecsList"></div>
+        <div class="toolbar" style="margin:12px 0 0">
+          <button class="btn gold" id="mapRecAdd">＋ Додати</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ЕКРАН 5: КАРТКА ЗАПИСУ (єдина для тесту й випробування) -->
+    <div id="mapScrCard" class="hidden">
+      <div class="panel">
+        <button class="back-lnk" id="mapCardBack">← Записи</button>
+        <div class="map-crumb" id="mapCardCrumb"></div>
+        <div class="drill-typebar" id="mapCardTypebar"></div>
+        <div id="mapCardBody"></div>
+        <div class="toolbar" style="margin:16px 0 0">
+          <button class="btn ghost danger" id="mapCardDel">🗑 Видалити</button>
+          <div class="spacer"></div>
+          <button class="btn gold" id="mapCardSave">💾 Зберегти</button>
+        </div>
       </div>
     </div>
   </section>
@@ -1340,10 +1401,9 @@ function mapEnsureGrade(n){
 
 /* Показати перший екран — дві плашки + приналежність. */
 function mapShowCats(){
-  MAP_CAT = null; MAP_GRADE = null;
+  MAP_CAT = null; MAP_GRADE = null; MAP_SUBJ = null; MAP_REC = null;
+  mapHideScreens();
   if($('mapScrCats'))    $('mapScrCats').classList.remove('hidden');
-  if($('mapScrGrades'))  $('mapScrGrades').classList.add('hidden');
-  if($('mapScrContent')) $('mapScrContent').classList.add('hidden');
   if($('mapcatTestsCnt'))    $('mapcatTestsCnt').textContent    = mapTestsTotal() + ' тест.';
   if($('mapcatTrainersCnt')) $('mapcatTrainersCnt').textContent = mapTrainersTotal() + ' випроб.';
   if($('mapTree')) $('mapTree').innerHTML = '';
@@ -1353,10 +1413,9 @@ function mapShowCats(){
 
 /* Показати другий екран — сітку класів для обраного розділу. */
 function mapShowGrades(cat){
-  MAP_CAT = cat; MAP_GRADE = null;
-  if($('mapScrCats'))    $('mapScrCats').classList.add('hidden');
+  MAP_CAT = cat; MAP_GRADE = null; MAP_SUBJ = null; MAP_REC = null;
+  mapHideScreens();
   if($('mapScrGrades'))  $('mapScrGrades').classList.remove('hidden');
-  if($('mapScrContent')) $('mapScrContent').classList.add('hidden');
   if($('mapGradesTitle')) $('mapGradesTitle').textContent =
     (cat === 'trainers') ? '🏆 Випробування' : '📜 Тести';
   renderMapGrades();
@@ -1391,8 +1450,7 @@ function mapOpenContent(gradeNum){
     toast('Клас створено — не забудь «Зберегти карту»');
   }
   MAP_GRADE = gradeNum;
-  if($('mapScrCats'))    $('mapScrCats').classList.add('hidden');
-  if($('mapScrGrades'))  $('mapScrGrades').classList.add('hidden');
+  mapHideScreens();
   if($('mapScrContent')) $('mapScrContent').classList.remove('hidden');
   const catLbl = (MAP_CAT === 'trainers') ? '🏆 Випробування' : '📜 Тести';
   const grLbl  = (gradeNum === 0) ? '🌱 Дошкільна освіта' : (gradeNum + ' клас');
@@ -1403,6 +1461,361 @@ function mapOpenContent(gradeNum){
     : 'Предмети → розділи → тести цього класу. Саме це бачить дитина на сторінці «Тести».';
   renderMap();
   try{ window.scrollTo(0,0); }catch(e){}
+}
+
+/* ============================================================
+   НОВА НАВІГАЦІЯ «СТРУКТУРА» (як у грі):
+   тип → клас → предмет → запис → єдина картка.
+   Тести (колекція tests) і випробування (масив links) показуються
+   як один список записів; перемикач у картці визначає, ДЕ запис лежить,
+   і які поля активні. Стара структура (ступені/предмети/розділи/порядок)
+   лишається доступною через «⚙ Редагувати структуру класу».
+   ============================================================ */
+let MAP_SUBJ = null;   // назва обраного предмета
+let MAP_REC  = null;   // {kind:'test'|'trainer', id, idx}
+
+function mapHideScreens(){
+  ['mapScrCats','mapScrGrades','mapScrContent','mapScrSubjects','mapScrRecs','mapScrCard']
+    .forEach(id => { const el = $(id); if(el) el.classList.add('hidden'); });
+}
+function drillNorm(s){ return String(s || '').trim().toLowerCase().replace(/[’'`ʼ]/g, ''); }
+function drillSameSubj(a, b){ const n = drillNorm(a); return !!n && n === drillNorm(b); }
+
+/* Дрібні хелпери розмітки картки. */
+function lbl(t){ return '<label>' + esc(t) + '</label>'; }
+function fld(label, inner){ return '<div class="field">' + lbl(label) + inner + '</div>'; }
+
+/* Усі пари (ступінь,клас) для обраного номера класу. */
+function drillGradeCtx(){
+  const ctx = [];
+  if(!MAP) return ctx;
+  MAP.tiers.forEach(t => (t.grades || []).forEach(g => {
+    if(Number(g.gradeNum) === Number(MAP_GRADE)) ctx.push({ tier:t, g });
+  }));
+  return ctx;
+}
+/* Предмети класу (канонічні — з карти) з підрахунком записів обраного типу. */
+function drillSubjects(){
+  const out = [], seen = new Set();
+  drillGradeCtx().forEach(({ g }) => (g.subjects || []).forEach(sj => {
+    const k = drillNorm(sj.name);
+    if(!k || seen.has(k)) return;
+    seen.add(k);
+    out.push({ name:sj.name, icon:sj.icon || '📘', accent:sj.accent || '#5C6BC0',
+               count: drillRecords(sj.name).length });
+  }));
+  return out;
+}
+/* Записи обраного типу під предметом. Тести — за збігом предмета й класу
+   (ловить і ті, що ще не покладені в розділ). Випробування — subjTrainerIdx. */
+function drillRecords(subjName){
+  const recs = [], seen = new Set();
+  drillGradeCtx().forEach(({ tier, g }) => (g.subjects || []).forEach(sj => {
+    if(!drillSameSubj(sj.name, subjName)) return;
+    if(MAP_CAT === 'tests'){
+      (TESTS || []).forEach(t => {
+        if(!t || !t.id || !t.title) return;
+        if(Number(t.grade == null ? 1 : t.grade) !== Number(MAP_GRADE)) return;
+        if(!window.SKCUR.subjectMatches(sj, t.subject)) return;
+        if(seen.has('t:' + t.id)) return;
+        seen.add('t:' + t.id);
+        recs.push({ kind:'test', id:t.id, obj:t });
+      });
+    } else {
+      subjTrainerIdx(sj, tier, g).forEach(i => {
+        if(seen.has('l:' + i)) return;
+        seen.add('l:' + i);
+        recs.push({ kind:'trainer', idx:i, obj:TRAINERS[i] });
+      });
+    }
+  }));
+  return recs;
+}
+
+/* ── Екран 3: предмети ── */
+function mapOpenSubjects(gradeNum){
+  gradeNum = Number(gradeNum);
+  if(!mapGradeExists(gradeNum)){
+    const nm = (gradeNum === 0) ? 'дошкільний клас' : (gradeNum + ' клас');
+    if(!confirm('У структурі ще немає «' + nm + '». Створити його? (Збережеться після «Зберегти карту».)')) return;
+    if(!mapEnsureGrade(gradeNum)){ toast('Не вдалося створити клас — немає жодного ступеня', true); return; }
+    toast('Клас створено — не забудь «Зберегти карту»');
+  }
+  MAP_GRADE = gradeNum; MAP_SUBJ = null; MAP_REC = null;
+  mapHideScreens();
+  if($('mapScrSubjects')) $('mapScrSubjects').classList.remove('hidden');
+  const catLbl = (MAP_CAT === 'trainers') ? '🏆 Випробування' : '📜 Тести';
+  const grLbl  = (gradeNum === 0) ? '🌱 Дошкільна освіта' : (gradeNum + ' клас');
+  if($('mapSubjCrumb')) $('mapSubjCrumb').innerHTML =
+    '<span class="pill">' + esc(catLbl) + '</span><span class="pill">' + esc(grLbl) + '</span>';
+  renderMapSubjects();
+  try{ window.scrollTo(0, 0); }catch(e){}
+}
+function renderMapSubjects(){
+  const host = $('mapSubjGrid'); if(!host) return;
+  const unit = (MAP_CAT === 'trainers') ? 'випроб.' : 'тест.';
+  const subs = drillSubjects();
+  if(!subs.length){
+    host.innerHTML = '<div class="drill-empty">У цьому класі ще немає предметів.<br>Додай їх через «⚙ Редагувати структуру класу».</div>';
+    return;
+  }
+  let html = '';
+  subs.forEach(s => {
+    html += '<button class="mapgrade-card" data-msubj="' + esc(s.name) + '">'
+      + '<span class="emoji">' + esc(s.icon) + '</span>'
+      + '<span class="lbl">' + esc(s.name) + '</span>'
+      + '<span class="cnt">' + s.count + ' ' + unit + '</span></button>';
+  });
+  host.innerHTML = html;
+}
+
+/* ── Екран 4: записи ── */
+function mapOpenRecs(subjName){
+  MAP_SUBJ = subjName; MAP_REC = null;
+  mapHideScreens();
+  if($('mapScrRecs')) $('mapScrRecs').classList.remove('hidden');
+  const catLbl = (MAP_CAT === 'trainers') ? '🏆 Випробування' : '📜 Тести';
+  const grLbl  = (Number(MAP_GRADE) === 0) ? '🌱 Дошкільна освіта' : (MAP_GRADE + ' клас');
+  if($('mapRecsCrumb')) $('mapRecsCrumb').innerHTML =
+    '<span class="pill">' + esc(catLbl) + '</span><span class="pill">' + esc(grLbl) + '</span><span class="pill">' + esc(subjName) + '</span>';
+  if($('mapRecsHint')) $('mapRecsHint').textContent = (MAP_CAT === 'trainers')
+    ? 'Випробування цього предмета. Натисни, щоб відкрити картку з усіма полями.'
+    : 'Тести цього предмета. Натисни, щоб відкрити картку з усіма полями.';
+  renderMapRecs();
+  try{ window.scrollTo(0, 0); }catch(e){}
+}
+function renderMapRecs(){
+  const host = $('mapRecsList'); if(!host) return;
+  const recs = drillRecords(MAP_SUBJ);
+  if(!recs.length){
+    host.innerHTML = '<div class="drill-empty">Тут поки порожньо. Натисни «＋ Додати».</div>';
+    return;
+  }
+  let html = '';
+  recs.forEach(r => {
+    const isT = r.kind === 'test';
+    const nm  = isT ? ((r.obj && r.obj.title) || '—') : ((r.obj && (r.obj.label || r.obj.href)) || '—');
+    const ic  = isT ? '📝' : ((r.obj && r.obj.icon) || '🎮');
+    let badge = '';
+    if(isT && r.obj && r.obj.active === false) badge += ' <span class="bel-badge">вимкнено</span>';
+    if(isT && belIsLinkTest(r.obj))            badge += ' <span class="bel-badge tr">посилання</span>';
+    const meta = isT ? (countQ(r.obj) + ' пит.') : (((r.obj && r.obj.type) === 'video') ? 'відео' : 'сторінка');
+    const key  = isT ? ('test:' + r.id) : ('trainer:' + r.idx);
+    html += '<button class="drill-rec" data-mrec="' + esc(key) + '">'
+      + '<span class="ic">' + esc(ic) + '</span>'
+      + '<span class="nm">' + esc(nm) + badge + '</span>'
+      + '<span class="meta">' + esc(meta) + '</span>'
+      + '<span class="chev">›</span></button>';
+  });
+  host.innerHTML = html;
+}
+
+/* ── Екран 5: єдина картка запису ── */
+function mapOpenCard(key){
+  let kind, id = null, idx = null;
+  if(key.indexOf('test:') === 0){ kind = 'test'; id = key.slice(5); }
+  else if(key.indexOf('trainer:') === 0){ kind = 'trainer'; idx = Number(key.slice(8)); }
+  else return;
+  MAP_REC = { kind, id, idx };
+  mapHideScreens();
+  if($('mapScrCard')) $('mapScrCard').classList.remove('hidden');
+  const grLbl = (Number(MAP_GRADE) === 0) ? '🌱 Дошкільна освіта' : (MAP_GRADE + ' клас');
+  if($('mapCardCrumb')) $('mapCardCrumb').innerHTML =
+    '<span class="pill">' + esc(grLbl) + '</span><span class="pill">' + esc(MAP_SUBJ || '') + '</span>';
+  renderCard();
+  try{ window.scrollTo(0, 0); }catch(e){}
+}
+function cardObj(){
+  if(!MAP_REC) return null;
+  if(MAP_REC.kind === 'test') return (TESTS || []).find(t => t.id === MAP_REC.id) || null;
+  return (TRAINERS || [])[MAP_REC.idx] || null;
+}
+function renderCard(){
+  const o = cardObj(), bar = $('mapCardTypebar'), body = $('mapCardBody');
+  if(!body) return;
+  if(!o){ body.innerHTML = '<div class="drill-empty">Запис не знайдено.</div>'; if(bar) bar.innerHTML = ''; return; }
+  const isTest = MAP_REC.kind === 'test';
+  if(bar) bar.innerHTML =
+      '<button class="drill-seg' + (isTest ? ' on' : '') + '" data-ctype="test">📝 Тест</button>'
+    + '<button class="drill-seg' + (!isTest ? ' on' : '') + '" data-ctype="trainer">🎮 Випробування</button>';
+  body.innerHTML = isTest ? cardTestHtml(o) : cardTrainerHtml(o);
+}
+function cardGradeSel(cur){
+  let h = '<select data-cf="grade"><option value="0"' + (Number(cur) === 0 ? ' selected' : '') + '>Дошкільнята</option>';
+  [1, 2, 3, 4].forEach(n => { h += '<option value="' + n + '"' + (Number(cur == null ? 1 : cur) === n ? ' selected' : '') + '>' + n + ' клас</option>'; });
+  return h + '</select>';
+}
+function cardTestHtml(t){
+  const fmt = (t.format === 'html') ? 'link' : (t.format || 'flat');
+  const fmtSel = '<select data-cf="format">'
+    + '<option value="flat"'   + (fmt === 'flat'   ? ' selected' : '') + '>Звичайний — список питань</option>'
+    + '<option value="levels"' + (fmt === 'levels' ? ' selected' : '') + '>Рівні</option>'
+    + '<option value="link"'   + (fmt === 'link'   ? ' selected' : '') + '>🔗 HTML-сторінка (без питань)</option>'
+    + '</select>';
+  const modeSel = '<select data-cf="statMode">'
+    + '<option value="fixed"'      + (t.statMode !== 'perCorrect' ? ' selected' : '') + '>Фіксовано за тест</option>'
+    + '<option value="perCorrect"' + (t.statMode === 'perCorrect' ? ' selected' : '') + '>За кожну правильну</option>'
+    + '</select>';
+  const isLink = (fmt === 'link');
+  return '<div class="form-grid">'
+    + fld('Назва тесту', '<input type="text" data-cf="title" value="' + esc(t.title || '') + '">')
+    + fld('Предмет', '<input type="text" data-cf="subject" value="' + esc(t.subject || '') + '">')
+    + fld('Клас', cardGradeSel(t.grade))
+    + fld('Розвиває характеристику', '<select data-cf="stat">' + statMapOpts(t.stat || '') + '</select>')
+    + fld('Формат', fmtSel)
+    + fld('Тема (для групування)', '<input type="text" data-cf="topic" value="' + esc(t.topic || '') + '">')
+    + fld('Одиниці характеристики', '<div class="reward-row">' + modeSel + '<input type="number" min="0" data-cf="statValue" value="' + esc(String(t.statValue == null ? 1 : t.statValue)) + '"></div>')
+    + '<div class="field full"><label class="switch" style="align-self:flex-start"><input type="checkbox" data-cf="active"' + (t.active !== false ? ' checked' : '') + '><span class="track"></span><span class="sw-txt">Активний (показувати в розділі «Тести»)</span></label></div>'
+    + (isLink ? '<div class="field full">' + lbl('Посилання на сторінку') + '<input type="text" data-cf="linkHref" value="' + esc(t.linkHref || '') + '" placeholder="напр. budynochky-chysel.html"></div>' : '')
+    + '</div>'
+    + (isLink ? '' :
+        '<div class="toolbar" style="margin:12px 0 0">'
+        + '<span class="drill-card-note">Питання (' + countQ(t) + ') редагуються у повному редакторі.</span>'
+        + '<div class="spacer"></div>'
+        + '<button class="btn" id="cardEditQ">✏ Редагувати питання →</button></div>');
+}
+function cardTrainerHtml(l){
+  const rw = Array.isArray(l.rewards) ? l.rewards : [];
+  let rwRows = '';
+  for(let r = 0; r < 4; r++){
+    const x = rw[r] || {};
+    rwRows += '<div class="tr-reward">'
+      + '<span class="rw-badge">🎁 ' + (r + 1) + '</span>'
+      + '<input type="text" list="trItems" data-cf="rItem" data-r="' + r + '" placeholder="ID предмета (напр. IT-001) — необовʼязково" value="' + esc(x.item || '') + '">'
+      + '<select class="rw-chance" data-cf="rChance" data-r="' + r + '" title="Шанс випадіння (крок 10%)">' + trChanceOpts(x.chance) + '</select>'
+      + '<input type="number" class="rw-coins" min="0" step="1" data-cf="rCoins" data-r="' + r + '" placeholder="монетки" value="' + (x.coins ? esc(String(x.coins)) : '') + '">'
+      + '<span class="rw-unit" title="монетки">🪙</span>'
+    + '</div>';
+  }
+  const typeSel = '<select data-cf="type" style="width:auto">' + trTypeOpts(l.type || 'page') + '</select>';
+  return '<div class="form-grid">'
+    + fld('Назва', '<input type="text" data-cf="label" value="' + esc(l.label || '') + '">')
+    + fld('Предмет', '<input type="text" data-cf="subject" value="' + esc(l.subject || '') + '">')
+    + fld('Вигляд', typeSel)
+    + fld('Емодзі-іконка', '<input type="text" data-cf="icon" value="' + esc(l.icon || '') + '">')
+    + '<div class="field full">' + lbl('Посилання') + '<input type="text" data-cf="href" value="' + esc(l.href || '') + '" placeholder="english-reading.html  або  https://…"></div>'
+    + '<div class="field full">' + lbl('Опис') + '<input type="text" data-cf="desc" value="' + esc(l.desc || '') + '" placeholder="Короткий опис (як у грі)"></div>'
+    + '<div class="field full"><label class="switch" style="align-self:flex-start"><input type="checkbox" data-cf="blank"' + (l.blank ? ' checked' : '') + '><span class="track"></span><span class="sw-txt">↗ Відкривати в новій вкладці</span></label></div>'
+    + '</div>'
+    + '<div class="map-head" style="margin-top:10px"><span class="map-lvl">🖼 ОБКЛАДИНКА</span><span class="tr-cover-note">' + trCoverNoteInner(l.href, l.type) + '</span></div>'
+    + '<div class="tr-rewards" style="margin-top:10px"><span class="map-lvl">НАГОРОДИ</span><div class="rw-wrap">' + rwRows + '</div></div>';
+}
+function onCardInput(e){
+  const el = e.target, f = el.dataset.cf;
+  if(f == null) return;
+  const o = cardObj(); if(!o) return;
+  const v = (el.type === 'checkbox') ? el.checked : el.value;
+  if(MAP_REC.kind === 'test'){
+    switch(f){
+      case 'title':     o.title = v; break;
+      case 'subject':   o.subject = v; break;
+      case 'grade':     o.grade = Number(v) || 0; break;
+      case 'stat':      o.stat = v; break;
+      case 'topic':     o.topic = v; break;
+      case 'statMode':  o.statMode = v; break;
+      case 'statValue': o.statValue = Math.max(0, Math.floor(Number(v) || 0)); break;
+      case 'active':    o.active = !!v; break;
+      case 'linkHref':  o.linkHref = v; break;
+      case 'format':
+        o.format = v;
+        renderCard();   // формат перемикає поле «посилання» й блок питань
+        return;
+    }
+  } else {
+    switch(f){
+      case 'label':   o.label = v; break;
+      case 'subject': o.subject = v; break;
+      case 'icon':    o.icon = v; break;
+      case 'desc':    o.desc = v; break;
+      case 'blank':   o.blank = !!v; break;
+      case 'href':    o.href = v; break;
+      case 'type':
+        o.type = v;
+        if(!o.icon || o.icon === '📖' || o.icon === '🎬' || o.icon === '🔗'){ o.icon = (v === 'video') ? '🎬' : '🔗'; }
+        o.blank = (v === 'video');
+        renderCard();
+        return;
+      case 'rItem':
+      case 'rChance':
+      case 'rCoins': {
+        const r = Number(el.dataset.r) || 0;
+        if(!Array.isArray(o.rewards)) o.rewards = [];
+        while(o.rewards.length <= r) o.rewards.push({});
+        const slot = o.rewards[r];
+        if(f === 'rItem')       slot.item = v.trim();
+        else if(f === 'rCoins') slot.coins = Math.max(0, Math.floor(Number(v) || 0));
+        else                    slot.chance = Math.max(0, Math.min(100, Math.round((Number(v) || 0) / 10) * 10));
+        break;
+      }
+    }
+  }
+}
+async function cardSave(){
+  const o = cardObj(); if(!o){ toast('Немає запису', true); return; }
+  if(MAP_REC.kind === 'test'){
+    try{ await SK_API.save(o); toast('Тест збережено ✔'); }
+    catch(e){ console.error(e); toast('Помилка збереження тесту', true); }
+  } else {
+    if(await belSaveTrainers()) toast('Випробування збережено ✔');
+  }
+}
+async function cardDelete(){
+  const o = cardObj(); if(!o) return;
+  if(!confirm('Видалити цей запис назавжди?')) return;
+  if(MAP_REC.kind === 'test'){
+    const id = o.id;
+    let mapTouched = false;
+    if(MAP){
+      const idx = window.SKCUR.indexTests(TESTS);
+      MAP.tiers.forEach(t => (t.grades || []).forEach(g => (g.subjects || []).forEach(sj => (sj.topics || []).forEach(tp => {
+        const before = (tp.tests || []).length;
+        tp.tests = (tp.tests || []).filter(ref => {
+          const rt = window.SKCUR.findTest(ref, idx);
+          return !((rt && rt.id === id) || ref === id);
+        });
+        if(tp.tests.length !== before) mapTouched = true;
+      }))));
+    }
+    try{ await SK_API.remove(id); }
+    catch(e){ console.error(e); toast('Не вдалося видалити', true); return; }
+    TESTS = (TESTS || []).filter(x => x.id !== id);
+    if(mapTouched){ try{ await SK_API.saveMap(MAP); }catch(e){ console.error(e); } }
+    toast('Тест видалено');
+  } else {
+    TRAINERS.splice(MAP_REC.idx, 1);
+    if(!(await belSaveTrainers())) return;
+    toast('Випробування видалено');
+  }
+  mapOpenRecs(MAP_SUBJ);
+}
+async function cardAdd(){
+  if(MAP_CAT === 'tests'){
+    const stat = statForSubject(MAP_SUBJ, MAP_GRADE) || '';
+    openEditor({ id:'', title:'', subject:MAP_SUBJ || '', grade:Number(MAP_GRADE) || 0,
+                 stat, format:'flat', topic:'', statMode:'fixed', statValue:1, active:true,
+                 questions:[], levels:[] });
+    toast('Заповни тест і збережи — далі повернешся у структуру');
+  } else {
+    if(!TRAINERS) TRAINERS = [];
+    const pre = Number(MAP_GRADE) === 0;
+    TRAINERS.push({ subject:MAP_SUBJ || '', tier: pre ? belPreTierName() : '', grade: pre ? '' : String(MAP_GRADE || ''),
+      href:'', icon:'🎮', label:'Нове випробування', type:'page', blank:false, imgCard:'', imgPage:'', desc:'', rewards:[] });
+    const idx = TRAINERS.length - 1;
+    await belSaveTrainers();
+    mapOpenCard('trainer:' + idx);
+  }
+}
+/* Перемикач типу в картці: переносить запис між колекціями (tests ⇄ links)
+   наявними конвертерами й повертає до списку (id/індекси змінюються). */
+async function cardConvert(toType){
+  const o = cardObj(); if(!o) return;
+  if(MAP_REC.kind === 'test' && toType === 'trainer'){
+    await belConvertTestToTrainer(o.id);
+  } else if(MAP_REC.kind === 'trainer' && toType === 'test'){
+    await belConvertTrainerToTest(MAP_REC.idx);
+  } else { return; }
+  toast('Тип змінено — знайди запис у списку');
+  mapOpenRecs(MAP_SUBJ);
 }
 
 /* Стати — зі спільного списку SKCUR.STATS, того самого, що бачить дитина.
@@ -3481,10 +3894,40 @@ function bindEvents(){
   });
   if($('mapGradeGrid')) $('mapGradeGrid').addEventListener('click', e => {
     const b = e.target.closest('[data-mgrade]'); if(!b) return;
-    mapOpenContent(b.getAttribute('data-mgrade'));
+    mapOpenSubjects(b.getAttribute('data-mgrade'));
   });
   if($('mapGradesBack'))  $('mapGradesBack').onclick  = mapShowCats;
-  if($('mapContentBack')) $('mapContentBack').onclick = () => mapShowGrades(MAP_CAT);
+  // Стара структура (ступені/предмети/розділи) — назад до екрана предметів.
+  if($('mapContentBack')) $('mapContentBack').onclick = () => mapOpenSubjects(MAP_GRADE);
+  // Екран 3: предмети
+  if($('mapSubjBack'))   $('mapSubjBack').onclick   = () => mapShowGrades(MAP_CAT);
+  if($('mapEditStruct')) $('mapEditStruct').onclick = () => mapOpenContent(MAP_GRADE);
+  if($('mapSubjGrid'))   $('mapSubjGrid').addEventListener('click', e => {
+    const b = e.target.closest('[data-msubj]'); if(!b) return;
+    mapOpenRecs(b.getAttribute('data-msubj'));
+  });
+  // Екран 4: записи
+  if($('mapRecsBack')) $('mapRecsBack').onclick = () => mapOpenSubjects(MAP_GRADE);
+  if($('mapRecsList')) $('mapRecsList').addEventListener('click', e => {
+    const b = e.target.closest('[data-mrec]'); if(!b) return;
+    mapOpenCard(b.getAttribute('data-mrec'));
+  });
+  if($('mapRecAdd')) $('mapRecAdd').onclick = cardAdd;
+  // Екран 5: картка
+  if($('mapCardBack')) $('mapCardBack').onclick = () => mapOpenRecs(MAP_SUBJ);
+  if($('mapCardTypebar')) $('mapCardTypebar').addEventListener('click', e => {
+    const b = e.target.closest('[data-ctype]'); if(!b || b.classList.contains('on')) return;
+    cardConvert(b.getAttribute('data-ctype'));
+  });
+  if($('mapCardBody')){
+    $('mapCardBody').addEventListener('input',  onCardInput);
+    $('mapCardBody').addEventListener('change', onCardInput);
+    $('mapCardBody').addEventListener('click', e => {
+      if(e.target.closest('#cardEditQ')){ const o = cardObj(); if(o) openEditor(o); }
+    });
+  }
+  if($('mapCardSave')) $('mapCardSave').onclick = cardSave;
+  if($('mapCardDel'))  $('mapCardDel').onclick  = cardDelete;
   if($('mapCollapseAll')) $('mapCollapseAll').onclick = () => { if(MAP) collapseAll(); };
   if($('mapExpandAll'))   $('mapExpandAll').onclick   = () => { if(MAP) expandAll(); };
   $('mapTree').addEventListener('input',  onMapInput);
