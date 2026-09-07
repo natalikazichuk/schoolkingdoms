@@ -1444,6 +1444,18 @@ function onMapInput(e){
       case 'desc':  l.desc  = el.value; break;
       case 'icon':  l.icon  = el.value; break;
       case 'blank': l.blank = el.checked; break;
+      case 'rItem':
+      case 'rCoins':
+      case 'rChance': {
+        const r = Number(el.dataset.r) || 0;
+        if(!Array.isArray(l.rewards)) l.rewards = [];
+        while(l.rewards.length <= r) l.rewards.push({});
+        const slot = l.rewards[r];
+        if(el.dataset.mtf === 'rItem')       slot.item = el.value.trim();
+        else if(el.dataset.mtf === 'rCoins') slot.coins = Math.max(0, Math.floor(Number(el.value) || 0));
+        else                                 slot.chance = Math.max(0, Math.min(100, Math.round((Number(el.value) || 0) / 10) * 10));
+        break;
+      }
       case 'type':
         l.type = el.value;
         // типова іконка, якщо порожньо або лишалась типова іншого вигляду
@@ -1869,6 +1881,7 @@ async function openMap(){
   }
   if(!had && !MAP_FROM_DB) toast('Карти в базі ще немає — відкрито запасну. Збережи, щоб закріпити.');
   try { await ensureTrainers(); } catch(e){ /* тренажери показуються порожніми — не критично */ }
+  trFillItemsDatalist();   // підказки ID предметів для полів «нагороди» у структурі
   if(MAP_MIGRATED){
     $('mapMsg').innerHTML = '<div class="map-ok">↻ Посилань на тести переведено з назв на id: <b>'
       + MAP_MIGRATED + '</b>. Натисни «Зберегти карту», щоб закріпити — після цього '
@@ -1898,6 +1911,7 @@ async function saveMap(){
     let trNote = '';
     if(TRAINERS){
       const cleanTr = TRAINERS.filter(l => l && ((l.label && String(l.label).trim()) || (l.href && String(l.href).trim())));
+      cleanTr.forEach(trCleanRewards);   // нормалізуємо нагороди (як у вкладці «Випробування»)
       try { await SK_API.saveTrainers(cleanTr); TRAINERS = cleanTr; }
       catch(e){ console.error(e); trNote = ' (тренування не збережено — перевір правила Firestore)'; }
     }
@@ -2050,6 +2064,20 @@ function subjTrainerIdx(sj, tier, g){
    вибір «сторінка/відео», іконку, «нова вкладка», посилання й опис (як у грі). */
 function trRowInMap(gi, pS){
   const l = TRAINERS[gi]; if(!l) return '';
+  // Нагороди — той самий блок, що й у вкладці «🎮 Випробування». Правимо той
+  // самий l.rewards, тож дані спільні; тут інші data-атрибути (data-mtf/data-tri).
+  const rw = Array.isArray(l.rewards) ? l.rewards : [];
+  let rwRows = '';
+  for(let r = 0; r < 4; r++){
+    const x = rw[r] || {};
+    rwRows += '<div class="tr-reward">'
+      + '<span class="rw-badge">🎁 ' + (r + 1) + '</span>'
+      + '<input type="text" list="trItems" data-mtf="rItem" data-tri="' + gi + '" data-r="' + r + '" placeholder="ID предмета (напр. IT-001) — необовʼязково" value="' + esc(x.item || '') + '">'
+      + '<select class="rw-chance" data-mtf="rChance" data-tri="' + gi + '" data-r="' + r + '" title="Шанс випадіння цього слота (крок 10%)">' + trChanceOpts(x.chance) + '</select>'
+      + '<input type="number" class="rw-coins" min="0" step="1" data-mtf="rCoins" data-tri="' + gi + '" data-r="' + r + '" placeholder="монетки" value="' + (x.coins ? esc(String(x.coins)) : '') + '">'
+      + '<span class="rw-unit" title="монетки">🪙</span>'
+    + '</div>';
+  }
   return '<div class="tr-mini">'
     + '<div class="map-head">'
       + '<span class="map-lvl">🎮 ВИПРОБУВАННЯ</span>'
@@ -2077,6 +2105,10 @@ function trRowInMap(gi, pS){
     + '<div class="map-head">'
       + '<span class="map-lvl">ОПИС</span>'
       + '<input type="text" class="grow" data-mtf="desc" data-tri="' + gi + '" placeholder="Короткий опис (як у грі)" value="' + esc(l.desc || '') + '">'
+    + '</div>'
+    + '<div class="tr-rewards">'
+      + '<span class="map-lvl">НАГОРОДИ</span>'
+      + '<div class="rw-wrap">' + rwRows + '</div>'
     + '</div>'
   + '</div>';
 }
