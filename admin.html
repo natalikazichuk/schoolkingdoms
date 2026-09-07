@@ -246,6 +246,48 @@
   .map-lvl{font-size:.68rem;font-weight:900;letter-spacing:.04em;color:var(--muted);
     border:1px solid var(--border);border-radius:6px;padding:2px 6px;white-space:nowrap}
 
+  /* ── Структура: навігація «розділ → клас → зміст» ── */
+  .back-lnk{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);
+    background:var(--panel-2);color:var(--text);border-radius:12px;padding:8px 14px;
+    font-family:'Nunito',sans-serif;font-weight:800;cursor:pointer;margin-bottom:12px;font-size:.9rem}
+  .back-lnk:hover{border-color:var(--gold)}
+  /* Дві плашки: Тести / Випробування */
+  .mapcat-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+    max-width:720px;margin-top:8px}
+  .mapcat-card{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;
+    background:var(--panel-2);border:1px solid var(--border);border-radius:var(--radius);
+    padding:22px 20px;cursor:pointer;transition:.15s;color:var(--text);
+    box-shadow:0 10px 30px rgba(0,0,0,.22);font-family:'Nunito',sans-serif;width:100%}
+  .mapcat-card:hover{transform:translateY(-3px);border-color:var(--gold);box-shadow:0 14px 34px rgba(0,0,0,.3)}
+  .mapcat-card:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+  .mapcat-card .ic{font-size:2rem;line-height:1;filter:drop-shadow(0 2px 5px rgba(0,0,0,.35))}
+  .mapcat-card .ttl{font-family:'Fredoka One',cursive;font-weight:400;font-size:1.3rem;color:var(--gold)}
+  .mapcat-card .sub{color:var(--muted);font-weight:700;font-size:.85rem}
+  .mapcat-card .cnt{margin-top:8px;font-weight:800;font-size:.82rem;color:#c9d2ff;
+    background:rgba(140,155,255,.16);border:1px solid rgba(140,155,255,.35);border-radius:999px;padding:3px 11px}
+  /* Сітка класів (як на дитячій сторінці «Випробування») */
+  .mapgrade-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:14px;margin-top:8px}
+  .mapgrade-card{aspect-ratio:1/1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:4px;background:linear-gradient(180deg,var(--panel-2),rgba(9,13,35,.5));border:1px solid var(--border);
+    border-radius:18px;cursor:pointer;color:var(--text);font-family:'Nunito',sans-serif;transition:.15s;
+    box-shadow:0 8px 22px rgba(0,0,0,.25);text-align:center;padding:10px}
+  .mapgrade-card:hover{transform:translateY(-2px);border-color:var(--gold)}
+  .mapgrade-card .big{font-family:'Fredoka One',cursive;font-size:2.2rem;color:var(--gold);line-height:1}
+  .mapgrade-card .ico{font-size:2.1rem;line-height:1}
+  .mapgrade-card .lbl{font-family:'Nunito',sans-serif;font-weight:800;font-size:.95rem;color:#fff;line-height:1.15}
+  .mapgrade-card .cnt{font-size:.74rem;color:var(--muted);font-weight:700;margin-top:2px}
+  .mapgrade-card.empty{opacity:.5;filter:grayscale(.4)}
+  .mapgrade-card.empty .big,.mapgrade-card.empty .lbl{color:var(--muted)}
+  .mapgrade-card.empty .cnt{color:var(--gold)}
+  .map-crumb{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:2px 0 10px}
+  .map-crumb .pill{font-size:.78rem;font-weight:800;color:#c9d2ff;background:rgba(140,155,255,.14);
+    border:1px solid rgba(140,155,255,.3);border-radius:999px;padding:3px 11px}
+  @media (max-width:720px){
+    .mapgrade-grid{grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
+    .mapgrade-card .big{font-size:1.8rem}
+    .mapcat-grid{gap:12px}
+  }
+
   /* ── ТЕЛЕФОН ──
      На вузькому екрані рядки редактора не можуть лишатися нерозривними:
      вони тікали за межі екрана в горизонтальний скрол, обрізаючи підписи.
@@ -686,42 +728,74 @@
       <button class="btn" id="mapCheck">🔍 Перевірити</button>
       <button class="btn gold" id="mapSave">💾 Зберегти карту</button>
     </div>
-    <div class="panel">
-      <h2>🗺 Структура</h2>
-      <p class="hint" style="margin:8px 0 14px">
-        Ступінь → клас → предмет → розділ → тести. Саме це бачить дитина на сторінці «Тести».
-        Тест потрапляє в розділ, якщо його обрано у списку нижче <b>або</b> якщо в тесті
-        заповнено поле «Розділ (topic)» такою самою назвою.
-        <br>🔗 <b>Ланцюг</b> — тести розділу відкриваються по черзі, кожен наступний після 55% попереднього.
-        Розділи з однаковою <b>групою ланцюга</b> зчіплюються в один спільний ланцюг.
-      </p>
-      <div class="toolbar" style="margin:4px 0 12px">
-        <button class="btn xs" id="mapAddTier">＋ Ступінь</button>
-        <div class="spacer"></div>
-        <button class="btn xs" id="mapCollapseAll">▸ Згорнути все</button>
-        <button class="btn xs" id="mapExpandAll">▾ Розгорнути все</button>
+    <div id="mapMsg"></div>
+
+    <!-- ЕКРАН 1: РОЗДІЛИ (тести / випробування) -->
+    <div id="mapScrCats">
+      <div class="panel">
+        <h2>🗺 Структура</h2>
+        <p class="hint" style="margin:8px 0 4px">
+          Обери розділ, далі — клас, далі — зміст цього класу. Усе редагується так само, як і раніше.
+        </p>
+        <div class="mapcat-grid">
+          <button class="mapcat-card" data-mapcat="tests" type="button">
+            <span class="ic">📜</span>
+            <span class="ttl">Тести</span>
+            <span class="sub">Предмети → розділи → тести за класами</span>
+            <span class="cnt" id="mapcatTestsCnt">—</span>
+          </button>
+          <button class="mapcat-card" data-mapcat="trainers" type="button">
+            <span class="ic">🏆</span>
+            <span class="ttl">Випробування</span>
+            <span class="sub">Сторінки-випробування та відео за класами</span>
+            <span class="cnt" id="mapcatTrainersCnt">—</span>
+          </button>
+        </div>
       </div>
-      <div id="mapMsg"></div>
-      <div id="mapTree"></div>
+
+      <div class="panel">
+        <h2>🔀 Приналежність</h2>
+        <p class="hint" style="margin:8px 0 12px">
+          Тут зібрано <b>всі тести й випробування</b>. Для кожного можна змінити тип
+          (тест ↔ випробування), предмет і клас — зокрема <b>дошкільнят</b>. Зміни зберігаються одразу.
+          <br>«Тест → Випробування» створює посилання на <code>test.html?id=…</code> і ховає тест зі
+          сторінки «Тести». Зворотне повертає тест назад.
+        </p>
+        <div class="toolbar" style="margin:2px 0 10px">
+          <label style="display:inline-flex;gap:7px;align-items:center;font-weight:700;font-size:.9rem;cursor:pointer">
+            <input type="checkbox" id="belShowHidden"> Показати сховані тести
+          </label>
+          <div class="spacer"></div>
+          <button class="btn xs" id="belRefresh">↻ Оновити список</button>
+        </div>
+        <div id="belMsg"></div>
+        <div id="belTree"></div>
+      </div>
     </div>
 
-    <div class="panel">
-      <h2>🔀 Приналежність</h2>
-      <p class="hint" style="margin:8px 0 12px">
-        Тут зібрано <b>всі тести й випробування</b>. Для кожного можна змінити тип
-        (тест ↔ випробування), предмет і клас — зокрема <b>дошкільнят</b>. Зміни зберігаються одразу.
-        <br>«Тест → Випробування» створює посилання на <code>test.html?id=…</code> і ховає тест зі
-        сторінки «Тести». Зворотне повертає тест назад.
-      </p>
-      <div class="toolbar" style="margin:2px 0 10px">
-        <label style="display:inline-flex;gap:7px;align-items:center;font-weight:700;font-size:.9rem;cursor:pointer">
-          <input type="checkbox" id="belShowHidden"> Показати сховані тести
-        </label>
-        <div class="spacer"></div>
-        <button class="btn xs" id="belRefresh">↻ Оновити список</button>
+    <!-- ЕКРАН 2: КЛАСИ -->
+    <div id="mapScrGrades" class="hidden">
+      <div class="panel">
+        <button class="back-lnk" id="mapGradesBack">← Розділи</button>
+        <h2 id="mapGradesTitle">🏆 Випробування</h2>
+        <p class="hint" style="margin:8px 0 4px">Обери клас.</p>
+        <div class="mapgrade-grid" id="mapGradeGrid"></div>
       </div>
-      <div id="belMsg"></div>
-      <div id="belTree"></div>
+    </div>
+
+    <!-- ЕКРАН 3: ЗМІСТ КЛАСУ -->
+    <div id="mapScrContent" class="hidden">
+      <div class="panel">
+        <button class="back-lnk" id="mapContentBack">← Класи</button>
+        <div class="map-crumb" id="mapCrumb"></div>
+        <p class="hint" id="mapContentHint" style="margin:2px 0 12px"></p>
+        <div class="toolbar" style="margin:4px 0 12px">
+          <div class="spacer"></div>
+          <button class="btn xs" id="mapCollapseAll">▸ Згорнути все</button>
+          <button class="btn xs" id="mapExpandAll">▾ Розгорнути все</button>
+        </div>
+        <div id="mapTree"></div>
+      </div>
     </div>
   </section>
 
@@ -899,6 +973,16 @@ const SK_API = {
    ============================================================ */
 let MAP = null;                       // редагована карта (чернетка)
 
+/* ── Навігація виду «Структура»: розділ → клас → зміст ──
+   MAP_CAT   — обраний розділ: 'tests' | 'trainers' | null (екран розділів)
+   MAP_GRADE — обраний клас (gradeNum 0..11) | null (екран класів)
+   renderMap() малює дерево лише коли обрано і розділ, і клас; при цьому
+   показує зріз обраного класу й розділу (індекси лишаються абсолютними,
+   тож усі наявні обробники редагування працюють без змін). */
+let MAP_CAT = null;
+let MAP_GRADE = null;
+const MAP_GRADE_NUMS = [1,2,3,4,5,6,7,8,9,10,11];
+
 /* ── Контракт із sk-curriculum.js ──
    Одного разу залили новий admin.html і старий sk-curriculum.js: SKCUR.STATS
    був undefined, renderMap() падав на першому предметі, і редактор показував
@@ -1011,15 +1095,29 @@ function expandAll(){ COLLAPSED.clear(); renderMap(); }
 
 function renderMap(){
   const problem = skcurProblem();
-  if(problem){ $('mapTree').innerHTML = depWarnHtml(problem); return; }
-  if(!MAP){ $('mapTree').innerHTML = ''; return; }
+  if(problem){ if($('mapTree')) $('mapTree').innerHTML = depWarnHtml(problem); return; }
+  if(!MAP){ if($('mapTree')) $('mapTree').innerHTML = ''; return; }
+  if(!$('mapTree')) return;
+  // Дерево показуємо лише коли обрано і розділ, і клас. Інакше працюють
+  // екрани навігації (розділи / класи), а дерево лишається порожнім.
+  if(MAP_CAT == null || MAP_GRADE == null){ $('mapTree').innerHTML = ''; return; }
+  const wantGrade    = Number(MAP_GRADE);
+  const showTests    = (MAP_CAT === 'tests');
+  const showTrainers = (MAP_CAT === 'trainers');
   let html = '';
+  let any = false;
   MAP.tiers.forEach((tier, ti) => {
+    // У цьому ступені лишаємо тільки грейди обраного класу.
+    const matching = (tier.grades || [])
+      .map((g, gi) => ({ g, gi }))
+      .filter(x => Number(x.g.gradeNum) === wantGrade);
+    if(!matching.length) return;
+    any = true;
     const pT = ti;
     const kT = 'tier:' + pT;
     html += '<div class="map-tier' + colCls(kT) + '">'
       + '<div class="map-head">'
-        + colBtn(kT, (tier.grades || []).length, 'кл.')
+        + colBtn(kT, matching.length, 'кл.')
         + '<span class="map-lvl">СТУПІНЬ</span>'
         + '<input type="text" class="w-ic" data-f="tier.icon" data-p="' + pT + '" value="' + esc(tier.icon) + '">'
         + '<input type="text" class="grow" data-f="tier.name" data-p="' + pT + '" value="' + esc(tier.name) + '">'
@@ -1037,7 +1135,7 @@ function renderMap(){
         + '<input type="text" class="grow" data-f="tier.note" data-p="' + pT + '" placeholder="Підпис (необовʼязково)" value="' + esc(tier.note) + '">'
       + '</div>';
 
-    (tier.grades || []).forEach((g, gi) => {
+    matching.forEach(({ g, gi }) => {
       const pG = ti + '.' + gi;
       const kG = 'grade:' + pG;
       html += '<div class="map-grade' + colCls(kG) + '">'
@@ -1078,6 +1176,7 @@ function renderMap(){
             + '<input type="text" class="grow" data-f="subj.keys" data-p="' + pS + '" placeholder="ключі: матем, математика" value="' + esc((sj.keys || []).join(', ')) + '" title="Підрядки, за якими поле subject тесту зіставляється з цим предметом">'
           + '</div>';
 
+        if(showTests){
         (sj.topics || []).forEach((tp, pi) => {
           const pP = ti + '.' + gi + '.' + si + '.' + pi;
           const kP = 'topic:' + pP;
@@ -1115,17 +1214,20 @@ function renderMap(){
             + '</div>';  // .map-topic
         });
         html += '<button class="btn xs" data-a="topic.add" data-p="' + pS + '" style="margin-top:8px">＋ Розділ</button>';
+        }
 
-        // ── Тренування: тренажери-сторінки/відео цього предмета ──
+        // ── Випробування: сторінки/відео цього предмета ──
+        if(showTrainers){
         const trIdx = subjTrainerIdx(sj, tier, g);
         html += '<div class="tr-section">'
           + '<div class="tr-section-head">'
-            + '<span class="map-lvl">🎮 ВИПРОБУВАННЯ</span>'
+            + '<span class="map-lvl">🏆 ВИПРОБУВАННЯ</span>'
             + '<span class="tr-hint">Окремі сторінки-випробування або відео. Дитина бачить їх як міні-ігри (іконка · назва · опис).</span>'
           + '</div>';
-        trIdx.forEach(gi => { html += trRowInMap(gi, pS); });
+        trIdx.forEach(tri => { html += trRowInMap(tri, pS); });
         html += '<button class="btn xs" data-a="subjtr.add" data-p="' + pS + '" style="margin-top:6px">＋ Випробування</button>'
           + '</div>';  // .tr-section
+        }
 
         html += '</div>'   // .map-kids
           + '</div>';  // .map-subj
@@ -1134,11 +1236,173 @@ function renderMap(){
         + '</div>'   // .map-kids
         + '</div>';  // .map-grade
     });
-    html += '<button class="btn xs" data-a="grade.add" data-p="' + pT + '" style="margin-top:8px">＋ Клас</button>'
-      + '</div>'   // .map-kids
+    html += '</div>'   // .map-kids
       + '</div>';  // .map-tier
   });
+  if(!any) html = '<div class="empty" style="padding:20px 6px;text-align:center;color:var(--muted);font-weight:700">У цьому класі поки порожньо. Повернись і обери інший клас.</div>';
   $('mapTree').innerHTML = html;
+}
+
+/* ============================================================
+   НАВІГАЦІЯ ВИДУ «СТРУКТУРА»: розділ → клас → зміст
+   Дерево редагування те саме (renderMap), просто показане зрізом
+   обраного розділу й класу. Тут — лише перемикання екранів,
+   підрахунок карток і створення нового класу за потреби.
+   ============================================================ */
+
+/* Чи існує в карті клас із таким номером (у будь-якому ступені). */
+function mapGradeExists(n){
+  if(!MAP) return false;
+  return MAP.tiers.some(t => (t.grades || []).some(g => Number(g.gradeNum) === Number(n)));
+}
+/* Кількість тестів (посилань у розділах) для класу n. */
+function mapTestsCountFor(n){
+  let c = 0;
+  if(MAP) MAP.tiers.forEach(t => (t.grades || []).forEach(g => {
+    if(Number(g.gradeNum) !== Number(n)) return;
+    (g.subjects || []).forEach(sj => (sj.topics || []).forEach(tp => { c += (tp.tests || []).length; }));
+  }));
+  return c;
+}
+/* Кількість випробувань (унікальних тренажерів) для класу n. */
+function mapTrainersCountFor(n){
+  const set = new Set();
+  if(MAP) MAP.tiers.forEach(t => (t.grades || []).forEach(g => {
+    if(Number(g.gradeNum) !== Number(n)) return;
+    (g.subjects || []).forEach(sj => { subjTrainerIdx(sj, t, g).forEach(i => set.add(i)); });
+  }));
+  return set.size;
+}
+function mapCountFor(n){ return (MAP_CAT === 'trainers') ? mapTrainersCountFor(n) : mapTestsCountFor(n); }
+
+/* Загальні лічильники для двох плашок на першому екрані. */
+function mapTestsTotal(){
+  let c = 0;
+  if(MAP) MAP.tiers.forEach(t => (t.grades || []).forEach(g => (g.subjects || []).forEach(sj =>
+    (sj.topics || []).forEach(tp => { c += (tp.tests || []).length; }))));
+  return c;
+}
+function mapTrainersTotal(){
+  return (TRAINERS || []).filter(l => l && ((l.label && l.label.trim()) || (l.href && l.href.trim()))).length;
+}
+
+/* Ступінь, у який логічно покласти клас n (для створення нового класу):
+   0 → дошкільний ступінь; 1–4 → молодша школа; 5–11 → старша.
+   Якщо потрібного ступеня немає — беремо той, де номери класів найближчі,
+   інакше останній наявний. */
+function mapTierIndexForGrade(n){
+  if(!MAP || !MAP.tiers.length) return -1;
+  n = Number(n);
+  const looksPre = t => { const s = (String(t.id||'')+' '+String(t.name||'')).toLowerCase();
+                          return s.indexOf('preschool')>=0 || s.indexOf('дошкіл')>=0; };
+  if(n === 0){
+    const i = MAP.tiers.findIndex(looksPre);
+    return i >= 0 ? i : 0;
+  }
+  // ступінь, чиї наявні класи найближчі до n; порожні ступені — за назвою-натяком
+  let best = -1, bestDist = Infinity;
+  MAP.tiers.forEach((t, i) => {
+    if(looksPre(t)) return;                 // дошкільний — не для числових класів
+    const nums = (t.grades || []).map(g => Number(g.gradeNum)).filter(x => x >= 1);
+    if(nums.length){
+      const d = Math.min.apply(null, nums.map(x => Math.abs(x - n)));
+      if(d < bestDist){ bestDist = d; best = i; }
+    }
+  });
+  if(best >= 0) return best;
+  // жодного числового класу ще немає — за назвою (молодша ≤4, старша >4), інакше перший не-дошкільний
+  const wantSenior = n > 4;
+  let byName = MAP.tiers.findIndex(t => {
+    if(looksPre(t)) return false;
+    const s = (String(t.id||'')+' '+String(t.name||'')).toLowerCase();
+    return wantSenior ? (s.indexOf('старш')>=0 || s.indexOf('senior')>=0 || /5.?11/.test(s))
+                      : (s.indexOf('молодш')>=0 || s.indexOf('junior')>=0 || /1.?4/.test(s));
+  });
+  if(byName >= 0) return byName;
+  const anyNonPre = MAP.tiers.findIndex(t => !looksPre(t));
+  return anyNonPre >= 0 ? anyNonPre : 0;
+}
+/* Створює клас n у відповідному ступені (якщо його ще немає) і повертає true. */
+function mapEnsureGrade(n){
+  if(mapGradeExists(n)) return true;
+  const ti = mapTierIndexForGrade(n);
+  if(ti < 0) return false;
+  const tier = MAP.tiers[ti];
+  if(!tier.grades) tier.grades = [];
+  const gr = (Number(n) === 0)
+    ? { id:'g0', name:'Дошкільнята', status:'wip', gradeNum:0, subjects:[] }
+    : EMPTY_GRADE(Number(n));
+  // числові класи тримаємо впорядкованими за номером
+  tier.grades.push(gr);
+  tier.grades.sort((a, b) => Number(a.gradeNum) - Number(b.gradeNum));
+  return true;
+}
+
+/* Показати перший екран — дві плашки + приналежність. */
+function mapShowCats(){
+  MAP_CAT = null; MAP_GRADE = null;
+  if($('mapScrCats'))    $('mapScrCats').classList.remove('hidden');
+  if($('mapScrGrades'))  $('mapScrGrades').classList.add('hidden');
+  if($('mapScrContent')) $('mapScrContent').classList.add('hidden');
+  if($('mapcatTestsCnt'))    $('mapcatTestsCnt').textContent    = mapTestsTotal() + ' тест.';
+  if($('mapcatTrainersCnt')) $('mapcatTrainersCnt').textContent = mapTrainersTotal() + ' випроб.';
+  if($('mapTree')) $('mapTree').innerHTML = '';
+  renderBelong();
+  try{ window.scrollTo(0,0); }catch(e){}
+}
+
+/* Показати другий екран — сітку класів для обраного розділу. */
+function mapShowGrades(cat){
+  MAP_CAT = cat; MAP_GRADE = null;
+  if($('mapScrCats'))    $('mapScrCats').classList.add('hidden');
+  if($('mapScrGrades'))  $('mapScrGrades').classList.remove('hidden');
+  if($('mapScrContent')) $('mapScrContent').classList.add('hidden');
+  if($('mapGradesTitle')) $('mapGradesTitle').textContent =
+    (cat === 'trainers') ? '🏆 Випробування' : '📜 Тести';
+  renderMapGrades();
+  try{ window.scrollTo(0,0); }catch(e){}
+}
+
+/* Малює картки класів (дошкільна освіта + 1–11). */
+function renderMapGrades(){
+  const host = $('mapGradeGrid'); if(!host) return;
+  const unit = (MAP_CAT === 'trainers') ? 'випроб.' : 'тест.';
+  const preCnt = mapCountFor(0), preHas = mapGradeExists(0);
+  let html = '<button class="mapgrade-card' + (preHas ? '' : ' empty') + '" data-mgrade="0">'
+    + '<span class="ico">🌱</span><span class="lbl">Дошкільна освіта</span>'
+    + '<span class="cnt">' + (preHas ? (preCnt + ' ' + unit) : '＋ додати') + '</span></button>';
+  MAP_GRADE_NUMS.forEach(n => {
+    const has = mapGradeExists(n), cnt = mapCountFor(n);
+    html += '<button class="mapgrade-card' + (has ? '' : ' empty') + '" data-mgrade="' + n + '">'
+      + '<span class="big">' + n + '</span><span class="lbl">клас</span>'
+      + '<span class="cnt">' + (has ? (cnt + ' ' + unit) : '＋ додати') + '</span></button>';
+  });
+  host.innerHTML = html;
+}
+
+/* Показати третій екран — зміст обраного класу в обраному розділі. */
+function mapOpenContent(gradeNum){
+  gradeNum = Number(gradeNum);
+  // Немає такого класу — пропонуємо створити його.
+  if(!mapGradeExists(gradeNum)){
+    const nm = (gradeNum === 0) ? 'дошкільний клас' : (gradeNum + ' клас');
+    if(!confirm('У структурі ще немає «' + nm + '». Створити його? (Збережеться після «Зберегти карту».)')){ return; }
+    if(!mapEnsureGrade(gradeNum)){ toast('Не вдалося створити клас — немає жодного ступеня', true); return; }
+    toast('Клас створено — не забудь «Зберегти карту»');
+  }
+  MAP_GRADE = gradeNum;
+  if($('mapScrCats'))    $('mapScrCats').classList.add('hidden');
+  if($('mapScrGrades'))  $('mapScrGrades').classList.add('hidden');
+  if($('mapScrContent')) $('mapScrContent').classList.remove('hidden');
+  const catLbl = (MAP_CAT === 'trainers') ? '🏆 Випробування' : '📜 Тести';
+  const grLbl  = (gradeNum === 0) ? '🌱 Дошкільна освіта' : (gradeNum + ' клас');
+  if($('mapCrumb')) $('mapCrumb').innerHTML =
+    '<span class="pill">' + esc(catLbl) + '</span><span class="pill">' + esc(grLbl) + '</span>';
+  if($('mapContentHint')) $('mapContentHint').textContent = (MAP_CAT === 'trainers')
+    ? 'Окремі сторінки-випробування або відео під предметами цього класу. Обкладинки й посилання редагуються тут.'
+    : 'Предмети → розділи → тести цього класу. Саме це бачить дитина на сторінці «Тести».';
+  renderMap();
+  try{ window.scrollTo(0,0); }catch(e){}
 }
 
 /* Стати — зі спільного списку SKCUR.STATS, того самого, що бачить дитина.
@@ -1605,7 +1869,6 @@ async function openMap(){
   }
   if(!had && !MAP_FROM_DB) toast('Карти в базі ще немає — відкрито запасну. Збережи, щоб закріпити.');
   try { await ensureTrainers(); } catch(e){ /* тренажери показуються порожніми — не критично */ }
-  renderMap();
   if(MAP_MIGRATED){
     $('mapMsg').innerHTML = '<div class="map-ok">↻ Посилань на тести переведено з назв на id: <b>'
       + MAP_MIGRATED + '</b>. Натисни «Зберегти карту», щоб закріпити — після цього '
@@ -1617,7 +1880,8 @@ async function openMap(){
   }
   // менеджер приналежності: потрібні свіжі тести
   if(!TESTS || !TESTS.length){ try{ TESTS = await SK_API.list() || []; }catch(e){} }
-  renderBelong();
+  // Відкриваємо перший екран — дві плашки (Тести / Випробування) + приналежність.
+  mapShowCats();
 }
 
 async function saveMap(){
@@ -3175,12 +3439,22 @@ function bindEvents(){
   $('mapReset').onclick = () => {
     if(!confirm('Замінити чернетку карти на запасну (ту, що в sk-curriculum.js)? Збережена в базі карта не зміниться, доки не натиснеш «Зберегти карту».')) return;
     MAP = window.SKCUR.normalize(window.SKCUR.DEFAULT_MAP);
-    renderMap(); $('mapMsg').innerHTML = '';
+    $('mapMsg').innerHTML = '';
+    mapShowCats();
     toast('Відновлено запасну карту (ще не збережено)');
   };
-  $('mapAddTier').onclick = () => { if(MAP){ MAP.tiers.push(EMPTY_TIER()); renderMap(); } };
-  $('mapCollapseAll').onclick = () => { if(MAP) collapseAll(); };
-  $('mapExpandAll').onclick   = () => { if(MAP) expandAll(); };
+  // ---- Навігація «Структура»: розділ → клас → зміст ----
+  document.querySelectorAll('#mapScrCats [data-mapcat]').forEach(btn => {
+    btn.onclick = () => { if(MAP) mapShowGrades(btn.getAttribute('data-mapcat')); };
+  });
+  if($('mapGradeGrid')) $('mapGradeGrid').addEventListener('click', e => {
+    const b = e.target.closest('[data-mgrade]'); if(!b) return;
+    mapOpenContent(b.getAttribute('data-mgrade'));
+  });
+  if($('mapGradesBack'))  $('mapGradesBack').onclick  = mapShowCats;
+  if($('mapContentBack')) $('mapContentBack').onclick = () => mapShowGrades(MAP_CAT);
+  if($('mapCollapseAll')) $('mapCollapseAll').onclick = () => { if(MAP) collapseAll(); };
+  if($('mapExpandAll'))   $('mapExpandAll').onclick   = () => { if(MAP) expandAll(); };
   $('mapTree').addEventListener('input',  onMapInput);
   $('mapTree').addEventListener('change', onMapInput);
   $('mapTree').addEventListener('click',  onMapClick);
