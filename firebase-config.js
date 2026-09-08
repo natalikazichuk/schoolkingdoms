@@ -38,7 +38,7 @@ import {
   signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 import {
-  getFirestore, doc, getDoc, setDoc, updateDoc, addDoc, deleteDoc,
+  getFirestore, initializeFirestore, doc, getDoc, setDoc, updateDoc, addDoc, deleteDoc,
   collection, getDocs, query, where, serverTimestamp, runTransaction
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
@@ -54,7 +54,11 @@ const firebaseConfig = {
 
 const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db   = getFirestore(app);
+// initializeFirestore (замість getFirestore): вмикаємо авто-визначення
+// long-polling. У мережах/за блокувальниками/проксі, де стрімовий WebChannel
+// ріжеться (400 на /Listen/channel, "transport errored"), SDK сам перемикається
+// на long-polling. Де WebChannel працює — лишається він, без втрати швидкості.
+const db   = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
 
 // Сесія «прилипає» між вкладками й заходами (localStorage/IndexedDB), тому
 // відкриття гри/тесту в новій вкладці й перехід між сторінками НЕ розлогінюють.
@@ -1204,53 +1208,6 @@ const SK = {
     const cur = await SK.getInventory();
     const next = cur.concat(Array.isArray(instances) ? instances : [instances]);
     return SK.saveInventory(next);
-  },
-
-  /* ===== НАГОРОДА ЗА ТРЕНАЖЕР (одноразово) =====================
-     Видача при завершенні тренажера. Атомарно й ОДИН раз на кожен
-     тренажер (ключ = href сторінки): у транзакції додаємо екземпляри
-     до heroes/{id}.inventory, доливаємо монети й ставимо позначку
-     heroes/{id}.trainerRewards[href] = ts. Повторний виклик (інший
-     пристрій / перезахід) бачить позначку й нічого не видає вдруге.
-     setDoc(merge:true) не чіпає parentUid → проходить за firestore.rules
-     (ті самі права, що saveInventory / recordBookRead).
-     payload = { instances:[{uid,id,...}], coins:Number }
-     -> { ok, already, coins, count } */
-  async grantTrainerReward(href, payload = {}) {
-    const heroId = SK._heroUid();
-    if (!heroId || !href) return { ok: false, already: false, coins: 0, count: 0 };
-    const key = String(href);
-    const instances = Array.isArray(payload.instances) ? payload.instances : [];
-    const coins = Math.max(0, Math.floor(Number(payload.coins) || 0));
-    const ref = doc(db, 'heroes', heroId);
-    let result = { ok: true, already: false, coins: 0, count: 0 };
-    await runTransaction(db, async (tx) => {
-      const snap = await tx.get(ref);
-      const data = snap.exists() ? snap.data() : {};
-      const done = Object.assign({}, data.trainerRewards || {});
-      if (done[key]) { result = { ok: true, already: true, coins: 0, count: 0 }; return; }
-      const inv = Array.isArray(data.inventory) ? data.inventory : [];
-      const nextInv = inv.concat(instances);
-      const curCoins = Number(data.coins) || 0;
-      done[key] = Date.now();
-      tx.set(ref, {
-        inventory: nextInv,
-        coins: curCoins + coins,
-        trainerRewards: done,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-      result = { ok: true, already: false, coins: coins, count: instances.length };
-    });
-    return result;
-  },
-
-  // Чи вже видано нагороду за цей тренажер цьому Героєві.
-  async hasTrainerReward(href) {
-    const heroId = SK._heroUid();
-    if (!heroId || !href) return false;
-    const s = await getDoc(doc(db, 'heroes', heroId));
-    const d = s.exists() ? s.data() : null;
-    return !!(d && d.trainerRewards && d.trainerRewards[String(href)]);
   }
 };
 
