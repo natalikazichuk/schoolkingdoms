@@ -1208,6 +1208,18 @@ const SK = {
     const cur = await SK.getInventory();
     const next = cur.concat(Array.isArray(instances) ? instances : [instances]);
     return SK.saveInventory(next);
+  },
+  // Долити монет героєві. coins — надійний лічильник (sk-progress його не чіпає),
+  // тож просто читаємо поточне значення й пишемо суму через merge.
+  async addCoins(delta) {
+    const heroId = SK._heroUid();
+    const add = Math.max(0, Number(delta) || 0);
+    if (!heroId || !add) return false;
+    const s = await getDoc(doc(db, 'heroes', heroId));
+    const cur = (s.exists() && Number(s.data().coins)) || 0;
+    await setDoc(doc(db, 'heroes', heroId),
+      { coins: cur + add, updatedAt: serverTimestamp() }, { merge: true });
+    return true;
   }
 };
 

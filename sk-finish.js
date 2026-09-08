@@ -86,6 +86,7 @@
   };
 
   function mountBtn(){
+    if(window.__skHasOwnFinish) return;   // сторінка має власну кнопку/гейт (напр. sk-tr-reward.js)
     if(document.getElementById('skFinishBtn')) return;
     var b = document.createElement('button');
     b.id = 'skFinishBtn';
