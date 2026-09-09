@@ -921,6 +921,123 @@ const SK = {
     });
   },
 
+  /* ===== СЛОВНИК ENGLISH ============================================
+     Дві колекції:
+       vocab       — слова. id читабельний «EN-0001» (як предмети), щоб
+                     картинка бралась за конвенцією img/en/<id>.webp.
+         { word, ipa, uk, img, audio, phrases:[{en,uk}],
+           topic, grade, level, active, order }
+       vocabDecks  — набори (колоди) + конфіг нагород для тренажера
+                     slovnyk-en.html. id — slug «food-1».
+         { title, topic, grade, active, order,
+           test:{ statValue },                      // режим «Тест» → мана
+           trial:{ rewards:[{item,chance,coins}], coins } // «Випробування» → предмет
+         }
+     Картинки/аудіо у Firebase НЕ ллємо — лише шлях у репо або URL. */
+
+  // --- vocab: слова ---
+  async listVocab() {
+    const snap = await getDocs(collection(db, 'vocab'));
+    const out = [];
+    snap.forEach(d => out.push(Object.assign({ id: d.id }, d.data())));
+    out.sort((a, b) =>
+      String(a.topic || '').localeCompare(String(b.topic || ''), 'uk') ||
+      (Number(a.order) || 0) - (Number(b.order) || 0) ||
+      String(a.id || '').localeCompare(String(b.id || ''), 'en'));
+    return out;
+  },
+  async listActiveVocab(topic, grade) {
+    const snap = await getDocs(collection(db, 'vocab'));
+    const out = [];
+    snap.forEach(d => {
+      const v = d.data();
+      if (v.active === false) return;
+      if (topic != null && String(v.topic || '') !== String(topic)) return;
+      if (grade != null && Number(v.grade) !== Number(grade)) return;
+      out.push(Object.assign({ id: d.id }, v));
+    });
+    out.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
+    return out;
+  },
+  async getVocab(id) {
+    if (!id) return null;
+    const s = await getDoc(doc(db, 'vocab', String(id)));
+    return s.exists() ? Object.assign({ id: s.id }, s.data()) : null;
+  },
+  async saveVocab(entry) {
+    if (!entry || typeof entry !== 'object') throw new Error('empty-vocab');
+    const { id, ...data } = entry;
+    data.updatedAt = serverTimestamp();
+    if (id) {
+      await setDoc(doc(db, 'vocab', String(id)), data, { merge: true });
+      return String(id);
+    }
+    data.createdAt = serverTimestamp();
+    const ref = await addDoc(collection(db, 'vocab'), data);
+    return ref.id;
+  },
+  async deleteVocab(id) {
+    if (!id) return;
+    await deleteDoc(doc(db, 'vocab', String(id)));
+  },
+  async setVocabActive(id, active) {
+    if (!id) return;
+    await updateDoc(doc(db, 'vocab', String(id)), {
+      active: !!active, updatedAt: serverTimestamp()
+    });
+  },
+
+  // --- vocabDecks: набори + нагороди ---
+  async listVocabDecks() {
+    const snap = await getDocs(collection(db, 'vocabDecks'));
+    const out = [];
+    snap.forEach(d => out.push(Object.assign({ id: d.id }, d.data())));
+    out.sort((a, b) =>
+      (Number(a.grade) || 0) - (Number(b.grade) || 0) ||
+      (Number(a.order) || 0) - (Number(b.order) || 0) ||
+      String(a.title || '').localeCompare(String(b.title || ''), 'uk'));
+    return out;
+  },
+  async listActiveVocabDecks(grade) {
+    const snap = await getDocs(collection(db, 'vocabDecks'));
+    const out = [];
+    snap.forEach(d => {
+      const k = d.data();
+      if (k.active === false) return;
+      if (grade != null && Number(k.grade) !== Number(grade)) return;
+      out.push(Object.assign({ id: d.id }, k));
+    });
+    out.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
+    return out;
+  },
+  async getVocabDeck(id) {
+    if (!id) return null;
+    const s = await getDoc(doc(db, 'vocabDecks', String(id)));
+    return s.exists() ? Object.assign({ id: s.id }, s.data()) : null;
+  },
+  async saveVocabDeck(deck) {
+    if (!deck || typeof deck !== 'object') throw new Error('empty-deck');
+    const { id, ...data } = deck;
+    data.updatedAt = serverTimestamp();
+    if (id) {
+      await setDoc(doc(db, 'vocabDecks', String(id)), data, { merge: true });
+      return String(id);
+    }
+    data.createdAt = serverTimestamp();
+    const ref = await addDoc(collection(db, 'vocabDecks'), data);
+    return ref.id;
+  },
+  async deleteVocabDeck(id) {
+    if (!id) return;
+    await deleteDoc(doc(db, 'vocabDecks', String(id)));
+  },
+  async setVocabDeckActive(id, active) {
+    if (!id) return;
+    await updateDoc(doc(db, 'vocabDecks', String(id)), {
+      active: !!active, updatedAt: serverTimestamp()
+    });
+  },
+
   /* ===== ЧИТАЦЬКА БІБЛІОТЕКА ГЕРОЯ (heroes/{id}.library) ===== */
 
   // Прочитані книги активного Героя. -> [{ bookId, title, correct, total, readAt }]
