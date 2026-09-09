@@ -7,7 +7,7 @@
      <script src="sk-footer.js?v=1" data-active="tests"></script>
 
    Атрибути на теґу <script>:
-     data-active = home | tests | biblioteka | arena | none
+     data-active = home | tests | navch | arena | none
                    (яка вкладка підсвічена; за замовч. none)
      data-last   = back | logout
                    (остання кнопка; за замовч. back → «Назад», logout → «Вийти»)
@@ -77,7 +77,7 @@ body{padding-bottom:calc(82px + env(safe-area-inset-bottom))}
   nav.innerHTML =
       tab('home',       'hero.html',       '\uD83C\uDFE0', 'Головна') +
       tab('tests',      'tests.html',      '\uD83D\uDCDC', 'Тести') +
-      tab('vypr',       'vyprobuvannya.html', '\uD83C\uDFC6', 'Випробування') +
+      tab('navch',      'navchannia.html',    '\uD83C\uDF93', 'Навчання') +
       tab('arena',      'arena.html',      '\u2694\uFE0F', 'Арена') +
       lastBtn;
 
