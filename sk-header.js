@@ -220,11 +220,15 @@
     return guessId;
   }
 
+  /* preschool («Дошкільна») веде на свою сторінку Навчання doshkillya.html, а не на карту тестів */
+  function tierHref(tier, extra){
+    if(tier && tier.id === 'preschool') return BASE+'doshkillya.html';
+    return BASE+'tests.html#open='+enc(tier.id)+(extra||'');
+  }
+
   function subjectRow(tier, grade, subj){
     var ac = subj.accent || '#5C6BC0';
-    var href = BASE+'tests.html#open='+enc(tier.id)
-             + (grade ? '&grade='+enc(grade.id) : '')
-             + '&subj='+enc(subj.id);
+    var href = tierHref(tier, (grade ? '&grade='+enc(grade.id) : '') + '&subj='+enc(subj.id));
     return '<a class="sk-hd__sub" style="--ac:'+esc(ac)+'" href="'+href+'">'
          +   '<span class="sic">'+esc(subj.icon||'📘')+'</span>'
          +   '<span>'+esc(subj.name||'Предмет')+'</span>'
@@ -244,7 +248,7 @@
     if(grades.length){
       grades.forEach(function(g){
         var cur = (activeGrade!=null && Number(g.gradeNum)===Number(activeGrade)) ? ' cur' : '';
-        var ghref = BASE+'tests.html#open='+enc(tier.id)+'&grade='+enc(g.id);
+        var ghref = tierHref(tier, '&grade='+enc(g.id));
         html += '<div class="sk-hd__grade">'
              +    '<a class="sk-hd__glab'+cur+'" href="'+ghref+'">📖 '+esc(g.name||(g.gradeNum+' клас'))+'</a>'
              +    '<div class="sk-hd__subs">'
@@ -255,7 +259,7 @@
     } else {
       html += '<div class="sk-hd__mnote">'+esc(tier.note || 'У розробці. Заплановано.')+'</div>';
     }
-    html += '<a class="sk-hd__mopen" href="'+BASE+'tests.html#open='+enc(tier.id)+'">Відкрити карту ступеня →</a>';
+    html += '<a class="sk-hd__mopen" href="'+tierHref(tier)+'">Відкрити карту ступеня →</a>';
     html += '</div>';
     return html;
   }
