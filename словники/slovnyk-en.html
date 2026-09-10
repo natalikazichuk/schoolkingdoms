@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Словник English — тренажер</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<style>
+  :root{
+    --bg1:#eaf4ff; --bg2:#dcecff; --ink:#1e3a6b; --soft:#7b869c; --line:#d9e2f0;
+    --card:#fff; --primary:#3d86d4; --primary-d:#2f8fd6; --success:#37a052; --success-d:#2c8544;
+    --gold:#f4c842; --gold-ink:#8a5e16; --coral:#ff6f52; --coral-d:#e2573c; --good-bg:#e7f7ee; --good:#1c8a52;
+    --learn:#37b0c4; --e2:0 6px 18px rgba(19,63,120,.14);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:'Nunito',system-ui,sans-serif;color:var(--ink);
+    background:linear-gradient(180deg,var(--bg1),var(--bg2)) fixed;
+    -webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;
+    display:flex;flex-direction:column;min-height:100dvh;padding:14px;}
+  h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px;margin:0}
+  .wrap{width:100%;max-width:540px;margin:0 auto;flex:1;display:flex;flex-direction:column;min-height:0}
+
+  /* топбар: стрілка ← вертикально по центру ряду прогресу */
+  .topbar{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex:none}
+  .iconbtn{width:44px;height:44px;flex:none;border:2px solid var(--line);background:#fff;border-radius:14px;
+    display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--ink);cursor:pointer}
+  .iconbtn:active{transform:translateY(2px)}
+  .progress-line{flex:1;min-width:0}
+  .bar{height:12px;background:#e3ecf8;border-radius:8px;overflow:hidden}
+  .bar>span{display:block;height:100%;width:0;border-radius:8px;background:linear-gradient(90deg,var(--learn),#63d3e3);transition:width .4s ease}
+  .pt{font-weight:800;font-size:12px;color:var(--soft);margin:3px 2px 0;display:block}
+  .ttl{flex:1;min-width:0;font-family:'Fredoka';font-size:19px;line-height:1.1}
+  .ttl small{display:block;font-family:'Nunito';font-weight:800;font-size:12px;color:var(--soft)}
+
+  .screen{display:none;flex:1;min-height:0;flex-direction:column}
+  .screen.on{display:flex}
+
+  .big-btn{border:none;border-radius:18px;padding:15px 18px;font-family:'Fredoka';font-size:19px;
+    cursor:pointer;color:#fff;background:var(--primary);box-shadow:0 6px 0 var(--primary-d);width:100%}
+  .big-btn:active{transform:translateY(4px);box-shadow:0 2px 0 var(--primary-d)}
+  .big-btn.green{background:var(--success);box-shadow:0 6px 0 var(--success-d)}
+  .big-btn.gold{background:linear-gradient(180deg,#ffdd6b,var(--gold));box-shadow:0 6px 0 #d9a81f;color:var(--gold-ink)}
+  .big-btn.ghost{background:#fff;color:var(--ink);box-shadow:0 4px 0 #cdd8ea;border:2px solid var(--line)}
+  .big-btn.sm{font-size:16px;padding:12px 14px}
+
+  /* вибір набору / режиму */
+  .pick{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:11px;padding:2px 0 4px}
+  .deck{display:flex;align-items:center;gap:13px;background:var(--card);border:2px solid var(--line);
+    border-radius:18px;padding:13px 15px;box-shadow:var(--e2);cursor:pointer;text-align:left}
+  .deck:active{transform:translateY(2px)}
+  .deck .ic{font-size:30px;flex:none}
+  .deck .dx{flex:1;min-width:0}
+  .deck .dt{font-family:'Fredoka';font-size:18px}
+  .deck .ds{font-size:13px;color:var(--soft);font-weight:800}
+  .deck .go{font-size:22px;color:var(--primary);flex:none}
+  .lead{text-align:center;color:var(--soft);font-weight:800;font-size:13px;margin:0 0 8px}
+  h1.page{font-family:'Comfortaa','Fredoka',sans-serif;font-size:26px;color:var(--ink);text-align:center;margin:2px 0 10px}
+
+  .mode-card{background:var(--card);border:2px solid var(--line);border-radius:20px;padding:16px;box-shadow:var(--e2);
+    display:flex;flex-direction:column;gap:8px;text-align:left;cursor:pointer;margin-bottom:12px}
+  .mode-card:active{transform:translateY(2px)}
+  .mode-card.trial{border-color:#f4d78a}
+  .mode-h{display:flex;align-items:center;gap:10px}
+  .mode-h .m-ic{font-size:28px}
+  .mode-h .m-t{font-family:'Fredoka';font-size:20px}
+  .mode-note{color:var(--soft);font-weight:800;font-size:13px;line-height:1.35}
+  .reward-tag{align-self:flex-start;background:var(--good-bg);color:var(--good);font-weight:800;font-size:13px;padding:4px 12px;border-radius:9px}
+  .reward-tag.gold{background:#fff3d0;color:var(--gold-ink)}
+
+  /* вивчення — флеш-картка */
+  .fcard{flex:1;min-height:0;background:var(--card);border-radius:26px;box-shadow:var(--e2);border:2px solid var(--line);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px;cursor:pointer;position:relative}
+  .fpic{width:100%;max-width:220px;flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center}
+  .fpic img{max-width:100%;max-height:100%;object-fit:contain}
+  .fpic .emoji{font-size:80px}
+  .fword{font-family:'Fredoka';font-weight:700;font-size:clamp(32px,9vw,48px);line-height:1.05;color:var(--ink)}
+  .fipa{color:var(--soft);font-weight:800;font-size:16px}
+  .fuk{font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:clamp(24px,7vw,34px);color:var(--coral)}
+  .fphr{font-size:14px;color:var(--soft);font-weight:800;text-align:center;line-height:1.4}
+  .fhint{position:absolute;bottom:10px;font-size:12px;color:var(--soft);font-weight:800}
+  .speak{width:52px;height:52px;border-radius:50%;border:none;background:var(--primary);color:#fff;font-size:24px;cursor:pointer;box-shadow:0 4px 0 var(--primary-d)}
+  .speak:active{transform:translateY(3px);box-shadow:0 1px 0 var(--primary-d)}
+  .nav-row{display:flex;gap:10px;align-items:center;margin-top:11px;flex:none}
+  .nav-row .big-btn{flex:1}
+
+  /* перевірка */
+  .prompt{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:6px 0}
+  .prompt .qtxt{font-weight:800;color:var(--soft);font-size:14px}
+  .prompt .qpic{width:100%;max-width:200px;flex:0 1 auto;min-height:0;display:flex;align-items:center;justify-content:center}
+  .prompt .qpic img{max-width:100%;max-height:26vh;object-fit:contain}
+  .prompt .qpic .emoji{font-size:74px}
+  .prompt .qword{font-family:'Fredoka';font-size:clamp(30px,8vw,44px)}
+  .prompt .quk{font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:clamp(24px,7vw,32px);color:var(--coral)}
+  .prompt .qgap{font-family:'Fredoka';font-size:clamp(22px,6vw,30px);text-align:center;line-height:1.3}
+  .prompt .qgap b{color:var(--coral)}
+
+  .opts{display:grid;grid-template-columns:1fr 1fr;gap:10px;flex:none;margin-top:6px}
+  .opt{border:2px solid var(--line);background:#fff;border-radius:16px;padding:14px 10px;font-family:'Fredoka';
+    font-size:19px;color:var(--ink);cursor:pointer;min-height:56px;word-break:break-word}
+  .opt:active{transform:translateY(2px)}
+  .opt.ok{background:var(--good-bg);border-color:var(--good);color:var(--good)}
+  .opt.no{background:#ffe6e2;border-color:var(--coral);color:var(--coral-d);animation:shake .35s}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+  /* збери слово */
+  .slots{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;flex:none;margin:4px 0}
+  .slot{width:min(11vw,44px);height:min(13vw,54px);border-radius:12px;background:#eef4fc;border:2px dashed #b9cbe6;
+    display:flex;align-items:center;justify-content:center;font-family:'Fredoka';font-size:min(7vw,26px);color:var(--primary)}
+  .slot.filled{background:linear-gradient(180deg,#fff,#eaf1fb);border-style:solid;border-color:var(--primary);color:var(--ink)}
+  .slot.wrong{border-color:var(--coral);color:var(--coral);animation:shake .35s}
+  .keys{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;flex:none;margin-top:8px}
+  .key{min-width:44px;height:50px;padding:0 10px;border-radius:12px;border:2px solid var(--line);background:#fff;
+    font-family:'Fredoka';font-size:22px;color:var(--ink);cursor:pointer}
+  .key:active{transform:translateY(2px)}
+  .key:disabled{opacity:.28}
+  .tools{display:flex;gap:8px;justify-content:center;margin-top:10px;flex:none}
+  .tool{border:2px solid var(--line);background:#fff;border-radius:12px;padding:9px 14px;font-weight:800;font-size:15px;color:var(--ink);cursor:pointer}
+
+  .fb{min-height:22px;text-align:center;font-weight:800;font-size:15px;margin-top:6px;flex:none}
+  .fb.good{color:var(--good)} .fb.bad{color:var(--coral-d)}
+
+  /* фініш */
+  .done{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;padding-top:6px}
+  .done .star{font-size:64px;animation:pop .5s ease both}
+  @keyframes pop{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
+  .done h2{font-family:'Comfortaa','Fredoka',sans-serif;font-size:26px;color:var(--success)}
+  .rtable{width:100%;max-width:420px;background:#fff;border:2px solid var(--line);border-radius:18px;box-shadow:var(--e2);overflow:hidden}
+  .rtable .rh{background:#f3f7fd;font-weight:800;color:var(--soft);font-size:13px;padding:9px 14px;text-align:left}
+  .rrow{display:flex;align-items:center;gap:12px;padding:11px 14px;border-top:1px solid var(--line);text-align:left}
+  .rrow .ri{width:52px;height:52px;flex:none;border-radius:12px;background:#f5eeda;display:grid;place-items:center;overflow:hidden}
+  .rrow .ri img{width:100%;height:100%;object-fit:contain;padding:5px}
+  .rrow .ri span{font-size:26px}
+  .rrow .rn{flex:1;min-width:0}
+  .rrow .rn b{font-family:'Fredoka';font-weight:700;font-size:16px;display:block}
+  .rrow .rn small{color:var(--soft);font-weight:800}
+  .rrow .rv{font-family:'Fredoka';font-weight:700;font-size:19px;color:var(--good);flex:none}
+  .rrow .rv.gold{color:var(--gold-ink)}
+  .save-note{font-weight:800;font-size:13px;color:var(--soft)}
+  .done-btns{width:100%;max-width:420px;display:flex;flex-direction:column;gap:9px;margin-top:4px}
+
+  .msg{margin:auto;text-align:center;color:var(--soft);font-weight:800;padding:30px 14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- вибір набору -->
+  <section id="sDeck" class="screen on">
+    <div class="topbar"><button class="iconbtn" id="deckBack" title="Назад">←</button>
+      <div class="ttl">📘 Словник English<small>обери набір слів</small></div></div>
+    <div class="pick" id="deckList"><div class="msg">Завантаження…</div></div>
+  </section>
+
+  <!-- вибір режиму -->
+  <section id="sMode" class="screen">
+    <div class="topbar"><button class="iconbtn" id="modeBack">←</button>
+      <div class="ttl" id="modeTitle">Набір</div></div>
+    <div class="pick">
+      <p class="lead" id="modeLead"></p>
+      <button class="big-btn ghost sm" id="btnStudy">📖 Спочатку вивчити слова</button>
+      <div style="height:6px"></div>
+      <div class="mode-card" id="cardTest">
+        <div class="mode-h"><span class="m-ic">🎯</span><span class="m-t">Тест</span></div>
+        <div class="mode-note">Обери правильну відповідь. Легше — на впізнавання.</div>
+        <span class="reward-tag" id="tagTest">🔮 +? мани</span>
+      </div>
+      <div class="mode-card trial" id="cardTrial">
+        <div class="mode-h"><span class="m-ic">🏆</span><span class="m-t">Випробування</span></div>
+        <div class="mode-note">Збери слово з літер. Важче — на пригадування.</div>
+        <span class="reward-tag gold" id="tagTrial">🎁 предмет + 💰</span>
+      </div>
+      <p class="lead">⚠️ Помилка повертає на початок. Пройди все без помилок!</p>
+    </div>
+  </section>
+
+  <!-- вивчення -->
+  <section id="sStudy" class="screen">
+    <div class="topbar"><button class="iconbtn" id="studyBack">←</button>
+      <div class="progress-line"><div class="bar"><span id="studyBar"></span></div><span class="pt" id="studyPt"></span></div></div>
+    <div class="fcard" id="fcard"></div>
+    <div class="nav-row">
+      <button class="big-btn ghost sm" id="fPrev">←</button>
+      <button class="big-btn green sm" id="fStart">Почати перевірку →</button>
+      <button class="big-btn ghost sm" id="fNext">→</button>
+    </div>
+  </section>
+
+  <!-- перевірка -->
+  <section id="sPlay" class="screen">
+    <div class="topbar"><button class="iconbtn" id="playBack">←</button>
+      <div class="progress-line"><div class="bar"><span id="playBar"></span></div><span class="pt" id="playPt"></span></div>
+      <button class="iconbtn" id="playSpeak" title="Озвучити">🔊</button></div>
+    <div class="prompt" id="prompt"></div>
+    <div id="answer"></div>
+    <div class="fb" id="fb"></div>
+  </section>
+
+  <!-- фініш -->
+  <section id="sDone" class="screen">
+    <div class="done" id="done"></div>
+  </section>
+
+</div>
+
+<script src="sk-items.js"></script>
+<script src="sk-footer.js?v=1" data-back="tests.html"></script>
+<script src="sk-avatar.js"></script>
+<script type="module" src="firebase-config.js"></script>
+<script>
+"use strict";
+var $=function(id){return document.getElementById(id);};
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function num(n){var x=Number(n);return isFinite(x)?x:0;}
+function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function sample(a,n,not){var pool=a.filter(function(x){return x!==not;});return shuffle(pool).slice(0,n);}
+
+var HERO=null, HERO_SESSION=false, DECKS=[], deck=null, WORDS=[], mode='test';
+var QS=[], pos=0, attempts=1, studyPos=0, flipped=false;
+
+/* ---- шляхи ---- */
+function wImg(w){var u=String((w&&w.img)||'').trim();if(/^https?:\/\//i.test(u))return u;if(w&&w.id)return 'img/en/'+w.id+'.webp';return '';}
+function itImg(base){var u=String((base&&base.img)||'').trim();if(/^https?:\/\//i.test(u))return u;if(base&&base.id)return 'img/items/'+base.id+'.webp';return '';}
+function aud(w){var u=String((w&&w.audio)||'').trim();return u||'';}
+
+/* ---- озвучка: файл, якщо є; інакше браузерний TTS (en-US) ---- */
+function play(w){
+  try{
+    var a=aud(w);
+    if(a){ var el=new Audio(a); el.play().catch(function(){tts(w.word);}); return; }
+  }catch(e){}
+  tts(w&&w.word);
+}
+function tts(t){ if(!t)return; try{ var u=new SpeechSynthesisUtterance(String(t)); u.lang='en-US'; u.rate=.9; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); }catch(e){} }
+
+/* ---- звуки фідбеку ---- */
+var AC=null;
+function beep(ok){
+  try{ AC=AC||new (window.AudioContext||window.webkitAudioContext)(); var o=AC.createOscillator(),g=AC.createGain();
+    o.connect(g);g.connect(AC.destination);o.type='sine';
+    if(ok){o.frequency.setValueAtTime(660,AC.currentTime);o.frequency.setValueAtTime(880,AC.currentTime+.09);}
+    else{o.frequency.setValueAtTime(300,AC.currentTime);o.frequency.setValueAtTime(200,AC.currentTime+.12);}
+    g.gain.setValueAtTime(.12,AC.currentTime);g.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+.2);
+    o.start();o.stop(AC.currentTime+.22);
+  }catch(e){}
+}
+
+/* ---- навігація екранів ---- */
+function show(id){['sDeck','sMode','sStudy','sPlay','sDone'].forEach(function(s){$(s).classList.toggle('on',s===id);});}
+
+/* ============ ВИБІР НАБОРУ ============ */
+function renderDecks(){
+  if(!DECKS.length){ $('deckList').innerHTML='<div class="msg">Наборів ще немає.<br>Додай їх в адмінці → Словник → Набори.</div>'; return; }
+  $('deckList').innerHTML=DECKS.map(function(d){
+    return '<button class="deck" data-deck="'+esc(d.id)+'"><span class="ic">🗂</span>'
+      +'<span class="dx"><span class="dt">'+esc(d.title||d.topic||d.id)+'</span>'
+      +'<span class="ds">'+esc(d.topic||'')+' · '+(d.grade||1)+' клас</span></span><span class="go">›</span></button>';
+  }).join('');
+}
+async function openDeck(id){
+  deck=DECKS.find(function(d){return String(d.id)===String(id);}); if(!deck) return;
+  WORDS=[];
+  try{ WORDS=await window.SK.listActiveVocab(deck.topic, deck.grade); }catch(e){ WORDS=[]; }
+  if(!WORDS.length){ alert('У цьому наборі ще немає слів. Додай їх в адмінці.'); return; }
+  studyPos=0; flipped=false;
+  $('modeTitle').textContent=deck.title||deck.topic||deck.id;
+  $('modeLead').textContent='Слів у наборі: '+WORDS.length;
+  var sv=num(deck.test&&deck.test.statValue);
+  $('tagTest').textContent='🔮 +'+sv+' мани';
+  var rc=((deck.trial&&deck.trial.rewards)||[]).length, tc=num(deck.trial&&deck.trial.coins);
+  $('tagTrial').textContent='🎁 '+(rc?('предмет ('+rc+')'):'')+(tc?(' + '+tc+' 💰'):(rc?'':'💰'));
+  show('sMode');
+}
+
+/* ============ ВИВЧЕННЯ (флеш-картки) ============ */
+function renderStudy(){
+  var w=WORDS[studyPos]; if(!w)return;
+  var src=wImg(w);
+  var pic=src?'<img src="'+esc(src)+'" alt="" onerror="this.replaceWith(Object.assign(document.createElement(\'div\'),{className:\'emoji\',textContent:\'🔤\'}))">':'<div class="emoji">🔤</div>';
+  var phr=(w.phrases||[]).slice(0,2).map(function(p){return esc(p.en)+(p.uk?(' — '+esc(p.uk)):'');}).join('<br>');
+  if(!flipped){
+    $('fcard').innerHTML='<div class="fpic">'+pic+'</div>'
+      +'<div class="fword">'+esc(w.word)+'</div>'
+      +(w.ipa?'<div class="fipa">'+esc(w.ipa)+'</div>':'')
+      +'<button class="speak" id="fspeak">🔊</button>'
+      +'<div class="fhint">торкнись картки → переклад</div>';
+  }else{
+    $('fcard').innerHTML='<div class="fpic">'+pic+'</div>'
+      +'<div class="fuk">'+esc(w.uk)+'</div>'
+      +(phr?'<div class="fphr">'+phr+'</div>':'')
+      +'<div class="fhint">торкнись → назад</div>';
+  }
+  var sp=$('fspeak'); if(sp) sp.onclick=function(ev){ev.stopPropagation();play(w);};
+  var pct=Math.round((studyPos+1)/WORDS.length*100);
+  $('studyBar').style.width=pct+'%'; $('studyPt').textContent=(studyPos+1)+' / '+WORDS.length;
+  if(!flipped) play(w);
+}
+
+/* ============ ГЕНЕРАЦІЯ ПИТАНЬ ============ */
+function buildQuestions(){
+  var ws=shuffle(WORDS), qs=[];
+  ws.forEach(function(w,i){
+    if(mode==='test'){
+      var types=[]; types.push('enuk');
+      if(wImg(w)) types.push('picword');
+      types.push('listen');
+      qs.push({type:types[i%types.length], w:w});
+    }else{
+      var hasPhrase=(w.phrases||[]).some(function(p){return p.en && p.en.toLowerCase().indexOf(String(w.word).toLowerCase())>=0;});
+      qs.push({type:(hasPhrase && i%2===1)?'buildgap':'build', w:w});
+    }
+  });
+  return qs;
+}
+
+/* ============ ПЕРЕВІРКА ============ */
+function startPlay(){
+  QS=buildQuestions(); pos=0; attempts=1;
+  show('sPlay'); renderQ();
+}
+function setBar(){ var pct=Math.round(pos/QS.length*100); $('playBar').style.width=pct+'%'; $('playPt').textContent=pos+' / '+QS.length+(attempts>1?(' · спроба '+attempts):''); }
+function optWords(w,n){ return sample(WORDS,n,w); }
+
+function renderQ(){
+  setBar();
+  $('fb').textContent=''; $('fb').className='fb';
+  var q=QS[pos]; if(!q){ finish(); return; }
+  var w=q.w, P=$('prompt'), A=$('answer');
+  $('playSpeak').onclick=function(){play(w);};
+
+  if(q.type==='enuk'){
+    P.innerHTML='<div class="qtxt">Обери переклад</div><div class="qword">'+esc(w.word)+'</div>'+(w.ipa?'<div class="qtxt">'+esc(w.ipa)+'</div>':'');
+    var opts=shuffle([w].concat(optWords(w,3)));
+    A.innerHTML='<div class="opts">'+opts.map(function(o){return '<button class="opt" data-uk="'+esc(o.uk)+'">'+esc(o.uk)+'</button>';}).join('')+'</div>';
+    A.querySelectorAll('.opt').forEach(function(b){ b.onclick=function(){ pick(b, b.getAttribute('data-uk')===w.uk); }; });
+    play(w);
+  }
+  else if(q.type==='picword'){
+    var src=wImg(w);
+    P.innerHTML='<div class="qtxt">Що це англійською?</div><div class="qpic"><img src="'+esc(src)+'" alt="" onerror="this.replaceWith(Object.assign(document.createElement(\'div\'),{className:\'emoji\',textContent:\'🔤\'}))"></div>';
+    var opts2=shuffle([w].concat(optWords(w,3)));
+    A.innerHTML='<div class="opts">'+opts2.map(function(o){return '<button class="opt" data-en="'+esc(o.word)+'">'+esc(o.word)+'</button>';}).join('')+'</div>';
+    A.querySelectorAll('.opt').forEach(function(b){ b.onclick=function(){ pick(b, b.getAttribute('data-en')===w.word); }; });
+  }
+  else if(q.type==='listen'){
+    P.innerHTML='<div class="qtxt">Послухай і обери слово</div><div class="qpic"><div class="emoji">🔊</div></div>';
+    var opts3=shuffle([w].concat(optWords(w,3)));
+    A.innerHTML='<div class="opts">'+opts3.map(function(o){return '<button class="opt" data-en="'+esc(o.word)+'">'+esc(o.word)+'</button>';}).join('')+'</div>';
+    A.querySelectorAll('.opt').forEach(function(b){ b.onclick=function(){ pick(b, b.getAttribute('data-en')===w.word); }; });
+    play(w);
+  }
+  else { // build / buildgap
+    var src2=wImg(w);
+    var head;
+    if(q.type==='buildgap'){
+      var ph=(w.phrases||[]).filter(function(p){return p.en && p.en.toLowerCase().indexOf(String(w.word).toLowerCase())>=0;})[0];
+      var masked=ph? ph.en.replace(new RegExp(w.word,'i'),'___') : '___';
+      head='<div class="qtxt">Збери пропущене слово</div><div class="qgap">'+esc(masked).replace('___','<b>___</b>')+'</div>'+(ph&&ph.uk?'<div class="qtxt">'+esc(ph.uk)+'</div>':'');
+    }else{
+      head='<div class="qtxt">Збери слово з літер</div>'
+        +(src2?'<div class="qpic"><img src="'+esc(src2)+'" alt="" onerror="this.remove()"></div>':'')
+        +'<div class="quk">'+esc(w.uk)+'</div>';
+    }
+    P.innerHTML=head;
+    renderBuild(w, A);
+    play(w);
+  }
+}
+
+function pick(btn, ok){
+  $('answer').querySelectorAll('.opt').forEach(function(b){b.style.pointerEvents='none';});
+  if(ok){ btn.classList.add('ok'); good(); }
+  else{ btn.classList.add('no'); bad(); }
+}
+
+/* збери слово з літер */
+function renderBuild(w, A){
+  var target=String(w.word);
+  var letters=target.split('');
+  var slotsHtml=letters.map(function(_,i){return '<div class="slot" data-i="'+i+'"></div>';}).join('');
+  var keys=shuffle(letters.map(function(ch,i){return {ch:ch,k:i};}));
+  var keysHtml=keys.map(function(o){return '<button class="key" data-k="'+o.k+'">'+esc(o.ch.toUpperCase())+'</button>';}).join('');
+  A.innerHTML='<div class="slots">'+slotsHtml+'</div><div class="keys">'+keysHtml+'</div>'
+    +'<div class="tools"><button class="tool" id="bBack">⌫ Стерти</button><button class="tool" id="bHear">🔊 Ще раз</button></div>';
+  var filled=[]; // {slotEl, keyEl, ch}
+  var slots=A.querySelectorAll('.slot'), keyEls=A.querySelectorAll('.key');
+  keyEls.forEach(function(kb){
+    kb.onclick=function(){
+      if(kb.disabled) return;
+      var idx=filled.length; if(idx>=slots.length) return;
+      var s=slots[idx]; s.textContent=kb.textContent; s.classList.add('filled');
+      kb.disabled=true; filled.push({s:s,kb:kb,ch:kb.textContent.toLowerCase()});
+      if(filled.length===slots.length) checkBuild();
+    };
+  });
+  $('bBack').onclick=function(){ var f=filled.pop(); if(f){ f.s.textContent=''; f.s.classList.remove('filled','wrong'); f.kb.disabled=false; } };
+  $('bHear').onclick=function(){ play(w); };
+  function checkBuild(){
+    var got=filled.map(function(f){return f.ch;}).join('');
+    if(got===target.toLowerCase()){ good(); }
+    else{ slots.forEach(function(s){s.classList.add('wrong');}); bad(); }
+  }
+}
+
+function good(){
+  beep(true);
+  $('fb').textContent='✅ Правильно!'; $('fb').className='fb good';
+  pos++;
+  setTimeout(function(){ if(pos>=QS.length) finish(); else renderQ(); }, 650);
+}
+function bad(){
+  beep(false);
+  $('fb').textContent='❌ Не так. Починаємо спочатку!'; $('fb').className='fb bad';
+  setTimeout(function(){ pos=0; attempts++; renderQ(); }, 1100);
+}
+
+/* ============ ФІНІШ ============ */
+function finish(){ if(mode==='test') finishTest(); else finishTrial(); }
+
+function finishTest(){
+  var gain0=num(deck.test&&deck.test.statValue);
+  var replay=false; try{ replay=localStorage.getItem('sk_en_test_'+deck.id)==='1'; }catch(e){}
+  var gain=replay?0:gain0;
+  var rows='<div class="rh">Нагорода — характеристика</div>'
+    +'<div class="rrow"><div class="ri"><span>🔮</span></div><div class="rn"><b>Мана</b>'
+    +(replay?'<small>повтор — без нарахування</small>':'<small>англійська мова</small>')+'</div>'
+    +'<div class="rv">+'+gain+'</div></div>';
+  showDone('🎯','Тест пройдено!', rows);
+  if(HERO_SESSION){
+    window.SK.getHero().then(function(h){
+      h=h||{}; var patch={};
+      if(gain>0){ var cur=(h.mana!=null)?num(h.mana):0; patch.mana=cur+gain; }
+      return window.SK.saveHeroStats(patch);
+    }).then(function(){ if(window.SK.pushLocal) window.SK.pushLocal().catch(function(){}); try{localStorage.setItem('sk_en_test_'+deck.id,'1');}catch(e){} setSave(true); })
+      .catch(function(){ setSave(false); });
+  }
+}
+
+function finishTrial(){
+  var replay=false; try{ replay=localStorage.getItem('sk_en_trial_'+deck.id)==='1'; }catch(e){}
+  var coins0=num(deck.trial&&deck.trial.coins);
+  var coins=replay?Math.floor(coins0/2):coins0;
+  var wonId=null, wonCoins=0;
+  if(!replay){
+    var rewards=(deck.trial&&deck.trial.rewards)||[];
+    var roll=Math.random()*100, acc=0;
+    for(var i=0;i<rewards.length;i++){ acc+=num(rewards[i].chance); if(roll<acc){ wonId=rewards[i].item; wonCoins=num(rewards[i].coins); break; } }
+  }
+  coins+=wonCoins;
+  // будуємо таблицю (предмет підвантажимо асинхронно)
+  var rows='<div class="rh">Нагорода — здобич</div>'
+    +'<div id="rewItem"></div>'
+    +'<div class="rrow"><div class="ri"><span>💰</span></div><div class="rn"><b>Монети</b>'
+    +(replay?'<small>повтор — половина</small>':'<small>за випробування</small>')+'</div><div class="rv gold">+'+coins+'</div></div>';
+  showDone('🏆','Випробування пройдено!', rows);
+
+  function grantAll(base, inst){
+    if(!HERO_SESSION){ setSave('guest'); return; }
+    var chain=Promise.resolve();
+    if(coins>0) chain=chain.then(function(){return window.SK.addCoins(coins);});
+    if(inst) chain=chain.then(function(){return window.SK.addToInventory(inst);});
+    chain.then(function(){ if(window.SK.pushLocal) window.SK.pushLocal().catch(function(){}); try{localStorage.setItem('sk_en_trial_'+deck.id,'1');}catch(e){} setSave(true); })
+      .catch(function(){ setSave(false); });
+  }
+
+  if(wonId){
+    window.SK.getItem(wonId).then(function(base){
+      var inst=null, name=wonId, src='', stat='';
+      if(base){
+        name=base.name||wonId; src=itImg(base);
+        if(base.stat && base.valueMin!=null) stat=base.stat+' '+base.valueMin+(base.valueMax!=null&&base.valueMax!==base.valueMin?('–'+base.valueMax):'');
+        try{ if(window.SKIT&&window.SKIT.makeInstance) inst=window.SKIT.makeInstance(base,{identified:true}); }catch(e){}
+      }
+      $('rewItem').innerHTML='<div class="rrow"><div class="ri">'+(src?'<img src="'+esc(src)+'" alt="" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{textContent:\'🎁\'}))">':'<span>🎁</span>')+'</div>'
+        +'<div class="rn"><b>'+esc(name)+'</b>'+(stat?'<small>'+esc(stat)+'</small>':'<small>новий предмет</small>')+'</div><div class="rv">＋</div></div>';
+      grantAll(base, inst);
+    }).catch(function(){ $('rewItem').innerHTML=''; grantAll(null,null); });
+  }else{
+    $('rewItem').innerHTML= replay? '' : '<div class="rrow"><div class="ri"><span>🍀</span></div><div class="rn"><b>Цього разу без предмета</b><small>але монети твої</small></div><div class="rv">—</div></div>';
+    grantAll(null,null);
+  }
+}
+
+function showDone(star,title,rows){
+  show('sDone');
+  $('done').innerHTML='<div class="star">⭐</div><h2>'+esc(title)+'</h2>'
+    +'<div class="rtable">'+rows+'</div>'
+    +'<div class="save-note" id="saveNote">'+(HERO_SESSION?'💾 Зберігаємо…':'ℹ️ Увійди Героєм, щоб зберегти нагороду')+'</div>'
+    +'<div class="done-btns">'
+    +'<button class="big-btn green sm" id="againBtn">↻ Пройти ще раз</button>'
+    +'<button class="big-btn ghost sm" id="otherBtn">🔀 Інший набір</button>'
+    +'<button class="big-btn ghost sm" id="heroBtn">🦁 До Героя</button>'
+    +'</div>';
+  $('againBtn').onclick=function(){ startPlay(); };
+  $('otherBtn').onclick=function(){ show('sDeck'); };
+  $('heroBtn').onclick=function(){ location.href='hero.html'; };
+}
+function setSave(state){
+  var n=$('saveNote'); if(!n)return;
+  if(state===true){ n.textContent='✅ Збережено!'; n.style.color='#0f6b38'; }
+  else if(state==='guest'){ n.textContent='ℹ️ Увійди Героєм, щоб зберегти нагороду'; }
+  else{ n.textContent='⚠️ Не вдалося зберегти. Спробуй ще раз пізніше.'; n.style.color='#a32432'; }
+}
+
+/* ============ ПОДІЇ ============ */
+function wire(){
+  $('deckList').addEventListener('click',function(e){ var b=e.target.closest('[data-deck]'); if(b) openDeck(b.getAttribute('data-deck')); });
+  $('deckBack').onclick=function(){ var bb=document.getElementById('heroBackBtn'); if(bb) bb.click(); else location.href='tests.html'; };
+  $('modeBack').onclick=function(){ show('sDeck'); };
+  $('cardTest').onclick=function(){ mode='test'; startPlay(); };
+  $('cardTrial').onclick=function(){ mode='trial'; startPlay(); };
+  $('btnStudy').onclick=function(){ studyPos=0; flipped=false; show('sStudy'); renderStudy(); };
+
+  $('studyBack').onclick=function(){ show('sMode'); };
+  $('fcard').onclick=function(){ flipped=!flipped; renderStudy(); };
+  $('fPrev').onclick=function(){ if(studyPos>0){studyPos--;flipped=false;renderStudy();} };
+  $('fNext').onclick=function(){ if(studyPos<WORDS.length-1){studyPos++;flipped=false;renderStudy();} };
+  $('fStart').onclick=function(){ mode='test'; show('sMode'); };
+
+  $('playBack').onclick=function(){ if(confirm('Вийти з перевірки? Прогрес не збережеться.')) show('sMode'); };
+}
+
+/* ============ СТАРТ ============ */
+function boot(){
+  var grade=(HERO&&HERO.grade!=null)?Number(HERO.grade):null;
+  var p = grade!=null ? window.SK.listActiveVocabDecks(grade) : window.SK.listActiveVocabDecks();
+  p.then(function(list){
+    DECKS=list||[];
+    if(!DECKS.length && grade!=null){ return window.SK.listActiveVocabDecks().then(function(all){ DECKS=all||[]; renderDecks(); }); }
+    renderDecks();
+  }).catch(function(){ DECKS=[]; renderDecks(); });
+}
+(function whenSK(){
+  var tries=0;
+  (function tick(){
+    if(window.SK && window.SK.ready){
+      window.SK.ready.then(function(){
+        wire();
+        HERO_SESSION=!!(window.SK.isHeroSession && window.SK.isHeroSession());
+        var after=function(){ boot(); };
+        if(HERO_SESSION && window.SK.getHero){
+          if(window.SK.pullLocal){ try{ window.SK.pullLocal(); }catch(e){} }
+          window.SK.getHero().then(function(h){ HERO=h||null; after(); }).catch(after);
+        }else{ after(); }
+      });
+      return;
+    }
+    if(tries++<120) setTimeout(tick,50); else $('deckList').innerHTML='<div class="msg">Не вдалося підключитися до бази.</div>';
+  })();
+})();
+</script>
+</body>
+</html>
