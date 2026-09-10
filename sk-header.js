@@ -68,7 +68,7 @@
         +'white-space:nowrap;font-size:clamp(1.05rem,3.4vw,1.5rem);color:#fff;'
         +'text-shadow:0 2px 5px rgba(0,0,0,.45)}'
       +'.sk-hd__name b{color:#F2C75C}'
-      +'.sk-hd__sub{display:block;font-size:.64rem;letter-spacing:.13em;text-transform:uppercase;'
+      +'.sk-hd__tag{display:block;font-size:.64rem;letter-spacing:.13em;text-transform:uppercase;'
         +'white-space:nowrap;color:#ffe9b8;font-weight:800;margin-top:3px}'
 
       /* ── НАВІГАЦІЯ: ступені → класи → предмети ── */
@@ -170,7 +170,7 @@
         +'onerror="this.style.display=&#39;none&#39;;this.nextElementSibling.style.display=&#39;inline-block&#39;">'
       +'<span class="sk-hd__crest" style="display:none">🛡️</span>'
       +'<span><span class="sk-hd__name">School<b>Kingdoms</b></span>'
-      +'<span class="sk-hd__sub">'+esc(SUB)+'</span></span>'
+      +'<span class="sk-hd__tag">'+esc(SUB)+'</span></span>'
     +'</a>'
     +'<nav class="sk-hd__nav" id="skHdNav" aria-label="Класи та предмети" hidden></nav>'
     +'<div class="sk-hd__strip" id="skHdStrip">'
