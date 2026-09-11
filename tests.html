@@ -273,6 +273,31 @@
     }
     return { grades:G };
   }
+  /* ── стандартні вбудовані картки: WORDS (English-словник) у КОЖНОМУ класі ── */
+  function injectStdCards(){
+    if(!IDX || !IDX.grades) return;
+    var keys = (ALL_GRADES && ALL_GRADES.length)
+      ? ALL_GRADES.map(function(g){ return g.key; })
+      : Object.keys(IDX.grades);
+    keys.forEach(function(key){
+      var gr = IDX.grades[key];
+      if(!gr){ gr = IDX.grades[key] = { num:(key==='p'?0:(Number(key)||0)), order:[], subs:{} }; }
+      var eng = gr.subs['eng'];
+      if(!eng){ for(var sid in gr.subs){ if(gr.subs[sid] && /english|англ/i.test(gr.subs[sid].name||'')){ eng=gr.subs[sid]; break; } } }
+      if(!eng){
+        eng = { id:'eng', name:'English', icon:'\ud83d\udd24', accent:'#3FB6A8', stat:'\u041c\u0430\u043d\u0430 \ud83d\udd2e', tests:[], _seen:{} };
+        gr.subs['eng']=eng; gr.order.push('eng');
+      }
+      if(!eng._seen) eng._seen={};
+      if(eng._seen['std-words-en']) return;
+      eng._seen['std-words-en']=1;
+      eng.tests.unshift({
+        id:'std-words-en', title:'WORDS',
+        href:'slovnyk-en.html?skdone=t:std-words-en&skback=tests.html',
+        isLink:true, isLevels:false, levelCount:0, icon:'\ud83d\udd24', imgCard:''
+      });
+    });
+  }
   function buildGradeMeta(){
     ALL_GRADES=[]; GRADE_ID2NUM={};
     var pre=null, nums=[], seen={};
@@ -439,11 +464,12 @@
       // ховаємо тести, перетворені на випробування (hidden) — вони живуть як посилання
       var tlist = (res[1] || []).filter(function(t){ return !(t && t.hidden); });
       IDX = buildIndex(tlist);
+      injectStdCards();
       if(!openFromHash()){ restoreView(); render(); }
       loadHeroProgress();
     }).catch(function(){
       CURRICULUM = SKCUR.clone(SKCUR.map.tiers);
-      buildGradeMeta(); IDX = buildIndex([]);
+      buildGradeMeta(); IDX = buildIndex([]); injectStdCards();
       render();
     });
   }
