@@ -9,115 +9,82 @@
 <link rel="manifest" href="manifest.webmanifest">
 <!-- Спільна дизайн-система адмінки (та сама, що в admin.html: Тести/Тренажери/Ігри) -->
 <link rel="stylesheet" href="sk-styles.css">
-<!-- Спільна оболонка адмінки. Порядок важливий: ПІСЛЯ sk-styles.css (гасить
-     його .btn{width:100%}) і ДО локального <style> нижче. -->
-<link rel="stylesheet" href="sk-admin.css?v=1">
+<!-- Спільна оболонка адмінки: дизайн, шрифт і фон (та сама мова, що в Словнику).
+     Порядок важливий: ПІСЛЯ sk-styles.css і ДО локальних стилів нижче. -->
+<link rel="stylesheet" href="sk-admin.css?v=2">
 <script src="sk-admin.js?v=1"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
-  /* Токени й фон — 1:1 з admin.html (світло-блакитне небо + темні панелі). */
-  :root{
-    --bg:#9ad6f5; --bg-2:#2f74c8;
-    --panel:rgba(22,29,66,.72); --panel-2:rgba(30,39,86,.6);
-    --border:rgba(140,155,255,.22);
-    --gold:#f5c542; --gold-2:#e0a83a;
-    --text:#e9ecff; --muted:#9aa3d0;
-    --danger:#ff6b7a; --ok:#58d68d; --radius:16px;
-  }
-  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{margin:0}
-  body{
-    font-family:'Nunito',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-    color:var(--text);min-height:100vh;line-height:1.5;
-    background:
-      radial-gradient(1200px 700px at 80% -10%, rgba(124,92,255,.18), transparent 60%),
-      radial-gradient(900px 600px at 0% 100%, rgba(47,111,237,.16), transparent 55%),
-      linear-gradient(180deg,var(--bg),var(--bg-2));
-  }
-  #wrap{max-width:920px;margin:0 auto;padding:24px 18px 80px}
+  /* Дизайн, шрифт і фон — спільні (sk-admin.css, та сама мова, що в Словнику).
+     Тут лишається тільки те, що є саме в «Конструкторі книг». */
+  *{-webkit-tap-highlight-color:transparent}
+  body{line-height:1.5}
+  #wrap{padding:0 0 80px}
+  .wrap-in{max-width:920px;margin:0 auto;padding:16px 16px 0}
+  h1{font-size:1.6rem}
+  h2{font-size:1.15rem}
+  #root > h1{color:var(--ink)}
+  #root > .sub{color:var(--muted)}
+  .sub{color:var(--muted);font-weight:600;font-size:.92rem;margin:0 0 16px}
+  .panel .sub{margin:0}
 
-  h1,h2,h3{font-family:'Fredoka One',cursive;font-weight:400;letter-spacing:.3px;margin:0}
-  h1{font-size:1.9rem;color:var(--gold)}
-  h2{font-size:1.2rem}
-  a{color:var(--gold)}
-  /* заголовок і підзаголовок сторінки — на світлому фоні (як шапка адмінки) */
-  #root > h1{color:#123a6b;text-shadow:0 1px 2px rgba(255,255,255,.5)}
-  #root > .sub{color:#2b4a72}
-
-  /* Шапка, панелі, кнопки — у sk-admin.css (спільні з admin-items / admin-reports). */
-
-  .sub{color:#2b4a72;font-weight:600;font-size:.92rem;margin:0 0 16px}
-  .panel .sub{color:var(--muted);margin:0}
-
-  /* Список книг — картки в стилі .test-card / .tr-card адмінки */
-  .blist{display:flex;flex-direction:column;gap:10px}
-  .brow{display:flex;align-items:center;gap:12px;background:var(--panel-2);
-    border:1px solid var(--border);border-radius:14px;padding:12px 14px}
-  .brow .cv{font-size:1.6rem;line-height:1;width:40px;height:40px;flex:0 0 40px;display:grid;place-items:center;
-    border-radius:11px;background:rgba(9,13,35,.4);border:1px solid var(--border);overflow:hidden}
+  /* Список книг */
+  .blist{display:flex;flex-direction:column;gap:8px}
+  .brow{display:flex;align-items:center;gap:12px;background:var(--card);
+    border:1px solid var(--border);border-radius:14px;padding:10px 12px;box-shadow:var(--shadow)}
+  .brow .cv{font-size:1.5rem;line-height:1;width:48px;height:48px;flex:0 0 48px;display:grid;place-items:center;
+    border-radius:10px;background:#f5eeda;overflow:hidden}
   .brow .cv img{width:100%;height:100%;object-fit:cover}
   .brow .info{flex:1;min-width:0}
-  .brow .bt{font-family:'Fredoka One',cursive;font-size:1.02rem;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .brow .bt{font-weight:800;font-size:1.02rem;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .brow .bm{font-size:.76rem;color:var(--muted);margin-top:2px}
-  .brow .acts{display:flex;gap:6px;flex-shrink:0}
-  .mini{font-family:'Nunito',sans-serif;font-weight:800;font-size:.78rem;
-    border:1px solid var(--border);background:var(--panel-2);color:var(--text);
-    border-radius:9px;padding:6px 10px;cursor:pointer;transition:.15s}
-  .mini:hover{transform:translateY(-1px);border-color:var(--gold)}
-  .mini.on{background:rgba(88,214,141,.22);border-color:var(--ok);color:#c7f5cd}
-  .mini.off{background:var(--panel-2);color:var(--muted)}
-  .mini.danger{background:rgba(255,107,122,.14);border-color:rgba(255,107,122,.4);color:#ffc9ca}
-  .mini.danger:hover{background:rgba(255,107,122,.22)}
-  /* Форма: .field, інпути, фокус і .empty — у sk-admin.css. Тут — тільки своє. */
-  .field textarea{resize:vertical;min-height:70px;line-height:1.5}
-  input:disabled{opacity:.7}
+  .brow .acts{display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+
+  /* Форма: .field, інпути, .mini, .msg, .empty, гейт — у sk-admin.css. */
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
-  .inline-note{font-size:.78rem;color:var(--muted);margin-top:2px}
-  .chk{display:flex;align-items:center;gap:8px;font-weight:800;color:var(--text);cursor:pointer}
+  .chk{display:flex;align-items:center;gap:8px;font-weight:800;color:var(--ink);cursor:pointer}
   .chk input{width:auto}
 
-  /* Сторінки / питання — як .lv-block / .q-item / .opt-row адмінки */
-  .page-card{background:rgba(9,13,35,.35);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:12px}
+  /* Сторінки книги й питання */
+  .page-card{background:#faf7ef;border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:12px}
   .page-card>.ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px}
-  .page-card>.ph .pn{font-family:'Fredoka One',cursive;color:var(--gold);font-size:1rem}
-  .q-card{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:11px;margin-top:10px}
+  .page-card>.ph .pn{font-weight:800;color:var(--gold-ink);font-size:1rem}
+  .q-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px;margin-top:10px}
   .q-card>.qh{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px}
   .q-card>.qh .qn{font-weight:800;color:var(--muted);font-size:.82rem}
   .opt-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;
-    padding:5px 8px;border:1px solid transparent;border-radius:9px;background:rgba(9,13,35,.32)}
-  .opt-row:has(input[type=radio]:checked){background:rgba(88,214,141,.12);border-color:rgba(88,214,141,.32)}
-  .opt-row input[type=radio]{width:18px;height:18px;flex-shrink:0;accent-color:var(--ok)}
+    padding:5px 8px;border:1px solid transparent;border-radius:9px;background:#f4f1e8}
+  .opt-row:has(input[type=radio]:checked){background:#e8f6ee;border-color:#bde2ce}
+  .opt-row input[type=radio]{width:18px;height:18px;flex-shrink:0;accent-color:var(--success)}
   .opt-row input[type=text]{flex:1}
-  .opt-row .rm{background:rgba(255,107,122,.14);border:1px solid rgba(255,107,122,.4);color:#ffc9ca;border-radius:8px;padding:6px 9px;font-weight:800;cursor:pointer;flex-shrink:0}
-  .opt-row .rm:hover{background:rgba(255,107,122,.24)}
+  .opt-row .rm{background:#fdeceb;border:1px solid #eab6b3;color:var(--danger);
+    border-radius:8px;padding:6px 9px;font-weight:800;cursor:pointer;flex-shrink:0;font-family:inherit}
+  .opt-row .rm:hover{background:#fbdedc}
   .addrow{margin-top:2px}
-  .add-btn{background:rgba(245,197,66,.14);border:1px solid rgba(245,197,66,.4);color:var(--gold);
-    border-radius:10px;padding:8px 12px;font-weight:800;font-size:.82rem;cursor:pointer;font-family:'Nunito',sans-serif}
-  .add-btn:hover{background:rgba(245,197,66,.24)}
+  .add-btn{background:#fdf5e0;border:1px solid #f0dca8;color:var(--gold-ink);
+    border-radius:10px;padding:8px 12px;font-weight:800;font-size:.82rem;cursor:pointer;font-family:inherit}
+  .add-btn:hover{background:#fbeecb}
 
   /* прев'ю картинки */
   .img-prev{margin-top:8px}
-  .img-prev-el{max-height:130px;max-width:100%;border-radius:10px;display:block;border:1px solid var(--border)}
-  .img-prev-err{display:none;color:#ffb3b4;font-weight:800;font-size:.82rem}
+  .img-prev-el{max-height:130px;max-width:100%;border-radius:10px;display:block;
+    border:1px solid var(--border);background:#f5eeda}
+  .img-prev-err{display:none;color:var(--danger);font-weight:800;font-size:.82rem}
   .img-prev-emoji{font-size:2.6rem;line-height:1;display:block}
 
-  /* повідомлення */
-  .msg{margin-top:10px;font-weight:800;min-height:20px}
-  .msg.ok{color:#8fe3ad}.msg.err{color:#ffb3b4}
   textarea#jsonBox{min-height:120px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.82rem}
 
-  /* Гейт доступу і спінер — у sk-admin.css. */
   @media(max-width:560px){.grid,.grid3{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
+<!-- Вміст малює SKADMIN.header() наприкінці файлу. -->
+<header class="topbar"></header>
 <div id="wrap">
-  <!-- Вміст малює SKADMIN.header() наприкінці файлу. -->
-  <header class="topbar"></header>
-  <div id="root">
+  <div class="wrap-in" id="root">
     <div class="gate"><div class="spinner"></div><p class="sub" style="margin:0">Перевіряємо доступ…</p></div>
   </div>
 </div>
@@ -268,7 +235,7 @@ function renderEditor(){
     +'<div class="savebar">'
     +'  <button class="btn" data-act="save">💾 Зберегти</button>'
     +'  <button class="btn ghost" data-act="new">＋ Нова книга</button>'
-    +(M.id?'  <button class="btn ghost" data-act="delcur" style="color:#ffc9ca">🗑 Видалити цю</button>':'')
+    +(M.id?'  <button class="btn ghost danger" data-act="delcur">🗑 Видалити цю</button>':'')
     +'</div>'
     +'<div class="msg" id="msg"></div>';
 }

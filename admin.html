@@ -10,116 +10,32 @@
 <link rel="manifest" href="manifest.webmanifest">
 <!-- Спільний дизайн-система (night-sky family) -->
 <link rel="stylesheet" href="sk-styles.css" />
-<!-- Спільний гейт доступу і хелпери (sk-admin.js). sk-admin.css ця сторінка
-     поки НЕ підключає: у неї власна шапка іншої будови й повний набір
-     компонентів у <style> нижче. -->
+<!-- Спільна оболонка адмінки: дизайн, шрифт і фон (та сама мова, що в Словнику).
+     Порядок важливий: ПІСЛЯ sk-styles.css і ДО локальних стилів нижче. -->
+<link rel="stylesheet" href="sk-admin.css?v=2">
 <script src="sk-admin.js?v=1"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
 
 <style>
-  :root{
-    --bg:        var(--sk-bg, #9ad6f5);
-    --bg-2:      var(--sk-bg-2, #2f74c8);
-    --panel:     var(--sk-panel, rgba(22,29,66,.72));
-    --panel-2:   var(--sk-panel-2, rgba(30,39,86,.6));
-    --border:    var(--sk-border, rgba(140,155,255,.22));
-    --gold:      var(--sk-gold, #f5c542);
-    --gold-2:    var(--sk-gold-2, #e0a83a);
-    --blue:      var(--sk-blue, #2f6fed);
-    --purple:    var(--sk-purple, #7c5cff);
-    --text:      var(--sk-text, #e9ecff);
-    --muted:     var(--sk-muted, #9aa3d0);
-    --danger:    #ff6b7a;
-    --ok:        #58d68d;
-    --radius:    16px;
-  }
+  /* Токени, база, кнопки, поля, панелі — у sk-admin.css (мова Словника). */
 
-  *{box-sizing:border-box}
-  html,body{margin:0}
-  body{
-    font-family:'Nunito',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-    color:var(--text);
-    background:
-      radial-gradient(1200px 700px at 80% -10%, rgba(124,92,255,.18), transparent 60%),
-      radial-gradient(900px 600px at 0% 100%, rgba(47,111,237,.16), transparent 55%),
-      linear-gradient(180deg, var(--bg), var(--bg-2));
-    min-height:100vh;
-    line-height:1.5;
-  }
-  /* Зорі */
-  body::before{
-    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:0;display:none;
-    background-image:
-      radial-gradient(1px 1px at 20% 30%, #fff, transparent),
-      radial-gradient(1px 1px at 70% 60%, #fff, transparent),
-      radial-gradient(1px 1px at 40% 80%, #cfe, transparent),
-      radial-gradient(2px 2px at 85% 20%, #fff, transparent),
-      radial-gradient(1px 1px at 55% 15%, #fff, transparent);
-    background-repeat:no-repeat;
-  }
-  .wrap{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:24px 18px 80px}
+  .wrap{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:16px 16px 80px}
+  h1{font-size:1.6rem}
+  h2{font-size:1.2rem}
 
-  h1,h2,h3{font-family:'Fredoka One',cursive;font-weight:400;letter-spacing:.3px;margin:0}
-  h1{font-size:1.9rem;color:var(--gold)}
-  h2{font-size:1.25rem}
-  a{color:var(--gold)}
-
-  /* Хедер */
-  header.topbar{
-    display:flex;align-items:center;gap:16px;flex-wrap:wrap;
-    margin-bottom:22px;padding-bottom:18px;border-bottom:1px solid var(--border);
-  }
-  .brand{display:flex;align-items:center;gap:12px}
-  .crown{font-size:1.7rem;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))}
-  .spacer{flex:1}
+  /* Шапка — спільна (sk-admin.css). Тут лише підпис «Ви: …». */
   .who{color:var(--muted);font-weight:700;font-size:.9rem}
-  .who b{color:var(--text)}
-  /* УВАГА: sk-styles.css (через <link> вище) містить СПІЛЬНИЙ СТАНДАРТ шапки
-     сайту — .topbar із темним фоном, золотою рамкою, тінню і центруванням
-     на телефоні. Адмінка має світлу тему і власний хедер без логотипа, тож
-     нейтралізуємо це локально (селектор header.topbar специфічніший за .topbar).
-     sk-styles.css НЕ чіпаємо — від нього залежать login/auth/index/parent. */
-  header.topbar{background:none;box-shadow:none;padding:0 0 18px;
-    justify-content:flex-start;text-align:left}
-  /* контраст тексту шапки на світлому фоні */
-  header.topbar{border-bottom-color:rgba(20,50,100,.25)}
-  header.topbar h1{color:#123a6b;text-shadow:0 1px 2px rgba(255,255,255,.5)}
-  header.topbar .who{color:#2b4a72}
-  header.topbar .who b{color:#0f3a6e}
+  .who b{color:var(--ink)}
+  header.topbar{position:static;margin:0 0 18px;border-radius:0}
 
-  /* Кнопки
-     УВАГА: sk-styles.css (підключений вище через <link>) має глобальне
-     .btn{width:100%;margin-top:4px} — воно потрібне сторінкам входу, де кнопка
-     має розтягуватись на всю форму. В адмінці це ламало розкладку: у групі
-     ↑ ↓ ✕ кожна кнопка бралася на 100% ширини свого flex-контейнера, тож
-     група розпухала втричі й вилазила за межі рядка карти.
-     Гасимо ЛОКАЛЬНО (той самий вагомий селектор, <style> іде після <link>);
-     sk-styles.css не чіпаємо — від нього залежать login/auth/index/parent. */
-  .btn{
-    width:auto;margin-top:0;
-    font-family:'Nunito',sans-serif;font-weight:800;font-size:.88rem;
-    border:1px solid var(--border);background:var(--panel-2);color:var(--text);
-    padding:9px 14px;border-radius:11px;cursor:pointer;transition:.15s;
-    display:inline-flex;align-items:center;gap:7px;
-  }
-  .btn:hover{transform:translateY(-1px);border-color:var(--gold)}
-  .btn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
-  .btn.gold{
-    background:linear-gradient(180deg,var(--gold),var(--gold-2));
-    color:#2a1e06;border-color:var(--gold-2);
-    box-shadow:0 6px 16px rgba(245,197,66,.28);
-  }
-  .btn.ghost{background:transparent}
-  .btn.danger{color:var(--danger);border-color:rgba(255,107,122,.4)}
-  .btn.danger:hover{background:rgba(255,107,122,.12)}
-  .btn.sm{padding:6px 10px;font-size:.8rem;border-radius:9px;gap:5px}
+  /* Кнопки — спільні (sk-admin.css).
 
   /* ── Головна адмінки (хаб) ── */
   #viewHome .home-head{margin:6px 0 18px}
-  #viewHome .home-head h2{color:#123a6b;text-shadow:0 1px 2px rgba(255,255,255,.5);font-size:1.35rem}
-  #viewHome .home-head p{margin:6px 0 0;color:#2b4a72;font-weight:700;font-size:.95rem}
+  #viewHome .home-head h2{color:var(--ink);font-size:1.35rem}
+  #viewHome .home-head p{margin:6px 0 0;color:var(--muted);font-weight:700;font-size:.95rem}
   .home-grid{
     display:grid;gap:14px;
     grid-template-columns:repeat(auto-fill,minmax(210px,1fr));
@@ -130,13 +46,13 @@
     text-align:left;text-decoration:none;position:relative;
     background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
     padding:18px 18px 16px;cursor:pointer;transition:.15s;
-    color:var(--text);box-shadow:0 10px 30px rgba(0,0,0,.22);
-    font-family:'Nunito',sans-serif;width:100%;
+    color:var(--text);box-shadow:var(--shadow);
+    font-family:inherit;width:100%;
   }
-  .home-card:hover{transform:translateY(-3px);border-color:var(--gold);box-shadow:0 14px 34px rgba(0,0,0,.3)}
-  .home-card:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
-  .home-card .ic{font-size:1.9rem;line-height:1;filter:drop-shadow(0 2px 5px rgba(0,0,0,.35))}
-  .home-card .ttl{font-family:'Fredoka One',cursive;font-weight:400;font-size:1.15rem;color:var(--gold)}
+  .home-card:hover{transform:translateY(-3px);border-color:var(--gold-ink);box-shadow:0 10px 26px rgba(19,63,120,.18)}
+  .home-card:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
+  .home-card .ic{font-size:1.9rem;line-height:1;}
+  .home-card .ttl{font-weight:800;font-size:1.15rem;color:var(--gold-ink)}
   .home-card .sub{color:var(--muted);font-weight:700;font-size:.85rem}
   .home-card.exit{background:var(--panel-2)}
   .home-card.exit .ttl{color:var(--text)}
@@ -145,16 +61,13 @@
     position:absolute;top:12px;right:12px;
     min-width:26px;height:26px;padding:0 8px;border-radius:13px;
     display:inline-flex;align-items:center;justify-content:center;
-    background:var(--danger);color:#2a0409;font-weight:800;font-size:.9rem;
-    box-shadow:0 4px 12px rgba(255,107,122,.45);
+    background:var(--danger);color:#fff;font-weight:800;font-size:.9rem;
+    box-shadow:0 4px 12px rgba(214,83,78,.35);
   }
-  .home-card.has-new{border-color:rgba(255,107,122,.55)}
+  .home-card.has-new{border-color:#eab6b3}
 
   /* Панелі / картки */
-  .panel{
-    background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
-    padding:18px;backdrop-filter:blur(6px);box-shadow:0 10px 30px rgba(0,0,0,.25);
-  }
+  .panel{margin-bottom:0}
   .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
   .toolbar .spacer{flex:1}
 
@@ -164,15 +77,15 @@
     display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;
     background:var(--panel-2);border:1px solid var(--border);border-radius:14px;padding:14px 16px;
   }
-  .test-card .title{font-family:'Fredoka One',cursive;font-size:1.05rem}
+  .test-card .title{font-size:1.05rem}
   .badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
   .badge{
     font-size:.72rem;font-weight:800;padding:4px 9px;border-radius:999px;
-    background:rgba(124,92,255,.18);color:#cbb8ff;border:1px solid rgba(124,92,255,.35);
+    background:#f3edfc;color:#6b3fa0;border:1px solid #d9c9ef;
   }
-  .badge.subject{background:rgba(47,111,237,.16);color:#9dc0ff;border-color:rgba(47,111,237,.35)}
-  .badge.stat{background:rgba(245,197,66,.14);color:var(--gold);border-color:rgba(245,197,66,.35)}
-  .badge.reward{background:rgba(88,214,141,.14);color:#8be0ac;border-color:rgba(88,214,141,.35)}
+  .badge.subject{background:#eaf1fb;color:#2f5ea8;border-color:#c2d4ef}
+  .badge.stat{background:#fdf5e0;color:var(--gold-ink);border-color:#f0dca8}
+  .badge.reward{background:#e8f6ee;color:#1f7a4d;border-color:#bde2ce}
   .test-card .actions{display:flex;gap:8px;align-items:center}
 
   /* Загальний підсумок над списком */
@@ -182,19 +95,19 @@
     padding:10px 14px;margin-bottom:14px;
   }
   .test-summary .sum-count{font-weight:800;color:var(--text);font-size:.95rem}
-  .test-summary .sum-count b{color:var(--gold)}
+  .test-summary .sum-count b{color:var(--gold-ink)}
   .test-summary .sum-stats{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  .badge.count{background:rgba(140,155,255,.16);color:#c9d2ff;border-color:rgba(140,155,255,.35)}
+  .badge.count{background:#eef0f7;color:#4a5470;border-color:#d5d9e6}
 
   /* Групи тестів за предметом — згортаються */
   .subj-group{border:1px solid var(--border);border-radius:14px;background:var(--panel-2);margin-bottom:12px;overflow:hidden}
   .subj-head{
     display:flex;align-items:center;gap:10px;flex-wrap:wrap;
-    padding:12px 14px;cursor:pointer;user-select:none;background:rgba(140,155,255,.06);
+    padding:12px 14px;cursor:pointer;user-select:none;background:#faf7ef;
   }
-  .subj-head:hover{background:rgba(140,155,255,.12)}
+  .subj-head:hover{background:#f4f1e8}
   .subj-head .caret{color:var(--muted);transition:transform .18s;font-size:.9rem;flex:0 0 auto}
-  .subj-head .subj-name{font-family:'Fredoka One',cursive;font-size:1.05rem;color:var(--gold)}
+  .subj-head .subj-name{font-size:1.05rem;color:var(--gold-ink)}
   .subj-head .subj-sum{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-left:auto}
   .subj-group.is-collapsed .caret{transform:rotate(-90deg)}
   .subj-group.is-collapsed .subj-body{display:none}
@@ -210,26 +123,26 @@
   /* Перемикач "активний" */
   .switch{position:relative;display:inline-flex;align-items:center;gap:10px;cursor:pointer;font-size:.8rem;color:var(--muted);font-weight:700}
   .switch input{position:absolute;opacity:0;width:0;height:0;pointer-events:none}
-  .track{width:42px;height:22px;flex:0 0 42px;border-radius:999px;background:#2a3160;border:1px solid var(--border);position:relative;transition:.2s}
+  .track{width:42px;height:22px;flex:0 0 42px;border-radius:999px;background:#e8e2d2;border:1px solid var(--border);position:relative;transition:.2s}
   .track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--muted);transition:.2s}
-  .switch input:checked + .track{background:rgba(88,214,141,.35);border-color:var(--ok)}
+  .switch input:checked + .track{background:#bde2ce;border-color:var(--success)}
   .switch input:checked + .track::after{transform:translateX(20px);background:var(--ok)}
   .switch .sw-txt{flex:1;min-width:0;line-height:1.25}
 
   /* Банер «онови файл» */
-  .dep-warn{border:2px solid var(--danger);background:rgba(255,107,122,.1);border-radius:12px;
-    padding:12px 14px;margin:4px 0 10px;color:#ffd7db;font-weight:700;font-size:.88rem;line-height:1.55}
-  .dep-warn b{color:#fff}
-  .dep-warn code{color:var(--gold);font-family:ui-monospace,Menlo,monospace}
+  .dep-warn{border:2px solid #eab6b3;background:#fdeceb;border-radius:12px;
+    padding:12px 14px;margin:4px 0 10px;color:var(--danger);font-weight:700;font-size:.88rem;line-height:1.55}
+  .dep-warn b{color:var(--ink)}
+  .dep-warn code{color:var(--gold-ink);font-family:ui-monospace,Menlo,monospace}
 
   /* Редактор карти */
   #viewMap > .panel{max-width:980px;margin:0 auto}
   .map-tier{border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px;
-    background:rgba(9,13,35,.35)}
+    background:#faf7ef}
   .map-grade{border:1px solid var(--border);border-radius:10px;padding:10px;margin:10px 0 0 14px;
-    background:rgba(9,13,35,.45)}
+    background:#f4f1e8}
   .map-subj{border:1px solid var(--border);border-radius:10px;padding:10px;margin:8px 0 0 14px;
-    background:rgba(9,13,35,.55);border-left:4px solid var(--accent,#5C6BC0)}
+    background:#f4f1e8;border-left:4px solid var(--accent,#5C6BC0)}
   .map-topic{border:1px dashed var(--border);border-radius:8px;padding:8px;margin:6px 0 0 14px}
   .map-head{display:flex;align-items:center;gap:8px;flex-wrap:nowrap}
   /* Глобальне правило input/select{width:100%} робить поля flex-базою на всю
@@ -253,39 +166,39 @@
   /* ── Структура: навігація «розділ → клас → зміст» ── */
   .back-lnk{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);
     background:var(--panel-2);color:var(--text);border-radius:12px;padding:8px 14px;
-    font-family:'Nunito',sans-serif;font-weight:800;cursor:pointer;margin-bottom:12px;font-size:.9rem}
-  .back-lnk:hover{border-color:var(--gold)}
+    font-family:inherit;font-weight:800;cursor:pointer;margin-bottom:12px;font-size:.9rem}
+  .back-lnk:hover{border-color:var(--gold-ink)}
   /* Дві плашки: Тести / Випробування */
   .mapcat-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
     max-width:720px;margin-top:8px}
   .mapcat-card{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;
     background:var(--panel-2);border:1px solid var(--border);border-radius:var(--radius);
     padding:22px 20px;cursor:pointer;transition:.15s;color:var(--text);
-    box-shadow:0 10px 30px rgba(0,0,0,.22);font-family:'Nunito',sans-serif;width:100%}
-  .mapcat-card:hover{transform:translateY(-3px);border-color:var(--gold);box-shadow:0 14px 34px rgba(0,0,0,.3)}
-  .mapcat-card:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
-  .mapcat-card .ic{font-size:2rem;line-height:1;filter:drop-shadow(0 2px 5px rgba(0,0,0,.35))}
-  .mapcat-card .ttl{font-family:'Fredoka One',cursive;font-weight:400;font-size:1.3rem;color:var(--gold)}
+    box-shadow:var(--shadow);font-family:inherit;width:100%}
+  .mapcat-card:hover{transform:translateY(-3px);border-color:var(--gold-ink);box-shadow:0 10px 26px rgba(19,63,120,.18)}
+  .mapcat-card:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
+  .mapcat-card .ic{font-size:2rem;line-height:1;}
+  .mapcat-card .ttl{font-weight:800;font-size:1.3rem;color:var(--gold-ink)}
   .mapcat-card .sub{color:var(--muted);font-weight:700;font-size:.85rem}
-  .mapcat-card .cnt{margin-top:8px;font-weight:800;font-size:.82rem;color:#c9d2ff;
-    background:rgba(140,155,255,.16);border:1px solid rgba(140,155,255,.35);border-radius:999px;padding:3px 11px}
+  .mapcat-card .cnt{margin-top:8px;font-weight:800;font-size:.82rem;color:#4a5470;
+    background:#eef0f7;border:1px solid #d5d9e6;border-radius:999px;padding:3px 11px}
   /* Сітка класів (як на дитячій сторінці «Випробування») */
   .mapgrade-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:14px;margin-top:8px}
   .mapgrade-card{aspect-ratio:1/1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-    gap:4px;background:linear-gradient(180deg,var(--panel-2),rgba(9,13,35,.5));border:1px solid var(--border);
-    border-radius:18px;cursor:pointer;color:var(--text);font-family:'Nunito',sans-serif;transition:.15s;
-    box-shadow:0 8px 22px rgba(0,0,0,.25);text-align:center;padding:10px}
-  .mapgrade-card:hover{transform:translateY(-2px);border-color:var(--gold)}
-  .mapgrade-card .big{font-family:'Fredoka One',cursive;font-size:2.2rem;color:var(--gold);line-height:1}
+    gap:4px;background:var(--card);border:1px solid var(--border);
+    border-radius:18px;cursor:pointer;color:var(--text);font-family:inherit;transition:.15s;
+    box-shadow:var(--shadow);text-align:center;padding:10px}
+  .mapgrade-card:hover{transform:translateY(-2px);border-color:var(--gold-ink)}
+  .mapgrade-card .big{font-size:2.2rem;color:var(--gold-ink);line-height:1}
   .mapgrade-card .ico{font-size:2.1rem;line-height:1}
-  .mapgrade-card .lbl{font-family:'Nunito',sans-serif;font-weight:800;font-size:.95rem;color:#fff;line-height:1.15}
+  .mapgrade-card .lbl{font-family:inherit;font-weight:800;font-size:.95rem;color:var(--ink);line-height:1.15}
   .mapgrade-card .cnt{font-size:.74rem;color:var(--muted);font-weight:700;margin-top:2px}
   .mapgrade-card.empty{opacity:.5;filter:grayscale(.4)}
   .mapgrade-card.empty .big,.mapgrade-card.empty .lbl{color:var(--muted)}
-  .mapgrade-card.empty .cnt{color:var(--gold)}
+  .mapgrade-card.empty .cnt{color:var(--gold-ink)}
   .map-crumb{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:2px 0 10px}
-  .map-crumb .pill{font-size:.78rem;font-weight:800;color:#c9d2ff;background:rgba(140,155,255,.14);
-    border:1px solid rgba(140,155,255,.3);border-radius:999px;padding:3px 11px}
+  .map-crumb .pill{font-size:.78rem;font-weight:800;color:#4a5470;background:#eef0f7;
+    border:1px solid #d5d9e6;border-radius:999px;padding:3px 11px}
   @media (max-width:720px){
     .mapgrade-grid{grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
     .mapgrade-card .big{font-size:1.8rem}
@@ -322,8 +235,8 @@
   .test-row select{padding:6px 9px;font-size:.85rem;width:auto;min-width:0}
   .test-row .grow{flex:1 1 auto;min-width:60px}
   .map-head .switch{flex:0 0 auto;white-space:nowrap}
-  .map-warn{color:#ffb0b0;font-size:.78rem;font-weight:700;margin-top:6px}
-  .map-ok{color:#8fe3ad;font-size:.78rem;font-weight:700;margin-top:6px}
+  .map-warn{color:var(--danger);font-size:.78rem;font-weight:700;margin-top:6px}
+  .map-ok{color:var(--success);font-size:.78rem;font-weight:700;margin-top:6px}
 
   /* ── Тренування (тренажери-сторінки під предметом) ──
      Той самий вигляд, що й розділи, але штрихова рамка золотиста, щоб
@@ -332,8 +245,8 @@
   .tr-section{margin:10px 0 0 14px;padding-top:8px;border-top:1px dashed var(--border)}
   .tr-section-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px}
   .tr-section-head .tr-hint{font-size:.72rem;color:var(--muted);flex:1 1 auto;min-width:120px}
-  .tr-mini{border:1px dashed rgba(224,164,42,.55);border-radius:8px;padding:8px;margin:6px 0 0 0;
-    background:rgba(224,164,42,.05)}
+  .tr-mini{border:1px dashed #f0dca8;border-radius:8px;padding:8px;margin:6px 0 0 0;
+    background:#fdf9ee}
   .tr-mini .map-head + .map-head{margin-top:6px}
   @media (max-width:720px){ .tr-section{margin-left:6px} }
 
@@ -354,14 +267,14 @@
   /* ── Ігри (та сама стилістика карток, що й у тренажерів) ── */
   #viewGames > .panel{max-width:980px;margin:0 auto}
   .tr-card{border:1px solid var(--border);border-radius:10px;padding:10px;margin:10px 0 0;
-    background:rgba(9,13,35,.5)}
+    background:#faf7ef}
   .tr-card .map-head + .map-head{margin-top:6px}
   .tr-card .map-kids{margin-top:6px}
   .tr-card.col > .map-kids{display:none}
   .tr-card.col{opacity:.96}
   .tr-empty{color:var(--muted);font-style:italic;font-weight:600;font-size:.88rem;padding:10px 2px}
   .tr-cover-note{font-size:.78rem;color:var(--muted);line-height:1.4;flex:1 1 auto;min-width:120px}
-  .tr-cover-note code{background:rgba(255,255,255,.08);padding:1px 6px;border-radius:6px;font-weight:800;color:#cfe0ff}
+  .tr-cover-note code{background:#f4f1e8;padding:1px 6px;border-radius:6px;font-weight:800;color:#2f5ea8}
 
   /* ── Випробування: нагороди ── */
   .tr-rewards{display:flex;align-items:flex-start;gap:8px;margin-top:6px}
@@ -378,30 +291,23 @@
 
   /* Форми */
   .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-  .field{display:flex;flex-direction:column;gap:6px}
+  /* .field, label, інпути, .hint — спільні (sk-admin.css). */
   .field.full{grid-column:1 / -1}
-  label{font-size:.8rem;font-weight:800;color:#b7bfe6}
-  input[type=text],input[type=number],select,textarea{
-    font-family:'Nunito',sans-serif;font-size:.95rem;color:var(--text);
-    background:rgba(9,13,35,.55);border:1px solid var(--border);border-radius:10px;
-    padding:10px 12px;width:100%;
-  }
-  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(245,197,66,.18)}
-  textarea{resize:vertical;min-height:120px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85rem}
-  .hint{font-size:.75rem;color:var(--muted)}
+  label{font-size:.8rem;font-weight:800;color:var(--muted)}
+  textarea{min-height:120px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85rem}
   .reward-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
   /* ── Нова навігація «Структура»: предмети → записи → картка ── */
   .mapgrade-card .emoji{font-size:1.8rem;line-height:1}
   .drill-typebar{display:inline-flex;gap:4px;padding:4px;border:1px solid var(--border);
-    border-radius:12px;background:rgba(9,13,35,.45);margin:2px 0 14px}
+    border-radius:12px;background:#f4f1e8;margin:2px 0 14px}
   .drill-seg{border:1px solid transparent;background:transparent;color:var(--muted);
     font-weight:800;font-size:.9rem;padding:8px 16px;border-radius:9px;cursor:pointer;transition:.15s;font-family:inherit}
   .drill-seg:hover{color:var(--text)}
-  .drill-seg.on{background:linear-gradient(180deg,var(--gold),var(--gold-2));color:#2a1e06;border-color:var(--gold-2)}
+  .drill-seg.on{background:linear-gradient(180deg,var(--gold),var(--gold-2));color:var(--gold-ink);border-color:var(--gold-deep)}
   .drill-rec{display:flex;align-items:center;gap:10px;width:100%;text-align:left;cursor:pointer;
     background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-top:8px;transition:.15s;font-family:inherit;color:var(--text)}
-  .drill-rec:hover{border-color:var(--gold);transform:translateY(-1px)}
+  .drill-rec:hover{border-color:var(--gold-ink);transform:translateY(-1px)}
   .drill-rec .ic{font-size:1.35rem;line-height:1;flex:0 0 auto}
   .drill-rec .nm{flex:1 1 auto;font-weight:800;font-size:.98rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .drill-rec .meta{flex:0 0 auto;color:var(--muted);font-weight:700;font-size:.78rem}
@@ -414,16 +320,16 @@
   .q-list{display:grid;gap:8px;margin-top:6px}
   .q-item{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:9px 11px}
   .q-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
-  .q-num{font-family:'Fredoka One',cursive;color:var(--gold);min-width:20px;font-size:.98rem}
+  .q-num{color:var(--gold-ink);min-width:20px;font-size:.98rem}
   .q-head .opt-text{font-weight:700;font-size:.92rem}
   /* компактні поля лише в межах редактора питань */
   .q-item input[type=text]{padding:6px 10px;font-size:.9rem;border-radius:8px}
   .opt-row{display:flex;flex-wrap:wrap;align-items:center;gap:5px 8px;margin-top:4px;
-    padding:4px 8px;border:1px solid transparent;border-radius:8px;background:rgba(9,13,35,.32)}
-  .opt-row:has(input[type=radio]:checked){background:rgba(88,214,141,.12);border-color:rgba(88,214,141,.32)}
-  .opt-row input[type=radio]{width:16px;height:16px;accent-color:var(--ok);flex:none}
+    padding:4px 8px;border:1px solid transparent;border-radius:8px;background:#f4f1e8}
+  .opt-row:has(input[type=radio]:checked){background:#e8f6ee;border-color:#bde2ce}
+  .opt-row input[type=radio]{width:16px;height:16px;accent-color:var(--success);flex:none}
   .opt-row .opt-text{flex:1 1 150px;min-width:100px;max-width:380px}
-  .opt-row .correct-lbl{font-size:.68rem;color:var(--ok);font-weight:800;min-width:0;white-space:nowrap}
+  .opt-row .correct-lbl{font-size:.68rem;color:var(--success);font-weight:800;min-width:0;white-space:nowrap}
   .opt-row .btn.sm{padding:4px 8px}
   /* «＋ Варіант / ＋ Питання в рівень» — прибираємо зайвий інлайн-відступ */
   .q-item [data-addopt],.q-item [data-laddopt]{margin-top:5px!important}
@@ -439,26 +345,26 @@
   .viz-mini{width:66px}
   .viz-prev{margin-top:12px;display:flex;justify-content:center}
   .pv-line{display:flex;flex-wrap:wrap;gap:5px;justify-content:center}
-  .pv-cell{width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.82rem;color:var(--text)}
-  .pv-cell.hi{background:linear-gradient(180deg,var(--gold),var(--gold-2));color:#2a1e06;border-color:var(--gold-2)}
+  .pv-cell{width:28px;height:28px;border-radius:8px;background:#f4f1e8;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.82rem;color:var(--text)}
+  .pv-cell.hi{background:linear-gradient(180deg,var(--gold),var(--gold-2));color:var(--gold-ink);border-color:var(--gold-deep)}
   .pv-blocks{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center}
-  .pv-group{display:inline-flex;flex-wrap:wrap;gap:5px;max-width:150px;justify-content:center;padding:6px 8px;border-radius:10px;background:rgba(255,255,255,.04);border:1px dashed var(--border)}
+  .pv-group{display:inline-flex;flex-wrap:wrap;gap:5px;max-width:150px;justify-content:center;padding:6px 8px;border-radius:10px;background:#faf7ef;border:1px dashed var(--border)}
   .pv-dot{width:16px;height:16px;border-radius:50%}
-  .pv-plus{font-family:'Fredoka One',cursive;color:var(--gold);font-size:1.1rem}
-  .pv-img{max-width:100%;max-height:180px;border-radius:12px;border:1px solid var(--border);object-fit:contain;background:rgba(255,255,255,.03)}
+  .pv-plus{color:var(--gold-ink);font-size:1.1rem}
+  .pv-img{max-width:100%;max-height:180px;border-radius:12px;border:1px solid var(--border);object-fit:contain;background:#faf7ef}
   .pv-img.broken{min-width:120px;min-height:70px}
   .pv-noimg{font-size:.78rem;color:var(--muted);font-style:italic}
 
   /* Рівні */
   .lv-list{display:grid;gap:16px}
-  .lv-block{background:rgba(9,13,35,.35);border:1px solid var(--border);border-radius:16px;padding:14px 14px 16px}
+  .lv-block{background:#faf7ef;border:1px solid var(--border);border-radius:16px;padding:14px 14px 16px}
   .lv-block-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-  .lv-badge{font-family:'Fredoka One',cursive;color:#2a1e06;background:linear-gradient(180deg,var(--gold),var(--gold-2));border-radius:10px;padding:4px 12px;font-size:.95rem;flex:none}
+  .lv-badge{color:var(--gold-ink);background:linear-gradient(180deg,var(--gold),var(--gold-deep));border-radius:10px;padding:4px 12px;font-size:.95rem;flex:none}
   .lv-block-head input{flex:1}
   .lv-qmeta{font-size:.75rem;color:var(--muted);font-weight:800;margin:4px 0 8px}
 
   /* Секції редактора */
-  .section-title{margin:16px 0 8px;font-size:1.05rem;color:var(--gold);display:flex;align-items:center;gap:8px}
+  .section-title{margin:16px 0 8px;font-size:1.05rem;color:var(--gold-ink);display:flex;align-items:center;gap:8px}
   .divider{height:1px;background:var(--border);margin:14px 0}
 
   /* Редактор тесту: комфортна ширина читання (прибирає порожнечу праворуч) */
@@ -472,27 +378,26 @@
   #viewEdit .hint{margin-top:2px}
 
   /* Модалка */
-  .modal-bg{position:fixed;inset:0;background:rgba(4,6,20,.66);backdrop-filter:blur(3px);z-index:50;display:none;align-items:center;justify-content:center;padding:18px}
+  .modal-bg{position:fixed;inset:0;background:rgba(20,26,50,.45);z-index:50;display:none;align-items:center;justify-content:center;padding:18px}
   .modal-bg.open{display:flex}
-  .modal{width:min(640px,100%);max-height:88vh;overflow:auto}
+  /* УВАГА: у sk-admin.css .modal — це підкладка на весь екран (як у Словнику),
+     а тут .modal — сама панель діалогу. Повертаємо їй звичайну поведінку. */
+  .modal{position:static;inset:auto;display:block;background:var(--card);
+    width:min(640px,100%);max-height:88vh;overflow:auto;padding:18px}
 
   /* Стани */
-  .empty{text-align:center;color:var(--muted);padding:40px 16px}
+  /* .empty і .toast — спільні (sk-admin.css). */
   .empty .big{font-size:2.4rem;margin-bottom:8px}
-  .toast{
-    position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
-    background:var(--panel);border:1px solid var(--gold);color:var(--text);
-    padding:12px 20px;border-radius:12px;font-weight:800;z-index:80;opacity:0;pointer-events:none;
-    transition:.25s;box-shadow:0 10px 30px rgba(0,0,0,.4)
-  }
-  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-  .toast.err{border-color:var(--danger);color:#ffd7dc}
 
   /* Гейт доступу / завантаження */
-  .gate{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#0b1026,#131a3f);text-align:center;padding:24px}
+  /* УВАГА: у sk-admin.css .gate — картка в потоці сторінки, а тут —
+     заставка на весь екран. Тому всі властивості задаємо явно. */
+  .gate{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;
+    background:var(--bg);text-align:center;padding:24px;max-width:none;margin:0;
+    border:0;border-radius:0;box-shadow:none}
   .gate .box{max-width:420px}
   .gate .big{font-size:2.6rem;margin-bottom:10px}
-  .spin{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 14px}
+  .spin{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--gold-ink);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 14px}
   @keyframes spin{to{transform:rotate(360deg)}}
 
   /* ── менеджер приналежності ── */
@@ -503,8 +408,8 @@
   .bel-row select{width:auto;min-width:96px}
   .bel-row select.bel-type{min-width:130px}
   .bel-badge{display:inline-block;font-size:.66rem;font-weight:800;border-radius:6px;padding:1px 6px;
-    margin-left:6px;background:#5a4a1a;color:#ffe08a;vertical-align:middle}
-  .bel-badge.tr{background:#1e3a5a;color:#9fd0ff}
+    margin-left:6px;background:#fdf5e0;color:var(--gold-ink);vertical-align:middle}
+  .bel-badge.tr{background:#eaf1fb;color:#2f5ea8}
   @media(max-width:560px){ .bel-row .bel-name{flex:1 1 100%} .bel-row select{flex:1 1 30%} }
   .hidden{display:none !important}
 
@@ -2068,7 +1973,7 @@ function checkMap(){
 
   let html = '';
   if(errs.length)  html += '<div class="map-warn">✘ ' + errs.map(esc).join('<br>✘ ') + '</div>';
-  if(warns.length) html += '<div class="map-warn" style="color:#ffd98f">⚠ ' + warns.map(esc).join('<br>⚠ ') + '</div>';
+  if(warns.length) html += '<div class="map-warn">⚠ ' + warns.map(esc).join('<br>⚠ ') + '</div>';
   if(!html) html = '<div class="map-ok">✔ Структура чиста: усі розділи названі, дублів немає, кожен активний тест лежить там, де його побачить дитина.</div>';
   $('mapMsg').innerHTML = html;
   return errs.length === 0;
@@ -2302,7 +2207,7 @@ async function openMap(){
       + MAP_MIGRATED + '</b>. Натисни «Зберегти карту», щоб закріпити — після цього '
       + 'перейменування тесту більше не розірве ланцюг.</div>'
       + (MAP_UNRESOLVED.length
-          ? '<div class="map-warn" style="color:#ffd98f">⚠ Ні на що не вказують: '
+          ? '<div class="map-warn">⚠ Ні на що не вказують: '
             + MAP_UNRESOLVED.map(esc).join(', ') + '</div>'
           : '');
   }
