@@ -9,6 +9,10 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+<!-- Спільний гейт доступу і хелпери. sk-admin.css ця сторінка НЕ підключає:
+     у неї світла тема з іншими іменами змінних (--card, --ink), тож спільні
+     правила оболонки їй не підходять. -->
+<script src="sk-admin.js?v=1"></script>
 <style>
   :root{
     --bg:#f4f1e8; --card:#fff; --ink:#22314d; --muted:#7b869c; --border:#e2ddce;
@@ -241,9 +245,9 @@
 "use strict";
 var WORDS=[], DECKS=[], ITEMS=[], editW=null, editD=null;
 
-function $(id){ return document.getElementById(id); }
-function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
-function toast(msg,err){ var t=$('toast'); t.textContent=msg; t.className='toast on'+(err?' err':''); setTimeout(function(){t.className='toast';},2000); }
+var $=SKADMIN.$;
+var esc=SKADMIN.esc;                 // спільний, екранує й апостроф
+var toast=SKADMIN.toast;             // той самий контракт класів: .toast / .on / .err
 function slug(s){ return String(s||'').toLowerCase().normalize('NFKD').replace(/[^\w]+/g,'-').replace(/^-+|-+$/g,'')||'set'; }
 
 /* ---- дефолтні шляхи ---- */
@@ -529,30 +533,23 @@ function gate(msg){
   $('root').innerHTML='<div class="gate"><div class="big">🔒</div><h1 style="font-size:1.3rem">Доступ обмежено</h1>'
     +'<p style="color:var(--muted);margin:8px 0 14px">'+esc(msg)+'</p><a class="btn ghost" href="login.html">Увійти</a></div>';
 }
-(function whenSK(){
-  var tries=0;
-  (function tick(){
-    if(window.SK && window.SK.ready){
-      window.SK.ready.then(function(){
-        if(!window.SK.currentUser || !window.SK.currentUser()){ gate('Увійди адміністратором, щоб керувати словником.'); return; }
-        window.SK.isAdmin().then(function(isA){
-          if(!isA){ gate('Ця сторінка лише для адміністраторів.'); return; }
-          var lo=$('logoutBtn'); if(lo){ lo.style.display=''; lo.onclick=function(){ window.SK.logout().then(function(){ location.href='login.html'; }); }; }
-          Promise.all([
-            window.SK.listVocab().catch(function(){return [];}),
-            window.SK.listVocabDecks().catch(function(){return [];}),
-            (window.SK.listItems?window.SK.listItems():Promise.resolve([])).catch(function(){return [];})
-          ]).then(function(res){
-            WORDS=res[0]||[]; DECKS=res[1]||[]; ITEMS=res[2]||[];
-            wire(); renderWords(); renderDecks();
-          });
-        }).catch(function(){ gate('Не вдалося перевірити права доступу.'); });
-      });
-      return;
-    }
-    if(tries++<120) setTimeout(tick,50); else gate('Не вдалося підключитися до бази.');
-  })();
-})();
+/* Гейт доступу — спільний (sk-admin.js). Екран відмови лишається свій:
+   у цієї сторінки світла тема, тож стандартний gate() зі sk-admin.css
+   виглядав би чужорідно. */
+SKADMIN.guard({
+  denyMsg:'Увійди адміністратором, щоб керувати словником.',
+  onDeny:gate,
+  onOk:function(SK){
+    Promise.all([
+      SK.listVocab().catch(function(){return [];}),
+      SK.listVocabDecks().catch(function(){return [];}),
+      (SK.listItems?SK.listItems():Promise.resolve([])).catch(function(){return [];})
+    ]).then(function(res){
+      WORDS=res[0]||[]; DECKS=res[1]||[]; ITEMS=res[2]||[];
+      wire(); renderWords(); renderDecks();
+    });
+  }
+});
 </script>
 </body>
 </html>

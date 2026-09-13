@@ -10,6 +10,10 @@
 <link rel="manifest" href="manifest.webmanifest">
 <!-- Спільний дизайн-система (night-sky family) -->
 <link rel="stylesheet" href="sk-styles.css" />
+<!-- Спільний гейт доступу і хелпери (sk-admin.js). sk-admin.css ця сторінка
+     поки НЕ підключає: у неї власна шапка іншої будови й повний набір
+     компонентів у <style> нижче. -->
+<script src="sk-admin.js?v=1"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
@@ -1000,12 +1004,9 @@ const SUBJECTS = ['Математика','Українська мова','ЯДС
 const TOPICS = ['Числа в межах 10','Числа в межах 20','Числа в межах 100','Задачі','Розрядність чисел','Вирази у три дії','Назви компонентів дій','Величини (см, дм, м)','Порівняння чисел','Геометричні фігури','Цікава математика'];
 const statLabel = v => (STATS.find(s => s.v === v)?.label) || v;
 
-/* ---- Паттерн whenSK: firebase-config.js — модуль (deferred) ---- */
-function whenSK(cb){
-  if (window.SK) return cb(window.SK);
-  const t = setInterval(() => { if (window.SK){ clearInterval(t); cb(window.SK); } }, 60);
-  setTimeout(() => clearInterval(t), 10000);
-}
+/* Очікування window.SK — у спільному sk-admin.js (SKADMIN.whenReady).
+   Тутешня копія чекала лише на появу SK, не дочікуючись SK.ready, тож на
+   швидкому завантаженні auth.currentUser міг бути ще null. */
 
 /* ============================================================
    SK_API — тонкі обгортки. Правити тільки тут.
@@ -3192,16 +3193,19 @@ const $ = id => document.getElementById(id);
 /* ============================================================
    Ініціалізація + гейт доступу
    ============================================================ */
-whenSK(async () => {
-  try {
-    const user = SK_API.currentUser();
-    const ok = user ? await SK_API.isAdmin(user) : false;
-    if (!ok){ showDenied(); return; }
-    $('adminEmail').textContent = user.email || user.uid || '—';
-    await bootstrap();
-  } catch (e){
-    console.error(e);
-    showDenied();
+/* Гейт доступу — спільний (sk-admin.js). Екран відмови свій: у цієї сторінки
+   він статичний (#gateDenied), а не намальований у #root. */
+SKADMIN.guard({
+  onDeny: showDenied,
+  onOk: async (SK) => {
+    try {
+      const user = SKADMIN.currentUser(SK);
+      $('adminEmail').textContent = (user && (user.email || user.uid)) || '—';
+      await bootstrap();
+    } catch (e){
+      console.error(e);
+      showDenied();
+    }
   }
 });
 
@@ -4157,7 +4161,11 @@ function normalizeImported(raw){
 /* ============================================================
    Утиліти
    ============================================================ */
-function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+/* esc — спільний (sk-admin.js). Тутешня копія не екранувала апостроф, хоча
+   в назвах на кшталт «Памʼять королівства» він звичайна річ.
+   Лишаємо оголошенням функції: воно гоїститься, тож виклики вище по файлу
+   працюють так само, як працювали досі. */
+function esc(s){ return SKADMIN.esc(s); }
 function deepClone(o){ return JSON.parse(JSON.stringify(o)); }
 function stripIds(list){ return list.map(({id, ...rest}) => rest); }
 function download(name, text){
