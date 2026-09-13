@@ -13,6 +13,8 @@
      Порядок важливий: ПІСЛЯ sk-styles.css і ДО локальних стилів нижче. -->
 <link rel="stylesheet" href="sk-admin.css?v=2">
 <script src="sk-admin.js?v=1"></script>
+<!-- Карта королівства: звідси беруться канонічні назви предметів. -->
+<script src="sk-curriculum.js?v=1"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -104,15 +106,53 @@ var esc=SKADMIN.esc;                 // спільний, екранує й ап
 var el=SKADMIN.qs;
 function num(v){ v=parseFloat(v); return isNaN(v)?0:v; }
 
-var SUBJECTS=['Читання','Українська мова','ЯДС','Логіка/Пам\u2019ять/Англійська','Математика','Інше'];
+/* Предмети — з карти королівства (curriculum/map), а не власним списком.
+   Раніше тут був третій набір назв, розбіжний і з admin.html, і з картою:
+   «Логіка/Памʼять/Англійська» проти «English», «ЯДС» проти
+   «ЯДС · Я досліджую світ». */
+function subjectList(){
+  var src = (window.SKCUR && (SKCUR.map || SKCUR.DEFAULT_MAP)) || null;
+  var seen = {}, out = [];
+  if(src && SKCUR.eachSubject) SKCUR.eachSubject(src, function(sj){
+    var k = SKCUR.norm(sj.name);
+    if(k && !seen[k]){ seen[k] = 1; out.push(sj.name); }
+  });
+  return out;
+}
+/* Синонім → канонічна назва ('' — у карті такого предмета немає). */
+function subjectCanon(v){
+  if(!v || !window.SKCUR || !SKCUR.eachSubject) return '';
+  var src = SKCUR.map || SKCUR.DEFAULT_MAP, n = SKCUR.norm(v), hit = '';
+  SKCUR.eachSubject(src, function(sj){
+    if(!hit && (SKCUR.norm(sj.id) === n || SKCUR.norm(sj.name) === n)) hit = sj.name;
+  });
+  if(!hit) SKCUR.eachSubject(src, function(sj){
+    if(!hit && SKCUR.subjectMatches(sj, v)) hit = sj.name;
+  });
+  return hit;
+}
 var BOOKS=[];
 var M=null;   // поточна модель у редакторі
+
+/* Опції селекта предмета: канонічні назви з карти + поточне значення,
+   якщо його в карті немає (щоб стара назва не зникла мовчки). */
+function subjOptions(cur){
+  var list = subjectList(), canon = subjectCanon(cur), sel = canon || cur || '';
+  var html = '<option value="">— не вказано —</option>';
+  var known = false;
+  list.forEach(function(s){
+    if(s === sel) known = true;
+    html += '<option value="'+esc(s)+'"'+(s===sel?' selected':'')+'>'+esc(s)+'</option>';
+  });
+  if(sel && !known) html += '<option value="'+esc(sel)+'" selected>⚠ '+esc(sel)+' — немає в карті</option>';
+  return html;
+}
 
 function blankQuestion(){ return { q:'', options:['','',''], correct:0 }; }
 function blankPage(){ return { text:'', image:'', questions:[] }; }
 function blankBook(){
   return {
-    id:null, title:'', cover:'📕', subject:'Читання', category:'', grade:1,
+    id:null, title:'', cover:'📕', subject:'', category:'', grade:1,
     statMode:'fixed', statValue:2, stat:'health',
     coins:3, active:true,
     pages:[ blankPage() ]
@@ -210,7 +250,7 @@ function renderEditor(){
     +'</div>'
     +'<div class="grid">'
     +'  <div class="field"><label>Предмет</label><select id="m_subject">'
-       +SUBJECTS.map(function(s){ return '<option value="'+esc(s)+'"'+(M.subject===s?' selected':'')+'>'+esc(s)+'</option>'; }).join('')
+       +subjOptions(M.subject)
        +'</select></div>'
     +'  <div class="field"><label>Клас</label><input type="number" id="m_grade" min="1" max="11" value="'+esc(M.grade)+'"></div>'
     +'</div>'
@@ -272,7 +312,7 @@ function buildClean(){
   var out={
     title:(M.title||'').trim(),
     cover:(M.cover||'📕').trim()||'📕',
-    subject:(M.subject||'Читання').trim(),
+    subject:(subjectCanon(M.subject) || String(M.subject||'').trim()),
     category:(M.category||'').trim(),
     grade:parseInt(M.grade,10)||1,
     statMode: M.statMode==='perCorrect'?'perCorrect':'fixed',
@@ -458,8 +498,11 @@ SKADMIN.header({
 SKADMIN.guard({
   denyMsg:'Увійди адміністратором, щоб редагувати книги.',
   onOk:function(SK){
-    SK.listBooks().then(function(list){ BOOKS=list||[]; renderAdminUI(); })
-      .catch(function(){ BOOKS=[]; renderAdminUI(); });
+    /* Чекаємо ще й на карту: з неї беруться канонічні назви предметів,
+       інакше селект збудувався б із запасної карти. */
+    var mapReady = (window.SKCUR && SKCUR.ready) ? SKCUR.ready : Promise.resolve();
+    Promise.all([ SK.listBooks().catch(function(){ return []; }), mapReady.catch(function(){}) ])
+      .then(function(res){ BOOKS=res[0]||[]; renderAdminUI(); });
   }
 });
 </script>

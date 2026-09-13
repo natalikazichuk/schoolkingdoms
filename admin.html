@@ -891,23 +891,66 @@
    ============================================================ */
 
 /* ---- Довідники ---- */
-const STATS = [
-  { v:'health',       label:"Здоров'я",   note:'Українська мова' },
-  { v:'accuracy',     label:'Точність',   note:'Математика' },
-  { v:'agility',      label:'Спритність', note:'ЯДС' },
-  { v:'mana',         label:'Мана',       note:'Англійська / Логіка / Пам’ять' },
-  { v:'strength',     label:'Сила',       note:'' },
-  { v:'defense',      label:'Захист',     note:'' },
-  { v:'intelligence', label:'Інтелект',   note:'' },
-  { v:'wisdom',       label:'Мудрість',   note:'' },
-  { v:'luck',         label:'Удача',      note:'' },
-  { v:'memory',       label:'Пам’ять',    note:'' },
-  { v:'charisma',     label:'Харизма',    note:'' },
-];
-const SUBJECTS = ['Математика','Українська мова','ЯДС','Англійська','Логіка','Пам’ять','Творчість'];
-/* Теми математики — мають збігатися з MATH_CURRICULUM у tests.html / test.html */
+/* ============================================================
+   КАНОН НАЗВ
+   Раніше тут лежали власні копії двох списків, і обидві розійшлися
+   з рештою королівства:
+     стати    — «Точність» тут проти «Точність 🎯» у дитини;
+     предмети — «Англійська» тут проти «English» на карті,
+                «ЯДС» проти «ЯДС · Я досліджую світ».
+   Тепер джерело одне:
+     стати    — window.SKCUR.STATS (той самий список, що бачить дитина);
+     предмети — назви з карти (curriculum/map).
+   ============================================================ */
+
+/* Підпис стата: завжди «Точність 🎯». Невідомий ключ показуємо як є,
+   щоб старі значення не зникали з екрана без сліду. */
+function statLabel(v){
+  const l = window.SKCUR ? window.SKCUR.statLabel(v) : '';
+  return l || (v || '');
+}
+
+function subjNorm(s){
+  return window.SKCUR ? window.SKCUR.norm(s) : String(s == null ? '' : s).toLowerCase().trim();
+}
+/* Канонічні назви предметів — з карти, у порядку карти. Поки карта не
+   прийшла з бази, беремо запасну зі sk-curriculum.js. */
+function subjectList(){
+  const src = MAP || (window.SKCUR && window.SKCUR.map);
+  const seen = new Set(), out = [];
+  if(src) window.SKCUR.eachSubject(src, sj => {
+    const k = subjNorm(sj.name);
+    if(k && !seen.has(k)){ seen.add(k); out.push(sj.name); }
+  });
+  return out;
+}
+/* Будь-який синонім → канонічна назва з карти ('' — не впізнали).
+   Зіставлення тим самим правилом, що й у дитини (SKCUR.subjectMatches),
+   тож «Англійська» і «English» — це один предмет, а не два. */
+function subjectCanon(v){
+  if(!v) return '';
+  const src = MAP || (window.SKCUR && window.SKCUR.map);
+  if(!src) return '';
+  const n = subjNorm(v);
+  let hit = '';
+  window.SKCUR.eachSubject(src, sj => {
+    if(hit) return;
+    if(subjNorm(sj.id) === n || subjNorm(sj.name) === n) hit = sj.name;
+  });
+  if(hit) return hit;
+  window.SKCUR.eachSubject(src, sj => {
+    if(hit) return;
+    if(window.SKCUR.subjectMatches(sj, v)) hit = sj.name;
+  });
+  return hit;
+}
+/* Назва для показу: канонічна, якщо впізнали; інакше — як записано. */
+function subjectShow(v){ return subjectCanon(v) || (v || ''); }
+
+/* Теми — підказки в редакторі тесту. Поки лишаються списком:
+   у карті тема належить конкретному предметові, тож плоский datalist
+   з усіх тем — окреме рішення (див. B2 у звіті аудиту). */
 const TOPICS = ['Числа в межах 10','Числа в межах 20','Числа в межах 100','Задачі','Розрядність чисел','Вирази у три дії','Назви компонентів дій','Величини (см, дм, м)','Порівняння чисел','Геометричні фігури','Цікава математика'];
-const statLabel = v => (STATS.find(s => s.v === v)?.label) || v;
 
 /* Очікування window.SK — у спільному sk-admin.js (SKADMIN.whenReady).
    Тутешня копія чекала лише на появу SK, не дочікуючись SK.ready, тож на
@@ -1729,12 +1772,12 @@ async function cardConvert(toType){
    Ті, що ще без формули, лишаються в списку, але явно підписані. */
 function statMapOpts(v){
   const S = window.SKCUR.STATS;
-  let html = '<option value="">— не вказано —</option>';
+  let html = '<option value="">— без характеристики —</option>';
   let known = false;
   S.forEach(st => {
     if(st.key === v) known = true;
     html += '<option value="' + st.key + '"' + (st.key === v ? ' selected' : '') + '>'
-          + esc(st.emoji + ' ' + st.label)
+          + esc(statLabel(st.key))
           + (st.active ? (st.note ? ' — ' + esc(st.note) : '') : ' (поки без формули)')
           + '</option>';
   });
@@ -2024,11 +2067,9 @@ function belGradeNums(){
 }
 function belSubjList(cur){
   var seen={}, out=[];
-  (SUBJECTS||[]).forEach(function(s){ var k=s.toLowerCase(); if(!seen[k]){ seen[k]=1; out.push(s); } });
-  if(MAP && MAP.tiers) MAP.tiers.forEach(function(t){ (t.grades||[]).forEach(function(g){ (g.subjects||[]).forEach(function(sj){
-    if(sj && sj.name){ var k=sj.name.toLowerCase(); if(!seen[k]){ seen[k]=1; out.push(sj.name); } }
-  }); }); });
-  if(cur && !seen[String(cur).toLowerCase()]) out.push(cur);
+  subjectList().forEach(function(s){ var k=subjNorm(s); if(!seen[k]){ seen[k]=1; out.push(s); } });
+  var canon = subjectCanon(cur);
+  if(cur && !canon && !seen[subjNorm(cur)]) out.push(cur);   // поза картою — лишаємо як є
   return out;
 }
 function belSubjOpts(cur){
@@ -2277,19 +2318,8 @@ function trTierList(){
   return [...seen.values()];
 }
 /* Звести збережене значення (id/ключ/назву) до точної назви предмета з карти. */
-function trResolveSubj(v){
-  if(!v) return '';
-  const n = trSlNorm(v);
-  const list = trSubjList();
-  for(const sj of list){
-    if(trSlNorm(sj.id) === n || trSlNorm(sj.name) === n) return sj.name;
-  }
-  for(const sj of list){
-    if(trSlNorm(sj.name).indexOf(n) >= 0) return sj.name;
-    for(const k of (sj.keys||[])) if(trSlNorm(k).indexOf(n) >= 0) return sj.name;
-  }
-  return '';   // не впізнали — лишаємо як є
-}
+/* Те саме зведення до канону, що й для тестів — одна функція на обидва. */
+function trResolveSubj(v){ return subjectCanon(v); }
 
 function trSubjOpts(sel){
   const n = trSlNorm(sel);
@@ -3164,26 +3194,25 @@ function pluralUk(n, one, few, many){
 
 /* ---- Наповнення селектів ---- */
 function buildStaticControls(){
-  /* Порожній варіант — тест може не розвивати жодної характеристики
-     (наприклад, творче завдання). У картці запису в «Структурі» такий
-     пункт був завжди; тут його бракувало, тож стат був обовʼязковим. */
-  $('fStat').innerHTML = '<option value="">— без характеристики —</option>'
-    + STATS.map(s =>
-        `<option value="${s.v}">${s.label}${s.note ? ` — ${s.note}` : ''}</option>`).join('');
-  $('subjectList').innerHTML = SUBJECTS.map(s => `<option value="${s}">`).join('');
+  /* Той самий список статів, що й у картці запису — один рендер на обидва
+     місця, тож підписи не можуть розійтися. Порожній пункт означає, що
+     тест не розвиває жодної характеристики. */
+  $('fStat').innerHTML = statMapOpts('');
+  $('subjectList').innerHTML = subjectList().map(s => `<option value="${esc(s)}">`).join('');
   $('topicList').innerHTML = TOPICS.map(t => `<option value="${t}">`).join('');
   buildSubjectFilter();
 }
 
-/* Список предметів у фільтрі = статичні SUBJECTS ∪ реальні предмети наявних
-   тестів (наприклад «Інформатика», доданий через Карту). Так будь-який новий
-   предмет з'являється у фільтрі автоматично, щойно за ним є хоч один тест. */
+/* Список предметів у фільтрі = предмети карти ∪ предмети наявних тестів.
+   Синоніми зводяться до канону, тож «Англійська» і «English» дають один
+   пункт, а не два. Предмет, якого немає в карті, лишається як записано —
+   краще видимий, ніж загублений. */
 function buildSubjectFilter(){
   const filter = $('filterSubject');
   if(!filter) return;
   const cur = filter.value;
-  const fromTests = (TESTS || []).map(t => String(t.subject || '').trim()).filter(Boolean);
-  const all = [...new Set([...SUBJECTS, ...fromTests])]
+  const fromTests = (TESTS || []).map(t => subjectShow(String(t.subject || '').trim())).filter(Boolean);
+  const all = [...new Set([...subjectList(), ...fromTests])]
     .sort((a, b) => a.localeCompare(b, 'uk'));
   filter.innerHTML = '<option value="">Усі предмети</option>' +
     all.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
@@ -3220,6 +3249,10 @@ async function ensureMap(){
   MAP = m.map;
   MAP_MIGRATED = m.changed;
   MAP_UNRESOLVED = m.unresolved;
+  /* Списки предметів будувалися з запасної карти — тепер є справжня. */
+  const dl = $('subjectList');
+  if(dl) dl.innerHTML = subjectList().map(s => `<option value="${esc(s)}">`).join('');
+  buildSubjectFilter();
   return MAP;
 }
 
@@ -3295,9 +3328,9 @@ function statSumsHtml(list){
     .join('');
   return html || '<span class="badge">без нагород</span>';
 }
-/* Порядок предметів: як у SUBJECTS; невідомі — далі; порожній — останнім */
+/* Порядок предметів: як у карті; поза картою — далі; порожній — останнім */
 function subjectOrder(name){
-  const i = SUBJECTS.indexOf(name);
+  const i = subjectList().indexOf(subjectShow(name));
   return i === -1 ? (name ? 900 : 999) : i;
 }
 
@@ -3340,7 +3373,7 @@ function testCardHtml(t){
 
 function renderList(){
   const filter = $('filterSubject').value;
-  const rows = TESTS.filter(t => !filter || t.subject === filter);
+  const rows = TESTS.filter(t => !filter || subjectShow(t.subject) === filter);
   const list = $('testList');
   $('emptyState').classList.toggle('hidden', rows.length !== 0);
 
@@ -3356,10 +3389,11 @@ function renderList(){
     sum.innerHTML = '';
   }
 
-  /* Групування за предметом */
+  /* Групування за предметом. Ключ — канонічна назва, тож тести з
+     «Англійська» і «English» потрапляють в одну групу, а не у дві. */
   const groups = new Map();
   rows.forEach(t => {
-    const key = t.subject || '';
+    const key = subjectShow(t.subject || '');
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(t);
   });
@@ -3674,7 +3708,10 @@ function updateHints(){
 /* ---- Зчитати форму в draft ---- */
 function collectForm(){
   draft.title     = $('fTitle').value.trim();
-  draft.subject   = $('fSubject').value.trim();
+  /* Зводимо до канонічної назви з карти: так «Англійська» поступово
+     стає «English» у базі — у міру того, як тести редагують. Назву поза
+     картою лишаємо як є. */
+  draft.subject   = subjectShow($('fSubject').value.trim());
   draft.topic     = $('fTopic').value.trim();
   draft.grade     = ($('fGrade').value === '' ? 1 : (Number($('fGrade').value)));  // 0 = дошкілля
   if(Number.isNaN(draft.grade)) draft.grade = 1;
@@ -4047,7 +4084,7 @@ function normalizeImported(raw){
     /* Явно порожній стат поважаємо (тест без характеристики); а от коли
        поля немає зовсім — лишаємо типову «точність», як було досі. */
     stat: (raw.stat === '' || raw.stat === null) ? ''
-        : (STATS.some(s => s.v === raw.stat) ? raw.stat : 'accuracy'),
+        : ((window.SKCUR && window.SKCUR.statByKey(raw.stat)) ? raw.stat : 'accuracy'),
     statMode: raw.statMode === 'perCorrect' ? 'perCorrect' : 'fixed',
     statValue: Math.max(0, +raw.statValue || 0),
     active: raw.active !== false,
