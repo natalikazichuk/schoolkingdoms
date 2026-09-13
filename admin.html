@@ -3164,8 +3164,12 @@ function pluralUk(n, one, few, many){
 
 /* ---- Наповнення селектів ---- */
 function buildStaticControls(){
-  $('fStat').innerHTML = STATS.map(s =>
-    `<option value="${s.v}">${s.label}${s.note ? ` — ${s.note}` : ''}</option>`).join('');
+  /* Порожній варіант — тест може не розвивати жодної характеристики
+     (наприклад, творче завдання). У картці запису в «Структурі» такий
+     пункт був завжди; тут його бракувало, тож стат був обовʼязковим. */
+  $('fStat').innerHTML = '<option value="">— без характеристики —</option>'
+    + STATS.map(s =>
+        `<option value="${s.v}">${s.label}${s.note ? ` — ${s.note}` : ''}</option>`).join('');
   $('subjectList').innerHTML = SUBJECTS.map(s => `<option value="${s}">`).join('');
   $('topicList').innerHTML = TOPICS.map(t => `<option value="${t}">`).join('');
   buildSubjectFilter();
@@ -3273,8 +3277,10 @@ function countQ(t){
   return isLv ? (t.levels || []).reduce((s, L) => s + ((L.questions || []).length), 0)
               : (t.questions || []).length;
 }
-/* Скільки одиниць характеристики дає тест (для підсумку) */
+/* Скільки одиниць характеристики дає тест (для підсумку).
+   Без характеристики тест не дає нічого — хоч би що стояло в statValue. */
 function testStatTotal(t){
+  if(!t.stat) return 0;
   const v = +t.statValue || 0;
   return t.statMode === 'perCorrect' ? v * countQ(t) : v;
 }
@@ -3301,6 +3307,14 @@ function testCardHtml(t){
   const lv = isLv ? (t.levels || []) : null;
   const qn = countQ(t);
   const st = t.statMode === 'perCorrect' ? `${t.statValue}/правильну` : `+${t.statValue}`;
+  /* Тест може не розвивати жодної характеристики — тоді замість двох
+     бейджів (стат і нагорода) показуємо один, щоб не малювати «+2 до «»». */
+  const statBadges = t.stat
+    ? `<span class="badge stat">${esc(statLabel(t.stat))}</span>`
+    : '<span class="badge">без характеристики</span>';
+  const rewardBadge = t.stat
+    ? `<span class="badge reward">${esc(statLabel(t.stat))} ${st}</span>`
+    : '';
   return `
       <div class="test-card" data-id="${t.id}">
         <div>
@@ -3308,10 +3322,10 @@ function testCardHtml(t){
           <div class="badges">
             <span class="badge subject">${esc(t.subject || '—')}</span>
             <span class="badge">Клас ${t.grade ?? 1}</span>
-            <span class="badge stat">${statLabel(t.stat)}</span>
+            ${statBadges}
             ${isLv ? `<span class="badge">🧩 ${lv.length} рівнів</span>` : ''}
             <span class="badge">${qn} пит.</span>
-            <span class="badge reward">${statLabel(t.stat)} ${st}</span>
+            ${rewardBadge}
           </div>
         </div>
         <div class="actions">
@@ -3642,9 +3656,12 @@ function renderQuestions(){
 
 function updateHints(){
   const perUnit = $('fFormat').value === 'levels' ? 'рівень' : 'тест';
-  $('statUnitsHint').textContent = $('fStatMode').value === 'perCorrect'
-    ? `+${$('fStatValue').value||0} до «${statLabel($('fStat').value)}» за кожну правильну.`
-    : `+${$('fStatValue').value||0} до «${statLabel($('fStat').value)}» за ${perUnit}.`;
+  const statKey = $('fStat').value;
+  $('statUnitsHint').textContent = !statKey
+    ? 'Характеристику не задано — тест не нараховує одиниць.'
+    : ($('fStatMode').value === 'perCorrect'
+        ? `+${$('fStatValue').value||0} до «${statLabel(statKey)}» за кожну правильну.`
+        : `+${$('fStatValue').value||0} до «${statLabel(statKey)}» за ${perUnit}.`);
   const fh = $('formatHint');
   const _fv2 = $('fFormat').value;
   if (fh) fh.textContent = _fv2==='levels'
@@ -4027,7 +4044,10 @@ function normalizeImported(raw){
     subject: raw.subject || '',
     topic: raw.topic || '',
     grade: +raw.grade || 1,
-    stat: STATS.some(s => s.v === raw.stat) ? raw.stat : 'accuracy',
+    /* Явно порожній стат поважаємо (тест без характеристики); а от коли
+       поля немає зовсім — лишаємо типову «точність», як було досі. */
+    stat: (raw.stat === '' || raw.stat === null) ? ''
+        : (STATS.some(s => s.v === raw.stat) ? raw.stat : 'accuracy'),
     statMode: raw.statMode === 'perCorrect' ? 'perCorrect' : 'fixed',
     statValue: Math.max(0, +raw.statValue || 0),
     active: raw.active !== false,
