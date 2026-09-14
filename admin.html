@@ -1808,6 +1808,19 @@ function cardBodyHtml(o){
           +  '<input type="checkbox" data-cf="blank"' + (o.blank ? ' checked' : '') + '>'
           +  '<span class="track"></span><span class="sw-txt">↗ Відкривати окремою вкладкою</span></label></div>';
   }
+  /* Що робить помилка. У тесті з рівнями вона завжди повертає на початок
+     рівня — це вбудоване правило. Для тесту одним списком це вибір: за
+     замовчуванням показуємо правильну відповідь і йдемо далі, а галочка
+     вмикає ту саму суворість, що й у рівнях (дитина чекала саме її —
+     скарга «тест після неварної відповіді не скидається»). */
+  if(isTest){
+    flags += (o.format === 'levels')
+      ? '<div class="field full"><span class="hint">🔁 У тесті з рівнями помилка завжди повертає на початок рівня.</span></div>'
+      : '<div class="field full"><label class="switch" style="align-self:flex-start">'
+        + '<input type="checkbox" data-cf="resetOnWrong"' + (o.resetOnWrong ? ' checked' : '') + '>'
+        + '<span class="track"></span><span class="sw-txt">🔁 Помилка → починати тест спочатку</span></label>'
+        + '<span class="hint">Вимкнено: показуємо правильну відповідь і йдемо далі, бал — у підсумку.</span></div>';
+  }
   flags += '</div>';
 
   /* hidden сильніший за «Активний»: tests.html викидає такі записи зовсім.
@@ -1876,6 +1889,7 @@ function onCardInput(e){
     case 'icon':      o.icon = v; break;
     case 'desc':      o.desc = v; break;
     case 'blank':     o.blank = !!v; break;
+    case 'resetOnWrong': o.resetOnWrong = !!v; break;
     case 'linkHref':  o.linkHref = v.trim(); break;
     case 'tform':     o.format = v; renderCard(); return;
     case 'rItem':
@@ -3720,6 +3734,7 @@ function normalizeImported(raw){
     base.format = 'flat';
     base.questions = Array.isArray(raw.questions) ? raw.questions.map(normQ) : [];
     base.levels = [];
+    if (raw.resetOnWrong) base.resetOnWrong = true;   // «помилка → спочатку»
     if (!base.questions.length && !gen) return null;
   }
   return base;
