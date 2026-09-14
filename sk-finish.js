@@ -29,7 +29,19 @@
   var raw = param('skdone');
   if(!raw){ window.skFinish = function(){}; window.skFinishRecord = function(){}; return; }
 
-  var back = param('skback') || 'tests.html';
+  /* skback — шлях від КОРЕНЯ сайту ('tests.html'), а сторінки-тренажери
+     лежать у підпапках (doshkilya/, klas-1/). location.href='tests.html'
+     звідти вело б на doshkilya/tests.html, якої не існує: дитина після
+     завершення потрапляла на 404. Тому рахуємо від власного <script src>. */
+  var SELF = (document.currentScript && document.currentScript.src) || '';
+  var BASE = SELF ? SELF.replace(/[?#].*$/, '').replace(/[^/]*$/, '') : '';
+  function backUrl(u){
+    u = String(u || '').trim();
+    if(!u) u = 'tests.html';
+    if(/^[a-z][a-z0-9+.-]*:/i.test(u) || u.charAt(0) === '/') return u;   // абсолютний
+    return BASE + u;
+  }
+  var back = backUrl(param('skback'));
   var key = raw, ci = raw.indexOf(':');
   if(ci > 0){ key = raw.slice(ci + 1); }
   var storeKey = 'sk_testpass_' + key;

@@ -90,10 +90,18 @@ body{padding-bottom:calc(82px + env(safe-area-inset-bottom))}
     var fb  = (d.back || '').trim();
     var btn = nav.querySelector('#heroBackBtn');
     if(btn && fb !== 'self'){
-      var fallback = fb || 'hero.html';
+      /* Сторінку могли відкрити з «Тестів», з «Навчання» або в новій вкладці.
+         Звідки саме — каже ?skback= в адресі; він точніший за зашитий
+         data-back. У новій вкладці history порожня, тож без цього стрілочка
+         вела б не туди, звідки дитина прийшла. */
+      var skb = '';
+      try { skb = (new URLSearchParams(location.search).get('skback') || '').trim(); } catch(e){ skb = ''; }
+      var fallback = skb || fb || 'hero.html';
+      var isAbs = /^[a-z][a-z0-9+.-]*:/i.test(fallback) || fallback.charAt(0) === '/';
+      var href = isAbs ? fallback : (base + fallback);
       btn.addEventListener('click', function(){
         if(history.length > 1){ history.back(); }
-        else { location.href = base + fallback; }
+        else { location.href = href; }
       });
     }
     /* fb === 'self' → нічого не вішаємо: сторінка має власний обробник */
