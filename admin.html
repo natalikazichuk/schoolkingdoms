@@ -312,6 +312,11 @@
     background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-top:8px;transition:.15s;font-family:inherit;color:var(--text)}
   .drill-rec:hover{border-color:var(--gold-ink);transform:translateY(-1px)}
   .drill-rec .ic{font-size:1.35rem;line-height:1;flex:0 0 auto}
+  .rec-group{display:flex;align-items:baseline;gap:9px;margin:16px 2px 7px}
+  .rec-group:first-child{margin-top:2px}
+  .rg-name{font-weight:800;font-size:.95rem;color:var(--ink)}
+  .rg-cnt{font-weight:800;font-size:.75rem;color:var(--muted);
+    background:var(--panel-2);border:1px solid var(--border);border-radius:999px;padding:1px 8px}
   .drill-rec .nm{flex:1 1 auto;font-weight:800;font-size:.98rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .drill-rec .meta{flex:0 0 auto;color:var(--muted);font-weight:700;font-size:.78rem}
   .drill-rec .chev{flex:0 0 auto;color:var(--muted);font-size:1.25rem;font-weight:900}
@@ -1479,14 +1484,19 @@ function drillSubjRecords(g, sj, recs, seen){
     try { if(!window.SKCUR.subjectMatches(sj, t.subject)) return; } catch(e){ return; }
     if(seen.has(t.id)) return;
     seen.add(t.id);
-    if(recs) recs.push({ kind:'test', id:t.id, obj:t });
+    if(recs){
+      const tp = (sj.topics || []).find(x => (x.tests || []).some(ref => {
+        const rt = window.SKCUR.findTest(ref, idx); return rt && rt.id === t.id;
+      }));
+      recs.push({ kind:'test', id:t.id, obj:t, topic: tp ? (tp.topic || '') : '' });
+    }
   });
   (sj.topics || []).forEach(tp => (tp.tests || []).forEach(ref => {
     if(!ref) return;
     const t = window.SKCUR.findTest(ref, idx);
     if(!t || !t.id || seen.has(t.id)) return;
     seen.add(t.id);
-    if(recs) recs.push({ kind:'test', id:t.id, obj:t, viaMap:true });
+    if(recs) recs.push({ kind:'test', id:t.id, obj:t, viaMap:true, topic:tp.topic || '' });
   }));
 }
 function drillRecords(subjName){
@@ -1564,8 +1574,26 @@ function renderMapRecs(){
       : '<div class="drill-empty">Тут поки порожньо. Натисни «＋ Додати».</div>';
     return;
   }
-  let html = '';
+  /* Групуємо за розділом структури — тим самим, що бачить дитина.
+     Порядок розділів беремо з карти; що поза розділами — в кінець. */
+  const order = [];
+  const byTopic = new Map();
+  drillGradeCtx().forEach(({ g }) => (g.subjects || []).forEach(sj => {
+    if(!drillSameSubj(sj.name, MAP_SUBJ)) return;
+    (sj.topics || []).forEach(tp => {
+      const nm = tp.topic || '';
+      if(nm && !byTopic.has(nm)){ byTopic.set(nm, []); order.push(nm); }
+    });
+  }));
+  byTopic.set('', []); order.push('');
   recs.forEach(r => {
+    const nm = byTopic.has(r.topic || '') ? (r.topic || '') : '';
+    byTopic.get(nm).push(r);
+  });
+
+  let html = '';
+  const titled = order.filter(nm => nm && byTopic.get(nm).length).length;
+  const rowHtml = r => {
     const o   = r.obj || {};
     const f   = String(o.format || '');
     const page  = (f === 'html' || f === 'link');
@@ -1587,11 +1615,21 @@ function renderMapRecs(){
     }
     const meta = video ? 'відео' : (page ? 'сторінка' : (countQ(o) + ' пит.'));
     const key  = 'test:' + r.id;
-    html += '<button class="drill-rec" data-mrec="' + esc(key) + '">'
+    return '<button class="drill-rec" data-mrec="' + esc(key) + '">'
       + '<span class="ic">' + esc(ic) + '</span>'
       + '<span class="nm">' + esc(nm) + badge + '</span>'
       + '<span class="meta">' + esc(meta) + '</span>'
       + '<span class="chev">›</span></button>';
+  };
+  order.forEach(name => {
+    const list = byTopic.get(name) || [];
+    if(!list.length) return;
+    if(titled){
+      html += '<div class="rec-group"><span class="rg-name">'
+        + esc(name || 'Поза розділами') + '</span>'
+        + '<span class="rg-cnt">' + list.length + '</span></div>';
+    }
+    html += list.map(rowHtml).join('');
   });
   host.innerHTML = html;
 }
