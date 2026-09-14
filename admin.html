@@ -1361,6 +1361,23 @@ function mapTierIsPre(t){
   const gs = mapTierGrades(t);
   return gs.length === 1 && Number(gs[0].gradeNum) === 0;
 }
+/* Скільки записів покаже drill-down для цієї пари (ступінь, клас).
+   mapCountFor рахує посилання в дереві карти — це інше число, і на картках
+   воно розходилося зі списком. Тут рахуємо тим самим правилом, що й
+   drillRecords: тести з колекції + випробування під предметами класу. */
+function drillCountFor(tier, g){
+  const tests = new Set(), links = new Set();
+  (g.subjects || []).forEach(sj => {
+    (TESTS || []).forEach(t => {
+      if(!t || !t.id || !t.title) return;
+      if(Number(t.grade == null ? 1 : t.grade) !== Number(g.gradeNum)) return;
+      try { if(!window.SKCUR.subjectMatches(sj, t.subject)) return; } catch(e){ return; }
+      tests.add(t.id);
+    });
+    subjTrainerIdx(sj, tier, g).forEach(i => links.add(i));
+  });
+  return tests.size + links.size;
+}
 function mapTierLabel(id){
   const t = mapTierById(id);
   return t ? ((t.icon ? t.icon + ' ' : '') + (t.name || id)) : '📚 Навчання';
@@ -1384,7 +1401,7 @@ function renderMapTiers(){
   if(!tiers.length){ host.innerHTML = '<div class="drill-empty">У карті ще немає жодного ступеня.</div>'; return; }
   host.innerHTML = tiers.map(t => {
     const gs = mapTierGrades(t);
-    const cnt = gs.reduce((a, g) => a + mapCountFor(g.gradeNum), 0);
+    const cnt = gs.reduce((a, g) => a + drillCountFor(t, g), 0);
     const nums = mapTierGradeNums(t);
     const sub = mapTierIsPre(t)
       ? 'Без класу — одразу предмети'
@@ -1443,7 +1460,7 @@ function renderMapGrades(){
   const byNum = {};
   mapTierGrades(t).forEach(g => { byNum[Number(g.gradeNum)] = g; });
   host.innerHTML = nums.map(n => {
-    const g = byNum[n], has = !!g, cnt = has ? mapCountFor(n) : 0;
+    const g = byNum[n], has = !!g, cnt = has ? drillCountFor(t, g) : 0;
     const face = (n === 0)
       ? '<span class="ico">🌱</span><span class="lbl">' + esc((g && g.name) || 'Дошкільнятко') + '</span>'
       : '<span class="big">' + n + '</span><span class="lbl">клас</span>';
@@ -2739,7 +2756,15 @@ function mapTrTierMatch(tier, sel){
   if(!sel) return true;
   if(!tier) return false;
   const n = trSlNorm(sel);
-  return trSlNorm(tier.id) === n || trSlNorm(tier.name).indexOf(n) >= 0;
+  if(trSlNorm(tier.id) === n) return true;
+  const tn = trSlNorm(tier.name);
+  if(tn && (tn.indexOf(n) >= 0 || n.indexOf(tn) >= 0)) return true;
+  /* Випробування зберігають ступінь НАЗВОЮ, а назву в карті можна
+     перейменувати («Дошкільна підготовка» → «Дошкільнятко»). Щоб старі
+     записи не випадали зі структури, дошкілля звіряємо ще й за коренем —
+     тим самим, за яким його впізнає дитяча сторінка. */
+  if(belIsPreTier(sel) && belIsPreTier(tier.name || tier.id)) return true;
+  return false;
 }
 function mapTrGradeMatch(g, sel){
   if(sel === '' || sel == null) return true;   // не задано → показуємо всюди
