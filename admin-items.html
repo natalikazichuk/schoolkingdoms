@@ -9,165 +9,93 @@
 <link rel="manifest" href="manifest.webmanifest">
 <!-- Спільна дизайн-система адмінки (та сама, що в admin.html / admin-books.html) -->
 <link rel="stylesheet" href="sk-styles.css">
+<!-- Спільна оболонка адмінки: дизайн, шрифт і фон (та сама мова, що в Словнику).
+     Порядок важливий: ПІСЛЯ sk-styles.css і ДО локальних стилів нижче. -->
+<link rel="stylesheet" href="sk-admin.css?v=2">
+<script src="sk-admin.js?v=1"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg:#0e1533; --bg-2:#080c22;
-    --panel:rgba(22,29,66,.72); --panel-2:rgba(30,39,86,.6);
-    --border:rgba(140,155,255,.22);
-    --gold:#f5c542; --gold-2:#e0a83a;
-    --text:#e9ecff; --muted:#9aa3d0;
-    --danger:#ff6b7a; --ok:#58d68d; --radius:16px;
-  }
-  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{margin:0}
-  body{
-    font-family:'Nunito',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-    color:var(--text);min-height:100vh;line-height:1.5;
-    background:
-      radial-gradient(1200px 700px at 80% -10%, rgba(124,92,255,.18), transparent 60%),
-      radial-gradient(900px 600px at 0% 100%, rgba(47,111,237,.16), transparent 55%),
-      linear-gradient(180deg,var(--bg),var(--bg-2));
-  }
-  #wrap{max-width:960px;margin:0 auto;padding:24px 18px 80px}
-
-  h1,h2,h3{font-family:'Fredoka One',cursive;font-weight:400;letter-spacing:.3px;margin:0}
-  h1{font-size:1.9rem;color:var(--gold)}
-  h2{font-size:1.2rem}
-  a{color:var(--gold)}
-  #root > h1{color:var(--gold)}
+  /* Дизайн, шрифт і фон — спільні (sk-admin.css, та сама мова, що в Словнику).
+     Тут лишається тільки те, що є саме в «Предметах». */
+  *{-webkit-tap-highlight-color:transparent}
+  body{line-height:1.5}
+  #wrap{padding:0 0 80px}
+  .wrap-in{max-width:960px;margin:0 auto;padding:16px 16px 0}
+  h1{font-size:1.6rem}
+  h2{font-size:1.15rem}
+  #root > h1{color:var(--ink)}
   #root > .sub{color:var(--muted)}
-
-  /* Шапка — темний текст на світлому фоні (гасимо .topbar зі sk-styles.css локально). */
-  .topbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:none;box-shadow:none;
-    margin-bottom:22px;padding:0 0 16px;border-bottom:1px solid var(--border);
-    justify-content:flex-start;text-align:left}
-  .brand{display:flex;align-items:center;gap:10px;text-decoration:none}
-  .brand .crown{font-size:1.6rem;filter:drop-shadow(0 2px 6px rgba(0,0,0,.35))}
-  .brand .bt-name{font-family:'Fredoka One',cursive;font-size:1.3rem;color:var(--gold);
-    line-height:1.1;display:block}
-  .brand .bt-sub{font-size:.76rem;color:var(--muted);font-weight:700}
-  .spacer{flex:1}
-  .nav{display:flex;gap:8px;flex-wrap:wrap}
-  .nav a,.nav button{font-family:'Nunito',sans-serif;font-weight:800;font-size:.82rem;
-    background:var(--panel-2);border:1px solid var(--border);color:var(--text);
-    padding:7px 12px;border-radius:11px;cursor:pointer;text-decoration:none;transition:.15s;
-    display:inline-flex;align-items:center;gap:6px;width:auto;margin:0}
-  .nav a:hover,.nav button:hover{transform:translateY(-1px);border-color:var(--gold)}
-
   .sub{color:var(--muted);font-weight:600;font-size:.92rem;margin:0 0 16px}
-
-  .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
-    padding:18px;margin-bottom:16px;backdrop-filter:blur(6px);box-shadow:0 10px 30px rgba(0,0,0,.25)}
-  .panel h2{display:flex;align-items:center;gap:8px;margin:0 0 12px;color:#fff}
-  .panel .sub{color:var(--muted);margin:0 0 12px}
-
-  /* Кнопки — гасимо глобальне .btn{width:100%} зі sk-styles.css. */
-  .btn{width:auto;margin:0;font-family:'Nunito',sans-serif;font-weight:800;font-size:.9rem;
-    border:1px solid var(--gold-2);border-radius:12px;padding:11px 18px;cursor:pointer;transition:.15s;
-    display:inline-flex;align-items:center;gap:7px;
-    background:linear-gradient(180deg,var(--gold),var(--gold-2));color:#2a1e06;
-    box-shadow:0 6px 16px rgba(245,197,66,.28)}
-  .btn:hover{transform:translateY(-1px)}
-  .btn:active{transform:translateY(1px)}
-  .btn.ghost{background:var(--panel-2);color:var(--text);border-color:var(--border);box-shadow:none}
-  .btn.ghost:hover{border-color:var(--gold)}
-  .savebar{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
 
   /* Фільтр: чипи-категорії + пошук */
   .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
-  .chip{font-family:'Nunito',sans-serif;font-weight:800;font-size:.8rem;
-    background:var(--panel-2);border:1px solid var(--border);color:var(--text);
-    padding:6px 12px;border-radius:999px;cursor:pointer;transition:.15s}
-  .chip:hover{border-color:var(--gold)}
-  .chip.on{background:linear-gradient(180deg,var(--gold),var(--gold-2));color:#2a1e06;border-color:var(--gold-2)}
+  .chip{font-family:inherit;font-weight:800;font-size:.8rem;
+    background:var(--card);border:2px solid var(--border);color:var(--ink);
+    padding:6px 12px;border-radius:999px;cursor:pointer;transition:border-color .15s}
+  .chip:hover{border-color:var(--gold-deep)}
+  .chip.on{background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:var(--gold-ink);border-color:var(--gold-deep)}
   .chip .n{opacity:.7;font-weight:700;margin-left:4px}
   #search{max-width:260px}
 
-  /* Список предметів — рядки як .brow в admin-books */
+  /* Список предметів */
   .ilist{display:flex;flex-direction:column;gap:8px}
-  .cat-h{font-family:'Fredoka One',cursive;color:var(--gold);font-size:.98rem;margin:12px 2px 2px}
+  .cat-h{font-weight:800;color:var(--muted);font-size:.82rem;text-transform:uppercase;
+    letter-spacing:.04em;margin:16px 2px 6px}
   .cat-h:first-child{margin-top:0}
-  .irow{display:flex;align-items:center;gap:12px;background:var(--panel-2);
-    border:1px solid var(--border);border-radius:14px;padding:10px 12px}
+  .irow{display:flex;align-items:center;gap:12px;background:var(--card);
+    border:1px solid var(--border);border-radius:14px;padding:10px 12px;box-shadow:var(--shadow)}
   .irow.off{opacity:.55}
-  .irow .cv{font-size:1.5rem;line-height:1;width:42px;height:42px;flex:0 0 42px;display:grid;place-items:center;
-    border-radius:11px;background:rgba(9,13,35,.4);border:1px solid var(--border);overflow:hidden}
+  .irow .cv{font-size:1.5rem;line-height:1;width:48px;height:48px;flex:0 0 48px;display:grid;place-items:center;
+    border-radius:10px;background:#f5eeda;overflow:hidden}
   .irow .cv img{width:100%;height:100%;object-fit:contain}
   .irow .info{flex:1;min-width:0}
   .irow .it-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .irow .code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--muted);
-    background:rgba(9,13,35,.45);border:1px solid var(--border);border-radius:6px;padding:1px 6px}
-  .irow .nm{font-family:'Fredoka One',cursive;font-size:1rem;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    background:#f4f1e8;border:1px solid var(--border);border-radius:6px;padding:1px 6px}
+  .irow .nm{font-weight:800;font-size:1.02rem;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .irow .meta{font-size:.76rem;color:var(--muted);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap}
+  .irow .acts{display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+
+  /* Пігулки характеристик — світлі, з тінтованим тлом. */
   .pill{display:inline-flex;align-items:center;gap:4px;font-weight:800;font-size:.72rem;
-    border-radius:999px;padding:2px 8px;border:1px solid var(--border);background:rgba(9,13,35,.35);color:#cdd4f5}
-  .pill.armor{color:#bcd0ff;border-color:rgba(120,160,255,.4)}
-  .pill.magic{color:#e3c9ff;border-color:rgba(190,140,255,.4)}
-  .pill.agi{color:#bff0cf;border-color:rgba(88,214,141,.4)}
-  .pill.dmg{color:#ffc9a8;border-color:rgba(255,150,90,.45)}
-  .pill.mdmg{color:#ffb8d8;border-color:rgba(255,120,190,.45)}
-  .pill.cons{color:#ffe6a3;border-color:rgba(245,197,66,.45)}
-  .irow .acts{display:flex;gap:6px;flex-shrink:0}
-  .mini{font-family:'Nunito',sans-serif;font-weight:800;font-size:.78rem;
-    border:1px solid var(--border);background:var(--panel-2);color:var(--text);
-    border-radius:9px;padding:6px 10px;cursor:pointer;transition:.15s}
-  .mini:hover{transform:translateY(-1px);border-color:var(--gold)}
-  .mini.on{background:rgba(88,214,141,.22);border-color:var(--ok);color:#c7f5cd}
-  .mini.off{background:var(--panel-2);color:var(--muted)}
-  .mini.danger{background:rgba(255,107,122,.14);border-color:rgba(255,107,122,.4);color:#ffc9ca}
-  .mini.danger:hover{background:rgba(255,107,122,.22)}
-  .empty{color:var(--muted);font-style:italic;font-weight:600;font-size:.88rem;padding:8px 2px}
+    border-radius:999px;padding:2px 8px;border:1px solid var(--border);background:#f4f1e8;color:var(--muted)}
+  .pill.armor{color:#2f5ea8;border-color:#c2d4ef;background:#eaf1fb}
+  .pill.magic{color:#6b3fa0;border-color:#d9c9ef;background:#f3edfc}
+  .pill.agi{color:#1f7a4d;border-color:#bde2ce;background:#e8f6ee}
+  .pill.dmg{color:#a85a22;border-color:#f0d2b8;background:#fdf0e4}
+  .pill.mdmg{color:#a83a72;border-color:#f0c2da;background:#fdeaf3}
+  .pill.cons,.pill.price{color:var(--gold-ink);border-color:#f0dca8;background:#fdf5e0}
+  .pill.add{color:#8a5e16;border-color:#f0dca8;background:#fdf5e0;font-weight:800}
+  .pill.flag{color:#a85a22;border-color:#f0d2b8;background:#fdf0e4}
+  .coin.gold{color:var(--gold-ink);font-weight:800}
+  .coin.silver{color:#6b7689;font-weight:800}
   .count-note{color:var(--muted);font-weight:700;font-size:.82rem;margin:0 0 10px}
 
-  /* Форма */
-  .field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
-  .field label{font-size:.8rem;font-weight:800;color:#b7bfe6}
-  .field input,.field textarea,.field select,
-  input[type=text],input[type=number],select,textarea{
-    font-family:'Nunito',sans-serif;font-size:.95rem;color:var(--text);
-    background:rgba(9,13,35,.55);border:1px solid var(--border);border-radius:10px;
-    padding:10px 12px;width:100%}
-  .field input:focus,.field textarea:focus,.field select:focus,
-  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(245,197,66,.18)}
-  input:disabled{opacity:.6;cursor:not-allowed}
-  select option{background:#1a2350;color:#fff}
+  /* Форма: .field, інпути, .mini, .msg, .empty, гейт — у sk-admin.css. */
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
-  .inline-note{font-size:.76rem;color:var(--muted);margin-top:2px}
-  .chk{display:flex;align-items:center;gap:8px;font-weight:800;color:var(--text);cursor:pointer;font-size:.9rem}
+  .chk{display:flex;align-items:center;gap:8px;font-weight:800;color:var(--ink);cursor:pointer;font-size:.9rem}
   .chk input{width:auto}
   .code-input{font-family:ui-monospace,Menlo,Consolas,monospace}
 
   .img-prev{margin-top:8px}
-  .img-prev-el{max-height:120px;max-width:100%;border-radius:10px;display:block;border:1px solid var(--border)}
-  .img-prev-err{display:none;color:#ffb3b4;font-weight:800;font-size:.82rem}
-
-  .msg{margin-top:10px;font-weight:800;min-height:20px}
-  .msg.ok{color:#8fe3ad}.msg.err{color:#ffb3b4}
-
-  /* гейт доступу */
-  .gate{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
-    padding:26px;text-align:center;margin-top:30px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
-  .gate h1{color:var(--gold)}
-  .gate .sub{color:var(--muted)}
-  .gate .big{font-size:2.6rem;margin-bottom:8px}
-  .spinner{width:34px;height:34px;border:4px solid rgba(255,255,255,.2);border-top-color:var(--gold);border-radius:50%;animation:sp .8s linear infinite;margin:16px auto}
-  @keyframes sp{to{transform:rotate(360deg)}}
-  @media(max-width:560px){.grid,.grid3{grid-template-columns:1fr}.irow .acts{flex-wrap:wrap}}
+  .img-prev-el{max-height:120px;max-width:100%;border-radius:10px;display:block;
+    border:1px solid var(--border);background:#f5eeda}
+  .img-prev-err{display:none;color:var(--danger);font-weight:800;font-size:.82rem}
 
   /* Клас-кнопки (велика квадратна сітка) */
   .gradegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px}
   .gradebtn{aspect-ratio:1/1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
-    background:linear-gradient(180deg,var(--panel-2),rgba(9,13,35,.5));border:1px solid var(--border);
-    border-radius:20px;cursor:pointer;color:var(--text);transition:.15s;box-shadow:0 8px 22px rgba(0,0,0,.25)}
-  .gradebtn:hover{transform:translateY(-2px);border-color:var(--gold)}
-  .gradebtn .gnum{font-family:'Fredoka One',cursive;font-size:2.6rem;color:var(--gold);line-height:1}
-  .gradebtn .glbl{font-family:'Fredoka One',cursive;font-size:1rem;color:#fff}
+    background:var(--card);border:1px solid var(--border);
+    border-radius:20px;cursor:pointer;color:var(--ink);transition:border-color .15s,transform .15s;
+    box-shadow:var(--shadow)}
+  .gradebtn:hover{transform:translateY(-2px);border-color:var(--gold-deep)}
+  .gradebtn .gnum{font-weight:800;font-size:2.6rem;color:var(--gold-ink);line-height:1}
+  .gradebtn .glbl{font-weight:800;font-size:1rem;color:var(--ink)}
   .gradebtn .gcount{font-size:.78rem;color:var(--muted);font-weight:800;margin-top:6px}
-  .gradebtn.empty{opacity:.55}
+  .gradebtn.empty{opacity:.6;padding:0}
   .gradebtn.empty .gnum{color:var(--muted)}
 
   /* Редактор додаткових навичок */
@@ -176,30 +104,18 @@
   .asrow .as-pctl{white-space:nowrap;font-size:.85rem;gap:5px;margin:0}
   .asrow .mini.danger{padding:6px 9px}
 
-  /* нові пігулки */
-  .pill.price{color:#ffe6a3;border-color:rgba(245,197,66,.45)}
-  .pill.add{color:#ffe066;border-color:rgba(245,210,90,.45);background:rgba(245,210,90,.08);font-weight:800}
-  .coin.gold{color:#ffd93b;font-weight:800}
-  .coin.silver{color:#cfd8e6;font-weight:800}
-  .pill.flag{color:#ffd9a8;border-color:rgba(255,170,80,.5);background:rgba(255,150,60,.12)}
-  @media(max-width:560px){.asrow{grid-template-columns:1fr 70px auto auto}.gradegrid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))}}
+  @media(max-width:560px){
+    .grid,.grid3{grid-template-columns:1fr}
+    .asrow{grid-template-columns:1fr 70px auto auto}
+    .gradegrid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))}
+  }
 </style>
 </head>
 <body>
+<!-- Вміст малює SKADMIN.header() наприкінці файлу. -->
+<header class="topbar"></header>
 <div id="wrap">
-  <header class="topbar">
-    <a class="brand" href="index.html">
-      <span class="crown">👑</span>
-      <span><span class="bt-name">Предмети</span><span class="bt-sub">School Kingdom · екіпіровка</span></span>
-    </a>
-    <div class="spacer"></div>
-    <nav class="nav">
-      <a href="admin.html">🏠 Головна (Адмінка)</a>
-      <a href="admin-books.html">📖 Книги</a>
-      <button id="logoutBtn" style="display:none">🚪 Вийти</button>
-    </nav>
-  </header>
-  <div id="root">
+  <div class="wrap-in" id="root">
     <div class="gate"><div class="spinner"></div><p class="sub" style="margin:0">Перевіряємо доступ…</p></div>
   </div>
 </div>
@@ -390,8 +306,8 @@ var FLAG_STATS=["Дворучний","Разовий предмет"];
 
 
 var root=document.getElementById('root');
-function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
-function el(sel){ return document.querySelector(sel); }
+var esc=SKADMIN.esc;                 // спільний, екранує й апостроф
+var el=SKADMIN.qs;
 function toNum(v){ v=String(v==null?'':v).trim(); if(v==='') return null; var n=Number(v); return isNaN(n)?null:n; }
 function catIcon(c){ return CAT_ICON[c]||'🎁'; }
 
@@ -681,7 +597,7 @@ function renderEditor(){
     +'<div class="savebar">'
     +'  <button class="btn" data-act="save">💾 Зберегти</button>'
     +'  <button class="btn ghost" data-act="new">＋ Новий предмет</button>'
-    +(!M._isNew?'  <button class="btn ghost" data-act="delcur" style="color:#ffc9ca">🗑 Видалити цей</button>':'')
+    +(!M._isNew?'  <button class="btn ghost danger" data-act="delcur">🗑 Видалити цей</button>':'')
     +'</div>'
     +'<div class="msg" id="msg"></div>';
   renderAddStats();
@@ -910,7 +826,7 @@ function renderAdminUI(){
       +'<div class="savebar">'
         +'<button class="btn ghost" data-seed="add">🌱 Додати відсутні</button>'
         +'<button class="btn" data-seed="fields">➕ Дописати ціни/навички/клас наявним</button>'
-        +'<button class="btn ghost" data-seed="overwrite" style="color:#ffc9ca;border-color:rgba(255,107,122,.4)">🔄 Перезаписати наявні повністю</button>'
+        +'<button class="btn ghost danger" data-seed="overwrite">🔄 Перезаписати наявні повністю</button>'
       +'</div>'
       +'<div class="inline-note" style="margin-top:8px">«Дописати» додає нові поля наявним предметам, не чіпаючи їхні назви й характеристики. «Перезаписати» замінює наявні дані значеннями з набору (обережно — затре ручні правки).</div>'
       +'<div class="msg" id="seedMsg"></div>'
@@ -939,33 +855,22 @@ function renderAdminUI(){
   el('#search').addEventListener('input', function(e){ SEARCH=(e.target.value||'').trim(); renderList(); });
 }
 
-function gate(msg){
-  root.innerHTML='<div class="gate"><div class="big">🔒</div>'
-    +'<h1 style="font-size:1.3rem">Доступ обмежено</h1>'
-    +'<p class="sub" style="margin:8px 0 14px">'+esc(msg)+'</p>'
-    +'<a class="btn ghost" href="login.html">Увійти</a></div>';
-}
+/* Шапка й гейт доступу — спільні (sk-admin.js). Кнопку «Вийти» показує
+   й підключає SKADMIN.guard після підтвердження прав. */
+SKADMIN.header({
+  name:'Предмети',
+  sub:'School Kingdom · екіпіровка',
+  nav:[ { href:'admin.html', label:'🏠 Головна (Адмінка)' },
+        { href:'admin-books.html', label:'📖 Книги' } ]
+});
 
-(function whenSK(){
-  var tries=0;
-  (function tick(){
-    if(window.SK && SK.ready){
-      SK.ready.then(function(){
-        if(!SK.currentUser || !SK.currentUser()){ gate('Увійди адміністратором, щоб керувати предметами.'); return; }
-        SK.isAdmin().then(function(isA){
-          if(!isA){ gate('Ця сторінка лише для адміністраторів.'); return; }
-          var lo=document.getElementById('logoutBtn');
-          if(lo){ lo.style.display=''; lo.onclick=function(){ SK.logout().then(function(){ location.href='login.html'; }); }; }
-          SK.listItems().then(function(list){ ITEMS=list||[]; renderAdminUI(); })
-            .catch(function(){ ITEMS=[]; renderAdminUI(); });
-        }).catch(function(){ gate('Не вдалося перевірити права доступу.'); });
-      });
-      return;
-    }
-    if(tries++<100) setTimeout(tick,50);
-    else gate('Не вдалося підключитися до бази.');
-  })();
-})();
+SKADMIN.guard({
+  denyMsg:'Увійди адміністратором, щоб керувати предметами.',
+  onOk:function(SK){
+    SK.listItems().then(function(list){ ITEMS=list||[]; renderAdminUI(); })
+      .catch(function(){ ITEMS=[]; renderAdminUI(); });
+  }
+});
 </script>
 </body>
 </html>

@@ -177,7 +177,7 @@ body{font-family:'Nunito',sans-serif;background:linear-gradient(180deg,var(--sky
 
 <!-- Firebase API (window.SK) -->
 <!-- Спільна карта: має бути ДО інлайн-скрипта — той читає SKCUR при парсингу -->
-<script src="sk-curriculum.js"></script>
+<script src="sk-curriculum.js?v=2"></script>
 <script type="module" src="firebase-config.js"></script>
 
 <script>
@@ -234,8 +234,13 @@ body{font-family:'Nunito',sans-serif;background:linear-gradient(180deg,var(--sky
 
 var ACTIVE_STATS={health:1,mana:1,agility:1,accuracy:1};
 var STAT_BASE={health:50,mana:20,agility:50,accuracy:50};
-var STAT_LABEL={health:"Здоров'я ❤️",accuracy:'Точність 🎯',agility:'Спритність 🏃',mana:'Мана 🔮',
-  strength:'Сила',defense:'Захист',intelligence:'Інтелект',wisdom:'Мудрість',luck:'Удача',memory:'Пам’ять',charisma:'Харизма'};
+/* Підпис стата — зі спільного списку (sk-curriculum.js), той самий канон,
+   що бачить адмін. Власна копія тут була зайвою, а в book.html така сама
+   копія вже встигла розійтися («Влучність» замість «Точність»). */
+function statLabel(k){
+  try{ var l = SKCUR.statLabel(k); if(l) return l; }catch(e){}
+  return String(k == null ? '' : k);
+}
 
 var root=document.getElementById('root');
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
@@ -442,8 +447,9 @@ function errorScreen(msg){
 function rewardText(){
   var sv = num(TEST.statValue);
   var st='';
-  if(sv>0){
-    var lbl=STAT_LABEL[TEST.stat]||TEST.stat;
+  /* Тест може не розвивати жодної характеристики — тоді про неї не пишемо. */
+  if(sv>0 && TEST.stat){
+    var lbl=statLabel(TEST.stat);
     var per = IS_LEVELS?'рівень':'тест';
     st = TEST.statMode==='perCorrect' ? ('+'+sv+' до «'+lbl+'» за кожну правильну') : ('+'+sv+' до «'+lbl+'» за '+per);
   }
@@ -745,8 +751,8 @@ function finish(){
   var emoji = pctScore>=80?'🏆':pctScore>=50?'🌟':'💪';
   var head  = pctScore>=80?'Чудово!':pctScore>=50?'Молодець!':'Гарна спроба!';
   var statLine='';
-  if(statGain>0){
-    var lbl=STAT_LABEL[TEST.stat]||TEST.stat;
+  if(statGain>0 && TEST.stat){
+    var lbl=statLabel(TEST.stat);
     var tracked=ACTIVE_STATS[TEST.stat];
     statLine='<div class="reward-line">✨ +'+fmt(statGain)+' до «'+esc(lbl)+'»'
       +(tracked?'':' <span class="muted">(поки не зберігається)</span>')+'</div>';
@@ -803,8 +809,8 @@ function finishLevel(){
   var levels=levelsArr();
   var isLast=i>=levels.length-1;
   var statLine='';
-  if(statGain>0){
-    var lbl=STAT_LABEL[TEST.stat]||TEST.stat;
+  if(statGain>0 && TEST.stat){
+    var lbl=statLabel(TEST.stat);
     var tracked=ACTIVE_STATS[TEST.stat];
     statLine='<div class="reward-line">✨ +'+fmt(statGain)+' до «'+esc(lbl)+'»'
       +(tracked?'':' <span class="muted">(поки не зберігається)</span>')+'</div>';
