@@ -264,7 +264,6 @@
   .map-tier.col,.map-grade.col,.map-subj.col,.map-topic.col{opacity:.96}
 
   /* ── Тренажери ── */
-  #viewTrainers > .panel{max-width:980px;margin:0 auto}
   /* ── Ігри (та сама стилістика карток, що й у тренажерів) ── */
   #viewGames > .panel{max-width:980px;margin:0 auto}
   .tr-card{border:1px solid var(--border);border-radius:10px;padding:10px;margin:10px 0 0;
@@ -585,25 +584,6 @@
           <button class="btn ghost" id="btnPrintLists">📄 Списки для друку</button>
         </div>
       </div>
-
-      <div class="panel">
-        <h2>🔀 Приналежність</h2>
-        <p class="hint" style="margin:8px 0 12px">
-          Тут зібрано <b>всі тести й випробування</b>. Для кожного можна змінити тип
-          (тест ↔ випробування), предмет і клас — зокрема <b>дошкільнят</b>. Зміни зберігаються одразу.
-          <br>«Тест → Випробування» створює посилання на <code>test.html?id=…</code> і ховає тест зі
-          сторінки «Тести». Зворотне повертає тест назад.
-        </p>
-        <div class="toolbar" style="margin:2px 0 10px">
-          <label style="display:inline-flex;gap:7px;align-items:center;font-weight:700;font-size:.9rem;cursor:pointer">
-            <input type="checkbox" id="belShowHidden"> Показати сховані тести
-          </label>
-          <div class="spacer"></div>
-          <button class="btn xs" id="belRefresh">↻ Оновити список</button>
-        </div>
-        <div id="belMsg"></div>
-        <div id="belTree"></div>
-      </div>
     </div>
 
     <!-- ЕКРАН 2: КЛАСИ -->
@@ -676,46 +656,6 @@
           <button class="btn gold" id="mapCardSave">💾 Зберегти</button>
         </div>
       </div>
-    </div>
-  </section>
-
-<!-- ---- ВИД: ТРЕНАЖЕРИ ---- -->
-  <section id="viewTrainers" class="hidden">
-    <div class="toolbar">
-      <button class="btn ghost" id="trBack">🏠 Головна</button>
-      <div class="spacer"></div>
-      <button class="btn gold" id="trSave">💾 Зберегти випробування</button>
-    </div>
-    <div class="panel">
-      <h2>🎮 Випробування</h2>
-      <p class="hint" style="margin:8px 0 14px">
-        Випробування — це посилання на окрему сторінку або відео, яке зʼявляється під
-        предметом на сторінці «Тести». Обери предмет, дай назву й встав посилання —
-        внутрішню сторінку (напр. <code>english-reading.html</code>) або зовнішнє
-        посилання/відео (<code>https://…</code>).
-        <br>Ступінь і клас — необовʼязкові фільтри: залиш «усі ступені»/«усі класи»,
-        щоб випробування показувалось скрізь із цим предметом. Обери клас (1–4),
-        щоб зʼявлялось тільки в тому класі.
-        <br><b>Нагороди</b> — до 4 речей. У кожному слоті: ID предмета з інвентаря
-        (напр. <code>IT-001</code>), шанс випадіння 0–100% (крок 10%) і, за бажанням,
-        монетки. Слот спрацьовує за своїм шансом; дитині нагороди не показуються —
-        це таємниця. <b>Картинка — одна на все випробування:</b> поклади файл
-        <code>img/tr/&lt;назва-сторінки&gt;.webp</code> з тією самою назвою, що й сторінка в
-        посиланні (напр. посилання <code>vchymo-tsyfry.html</code> → файл
-        <code>img/tr/vchymo-tsyfry.webp</code>). Вона показується і на плашці, і на першій
-        сторінці випробування. Немає файлу — показується емодзі-іконка.
-        Порожні рядки не зберігаються.
-      </p>
-      <div class="toolbar" style="margin:4px 0 12px">
-        <button class="btn xs" id="trAdd">＋ Випробування</button>
-        <div class="spacer"></div>
-        <button class="btn xs" id="trSortTier">⇅ За ступенем</button>
-        <button class="btn xs" id="trSortSubj">⇅ За предметом</button>
-        <button class="btn xs" id="trCollapseAll">▸ Згорнути все</button>
-        <button class="btn xs" id="trExpandAll">▾ Розгорнути все</button>
-      </div>
-      <div id="trMsg"></div>
-      <div id="trList"></div>
     </div>
   </section>
 
@@ -832,7 +772,6 @@ const ADMIN_NAV = [
      із меню, самі екрани й код лишаються на місці (adminOpen('list') /
      adminOpen('trainers') відкривають їх, якщо знадобиться). */
   { id:'tests',    ic:'📜', ttl:'Усі тести',        view:'list',     bar:false, legacy:true },
-  { id:'trainers', ic:'🎮', ttl:'Усі випробування', view:'trainers', bar:false, legacy:true },
 
   { id:'exit',     ic:'🚪', ttl:'Вихід у гру', href:'index.html', hub:true, bar:true,
     sub:'Повернутись у Королівство', exit:true },
@@ -843,7 +782,6 @@ function adminOpen(view){
   if(view === 'map')      return openMap();
   if(view === 'games')    return openGames();
   if(view === 'list')     return openList();
-  if(view === 'trainers') return openTrainers();
   return goHome();
 }
 
@@ -950,8 +888,6 @@ const SK_API = {
   setActive:   (id,a)=> window.SK.setTestActive(id, a),
   getMap:      ()  => window.SK.getCurriculum(),
   saveMap:     (m) => window.SK.saveCurriculum(m),
-  getTrainers: ()  => window.SK.getTrainers(),
-  saveTrainers:(l) => window.SK.saveTrainers(l),
   getGames:    ()  => window.SK.getGames(),
   saveGames:   (g) => window.SK.saveGames(g),
   listItems:   ()  => (window.SK.listActiveItems ? window.SK.listActiveItems() : Promise.resolve([])),
@@ -967,15 +903,11 @@ const SK_API = {
 let MAP = null;                       // редагована карта (чернетка)
 
 /* ── Навігація виду «Структура»: розділ → клас → зміст ──
-   MAP_CAT   — звуження за типом: 'tests' | 'trainers' | null.
-               У навігації за віком (як у схемі) завжди null — тести й
-               випробування показуються разом, тип задає «Формат» у картці.
    MAP_TIER  — обраний ступінь: 'preschool' | 'junior' | 'senior' | null
    MAP_GRADE — обраний клас (gradeNum 0..11) | null (екран класів)
    renderMap() малює дерево лише коли обрано і розділ, і клас; при цьому
    показує зріз обраного класу й розділу (індекси лишаються абсолютними,
    тож усі наявні обробники редагування працюють без змін). */
-let MAP_CAT = null;    // null = і тести, і випробування разом (як у схемі)
 let MAP_TIER = null;   // id обраного ступеня: 'preschool' | 'junior' | 'senior'
 let MAP_GRADE = null;
 const MAP_GRADE_NUMS = [1,2,3,4,5,6,7,8,9,10,11];
@@ -1097,12 +1029,9 @@ function renderMap(){
   if(!$('mapTree')) return;
   // Дерево показуємо лише коли обрано і розділ, і клас. Інакше працюють
   // екрани навігації (розділи / класи), а дерево лишається порожнім.
-  // Дерево показуємо лише коли обрано клас. MAP_CAT === null — навігація за
-  // віком: показуємо і тести, і випробування разом.
+  // Дерево показуємо лише коли обрано клас.
   if(MAP_GRADE == null){ $('mapTree').innerHTML = ''; return; }
-  const wantGrade    = Number(MAP_GRADE);
-  const showTests    = (MAP_CAT !== 'trainers');
-  const showTrainers = (MAP_CAT !== 'tests');
+  const wantGrade = Number(MAP_GRADE);
   let html = '';
   let any = false;
   MAP.tiers.forEach((tier, ti) => {
@@ -1215,19 +1144,6 @@ function renderMap(){
         html += '<button class="btn xs" data-a="topic.add" data-p="' + pS + '" style="margin-top:8px">＋ Розділ</button>';
         }
 
-        // ── Випробування: сторінки/відео цього предмета ──
-        if(showTrainers){
-        const trIdx = subjTrainerIdx(sj, tier, g);
-        html += '<div class="tr-section">'
-          + '<div class="tr-section-head">'
-            + '<span class="map-lvl">🏆 ВИПРОБУВАННЯ</span>'
-            + '<span class="tr-hint">Окремі сторінки-випробування або відео. Дитина бачить їх як міні-ігри (іконка · назва · опис).</span>'
-          + '</div>';
-        trIdx.forEach(tri => { html += trRowInMap(tri, pS); });
-        html += '<button class="btn xs" data-a="subjtr.add" data-p="' + pS + '" style="margin-top:6px">＋ Випробування</button>'
-          + '</div>';  // .tr-section
-        }
-
         html += '</div>'   // .map-kids
           + '</div>';  // .map-subj
       });
@@ -1263,20 +1179,7 @@ function mapTestsCountFor(n){
   }));
   return c;
 }
-/* Кількість випробувань (унікальних тренажерів) для класу n. */
-function mapTrainersCountFor(n){
-  const set = new Set();
-  if(MAP) MAP.tiers.forEach(t => (t.grades || []).forEach(g => {
-    if(Number(g.gradeNum) !== Number(n)) return;
-    (g.subjects || []).forEach(sj => { subjTrainerIdx(sj, t, g).forEach(i => set.add(i)); });
-  }));
-  return set.size;
-}
-function mapCountFor(n){
-  if(MAP_CAT === 'trainers') return mapTrainersCountFor(n);
-  if(MAP_CAT === 'tests')    return mapTestsCountFor(n);
-  return mapTestsCountFor(n) + mapTrainersCountFor(n);   // навігація за віком
-}
+function mapCountFor(n){ return mapTestsCountFor(n); }
 
 /* Загальні лічильники для двох плашок на першому екрані. */
 function mapTestsTotal(){
@@ -1285,68 +1188,10 @@ function mapTestsTotal(){
     (sj.topics || []).forEach(tp => { c += (tp.tests || []).length; }))));
   return c;
 }
-function mapTrainersTotal(){
-  return (TRAINERS || []).filter(l => l && ((l.label && l.label.trim()) || (l.href && l.href.trim()))).length;
-}
-
-/* Ступінь, у який логічно покласти клас n (для створення нового класу):
-   0 → дошкільний ступінь; 1–4 → молодша школа; 5–11 → старша.
-   Якщо потрібного ступеня немає — беремо той, де номери класів найближчі,
-   інакше останній наявний. */
-function mapTierIndexForGrade(n){
-  if(!MAP || !MAP.tiers.length) return -1;
-  n = Number(n);
-  const looksPre = t => { const s = (String(t.id||'')+' '+String(t.name||'')).toLowerCase();
-                          return s.indexOf('preschool')>=0 || s.indexOf('дошкіл')>=0; };
-  if(n === 0){
-    const i = MAP.tiers.findIndex(looksPre);
-    return i >= 0 ? i : 0;
-  }
-  // ступінь, чиї наявні класи найближчі до n; порожні ступені — за назвою-натяком
-  let best = -1, bestDist = Infinity;
-  MAP.tiers.forEach((t, i) => {
-    if(looksPre(t)) return;                 // дошкільний — не для числових класів
-    const nums = (t.grades || []).map(g => Number(g.gradeNum)).filter(x => x >= 1);
-    if(nums.length){
-      const d = Math.min.apply(null, nums.map(x => Math.abs(x - n)));
-      if(d < bestDist){ bestDist = d; best = i; }
-    }
-  });
-  if(best >= 0) return best;
-  // жодного числового класу ще немає — за назвою (молодша ≤4, старша >4), інакше перший не-дошкільний
-  const wantSenior = n > 4;
-  let byName = MAP.tiers.findIndex(t => {
-    if(looksPre(t)) return false;
-    const s = (String(t.id||'')+' '+String(t.name||'')).toLowerCase();
-    return wantSenior ? (s.indexOf('старш')>=0 || s.indexOf('senior')>=0 || /5.?11/.test(s))
-                      : (s.indexOf('молодш')>=0 || s.indexOf('junior')>=0 || /1.?4/.test(s));
-  });
-  if(byName >= 0) return byName;
-  const anyNonPre = MAP.tiers.findIndex(t => !looksPre(t));
-  return anyNonPre >= 0 ? anyNonPre : 0;
-}
-/* Створює клас n у відповідному ступені (якщо його ще немає) і повертає true. */
-function mapEnsureGrade(n){
-  if(mapGradeExists(n)) return true;
-  // Коли клас додають із навігації — кладемо його в обраний ступінь.
-  const tiSel = MAP_TIER ? MAP.tiers.findIndex(t => t && t.id === MAP_TIER) : -1;
-  const ti = (tiSel >= 0) ? tiSel : mapTierIndexForGrade(n);
-  if(ti < 0) return false;
-  const tier = MAP.tiers[ti];
-  if(!tier.grades) tier.grades = [];
-  const gr = (Number(n) === 0)
-    ? { id:'g0', name:'Дошкільнятко', status:'wip', gradeNum:0, subjects:[] }
-    : EMPTY_GRADE(Number(n));
-  // числові класи тримаємо впорядкованими за номером
-  tier.grades.push(gr);
-  tier.grades.sort((a, b) => Number(a.gradeNum) - Number(b.gradeNum));
-  return true;
-}
-
 /* ── Ступені ──
    Перший екран «Навчання» — вік, а не тип контенту: Дошкільна · Молодша ·
    Старша, як у схемі. Тип контенту переїхав у поле «Формат» картки, тому
-   MAP_CAT тут лишається null — записи показуються разом. */
+   Тип контенту тут не питаємо — його задає «Формат» у картці. */
 function mapTiers(){ return (MAP && Array.isArray(MAP.tiers)) ? MAP.tiers : []; }
 function mapTierById(id){ return mapTiers().find(t => t && t.id === id) || null; }
 /* У якому ступені живе клас n (потрібно, коли картку відкрили не з навігації). */
@@ -1367,7 +1212,7 @@ function mapTierIsPre(t){
    воно розходилося зі списком. Тут рахуємо тим самим правилом, що й
    drillRecords: тести з колекції + випробування під предметами класу. */
 function drillCountFor(tier, g){
-  const tests = new Set(), links = new Set();
+  const tests = new Set();
   (g.subjects || []).forEach(sj => {
     (TESTS || []).forEach(t => {
       if(!t || !t.id || !t.title) return;
@@ -1375,9 +1220,8 @@ function drillCountFor(tier, g){
       try { if(!window.SKCUR.subjectMatches(sj, t.subject)) return; } catch(e){ return; }
       tests.add(t.id);
     });
-    subjTrainerIdx(sj, tier, g).forEach(i => links.add(i));
   });
-  return tests.size + links.size;
+  return tests.size;
 }
 function mapTierLabel(id){
   const t = mapTierById(id);
@@ -1386,12 +1230,11 @@ function mapTierLabel(id){
 
 /* Показати перший екран — ступені + інструменти + приналежність. */
 function mapShowTiers(){
-  MAP_CAT = null; MAP_TIER = null; MAP_GRADE = null; MAP_SUBJ = null; MAP_REC = null;
+  MAP_TIER = null; MAP_GRADE = null; MAP_SUBJ = null; MAP_REC = null;
   mapHideScreens();
   if($('mapScrCats')) $('mapScrCats').classList.remove('hidden');
   renderMapTiers();
   if($('mapTree')) $('mapTree').innerHTML = '';
-  renderBelong();
   try{ window.scrollTo(0,0); }catch(e){}
 }
 const mapShowCats = mapShowTiers;   // стара назва — щоб нічого не зламати
@@ -1498,10 +1341,9 @@ function mapOpenContent(gradeNum){
 /* ============================================================
    НОВА НАВІГАЦІЯ «СТРУКТУРА» (як у грі):
    тип → клас → предмет → запис → єдина картка.
-   Тести (колекція tests) і випробування (масив links) показуються
-   як один список записів; перемикач у картці визначає, ДЕ запис лежить,
-   і які поля активні. Стара структура (ступені/предмети/розділи/порядок)
-   лишається доступною через «⚙ Редагувати структуру класу».
+   Усі записи — колекція tests; тип задає поле «Формат» у картці.
+   Стара структура (ступені/предмети/розділи/порядок) лишається
+   доступною через «⚙ Редагувати структуру класу».
    ============================================================ */
 let MAP_SUBJ = null;   // назва обраного предмета
 let MAP_REC  = null;   // {kind:'test'|'trainer', id, idx}
@@ -1671,14 +1513,14 @@ function cardObj(){
 /* ============================================================
    РЕДАКТОР КОНТЕНТУ — одна форма на всі типи.
 
-   Раніше та сама картка малювалася двома окремими функціями
-   (cardTestHtml / cardTrainerHtml), а тип перемикався окремим
-   типбаром. Тепер тип — це верхнє поле «Формат», і форма одна.
+   Раніше «випробування» були окремою сутністю в документі
+   curriculum/trainers, і зміна формату фізично переносила запис між
+   сховищами. Сховище тепер одне — колекція tests, а формат це поле.
 
-   Формат → де лежать дані (схему бази не міняємо):
-     🔗 Файл HTML → curriculum/trainers, type:'page'   ← канон
-     📜 Тест      → колекція tests (список питань або рівні)
-     🎬 Video     → curriculum/trainers, type:'video'
+   Формат → значення поля `format` у документі tests:
+     📜 Тест      → 'flat' | 'levels'   (питання або рівні)
+     🔗 Файл HTML → 'html'  + linkHref  (стара назва 'link' читається так само)
+     🎬 Video     → 'video' + linkHref
      📘 Словник   → admin-vocab.html  (окрема сторінка)
      📖 Книги     → admin-books.html  (окрема сторінка)
    ============================================================ */
@@ -2026,7 +1868,6 @@ async function openCardForTest(id){
   const t = (TESTS || []).find(x => x.id === id);
   if(!t) return;
   try{ await ensureMap(); }catch(e){}
-  MAP_CAT = null;
   MAP_GRADE = Number(t.grade == null ? 1 : t.grade) || 0;
   MAP_TIER = mapTierIdForGrade(MAP_GRADE);
   MAP_SUBJ = subjectShow(t.subject);
@@ -2065,42 +1906,6 @@ function statusOpts(v){
 /* ── правки полів ── */
 function onMapInput(e){
   const el = e.target;
-  // Вбудований редактор тренажерів під предметом (data-mtf). Правимо той самий
-  // масив TRAINERS, що й вкладка «🎮 Тренажери» та tests.html.
-  if(el.dataset.mtf != null){
-    const gi = Number(el.dataset.tri);
-    const l = TRAINERS && TRAINERS[gi];
-    if(!l) return;
-    switch(el.dataset.mtf){
-      case 'label': l.label = el.value; break;
-      case 'href':  l.href  = el.value; break;
-      case 'desc':  l.desc  = el.value; break;
-      case 'icon':  l.icon  = el.value; break;
-      case 'blank': l.blank = el.checked; break;
-      case 'rItem':
-      case 'rCoins':
-      case 'rChance': {
-        const r = Number(el.dataset.r) || 0;
-        if(!Array.isArray(l.rewards)) l.rewards = [];
-        while(l.rewards.length <= r) l.rewards.push({});
-        const slot = l.rewards[r];
-        if(el.dataset.mtf === 'rItem')       slot.item = el.value.trim();
-        else if(el.dataset.mtf === 'rCoins') slot.coins = Math.max(0, Math.floor(Number(el.value) || 0));
-        else                                 slot.chance = Math.max(0, Math.min(100, Math.round((Number(el.value) || 0) / 10) * 10));
-        break;
-      }
-      case 'type':
-        l.type = el.value;
-        // типова іконка, якщо порожньо або лишалась типова іншого вигляду
-        if(!l.icon || l.icon === '📖' || l.icon === '🎬' || l.icon === '🔗'){
-          l.icon = l.type === 'video' ? '🎬' : '🔗';
-        }
-        l.blank = (l.type === 'video');   // відео зазвичай у новій вкладці
-        renderMap();
-        return;
-    }
-    return;
-  }
   const f = el.dataset.f;
   if(!f || !MAP) return;
   const p = mapPath(el);
@@ -2154,33 +1959,6 @@ function onMapClick(e){
     renderMap();
     return;
   }
-  // Кнопки вбудованого редактора тренажерів (data-mta): ↑ ↓ ✕.
-  // Порядок міняємо в межах ОДНОГО предмета — міняємо місцями сусідів того
-  // самого предмета в глобальному TRAINERS, не чіпаючи чужі тренажери.
-  const tb = e.target.closest('button[data-mta]');
-  if(tb){
-    if(!TRAINERS) return;
-    const a = tb.dataset.mta;
-    const gi = Number(tb.dataset.tri);
-    const p = tb.dataset.p ? tb.dataset.p.split('.').map(Number) : null;
-    if(!TRAINERS[gi]) return;
-    if((a === 'up' || a === 'down') && p){
-      const idx = subjTrainerIdx(subjAt(p), tierAt(p), gradeAt(p));
-      const pos = idx.indexOf(gi);
-      const npos = a === 'up' ? pos - 1 : pos + 1;
-      if(pos >= 0 && npos >= 0 && npos < idx.length){
-        const A = idx[pos], B = idx[npos];
-        const t = TRAINERS[A]; TRAINERS[A] = TRAINERS[B]; TRAINERS[B] = t;
-      }
-    } else if(a === 'del'){
-      const l = TRAINERS[gi];
-      if(!confirm('Видалити випробування «' + ((l && l.label) || 'без назви') + '»?')) return;
-      TRAINERS.splice(gi, 1);
-    }
-    renderMap();
-    return;
-  }
-
   const b = e.target.closest('button[data-a]');
   if(!b || !MAP) return;
   const a = b.dataset.a;
@@ -2219,14 +1997,6 @@ function onMapClick(e){
     case 'test.down': move(subjAt(p).topics[p[3]].tests, p[4], +1); break;
     case 'test.del':  subjAt(p).topics[p[3]].tests.splice(p[4], 1); break;
 
-    case 'subjtr.add': {
-      // Новий тренажер, привʼязаний саме до цього предмета/ступеня/класу.
-      if(!TRAINERS) TRAINERS = [];
-      const sj = subjAt(p), g = gradeAt(p), t = tierAt(p);
-      TRAINERS.push({ subject: sj.name, tier: (t && t.name) || '', grade: String((g && g.gradeNum) || ''),
-                      href:'', icon:'🎮', label:'', desc:'', type:'page', blank:false });
-      break;
-    }
     default: redraw = false;
   }
   if(redraw) renderMap();
@@ -2296,7 +2066,7 @@ function checkMap(){
 /* Повернення на головну адмінки (хаб). */
 /* Показати один екран, решту сховати. Раніше цей блок був скопійований
    у шість функцій, і кожен новий екран доводилось дописувати в усі. */
-const ADMIN_VIEWS = ['viewHome','viewList','viewEdit','viewMap','viewTrainers','viewGames'];
+const ADMIN_VIEWS = ['viewHome','viewList','viewEdit','viewMap','viewGames'];
 function showOnly(id){
   ADMIN_VIEWS.forEach(v => { const el = $(v); if(el) el.classList.toggle('hidden', v !== id); });
   try{ window.scrollTo(0,0); }catch(e){}
@@ -2306,191 +2076,6 @@ function goHome(){ showOnly('viewHome'); }
 
 /* Показати список тестів. */
 function openList(){ showOnly('viewList'); }
-
-/* ============================================================
-   МЕНЕДЖЕР ПРИНАЛЕЖНОСТІ (🔀) — у виді «Структура».
-   Показує всі тести + випробування; дозволяє змінити тип,
-   предмет і клас (включно з дошкільнятами, grade 0).
-   ============================================================ */
-function belPreTierName(){
-  var n='Дошкільнятко';
-  if(MAP && MAP.tiers) for(var i=0;i<MAP.tiers.length;i++){
-    var t=MAP.tiers[i]; var s=(String(t.id||'')+' '+String(t.name||'')).toLowerCase();
-    if(s.indexOf('preschool')>=0 || s.indexOf('дошкіл')>=0){ if(t.name) n=t.name; break; }
-  }
-  return n;
-}
-function belIsPreTier(v){ var s=String(v||'').toLowerCase(); return s.indexOf('preschool')>=0 || s.indexOf('дошкіл')>=0; }
-function belGradeNums(){
-  var set={}, arr=[];
-  /* n>=0, а не n>=1: дошкілля — це клас 0, а не окремий сорт сутності. */
-  if(MAP && MAP.tiers) MAP.tiers.forEach(function(t){ (t.grades||[]).forEach(function(g){ var n=Number(g.gradeNum); if(n>=0 && !set[n]){ set[n]=1; arr.push(n); } }); });
-  arr.sort(function(a,b){ return a-b; });
-  return arr.length ? arr : [0,1,2,3,4];
-}
-function belSubjList(cur){
-  var seen={}, out=[];
-  subjectList().forEach(function(s){ var k=subjNorm(s); if(!seen[k]){ seen[k]=1; out.push(s); } });
-  var canon = subjectCanon(cur);
-  if(cur && !canon && !seen[subjNorm(cur)]) out.push(cur);   // поза картою — лишаємо як є
-  return out;
-}
-function belSubjOpts(cur){
-  return belSubjList(cur).map(function(s){ return '<option value="'+esc(s)+'"'+(String(cur||'')===s?' selected':'')+'>'+esc(s)+'</option>'; }).join('');
-}
-function belClassOpts(cur, withAll){
-  /* 'p' — старий токен дошкілля; тепер це просто клас 0. */
-  var c = String(cur==null?'':cur);
-  if(c==='p') c='0';
-  var html='';
-  belGradeNums().forEach(function(n){
-    html+='<option value="'+n+'"'+(c===String(n)?' selected':'')+'>'
-        + (n===0 ? '🌱 Дошкільнятко' : (n+' клас')) + '</option>';
-  });
-  if(withAll) html+='<option value=""'+(c===''?' selected':'')+'>усі класи</option>';
-  return html;
-}
-function belTypeOpts(cur){
-  return '<option value="test"'+(cur==='test'?' selected':'')+'>📝 Тест</option>'
-       + '<option value="trainer"'+(cur==='trainer'?' selected':'')+'>🎮 Випробування</option>';
-}
-function belFindTest(id){ return (TESTS||[]).find(function(t){ return t && t.id===id; }); }
-function belSlug(h){ return String(h||'').replace(/[?#].*$/,'').replace(/\.html?$/i,'').replace(/^.*\//,'').replace(/[^a-z0-9а-яіїєґ_-]+/gi,'-').replace(/^-+|-+$/g,'').slice(0,40) || 'page'; }
-function belStatForSubject(subj){ try{ if(typeof statForSubject==='function'){ var s=statForSubject(subj,1); if(s) return s; } }catch(e){} return ''; }
-function belIsLinkTest(t){ return !!(t && (t.format==='link'||t.format==='html') && t.linkHref); }
-
-function renderBelong(){
-  if(!$('belTree')) return;
-  var showHidden = $('belShowHidden') && $('belShowHidden').checked;
-  var rows='';
-  (TESTS||[]).forEach(function(t){
-    if(!t || !t.id || !t.title) return;
-    if(t.hidden && !showHidden) return;
-    var cls = String(t.grade==null ? 1 : (Number(t.grade)||0));
-    var flags = (t.hidden?' <span class="bel-badge">сховано</span>':'')
-              + (belIsLinkTest(t)?' <span class="bel-badge tr">посилання</span>':'');
-    rows+='<div class="bel-row" data-btype="test" data-bid="'+esc(t.id)+'">'
-      + '<span class="bel-name">'+esc(t.title)+flags+'</span>'
-      + '<select class="bel-type" title="Тип">'+belTypeOpts('test')+'</select>'
-      + '<select class="bel-subj" title="Предмет">'+belSubjOpts(t.subject)+'</select>'
-      + '<select class="bel-class" title="Клас">'+belClassOpts(cls,false)+'</select>'
-      + '</div>';
-  });
-  (TRAINERS||[]).forEach(function(l,i){
-    if(!l) return;
-    if(!((l.label && l.label.trim()) || (l.href && l.href.trim()))) return;
-    var cls = (belIsPreTier(l.tier) || String(l.grade)==='0') ? '0' : String(l.grade==null?'':l.grade);
-    rows+='<div class="bel-row" data-btype="trainer" data-bidx="'+i+'">'
-      + '<span class="bel-name">'+esc(l.label||l.href)+' <span class="bel-badge tr">випроб.</span></span>'
-      + '<select class="bel-type" title="Тип">'+belTypeOpts('trainer')+'</select>'
-      + '<select class="bel-subj" title="Предмет">'+belSubjOpts(l.subject)+'</select>'
-      + '<select class="bel-class" title="Клас">'+belClassOpts(cls,true)+'</select>'
-      + '</div>';
-  });
-  $('belTree').innerHTML = rows || '<div class="empty">Немає тестів чи випробувань.</div>';
-}
-
-async function belSaveTest(t){ try{ await SK_API.save(t); return true; }catch(e){ console.error(e); toast('Помилка збереження тесту', true); return false; } }
-async function belSaveTrainers(){
-  try{ await SK_API.saveTrainers((TRAINERS||[]).filter(function(l){ return (l.label&&l.label.trim())||(l.href&&l.href.trim()); })); return true; }
-  catch(e){ console.error(e); toast('Помилка збереження випробувань', true); return false; }
-}
-function belSetTrainerClass(l, v){
-  if(v==='' || v==null){ l.tier=''; l.grade=''; return; }
-  if(String(v)==='0' || v==='p'){
-    /* Дошкілля пишемо обома способами: grade '0' — новий, tier — щоб
-       записи лишалися видимими там, де дошкілля читають ще за ступенем. */
-    l.tier=belPreTierName(); l.grade='0'; return;
-  }
-  l.tier=''; l.grade=String(v);
-}
-async function belConvertTestToTrainer(id){
-  var t=belFindTest(id); if(!t) return;
-  // тест-посилання → назад у зовнішнє випробування (обгортку видаляємо)
-  if(belIsLinkTest(t)){
-    if(!TRAINERS) TRAINERS=[];
-    var preL = Number(t.grade)===0;
-    TRAINERS.push({ subject:t.subject||'', tier: preL?belPreTierName():'', grade: preL?'0':String(t.grade||''),
-      href:String(t.linkHref), icon:'🎮', label:t.title||'Випробування', type:'page', blank:false, imgCard:'', imgPage:'', rewards:[] });
-    var okDel=true; try{ await SK_API.remove(id); }catch(e){ console.error(e); okDel=false; toast('Не вдалося видалити тест-обгортку', true); }
-    TESTS=(TESTS||[]).filter(function(x){ return x.id!==id; });
-    var okT=await belSaveTrainers();
-    renderBelong();
-    if(okDel&&okT) toast('Повернено як випробування ✔');
-    return;
-  }
-  // звичайний тест → випробування (посилання на сам тест) + ховаємо тест
-  var href='test.html?id='+encodeURIComponent(id);
-  var exists=(TRAINERS||[]).some(function(l){ return String(l.href||'')===href; });
-  if(!exists){
-    if(!TRAINERS) TRAINERS=[];
-    var pre = Number(t.grade)===0;
-    TRAINERS.push({ subject:t.subject||'', tier: pre?belPreTierName():'', grade: pre?'0':String(t.grade||''),
-      href:href, icon:'📝', label:t.title||'Тест', type:'page', blank:false, imgCard:'', imgPage:'', rewards:[] });
-  }
-  t.hidden=true;
-  var ok1=await belSaveTest(t); var ok2=await belSaveTrainers();
-  renderBelong();
-  if(ok1&&ok2) toast('Перетворено на випробування; тест сховано ✔');
-}
-async function belConvertTrainerToTest(idx){
-  var l=TRAINERS[idx]; if(!l) return;
-  var m=String(l.href||'').match(/test\.html\?id=([^&]+)/);
-  if(m){
-    // раніше сконвертований тест → просто повертаємо його з-під «сховано»
-    var id=decodeURIComponent(m[1]);
-    var t=belFindTest(id);
-    if(!t){ toast('Пов’язаного тесту немає в базі', true); renderBelong(); return; }
-    t.hidden=false;
-    TRAINERS.splice(idx,1);
-    var ok1=await belSaveTest(t); var ok2=await belSaveTrainers();
-    renderBelong();
-    if(ok1&&ok2) toast('Повернено як тест ✔');
-    return;
-  }
-  // зовнішня сторінка → «тест-посилання»: тест, що веде на цю сторінку
-  var pre = belIsPreTier(l.tier);
-  var newId = 'lnk-' + belSlug(l.href) + '-' + Date.now().toString(36);
-  var lt = { id:newId, title:(l.label||l.href||'Випробування'), subject:(l.subject||''),
-    grade: pre?0:(Number(l.grade)||1), format:'link', linkHref:String(l.href||''),
-    stat: belStatForSubject(l.subject), statMode:'fixed', statValue:1, active:true };
-  TRAINERS.splice(idx,1);
-  if(!TESTS) TESTS=[];
-  TESTS.push(lt);
-  var okS=await belSaveTest(lt); var okT=await belSaveTrainers();
-  renderBelong();
-  if(okS&&okT) toast('Сторінку зроблено тестом-посиланням ✔');
-}
-async function onBelChange(e){
-  var row=e.target.closest('.bel-row'); if(!row) return;
-  var btype=row.getAttribute('data-btype');
-  var isTest=(btype==='test');
-  var t = isTest ? belFindTest(row.getAttribute('data-bid')) : null;
-  var l = isTest ? null : TRAINERS[+row.getAttribute('data-bidx')];
-  if(e.target.classList.contains('bel-subj')){
-    if(isTest){ if(t){ t.subject=e.target.value; if(await belSaveTest(t)) toast('Предмет оновлено ✔'); } }
-    else if(l){ l.subject=e.target.value; if(await belSaveTrainers()) toast('Предмет оновлено ✔'); }
-    return;
-  }
-  if(e.target.classList.contains('bel-class')){
-    var v=e.target.value;
-    if(isTest){ if(t){ t.grade=(v==='')?1:Number(v); if(await belSaveTest(t)) toast('Клас оновлено ✔'); } }
-    else if(l){ belSetTrainerClass(l,v); if(await belSaveTrainers()) toast('Клас оновлено ✔'); }
-    return;
-  }
-  if(e.target.classList.contains('bel-type')){
-    var nt=e.target.value;
-    if(isTest && nt==='trainer'){ await belConvertTestToTrainer(row.getAttribute('data-bid')); }
-    else if(!isTest && nt==='test'){ await belConvertTrainerToTest(+row.getAttribute('data-bidx')); }
-    else { renderBelong(); }
-    return;
-  }
-}
-async function refreshBelong(){
-  try{ TESTS = await SK_API.list() || TESTS; }catch(e){}
-  try{ await ensureTrainers(); }catch(e){}
-  renderBelong();
-}
 
 async function openMap(){
   showOnly('viewMap');
@@ -2509,7 +2094,6 @@ async function openMap(){
     return;
   }
   if(!had && !MAP_FROM_DB) toast('Карти в базі ще немає — відкрито запасну. Збережи, щоб закріпити.');
-  try { await ensureTrainers(); } catch(e){ /* тренажери показуються порожніми — не критично */ }
   trFillItemsDatalist();   // підказки ID предметів для полів «нагороди» у структурі
   if(MAP_MIGRATED){
     $('mapMsg').innerHTML = '<div class="map-ok">↻ Посилань на тести переведено з назв на id: <b>'
@@ -2534,18 +2118,8 @@ async function saveMap(){
     MAP = clean;
     MAP_FROM_DB = true;
 
-    // Разом із картою зберігаємо тренування (той самий curriculum/trainers, що
-    // й вкладка «Тренажери»). Порожні рядки (без назви й посилання) відкидаємо.
-    // Не блокуємо збереження карти, якщо тренажери не записались.
-    let trNote = '';
-    if(TRAINERS){
-      const cleanTr = TRAINERS.filter(l => l && ((l.label && String(l.label).trim()) || (l.href && String(l.href).trim())));
-      cleanTr.forEach(trCleanRewards);   // нормалізуємо нагороди (як у вкладці «Випробування»)
-      try { await SK_API.saveTrainers(cleanTr); TRAINERS = cleanTr; }
-      catch(e){ console.error(e); trNote = ' (тренування не збережено — перевір правила Firestore)'; }
-    }
     renderMap();
-    toast('Карту збережено ✔' + trNote, !!trNote);
+    toast('Карту збережено ✔');
   } catch(e){
     console.error(e);
     toast('Не вдалося зберегти карту');
@@ -2553,28 +2127,13 @@ async function saveMap(){
 }
 
 /* ============================================================
-   ТРЕНАЖЕРИ (🎮 Тренажери)
-   Документ curriculum/trainers = { links:[{subject,tier,href,icon,label,type,blank}] }.
-   Читає tests.html і показує під відповідним предметом у блоці «🎮 Тренажери».
-   Предмет/ступінь зіставляються за НАЗВОЮ (як у tests.html), тож у списку
-   пропонуємо назви предметів/ступенів із карти.
+   ДОВІДНИКИ КАРТИ (trSlNorm, trSubjList, trGradeList, …)
+   Лишилися від вкладки «Тренажери», яку прибрано разом із поняттям
+   «випробування». Тепер це просто хелпери картки й структури класу:
+   списки предметів/ступенів/класів із карти, шанси нагород, підказка
+   про обкладинку та datalist з ID предметів інвентаря.
    ============================================================ */
-let TRAINERS = null;    // масив тренажерів (чернетка)
-
-// Вбудовані за замовчуванням — ті самі, що зашиті в tests.html.
-// Показуємо їх, доки в базі ще немає документа, щоб нічого не загубити.
-const TRAINERS_DEFAULT = [
-  { subject:'Англійська мова',  tier:'', href:'klas-1/english-reading.html', icon:'📖', label:'Вчимось читати!',    type:'page', blank:false },
-  { subject:'Українська мова',  tier:'Дошкільн', href:'doshkilya/ukrainian-abetka.html', icon:'🔤', label:'Українська абетка', type:'page', blank:false },
-  { subject:'Дозвілля', tier:'', href:'klas-1/princesa-kanikuly.html',   icon:'👑', label:'Чарівні канікули принцеси', type:'page', blank:false },
-  { subject:'Дозвілля', tier:'', href:'klas-1/yak-kanikuly.html',        icon:'🏖️', label:'Як ти проводиш канікули?', type:'page', blank:false },
-  { subject:'Дозвілля', tier:'', href:'klas-1/yakyy-sport.html',         icon:'⚽', label:'Який спорт тобі підходить?', type:'page', blank:false },
-  { subject:'Дозвілля', tier:'', href:'klas-1/learn_play_moi_svit.html', icon:'🌍', label:'Learn & Play: Мій Світ',    type:'page', blank:false }
-];
-
 function trSlNorm(s){ return String(s==null?'':s).toLowerCase().replace(/[’'`ʼ]/g,'').replace(/\s+/g,' ').trim(); }
-
-/* Унікальні предмети з карти (за назвою) — для випадаючого списку. */
 function trSubjList(){
   const seen = new Map();
   if(MAP) MAP.tiers.forEach(t => (t.grades||[]).forEach(g => (g.subjects||[]).forEach(sj => {
@@ -2583,16 +2142,12 @@ function trSubjList(){
   })));
   return [...seen.values()];
 }
-/* Унікальні ступені з карти — необовʼязковий фільтр. */
 function trTierList(){
   const seen = new Map();
   if(MAP) MAP.tiers.forEach(t => { const k = trSlNorm(t.name); if(k && !seen.has(k)) seen.set(k, t); });
   return [...seen.values()];
 }
-/* Звести збережене значення (id/ключ/назву) до точної назви предмета з карти. */
-/* Те саме зведення до канону, що й для тестів — одна функція на обидва. */
 function trResolveSubj(v){ return subjectCanon(v); }
-
 function trSubjOpts(sel){
   const n = trSlNorm(sel);
   let html = '<option value="">— обери предмет —</option>';
@@ -2619,8 +2174,6 @@ function trTierOpts(sel){
   if(sel && !known) html += '<option value="' + esc(sel) + '" selected>' + esc(sel) + '</option>';
   return html;
 }
-/* Номери класів із карти (унікальні gradeNum) — для випадаючого списку.
-   Якщо карта порожня — типовий набір молодшої школи 1–4. */
 function trGradeList(){
   const set = new Set();
   if(MAP) MAP.tiers.forEach(t => (t.grades||[]).forEach(g => {
@@ -2632,7 +2185,6 @@ function trGradeList(){
   const arr = [...set].sort((a, b) => a - b);
   return arr.length ? arr : [0, 1, 2, 3, 4];
 }
-/* «Клас не задано» — це порожній рядок, а не нуль. Нуль — це дошкілля. */
 function trHasGrade(l){ return !!l && l.grade !== '' && l.grade != null; }
 function trGradeOpts(sel){
   const s = String(sel == null ? '' : sel).trim();
@@ -2648,178 +2200,6 @@ function trGradeOpts(sel){
   if(s && !known) html += '<option value="' + esc(s) + '" selected>' + esc(s) + ' клас</option>';
   return html;
 }
-function trTypeOpts(sel){
-  return [['page','🔗 Сторінка'],['video','🎬 Відео']].map(o =>
-    '<option value="' + o[0] + '"' + (sel === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('');
-}
-
-/* ── Тренажери в редакторі структури (вбудовано в картку предмета) ──
-   Зіставлення тренажера з предметом/ступенем/класом — ДЗЕРКАЛО функції
-   subjectLinksFor() у tests.html, тож те, що адмін бачить під карткою,
-   збігається з тим, що бачить дитина. */
-function mapTrSubjMatch(sj, sel){
-  if(!sel) return false;
-  const n = trSlNorm(sel);
-  if(trSlNorm(sj.id) === n) return true;
-  if(trSlNorm(sj.name).indexOf(n) >= 0) return true;
-  return (sj.keys || []).some(k => trSlNorm(k).indexOf(n) >= 0);
-}
-function mapTrTierMatch(tier, sel){
-  if(!sel) return true;
-  if(!tier) return false;
-  const n = trSlNorm(sel);
-  if(trSlNorm(tier.id) === n) return true;
-  const tn = trSlNorm(tier.name);
-  if(tn && (tn.indexOf(n) >= 0 || n.indexOf(tn) >= 0)) return true;
-  /* Випробування зберігають ступінь НАЗВОЮ, а назву в карті можна
-     перейменувати («Дошкільна підготовка» → «Дошкільнятко»). Щоб старі
-     записи не випадали зі структури, дошкілля звіряємо ще й за коренем —
-     тим самим, за яким його впізнає дитяча сторінка. */
-  if(belIsPreTier(sel) && belIsPreTier(tier.name || tier.id)) return true;
-  return false;
-}
-function mapTrGradeMatch(g, sel){
-  if(sel === '' || sel == null) return true;   // не задано → показуємо всюди
-  return Number(g.gradeNum) === Number(sel);
-}
-/* Глобальні індекси TRAINERS, що належать цьому предмету (у цьому ступені/класі). */
-function subjTrainerIdx(sj, tier, g){
-  const out = [];
-  (TRAINERS || []).forEach((l, i) => {
-    if(!l) return;
-    if(!mapTrSubjMatch(sj, l.subject)) return;
-    if(l.tier  && !mapTrTierMatch(tier, l.tier))  return;
-    if(trHasGrade(l) && !mapTrGradeMatch(g, l.grade)) return;
-    out.push(i);
-  });
-  return out;
-}
-/* Один тренажер у картці предмета. Полів «предмет/ступінь/клас» тут немає —
-   вони випливають із того, під яким предметом лежить рядок. Лишаємо: назву,
-   вибір «сторінка/відео», іконку, «нова вкладка», посилання й опис (як у грі). */
-function trRowInMap(gi, pS){
-  const l = TRAINERS[gi]; if(!l) return '';
-  // Нагороди — той самий блок, що й у вкладці «🎮 Випробування». Правимо той
-  // самий l.rewards, тож дані спільні; тут інші data-атрибути (data-mtf/data-tri).
-  const rw = Array.isArray(l.rewards) ? l.rewards : [];
-  let rwRows = '';
-  for(let r = 0; r < 4; r++){
-    const x = rw[r] || {};
-    rwRows += '<div class="tr-reward">'
-      + '<span class="rw-badge">🎁 ' + (r + 1) + '</span>'
-      + '<input type="text" list="trItems" data-mtf="rItem" data-tri="' + gi + '" data-r="' + r + '" placeholder="ID предмета (напр. IT-001) — необовʼязково" value="' + esc(x.item || '') + '">'
-      + '<select class="rw-chance" data-mtf="rChance" data-tri="' + gi + '" data-r="' + r + '" title="Шанс випадіння цього слота (крок 10%)">' + trChanceOpts(x.chance) + '</select>'
-      + '<input type="number" class="rw-coins" min="0" step="1" data-mtf="rCoins" data-tri="' + gi + '" data-r="' + r + '" placeholder="монетки" value="' + (x.coins ? esc(String(x.coins)) : '') + '">'
-      + '<span class="rw-unit" title="монетки">🪙</span>'
-    + '</div>';
-  }
-  return '<div class="tr-mini">'
-    + '<div class="map-head">'
-      + '<span class="map-lvl">🎮 ВИПРОБУВАННЯ</span>'
-      + '<input type="text" class="grow" data-mtf="label" data-tri="' + gi + '" placeholder="Назва (напр. Вчимось читати!)" value="' + esc(l.label || '') + '">'
-      + '<select data-mtf="type" data-tri="' + gi + '" style="width:auto" title="Посилання на сторінку чи відео">' + trTypeOpts(l.type || 'page') + '</select>'
-      + '<input type="text" class="w-ic" data-mtf="icon" data-tri="' + gi + '" value="' + esc(l.icon || '') + '" title="Емодзі-іконка">'
-      + '<label class="switch" style="flex:0 0 auto">'
-        + '<input type="checkbox" data-mtf="blank" data-tri="' + gi + '"' + (l.blank ? ' checked' : '') + '>'
-        + '<span class="track"></span><span class="sw-txt">↗</span>'
-      + '</label>'
-      + '<span class="map-btns">'
-        + '<button class="btn xs" data-mta="up"   data-tri="' + gi + '" data-p="' + pS + '" title="Вище">↑</button>'
-        + '<button class="btn xs" data-mta="down" data-tri="' + gi + '" data-p="' + pS + '" title="Нижче">↓</button>'
-        + '<button class="btn xs" data-mta="del"  data-tri="' + gi + '" data-p="' + pS + '" title="Видалити">✕</button>'
-      + '</span>'
-    + '</div>'
-    + '<div class="map-head">'
-      + '<span class="map-lvl">ПОСИЛАННЯ</span>'
-      + '<input type="text" class="grow" data-mtf="href" data-tri="' + gi + '" placeholder="english-reading.html  або  https://…" value="' + esc(l.href || '') + '">'
-    + '</div>'
-    + '<div class="map-head">'
-      + '<span class="map-lvl">🖼 ОБКЛАДИНКА</span>'
-      + '<span class="tr-cover-note">' + trCoverNoteInner(l.href, l.type) + '</span>'
-    + '</div>'
-    + '<div class="map-head">'
-      + '<span class="map-lvl">ОПИС</span>'
-      + '<input type="text" class="grow" data-mtf="desc" data-tri="' + gi + '" placeholder="Короткий опис (як у грі)" value="' + esc(l.desc || '') + '">'
-    + '</div>'
-    + '<div class="tr-rewards">'
-      + '<span class="map-lvl">НАГОРОДИ</span>'
-      + '<div class="rw-wrap">' + rwRows + '</div>'
-    + '</div>'
-  + '</div>';
-}
-/* Завантажити TRAINERS один раз (спільно з вкладкою «Тренажери»). */
-async function ensureTrainers(){
-  if(TRAINERS) return;
-  let doc = null;
-  try { doc = await SK_API.getTrainers(); } catch(e){ doc = null; }
-  if(doc && Array.isArray(doc.links)){
-    TRAINERS = doc.links.map(x => Object.assign({}, x));
-  } else {
-    TRAINERS = TRAINERS_DEFAULT.map(x => {
-      const c = Object.assign({}, x);
-      const r = trResolveSubj(c.subject); if(r) c.subject = r;
-      const rt = c.tier ? trResolveSubj_tier(c.tier) : ''; if(rt) c.tier = rt;
-      return c;
-    });
-  }
-}
-
-/* ── Згортання карток тренажерів (той самий підхід, що й у карті) ──
-   COLLAPSED_TR — множина індексів згорнутих карток. Стан суто UI й
-   переживає перемальовування. При сортуванні/видаленні скидаємо, бо
-   індекси зсуваються. */
-const COLLAPSED_TR = new Set();
-function trColCls(i){ return COLLAPSED_TR.has(i) ? ' col' : ''; }
-function trColBtn(i, subj){
-  const c = COLLAPSED_TR.has(i);
-  return '<button class="btn xs col-toggle" data-trtoggle="' + i + '" title="' + (c ? 'Розгорнути' : 'Згорнути') + '">'
-       + (c ? '▸' : '▾') + '</button>'
-       + '<span class="col-count">' + esc(subj && subj.trim() ? subj : '— без предмета —') + '</span>';
-}
-function trCollapseAll(){ if(!TRAINERS) return; TRAINERS.forEach((_, i) => COLLAPSED_TR.add(i)); renderTrainers(); }
-function trExpandAll(){ COLLAPSED_TR.clear(); renderTrainers(); }
-/* Сортує список за назвою предмета (А–Я), а в межах предмета — за назвою
-   тренажера. Тренажери одного предмета стають поруч — як розділи під
-   предметом у карті. Порожній предмет іде в кінець. */
-function trSortBySubject(){
-  if(!TRAINERS) return;
-  TRAINERS.sort((a, b) => {
-    const sa = trSlNorm(a.subject), sb = trSlNorm(b.subject);
-    if(!sa && sb) return 1;
-    if(sa && !sb) return -1;
-    return sa.localeCompare(sb, 'uk')
-        || trSlNorm(a.label).localeCompare(trSlNorm(b.label), 'uk');
-  });
-  COLLAPSED_TR.clear();   // індекси змінилися
-  renderTrainers();
-}
-
-/* Порядок ступенів: дошкільна → молодша школа → старша школа → інші/без ступеня.
-   Розпізнаємо за ключовим коренем назви, тож працює й для «Дошкільнятко». */
-function trTierRank(v){
-  const n = trSlNorm(v);
-  if(!n) return 9;
-  if(n.indexOf('дошкіль') >= 0) return 0;
-  if(n.indexOf('молодш')  >= 0) return 1;
-  if(n.indexOf('старш')   >= 0) return 2;
-  return 3;
-}
-/* Сортує за ступенем (дошкільна → молодша → старша), а в межах ступеня —
-   за предметом, потім за назвою випробування. */
-function trSortByTier(){
-  if(!TRAINERS) return;
-  TRAINERS.sort((a, b) => {
-    const ra = trTierRank(a.tier), rb = trTierRank(b.tier);
-    if(ra !== rb) return ra - rb;
-    return trSlNorm(a.subject).localeCompare(trSlNorm(b.subject), 'uk')
-        || trSlNorm(a.label).localeCompare(trSlNorm(b.label), 'uk');
-  });
-  COLLAPSED_TR.clear();
-  renderTrainers();
-}
-
-/* Опції шансу випадіння 0–100% з кроком 10. Не задано (null) → типово 100%,
-   тож заповнений предмет за замовчуванням випадає завжди, доки не зменшиш. */
 function trChanceOpts(sel){
   let v;
   if(sel == null) v = 100;
@@ -2830,15 +2210,6 @@ function trChanceOpts(sel){
   }
   return html;
 }
-
-/* Обкладинка тренажера — ОДИН файл, назва як у html-сторінки з посилання:
-   img/tr/<назва>.webp. Те саме правило, що й у tests.html (+ ті самі аліаси). */
-var TR_COVER_ALIAS = { 'ukrainian-abetka':'vchymo-litery' };
-function trCoverName(href){
-  var h = String(href||'').split('#')[0].split('?')[0];
-  h = h.substring(h.lastIndexOf('/')+1).replace(/\.html?$/i,'').toLowerCase().replace(/[’\'`ʼ]/g,'');
-  return TR_COVER_ALIAS[h] || h;
-}
 function trCoverNoteInner(href, type){
   var raw = String(href||'').trim();
   if(type === 'video') return 'Для відео обкладинка не потрібна — показується емодзі-іконка (поле вище).';
@@ -2848,134 +2219,6 @@ function trCoverNoteInner(href, type){
   if(!n) return 'Обкладинкою буде емодзі-іконка.';
   return 'Поклади один файл: <code>img/tr/'+esc(n)+'.webp</code> — та сама назва, що й сторінка. Показується і на плашці у списку, і на 1-й сторінці. Немає файлу → емодзі-іконка.';
 }
-function renderTrainers(){
-  if(!TRAINERS || !TRAINERS.length){
-    $('trList').innerHTML = '<div class="tr-empty">Випробувань ще немає. Натисни «＋ Випробування».</div>';
-    return;
-  }
-  let html = '';
-  TRAINERS.forEach((l, i) => {
-    const rw = Array.isArray(l.rewards) ? l.rewards : [];
-    let rwRows = '';
-    for(let r = 0; r < 4; r++){
-      const x = rw[r] || {};
-      rwRows += '<div class="tr-reward">'
-        + '<span class="rw-badge">🎁 ' + (r + 1) + '</span>'
-        + '<input type="text" list="trItems" data-tf="rItem" data-i="' + i + '" data-r="' + r + '" placeholder="ID предмета (напр. IT-001) — необовʼязково" value="' + esc(x.item || '') + '">'
-        + '<select class="rw-chance" data-tf="rChance" data-i="' + i + '" data-r="' + r + '" title="Шанс випадіння цього слота (крок 10%)">' + trChanceOpts(x.chance) + '</select>'
-        + '<input type="number" class="rw-coins" min="0" step="1" data-tf="rCoins" data-i="' + i + '" data-r="' + r + '" placeholder="монетки" value="' + (x.coins ? esc(String(x.coins)) : '') + '">'
-        + '<span class="rw-unit" title="монетки">🪙</span>'
-      + '</div>';
-    }
-    html += '<div class="tr-card' + trColCls(i) + '">'
-      + '<div class="map-head">'
-        + trColBtn(i, l.subject || '')
-        + '<span class="map-lvl">ВИПРОБУВАННЯ</span>'
-        + '<input type="text" class="grow" data-tf="label" data-i="' + i + '" placeholder="Назва (напр. Вчимось читати!)" value="' + esc(l.label || '') + '">'
-        + '<span class="map-btns">'
-          + '<button class="btn xs" data-ta="up" data-i="' + i + '" title="Вище">↑</button>'
-          + '<button class="btn xs" data-ta="down" data-i="' + i + '" title="Нижче">↓</button>'
-          + '<button class="btn xs" data-ta="del" data-i="' + i + '" title="Видалити">✕</button>'
-        + '</span>'
-      + '</div>'
-      + '<div class="map-kids">'
-      + '<div class="map-head">'
-        + '<span class="map-lvl">ПРЕДМЕТ</span>'
-        + '<select class="grow" data-tf="subject" data-i="' + i + '">' + trSubjOpts(l.subject) + '</select>'
-        + '<select data-tf="tier" data-i="' + i + '" style="width:auto" title="Ступінь — необовʼязковий фільтр">' + trTierOpts(l.tier) + '</select>'
-        + '<select data-tf="grade" data-i="' + i + '" style="width:auto" title="Клас — необовʼязковий фільтр">' + trGradeOpts(l.grade) + '</select>'
-      + '</div>'
-      + '<div class="map-head">'
-        + '<span class="map-lvl">ПОСИЛАННЯ</span>'
-        + '<input type="text" class="grow" data-tf="href" data-i="' + i + '" placeholder="english-reading.html  або  https://…" value="' + esc(l.href || '') + '">'
-      + '</div>'
-      + '<div class="map-head">'
-        + '<span class="map-lvl">ВИГЛЯД</span>'
-        + '<select data-tf="type" data-i="' + i + '" style="width:auto">' + trTypeOpts(l.type || 'page') + '</select>'
-        + '<input type="text" class="w-ic" data-tf="icon" data-i="' + i + '" value="' + esc(l.icon || '') + '" title="Емодзі-іконка">'
-        + '<label class="switch" style="flex:0 0 auto">'
-          + '<input type="checkbox" data-tf="blank" data-i="' + i + '"' + (l.blank ? ' checked' : '') + '>'
-          + '<span class="track"></span><span class="sw-txt">↗ окрема сторінка</span>'
-        + '</label>'
-      + '</div>'
-      + '<div class="map-head">'
-        + '<span class="map-lvl">🖼 ОБКЛАДИНКА</span>'
-        + '<span class="tr-cover-note" id="trCover' + i + '">' + trCoverNoteInner(l.href, l.type) + '</span>'
-      + '</div>'
-      + '<div class="tr-rewards">'
-        + '<span class="map-lvl">НАГОРОДИ</span>'
-        + '<div class="rw-wrap">' + rwRows + '</div>'
-      + '</div>'
-      + '</div>'
-    + '</div>';
-  });
-  $('trList').innerHTML = html;
-}
-
-function onTrInput(e){
-  const el = e.target;
-  const f = el.dataset.tf;
-  if(f == null || !TRAINERS) return;
-  const i = Number(el.dataset.i);
-  const l = TRAINERS[i];
-  if(!l) return;
-  switch(f){
-    case 'label':   l.label = el.value; break;
-    case 'subject': l.subject = el.value; break;
-    case 'tier':    l.tier = el.value; break;
-    case 'grade':   l.grade = el.value; break;
-    case 'href':    l.href = el.value; { var _cn = document.getElementById('trCover'+i); if(_cn) _cn.innerHTML = trCoverNoteInner(l.href, l.type); } break;
-    case 'icon':    l.icon = el.value; break;
-    case 'blank':   l.blank = el.checked; break;
-    case 'imgCard': l.imgCard = el.value; break;
-    case 'imgPage': l.imgPage = el.value; break;
-    case 'rItem':
-    case 'rCoins':
-    case 'rChance': {
-      const r = Number(el.dataset.r) || 0;
-      if(!Array.isArray(l.rewards)) l.rewards = [];
-      while(l.rewards.length <= r) l.rewards.push({});
-      const slot = l.rewards[r];
-      if(f === 'rItem')       slot.item = el.value.trim();
-      else if(f === 'rCoins') slot.coins = Math.max(0, Math.floor(Number(el.value) || 0));
-      else                    slot.chance = Math.max(0, Math.min(100, Math.round((Number(el.value) || 0) / 10) * 10));
-      break;
-    }
-    case 'type':
-      l.type = el.value;
-      // підставляємо типову іконку, якщо поле порожнє або лишалась типова іншого типу
-      if(!l.icon || l.icon === '📖' || l.icon === '🎬' || l.icon === '🔗'){
-        l.icon = l.type === 'video' ? '🎬' : '🔗';
-      }
-      l.blank = (l.type === 'video');   // відео зазвичай відкриваємо в новій вкладці
-      renderTrainers();
-      return;
-  }
-}
-function onTrClick(e){
-  const tog = e.target.closest('button[data-trtoggle]');
-  if(tog){
-    const k = Number(tog.dataset.trtoggle);
-    if(COLLAPSED_TR.has(k)) COLLAPSED_TR.delete(k); else COLLAPSED_TR.add(k);
-    renderTrainers();
-    return;
-  }
-  const b = e.target.closest('button[data-ta]');
-  if(!b || !TRAINERS) return;
-  const a = b.dataset.ta;
-  const i = Number(b.dataset.i);
-  if(a === 'up')        move(TRAINERS, i, -1);
-  else if(a === 'down') move(TRAINERS, i, +1);
-  else if(a === 'del'){
-    const l = TRAINERS[i];
-    if(!confirm('Видалити випробування «' + ((l && l.label) || 'без назви') + '»?')) return;
-    TRAINERS.splice(i, 1);
-  }
-  renderTrainers();
-}
-
-/* Наповнити <datalist id="trItems"> активними предметами інвентаря —
-   щоб у полях «нагороди» адмін бачив ID (IT-001) з назвою. Тягнемо раз. */
 let TR_ITEMS_LOADED = false;
 async function trFillItemsDatalist(){
   if(TR_ITEMS_LOADED) return;
@@ -2988,35 +2231,6 @@ async function trFillItemsDatalist(){
   ).join('');
   TR_ITEMS_LOADED = true;
 }
-
-async function openTrainers(){
-  showOnly('viewTrainers');
-  $('trMsg').innerHTML = '';
-
-  // потрібна карта — з неї беремо список предметів/ступенів
-  try { await ensureMap(); } catch(e){ /* працюємо із запасною */ }
-  trFillItemsDatalist();   // підказки ID предметів для полів «нагороди»
-
-  if(!TRAINERS){
-    let doc = null;
-    try { doc = await SK_API.getTrainers(); } catch(e){ doc = null; }
-    if(doc && Array.isArray(doc.links)){
-      TRAINERS = doc.links.map(x => Object.assign({}, x));
-    } else {
-      // база порожня → показуємо вбудовані за замовчуванням, звівши назви до карти
-      TRAINERS = TRAINERS_DEFAULT.map(x => {
-        const c = Object.assign({}, x);
-        const r = trResolveSubj(c.subject); if(r) c.subject = r;
-        const rt = c.tier ? trResolveSubj_tier(c.tier) : ''; if(rt) c.tier = rt;
-        return c;
-      });
-      $('trMsg').innerHTML = '<div class="map-ok">ℹ У базі ще немає списку — показано вбудовані випробування. '
-        + 'Натисни «Зберегти випробування», щоб закріпити (після цього список береться з бази).</div>';
-    }
-  }
-  renderTrainers();
-}
-// звести назву ступеня до тієї, що в карті
 function trResolveSubj_tier(v){
   if(!v) return '';
   const n = trSlNorm(v);
@@ -3024,47 +2238,6 @@ function trResolveSubj_tier(v){
   for(const t of list){ if(trSlNorm(t.id) === n || trSlNorm(t.name) === n) return t.name; }
   for(const t of list){ if(trSlNorm(t.name).indexOf(n) >= 0) return t.name; }
   return '';
-}
-
-/* Звести нагороди до чистого вигляду: лишаємо тільки заповнені слоти (є предмет
-   або монетки). Шанс нормалізуємо до кроку 10% (не задано → 100%). Кожен слот —
-   це «шанс дропу»: за наявності виграшу дитина отримує предмет і/або монетки.
-   Порожній масив прибираємо. */
-function trCleanRewards(l){
-  const out = (Array.isArray(l.rewards) ? l.rewards : [])
-    .map(r => ({
-      item:   String((r && r.item) || '').trim(),
-      chance: (r && r.chance == null) ? 100 : Math.max(0, Math.min(100, Math.round((Number(r.chance) || 0) / 10) * 10)),
-      coins:  Math.max(0, Math.floor(Number(r && r.coins) || 0))
-    }))
-    .filter(r => r.item || r.coins);
-  if(out.length) l.rewards = out; else delete l.rewards;
-}
-
-async function saveTrainersDoc(){
-  if(!TRAINERS) return;
-  // прибираємо геть порожні рядки (без назви й без посилання)
-  const clean = TRAINERS.filter(l => (l.label && l.label.trim()) || (l.href && l.href.trim()));
-  const bad = clean.filter(l => !(l.subject && l.subject.trim()) || !(l.href && l.href.trim()));
-  if(bad.length){
-    $('trMsg').innerHTML = '<div class="map-warn">✘ У ' + bad.length
-      + ' випробуванн(ях) не заповнено предмет або посилання. Заповни або видали ці рядки.</div>';
-    toast('Заповни предмет і посилання', true);
-    return;
-  }
-  clean.forEach(trCleanRewards);   // нормалізуємо нагороди перед записом
-  try {
-    await SK_API.saveTrainers(clean);
-    TRAINERS = clean;
-    renderTrainers();
-    $('trMsg').innerHTML = '<div class="map-ok">✔ Збережено. Тепер випробування беруться з бази.</div>';
-    toast('Випробування збережено ✔');
-  } catch(e){
-    console.error(e);
-    $('trMsg').innerHTML = '<div class="map-warn">✘ Не вдалося зберегти. '
-      + 'Можливо, у правилах Firestore закрито документ <code>curriculum/trainers</code>.</div>';
-    toast('Не вдалося зберегти випробування', true);
-  }
 }
 
 /* ============================================================
@@ -3393,25 +2566,6 @@ async function exportListsTxt(){
       grp[k].push((g.name && g.name.trim()) || g.href || '');
     });
     order.sort((a,b) => (a === 'Інші') - (b === 'Інші') || a.localeCompare(b,'uk'));
-    order.forEach(k => { L(k); grp[k].forEach(n => L('  • ' + n)); L(''); });
-  }
-
-  // ── ТРЕНАЖЕРИ ──
-  let tr = TRAINERS;
-  if(!tr){
-    try { const dt = await SK_API.getTrainers(); tr = (dt && Array.isArray(dt.links)) ? dt.links : TRAINERS_DEFAULT; }
-    catch(e){ tr = TRAINERS_DEFAULT; }
-  }
-  L(RULE); L('ВИПРОБУВАННЯ (' + tr.length + ')'); L(RULE); L('');
-  {
-    const grp = {}, order = [];
-    tr.forEach(l => {
-      const k = (l.subject && String(l.subject).trim()) || 'Без предмета';
-      if(!grp[k]){ grp[k] = []; order.push(k); }
-      const suffix = (l.tier && String(l.tier).trim()) ? (' (' + String(l.tier).trim() + ')') : '';
-      grp[k].push(((l.label && l.label.trim()) || l.href || '') + suffix);
-    });
-    order.sort((a,b) => a.localeCompare(b,'uk'));
     order.forEach(k => { L(k); grp[k].forEach(n => L('  • ' + n)); L(''); });
   }
 
@@ -4001,7 +3155,7 @@ function bindEvents(){
   });
   $('listHome').onclick = goHome;
 
-  $('btnNew').onclick        = async () => { try{ await ensureMap(); }catch(e){} MAP_CAT=null; MAP_TIER=mapTierIdForGrade(1); cardNew('test', '', 1); };
+  $('btnNew').onclick        = async () => { try{ await ensureMap(); }catch(e){} MAP_TIER=mapTierIdForGrade(1); cardNew('test', '', 1); };
   $('btnBack').onclick       = closeEditor;
   $('btnSave').onclick       = saveDraft;
   $('filterSubject').onchange= renderList;
@@ -4011,9 +3165,6 @@ function bindEvents(){
   // ---- Редактор карти ----
   $('mapSave').onclick  = saveMap;
   // ---- Менеджер приналежності ----
-  if($('belTree'))       $('belTree').addEventListener('change', onBelChange);
-  if($('belShowHidden')) $('belShowHidden').onchange = renderBelong;
-  if($('belRefresh'))    $('belRefresh').onclick = refreshBelong;
   $('mapCheck').onclick = () => { checkMap(); };
   $('mapBack').onclick  = goHome;
   $('mapReset').onclick = () => {
@@ -4071,22 +3222,6 @@ function bindEvents(){
   $('mapTree').addEventListener('input',  onMapInput);
   $('mapTree').addEventListener('change', onMapInput);
   $('mapTree').addEventListener('click',  onMapClick);
-
-  // ---- Тренажери ----
-  $('trSave').onclick = saveTrainersDoc;
-  $('trAdd').onclick = () => {
-    if(!TRAINERS) TRAINERS = [];
-    TRAINERS.push({ subject:'', tier:'', grade:'', href:'', icon:'🔗', label:'', type:'page', blank:false, imgCard:'', imgPage:'', rewards:[] });
-    renderTrainers();
-  };
-  $('trBack').onclick = goHome;
-  $('trList').addEventListener('input',  onTrInput);
-  $('trList').addEventListener('change', onTrInput);
-  $('trList').addEventListener('click',  onTrClick);
-  $('trSortTier').onclick    = trSortByTier;
-  $('trSortSubj').onclick    = trSortBySubject;
-  $('trCollapseAll').onclick = trCollapseAll;
-  $('trExpandAll').onclick   = trExpandAll;
 
   // ---- Ігри ----
   $('gmSave').onclick = saveGamesDoc;
