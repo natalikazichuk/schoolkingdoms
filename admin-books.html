@@ -14,7 +14,7 @@
 <link rel="stylesheet" href="sk-admin.css?v=2">
 <script src="sk-admin.js?v=1"></script>
 <!-- Карта королівства: звідси беруться канонічні назви предметів. -->
-<script src="sk-curriculum.js?v=1"></script>
+<script src="sk-curriculum.js?v=2"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -252,7 +252,8 @@ function renderEditor(){
     +'  <div class="field"><label>Предмет</label><select id="m_subject">'
        +subjOptions(M.subject)
        +'</select></div>'
-    +'  <div class="field"><label>Клас</label><input type="number" id="m_grade" min="1" max="11" value="'+esc(M.grade)+'"></div>'
+    +'  <div class="field"><label>Клас</label><input type="number" id="m_grade" min="0" max="11" value="'+esc(M.grade)+'">'
+       +'<div class="note">0 — дошкільнята</div></div>'
     +'</div>'
     +'<div class="field"><label>Розділ бібліотеки (вкладка)</label>'
        +'<input type="text" id="m_category" list="catlist" value="'+esc(M.category||'')+'" placeholder="Напр.: Українські народні казки">'
@@ -314,7 +315,9 @@ function buildClean(){
     cover:(M.cover||'📕').trim()||'📕',
     subject:(subjectCanon(M.subject) || String(M.subject||'').trim()),
     category:(M.category||'').trim(),
-    grade:parseInt(M.grade,10)||1,
+    /* parseInt('0')||1 дорівнювало б 1 — дошкільна книга ставала першим
+       класом. Тому нуль перевіряємо окремо. */
+    grade:(function(g){ g=parseInt(g,10); return (g===0 ? 0 : (g||1)); })(M.grade),
     statMode: M.statMode==='perCorrect'?'perCorrect':'fixed',
     statValue: num(M.statValue),
     stat:'health',

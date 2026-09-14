@@ -49,7 +49,7 @@
   .empty{color:var(--muted);padding:30px 10px;text-align:center;font-weight:600}
   .loading{color:var(--muted);padding:30px 10px;text-align:center}
 </style>
-<script src="sk-curriculum.js"></script>
+<script src="sk-curriculum.js?v=2"></script>
 <script type="module" src="firebase-config.js"></script>
 </head>
 <body>
@@ -81,7 +81,13 @@
   /* дошкільне випробування — за ступенем (tier містить «дошкіл…»/«preschool»).
      Виноситься в окрему картку «Дошкільна освіта» ПЕРЕД 1 класом і не показується
      в жодному числовому класі. */
-  function isPre(l){ var t=normName(l.tier); return t.indexOf('preschool')>=0 || t.indexOf('дошкіл')>=0; }
+  function isPre(l){
+    /* Новий спосіб — клас 0 (адмінка тепер пише саме його).
+       Старий — ступінь «дошкіл…»/«preschool»; лишається, щоб уже
+       збережені записи не зникли з картки «Дошкільна освіта». */
+    if(String(l.grade==null?'':l.grade).trim()==='0') return true;
+    var t=normName(l.tier); return t.indexOf('preschool')>=0 || t.indexOf('дошкіл')>=0;
+  }
   function inClass(l,n){ return !isPre(l) && belongs(l,n); }
   function preCount(){ var c=0; LINKS.forEach(function(l){ if(validLink(l)&&isPre(l)) c++; }); return c; }
   function secLabel(n){ return n==='p' ? 'Дошкільна освіта' : (n+' клас'); }
