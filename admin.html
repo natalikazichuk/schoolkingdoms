@@ -624,6 +624,7 @@
         <div class="mapgrade-grid" id="mapSubjGrid"></div>
         <div class="toolbar" style="margin:14px 0 0">
           <div class="spacer"></div>
+          <button class="btn xs" id="mapSyncStruct" title="Розкласти по розділах тести, яких ще немає в структурі">🔁 Синхронізувати структуру</button>
           <button class="btn xs ghost" id="mapEditStruct" title="Ступені, предмети, розділи, порядок">⚙ Редагувати структуру класу</button>
         </div>
       </div>
@@ -2152,6 +2153,82 @@ function mapGradeMismatches(){
 }
 function gradeWord(n){ return Number(n) === 0 ? 'дошкілля' : (n + ' кл.'); }
 
+/* ── Синхронізація структури ──
+   У списку записів предмет показує все, що підходить за предметом і класом.
+   У структурі ж лежить лише те, що хтось туди поклав руками — тож предмет
+   міг мати 40 записів і жодного розділу. Тут беремо тести цього класу, яких
+   немає в жодному розділі карти, і розкладаємо по розділах за їхнім власним
+   полем «Тема (для групування)». Пишемо лише в чернетку карти — у базу піде
+   після «Зберегти карту», як і будь-яка інша правка структури. */
+function mapGradeObj(){
+  if(!MAP || MAP_GRADE == null) return null;
+  let found = null;
+  MAP.tiers.forEach(t => {
+    if(MAP_TIER && t.id !== MAP_TIER) return;
+    (t.grades || []).forEach(g => { if(!found && Number(g.gradeNum) === Number(MAP_GRADE)) found = g; });
+  });
+  return found;
+}
+function syncStructPlan(){
+  const g = mapGradeObj();
+  if(!g) return null;
+  const place = mapPlaceIndex();
+  const plan = [];
+  (g.subjects || []).forEach(sj => {
+    const add = (TESTS || []).filter(t => {
+      if(!t || !t.id || !t.title) return false;
+      if(Number(t.grade == null || t.grade === '' ? 1 : t.grade) !== Number(g.gradeNum)) return false;
+      if(place.has(t.id)) return false;
+      try { return window.SKCUR.subjectMatches(sj, t.subject); } catch(e){ return false; }
+    });
+    if(!add.length) return;
+    const groups = new Map();
+    add.forEach(t => {
+      // Тест без «Теми для групування» — в окремий розділ «Інше»:
+      // назву розділу бачить дитина, тож вона має читатись нормально.
+      const key = String(t.topic || '').trim() || 'Інше';
+      if(!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(t);
+    });
+    plan.push({ sj, groups, total: add.length });
+  });
+  return { g, plan };
+}
+function mapSyncStruct(){
+  if(!MAP){ toast('Спершу відкрий структуру', true); return; }
+  const res = syncStructPlan();
+  if(!res){ toast('Не знайшов цей клас у карті', true); return; }
+  const { g, plan } = res;
+  if(!plan.length){ toast('У структурі вже є все, що підходить цьому класу ✔'); return; }
+
+  const lines = [];
+  let total = 0;
+  plan.forEach(x => {
+    total += x.total;
+    lines.push('• ' + (x.sj.name || '—') + ' — ' + x.total + ':');
+    [...x.groups.entries()].forEach(([name, arr]) => lines.push('    «' + name + '» — ' + arr.length));
+  });
+  if(!confirm('Розкласти ' + total + ' тест(ів) по розділах ' + (Number(g.gradeNum) === 0 ? 'дошкілля' : g.gradeNum + ' класу') + '?\n\n'
+      + lines.join('\n')
+      + '\n\nРозділ береться з поля «Тема (для групування)» самого тесту.\n'
+      + 'Зміни лягають у чернетку — натисни «💾 Зберегти карту», щоб закріпити.')) return;
+
+  const norm = v => String(v || '').trim().toLowerCase();
+  plan.forEach(x => {
+    if(!Array.isArray(x.sj.topics)) x.sj.topics = [];
+    [...x.groups.entries()].forEach(([name, arr]) => {
+      let tp = x.sj.topics.find(t => norm(t.topic) === norm(name));
+      if(!tp){ tp = { topic:name, chain:false, chainGroup:'', tests:[] }; x.sj.topics.push(tp); }
+      if(!Array.isArray(tp.tests)) tp.tests = [];
+      arr.forEach(t => { if(!tp.tests.includes(t.id)) tp.tests.push(t.id); });
+    });
+  });
+  renderMap();
+  renderMapSubjects();
+  toast('Розкладено: ' + total + '. Не забудь «Зберегти карту»');
+  mapOpenContent(MAP_GRADE);
+}
+
 async function fixMapGrades(){
   if(!MAP){ toast('Спершу відкрий структуру', true); return; }
   const list = mapGradeMismatches();
@@ -3359,6 +3436,7 @@ function bindEvents(){
     if(!t || mapTierIsPre(t)) mapShowTiers(); else mapShowGrades();
   };
   if($('mapEditStruct')) $('mapEditStruct').onclick = () => mapOpenContent(MAP_GRADE);
+  if($('mapSyncStruct')) $('mapSyncStruct').onclick = mapSyncStruct;
   if($('mapSubjGrid'))   $('mapSubjGrid').addEventListener('click', e => {
     const b = e.target.closest('[data-msubj]'); if(!b) return;
     mapOpenRecs(b.getAttribute('data-msubj'));
