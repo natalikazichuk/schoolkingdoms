@@ -1004,7 +1004,7 @@ function placeNote(testId, curPath, curGrade){
   return ' · вже в «' + x.topic + '»' + cls + (other.length > 1 ? ' +' + (other.length - 1) : '');
 }
 
-function testOptions(selected, grade, subjName, curPath){
+function testOptions(selected, grade, subj, curPath){
   // Значення <option> — це id тесту, а не назва: перейменування тесту більше
   // не рве ланцюг. Старі карти зберігали назви — findTest їх ще розпізнає,
   // а міграція при відкритті замінює на id.
@@ -1030,7 +1030,7 @@ function testOptions(selected, grade, subjName, curPath){
   pool.forEach(t => {
     if(gnum(t) !== want){ otherGrade.push(t); return; }
     let fits = true;
-    try { fits = !subjName || window.SKCUR.subjectMatches({ name:subjName }, t.subject); }
+    try { fits = !subj || window.SKCUR.subjectMatches(subj, t.subject); }
     catch(e){ fits = true; }
     (fits ? sameSubj : otherSubj).push(t);
   });
@@ -1060,7 +1060,7 @@ function testOptions(selected, grade, subjName, curPath){
 /* Чи збігається обраний у розділі тест із класом і предметом розділу.
    Повертає текст попередження або '' — малюємо його просто в рядку, щоб
    не треба було натискати «Перевірити», аби побачити проблему. */
-function testRefWarn(selected, grade, subjName){
+function testRefWarn(selected, grade, subj){
   const t = window.SKCUR.findTest(selected, window.SKCUR.indexTests(TESTS));
   if(!selected || !t) return '';
   const gn = Number(t.grade == null || t.grade === '' ? 1 : t.grade);
@@ -1068,7 +1068,7 @@ function testRefWarn(selected, grade, subjName){
     return 'клас у тесті — ' + (gn === 0 ? 'дошкілля' : gn + ' кл.') + ', тут не покажеться';
   }
   try {
-    if(subjName && !window.SKCUR.subjectMatches({ name:subjName }, t.subject)){
+    if(subj && !window.SKCUR.subjectMatches(subj, t.subject)){
       return 'предмет у тесті — «' + t.subject + '»';
     }
   } catch(e){}
@@ -1211,10 +1211,10 @@ function renderMap(){
             + '</div>'
             + '<div class="map-kids">';
           (tp.tests || []).forEach((name, xi) => {
-            const warn = testRefWarn(name, g.gradeNum, sj.name);
+            const warn = testRefWarn(name, g.gradeNum, sj);
             html += '<div class="test-row' + (warn ? ' bad' : '') + '">'
               + '<select class="grow" data-f="test.name" data-p="' + pP + '.' + xi + '">'
-                + testOptions(name, g.gradeNum, sj.name, pP + '.' + xi)
+                + testOptions(name, g.gradeNum, sj, pP + '.' + xi)
               + '</select>'
               + (warn ? '<span class="test-warn" title="Виправ клас або предмет у картці тесту">⚠ ' + esc(warn) + '</span>' : '')
               + '<span class="map-btns">'
