@@ -110,7 +110,10 @@ var DEFAULT_MAP = {
             { id:'eng',  icon:'🔤', name:'English', accent:'#3FB6A8', statKey:'mana', stat:'Мана 🔮',
               keys:['english','англ'], topics:[] },
             { id:'ukr',  icon:'🌺', name:'Українська мова', accent:'#D6577A', statKey:'health', stat:'Здоровʼя ❤️',
-              keys:['україн','укр мова','рідна мова'], topics:[] }
+              keys:['україн','укр мова','рідна мова'], topics:[] },
+            // Дозвілля — свідомо без statKey: проходження не качає характеристик героя.
+            { id:'fun',  icon:'🎡', name:'Дозвілля', accent:'#8E7CC3',
+              keys:['дозвіл','відпочин','розваг'], topics:[] }
           ] }
       ] },
     { id:'senior', icon:'🏰', name:'Старша школа', status:'soon',
