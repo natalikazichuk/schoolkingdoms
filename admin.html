@@ -425,6 +425,12 @@
 </head>
 <body>
 
+<!-- Підказки ID предметів інвентаря для полів нагород. Живе на рівні
+     документа: списком користуються і картка редактора (data-cf="rItem"),
+     і рядок структури (data-mtf="rItem"), не лише панель випробувань.
+     Наповнює trFillItemsDatalist(). -->
+<datalist id="trItems"></datalist>
+
 <!-- ===== ГЕЙТ: завантаження / перевірка доступу ===== -->
 <div class="gate" id="gate">
   <div class="box" id="gateLoading">
@@ -471,9 +477,6 @@
     <div class="toolbar">
       <button class="btn ghost" id="listHome">🏠 Головна</button>
       <button class="btn gold" id="btnNew">＋ Новий тест</button>
-      <button class="btn" id="btnImport">⬆ Імпорт JSON</button>
-      <button class="btn ghost" id="btnExportAll">⬇ Експорт усіх</button>
-      <button class="btn ghost" id="btnPrintLists">📄 Списки для друку</button>
       <div class="spacer"></div>
       <button class="btn xs" id="listCollapseAll">▸ Згорнути все</button>
       <button class="btn xs" id="listExpandAll">▾ Розгорнути все</button>
@@ -574,6 +577,19 @@
       </div>
 
       <div class="panel">
+        <h2>🧰 Інструменти розділу</h2>
+        <p class="hint" style="margin:8px 0 12px">
+          Дії над усім навчальним контентом одразу: перенести тести з файлу,
+          вивантажити резервну копію, роздрукувати списки.
+        </p>
+        <div class="toolbar" style="margin:0">
+          <button class="btn" id="btnImport">⬆ Імпорт JSON</button>
+          <button class="btn ghost" id="btnExportAll">⬇ Експорт усіх</button>
+          <button class="btn ghost" id="btnPrintLists">📄 Списки для друку</button>
+        </div>
+      </div>
+
+      <div class="panel">
         <h2>🔀 Приналежність</h2>
         <p class="hint" style="margin:8px 0 12px">
           Тут зібрано <b>всі тести й випробування</b>. Для кожного можна змінити тип
@@ -638,6 +654,11 @@
         <button class="back-lnk" id="mapRecsBack">← Предмети</button>
         <div class="map-crumb" id="mapRecsCrumb"></div>
         <p class="hint" id="mapRecsHint" style="margin:2px 0 12px"></p>
+        <div class="toolbar" style="margin:2px 0 10px">
+          <label style="display:inline-flex;gap:7px;align-items:center;font-weight:700;font-size:.9rem;cursor:pointer">
+            <input type="checkbox" id="mapRecsShowHidden" checked> Показати сховані
+          </label>
+        </div>
         <div id="mapRecsList"></div>
         <div class="toolbar" style="margin:12px 0 0">
           <button class="btn gold" id="mapRecAdd">＋ Додати</button>
@@ -688,7 +709,6 @@
         сторінці випробування. Немає файлу — показується емодзі-іконка.
         Порожні рядки не зберігаються.
       </p>
-      <datalist id="trItems"></datalist>
       <div class="toolbar" style="margin:4px 0 12px">
         <button class="btn xs" id="trAdd">＋ Випробування</button>
         <div class="spacer"></div>
@@ -1498,9 +1518,16 @@ function mapOpenRecs(subjName){
 }
 function renderMapRecs(){
   const host = $('mapRecsList'); if(!host) return;
-  const recs = drillRecords(MAP_SUBJ);
+  /* Сховані — це тести-обгортки, які лишилися після «Тест → Випробування».
+     Типово показуємо (щоб лічильник предмета збігався зі списком), але їх
+     можна прибрати з очей галочкою. */
+  const showHidden = !$('mapRecsShowHidden') || $('mapRecsShowHidden').checked;
+  const all  = drillRecords(MAP_SUBJ);
+  const recs = showHidden ? all : all.filter(r => !(r.kind === 'test' && r.obj && r.obj.hidden));
   if(!recs.length){
-    host.innerHTML = '<div class="drill-empty">Тут поки порожньо. Натисни «＋ Додати».</div>';
+    host.innerHTML = all.length
+      ? '<div class="drill-empty">Усі записи цього предмета — сховані.<br>Увімкни «Показати сховані», щоб їх побачити.</div>'
+      : '<div class="drill-empty">Тут поки порожньо. Натисни «＋ Додати».</div>';
     return;
   }
   let html = '';
@@ -1509,6 +1536,7 @@ function renderMapRecs(){
     const nm  = isT ? ((r.obj && r.obj.title) || '—') : ((r.obj && (r.obj.label || r.obj.href)) || '—');
     const ic  = isT ? '📝' : ((r.obj && r.obj.icon) || '🎮');
     let badge = '';
+    if(isT && r.obj && r.obj.hidden)           badge += ' <span class="bel-badge">сховано</span>';
     if(isT && r.obj && r.obj.active === false) badge += ' <span class="bel-badge">вимкнено</span>';
     if(isT && belIsLinkTest(r.obj))            badge += ' <span class="bel-badge tr">посилання</span>';
     const meta = isT ? (countQ(r.obj) + ' пит.') : (((r.obj && r.obj.type) === 'video') ? 'відео' : 'сторінка');
@@ -1530,6 +1558,7 @@ function mapOpenCard(key){
   else return;
   MAP_REC = { kind, id, idx };
   CARD_DRAFT = null;
+  trFillItemsDatalist();   // підказки ID предметів для полів «нагороди» у картці
   showOnly('viewMap');
   mapHideScreens();
   if($('mapScrCard')) $('mapScrCard').classList.remove('hidden');
@@ -1932,6 +1961,7 @@ async function openCardForTest(id){
 }
 
 function cardAdd(){
+  trFillItemsDatalist();   // підказки ID предметів для полів «нагороди»
   cardNew(MAP_CAT === 'trainers' ? 'trainer' : 'test', MAP_SUBJ || '', MAP_GRADE);
 }
 
@@ -3913,6 +3943,7 @@ function bindEvents(){
     mapOpenCard(b.getAttribute('data-mrec'));
   });
   if($('mapRecAdd')) $('mapRecAdd').onclick = cardAdd;
+  if($('mapRecsShowHidden')) $('mapRecsShowHidden').onchange = renderMapRecs;
   // Екран 5: картка
   if($('mapCardBack')) $('mapCardBack').onclick = () => mapOpenRecs(MAP_SUBJ);
   if($('mapCardBody')){
