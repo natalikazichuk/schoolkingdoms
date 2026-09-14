@@ -232,7 +232,10 @@
     .map-lvl{font-size:.6rem;padding:2px 5px}
     .dep-warn{font-size:.8rem}
   }
-  .test-row{display:flex;align-items:center;gap:6px;margin-top:5px}
+  .test-row{display:flex;align-items:center;gap:6px;margin-top:5px;flex-wrap:wrap}
+  .test-row.bad > select{border-color:var(--gold-deep);background:#fdf5e0}
+  .test-warn{font-size:.76rem;font-weight:800;color:var(--gold-ink);background:#fdf5e0;
+    border:1px solid #f0dca8;border-radius:999px;padding:3px 9px;flex:0 0 auto}
   .test-row select{padding:6px 9px;font-size:.85rem;width:auto;min-width:0}
   .test-row .grow{flex:1 1 auto;min-width:60px}
   .map-head .switch{flex:0 0 auto;white-space:nowrap}
@@ -973,21 +976,68 @@ function testOptions(selected, grade, subjName){
   // а міграція при відкритті замінює на id.
   const idx = window.SKCUR.indexTests(TESTS);
   const cur = window.SKCUR.findTest(selected, idx);
-  const pool = TESTS.filter(t => t && t.title);
-  const fit = pool.filter(t => Number(t.grade || 1) === Number(grade));
-  const list = (fit.length ? fit : pool).slice()
-    .sort((a, b) => String(a.title).localeCompare(String(b.title), 'uk'));
+  const pool = (TESTS || []).filter(t => t && t.title);
+
+  /* Клас тесту. Нуль — це дошкілля, а не «порожньо»: через `t.grade || 1`
+     дошкільні тести читались як 1 клас, список для дошкільного розділу
+     виходив порожній і мовчки підмінявся на ВСІ тести підряд. Тоді в розділ
+     можна було покласти тест чужого класу, нічого про це не дізнавшись —
+     у списку записів він потім не зʼявлявся. */
+  const gnum = t => Number(t.grade == null || t.grade === '' ? 1 : t.grade);
+  const want = Number(grade);
+  const byTitle = (a, b) => String(a.title).localeCompare(String(b.title), 'uk');
+  const label = t => esc(t.title) + (t.active === false ? ' (вимкнено)' : '');
+  const opt = t => '<option value="' + esc(t.id) + '"'
+    + (cur && cur.id === t.id ? ' selected' : '') + '>' + label(t) + '</option>';
+  const clsName = n => (n === 0 ? 'дошкілля' : n + ' кл.');
+
+  let sameSubj = [], otherSubj = [], otherGrade = [];
+  pool.forEach(t => {
+    if(gnum(t) !== want){ otherGrade.push(t); return; }
+    let fits = true;
+    try { fits = !subjName || window.SKCUR.subjectMatches({ name:subjName }, t.subject); }
+    catch(e){ fits = true; }
+    (fits ? sameSubj : otherSubj).push(t);
+  });
+  sameSubj.sort(byTitle); otherSubj.sort(byTitle); otherGrade.sort(byTitle);
 
   let html = '<option value="">— обери тест —</option>';
-  list.forEach(t => {
-    html += '<option value="' + esc(t.id) + '"' + (cur && cur.id === t.id ? ' selected' : '') + '>'
-          + esc(t.title) + (t.active === false ? ' (вимкнено)' : '') + '</option>';
-  });
+  if(sameSubj.length) html += sameSubj.map(opt).join('');
+  if(otherSubj.length){
+    html += '<optgroup label="Інший предмет — цей клас">' + otherSubj.map(opt).join('') + '</optgroup>';
+  }
+  if(otherGrade.length){
+    /* Інші класи показуємо, але окремою групою й з підписом класу — щоб
+       випадковий вибір чужого класу було видно одразу. */
+    html += '<optgroup label="⚠ Інші класи — у цьому розділі не покажеться">'
+      + otherGrade.map(t => '<option value="' + esc(t.id) + '"'
+          + (cur && cur.id === t.id ? ' selected' : '') + '>'
+          + label(t) + ' — ' + clsName(gnum(t)) + '</option>').join('')
+      + '</optgroup>';
+  }
   // посилання є в карті, але такого тесту в базі немає — показуємо, не ховаємо
   if(selected && !cur){
     html += '<option value="' + esc(selected) + '" selected>⚠ ' + esc(selected) + ' — немає в базі</option>';
   }
   return html;
+}
+
+/* Чи збігається обраний у розділі тест із класом і предметом розділу.
+   Повертає текст попередження або '' — малюємо його просто в рядку, щоб
+   не треба було натискати «Перевірити», аби побачити проблему. */
+function testRefWarn(selected, grade, subjName){
+  const t = window.SKCUR.findTest(selected, window.SKCUR.indexTests(TESTS));
+  if(!selected || !t) return '';
+  const gn = Number(t.grade == null || t.grade === '' ? 1 : t.grade);
+  if(gn !== Number(grade)){
+    return 'клас у тесті — ' + (gn === 0 ? 'дошкілля' : gn + ' кл.') + ', тут не покажеться';
+  }
+  try {
+    if(subjName && !window.SKCUR.subjectMatches({ name:subjName }, t.subject)){
+      return 'предмет у тесті — «' + t.subject + '»';
+    }
+  } catch(e){}
+  return '';
 }
 
 /* ── Згортання гілок ──
@@ -1125,10 +1175,12 @@ function renderMap(){
             + '</div>'
             + '<div class="map-kids">';
           (tp.tests || []).forEach((name, xi) => {
-            html += '<div class="test-row">'
+            const warn = testRefWarn(name, g.gradeNum, sj.name);
+            html += '<div class="test-row' + (warn ? ' bad' : '') + '">'
               + '<select class="grow" data-f="test.name" data-p="' + pP + '.' + xi + '">'
                 + testOptions(name, g.gradeNum, sj.name)
               + '</select>'
+              + (warn ? '<span class="test-warn" title="Виправ клас або предмет у картці тесту">⚠ ' + esc(warn) + '</span>' : '')
               + '<span class="map-btns">'
                 + '<button class="btn xs" data-a="test.up" data-p="' + pP + '.' + xi + '" title="Вище">↑</button>'
                 + '<button class="btn xs" data-a="test.down" data-p="' + pP + '.' + xi + '" title="Нижче">↓</button>'
