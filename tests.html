@@ -10,8 +10,7 @@
 <link rel="stylesheet" href="sk-styles.css">
 <style>
   /* ── контейнер сторінки (на голубому небі зі sk-styles.css) ── */
-  /* та сама ширина й поля, що в .nv-wrap на navchannia/doshkillya — щоб плитки збігались */
-  .wrap{max-width:940px;margin:0 auto;padding:20px 14px calc(94px + env(safe-area-inset-bottom))}
+  .wrap{max-width:960px;margin:0 auto;padding:20px 16px calc(94px + env(safe-area-inset-bottom))}
   .page-head{text-align:left;margin:2px 4px 16px}
   .page-head h1{font-family:'Playfair Display',serif;font-weight:900;
     font-size:clamp(1.4rem,4vw,1.9rem);color:var(--gold);margin:0;
@@ -33,8 +32,40 @@
     color:#ffe9a8;text-shadow:0 2px 6px rgba(0,0,0,.35)}
   .tg-cnt{font-weight:800;font-size:.8rem;color:#cfe0ff;opacity:.85;
     background:rgba(255,255,255,.10);border-radius:999px;padding:2px 10px}
-  /* Плитки (.lvgrid/.nv-grid + .lv*) — спільні, у sk-styles.css.
-     Тут їх НЕ дублюємо: саме через копії розміри розʼїжджались. */
+  /* Плитки — та сама мова, що на navchannia.html і doshkillya.html:
+     фон-картинка, затемнення, назва, підпис і смужка прогресу. */
+  .lvgrid{display:grid;gap:clamp(12px,2.2vw,16px);
+    grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+  .lv{position:relative;display:block;text-decoration:none;overflow:hidden;
+    border-radius:20px;aspect-ratio:16/10;min-height:160px;width:100%;
+    border:2px solid rgba(242,199,92,.7);cursor:pointer;
+    box-shadow:0 12px 30px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.12);
+    transition:transform .15s,box-shadow .15s,border-color .15s;
+    background:linear-gradient(160deg,var(--g1,#27518c),var(--g2,#16356a))}
+  .lv:hover:not(.locked){transform:translateY(-3px);border-color:var(--gold);
+    box-shadow:0 18px 40px rgba(0,0,0,.5),0 0 22px -6px rgba(242,199,92,.6)}
+  .lv.locked{cursor:default;filter:grayscale(.35);opacity:.85}
+  .lv-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+  .lv-scrim{position:absolute;inset:0;z-index:1;
+    background:linear-gradient(180deg,rgba(8,18,40,.15) 0%,rgba(8,18,40,.35) 45%,rgba(8,18,40,.82) 100%)}
+  .lv-body{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;
+    justify-content:flex-end;padding:14px 15px;text-align:left}
+  .lv-ic{position:absolute;top:12px;left:14px;font-size:1.9rem;line-height:1;
+    filter:drop-shadow(0 2px 5px rgba(0,0,0,.6))}
+  .lv-name{font-family:'Playfair Display',serif;font-weight:900;color:#fff;
+    font-size:clamp(1.15rem,3.4vw,1.5rem);line-height:1.05;text-shadow:0 2px 8px rgba(0,0,0,.7)}
+  .lv-sub2{color:#ffe9b8;font-weight:800;font-size:.78rem;margin-top:2px;text-shadow:0 1px 5px rgba(0,0,0,.7)}
+  .lv-prog{margin-top:10px;display:flex;align-items:center;gap:9px}
+  .lv-track{position:relative;flex:1 1 auto;height:9px;border-radius:999px;
+    background:rgba(0,0,0,.38);box-shadow:inset 0 1px 3px rgba(0,0,0,.45);overflow:hidden}
+  .lv-track i{position:absolute;inset:0 auto 0 0;border-radius:999px;
+    background:linear-gradient(90deg,#8fd98f,#4fae52)}
+  .lv-track[data-full="1"] i{background:linear-gradient(90deg,#ffd54a,#e0a726)}
+  .lv-ptx{flex:0 0 auto;font-weight:800;font-size:.78rem;color:#ffe9b8;
+    text-shadow:0 1px 5px rgba(0,0,0,.7)}
+  .lv-soon{margin-top:9px;display:inline-flex;align-items:center;gap:6px;align-self:flex-start;
+    color:#e8eef9;font-weight:900;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;
+    background:rgba(0,0,0,.42);border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:5px 12px}
 
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
   @media(max-width:560px){.grid{grid-template-columns:1fr 1fr;gap:12px}}
@@ -376,56 +407,10 @@
   /* Спільна плитка: фон-картинка (якщо є), затемнення, назва, підпис,
      смужка прогресу або замок «Скоро». Картинку шукаємо за передбачуваним
      шляхом і ховаємо, якщо файлу немає — тоді лишається кольорова плашка. */
-  /* Кілька шляхів до картинки: спершу власна (subj-<id>.webp / klas-N.webp),
-     далі — спільна за темою. Якщо файлу немає, браузер кидає error і ми
-     пробуємо наступний; коли скінчились — ховаємо, лишиться кольорова плашка. */
-  window.SKIMGFB = function(el){
-    var fb = String(el.getAttribute('data-fb')||'').split('|').filter(Boolean);
-    if(!fb.length){ el.style.display = 'none'; return; }
-    var next = String(fb[0]).split('~');
-    el.setAttribute('data-fb', fb.slice(1).join('|'));
-    el.style.objectPosition = next[1] || '';
-    el.src = next[0];
-  };
-  /* Кожен варіант — 'шлях' або 'шлях~кадрування' (object-position). */
-  function lvImg(list){
-    var arr = (list||[]).filter(Boolean);
-    if(!arr.length) return '';
-    var one = String(arr[0]).split('~');
-    return '<img class="lv-bg" src="'+esc(one[0])+'" alt="" loading="lazy"'
-         + (one[1] ? ' style="object-position:'+esc(one[1])+'"' : '')
-         + ' data-fb="'+esc(arr.slice(1).join('|'))+'" onerror="SKIMGFB(this)">';
-  }
-  /* Спільні фони за темою предмета — ті самі файли, що на doshkillya.html.
-     Предмет із адмінки має згенерований id, тож шукаємо ще й за назвою. */
-  var SUBJ_IMG = [
-    { re:/математ|лічб|цифр|number|math/,                    img:'img/nav/dis-tsyfry.webp' },
-    { re:/українськ|абетк|букв|читанн|грамот|мова/,           img:'img/nav/dis-bukvy.webp' },
-    { re:/english|англ/,                                     img:'img/nav/dis-english.webp' },
-    { re:/ядс|досліджую світ|природ|довкіл|світ/,             img:'img/nav/dis-svit.webp' }
-  ];
-  var SUBJ_IMG_ID = { math:'img/nav/dis-tsyfry.webp', ukr:'img/nav/dis-bukvy.webp',
-                      eng:'img/nav/dis-english.webp', yads:'img/nav/dis-svit.webp' };
-  function subjImgs(sj){
-    var own = 'img/nav/subj-'+encodeURIComponent(sj.id)+'.webp';
-    var hay = (String(sj.id||'')+' '+String(sj.name||'')).toLowerCase().replace(/[’'`ʼ]/g,'');
-    var byTheme = SUBJ_IMG_ID[sj.id] || '';
-    if(!byTheme){
-      for(var i=0;i<SUBJ_IMG.length;i++) if(SUBJ_IMG[i].re.test(hay)){ byTheme = SUBJ_IMG[i].img; break; }
-    }
-    return [own, byTheme];
-  }
-  /* Запасна картинка класу — банер ступеня з «Навчання». Угорі на ньому
-     намальована назва ступеня, тому кадруємо знизу: інакше поряд із «2 клас»
-     великими літерами читалось би «Молодша школа». */
-  function gradeImgs(g){
-    if(g.preschool) return ['img/nav/doshkillyatko.webp~center bottom'];
-    var n = Number(g.num)||0;
-    return ['img/nav/klas-'+n+'.webp',
-            (n<=4 ? 'img/nav/molodsha.webp' : 'img/nav/starsha.webp') + '~center bottom'];
-  }
   function lvTile(o){
-    var img = lvImg(o.imgs || [o.img]);
+    var img = o.img
+      ? '<img class="lv-bg" src="'+esc(o.img)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'">'
+      : '';
     var body = '<span class="lv-ic">'+esc(o.icon||'📘')+'</span>'
       + '<span class="lv-name">'+esc(o.name)+'</span>'
       + (o.sub ? '<span class="lv-sub2">'+esc(o.sub)+'</span>' : '');
@@ -469,7 +454,7 @@
         name: pre ? (g.label||'Дошкільнятко') : (g.num+' клас'),
         sub:  has ? (p.total+' тест.') : (g.soon ? 'Готуємо' : 'Поки порожньо'),
         icon: pre ? (g.icon||'🌱') : '📖',
-        imgs: gradeImgs(g),
+        img:  pre ? 'img/nav/doshkillyatko.webp' : ('img/nav/klas-'+g.num+'.webp'),
         g1:'#3a5aa0', g2:'#1c356b',
         soon: !has,
         passed: p.passed, total: p.total,
@@ -489,7 +474,7 @@
         name: sj.name,
         sub:  has ? (p.total+' тест.') : 'Поки порожньо',
         icon: sj.icon,
-        imgs: subjImgs(sj),
+        img:  'img/nav/subj-'+encodeURIComponent(sj.id)+'.webp',
         g1: ac.g1, g2: ac.g2,
         soon: !has,
         passed: p.passed, total: p.total,
