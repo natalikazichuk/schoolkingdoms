@@ -971,7 +971,39 @@ function move(arr, i, d){
 }
 
 /* назви всіх тестів у базі — для випадаючих списків */
-function testOptions(selected, grade, subjName){
+/* Де вже лежить кожен тест у структурі: testId → [{path, topic, grade, subj}].
+   Потрібно, щоб у списку вибору було видно, що тест уже кудись покладений:
+   один тест у двох розділах показується дитині лише в першому (це ловить
+   і checkMap, але після того, як дубль уже зроблено). Будуємо раз на
+   перемальовування — renderMap кличе testOptions для кожного рядка. */
+let MAP_PLACE = null;
+function mapPlaceIndex(){
+  const byId = new Map();
+  if(!MAP) return byId;
+  const idx = window.SKCUR.indexTests(TESTS || []);
+  MAP.tiers.forEach((tier, ti) => (tier.grades || []).forEach((g, gi) => (g.subjects || []).forEach((sj, si) =>
+    (sj.topics || []).forEach((tp, pi) => (tp.tests || []).forEach((ref, xi) => {
+      if(!ref) return;
+      const t = window.SKCUR.findTest(ref, idx);
+      if(!t || !t.id) return;
+      if(!byId.has(t.id)) byId.set(t.id, []);
+      byId.get(t.id).push({ path: ti + '.' + gi + '.' + si + '.' + pi + '.' + xi,
+        topic: tp.topic || '—', grade: Number(g.gradeNum), subj: sj.name || '—' });
+    }))
+  )));
+  return byId;
+}
+/* Підпис «вже в …» для тесту — без місця, де його зараз обирають. */
+function placeNote(testId, curPath, curGrade){
+  const all = (MAP_PLACE || (MAP_PLACE = mapPlaceIndex())).get(testId) || [];
+  const other = all.filter(x => x.path !== curPath);
+  if(!other.length) return '';
+  const x = other[0];
+  const cls = (Number(x.grade) === Number(curGrade)) ? '' : (' ' + gradeWord(x.grade));
+  return ' · вже в «' + x.topic + '»' + cls + (other.length > 1 ? ' +' + (other.length - 1) : '');
+}
+
+function testOptions(selected, grade, subjName, curPath){
   // Значення <option> — це id тесту, а не назва: перейменування тесту більше
   // не рве ланцюг. Старі карти зберігали назви — findTest їх ще розпізнає,
   // а міграція при відкритті замінює на id.
@@ -987,7 +1019,8 @@ function testOptions(selected, grade, subjName){
   const gnum = t => Number(t.grade == null || t.grade === '' ? 1 : t.grade);
   const want = Number(grade);
   const byTitle = (a, b) => String(a.title).localeCompare(String(b.title), 'uk');
-  const label = t => esc(t.title) + (t.active === false ? ' (вимкнено)' : '');
+  const label = t => esc(t.title) + (t.active === false ? ' (вимкнено)' : '')
+                   + esc(placeNote(t.id, curPath, grade));
   const opt = t => '<option value="' + esc(t.id) + '"'
     + (cur && cur.id === t.id ? ' selected' : '') + '>' + label(t) + '</option>';
   const clsName = n => (n === 0 ? 'дошкілля' : n + ' кл.');
@@ -1074,6 +1107,7 @@ function collapseAll(){ allColKeys().forEach(k => COLLAPSED.add(k)); renderMap()
 function expandAll(){ COLLAPSED.clear(); renderMap(); }
 
 function renderMap(){
+  MAP_PLACE = null;            // карта могла змінитись — індекс перезбираємо
   const problem = skcurProblem();
   if(problem){ if($('mapTree')) $('mapTree').innerHTML = depWarnHtml(problem); return; }
   if(!MAP){ if($('mapTree')) $('mapTree').innerHTML = ''; return; }
@@ -1179,7 +1213,7 @@ function renderMap(){
             const warn = testRefWarn(name, g.gradeNum, sj.name);
             html += '<div class="test-row' + (warn ? ' bad' : '') + '">'
               + '<select class="grow" data-f="test.name" data-p="' + pP + '.' + xi + '">'
-                + testOptions(name, g.gradeNum, sj.name)
+                + testOptions(name, g.gradeNum, sj.name, pP + '.' + xi)
               + '</select>'
               + (warn ? '<span class="test-warn" title="Виправ клас або предмет у картці тесту">⚠ ' + esc(warn) + '</span>' : '')
               + '<span class="map-btns">'
