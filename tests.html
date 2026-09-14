@@ -26,6 +26,12 @@
   .back:hover{transform:translateY(-2px);border-color:var(--gold)}
 
   /* ── сітка карток ── */
+  .tgroup{display:flex;align-items:baseline;gap:10px;margin:22px 4px 10px}
+  .tgroup:first-of-type{margin-top:6px}
+  .tg-name{font-family:'Playfair Display',Georgia,serif;font-weight:800;font-size:1.12rem;
+    color:#ffe9a8;text-shadow:0 2px 6px rgba(0,0,0,.35)}
+  .tg-cnt{font-weight:800;font-size:.8rem;color:#cfe0ff;opacity:.85;
+    background:rgba(255,255,255,.10);border-radius:999px;padding:2px 10px}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
   @media(max-width:560px){.grid{grid-template-columns:1fr 1fr;gap:12px}}
 
@@ -117,7 +123,7 @@
     <div id="screen"><div class="empty">Завантаження тестів…</div></div>
   </main>
 
-<script src="sk-footer.js?v=3" data-active="tests"></script>
+<script src="sk-footer.js?v=5" data-active="navch" data-back="navchannia.html"></script>
 
 <!-- Спільна карта королівства. МАЄ йти перед інлайн-скриптом нижче -->
 <script src="sk-curriculum.js?v=3"></script>
@@ -244,8 +250,17 @@
     function ensureSubj(gr, subj){
       var s = gr.subs[subj.id];
       if(!s){ s={id:subj.id,name:subj.name,icon:subj.icon||'📘',accent:subj.accent||'#5C6BC0',
-        stat:subj.stat||'',tests:[],_seen:{}}; gr.subs[subj.id]=s; gr.order.push(subj.id); }
+        stat:subj.stat||'',tests:[],_seen:{},groups:[],_gseen:{}}; gr.subs[subj.id]=s; gr.order.push(subj.id); }
       return s;
+    }
+    /* Розділ («Числа в межах 10» тощо) — той самий, що в структурі адмінки.
+       Тести показуємо згрупованими за ним; те, що лежить поза розділами,
+       іде в кінець без заголовка. */
+    function ensureGroup(s, name){
+      var key = name || '';
+      var g = s._gseen[key];
+      if(!g){ g = { name:key, tests:[] }; s._gseen[key]=g; s.groups.push(g); }
+      return g;
     }
     function addBucket(b){
       // placeTests повертає запис на КОЖЕН розділ карти, навіть порожній —
@@ -253,7 +268,13 @@
       if(!b.tests || !b.tests.length) return;
       var key = isPreschoolTier(b.tier) ? 'p' : String(Number(b.grade.gradeNum)||0);
       var gr=ensureGrade(key); var s=ensureSubj(gr,b.subj);
-      b.tests.forEach(function(t){ if(s._seen[t.id]) return; s._seen[t.id]=1; s.tests.push(toTestObj(t,b.subj.icon)); });
+      var gname = (b.topic && b.topic.topic) ? String(b.topic.topic) : '';
+      var grp = ensureGroup(s, gname);
+      b.tests.forEach(function(t){
+        if(s._seen[t.id]) return; s._seen[t.id]=1;
+        var o = toTestObj(t, b.subj.icon);
+        s.tests.push(o); grp.tests.push(o);
+      });
     }
     P.topics.forEach(addBucket);
     P.subjects.forEach(addBucket);
@@ -274,7 +295,7 @@
         if(s._seen[t.id]) return; s._seen[t.id]=1;
         var o=toTestObj(t,'📦');
         if(!isPre && Number(t.grade) && String(Number(t.grade))!==firstKey) o.title='['+t.grade+' кл] '+o.title;
-        s.tests.push(o);
+        s.tests.push(o); ensureGroup(s, '').tests.push(o);
       });
     }
     return { grades:G };
@@ -382,7 +403,7 @@
     q('pgSub').textContent=secTitle(selGrade)+' · '+(s?s.name:'');
     var html='<button class="back" data-back="subjects">← Предмети</button>';
     if(!s || !s.tests.length){ html+='<div class="empty">Тестів поки немає — додай їх в адмін-панелі.</div>'; q('screen').innerHTML=html; return; }
-    html+='<div class="grid">'+s.tests.map(function(t){
+    function cardHtml(t){
       var label, cls='';
       if(t.isLink){ var pdl=isPassed(t); label=pdl?'✅ пройдено':'▶ відкрити'; if(pdl) cls='done'; }
       else if(t.isLevels){ var d=doneLevels(t.id); if(d>t.levelCount)d=t.levelCount;
@@ -393,7 +414,23 @@
         + testVisual(t)
         + '<span class="tname">'+esc(t.title)+'</span>'
         + bar(testFrac(t), label, cls) + '</a>';
-    }).join('')+'</div>';
+    }
+    /* Групи — розділи з карти. Якщо розділ один і без назви, заголовки не
+       малюємо: для предмета без структури нічого не змінюється. */
+    var groups = (s.groups && s.groups.length) ? s.groups.filter(function(g){ return g.tests.length; })
+                                               : [{ name:'', tests:s.tests }];
+    var titled = groups.filter(function(g){ return g.name; }).length;
+    groups.forEach(function(g){
+      var done = g.tests.filter(isPassed).length;
+      if(titled && g.name){
+        html += '<div class="tgroup"><span class="tg-name">'+esc(g.name)+'</span>'
+              + '<span class="tg-cnt">'+done+' / '+g.tests.length+'</span></div>';
+      } else if(titled){
+        html += '<div class="tgroup"><span class="tg-name">Інші</span>'
+              + '<span class="tg-cnt">'+done+' / '+g.tests.length+'</span></div>';
+      }
+      html += '<div class="grid">'+g.tests.map(cardHtml).join('')+'</div>';
+    });
     q('screen').innerHTML=html;
   }
   function render(){
@@ -475,7 +512,40 @@
     })();
   }
   /* ── старт: карта + активні тести з бази → індекс → рендер ── */
+  /* ── Страхування карти королівства ──
+     sk-header.js підвантажує sk-curriculum.js динамічно. Якщо піти з
+     попередньої сторінки, поки цей запит у польоті, браузер лишає в кеші
+     обірваний запис — і на наступній сторінці той самий URL віддається
+     «успішно», але скрипт не виконується: window.SKCUR немає, сторінка
+     мовчки висить на «Завантаження…». Тому чекаємо на SKCUR, а якщо його
+     нема — перезапитуємо файл з унікальним хвостом (повз кеш). */
+  function whenSKCUR(cb){
+    var n = 0, retried = false;
+    (function w(){
+      if(window.SKCUR && window.SKCUR.ready) return cb(true);
+      if(n === 10 && !retried){
+        retried = true;
+        var sc = document.createElement('script');
+        sc.src = 'sk-curriculum.js?v=3&r=' + Date.now();
+        sc.onerror = function(){ /* далі просто добіжить таймаут */ };
+        document.head.appendChild(sc);
+      }
+      if(n++ < 120) return setTimeout(w, 50);
+      cb(false);
+    })();
+  }
+
   function boot(){
+    whenSKCUR(function(ok){
+      if(!ok){
+        q('screen').innerHTML = '<div class="empty">Не вдалося завантажити карту королівства.'
+          + '<br>Онови сторінку.</div>';
+        return;
+      }
+      bootMap();
+    });
+  }
+  function bootMap(){
     var mapP = SKCUR.ready;
     var trP = new Promise(function(res){
       whenSK(function(SK){
@@ -530,6 +600,6 @@
 
 <!-- СПІЛЬНИЙ ХЕДЕР -->
 <script>window.SK_HEADER_SUB='Тести королівства';</script>
-<script src="sk-header.js?v=1"></script>
+<script src="sk-header.js?v=2"></script>
 </body>
 </html>

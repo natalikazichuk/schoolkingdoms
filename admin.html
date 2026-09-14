@@ -232,7 +232,10 @@
     .map-lvl{font-size:.6rem;padding:2px 5px}
     .dep-warn{font-size:.8rem}
   }
-  .test-row{display:flex;align-items:center;gap:6px;margin-top:5px}
+  .test-row{display:flex;align-items:center;gap:6px;margin-top:5px;flex-wrap:wrap}
+  .test-row.bad > select{border-color:var(--gold-deep);background:#fdf5e0}
+  .test-warn{font-size:.76rem;font-weight:800;color:var(--gold-ink);background:#fdf5e0;
+    border:1px solid #f0dca8;border-radius:999px;padding:3px 9px;flex:0 0 auto}
   .test-row select{padding:6px 9px;font-size:.85rem;width:auto;min-width:0}
   .test-row .grow{flex:1 1 auto;min-width:60px}
   .map-head .switch{flex:0 0 auto;white-space:nowrap}
@@ -309,6 +312,11 @@
     background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-top:8px;transition:.15s;font-family:inherit;color:var(--text)}
   .drill-rec:hover{border-color:var(--gold-ink);transform:translateY(-1px)}
   .drill-rec .ic{font-size:1.35rem;line-height:1;flex:0 0 auto}
+  .rec-group{display:flex;align-items:baseline;gap:9px;margin:16px 2px 7px}
+  .rec-group:first-child{margin-top:2px}
+  .rg-name{font-weight:800;font-size:.95rem;color:var(--ink)}
+  .rg-cnt{font-weight:800;font-size:.75rem;color:var(--muted);
+    background:var(--panel-2);border:1px solid var(--border);border-radius:999px;padding:1px 8px}
   .drill-rec .nm{flex:1 1 auto;font-weight:800;font-size:.98rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .drill-rec .meta{flex:0 0 auto;color:var(--muted);font-weight:700;font-size:.78rem}
   .drill-rec .chev{flex:0 0 auto;color:var(--muted);font-size:1.25rem;font-weight:900}
@@ -535,6 +543,7 @@
       <div class="spacer"></div>
       <button class="btn ghost" id="mapReset">↺ Запасна карта</button>
       <button class="btn" id="mapCheck">🔍 Перевірити</button>
+      <button class="btn" id="mapFixGrades" title="Поставити кожному тесту той клас і предмет, у чийому розділі він лежить">🧩 Виправити клас і предмет</button>
       <button class="btn gold" id="mapSave">💾 Зберегти карту</button>
     </div>
     <div id="mapMsg"></div>
@@ -620,6 +629,7 @@
         <div class="mapgrade-grid" id="mapSubjGrid"></div>
         <div class="toolbar" style="margin:14px 0 0">
           <div class="spacer"></div>
+          <button class="btn xs" id="mapSyncStruct" title="Розкласти по розділах тести, яких ще немає в структурі">🔁 Синхронізувати структуру</button>
           <button class="btn xs ghost" id="mapEditStruct" title="Ступені, предмети, розділи, порядок">⚙ Редагувати структуру класу</button>
         </div>
       </div>
@@ -967,27 +977,107 @@ function move(arr, i, d){
 }
 
 /* назви всіх тестів у базі — для випадаючих списків */
-function testOptions(selected, grade, subjName){
+/* Де вже лежить кожен тест у структурі: testId → [{path, topic, grade, subj}].
+   Потрібно, щоб у списку вибору було видно, що тест уже кудись покладений:
+   один тест у двох розділах показується дитині лише в першому (це ловить
+   і checkMap, але після того, як дубль уже зроблено). Будуємо раз на
+   перемальовування — renderMap кличе testOptions для кожного рядка. */
+let MAP_PLACE = null;
+function mapPlaceIndex(){
+  const byId = new Map();
+  if(!MAP) return byId;
+  const idx = window.SKCUR.indexTests(TESTS || []);
+  MAP.tiers.forEach((tier, ti) => (tier.grades || []).forEach((g, gi) => (g.subjects || []).forEach((sj, si) =>
+    (sj.topics || []).forEach((tp, pi) => (tp.tests || []).forEach((ref, xi) => {
+      if(!ref) return;
+      const t = window.SKCUR.findTest(ref, idx);
+      if(!t || !t.id) return;
+      if(!byId.has(t.id)) byId.set(t.id, []);
+      byId.get(t.id).push({ path: ti + '.' + gi + '.' + si + '.' + pi + '.' + xi,
+        topic: tp.topic || '—', grade: Number(g.gradeNum), subj: sj.name || '—' });
+    }))
+  )));
+  return byId;
+}
+/* Підпис «вже в …» для тесту — без місця, де його зараз обирають. */
+function placeNote(testId, curPath, curGrade){
+  const all = (MAP_PLACE || (MAP_PLACE = mapPlaceIndex())).get(testId) || [];
+  const other = all.filter(x => x.path !== curPath);
+  if(!other.length) return '';
+  const x = other[0];
+  const cls = (Number(x.grade) === Number(curGrade)) ? '' : (' ' + gradeWord(x.grade));
+  return ' · вже в «' + x.topic + '»' + cls + (other.length > 1 ? ' +' + (other.length - 1) : '');
+}
+
+function testOptions(selected, grade, subj, curPath){
   // Значення <option> — це id тесту, а не назва: перейменування тесту більше
   // не рве ланцюг. Старі карти зберігали назви — findTest їх ще розпізнає,
   // а міграція при відкритті замінює на id.
   const idx = window.SKCUR.indexTests(TESTS);
   const cur = window.SKCUR.findTest(selected, idx);
-  const pool = TESTS.filter(t => t && t.title);
-  const fit = pool.filter(t => Number(t.grade || 1) === Number(grade));
-  const list = (fit.length ? fit : pool).slice()
-    .sort((a, b) => String(a.title).localeCompare(String(b.title), 'uk'));
+  const pool = (TESTS || []).filter(t => t && t.title);
+
+  /* Клас тесту. Нуль — це дошкілля, а не «порожньо»: через `t.grade || 1`
+     дошкільні тести читались як 1 клас, список для дошкільного розділу
+     виходив порожній і мовчки підмінявся на ВСІ тести підряд. Тоді в розділ
+     можна було покласти тест чужого класу, нічого про це не дізнавшись —
+     у списку записів він потім не зʼявлявся. */
+  const gnum = t => Number(t.grade == null || t.grade === '' ? 1 : t.grade);
+  const want = Number(grade);
+  const byTitle = (a, b) => String(a.title).localeCompare(String(b.title), 'uk');
+  const label = t => esc(t.title) + (t.active === false ? ' (вимкнено)' : '')
+                   + esc(placeNote(t.id, curPath, grade));
+  const opt = t => '<option value="' + esc(t.id) + '"'
+    + (cur && cur.id === t.id ? ' selected' : '') + '>' + label(t) + '</option>';
+  const clsName = n => (n === 0 ? 'дошкілля' : n + ' кл.');
+
+  let sameSubj = [], otherSubj = [], otherGrade = [];
+  pool.forEach(t => {
+    if(gnum(t) !== want){ otherGrade.push(t); return; }
+    let fits = true;
+    try { fits = !subj || window.SKCUR.subjectMatches(subj, t.subject); }
+    catch(e){ fits = true; }
+    (fits ? sameSubj : otherSubj).push(t);
+  });
+  sameSubj.sort(byTitle); otherSubj.sort(byTitle); otherGrade.sort(byTitle);
 
   let html = '<option value="">— обери тест —</option>';
-  list.forEach(t => {
-    html += '<option value="' + esc(t.id) + '"' + (cur && cur.id === t.id ? ' selected' : '') + '>'
-          + esc(t.title) + (t.active === false ? ' (вимкнено)' : '') + '</option>';
-  });
+  if(sameSubj.length) html += sameSubj.map(opt).join('');
+  if(otherSubj.length){
+    html += '<optgroup label="Інший предмет — цей клас">' + otherSubj.map(opt).join('') + '</optgroup>';
+  }
+  if(otherGrade.length){
+    /* Інші класи показуємо, але окремою групою й з підписом класу — щоб
+       випадковий вибір чужого класу було видно одразу. */
+    html += '<optgroup label="⚠ Інші класи — у цьому розділі не покажеться">'
+      + otherGrade.map(t => '<option value="' + esc(t.id) + '"'
+          + (cur && cur.id === t.id ? ' selected' : '') + '>'
+          + label(t) + ' — ' + clsName(gnum(t)) + '</option>').join('')
+      + '</optgroup>';
+  }
   // посилання є в карті, але такого тесту в базі немає — показуємо, не ховаємо
   if(selected && !cur){
     html += '<option value="' + esc(selected) + '" selected>⚠ ' + esc(selected) + ' — немає в базі</option>';
   }
   return html;
+}
+
+/* Чи збігається обраний у розділі тест із класом і предметом розділу.
+   Повертає текст попередження або '' — малюємо його просто в рядку, щоб
+   не треба було натискати «Перевірити», аби побачити проблему. */
+function testRefWarn(selected, grade, subj){
+  const t = window.SKCUR.findTest(selected, window.SKCUR.indexTests(TESTS));
+  if(!selected || !t) return '';
+  const gn = Number(t.grade == null || t.grade === '' ? 1 : t.grade);
+  if(gn !== Number(grade)){
+    return 'клас у тесті — ' + (gn === 0 ? 'дошкілля' : gn + ' кл.') + ', тут не покажеться';
+  }
+  try {
+    if(subj && !window.SKCUR.subjectMatches(subj, t.subject)){
+      return 'предмет у тесті — «' + t.subject + '»';
+    }
+  } catch(e){}
+  return '';
 }
 
 /* ── Згортання гілок ──
@@ -1023,6 +1113,7 @@ function collapseAll(){ allColKeys().forEach(k => COLLAPSED.add(k)); renderMap()
 function expandAll(){ COLLAPSED.clear(); renderMap(); }
 
 function renderMap(){
+  MAP_PLACE = null;            // карта могла змінитись — індекс перезбираємо
   const problem = skcurProblem();
   if(problem){ if($('mapTree')) $('mapTree').innerHTML = depWarnHtml(problem); return; }
   if(!MAP){ if($('mapTree')) $('mapTree').innerHTML = ''; return; }
@@ -1125,10 +1216,12 @@ function renderMap(){
             + '</div>'
             + '<div class="map-kids">';
           (tp.tests || []).forEach((name, xi) => {
-            html += '<div class="test-row">'
+            const warn = testRefWarn(name, g.gradeNum, sj);
+            html += '<div class="test-row' + (warn ? ' bad' : '') + '">'
               + '<select class="grow" data-f="test.name" data-p="' + pP + '.' + xi + '">'
-                + testOptions(name, g.gradeNum, sj.name)
+                + testOptions(name, g.gradeNum, sj, pP + '.' + xi)
               + '</select>'
+              + (warn ? '<span class="test-warn" title="Виправ клас або предмет у картці тесту">⚠ ' + esc(warn) + '</span>' : '')
               + '<span class="map-btns">'
                 + '<button class="btn xs" data-a="test.up" data-p="' + pP + '.' + xi + '" title="Вище">↑</button>'
                 + '<button class="btn xs" data-a="test.down" data-p="' + pP + '.' + xi + '" title="Нижче">↓</button>'
@@ -1210,16 +1303,9 @@ function mapTierIsPre(t){
    воно розходилося зі списком. Тут рахуємо тим самим правилом, що й
    drillRecords: тести з колекції + випробування під предметами класу. */
 function drillCountFor(tier, g){
-  const tests = new Set();
-  (g.subjects || []).forEach(sj => {
-    (TESTS || []).forEach(t => {
-      if(!t || !t.id || !t.title) return;
-      if(Number(t.grade == null ? 1 : t.grade) !== Number(g.gradeNum)) return;
-      try { if(!window.SKCUR.subjectMatches(sj, t.subject)) return; } catch(e){ return; }
-      tests.add(t.id);
-    });
-  });
-  return tests.size;
+  const seen = new Set();
+  (g.subjects || []).forEach(sj => drillSubjRecords(g, sj, null, seen));
+  return seen.size;
 }
 function mapTierLabel(id){
   const t = mapTierById(id);
@@ -1383,19 +1469,41 @@ function drillSubjects(){
 }
 /* Записи обраного типу під предметом. Тести — за збігом предмета й класу
    (ловить і ті, що ще не покладені в розділ). Випробування — subjTrainerIdx. */
+/* Записи предмета в класі. Два джерела, які раніше розходились:
+     1) тести, що підходять за предметом і класом — те, що бачить дитина;
+     2) тести, покладені в РОЗДІЛИ цього предмета в структурі.
+   Друге враховували лише в дереві структури, тож покладений туди тест міг
+   не зʼявитись у списку записів («додала в структуру — показує 0»).
+   Тепер список показує обидва, а розбіжність позначаємо — щоб було видно,
+   що саме дитина не побачить, поки клас/предмет у картці не виправлять. */
+function drillSubjRecords(g, sj, recs, seen){
+  const idx = window.SKCUR.indexTests(TESTS || []);
+  (TESTS || []).forEach(t => {
+    if(!t || !t.id || !t.title) return;
+    if(Number(t.grade == null ? 1 : t.grade) !== Number(g.gradeNum)) return;
+    try { if(!window.SKCUR.subjectMatches(sj, t.subject)) return; } catch(e){ return; }
+    if(seen.has(t.id)) return;
+    seen.add(t.id);
+    if(recs){
+      const tp = (sj.topics || []).find(x => (x.tests || []).some(ref => {
+        const rt = window.SKCUR.findTest(ref, idx); return rt && rt.id === t.id;
+      }));
+      recs.push({ kind:'test', id:t.id, obj:t, topic: tp ? (tp.topic || '') : '' });
+    }
+  });
+  (sj.topics || []).forEach(tp => (tp.tests || []).forEach(ref => {
+    if(!ref) return;
+    const t = window.SKCUR.findTest(ref, idx);
+    if(!t || !t.id || seen.has(t.id)) return;
+    seen.add(t.id);
+    if(recs) recs.push({ kind:'test', id:t.id, obj:t, viaMap:true, topic:tp.topic || '' });
+  }));
+}
 function drillRecords(subjName){
   const recs = [], seen = new Set();
   drillGradeCtx().forEach(({ tier, g }) => (g.subjects || []).forEach(sj => {
     if(!drillSameSubj(sj.name, subjName)) return;
-    /* Одне сховище — колекція tests. Тип задає поле `format`. */
-    (TESTS || []).forEach(t => {
-      if(!t || !t.id || !t.title) return;
-      if(Number(t.grade == null ? 1 : t.grade) !== Number(MAP_GRADE)) return;
-      if(!window.SKCUR.subjectMatches(sj, t.subject)) return;
-      if(seen.has('t:' + t.id)) return;
-      seen.add('t:' + t.id);
-      recs.push({ kind:'test', id:t.id, obj:t });
-    });
+    drillSubjRecords(g, sj, recs, seen);
   }));
   return recs;
 }
@@ -1466,8 +1574,26 @@ function renderMapRecs(){
       : '<div class="drill-empty">Тут поки порожньо. Натисни «＋ Додати».</div>';
     return;
   }
-  let html = '';
+  /* Групуємо за розділом структури — тим самим, що бачить дитина.
+     Порядок розділів беремо з карти; що поза розділами — в кінець. */
+  const order = [];
+  const byTopic = new Map();
+  drillGradeCtx().forEach(({ g }) => (g.subjects || []).forEach(sj => {
+    if(!drillSameSubj(sj.name, MAP_SUBJ)) return;
+    (sj.topics || []).forEach(tp => {
+      const nm = tp.topic || '';
+      if(nm && !byTopic.has(nm)){ byTopic.set(nm, []); order.push(nm); }
+    });
+  }));
+  byTopic.set('', []); order.push('');
   recs.forEach(r => {
+    const nm = byTopic.has(r.topic || '') ? (r.topic || '') : '';
+    byTopic.get(nm).push(r);
+  });
+
+  let html = '';
+  const titled = order.filter(nm => nm && byTopic.get(nm).length).length;
+  const rowHtml = r => {
     const o   = r.obj || {};
     const f   = String(o.format || '');
     const page  = (f === 'html' || f === 'link');
@@ -1477,13 +1603,33 @@ function renderMapRecs(){
     let badge = '';
     if(o.hidden)          badge += ' <span class="bel-badge">сховано</span>';
     if(o.active === false) badge += ' <span class="bel-badge">вимкнено</span>';
+    /* Запис потрапив сюди з розділу структури, але його власні клас/предмет
+       кажуть інше — дитина його тут не побачить, поки картку не виправлять. */
+    if(r.viaMap){
+      const gn = Number(o.grade == null || o.grade === '' ? 1 : o.grade);
+      if(gn !== Number(MAP_GRADE)){
+        badge += ' <span class="bel-badge">⚠ клас у картці: ' + (gn === 0 ? 'дошкілля' : gn + ' кл.') + '</span>';
+      } else {
+        badge += ' <span class="bel-badge">⚠ предмет у картці: ' + esc(o.subject || '—') + '</span>';
+      }
+    }
     const meta = video ? 'відео' : (page ? 'сторінка' : (countQ(o) + ' пит.'));
     const key  = 'test:' + r.id;
-    html += '<button class="drill-rec" data-mrec="' + esc(key) + '">'
+    return '<button class="drill-rec" data-mrec="' + esc(key) + '">'
       + '<span class="ic">' + esc(ic) + '</span>'
       + '<span class="nm">' + esc(nm) + badge + '</span>'
       + '<span class="meta">' + esc(meta) + '</span>'
       + '<span class="chev">›</span></button>';
+  };
+  order.forEach(name => {
+    const list = byTopic.get(name) || [];
+    if(!list.length) return;
+    if(titled){
+      html += '<div class="rec-group"><span class="rg-name">'
+        + esc(name || 'Поза розділами') + '</span>'
+        + '<span class="rg-cnt">' + list.length + '</span></div>';
+    }
+    html += list.map(rowHtml).join('');
   });
   host.innerHTML = html;
 }
@@ -1549,11 +1695,20 @@ function cardFormat(){
 function cardIsPage(){ const f = cardFormat(); return f === 'html' || f === 'video'; }
 
 function cardGradeSel(cur){
+  const want = Number(cur == null || cur === '' ? 1 : cur);
+  const list = trGradeList();
   let h = '<select data-cf="grade">';
-  trGradeList().forEach(n => {
-    h += '<option value="' + n + '"' + (Number(cur == null ? 1 : cur) === n ? ' selected' : '') + '>'
+  list.forEach(n => {
+    h += '<option value="' + n + '"' + (want === n ? ' selected' : '') + '>'
        + (n === 0 ? '🌱 Дошкільнятко' : (n + ' клас')) + '</option>';
   });
+  /* Класу з картки немає серед класів карти — показуємо його окремо.
+     Інакше браузер мовчки вибрав би перший пункт, і картка показувала б
+     чужий клас (а виправлення виглядало б як «нічого не міняла»). */
+  if(!list.includes(want)){
+    h += '<option value="' + want + '" selected>⚠ '
+       + (want === 0 ? 'дошкілля' : want + ' клас') + ' — немає в карті</option>';
+  }
   return h + '</select>';
 }
 /* Предмет — канонічні назви з карти + поточне значення, якщо його там немає. */
@@ -2009,6 +2164,150 @@ function onMapClick(e){
 
    Поділ на ✘ і ⚠ простий: ✘ — те, що виправляється тут, у редакторі карти
    (і тому блокує збереження); ⚠ — те, що виправляється в картці тесту. */
+/* ── Клас тесту vs клас розділу ──
+   Тест показується дитині лише там, де клас у його картці збігається з
+   класом розділу (це вимога sk-curriculum.placeTests). Покласти тест у
+   чужий розділ можна, і тоді він не видно ніде. Тут знаходимо всі такі
+   розбіжності й даємо виправити їх одним разом — інакше кожен тест треба
+   відкривати руками. */
+function mapRefMismatches(){
+  const out = [];
+  if(!MAP) return out;
+  const idx = window.SKCUR.indexTests(TESTS || []);
+  const seen = new Set();
+  MAP.tiers.forEach(tier => (tier.grades || []).forEach(g => (g.subjects || []).forEach(sj =>
+    (sj.topics || []).forEach(tp => (tp.tests || []).forEach(ref => {
+      if(!ref) return;
+      const t = window.SKCUR.findTest(ref, idx);
+      if(!t || !t.id || seen.has(t.id)) return;
+
+      const wantG = Number(g.gradeNum);
+      const gotG  = Number(t.grade == null || t.grade === '' ? 1 : t.grade);
+      const badG  = gotG !== wantG;
+
+      /* Предмет звіряємо самим обʼєктом карти — у ньому є ключі, тож
+         скорочення («ЯДС» проти «ЯДС · Я досліджую світ») збігається.
+         Не збігається лише тоді, коли в полі справді щось інше. */
+      let badS = false;
+      try { badS = !!sj.name && !window.SKCUR.subjectMatches(sj, t.subject); } catch(e){ badS = false; }
+
+      if(!badG && !badS) return;
+      seen.add(t.id);
+      out.push({ test:t, topic:tp.topic || '—',
+        grade: badG ? { from:gotG, to:wantG } : null,
+        subject: badS ? { from:(t.subject || '—'), to:sj.name } : null });
+    }))
+  )));
+  return out;
+}
+function gradeWord(n){ return Number(n) === 0 ? 'дошкілля' : (n + ' кл.'); }
+
+/* ── Синхронізація структури ──
+   У списку записів предмет показує все, що підходить за предметом і класом.
+   У структурі ж лежить лише те, що хтось туди поклав руками — тож предмет
+   міг мати 40 записів і жодного розділу. Тут беремо тести цього класу, яких
+   немає в жодному розділі карти, і розкладаємо по розділах за їхнім власним
+   полем «Тема (для групування)». Пишемо лише в чернетку карти — у базу піде
+   після «Зберегти карту», як і будь-яка інша правка структури. */
+function mapGradeObj(){
+  if(!MAP || MAP_GRADE == null) return null;
+  let found = null;
+  MAP.tiers.forEach(t => {
+    if(MAP_TIER && t.id !== MAP_TIER) return;
+    (t.grades || []).forEach(g => { if(!found && Number(g.gradeNum) === Number(MAP_GRADE)) found = g; });
+  });
+  return found;
+}
+function syncStructPlan(){
+  const g = mapGradeObj();
+  if(!g) return null;
+  const place = mapPlaceIndex();
+  const plan = [];
+  (g.subjects || []).forEach(sj => {
+    const add = (TESTS || []).filter(t => {
+      if(!t || !t.id || !t.title) return false;
+      if(Number(t.grade == null || t.grade === '' ? 1 : t.grade) !== Number(g.gradeNum)) return false;
+      if(place.has(t.id)) return false;
+      try { return window.SKCUR.subjectMatches(sj, t.subject); } catch(e){ return false; }
+    });
+    if(!add.length) return;
+    const groups = new Map();
+    add.forEach(t => {
+      // Тест без «Теми для групування» — в окремий розділ «Інше»:
+      // назву розділу бачить дитина, тож вона має читатись нормально.
+      const key = String(t.topic || '').trim() || 'Інше';
+      if(!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(t);
+    });
+    plan.push({ sj, groups, total: add.length });
+  });
+  return { g, plan };
+}
+function mapSyncStruct(){
+  if(!MAP){ toast('Спершу відкрий структуру', true); return; }
+  const res = syncStructPlan();
+  if(!res){ toast('Не знайшов цей клас у карті', true); return; }
+  const { g, plan } = res;
+  if(!plan.length){ toast('У структурі вже є все, що підходить цьому класу ✔'); return; }
+
+  const lines = [];
+  let total = 0;
+  plan.forEach(x => {
+    total += x.total;
+    lines.push('• ' + (x.sj.name || '—') + ' — ' + x.total + ':');
+    [...x.groups.entries()].forEach(([name, arr]) => lines.push('    «' + name + '» — ' + arr.length));
+  });
+  if(!confirm('Розкласти ' + total + ' тест(ів) по розділах ' + (Number(g.gradeNum) === 0 ? 'дошкілля' : g.gradeNum + ' класу') + '?\n\n'
+      + lines.join('\n')
+      + '\n\nРозділ береться з поля «Тема (для групування)» самого тесту.\n'
+      + 'Зміни лягають у чернетку — натисни «💾 Зберегти карту», щоб закріпити.')) return;
+
+  const norm = v => String(v || '').trim().toLowerCase();
+  plan.forEach(x => {
+    if(!Array.isArray(x.sj.topics)) x.sj.topics = [];
+    [...x.groups.entries()].forEach(([name, arr]) => {
+      let tp = x.sj.topics.find(t => norm(t.topic) === norm(name));
+      if(!tp){ tp = { topic:name, chain:false, chainGroup:'', tests:[] }; x.sj.topics.push(tp); }
+      if(!Array.isArray(tp.tests)) tp.tests = [];
+      arr.forEach(t => { if(!tp.tests.includes(t.id)) tp.tests.push(t.id); });
+    });
+  });
+  renderMap();
+  renderMapSubjects();
+  toast('Розкладено: ' + total + '. Не забудь «Зберегти карту»');
+  mapOpenContent(MAP_GRADE);
+}
+
+async function fixMapGrades(){
+  if(!MAP){ toast('Спершу відкрий структуру', true); return; }
+  const list = mapRefMismatches();
+  if(!list.length){ toast('Клас і предмет усюди збігаються з розділами ✔'); return; }
+
+  const line = x => {
+    const parts = [];
+    if(x.grade)   parts.push('клас ' + gradeWord(x.grade.from) + ' → ' + gradeWord(x.grade.to));
+    if(x.subject) parts.push('предмет «' + x.subject.from + '» → «' + x.subject.to + '»');
+    return '• ' + x.test.title + ':  ' + parts.join(',  ') + '   (розділ «' + x.topic + '»)';
+  };
+  const shown = list.slice(0, 12).map(line);
+  const more = list.length > 12 ? ('\n… і ще ' + (list.length - 12)) : '';
+  if(!confirm('Привести ' + list.length + ' тест(ів) у відповідність до розділу, де вони лежать?\n\n'
+      + shown.join('\n') + more + '\n\nЗміни пишуться в базу одразу.')) return;
+
+  let ok = 0, bad = 0;
+  for(const x of list){
+    const prevG = x.test.grade, prevS = x.test.subject;
+    if(x.grade)   x.test.grade = x.grade.to;
+    if(x.subject) x.test.subject = x.subject.to;
+    try { await SK_API.save(x.test); ok++; }
+    catch(e){ console.error(e); x.test.grade = prevG; x.test.subject = prevS; bad++; }
+  }
+  renderMap();
+  if(MAP_SUBJ) renderMapRecs();
+  toast(bad ? ('Виправлено ' + ok + ', не вдалося ' + bad) : ('Виправлено записів: ' + ok + ' ✔'), !!bad);
+  checkMap();
+}
+
 function checkMap(){
   const errs = [], warns = [];
 
@@ -3164,6 +3463,7 @@ function bindEvents(){
   $('mapSave').onclick  = saveMap;
   // ---- Менеджер приналежності ----
   $('mapCheck').onclick = () => { checkMap(); };
+  if($('mapFixGrades')) $('mapFixGrades').onclick = fixMapGrades;
   $('mapBack').onclick  = goHome;
   $('mapReset').onclick = () => {
     if(!confirm('Замінити чернетку карти на запасну (ту, що в sk-curriculum.js)? Збережена в базі карта не зміниться, доки не натиснеш «Зберегти карту».')) return;
@@ -3191,6 +3491,7 @@ function bindEvents(){
     if(!t || mapTierIsPre(t)) mapShowTiers(); else mapShowGrades();
   };
   if($('mapEditStruct')) $('mapEditStruct').onclick = () => mapOpenContent(MAP_GRADE);
+  if($('mapSyncStruct')) $('mapSyncStruct').onclick = mapSyncStruct;
   if($('mapSubjGrid'))   $('mapSubjGrid').addEventListener('click', e => {
     const b = e.target.closest('[data-msubj]'); if(!b) return;
     mapOpenRecs(b.getAttribute('data-msubj'));

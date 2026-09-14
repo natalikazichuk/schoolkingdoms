@@ -221,9 +221,20 @@
     return guessId;
   }
 
-  /* preschool («Дошкільна») веде на свою сторінку Навчання doshkillya.html, а не на карту тестів */
+  /* Дошкільний ступінь упізнаємо за коренем назви або id — так само, як це
+     роблять tests.html, navchannia.html і doshkillya.html. Порівняння
+     tier.id === 'preschool' працювало лише для ступеня із запасної карти:
+     доданий в адмінці отримує згенерований id, і «Дошкільна» вела б на
+     карту тестів замість своєї сторінки. */
+  function isPreTier(t){
+    var v = (String(t && t.id || '') + ' ' + String(t && t.name || '')).toLowerCase();
+    return v.indexOf('preschool') >= 0 || v.indexOf('дошкіл') >= 0;
+  }
+  /* Ступінь без уточнення веде на свою сторінку Навчання; щойно обрано
+     конкретний клас чи предмет — ведемо в карту тестів, інакше вибір
+     мовчки губився б (doshkillya.html не знає ні grade, ні subj). */
   function tierHref(tier, extra){
-    if(tier && tier.id === 'preschool') return BASE+'doshkillya.html';
+    if(isPreTier(tier) && !extra) return BASE+'doshkillya.html';
     return BASE+'tests.html#open='+enc(tier.id)+(extra||'');
   }
 

@@ -39,6 +39,14 @@
   .lv-name{font-family:'Playfair Display',serif;font-weight:900;color:#fff;
     font-size:clamp(1.15rem,3.4vw,1.5rem);line-height:1.05;text-shadow:0 2px 8px rgba(0,0,0,.7)}
   .lv-sub2{color:#ffe9b8;font-weight:800;font-size:.78rem;margin-top:2px;text-shadow:0 1px 5px rgba(0,0,0,.7)}
+  .lv-prog{margin-top:10px;display:flex;align-items:center;gap:9px}
+  .lv-track{position:relative;flex:1 1 auto;height:9px;border-radius:999px;
+    background:rgba(0,0,0,.38);box-shadow:inset 0 1px 3px rgba(0,0,0,.45);overflow:hidden}
+  .lv-track i{position:absolute;inset:0 auto 0 0;border-radius:999px;
+    background:linear-gradient(90deg,#8fd98f,#4fae52)}
+  .lv-track[data-full="1"] i{background:linear-gradient(90deg,#ffd54a,#e0a726)}
+  .lv-ptx{flex:0 0 auto;font-weight:800;font-size:.78rem;color:#ffe9b8;
+    text-shadow:0 1px 5px rgba(0,0,0,.7)}
   .lv-soon{margin-top:9px;display:inline-flex;align-items:center;gap:6px;align-self:flex-start;
     color:#e8eef9;font-weight:900;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;
     background:rgba(0,0,0,.42);border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:5px 12px}
@@ -72,7 +80,7 @@
          Картинки на фон додаються через github у img/nav/ (назви нижче). -->
     <div class="nv-grid" id="disGrid">
 
-      <a class="lv locked" data-subj="math" style="--g1:#3a5aa0;--g2:#1c356b" aria-disabled="true">
+      <a class="lv locked" data-subj="math" data-keys="математик" style="--g1:#3a5aa0;--g2:#1c356b" aria-disabled="true">
         <img class="lv-bg" src="img/nav/dis-tsyfry.webp" alt="" loading="lazy" onerror="this.style.display='none'">
         <span class="lv-scrim"></span>
         <span class="lv-body">
@@ -83,7 +91,7 @@
         </span>
       </a>
 
-      <a class="lv locked" data-subj="ukr" style="--g1:#b05a86;--g2:#6e2f52" aria-disabled="true">
+      <a class="lv locked" data-subj="ukr" data-keys="українськ|абетк|читанн" style="--g1:#b05a86;--g2:#6e2f52" aria-disabled="true">
         <img class="lv-bg" src="img/nav/dis-bukvy.webp" alt="" loading="lazy" onerror="this.style.display='none'">
         <span class="lv-scrim"></span>
         <span class="lv-body">
@@ -95,17 +103,18 @@
       </a>
 
       <!-- English має запасне посилання: словник працює й без тестів у карті. -->
-      <a class="lv" data-subj="eng" href="slovnyk-en.html" style="--g1:#2f8f86;--g2:#155852">
+      <a class="lv" data-subj="eng" data-keys="english|англійськ|англ" data-words="1" href="slovnyk-en.html" style="--g1:#2f8f86;--g2:#155852">
         <img class="lv-bg" src="img/nav/dis-english.webp" alt="" loading="lazy" onerror="this.style.display='none'">
         <span class="lv-scrim"></span>
         <span class="lv-body">
           <span class="lv-ic">🇬🇧</span>
           <span class="lv-name">English</span>
           <span class="lv-sub2">WORDS</span>
+          <span class="lv-soon">🔒 Скоро</span>
         </span>
       </a>
 
-      <a class="lv locked" data-subj="yads" style="--g1:#c08a3a;--g2:#7a531d" aria-disabled="true">
+      <a class="lv locked" data-subj="yads" data-keys="ядс|я досліджую світ|природознав|довкіл" style="--g1:#c08a3a;--g2:#7a531d" aria-disabled="true">
         <img class="lv-bg" src="img/nav/dis-svit.webp" alt="" loading="lazy" onerror="this.style.display='none'">
         <span class="lv-scrim"></span>
         <span class="lv-body">
@@ -127,6 +136,8 @@
     'use strict';
     var grid = document.getElementById('disGrid');
     if(!grid) return;
+    var PROG = null;   // progress Героя з бази; поки null — рахуємо з localStorage
+    var TIERS = null, TESTS = null;
 
     function isPreTier(t){
       var s=(String(t&&t.id||'')+' '+String(t&&t.name||'')).toLowerCase();
@@ -145,23 +156,71 @@
       var t=0;
       (function w(){ if(window.SK){ cb(window.SK); return; } if(t++<120) setTimeout(w,50); else cb(null); })();
     }
+    function nrm(v){
+      return String(v==null?'':v).toLowerCase().replace(/[’'`ʼ]/g,'').replace(/\s+/g,' ').trim();
+    }
+    /* Предмет шукаємо спершу за id, далі — за назвою чи ключами. Id надійний
+       лише для предметів із запасної карти: доданий в адмінці предмет
+       отримує згенерований id ('s' + час), тож плитка за ним не знайшлась би. */
+    function pickSubj(g, sid, keys){
+      var subs = (g && g.subjects) || [];
+      var byId = subs.filter(function(s){ return s && s.id === sid; })[0];
+      if(byId) return byId;
+      var want = String(keys||'').split('|').map(nrm).filter(Boolean);
+      if(!want.length) return null;
+      return subs.filter(function(s){
+        if(!s) return false;
+        var hay = [nrm(s.name)].concat((s.keys||[]).map(nrm)).filter(Boolean);
+        return hay.some(function(h){
+          return want.some(function(w){ return h.indexOf(w) >= 0 || w.indexOf(h) >= 0; });
+        });
+      })[0] || null;
+    }
+    /* Пройдено — ті самі ключі, що на tests.html: sk_testpass_<id> у
+       localStorage або в progress Героя з бази. */
+    function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+    function truthy(v){ return v==='1'||v===1||v===true; }
+    function isDone(id){
+      var k='sk_testpass_'+id;
+      return truthy(lsGet(k)) || truthy(PROG && PROG[k]) || truthy(lsGet('sk_test100_'+id));
+    }
     function unlock(g, tests){
       var gradeId = g ? g.id : '';
       Array.prototype.forEach.call(grid.querySelectorAll('[data-subj]'), function(a){
         var sid = a.getAttribute('data-subj');
-        var subj = (g && (g.subjects||[]).filter(function(s){ return s && s.id===sid; })[0]) || null;
+        var subj = pickSubj(g, sid, a.getAttribute('data-keys'));
         if(!subj) return;
-        var n = tests.filter(function(t){
+        var mine = tests.filter(function(t){
           try { return window.SKCUR.subjectMatches(subj, t.subject); } catch(e){ return false; }
-        }).length;
+        });
+        /* tests.html підставляє в КОЖЕН клас вбудовану картку «WORDS»
+           (словник English). Рахуємо її так само, як там, інакше на плитці
+           було б на одну менше, ніж дитина побачить усередині. */
+        var ids = mine.map(function(t){ return t.id; });
+        if(a.getAttribute('data-words') === '1' && ids.indexOf('std-words-en') < 0){
+          ids.push('std-words-en');
+        }
+        var n = ids.length;
         if(!n) return;                       // лишається «Скоро»
+        var done = ids.filter(isDone).length;
+
         a.href = 'tests.html#open=preschool'
                + (gradeId ? '&grade=' + encodeURIComponent(gradeId) : '')
-               + '&subj=' + encodeURIComponent(sid);
+               + '&subj=' + encodeURIComponent(subj.id);
         a.classList.remove('locked');
         a.removeAttribute('aria-disabled');
         var soon = a.querySelector('.lv-soon');
-        if(soon){ soon.textContent = n + (n===1 ? ' тест' : ' тест.'); soon.classList.remove('lv-soon'); soon.className='lv-sub2'; }
+        if(soon) soon.remove();
+        var body = a.querySelector('.lv-body');
+        if(body && !a.querySelector('.lv-prog')){
+          var pct = n ? Math.round(done / n * 100) : 0;
+          var wrap = document.createElement('span');
+          wrap.className = 'lv-prog';
+          wrap.innerHTML = '<span class="lv-track"' + (done >= n ? ' data-full="1"' : '')
+            + '><i style="width:' + pct + '%"></i></span>'
+            + '<span class="lv-ptx">' + done + ' / ' + n + '</span>';
+          body.appendChild(wrap);
+        }
       });
     }
     function run(tiers, tests){
@@ -184,9 +243,27 @@
         });
       });
       Promise.all([mapP, testP]).then(function(r){
-        var tiers = (r[0] && r[0].tiers) || window.SKCUR.map.tiers;
-        run(tiers, r[1]);
+        TIERS = (r[0] && r[0].tiers) || window.SKCUR.map.tiers;
+        TESTS = r[1];
+        run(TIERS, TESTS);      // одразу — з localStorage
+        loadHero();             // прийде прогрес із бази → перерахуємо
       }).catch(function(){});
+    }
+    /* Прогрес Героя приходить пізніше за localStorage — коли приїде,
+       перемальовуємо смужки (ті самі ключі, що на tests.html). */
+    function loadHero(){
+      whenSK(function(SK){
+        if(!SK || !SK.getHero || !SK.isHeroSession) return;
+        SK.ready.then(function(){
+          if(!SK.isHeroSession()) return null;
+          return SK.getHero();
+        }).then(function(h){
+          if(!h) return;
+          PROG = h.progress || {};
+          Array.prototype.forEach.call(grid.querySelectorAll('.lv-prog'), function(el){ el.remove(); });
+          run(TIERS, TESTS);
+        }).catch(function(){});
+      });
     }
     /* sk-header.js підвантажує sk-curriculum.js сам — чекаємо на SKCUR. */
     var tries = 0;
@@ -202,9 +279,9 @@
 
   <!-- СПІЛЬНИЙ ХЕДЕР -->
   <script>window.SK_HEADER_SUB='Дошкільнятко';</script>
-  <script src="sk-header.js?v=1"></script>
+  <script src="sk-header.js?v=2"></script>
 
   <!-- СПІЛЬНИЙ ФУТЕР (Назад → Навчання) -->
-  <script src="sk-footer.js?v=3" data-active="navch" data-back="navchannia.html"></script>
+  <script src="sk-footer.js?v=5" data-active="navch" data-back="navchannia.html"></script>
 </body>
 </html>
