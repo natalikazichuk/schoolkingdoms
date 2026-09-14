@@ -65,12 +65,14 @@
       <div class="nv-sub">Обери напрям — і вперед готуватися до школи!</div>
     </div>
 
-    <!-- ДИСЦИПЛІНИ. Плитки-заглушки (Скоро): наповнення й зв'язок з адмінкою — окрема сторінка.
-         Коли з'явиться контент, заміни <div class="lv locked"> на <a class="lv" href="…"> і прибери .lv-soon.
+    <!-- ДИСЦИПЛІНИ. data-subj — id предмета в дошкільному класі карти
+         (sk-curriculum.js → tier preschool → grade gradeNum:0 → subjects[].id).
+         Плитка відкривається сама, щойно в тому предметі зʼявиться бодай один
+         тест: скрипт унизу проставляє href на tests.html і прибирає «Скоро».
          Картинки на фон додаються через github у img/nav/ (назви нижче). -->
-    <div class="nv-grid">
+    <div class="nv-grid" id="disGrid">
 
-      <div class="lv locked" style="--g1:#3a5aa0;--g2:#1c356b" aria-disabled="true">
+      <a class="lv locked" data-subj="math" style="--g1:#3a5aa0;--g2:#1c356b" aria-disabled="true">
         <img class="lv-bg" src="img/nav/dis-tsyfry.webp" alt="" loading="lazy" onerror="this.style.display='none'">
         <span class="lv-scrim"></span>
         <span class="lv-body">
@@ -79,9 +81,9 @@
           <span class="lv-sub2">Лічба та числа</span>
           <span class="lv-soon">🔒 Скоро</span>
         </span>
-      </div>
+      </a>
 
-      <div class="lv locked" style="--g1:#b05a86;--g2:#6e2f52" aria-disabled="true">
+      <a class="lv locked" data-subj="ukr" style="--g1:#b05a86;--g2:#6e2f52" aria-disabled="true">
         <img class="lv-bg" src="img/nav/dis-bukvy.webp" alt="" loading="lazy" onerror="this.style.display='none'">
         <span class="lv-scrim"></span>
         <span class="lv-body">
@@ -90,9 +92,10 @@
           <span class="lv-sub2">Абетка та звуки</span>
           <span class="lv-soon">🔒 Скоро</span>
         </span>
-      </div>
+      </a>
 
-      <a class="lv" href="slovnyk-en.html" style="--g1:#2f8f86;--g2:#155852">
+      <!-- English має запасне посилання: словник працює й без тестів у карті. -->
+      <a class="lv" data-subj="eng" href="slovnyk-en.html" style="--g1:#2f8f86;--g2:#155852">
         <img class="lv-bg" src="img/nav/dis-english.webp" alt="" loading="lazy" onerror="this.style.display='none'">
         <span class="lv-scrim"></span>
         <span class="lv-body">
@@ -102,7 +105,7 @@
         </span>
       </a>
 
-      <div class="lv locked" style="--g1:#c08a3a;--g2:#7a531d" aria-disabled="true">
+      <a class="lv locked" data-subj="yads" style="--g1:#c08a3a;--g2:#7a531d" aria-disabled="true">
         <img class="lv-bg" src="img/nav/dis-svit.webp" alt="" loading="lazy" onerror="this.style.display='none'">
         <span class="lv-scrim"></span>
         <span class="lv-body">
@@ -111,17 +114,95 @@
           <span class="lv-sub2">Пізнаємо довкілля</span>
           <span class="lv-soon">🔒 Скоро</span>
         </span>
-      </div>
+      </a>
 
     </div>
   </main>
+
+  <!-- ══ Відкриваємо плитки, у яких уже є дошкільні тести ══
+       Дошкільний вміст живе тут, а не поруч із «1 клас» на tests.html.
+       Рахуємо тести з grade 0 за предметами дошкільного класу карти. -->
+  <script>
+  (function(){
+    'use strict';
+    var grid = document.getElementById('disGrid');
+    if(!grid) return;
+
+    function isPreTier(t){
+      var s=(String(t&&t.id||'')+' '+String(t&&t.name||'')).toLowerCase();
+      return s.indexOf('preschool')>=0 || s.indexOf('дошкіл')>=0;
+    }
+    function preGrade(tiers){
+      for(var i=0;i<(tiers||[]).length;i++){
+        if(!isPreTier(tiers[i])) continue;
+        var gs = tiers[i].grades||[];
+        for(var j=0;j<gs.length;j++) if(Number(gs[j].gradeNum)===0) return gs[j];
+        if(gs.length) return gs[0];
+      }
+      return null;
+    }
+    function whenSK(cb){
+      var t=0;
+      (function w(){ if(window.SK){ cb(window.SK); return; } if(t++<120) setTimeout(w,50); else cb(null); })();
+    }
+    function unlock(g, tests){
+      var gradeId = g ? g.id : '';
+      Array.prototype.forEach.call(grid.querySelectorAll('[data-subj]'), function(a){
+        var sid = a.getAttribute('data-subj');
+        var subj = (g && (g.subjects||[]).filter(function(s){ return s && s.id===sid; })[0]) || null;
+        if(!subj) return;
+        var n = tests.filter(function(t){
+          try { return window.SKCUR.subjectMatches(subj, t.subject); } catch(e){ return false; }
+        }).length;
+        if(!n) return;                       // лишається «Скоро»
+        a.href = 'tests.html#open=preschool'
+               + (gradeId ? '&grade=' + encodeURIComponent(gradeId) : '')
+               + '&subj=' + encodeURIComponent(sid);
+        a.classList.remove('locked');
+        a.removeAttribute('aria-disabled');
+        var soon = a.querySelector('.lv-soon');
+        if(soon){ soon.textContent = n + (n===1 ? ' тест' : ' тест.'); soon.classList.remove('lv-soon'); soon.className='lv-sub2'; }
+      });
+    }
+    function run(tiers, tests){
+      var g = preGrade(tiers);
+      if(!g) return;
+      unlock(g, (tests||[]).filter(function(t){
+        return t && t.id && !t.hidden && Number(t.grade==null?1:t.grade)===0;
+      }));
+    }
+
+    function start(){
+      if(!window.SKCUR) return;                 // без карти лишаємо як є
+      var mapP = (window.SKCUR.ready && window.SKCUR.ready.then)
+        ? window.SKCUR.ready.catch(function(){ return null; })
+        : Promise.resolve(null);
+      var testP = new Promise(function(res){
+        whenSK(function(SK){
+          if(!SK || !SK.listActiveTests){ res([]); return; }
+          SK.ready.then(function(){ return SK.listActiveTests(); }).then(res).catch(function(){ res([]); });
+        });
+      });
+      Promise.all([mapP, testP]).then(function(r){
+        var tiers = (r[0] && r[0].tiers) || window.SKCUR.map.tiers;
+        run(tiers, r[1]);
+      }).catch(function(){});
+    }
+    /* sk-header.js підвантажує sk-curriculum.js сам — чекаємо на SKCUR. */
+    var tries = 0;
+    (function wait(){
+      if(window.SKCUR){ start(); return; }
+      if(tries++ < 120) setTimeout(wait, 50);
+    })();
+  })();
+  </script>
 
   <!-- шкала характеристик Героя (Firebase) -->
   <script type="module" src="firebase-config.js"></script>
 
   <!-- СПІЛЬНИЙ ХЕДЕР -->
   <script>window.SK_HEADER_SUB='Дошкільнятко';</script>
-  <script src="sk-header.js"></script>
+  <script src="sk-header.js?v=1"></script>
 
   <!-- СПІЛЬНИЙ ФУТЕР (Назад → Навчання) -->
   <script src="sk-footer.js?v=3" data-active="navch" data-back="navchannia.html"></script>

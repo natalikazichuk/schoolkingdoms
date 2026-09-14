@@ -6,7 +6,8 @@
 
    Навігація будується з КАРТИ КОРОЛІВСТВА (SKCUR / sk-curriculum.js),
    тобто з того самого джерела, що й дорожня карта на tests.html.
-   Якщо на сторінці немає sk-curriculum.js — хедер підвантажує його сам.
+   Якщо на сторінці немає sk-curriculum.js — хедер підвантажує його сам
+   (з тією самою версією ?v=, що й прямі підключення).
 
    Активним виглядає той ступінь, у якому клас активного Героя
    (heroes/{id}.grade → tier.grades[].gradeNum).
@@ -332,7 +333,9 @@
     if(!existing){
       var s = document.createElement('script');
       s.id = 'sk-curriculum-loader';
-      s.src = BASE + 'sk-curriculum.js';
+      // версія — та сама, що в <script> на сторінках, інакше сюди
+      // приїде закешована карта й правки адміна не доїдуть.
+      s.src = BASE + 'sk-curriculum.js?v=3';
       document.head.appendChild(s);
     }
     var tries = 0;

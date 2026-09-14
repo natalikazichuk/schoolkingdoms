@@ -3,11 +3,14 @@
 
    Підключається на сторінках тренажерів (звичайним <script>, або
    авто-через sk-footer.js). Активується ЛИШЕ коли сторінку відкрито
-   як тест/випробування — тобто в адресі є ?skdone=...:
+   як запис із адмінки — тобто в адресі є ?skdone=...:
 
-       ?skdone=t:<testId>      → зарахувати ТЕСТ  (sk_testpass_<id>)
-       ?skdone=x:<slug>        → зарахувати ВИПРОБУВАННЯ (sk_trainer_<slug>)
+       ?skdone=t:<testId>      → зарахувати ЗАПИС (sk_testpass_<id>)
        &skback=<url>           → куди повернутись (типово tests.html)
+
+   Раніше була ще гілка x:<slug> для «випробувань» з окремого сховища
+   curriculum/trainers. Сховища більше немає: HTML-сторінка — це той самий
+   документ у tests, тож ключ завжди sk_testpass_<id>.
 
    Дає:
      • кнопку «✅ Я завершив(ла)» (для всіх сторінок);
@@ -27,9 +30,9 @@
   if(!raw){ window.skFinish = function(){}; window.skFinishRecord = function(){}; return; }
 
   var back = param('skback') || 'tests.html';
-  var kind = 't', key = raw, ci = raw.indexOf(':');
-  if(ci > 0){ kind = raw.slice(0, ci); key = raw.slice(ci + 1); }
-  var storeKey = (kind === 'x') ? ('sk_trainer_' + key) : ('sk_testpass_' + key);
+  var key = raw, ci = raw.indexOf(':');
+  if(ci > 0){ key = raw.slice(ci + 1); }
+  var storeKey = 'sk_testpass_' + key;
 
   var recorded = false;
 

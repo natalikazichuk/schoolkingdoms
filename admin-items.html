@@ -830,6 +830,23 @@ function renderAdminUI(){
       +'</div>'
       +'<div class="inline-note" style="margin-top:8px">«Дописати» додає нові поля наявним предметам, не чіпаючи їхні назви й характеристики. «Перезаписати» замінює наявні дані значеннями з набору (обережно — затре ручні правки).</div>'
       +'<div class="msg" id="seedMsg"></div>'
+    +'</div>'
+    +'<div class="panel"><h2>🗃 Таблиця предметів</h2>'
+      +'<p class="sub">Уся таблиця одним файлом: вивантаж для резервної копії чи правок у редакторі, потім заливай назад. Формат — той самий, що й у стартовому наборі.</p>'
+      +'<div class="savebar">'
+        +'<button class="btn ghost" id="tblExport">⬇ Експорт таблиці предметів</button>'
+        +'<button class="btn" id="tblImportOpen">⬆ Імпорт таблиці предметів</button>'
+      +'</div>'
+      +'<div id="tblImportBox" style="display:none;margin-top:12px">'
+        +'<div class="field"><label for="tblJson">JSON-масив предметів</label>'
+        +'<textarea id="tblJson" rows="8" placeholder=\'[{"id":"IT-001","name":"…","grade":1, …}]\'></textarea></div>'
+        +'<div class="inline-note">Предмети з наявним кодом буде <b>перезаписано</b>, нові — додано. Нічого не видаляється.</div>'
+        +'<div class="savebar" style="margin-top:10px">'
+          +'<button class="btn gold" id="tblImportRun">Залити в базу</button>'
+          +'<button class="btn ghost" id="tblImportCancel">Скасувати</button>'
+        +'</div>'
+      +'</div>'
+      +'<div class="msg" id="tblMsg"></div>'
     +'</div>';
 
   M=blankItem();
@@ -853,6 +870,88 @@ function renderAdminUI(){
     b.addEventListener('click', function(){ doSeed(b.getAttribute('data-seed')); });
   });
   el('#search').addEventListener('input', function(e){ SEARCH=(e.target.value||'').trim(); renderList(); });
+  el('#tblExport').addEventListener('click', doTableExport);
+  el('#tblImportOpen').addEventListener('click', function(){
+    el('#tblImportBox').style.display=''; el('#tblJson').value=''; setTblMsg('', true);
+  });
+  el('#tblImportCancel').addEventListener('click', function(){ el('#tblImportBox').style.display='none'; setTblMsg('', true); });
+  el('#tblImportRun').addEventListener('click', doTableImport);
+}
+
+/* ---- таблиця предметів: експорт / імпорт ----
+   Схема даних не міняється: пишемо тими самими SK.saveItem, що й редактор.
+   Імпорт лише додає й перезаписує — жодних видалень. */
+function setTblMsg(t, ok){
+  var m=el('#tblMsg'); if(!m) return;
+  m.textContent=t||''; m.className='msg'+(t?(ok?' ok':' err'):'');
+}
+function tableRows(){
+  return (ITEMS||[]).map(function(it){
+    var o=Object.assign({}, it);
+    delete o._ranged; delete o._isNew;
+    return o;
+  });
+}
+function doTableExport(){
+  var rows=tableRows();
+  if(!rows.length){ setTblMsg('Таблиця порожня — нічого вивантажувати.', false); return; }
+  var blob=new Blob([JSON.stringify(rows, null, 2)], {type:'application/json'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='items.json';
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 0);
+  setTblMsg('⬇ Вивантажено '+rows.length+' предметів у items.json', true);
+}
+function parseTable(text){
+  var data;
+  try { data=JSON.parse(text); }
+  catch(e){ return { err:'Це не JSON: '+(e&&e.message||e) }; }
+  if(!Array.isArray(data)) return { err:'Очікую масив предметів — [ { … }, { … } ].' };
+  var rows=[], bad=[];
+  data.forEach(function(x, i){
+    if(!x || typeof x!=='object'){ bad.push('#'+(i+1)+' — не обʼєкт'); return; }
+    if(!x.id){ bad.push('#'+(i+1)+' — немає id'); return; }
+    if(!x.name){ bad.push(x.id+' — немає назви'); return; }
+    var o=Object.assign({}, x);
+    delete o._ranged; delete o._isNew;
+    rows.push(o);
+  });
+  if(!rows.length) return { err:'Жодного придатного рядка. '+bad.slice(0,3).join('; ') };
+  return { rows:rows, bad:bad };
+}
+function doTableImport(){
+  var res=parseTable(el('#tblJson').value||'');
+  if(res.err){ setTblMsg('⚠️ '+res.err, false); return; }
+  var byId={}; (ITEMS||[]).forEach(function(it){ byId[it.id]=true; });
+  var upd=res.rows.filter(function(r){ return byId[r.id]; }).length;
+  var add=res.rows.length-upd;
+  var q='Залити '+res.rows.length+' предметів?\n\nДодати нових: '+add+'\nПерезаписати наявних: '+upd
+      + (res.bad.length ? ('\n\nПропущено рядків: '+res.bad.length) : '');
+  if(!confirm(q)) return;
+  var btns=[el('#tblImportRun'), el('#tblImportCancel'), el('#tblExport'), el('#tblImportOpen')];
+  btns.forEach(function(b){ if(b) b.disabled=true; });
+  var i=0, done=0, total=res.rows.length;
+  function step(){
+    if(i>=total){ finish(); return; }
+    var r=res.rows[i];
+    SK.saveItem(r).then(function(){
+      done++; i++; setTblMsg('Записую… '+done+'/'+total, true); step();
+    }).catch(function(err){
+      setTblMsg('⚠️ Помилка на '+r.id+': '+(err&&err.message||err), false);
+      btns.forEach(function(b){ if(b) b.disabled=false; });
+    });
+  }
+  function finish(){
+    SK.listItems().then(function(list){
+      ITEMS=list||[]; renderView();
+      setTblMsg('✅ Готово. Додано: '+add+'. Оновлено: '+upd+'.'
+        + (res.bad.length ? (' Пропущено: '+res.bad.length+'.') : ''), true);
+      el('#tblImportBox').style.display='none';
+      btns.forEach(function(b){ if(b) b.disabled=false; });
+    });
+  }
+  step();
 }
 
 /* Шапка й гейт доступу — спільні (sk-admin.js). Кнопку «Вийти» показує
