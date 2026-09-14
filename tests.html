@@ -160,6 +160,10 @@
   var PROG = null;          // прогрес Героя з Firebase (heroes/{id}.progress)
 
   var view = 'classes', selGrade = null, selSubj = null;
+  /* Ступінь, у якому зараз дитина. Сторінка показує класи ЛИШЕ цього
+     ступеня: дошкільний вміст живе у «Дошкільнятку» (doshkillya.html) і
+     не має стояти поруч із «1 клас». null — ступінь ще невідомий. */
+  var selTier = null;
 
   function q(id){ return document.getElementById(id); }
   function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -303,19 +307,36 @@
     var pre=null, nums=[], seen={};
     CURRICULUM.forEach(function(t){
       if(isPreschoolTier(t)){
-        if(!pre) pre={key:'p', preschool:true, icon:(t.icon||'🌱'), label:'Дошкільнятко'};
+        if(!pre) pre={key:'p', preschool:true, icon:(t.icon||'🌱'), label:'Дошкільнятко', tier:(t.id||'preschool')};
         (t.grades||[]).forEach(function(g){ GRADE_ID2NUM[g.id]='p'; });
         return;
       }
       (t.grades||[]).forEach(function(g){
         var n=Number(g.gradeNum)||0; GRADE_ID2NUM[g.id]=String(n);
-        if(!seen[n]){ seen[n]=1; nums.push({key:String(n), num:n, name:g.name||(n+' клас')}); }
+        if(!seen[n]){ seen[n]=1; nums.push({key:String(n), num:n, name:g.name||(n+' клас'), tier:(t.id||'')}); }
       });
     });
     nums.sort(function(a,b){return a.num-b.num;});
     // дошкільна картка завжди перша (навіть якщо ступеня нема в карті)
-    if(!pre) pre={key:'p', preschool:true, icon:'🌱', label:'Дошкільнятко'};
+    if(!pre) pre={key:'p', preschool:true, icon:'🌱', label:'Дошкільнятко', tier:'preschool'};
     ALL_GRADES = [pre].concat(nums);
+  }
+  /* У якому ступені живе клас із номером n (те саме правило, що в sk-header.js). */
+  function tierIdOfGradeNum(n){
+    n = Number(n);
+    var i, j, t, gs;
+    for(i=0;i<CURRICULUM.length;i++){
+      t=CURRICULUM[i]; gs=t.grades||[];
+      for(j=0;j<gs.length;j++) if(Number(gs[j].gradeNum)===n) return t.id||'';
+    }
+    return (n<=0) ? 'preschool' : (n<=4 ? 'junior' : 'senior');
+  }
+  /* Класи, які показуємо: лише обраного ступеня. Поки ступінь невідомий
+     (гість, клас Героя ще не приїхав) — показуємо все, щоб нічого не зникло. */
+  function visibleGrades(){
+    if(!selTier) return ALL_GRADES;
+    var out = ALL_GRADES.filter(function(g){ return g.tier === selTier; });
+    return out.length ? out : ALL_GRADES;
   }
   function secByKey(k){ for(var i=0;i<ALL_GRADES.length;i++){ if(ALL_GRADES[i].key===String(k)) return ALL_GRADES[i]; } return null; }
   function secTitle(k){ var s=secByKey(k); return (s&&s.preschool)?'Дошкільнятко':(k+' клас'); }
@@ -323,10 +344,11 @@
   /* ── рендер ── */
   function renderClasses(){
     q('pgSub').textContent='Обери клас.';
-    if(!ALL_GRADES.length){
+    var list = visibleGrades();
+    if(!list.length){
       q('screen').innerHTML='<div class="empty">Класів ще немає. Додай їх у адмінці → «🗺 Структура».</div>'; return;
     }
-    q('screen').innerHTML='<div class="grid">'+ALL_GRADES.map(function(g){
+    q('screen').innerHTML='<div class="grid">'+list.map(function(g){
       var gr=IDX.grades[g.key]; var p=gradeProg(gr); var has=p.total>0;
       var prog = has ? bar(p.passed/p.total, p.passed+' / '+p.total+' пройдено') : '';
       var head = g.preschool
@@ -422,11 +444,11 @@
     var p=hashParams();
     if(!p.open && !p.tier && !p.grade && !p.subj) return false;
     var key = p.grade ? GRADE_ID2NUM[p.grade] : null;
+    var tv = String(p.open||p.tier||'').toLowerCase();
+    if(tv) selTier = tv;                       // прийшли з меню ступеня
+    else if(key) selTier = (key==='p') ? 'preschool' : tierIdOfGradeNum(key);
     // ступінь без класу: якщо це дошкілля — відкриваємо дошкільну секцію
-    if(!key){
-      var tv=String(p.open||p.tier||'').toLowerCase();
-      if((tv.indexOf('preschool')>=0 || tv.indexOf('дошкіл')>=0) && IDX.grades['p']) key='p';
-    }
+    if(!key && (tv.indexOf('preschool')>=0 || tv.indexOf('дошкіл')>=0) && IDX.grades['p']) key='p';
     if(key && IDX.grades[key]){
       selGrade=key;
       if(p.subj && IDX.grades[key].subs[p.subj]){ selSubj=p.subj; view='tests'; }
@@ -481,7 +503,14 @@
       SK.ready.then(function(){
         try{
           if(SK.isHeroSession()){
-            SK.getHero().then(function(h){ if(h){ PROG=h.progress||{}; render(); } }).catch(function(){});
+            SK.getHero().then(function(h){
+              if(!h) return;
+              PROG = h.progress||{};
+              // Без хеша ступінь беремо з класу Героя — щоб першокласник
+              // не бачив дошкільної картки, і навпаки.
+              if(selTier == null && h.grade != null) selTier = tierIdOfGradeNum(h.grade);
+              render();
+            }).catch(function(){});
           }
         }catch(e){}
       });
