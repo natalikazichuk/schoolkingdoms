@@ -27,6 +27,7 @@
 
   /* Шапка — спільна (sk-admin.css). Тут лише підпис «Ви: …». */
   .who{color:var(--muted);font-weight:700;font-size:.9rem}
+  .adminbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   .who b{color:var(--ink)}
   header.topbar{position:static;margin:0 0 18px;border-radius:0}
 
@@ -451,15 +452,8 @@
     </div>
     <div class="spacer"></div>
     <div class="who">Ви: <b id="adminEmail">—</b></div>
-    <button class="btn ghost sm" id="btnHome">🏠 Головна</button>
-    <button class="btn ghost sm" id="btnMap">🗺 Структура</button>
-    <button class="btn ghost sm" id="btnTrainers">🎮 Випробування</button>
-    <button class="btn ghost sm" id="btnGames">🕹 Ігри</button>
-    <a class="btn ghost sm" href="admin-books.html">📖 Книги</a>
-    <a class="btn ghost sm" href="admin-items.html">🛡 Предмети</a>
-    <a class="btn ghost sm" href="admin-vocab.html">📘 Словник</a>
-    <a class="btn ghost sm" href="admin-reports.html">🐞 Помилки</a>
-    <a class="btn ghost sm" href="index.html">← Вихід у гру</a>
+    <!-- Пункти малює renderAdminNav() з того самого списку, що й картки хаба. -->
+    <nav class="adminbar" id="adminBar"></nav>
   </header>
 
   <!-- ---- ВИД: ГОЛОВНА (ХАБ) ---- -->
@@ -468,49 +462,8 @@
       <h2>Головна · панель адміна</h2>
       <p>Обери розділ, яким хочеш керувати.</p>
     </div>
-    <div class="home-grid">
-      <button class="home-card" id="homeTests" type="button">
-        <span class="ic">📜</span>
-        <span class="ttl">Тести</span>
-        <span class="sub">Створення й редагування тестів</span>
-      </button>
-      <button class="home-card" id="homeTrainers" type="button">
-        <span class="ic">🎮</span>
-        <span class="ttl">Випробування</span>
-        <span class="sub">Сторінки/відео під предметами + нагороди й картинки</span>
-      </button>
-      <a class="home-card" href="admin-books.html">
-        <span class="ic">📖</span>
-        <span class="ttl">Книги</span>
-        <span class="sub">Конструктор книг бібліотеки</span>
-      </a>
-      <a class="home-card" href="admin-items.html">
-        <span class="ic">🛡</span>
-        <span class="ttl">Предмети</span>
-        <span class="sub">Екіпіровка, зброя, зілля, свитки</span>
-      </a>
-      <button class="home-card" id="homeMap" type="button">
-        <span class="ic">🗺</span>
-        <span class="ttl">Структура</span>
-        <span class="sub">Ступінь → клас → предмет → розділ</span>
-      </button>
-      <button class="home-card" id="homeGames" type="button">
-        <span class="ic">🕹</span>
-        <span class="ttl">Ігри</span>
-        <span class="sub">Ігротека арени</span>
-      </button>
-      <a class="home-card" id="homeReports" href="admin-reports.html">
-        <span class="badge" id="homeReportsBadge" hidden>0</span>
-        <span class="ic">🐞</span>
-        <span class="ttl">Помилки</span>
-        <span class="sub" id="homeReportsSub">Повідомлення про помилки</span>
-      </a>
-      <a class="home-card exit" href="index.html">
-        <span class="ic">🚪</span>
-        <span class="ttl">Вихід у гру</span>
-        <span class="sub">Повернутись у Королівство</span>
-      </a>
-    </div>
+    <!-- Картки малює renderAdminNav() з того самого списку, що й шапка. -->
+    <div class="home-grid" id="homeGrid"></div>
   </section>
 
   <!-- ---- ВИД: СПИСОК ТЕСТІВ ---- -->
@@ -545,7 +498,6 @@
       <button class="btn ghost" id="btnBack">← Назад до списку</button>
       <div class="spacer"></div>
       <button class="btn ghost danger hidden" id="btnDelete" title="Видалити цей тест">🗑 Видалити тест</button>
-      <button class="btn" id="btnExportOne">⬇ Експорт цього тесту</button>
       <button class="btn gold" id="btnSave">💾 Зберегти тест</button>
     </div>
 
@@ -662,9 +614,10 @@
     <!-- ЕКРАН 1: РОЗДІЛИ (тести / випробування) -->
     <div id="mapScrCats">
       <div class="panel">
-        <h2>🗺 Структура</h2>
+        <h2>📚 Навчання</h2>
         <p class="hint" style="margin:8px 0 4px">
-          Обери розділ, далі — клас, далі — зміст цього класу. Усе редагується так само, як і раніше.
+          Обери тип контенту, далі — клас, далі — предмет. Книги й словник поки
+          відкриваються своїми сторінками; згодом стануть такими самими вкладками.
         </p>
         <div class="mapcat-grid">
           <button class="mapcat-card" data-mapcat="tests" type="button">
@@ -679,6 +632,18 @@
             <span class="sub">Сторінки-випробування та відео за класами</span>
             <span class="cnt" id="mapcatTrainersCnt">—</span>
           </button>
+          <a class="mapcat-card" href="admin-books.html">
+            <span class="ic">📖</span>
+            <span class="ttl">Книги</span>
+            <span class="sub">Конструктор книг бібліотеки</span>
+            <span class="cnt">окрема сторінка</span>
+          </a>
+          <a class="mapcat-card" href="admin-vocab.html">
+            <span class="ic">📘</span>
+            <span class="ttl">Словник</span>
+            <span class="sub">Слова й набори English</span>
+            <span class="cnt">окрема сторінка</span>
+          </a>
         </div>
       </div>
 
@@ -889,6 +854,79 @@
      SK.deleteTest(id)              -> Promise<void>
      SK.setTestActive(id, active)   -> Promise<void>
    ============================================================ */
+
+/* ============================================================
+   РОЗДІЛИ АДМІНКИ — один список на хаб і на шапку.
+   Раніше вони були різні: у шапці бракувало «Тести», у хабі —
+   «Словник», і кожен новий розділ треба було дописувати двічі.
+
+     view   — внутрішній екран adminOpen();
+     href   — окрема сторінка;
+     hub    — показувати карткою на головній;
+     bar    — показувати кнопкою в шапці;
+     hidden — заготовка: лишається в списку, але не малюється.
+
+   Книги й Словник із верхнього рівня прибрані: за схемою це типи
+   контенту всередині «Навчання» — там вони тепер і живуть (екран
+   «Навчання» → вибір типу).
+   ============================================================ */
+const ADMIN_NAV = [
+  { id:'learn',    ic:'📚', ttl:'Навчання', view:'map',      hub:true, bar:true,
+    sub:'Клас → предмет → зміст: тести, випробування, книги, словник' },
+  { id:'games',    ic:'🕹', ttl:'Ігри',     view:'games',    hub:true, bar:true,
+    sub:'Ігротека арени' },
+  { id:'reports',  ic:'⚠️', ttl:'Помилки',  href:'admin-reports.html', hub:true, bar:true,
+    sub:'Повідомлення про помилки', badge:true },
+  { id:'items',    ic:'🎒', ttl:'Items',    href:'admin-items.html',   hub:true, bar:true,
+    sub:'Екіпіровка, зброя, зілля, свитки' },
+  /* Заготовка на майбутнє. Щоб увімкнути — прибрати hidden. */
+  { id:'arena',    ic:'⚔️', ttl:'Арена',    href:'arena.html', hub:true, bar:true,
+    sub:'Заплановано', hidden:true },
+
+  /* Плоскі списки — тимчасово, доки не переїдуть у drill-down «Навчання».
+     У хабі їх немає: верхній рівень має лишатися на пʼяти розділах. */
+  { id:'tests',    ic:'📜', ttl:'Усі тести',        view:'list',     bar:true, legacy:true },
+  { id:'trainers', ic:'🎮', ttl:'Усі випробування', view:'trainers', bar:true, legacy:true },
+
+  { id:'exit',     ic:'🚪', ttl:'Вихід у гру', href:'index.html', hub:true, bar:true,
+    sub:'Повернутись у Королівство', exit:true },
+];
+
+/* Відкрити внутрішній екран за ключем зі списку вище. */
+function adminOpen(view){
+  if(view === 'map')      return openMap();
+  if(view === 'games')    return openGames();
+  if(view === 'list')     return openList();
+  if(view === 'trainers') return openTrainers();
+  return goHome();
+}
+
+function renderAdminNav(){
+  const shown = ADMIN_NAV.filter(n => !n.hidden);
+
+  const grid = $('homeGrid');
+  if(grid) grid.innerHTML = shown.filter(n => n.hub).map(n => {
+    const inner = '<span class="ic">' + n.ic + '</span>'
+      + '<span class="ttl">' + esc(n.ttl) + '</span>'
+      + '<span class="sub"' + (n.badge ? ' id="homeReportsSub"' : '') + '>' + esc(n.sub || '') + '</span>';
+    const badge = n.badge ? '<span class="badge" id="homeReportsBadge" hidden>0</span>' : '';
+    const cls = 'home-card' + (n.exit ? ' exit' : '');
+    return n.href
+      ? '<a class="' + cls + '"' + (n.badge ? ' id="homeReports"' : '') + ' href="' + esc(n.href) + '">' + badge + inner + '</a>'
+      : '<button class="' + cls + '" type="button" data-nav="' + n.id + '">' + inner + '</button>';
+  }).join('');
+
+  const bar = $('adminBar');
+  if(bar) bar.innerHTML =
+      '<button class="btn ghost sm" data-nav="home">🏠 Головна</button>'
+    + shown.filter(n => n.bar).map(n => {
+        const label = (n.exit ? '← ' : n.ic + ' ') + esc(n.ttl);
+        const title = n.legacy ? ' title="Плоский список — переїде в «Навчання»"' : '';
+        return n.href
+          ? '<a class="btn ghost sm" href="' + esc(n.href) + '">' + label + '</a>'
+          : '<button class="btn ghost sm" data-nav="' + n.id + '"' + title + '>' + label + '</button>';
+      }).join('');
+}
 
 /* ---- Довідники ---- */
 /* ============================================================
@@ -3166,6 +3204,7 @@ function showDenied(){
 }
 
 async function bootstrap(){
+  renderAdminNav();
   buildStaticControls();
   await loadTests();
   $('gate').classList.add('hidden');
@@ -3811,13 +3850,16 @@ async function saveDraft(){
    Події
    ============================================================ */
 function bindEvents(){
-  // ---- Головна (хаб) ----
-  $('btnHome').onclick     = goHome;
-  $('listHome').onclick    = goHome;
-  $('homeTests').onclick   = openList;
-  $('homeTrainers').onclick= openTrainers;
-  $('homeMap').onclick     = openMap;
-  $('homeGames').onclick   = openGames;
+  // ---- Навігація: хаб і шапка з одного списку ----
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-nav]');
+    if(!b) return;
+    const id = b.getAttribute('data-nav');
+    if(id === 'home') return goHome();
+    const item = ADMIN_NAV.find(n => n.id === id);
+    if(item && item.view) adminOpen(item.view);
+  });
+  $('listHome').onclick = goHome;
 
   $('btnNew').onclick        = () => openEditor(null);
   $('btnBack').onclick       = closeEditor;
@@ -3853,7 +3895,6 @@ function bindEvents(){
   });
 
   // ---- Редактор карти ----
-  $('btnMap').onclick   = openMap;
   $('mapSave').onclick  = saveMap;
   // ---- Менеджер приналежності ----
   if($('belTree'))       $('belTree').addEventListener('change', onBelChange);
@@ -3915,7 +3956,6 @@ function bindEvents(){
   $('mapTree').addEventListener('click',  onMapClick);
 
   // ---- Тренажери ----
-  $('btnTrainers').onclick = openTrainers;
   $('trSave').onclick = saveTrainersDoc;
   $('trAdd').onclick = () => {
     if(!TRAINERS) TRAINERS = [];
@@ -3932,7 +3972,6 @@ function bindEvents(){
   $('trExpandAll').onclick   = trExpandAll;
 
   // ---- Ігри ----
-  $('btnGames').onclick = openGames;
   $('gmSave').onclick = saveGamesDoc;
   $('gmAdd').onclick = () => {
     if(!GAMES) GAMES = [];
@@ -3948,7 +3987,6 @@ function bindEvents(){
   $('gmExpandAll').onclick   = gmExpandAll;
   $('btnExportAll').onclick  = () => download('tests.json', JSON.stringify(stripIds(TESTS), null, 2));
   $('btnPrintLists').onclick = exportListsTxt;
-  $('btnExportOne').onclick  = () => { collectForm(); download((draft.title||'test')+'.json', JSON.stringify(stripIds([draft])[0], null, 2)); };
 
   // Реакції на зміну нагород
   ['fStatMode','fStatValue','fStat'].forEach(id => $(id).addEventListener('input', updateHints));
