@@ -538,7 +538,7 @@
       <div class="spacer"></div>
       <button class="btn ghost" id="mapReset">↺ Запасна карта</button>
       <button class="btn" id="mapCheck">🔍 Перевірити</button>
-      <button class="btn" id="mapFixGrades" title="Поставити кожному тесту той клас, у чийому розділі він лежить">🧩 Виправити класи</button>
+      <button class="btn" id="mapFixGrades" title="Поставити кожному тесту той клас і предмет, у чийому розділі він лежить">🧩 Виправити клас і предмет</button>
       <button class="btn gold" id="mapSave">💾 Зберегти карту</button>
     </div>
     <div id="mapMsg"></div>
@@ -2132,7 +2132,7 @@ function onMapClick(e){
    чужий розділ можна, і тоді він не видно ніде. Тут знаходимо всі такі
    розбіжності й даємо виправити їх одним разом — інакше кожен тест треба
    відкривати руками. */
-function mapGradeMismatches(){
+function mapRefMismatches(){
   const out = [];
   if(!MAP) return out;
   const idx = window.SKCUR.indexTests(TESTS || []);
@@ -2142,11 +2142,22 @@ function mapGradeMismatches(){
       if(!ref) return;
       const t = window.SKCUR.findTest(ref, idx);
       if(!t || !t.id || seen.has(t.id)) return;
-      const want = Number(g.gradeNum);
-      const got  = Number(t.grade == null || t.grade === '' ? 1 : t.grade);
-      if(got === want) return;
+
+      const wantG = Number(g.gradeNum);
+      const gotG  = Number(t.grade == null || t.grade === '' ? 1 : t.grade);
+      const badG  = gotG !== wantG;
+
+      /* Предмет звіряємо самим обʼєктом карти — у ньому є ключі, тож
+         скорочення («ЯДС» проти «ЯДС · Я досліджую світ») збігається.
+         Не збігається лише тоді, коли в полі справді щось інше. */
+      let badS = false;
+      try { badS = !!sj.name && !window.SKCUR.subjectMatches(sj, t.subject); } catch(e){ badS = false; }
+
+      if(!badG && !badS) return;
       seen.add(t.id);
-      out.push({ test:t, from:got, to:want, topic:tp.topic || '—', subj:sj.name || '—' });
+      out.push({ test:t, topic:tp.topic || '—',
+        grade: badG ? { from:gotG, to:wantG } : null,
+        subject: badS ? { from:(t.subject || '—'), to:sj.name } : null });
     }))
   )));
   return out;
@@ -2231,25 +2242,31 @@ function mapSyncStruct(){
 
 async function fixMapGrades(){
   if(!MAP){ toast('Спершу відкрий структуру', true); return; }
-  const list = mapGradeMismatches();
-  if(!list.length){ toast('Класи вже збігаються з розділами ✔'); return; }
+  const list = mapRefMismatches();
+  if(!list.length){ toast('Клас і предмет усюди збігаються з розділами ✔'); return; }
 
-  const shown = list.slice(0, 12).map(x =>
-    '• ' + x.test.title + ':  ' + gradeWord(x.from) + ' → ' + gradeWord(x.to) + '   (розділ «' + x.topic + '»)');
+  const line = x => {
+    const parts = [];
+    if(x.grade)   parts.push('клас ' + gradeWord(x.grade.from) + ' → ' + gradeWord(x.grade.to));
+    if(x.subject) parts.push('предмет «' + x.subject.from + '» → «' + x.subject.to + '»');
+    return '• ' + x.test.title + ':  ' + parts.join(',  ') + '   (розділ «' + x.topic + '»)';
+  };
+  const shown = list.slice(0, 12).map(line);
   const more = list.length > 12 ? ('\n… і ще ' + (list.length - 12)) : '';
-  if(!confirm('Поставити ' + list.length + ' тест(ам) той клас, у чийому розділі вони лежать?\n\n'
+  if(!confirm('Привести ' + list.length + ' тест(ів) у відповідність до розділу, де вони лежать?\n\n'
       + shown.join('\n') + more + '\n\nЗміни пишуться в базу одразу.')) return;
 
   let ok = 0, bad = 0;
   for(const x of list){
-    const prev = x.test.grade;
-    x.test.grade = x.to;
+    const prevG = x.test.grade, prevS = x.test.subject;
+    if(x.grade)   x.test.grade = x.grade.to;
+    if(x.subject) x.test.subject = x.subject.to;
     try { await SK_API.save(x.test); ok++; }
-    catch(e){ console.error(e); x.test.grade = prev; bad++; }
+    catch(e){ console.error(e); x.test.grade = prevG; x.test.subject = prevS; bad++; }
   }
   renderMap();
   if(MAP_SUBJ) renderMapRecs();
-  toast(bad ? ('Виправлено ' + ok + ', не вдалося ' + bad) : ('Виправлено класів: ' + ok + ' ✔'), !!bad);
+  toast(bad ? ('Виправлено ' + ok + ', не вдалося ' + bad) : ('Виправлено записів: ' + ok + ' ✔'), !!bad);
   checkMap();
 }
 
