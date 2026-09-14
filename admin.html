@@ -1536,7 +1536,11 @@ function renderMapRecs(){
     const nm  = isT ? ((r.obj && r.obj.title) || '—') : ((r.obj && (r.obj.label || r.obj.href)) || '—');
     const ic  = isT ? '📝' : ((r.obj && r.obj.icon) || '🎮');
     let badge = '';
-    if(isT && r.obj && r.obj.hidden)           badge += ' <span class="bel-badge">сховано</span>';
+    if(isT && r.obj && r.obj.hidden){
+      badge += (r.obj.id && cardWrapIdx(r.obj.id) >= 0)
+        ? ' <span class="bel-badge">сховано</span>'
+        : ' <span class="bel-badge">⚠ сховано ні за чим</span>';
+    }
     if(isT && r.obj && r.obj.active === false) badge += ' <span class="bel-badge">вимкнено</span>';
     if(isT && belIsLinkTest(r.obj))            badge += ' <span class="bel-badge tr">посилання</span>';
     const meta = isT ? (countQ(r.obj) + ' пит.') : (((r.obj && r.obj.type) === 'video') ? 'відео' : 'сторінка');
@@ -1713,6 +1717,19 @@ function cardBodyHtml(o){
   }
   head += '</div>';
 
+  /* Прапорець hidden сильніший за «Активний» — показуємо це просто в картці. */
+  let hiddenBox = '';
+  if(isTest && o.hidden && MAP_REC && !MAP_REC.isNew){
+    const wrapped = o.id ? cardWrapIdx(o.id) >= 0 : false;
+    hiddenBox = '<div class="map-warn" style="margin:10px 0">🙈 Цей тест <b>схований</b> зі сторінки «Тести» — '
+      + (wrapped
+          ? 'він показується дитині як <b>випробування</b>. Прапорець «Активний» на це не впливає.'
+          : '<b>але випробування, яке його заміняло, вже немає</b>. Зараз тест не видно ніде — '
+            + 'прапорець лишився від старої конверсії.')
+      + '<div class="toolbar" style="margin:8px 0 0">'
+      + '<button class="btn xs" id="cardUnhide">👁 Повернути в «Тести»</button></div></div>';
+  }
+
   /* Старе представлення: HTML-сторінка, збережена як тест-посилання. */
   let legacy = '';
   if(cardIsLegacyLink()){
@@ -1738,7 +1755,7 @@ function cardBodyHtml(o){
       + '<button class="btn" id="cardEditQ">✏ Редагувати питання →</button></div>'
     : '';
 
-  return head + legacy + cover + cardRewardsHtml(o, fmt) + questions;
+  return head + hiddenBox + legacy + cover + cardRewardsHtml(o, fmt) + questions;
 }
 
 function renderCard(){
@@ -1810,6 +1827,33 @@ function onCardInput(e){
 /* Старий тест-посилання → випробування. Окремо від cardSetFormat, бо
    формат у такого запису ВЖЕ показується як «Файл HTML», тож зміни
    формату немає — а перенести між колекціями все одно треба. */
+/* ── «Сховано» ──
+   tests.html відфільтровує тести з hidden:true, тож такий тест дитина не
+   бачить, хоч би як стояв прапорець «Активний». Ховається він лише в один
+   спосіб — конверсією «Тест → Випробування», яка лишає в curriculum/trainers
+   посилання test.html?id=…  Якщо того посилання вже немає, прапорець
+   застарілий: тест не показується ніде й ніяк. Обидва випадки видно в картці. */
+function cardHiddenTest(){
+  const o = cardObj();
+  return (MAP_REC && MAP_REC.kind === 'test' && !MAP_REC.isNew && o && o.hidden) ? o : null;
+}
+function cardWrapIdx(id){
+  const href = 'test.html?id=' + encodeURIComponent(id);
+  return (TRAINERS || []).findIndex(l => l && String(l.href || '') === href);
+}
+async function cardUnhide(){
+  const o = cardHiddenTest(); if(!o || !o.id) return;
+  const idx = cardWrapIdx(o.id);
+  if(idx >= 0 && !confirm('Повернути «' + (o.title || 'тест') + '» на сторінку «Тести»?\n'
+      + 'Випробування-обгортка, що вела на цей тест, зникне.')) return;
+  o.hidden = false;
+  if(idx >= 0) TRAINERS.splice(idx, 1);
+  const okT = await belSaveTest(o);
+  const okL = (idx >= 0) ? await belSaveTrainers() : true;
+  if(okT && okL) toast('Тест знову показується дитині ✔');
+  renderCard();
+}
+
 async function cardLinkToTrainer(){
   const o = cardObj();
   if(!o || !o.id) return;
@@ -3951,7 +3995,8 @@ function bindEvents(){
     $('mapCardBody').addEventListener('change', onCardInput);
     $('mapCardBody').addEventListener('click', e => {
       if(e.target.closest('#cardEditQ')){ const o = cardObj(); if(o){ EDIT_RETURN = 'card'; openEditor(o); } return; }
-      if(e.target.closest('#cardToTrainer')){ cardLinkToTrainer(); }
+      if(e.target.closest('#cardToTrainer')){ cardLinkToTrainer(); return; }
+      if(e.target.closest('#cardUnhide')){ cardUnhide(); }
     });
   }
   if($('mapCardSave')) $('mapCardSave').onclick = cardSave;
