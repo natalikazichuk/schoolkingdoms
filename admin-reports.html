@@ -193,12 +193,65 @@
       .catch(function(){ root.innerHTML='<div class="empty">Не вдалося завантажити повідомлення.</div>'; });
   }
 
+  /* ── Експорт JSON ──────────────────────────────────────────────────
+     Вивантажує те, що зараз на екрані (з урахуванням чіпа Нові/Усі),
+     щоб файл можна було переслати розробнику чи покласти в docs/.
+     Скріншоти НЕ входять: це base64-JPEG до ~900 КБ на запис, і з ними
+     файл стає неосяжним. Замість картинки лишається hasScreenshot:true —
+     сам скрін завжди видно в адмінці. */
+  function isoWhen(ts){
+    if(!ts || !ts.seconds) return null;
+    return new Date(ts.seconds*1000).toISOString();
+  }
+  function exportRows(){
+    return REPORTS
+      .filter(function(r){ return FILTER==='all' || r.status!=='done'; })
+      .map(function(r){
+        return {
+          id:            r.id || '',
+          status:        r.status || 'new',
+          role:          r.role || 'guest',
+          createdAt:     isoWhen(r.createdAt),
+          message:       r.message || '',
+          page:          r.page || '',
+          url:           r.url || '',
+          heroName:      r.heroName || '',
+          heroId:        r.heroId || '',
+          reporterEmail: r.reporterEmail || '',
+          screen:        r.screen || '',
+          ua:            r.ua || '',
+          hasScreenshot: !!r.screenshot
+        };
+      });
+  }
+  function download(name, text){
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], {type:'application/json'}));
+    a.download = name;
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 500);
+  }
+  function doExport(){
+    var rows = exportRows();
+    if(!rows.length){ SKADMIN.toast('Немає чого експортувати', true); return; }
+    var d = new Date(), pad = function(n){ return (n<10?'0':'')+n; };
+    var day = d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+    download('reports-'+FILTER+'-'+day+'.json', JSON.stringify({
+      exported: d.toISOString(),
+      filter:   FILTER,          // 'new' = лише невирішені, 'all' = всі
+      count:    rows.length,
+      reports:  rows
+    }, null, 2));
+    SKADMIN.toast('Експортовано: '+rows.length);
+  }
+
   /* Шапка й гейт доступу — спільні (sk-admin.js). */
   SKADMIN.header({
     name:'Повідомлення про помилки',
     sub:'School Kingdom · зворотний звʼязок',
     nav:[ { href:'admin.html', label:'🏠 Головна (Адмінка)' },
           { href:'admin-books.html', label:'📖 Книги' },
+          { id:'btnExport', label:'⬇ Export JSON' },
           { id:'btnReload', label:'🔄 Оновити' } ]
   });
 
@@ -207,6 +260,8 @@
     onOk:function(){
       var rl = document.getElementById('btnReload');
       if(rl) rl.onclick = load;
+      var ex = document.getElementById('btnExport');
+      if(ex) ex.onclick = doExport;
       load();
     }
   });
