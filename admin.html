@@ -1621,11 +1621,20 @@ function cardFormat(){
 function cardIsPage(){ const f = cardFormat(); return f === 'html' || f === 'video'; }
 
 function cardGradeSel(cur){
+  const want = Number(cur == null || cur === '' ? 1 : cur);
+  const list = trGradeList();
   let h = '<select data-cf="grade">';
-  trGradeList().forEach(n => {
-    h += '<option value="' + n + '"' + (Number(cur == null ? 1 : cur) === n ? ' selected' : '') + '>'
+  list.forEach(n => {
+    h += '<option value="' + n + '"' + (want === n ? ' selected' : '') + '>'
        + (n === 0 ? '🌱 Дошкільнятко' : (n + ' клас')) + '</option>';
   });
+  /* Класу з картки немає серед класів карти — показуємо його окремо.
+     Інакше браузер мовчки вибрав би перший пункт, і картка показувала б
+     чужий клас (а виправлення виглядало б як «нічого не міняла»). */
+  if(!list.includes(want)){
+    h += '<option value="' + want + '" selected>⚠ '
+       + (want === 0 ? 'дошкілля' : want + ' клас') + ' — немає в карті</option>';
+  }
   return h + '</select>';
 }
 /* Предмет — канонічні назви з карти + поточне значення, якщо його там немає. */
