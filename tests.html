@@ -512,7 +512,40 @@
     })();
   }
   /* ── старт: карта + активні тести з бази → індекс → рендер ── */
+  /* ── Страхування карти королівства ──
+     sk-header.js підвантажує sk-curriculum.js динамічно. Якщо піти з
+     попередньої сторінки, поки цей запит у польоті, браузер лишає в кеші
+     обірваний запис — і на наступній сторінці той самий URL віддається
+     «успішно», але скрипт не виконується: window.SKCUR немає, сторінка
+     мовчки висить на «Завантаження…». Тому чекаємо на SKCUR, а якщо його
+     нема — перезапитуємо файл з унікальним хвостом (повз кеш). */
+  function whenSKCUR(cb){
+    var n = 0, retried = false;
+    (function w(){
+      if(window.SKCUR && window.SKCUR.ready) return cb(true);
+      if(n === 10 && !retried){
+        retried = true;
+        var sc = document.createElement('script');
+        sc.src = 'sk-curriculum.js?v=3&r=' + Date.now();
+        sc.onerror = function(){ /* далі просто добіжить таймаут */ };
+        document.head.appendChild(sc);
+      }
+      if(n++ < 120) return setTimeout(w, 50);
+      cb(false);
+    })();
+  }
+
   function boot(){
+    whenSKCUR(function(ok){
+      if(!ok){
+        q('screen').innerHTML = '<div class="empty">Не вдалося завантажити карту королівства.'
+          + '<br>Онови сторінку.</div>';
+        return;
+      }
+      bootMap();
+    });
+  }
+  function bootMap(){
     var mapP = SKCUR.ready;
     var trP = new Promise(function(res){
       whenSK(function(SK){
