@@ -72,7 +72,7 @@
          Картинки на фон додаються через github у img/nav/ (назви нижче). -->
     <div class="nv-grid" id="disGrid">
 
-      <a class="lv locked" data-subj="math" style="--g1:#3a5aa0;--g2:#1c356b" aria-disabled="true">
+      <a class="lv locked" data-subj="math" data-keys="математик" style="--g1:#3a5aa0;--g2:#1c356b" aria-disabled="true">
         <img class="lv-bg" src="img/nav/dis-tsyfry.webp" alt="" loading="lazy" onerror="this.style.display='none'">
         <span class="lv-scrim"></span>
         <span class="lv-body">
@@ -83,7 +83,7 @@
         </span>
       </a>
 
-      <a class="lv locked" data-subj="ukr" style="--g1:#b05a86;--g2:#6e2f52" aria-disabled="true">
+      <a class="lv locked" data-subj="ukr" data-keys="українськ|абетк|читанн" style="--g1:#b05a86;--g2:#6e2f52" aria-disabled="true">
         <img class="lv-bg" src="img/nav/dis-bukvy.webp" alt="" loading="lazy" onerror="this.style.display='none'">
         <span class="lv-scrim"></span>
         <span class="lv-body">
@@ -95,7 +95,7 @@
       </a>
 
       <!-- English має запасне посилання: словник працює й без тестів у карті. -->
-      <a class="lv" data-subj="eng" href="slovnyk-en.html" style="--g1:#2f8f86;--g2:#155852">
+      <a class="lv" data-subj="eng" data-keys="english|англійськ|англ" href="slovnyk-en.html" style="--g1:#2f8f86;--g2:#155852">
         <img class="lv-bg" src="img/nav/dis-english.webp" alt="" loading="lazy" onerror="this.style.display='none'">
         <span class="lv-scrim"></span>
         <span class="lv-body">
@@ -105,7 +105,7 @@
         </span>
       </a>
 
-      <a class="lv locked" data-subj="yads" style="--g1:#c08a3a;--g2:#7a531d" aria-disabled="true">
+      <a class="lv locked" data-subj="yads" data-keys="ядс|я досліджую світ|природознав|довкіл" style="--g1:#c08a3a;--g2:#7a531d" aria-disabled="true">
         <img class="lv-bg" src="img/nav/dis-svit.webp" alt="" loading="lazy" onerror="this.style.display='none'">
         <span class="lv-scrim"></span>
         <span class="lv-body">
@@ -145,11 +145,31 @@
       var t=0;
       (function w(){ if(window.SK){ cb(window.SK); return; } if(t++<120) setTimeout(w,50); else cb(null); })();
     }
+    function nrm(v){
+      return String(v==null?'':v).toLowerCase().replace(/[’'`ʼ]/g,'').replace(/\s+/g,' ').trim();
+    }
+    /* Предмет шукаємо спершу за id, далі — за назвою чи ключами. Id надійний
+       лише для предметів із запасної карти: доданий в адмінці предмет
+       отримує згенерований id ('s' + час), тож плитка за ним не знайшлась би. */
+    function pickSubj(g, sid, keys){
+      var subs = (g && g.subjects) || [];
+      var byId = subs.filter(function(s){ return s && s.id === sid; })[0];
+      if(byId) return byId;
+      var want = String(keys||'').split('|').map(nrm).filter(Boolean);
+      if(!want.length) return null;
+      return subs.filter(function(s){
+        if(!s) return false;
+        var hay = [nrm(s.name)].concat((s.keys||[]).map(nrm)).filter(Boolean);
+        return hay.some(function(h){
+          return want.some(function(w){ return h.indexOf(w) >= 0 || w.indexOf(h) >= 0; });
+        });
+      })[0] || null;
+    }
     function unlock(g, tests){
       var gradeId = g ? g.id : '';
       Array.prototype.forEach.call(grid.querySelectorAll('[data-subj]'), function(a){
         var sid = a.getAttribute('data-subj');
-        var subj = (g && (g.subjects||[]).filter(function(s){ return s && s.id===sid; })[0]) || null;
+        var subj = pickSubj(g, sid, a.getAttribute('data-keys'));
         if(!subj) return;
         var n = tests.filter(function(t){
           try { return window.SKCUR.subjectMatches(subj, t.subject); } catch(e){ return false; }
@@ -157,7 +177,7 @@
         if(!n) return;                       // лишається «Скоро»
         a.href = 'tests.html#open=preschool'
                + (gradeId ? '&grade=' + encodeURIComponent(gradeId) : '')
-               + '&subj=' + encodeURIComponent(sid);
+               + '&subj=' + encodeURIComponent(subj.id);
         a.classList.remove('locked');
         a.removeAttribute('aria-disabled');
         var soon = a.querySelector('.lv-soon');
