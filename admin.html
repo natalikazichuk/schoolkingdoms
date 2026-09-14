@@ -1262,16 +1262,9 @@ function mapTierIsPre(t){
    воно розходилося зі списком. Тут рахуємо тим самим правилом, що й
    drillRecords: тести з колекції + випробування під предметами класу. */
 function drillCountFor(tier, g){
-  const tests = new Set();
-  (g.subjects || []).forEach(sj => {
-    (TESTS || []).forEach(t => {
-      if(!t || !t.id || !t.title) return;
-      if(Number(t.grade == null ? 1 : t.grade) !== Number(g.gradeNum)) return;
-      try { if(!window.SKCUR.subjectMatches(sj, t.subject)) return; } catch(e){ return; }
-      tests.add(t.id);
-    });
-  });
-  return tests.size;
+  const seen = new Set();
+  (g.subjects || []).forEach(sj => drillSubjRecords(g, sj, null, seen));
+  return seen.size;
 }
 function mapTierLabel(id){
   const t = mapTierById(id);
@@ -1435,19 +1428,36 @@ function drillSubjects(){
 }
 /* Записи обраного типу під предметом. Тести — за збігом предмета й класу
    (ловить і ті, що ще не покладені в розділ). Випробування — subjTrainerIdx. */
+/* Записи предмета в класі. Два джерела, які раніше розходились:
+     1) тести, що підходять за предметом і класом — те, що бачить дитина;
+     2) тести, покладені в РОЗДІЛИ цього предмета в структурі.
+   Друге враховували лише в дереві структури, тож покладений туди тест міг
+   не зʼявитись у списку записів («додала в структуру — показує 0»).
+   Тепер список показує обидва, а розбіжність позначаємо — щоб було видно,
+   що саме дитина не побачить, поки клас/предмет у картці не виправлять. */
+function drillSubjRecords(g, sj, recs, seen){
+  const idx = window.SKCUR.indexTests(TESTS || []);
+  (TESTS || []).forEach(t => {
+    if(!t || !t.id || !t.title) return;
+    if(Number(t.grade == null ? 1 : t.grade) !== Number(g.gradeNum)) return;
+    try { if(!window.SKCUR.subjectMatches(sj, t.subject)) return; } catch(e){ return; }
+    if(seen.has(t.id)) return;
+    seen.add(t.id);
+    if(recs) recs.push({ kind:'test', id:t.id, obj:t });
+  });
+  (sj.topics || []).forEach(tp => (tp.tests || []).forEach(ref => {
+    if(!ref) return;
+    const t = window.SKCUR.findTest(ref, idx);
+    if(!t || !t.id || seen.has(t.id)) return;
+    seen.add(t.id);
+    if(recs) recs.push({ kind:'test', id:t.id, obj:t, viaMap:true });
+  }));
+}
 function drillRecords(subjName){
   const recs = [], seen = new Set();
   drillGradeCtx().forEach(({ tier, g }) => (g.subjects || []).forEach(sj => {
     if(!drillSameSubj(sj.name, subjName)) return;
-    /* Одне сховище — колекція tests. Тип задає поле `format`. */
-    (TESTS || []).forEach(t => {
-      if(!t || !t.id || !t.title) return;
-      if(Number(t.grade == null ? 1 : t.grade) !== Number(MAP_GRADE)) return;
-      if(!window.SKCUR.subjectMatches(sj, t.subject)) return;
-      if(seen.has('t:' + t.id)) return;
-      seen.add('t:' + t.id);
-      recs.push({ kind:'test', id:t.id, obj:t });
-    });
+    drillSubjRecords(g, sj, recs, seen);
   }));
   return recs;
 }
@@ -1529,6 +1539,16 @@ function renderMapRecs(){
     let badge = '';
     if(o.hidden)          badge += ' <span class="bel-badge">сховано</span>';
     if(o.active === false) badge += ' <span class="bel-badge">вимкнено</span>';
+    /* Запис потрапив сюди з розділу структури, але його власні клас/предмет
+       кажуть інше — дитина його тут не побачить, поки картку не виправлять. */
+    if(r.viaMap){
+      const gn = Number(o.grade == null || o.grade === '' ? 1 : o.grade);
+      if(gn !== Number(MAP_GRADE)){
+        badge += ' <span class="bel-badge">⚠ клас у картці: ' + (gn === 0 ? 'дошкілля' : gn + ' кл.') + '</span>';
+      } else {
+        badge += ' <span class="bel-badge">⚠ предмет у картці: ' + esc(o.subject || '—') + '</span>';
+      }
+    }
     const meta = video ? 'відео' : (page ? 'сторінка' : (countQ(o) + ' пит.'));
     const key  = 'test:' + r.id;
     html += '<button class="drill-rec" data-mrec="' + esc(key) + '">'
