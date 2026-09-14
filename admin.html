@@ -538,6 +538,7 @@
       <div class="spacer"></div>
       <button class="btn ghost" id="mapReset">↺ Запасна карта</button>
       <button class="btn" id="mapCheck">🔍 Перевірити</button>
+      <button class="btn" id="mapFixGrades" title="Поставити кожному тесту той клас, у чийому розділі він лежить">🧩 Виправити класи</button>
       <button class="btn gold" id="mapSave">💾 Зберегти карту</button>
     </div>
     <div id="mapMsg"></div>
@@ -2090,6 +2091,57 @@ function onMapClick(e){
 
    Поділ на ✘ і ⚠ простий: ✘ — те, що виправляється тут, у редакторі карти
    (і тому блокує збереження); ⚠ — те, що виправляється в картці тесту. */
+/* ── Клас тесту vs клас розділу ──
+   Тест показується дитині лише там, де клас у його картці збігається з
+   класом розділу (це вимога sk-curriculum.placeTests). Покласти тест у
+   чужий розділ можна, і тоді він не видно ніде. Тут знаходимо всі такі
+   розбіжності й даємо виправити їх одним разом — інакше кожен тест треба
+   відкривати руками. */
+function mapGradeMismatches(){
+  const out = [];
+  if(!MAP) return out;
+  const idx = window.SKCUR.indexTests(TESTS || []);
+  const seen = new Set();
+  MAP.tiers.forEach(tier => (tier.grades || []).forEach(g => (g.subjects || []).forEach(sj =>
+    (sj.topics || []).forEach(tp => (tp.tests || []).forEach(ref => {
+      if(!ref) return;
+      const t = window.SKCUR.findTest(ref, idx);
+      if(!t || !t.id || seen.has(t.id)) return;
+      const want = Number(g.gradeNum);
+      const got  = Number(t.grade == null || t.grade === '' ? 1 : t.grade);
+      if(got === want) return;
+      seen.add(t.id);
+      out.push({ test:t, from:got, to:want, topic:tp.topic || '—', subj:sj.name || '—' });
+    }))
+  )));
+  return out;
+}
+function gradeWord(n){ return Number(n) === 0 ? 'дошкілля' : (n + ' кл.'); }
+
+async function fixMapGrades(){
+  if(!MAP){ toast('Спершу відкрий структуру', true); return; }
+  const list = mapGradeMismatches();
+  if(!list.length){ toast('Класи вже збігаються з розділами ✔'); return; }
+
+  const shown = list.slice(0, 12).map(x =>
+    '• ' + x.test.title + ':  ' + gradeWord(x.from) + ' → ' + gradeWord(x.to) + '   (розділ «' + x.topic + '»)');
+  const more = list.length > 12 ? ('\n… і ще ' + (list.length - 12)) : '';
+  if(!confirm('Поставити ' + list.length + ' тест(ам) той клас, у чийому розділі вони лежать?\n\n'
+      + shown.join('\n') + more + '\n\nЗміни пишуться в базу одразу.')) return;
+
+  let ok = 0, bad = 0;
+  for(const x of list){
+    const prev = x.test.grade;
+    x.test.grade = x.to;
+    try { await SK_API.save(x.test); ok++; }
+    catch(e){ console.error(e); x.test.grade = prev; bad++; }
+  }
+  renderMap();
+  if(MAP_SUBJ) renderMapRecs();
+  toast(bad ? ('Виправлено ' + ok + ', не вдалося ' + bad) : ('Виправлено класів: ' + ok + ' ✔'), !!bad);
+  checkMap();
+}
+
 function checkMap(){
   const errs = [], warns = [];
 
@@ -3245,6 +3297,7 @@ function bindEvents(){
   $('mapSave').onclick  = saveMap;
   // ---- Менеджер приналежності ----
   $('mapCheck').onclick = () => { checkMap(); };
+  if($('mapFixGrades')) $('mapFixGrades').onclick = fixMapGrades;
   $('mapBack').onclick  = goHome;
   $('mapReset').onclick = () => {
     if(!confirm('Замінити чернетку карти на запасну (ту, що в sk-curriculum.js)? Збережена в базі карта не зміниться, доки не натиснеш «Зберегти карту».')) return;
