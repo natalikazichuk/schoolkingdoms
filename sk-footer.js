@@ -76,8 +76,8 @@ body{padding-bottom:calc(82px + env(safe-area-inset-bottom))}
   nav.className = 'botnav';
   nav.innerHTML =
       tab('home',       'hero.html',       '\uD83C\uDFE0', 'Головна') +
-      tab('tests',      'tests.html',      '\uD83D\uDCDC', 'Тести') +
-      tab('navch',      'navchannia.html',    '\uD83C\uDF93', 'Навчання') +
+      tab('navch',      'navchannia.html', '\uD83C\uDF93', 'Навчання') +
+      tab('games',      'igry.html',       '\uD83D\uDD79', 'Ігри') +
       tab('arena',      'arena.html',      '\u2694\uFE0F', 'Арена') +
       lastBtn;
 
