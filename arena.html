@@ -787,7 +787,7 @@ body.scr-battle .wrap{max-width:1500px}
 
     <!-- 4. Почати бій -->
     <button class="play-btn" id="findBtn">⚔️ Почати бій</button>
-    <div class="play-cap"><b>1×1 · Двобій</b><span>Ти проти суперника</span></div>
+    <div class="play-cap"><b>1×1 · Двобій</b><span id="playCapSub">Ти проти суперника</span></div>
 
     <!-- 5. Формати -->
     <div class="formats">
@@ -1348,6 +1348,12 @@ body.scr-battle .wrap{max-width:1500px}
     $('winCount').textContent  = arena.wins;
     $('loseCount').textContent = arena.losses;
     if($('drawCount')) $('drawCount').textContent = arena.draws;
+
+    // незавершений бій чекає — кажемо про це прямо на головній кнопці
+    var live = hasLiveBattle();
+    var btn = $('findBtn'); if(btn) btn.textContent = live ? '⚔️ Продовжити бій' : '⚔️ Почати бій';
+    var cap = $('playCapSub');
+    if(cap) cap.textContent = live ? ('Бій триває · раунд ' + B.round) : 'Ти проти суперника';
   }
 
   /* маленькі портрети для VS-панелі (ти vs суперник) */
@@ -1379,32 +1385,93 @@ body.scr-battle .wrap{max-width:1500px}
     };
   }
 
-  function startBattle(){
-    var bot = pickBot();
-    B = {
-      round:1, over:false, resolving:false,
-      me:   {f:hero, force:maxForce(hero), max:maxForce(hero), atk:null, block:null},
-      op:   {f:bot,  force:maxForce(bot),  max:maxForce(bot),  atk:null, block:null},
-      timer:null, left:TURN_SECONDS
-    };
+  /* ── ПАУЗА БОЮ ───────────────────────────────────────────────────
+     Бій жив тільки в пам'яті сторінки. Досить було вийти на екран
+     таверни («← Назад») чи перезавантажити сторінку — і бій зникав
+     разом з усією втраченою силою, а наступний починався з повним
+     здоров'ям. Дитина бачила це як «здоров'я відновлюється, і весь
+     прогрес бою втрачається» (і так само можна було втекти від
+     програшу без поразки).
 
+     Тепер бій переживає і вихід у таверну, і перезавантаження: він
+     чекає й продовжується з того самого раунда та тієї самої сили.
+     Остаточно вийти з нього можна лише кнопкою «Вихід з гри» — і це
+     чесна поразка. ── */
+  var BATTLE_KEY = 'sk_arena_battle';
+  function battleHeroId(){
+    try{ return (window.SK && SK.activeHeroId) || localStorage.getItem('sk_active_child') || ''; }
+    catch(e){ return ''; }
+  }
+  function saveBattle(){
+    if(!B || B.over){ clearBattle(); return; }
+    try{
+      localStorage.setItem(BATTLE_KEY, JSON.stringify({
+        v:1, heroId:battleHeroId(), round:B.round,
+        me:{force:B.me.force, max:B.me.max},
+        op:{force:B.op.force, max:B.op.max, f:B.op.f},
+        steps:B.steps||''
+      }));
+    }catch(e){}
+  }
+  function clearBattle(){ try{ localStorage.removeItem(BATTLE_KEY); }catch(e){} }
+  function loadSavedBattle(){
+    try{
+      var o=JSON.parse(localStorage.getItem(BATTLE_KEY)||'null');
+      if(!o || o.v!==1 || !o.me || !o.op || !o.op.f) return null;
+      var me=battleHeroId();
+      if(o.heroId && me && o.heroId!==me) return null;      // бій іншої дитини на спільному пристрої
+      if(!(o.me.force>0) || !(o.op.force>0)) return null;    // бій уже фактично закінчений
+      return o;
+    }catch(e){ return null; }
+  }
+  function restoreBattle(o){
+    B = {
+      round: +o.round || 1, over:false, resolving:false,
+      me: {f:hero,    force:o.me.force, max:o.me.max || maxForce(hero),  atk:null, block:null},
+      op: {f:o.op.f,  force:o.op.force, max:o.op.max || maxForce(o.op.f), atk:null, block:null},
+      timer:null, left:TURN_SECONDS, steps:o.steps||''
+    };
+  }
+  function hasLiveBattle(){ return !!(B && !B.over); }
+
+  /* намалювати сцену бою за поточним станом B */
+  function paintBattle(){
     // ліва картка — гравець
     paintFull(hero.avatar,'pPeek','pSceneEmoji');
     $('pName').textContent = hero.name;
     $('pLvl').textContent  = arena.level;
     // права картка + картки-цілі — суперник
-    paintFull(bot.avatar,'oPeek','oSceneEmoji');
-    paintAtkCards(bot.avatar);
-    $('oName').textContent = bot.name;
-    $('oLvl').textContent  = bot.level;
+    paintFull(B.op.f.avatar,'oPeek','oSceneEmoji');
+    paintAtkCards(B.op.f.avatar);
+    $('oName').textContent = B.op.f.name;
+    $('oLvl').textContent  = B.op.f.level;
 
     updateForce('p', B.me); updateForce('o', B.op);
-    $('roundNum').textContent = '1';
+    $('roundNum').textContent = B.round;
     clearSel();
     resetSteps();
+    if(B.steps){ var box=$('steps'); if(box){ box.innerHTML=B.steps; box.scrollTop=box.scrollHeight; } }
+  }
+  function enterBattle(){
+    paintBattle();
     show('battle');
     startTimer();
     refreshStrike();
+  }
+
+  function startBattle(){
+    // Незавершений бій не перезапускаємо: інакше «почати ще раз» було б
+    // безкоштовним лікуванням і втечею від поразки.
+    if(hasLiveBattle()){ enterBattle(); return; }
+    var bot = pickBot();
+    B = {
+      round:1, over:false, resolving:false,
+      me:   {f:hero, force:maxForce(hero), max:maxForce(hero), atk:null, block:null},
+      op:   {f:bot,  force:maxForce(bot),  max:maxForce(bot),  atk:null, block:null},
+      timer:null, left:TURN_SECONDS, steps:''
+    };
+    saveBattle();
+    enterBattle();
   }
 
   /* статус здоровʼя — змінюється кожні 10% */
@@ -1566,6 +1633,7 @@ body.scr-battle .wrap{max-width:1500px}
       B.round++; $('roundNum').textContent = B.round;
       clearSel(); B.op.atk=null; B.op.block=null;
       B.resolving = false; refreshStrike();
+      saveBattle();          // раунд завершено — стан бою переживе вихід і перезавантаження
       startTimer();
     }, 2600);
   }
@@ -1610,6 +1678,7 @@ body.scr-battle .wrap{max-width:1500px}
     row.innerHTML = '<span class="no">Хід '+n+'</span><span class="txt">'+html+'</span>';
     box.appendChild(row);
     box.scrollTop = box.scrollHeight;
+    if(B) B.steps = box.innerHTML;   // журнал належить бою, а не екрану
   }
   function resetSteps(){
     var box = $('steps'); if(box) box.innerHTML = '<div class="steps-empty">Ходи бою зʼявляться тут…</div>';
@@ -1633,6 +1702,7 @@ body.scr-battle .wrap{max-width:1500px}
 
   function endBattle(meDown, opDown){
     B.over = true; B.resolving = true; stopTimer();
+    clearBattle();
     var res = $('result');
     if(meDown && opDown){
       // нічия → окремий лічильник, досвід як за гідний бій
@@ -1708,9 +1778,13 @@ body.scr-battle .wrap{max-width:1500px}
       });
     });
     $('fleeBtn').addEventListener('click', function(){
-      // вихід під час активного бою = здача → гравцю зараховується програш
-      if(B && !B.over){
+      // вихід під час активного бою = здача → гравцю зараховується програш.
+      // Питаємо, бо кнопка стоїть одразу під «Атака»: випадковий дотик не
+      // повинен коштувати поразки (вийти на паузу можна кнопкою «Назад»).
+      if(hasLiveBattle()){
+        if(!confirm('Здатися і вийти з бою? Буде зараховано поразку.\n\nЩоб просто вийти в таверну й продовжити бій пізніше — тисни «← Назад».')) return;
         B.over = true; B.resolving = true; stopTimer();
+        clearBattle();
         arena.losses++;
         finishResult(false, '🏳️', 'Ти здався', 'Ти вийшов із бою — зараховано поразку.', 0);
       }else{
@@ -1752,7 +1826,8 @@ body.scr-battle .wrap{max-width:1500px}
 
     var back=$('heroBackBtn');
     if(back) back.addEventListener('click', function(){
-      if(!$('screen-battle').classList.contains('hidden')){ show('tavern'); return; }
+      // під час бою «Назад» = пауза: бій чекає в таверні, а не зникає
+      if(!$('screen-battle').classList.contains('hidden')){ saveBattle(); show('tavern'); return; }
       location.href='igry.html';
     });
   }
@@ -1868,7 +1943,10 @@ body.scr-battle .wrap{max-width:1500px}
   }
 
   function boot(){
-    loadArena(); loadCachedStats(); loadEquip(); wire(); renderTavern(); show('tavern');
+    loadArena(); loadCachedStats(); loadEquip(); wire();
+    var saved = loadSavedBattle();
+    if(saved) restoreBattle(saved);   // бій чекає — таверна запропонує «Продовжити бій»
+    renderTavern(); show('tavern');
     // підтягнути справжнього героя з бази (той самий шлях, що й у хедері)
     whenSK(function(){
       try{ window.SK.ready.then(function(){ pullHeroStats(); }); }catch(e){}

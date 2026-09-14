@@ -197,6 +197,8 @@
     + 'padding:10px 12px;outline:none}'
     + '.sk-rep-card textarea:focus{border-color:rgba(242,199,92,.8)}'
     + '.sk-rep-hint{font-size:.74rem;color:#9aa6c6;margin:8px 2px 0;line-height:1.3}'
+    + '.sk-rep-hint.warn{color:#ffd9a0;font-weight:700}'
+    + '.sk-rep-card textarea.warn{border-color:rgba(255,170,90,.85)}'
     + '.sk-shot-row{display:flex;align-items:center;gap:8px;margin:10px 2px 0;'
     + 'font-size:.8rem;color:#c6d3ea;cursor:pointer;user-select:none}'
     + '.sk-shot-row input{width:16px;height:16px;accent-color:#E0A93A;cursor:pointer}'
@@ -241,6 +243,7 @@
     + '<h3>🐞 Помітили помилку?</h3>'
     + '<p>Коротко опишіть, що сталося — і ми полагодимо. Дані про сторінку додадуться автоматично.</p>'
     + '<textarea id="skRepText" placeholder="Напр.: кнопка «Грати» не відкриває тренажер…"></textarea>'
+    + '<div class="sk-rep-hint" id="skRepHint" hidden></div>'
     + '<label class="sk-shot-row"><input type="checkbox" id="skShotChk" checked disabled>'
     +   '<span id="skShotState">📷 Роблю знімок екрана…</span></label>'
     + '<div class="sk-rep-row">'
@@ -254,9 +257,23 @@
     updateShotUI();
     var ta = back.querySelector('#skRepText');
     if(ta) setTimeout(function(){ ta.focus(); }, 30);
+    if(ta) ta.addEventListener('input', function(){
+      var h = back.querySelector('#skRepHint');
+      if(h && !h.hidden){ h.hidden = true; ta.classList.remove('warn'); }
+    });
     back.querySelector('#skRepCancel').addEventListener('click', closeModal);
     back.querySelector('#skRepSend').addEventListener('click', function(){
-      var txt = ta ? ta.value : '';
+      var txt = ta ? ta.value.trim() : '';
+      var hint = back.querySelector('#skRepHint');
+      // Без опису повідомлення марне: в адмінці воно виглядає як «(без опису)»,
+      // і навіть зі знімком екрана не зрозуміло, ЩО саме пішло не так.
+      if(txt.length < 3){
+        if(hint){ hint.textContent = '✏️ Напиши хоч кілька слів: що саме не працює?'; hint.hidden = false; hint.className = 'sk-rep-hint warn'; }
+        if(ta){ ta.classList.add('warn'); ta.focus(); }
+        return;
+      }
+      if(hint) hint.hidden = true;
+      if(ta) ta.classList.remove('warn');
       var btnEl = this;
       btnEl.disabled = true;
       btnEl.textContent = 'Надсилаємо…';

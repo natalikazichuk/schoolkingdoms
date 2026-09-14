@@ -253,6 +253,15 @@ var IS_LEVELS=false;
 
 /* Тест із рівнями? format:'levels' або наявний масив levels[] */
 function isLevels(t){ return !!(t && (t.format==='levels' || (Array.isArray(t.levels) && t.levels.length))); }
+/* Чи повертає помилка на початок.
+   У тесті з рівнями — завжди (вбудоване правило рівнів). У тесті одним
+   списком — лише коли в адмінці увімкнено «Помилка → починати тест
+   спочатку»: дитина чекала саме цього («тест після неварної відповіді не
+   скидається»), але для довгих тестів із балом у підсумку така суворість
+   не завжди доречна, тож це вибір автора тесту. */
+function resetsOnWrong(){ return IS_LEVELS || !!(TEST && TEST.resetOnWrong); }
+function restartMsg(){ return IS_LEVELS ? '❌ Помилка! Рівень починається спочатку'
+                                        : '❌ Помилка! Тест починається спочатку'; }
 function levelsArr(){ return (TEST && Array.isArray(TEST.levels)) ? TEST.levels : []; }
 function levelId(i){ var L=levelsArr()[i]; return String((L&&L.level!=null)?L.level:(i+1)); }
 function levelQs(i){ var L=levelsArr()[i]; return (L&&Array.isArray(L.questions))?L.questions:[]; }
@@ -510,6 +519,20 @@ function levelMenu(){
   });
 }
 
+/* Почати спробу спочатку після помилки. Питання беремо заново — інакше з
+   третьої спроби вивчається послідовність, а не матеріал. */
+function restartRun(){
+  if(IS_LEVELS){
+    if(ST.level!=null){
+      QS = hasGen() ? genQuestions(levelCount(ST.level), ST.level+1) : pickLevelQs(ST.level);
+    }
+    ST.idx=0; ST.correct=0; ST.answered=false;
+    renderQ();
+    return;
+  }
+  startQuiz();
+}
+
 function startQuiz(){
   QS = hasGen() ? genQuestions(num(TEST.count)||(TEST.questions||[]).length||10, 1) : shuffleQs(TEST.questions);
   ST={idx:0, correct:0, answered:false};
@@ -674,22 +697,18 @@ function answer(i){
   } else {
     if(btns[i]) btns[i].classList.add('wrong');
     if(correct>=0 && btns[correct]) btns[correct].classList.add('correct');
-    // У режимі рівнів помилка повертає на початок рівня і обнуляє XP рівня.
-    if(IS_LEVELS){
-      if(fb){ fb.textContent='❌ Помилка! Рівень починається спочатку'; fb.style.color='#a32432'; }
+    // Помилка повертає на початок — у рівнях завжди, у пласкому тесті за
+    // налаштуванням («Помилка → починати тест спочатку»).
+    if(resetsOnWrong()){
+      if(fb){ fb.textContent=restartMsg(); fb.style.color='#a32432'; }
     } else {
       if(fb){ fb.textContent='❌ Правильна відповідь підсвічена'; fb.style.color='#a32432'; }
     }
   }
   setTimeout(function(){
-    // Неправильна відповідь у рівні → назад на 1-ше питання, лічильник/XP рівня = 0
-    if(!right && IS_LEVELS){
-      // нова спроба — новий порядок, інакше вивчається послідовність
-      if(ST.level!=null){
-        QS = hasGen() ? genQuestions(levelCount(ST.level), ST.level+1) : pickLevelQs(ST.level);
-      }
-      ST.idx=0; ST.correct=0; ST.answered=false;
-      renderQ();
+    // Неправильна відповідь → назад на 1-ше питання, лічильник/XP = 0
+    if(!right && resetsOnWrong()){
+      restartRun();
       return;
     }
     ST.idx++;
@@ -716,18 +735,14 @@ function answerPick(nClicked){
   if(right){
     ST.correct++;
     if(fb){ fb.textContent='✅ Правильно!'; fb.style.color='#0f6b38'; }
-  } else if(IS_LEVELS){
-    if(fb){ fb.textContent='❌ Помилка! Рівень починається спочатку'; fb.style.color='#a32432'; }
+  } else if(resetsOnWrong()){
+    if(fb){ fb.textContent=restartMsg(); fb.style.color='#a32432'; }
   } else {
     if(fb){ fb.textContent='❌ Правильна відповідь підсвічена'; fb.style.color='#a32432'; }
   }
   setTimeout(function(){
-    if(!right && IS_LEVELS){
-      if(ST.level!=null){
-        QS = hasGen() ? genQuestions(levelCount(ST.level), ST.level+1) : pickLevelQs(ST.level);
-      }
-      ST.idx=0; ST.correct=0; ST.answered=false;
-      renderQ();
+    if(!right && resetsOnWrong()){
+      restartRun();
       return;
     }
     ST.idx++;
