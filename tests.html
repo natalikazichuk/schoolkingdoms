@@ -224,16 +224,18 @@
 
   /* ── побудова індексу «клас → предмет → тести» зі спільної розкладки ── */
   function toTestObj(t, subjIcon){
-    var isLink = !!((t.format==='link'||t.format==='html') && t.linkHref);
+    /* 'html' (стара назва 'link') і 'video' ведуть на окрему сторінку,
+       решта — на test.html. Окремого сховища «випробувань» немає. */
+    var isLink = !!((t.format==='link'||t.format==='html'||t.format==='video') && t.linkHref);
     var lv = !isLink && (t.format==='levels' || (Array.isArray(t.levels) && t.levels.length));
     var href = isLink
       ? (String(t.linkHref) + (String(t.linkHref).indexOf('?')>=0?'&':'?') + 'skdone=t:' + encodeURIComponent(t.id) + '&skback=tests.html')
       : ('test.html?id='+encodeURIComponent(t.id));
     var img = t.imgCard||t.cover||'';
     if(isLink && !img){ var slug=String(t.linkHref).replace(/[?#].*$/,'').replace(/\.html?$/i,'').replace(/^.*\//,''); if(slug) img='img/tr/'+slug+'.webp'; }
-    return { id:t.id, title:t.title||'Тест', href:href, isLink:isLink,
+    return { id:t.id, title:t.title||'Тест', href:href, isLink:isLink, blank:!!t.blank,
       isLevels:!!lv, levelCount: lv ? (Array.isArray(t.levels)?t.levels.length:0) : 0,
-      icon:(subjIcon||'📝'), imgCard: img };
+      icon:(t.icon||subjIcon||'📝'), imgCard: img };
   }
   function buildIndex(tests){
     var P = SKCUR.placeTests(CURRICULUM, tests);
@@ -386,7 +388,8 @@
       else if(t.isLevels){ var d=doneLevels(t.id); if(d>t.levelCount)d=t.levelCount;
         label='🧩 '+d+'/'+t.levelCount+' рівнів'; if(t.levelCount && d>=t.levelCount) cls='done'; }
       else { var pd=isPassed(t); label=pd?'✅ пройдено':'▶ не пройдено'; if(pd) cls='done'; }
-      return '<a class="tcard" href="'+esc(t.href)+'" data-testid="'+esc(t.id)+'"'+(t.isLink?' data-link="1"':'')+'>'
+      var tgt = (t.isLink && t.blank) ? ' target="_blank" rel="noopener"' : '';
+      return '<a class="tcard" href="'+esc(t.href)+'" data-testid="'+esc(t.id)+'"'+(t.isLink?' data-link="1"':'')+tgt+'>'
         + testVisual(t)
         + '<span class="tname">'+esc(t.title)+'</span>'
         + bar(testFrac(t), label, cls) + '</a>';

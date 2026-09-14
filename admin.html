@@ -1547,25 +1547,15 @@ function drillRecords(subjName){
   const recs = [], seen = new Set();
   drillGradeCtx().forEach(({ tier, g }) => (g.subjects || []).forEach(sj => {
     if(!drillSameSubj(sj.name, subjName)) return;
-    /* MAP_CAT === null → і тести, і випробування разом: у схемі тип контенту
-       не крок навігації, а поле «Формат» у картці. */
-    if(MAP_CAT !== 'trainers'){
-      (TESTS || []).forEach(t => {
-        if(!t || !t.id || !t.title) return;
-        if(Number(t.grade == null ? 1 : t.grade) !== Number(MAP_GRADE)) return;
-        if(!window.SKCUR.subjectMatches(sj, t.subject)) return;
-        if(seen.has('t:' + t.id)) return;
-        seen.add('t:' + t.id);
-        recs.push({ kind:'test', id:t.id, obj:t });
-      });
-    }
-    if(MAP_CAT !== 'tests'){
-      subjTrainerIdx(sj, tier, g).forEach(i => {
-        if(seen.has('l:' + i)) return;
-        seen.add('l:' + i);
-        recs.push({ kind:'trainer', idx:i, obj:TRAINERS[i] });
-      });
-    }
+    /* Одне сховище — колекція tests. Тип задає поле `format`. */
+    (TESTS || []).forEach(t => {
+      if(!t || !t.id || !t.title) return;
+      if(Number(t.grade == null ? 1 : t.grade) !== Number(MAP_GRADE)) return;
+      if(!window.SKCUR.subjectMatches(sj, t.subject)) return;
+      if(seen.has('t:' + t.id)) return;
+      seen.add('t:' + t.id);
+      recs.push({ kind:'test', id:t.id, obj:t });
+    });
   }));
   return recs;
 }
@@ -1638,21 +1628,17 @@ function renderMapRecs(){
   }
   let html = '';
   recs.forEach(r => {
-    const isT = r.kind === 'test';
-    const nm  = isT ? ((r.obj && r.obj.title) || '—') : ((r.obj && (r.obj.label || r.obj.href)) || '—');
-    const ic  = isT ? '📝' : ((r.obj && r.obj.icon) || '🎮');
+    const o   = r.obj || {};
+    const f   = String(o.format || '');
+    const page  = (f === 'html' || f === 'link');
+    const video = (f === 'video');
+    const nm  = o.title || '—';
+    const ic  = (page || video) ? (o.icon || (video ? '🎬' : '🔗')) : '📝';
     let badge = '';
-    if(isT && r.obj && r.obj.hidden){
-      badge += (r.obj.id && cardWrapIdx(r.obj.id) >= 0)
-        ? ' <span class="bel-badge">сховано</span>'
-        : ' <span class="bel-badge">⚠ сховано ні за чим</span>';
-    }
-    if(isT && r.obj && r.obj.active === false) badge += ' <span class="bel-badge">вимкнено</span>';
-    if(isT && belIsLinkTest(r.obj))            badge += ' <span class="bel-badge tr">посилання</span>';
-    const meta = isT
-      ? (belIsLinkTest(r.obj) ? 'сторінка' : (countQ(r.obj) + ' пит.'))
-      : (((r.obj && r.obj.type) === 'video') ? 'відео' : 'сторінка');
-    const key  = isT ? ('test:' + r.id) : ('trainer:' + r.idx);
+    if(o.hidden)          badge += ' <span class="bel-badge">сховано</span>';
+    if(o.active === false) badge += ' <span class="bel-badge">вимкнено</span>';
+    const meta = video ? 'відео' : (page ? 'сторінка' : (countQ(o) + ' пит.'));
+    const key  = 'test:' + r.id;
     html += '<button class="drill-rec" data-mrec="' + esc(key) + '">'
       + '<span class="ic">' + esc(ic) + '</span>'
       + '<span class="nm">' + esc(nm) + badge + '</span>'
@@ -1664,11 +1650,8 @@ function renderMapRecs(){
 
 /* ── Екран 5: єдина картка запису ── */
 function mapOpenCard(key){
-  let kind, id = null, idx = null;
-  if(key.indexOf('test:') === 0){ kind = 'test'; id = key.slice(5); }
-  else if(key.indexOf('trainer:') === 0){ kind = 'trainer'; idx = Number(key.slice(8)); }
-  else return;
-  MAP_REC = { kind, id, idx };
+  if(key.indexOf('test:') !== 0) return;
+  MAP_REC = { kind:'test', id:key.slice(5), idx:null };
   CARD_DRAFT = null;
   trFillItemsDatalist();   // підказки ID предметів для полів «нагороди» у картці
   showOnly('viewMap');
@@ -1683,8 +1666,7 @@ function mapOpenCard(key){
 function cardObj(){
   if(!MAP_REC) return null;
   if(MAP_REC.isNew) return CARD_DRAFT;
-  if(MAP_REC.kind === 'test') return (TESTS || []).find(t => t.id === MAP_REC.id) || null;
-  return (TRAINERS || [])[MAP_REC.idx] || null;
+  return (TESTS || []).find(t => t.id === MAP_REC.id) || null;
 }
 /* ============================================================
    РЕДАКТОР КОНТЕНТУ — одна форма на всі типи.
@@ -1709,18 +1691,22 @@ const CONTENT_FORMATS = [
   { id:'video', label:'🎬 Video' },
 ];
 
-/* Формат поточного запису. */
+/* Формат поточного запису — одне поле `format` у документі tests.
+     flat | levels → 📜 Тест
+     html  (старе 'link') → 🔗 Файл HTML
+     video → 🎬 Video
+   Окремого сховища для «випробувань» більше немає: HTML-сторінка — це
+   тест, у якого замість питань є linkHref. */
 function cardFormat(){
   const o = cardObj();
-  if(!o || !MAP_REC) return 'test';
-  if(MAP_REC.kind === 'trainer') return (o.type === 'video') ? 'video' : 'html';
-  return (o.format === 'link' || o.format === 'html') ? 'html' : 'test';
+  if(!o) return 'test';
+  const f = String(o.format || '');
+  if(f === 'video') return 'video';
+  if(f === 'html' || f === 'link') return 'html';
+  return 'test';
 }
-/* Тест-посилання — старе представлення HTML-сторінки. Канон — випробування. */
-function cardIsLegacyLink(){
-  const o = cardObj();
-  return !!(MAP_REC && MAP_REC.kind === 'test' && o && (o.format === 'link' || o.format === 'html'));
-}
+/* Запис веде на окрему сторінку (HTML або відео), а не має власних питань. */
+function cardIsPage(){ const f = cardFormat(); return f === 'html' || f === 'video'; }
 
 function cardGradeSel(cur){
   let h = '<select data-cf="grade">';
@@ -1752,50 +1738,45 @@ function cardFormatSel(cur){
    у випробування — предмети з шансами й монетки. Розширити обидва
    набори на обидва типи — це нові поля в базі, тож окремим кроком. */
 function cardRewardsHtml(o, fmt){
-  const isTest = (fmt === 'test');
+  /* Нагороди однакові для всіх форматів: характеристика + до 4 слотів
+     «предмет/шанс/монетки». Раніше stat був лише в тестів, а предмети —
+     лише у випробувань; тепер це один документ, тож і поля спільні.
+     Видачу предметів робимо окремим етапом — поле вже є, куди писати. */
+  const modeSel = '<select data-cf="statMode">'
+    + '<option value="fixed"'      + (o.statMode !== 'perCorrect' ? ' selected' : '') + '>Фіксовано за запис</option>'
+    + '<option value="perCorrect"' + (o.statMode === 'perCorrect' ? ' selected' : '') + '>За кожну правильну</option>'
+    + '</select>';
+
   let inner = '<div class="form-grid">'
-    + fld('Розвиває характеристику',
-          isTest ? '<select data-cf="stat">' + statMapOpts(o.stat || '') + '</select>'
-                 : '<input type="text" value="—" disabled title="Випробування поки не зберігає характеристику">');
+    + fld('Розвиває характеристику', '<select data-cf="stat">' + statMapOpts(o.stat || '') + '</select>')
+    + fld('Одиниці характеристики',
+        '<div class="reward-row">' + modeSel
+        + '<input type="number" min="0" data-cf="statValue" value="' + esc(String(o.statValue == null ? 1 : o.statValue)) + '"></div>')
+    + '</div>';
 
-  if(isTest){
-    const modeSel = '<select data-cf="statMode">'
-      + '<option value="fixed"'      + (o.statMode !== 'perCorrect' ? ' selected' : '') + '>Фіксовано за тест</option>'
-      + '<option value="perCorrect"' + (o.statMode === 'perCorrect' ? ' selected' : '') + '>За кожну правильну</option>'
-      + '</select>';
-    inner += fld('Одиниці характеристики',
-      '<div class="reward-row">' + modeSel
-      + '<input type="number" min="0" data-cf="statValue" value="' + esc(String(o.statValue == null ? 1 : o.statValue)) + '"></div>');
+  const rw = Array.isArray(o.rewards) ? o.rewards : [];
+  let rows = '';
+  for(let r = 0; r < 4; r++){
+    const x = rw[r] || {};
+    rows += '<div class="tr-reward">'
+      + '<span class="rw-badge">🎁 ' + (r + 1) + '</span>'
+      + '<input type="text" list="trItems" data-cf="rItem" data-r="' + r + '" placeholder="ID предмета (напр. IT-001)" value="' + esc(x.item || '') + '">'
+      + '<select class="rw-chance" data-cf="rChance" data-r="' + r + '" title="Шанс випадіння (крок 10%)">' + trChanceOpts(x.chance) + '</select>'
+      + '<input type="number" class="rw-coins" min="0" step="1" data-cf="rCoins" data-r="' + r + '" placeholder="монетки" value="' + (x.coins ? esc(String(x.coins)) : '') + '">'
+      + '<span class="rw-unit" title="монетки">🪙</span>'
+    + '</div>';
   }
-  inner += '</div>';
+  inner += '<div class="hint" style="margin:10px 0 6px">Предмети й монетки поки лише зберігаються — '
+        +  'видачу налаштуємо окремо.</div>' + rows;
 
-  if(!isTest){
-    const rw = Array.isArray(o.rewards) ? o.rewards : [];
-    let rows = '';
-    for(let r = 0; r < 4; r++){
-      const x = rw[r] || {};
-      rows += '<div class="tr-reward">'
-        + '<span class="rw-badge">🎁 ' + (r + 1) + '</span>'
-        + '<input type="text" list="trItems" data-cf="rItem" data-r="' + r + '" placeholder="ID предмета (напр. IT-001)" value="' + esc(x.item || '') + '">'
-        + '<select class="rw-chance" data-cf="rChance" data-r="' + r + '" title="Шанс випадіння (крок 10%)">' + trChanceOpts(x.chance) + '</select>'
-        + '<input type="number" class="rw-coins" min="0" step="1" data-cf="rCoins" data-r="' + r + '" placeholder="монетки" value="' + (x.coins ? esc(String(x.coins)) : '') + '">'
-        + '<span class="rw-unit" title="монетки">🪙</span>'
-      + '</div>';
-    }
-    inner += '<div class="tr-rewards" style="margin-top:6px">'
-      + '<span class="map-lvl">ПРЕДМЕТИ Й МОНЕТКИ</span>'
-      + '<div class="rw-wrap">' + rows + '</div></div>';
-  }
   return '<div class="section-title">🏆 Нагороди</div>' + inner;
 }
 
-/* ── ТІЛО КАРТКИ ── */
 function cardBodyHtml(o){
   const fmt = cardFormat();
   const isTest = (fmt === 'test');
-  const nameField = isTest
-    ? fld('Назва тесту', '<input type="text" data-cf="title" value="' + esc(o.title || '') + '">')
-    : fld('Назва', '<input type="text" data-cf="label" value="' + esc(o.label || '') + '">');
+  const nameField = fld(isTest ? 'Назва тесту' : 'Назва',
+    '<input type="text" data-cf="title" value="' + esc(o.title || '') + '">');
 
   /* Порядок полів — як у схемі: Назва · Клас · Предмет · Формат, а прапорці
      («активність», «окрема сторінка») — наприкінці, після «Нагород». */
@@ -1806,7 +1787,7 @@ function cardBodyHtml(o){
     + fld('Формат', cardFormatSel(fmt));
 
   if(isTest){
-    const sub = '<select data-cf="format">'
+    const sub = '<select data-cf="tform">'
       + '<option value="flat"'   + (o.format !== 'levels' ? ' selected' : '') + '>Один список питань</option>'
       + '<option value="levels"' + (o.format === 'levels' ? ' selected' : '') + '>Рівні</option>'
       + '</select>';
@@ -1814,58 +1795,49 @@ function cardBodyHtml(o){
          +  fld('Тема (для групування)', '<input type="text" data-cf="topic" value="' + esc(o.topic || '') + '">');
   } else {
     head += fld('Емодзі-іконка', '<input type="text" data-cf="icon" value="' + esc(o.icon || '') + '">')
-         +  '<div class="field full">' + lbl('Посилання')
-         +  '<input type="text" data-cf="href" value="' + esc(o.href || '') + '" placeholder="english-reading.html  або  https://…"></div>'
+         +  '<div class="field full">' + lbl(fmt === 'video' ? 'Посилання на відео' : 'Посилання на сторінку')
+         +  '<input type="text" data-cf="linkHref" value="' + esc(o.linkHref || '') + '" placeholder="english-reading.html  або  https://…"></div>'
          +  '<div class="field full">' + lbl('Опис')
-         +  '<input type="text" data-cf="desc" value="' + esc(o.desc || '') + '" placeholder="Короткий опис (як у грі)"></div>';
+         +  '<input type="text" data-cf="desc" value="' + esc(o.desc || '') + '" placeholder="Короткий опис (як у грі)"></div>'
+         +  fld('Тема (для групування)', '<input type="text" data-cf="topic" value="' + esc(o.topic || '') + '">');
   }
   head += '</div>';
 
   /* Прапорці — окремим блоком наприкінці форми (схема). */
-  let flags = '<div class="section-title">⚙ Показ</div><div class="form-grid">';
-  if(isTest){
-    flags += '<div class="field full"><label class="switch" style="align-self:flex-start">'
-          +  '<input type="checkbox" data-cf="active"' + (o.active !== false ? ' checked' : '') + '>'
-          +  '<span class="track"></span><span class="sw-txt">Активний (показувати дитині)</span></label></div>';
-  } else {
+  let flags = '<div class="section-title">⚙ Показ</div><div class="form-grid">'
+    + '<div class="field full"><label class="switch" style="align-self:flex-start">'
+    + '<input type="checkbox" data-cf="active"' + (o.active !== false ? ' checked' : '') + '>'
+    + '<span class="track"></span><span class="sw-txt">Активний (показувати дитині)</span></label></div>';
+  if(!isTest){
     flags += '<div class="field full"><label class="switch" style="align-self:flex-start">'
           +  '<input type="checkbox" data-cf="blank"' + (o.blank ? ' checked' : '') + '>'
-          +  '<span class="track"></span><span class="sw-txt">↗ Відкривати окремою сторінкою (нова вкладка)</span></label></div>';
+          +  '<span class="track"></span><span class="sw-txt">↗ Відкривати окремою вкладкою</span></label></div>';
   }
   flags += '</div>';
 
-  /* Прапорець hidden сильніший за «Активний» — показуємо це просто в картці. */
+  /* hidden сильніший за «Активний»: tests.html викидає такі записи зовсім.
+     Новий редактор цього прапорця не ставить — він лишився на записах, які
+     колись перетворювали на «випробування». Даємо його зняти. */
   let hiddenBox = '';
-  if(isTest && o.hidden && MAP_REC && !MAP_REC.isNew){
-    const wrapped = o.id ? cardWrapIdx(o.id) >= 0 : false;
-    hiddenBox = '<div class="map-warn" style="margin:10px 0">🙈 Цей тест <b>схований</b> зі сторінки «Тести» — '
-      + (wrapped
-          ? 'він показується дитині як <b>випробування</b>. Прапорець «Активний» на це не впливає.'
-          : '<b>але випробування, яке його заміняло, вже немає</b>. Зараз тест не видно ніде — '
-            + 'прапорець лишився від старої конверсії.')
+  if(o.hidden && MAP_REC && !MAP_REC.isNew){
+    hiddenBox = '<div class="map-warn" style="margin:10px 0">🙈 Цей запис <b>схований</b> — '
+      + 'дитина не бачить його ніде, хоч би як стояв «Активний». Прапорець лишився '
+      + 'від старого поділу на тести й випробування.'
       + '<div class="toolbar" style="margin:8px 0 0">'
-      + '<button class="btn xs" id="cardUnhide">👁 Повернути в «Тести»</button></div></div>';
+      + '<button class="btn xs" id="cardUnhide">👁 Показати дитині</button></div></div>';
   }
 
-  /* Старе представлення: HTML-сторінка, збережена як тест-посилання. */
-  let legacy = '';
-  if(cardIsLegacyLink()){
-    legacy = '<div class="map-warn" style="margin:10px 0">⚠ Ця сторінка збережена як <b>тест-посилання</b> — старе '
-      + 'представлення. Канонічне — випробування.'
-      + '<div class="toolbar" style="margin:8px 0 0"><button class="btn xs" id="cardToTrainer">→ Зробити випробуванням</button></div></div>'
-      + '<div class="form-grid">' + fld('Посилання на сторінку',
-          '<input type="text" data-cf="linkHref" value="' + esc(o.linkHref || '') + '" placeholder="напр. budynochky-chysel.html">') + '</div>';
-  }
+  const legacy = '';   // окремого «випробування» більше немає — формат і є канон
 
-  const cover = isTest
-    ? '<div class="section-title">🖼 Обкладинка</div><div class="form-grid">'
+  const cover = '<div class="section-title">🖼 Обкладинка</div><div class="form-grid">'
       + '<div class="field full">' + lbl('Картинка (необовʼязково)')
       + '<input type="text" data-cf="imgCard" value="' + esc(o.imgCard || '') + '" placeholder="img/tr/nazva.webp  або  https://…">'
-      + '<span class="hint">Порожньо — дитина побачить емодзі предмета.</span></div></div>'
-    : '<div class="map-head" style="margin-top:10px"><span class="map-lvl">🖼 ОБКЛАДИНКА</span>'
-      + '<span class="tr-cover-note">' + trCoverNoteInner(o.href, o.type) + '</span></div>';
+      + '<span class="hint">' + (isTest
+          ? 'Порожньо — дитина побачить емодзі предмета.'
+          : 'Порожньо — береться img/tr/&lt;назва-сторінки&gt;.webp, а якщо файлу немає — емодзі-іконка.')
+      + '</span></div></div>';
 
-  const questions = (isTest && !cardIsLegacyLink())
+  const questions = isTest
     ? '<div class="toolbar" style="margin:14px 0 0">'
       + '<span class="drill-card-note">Питання (' + countQ(o) + ') редагуються окремо.</span>'
       + '<div class="spacer"></div>'
@@ -1893,50 +1865,35 @@ function onCardInput(e){
 
   if(f === 'cformat'){ cardSetFormat(v); return; }
 
-  /* Спільні поля — однакові для всіх форматів. */
-  if(f === 'subject'){ o.subject = v; return; }
-  if(f === 'grade'){
-    const n = Number(v) || 0;
-    if(MAP_REC.kind === 'test') o.grade = n;
-    else belSetTrainerClass(o, String(n));
-    return;
-  }
-
-  if(MAP_REC.kind === 'test'){
-    switch(f){
-      case 'title':     o.title = v; break;
-      case 'stat':      o.stat = v; break;
-      case 'topic':     o.topic = v; break;
-      case 'statMode':  o.statMode = v; break;
-      case 'statValue': o.statValue = Math.max(0, Math.floor(Number(v) || 0)); break;
-      case 'active':    o.active = !!v; break;
-      case 'linkHref':  o.linkHref = v; break;
-      case 'imgCard':   o.imgCard = v.trim(); break;
-      case 'format':    o.format = v; renderCard(); return;
-    }
-  } else {
-    switch(f){
-      case 'label': o.label = v; break;
-      case 'icon':  o.icon = v; break;
-      case 'desc':  o.desc = v; break;
-      case 'blank': o.blank = !!v; break;
-      case 'href':
-        o.href = v;
-        { const n = $('mapCardBody') && $('mapCardBody').querySelector('.tr-cover-note');
-          if(n) n.innerHTML = trCoverNoteInner(o.href, o.type); }
-        break;
-      case 'rItem':
-      case 'rChance':
-      case 'rCoins': {
-        const r = Number(el.dataset.r) || 0;
-        if(!Array.isArray(o.rewards)) o.rewards = [];
-        while(o.rewards.length <= r) o.rewards.push({});
-        const slot = o.rewards[r];
-        if(f === 'rItem')       slot.item = v.trim();
-        else if(f === 'rCoins') slot.coins = Math.max(0, Math.floor(Number(v) || 0));
-        else                    slot.chance = Math.max(0, Math.min(100, Math.round((Number(v) || 0) / 10) * 10));
-        break;
-      }
+  /* Усі поля лежать в одному документі tests — розгалуження за сховищем
+     більше немає. `format` — це формат запису, «вигляд тесту» приходить
+     під ключем tform, щоб не битися з ним іменами. */
+  switch(f){
+    case 'subject':   o.subject = v; break;
+    case 'grade':     o.grade = Number(v) || 0; break;
+    case 'title':     o.title = v; break;
+    case 'topic':     o.topic = v; break;
+    case 'stat':      o.stat = v; break;
+    case 'statMode':  o.statMode = v; break;
+    case 'statValue': o.statValue = Math.max(0, Math.floor(Number(v) || 0)); break;
+    case 'active':    o.active = !!v; break;
+    case 'imgCard':   o.imgCard = v.trim(); break;
+    case 'icon':      o.icon = v; break;
+    case 'desc':      o.desc = v; break;
+    case 'blank':     o.blank = !!v; break;
+    case 'linkHref':  o.linkHref = v.trim(); break;
+    case 'tform':     o.format = v; renderCard(); return;
+    case 'rItem':
+    case 'rChance':
+    case 'rCoins': {
+      const r = Number(el.dataset.r) || 0;
+      if(!Array.isArray(o.rewards)) o.rewards = [];
+      while(o.rewards.length <= r) o.rewards.push({});
+      const slot = o.rewards[r];
+      if(f === 'rItem')       slot.item = v.trim();
+      else if(f === 'rCoins') slot.coins = Math.max(0, Math.floor(Number(v) || 0));
+      else                    slot.chance = Math.max(0, Math.min(100, Math.round((Number(v) || 0) / 10) * 10));
+      break;
     }
   }
 }
@@ -1945,46 +1902,28 @@ function onCardInput(e){
    формат у такого запису ВЖЕ показується як «Файл HTML», тож зміни
    формату немає — а перенести між колекціями все одно треба. */
 /* ── «Сховано» ──
-   tests.html відфільтровує тести з hidden:true, тож такий тест дитина не
-   бачить, хоч би як стояв прапорець «Активний». Ховається він лише в один
-   спосіб — конверсією «Тест → Випробування», яка лишає в curriculum/trainers
-   посилання test.html?id=…  Якщо того посилання вже немає, прапорець
-   застарілий: тест не показується ніде й ніяк. Обидва випадки видно в картці. */
+   tests.html відфільтровує записи з hidden:true, тож дитина їх не бачить,
+   хоч би як стояв «Активний». Ставила цей прапорець стара конверсія
+   «Тест → Випробування»; тепер її немає, лишилося тільки зняття. */
 function cardHiddenTest(){
   const o = cardObj();
-  return (MAP_REC && MAP_REC.kind === 'test' && !MAP_REC.isNew && o && o.hidden) ? o : null;
-}
-function cardWrapIdx(id){
-  const href = 'test.html?id=' + encodeURIComponent(id);
-  return (TRAINERS || []).findIndex(l => l && String(l.href || '') === href);
+  return (MAP_REC && !MAP_REC.isNew && o && o.hidden) ? o : null;
 }
 async function cardUnhide(){
   const o = cardHiddenTest(); if(!o || !o.id) return;
-  const idx = cardWrapIdx(o.id);
-  if(idx >= 0 && !confirm('Повернути «' + (o.title || 'тест') + '» на сторінку «Тести»?\n'
-      + 'Випробування-обгортка, що вела на цей тест, зникне.')) return;
   o.hidden = false;
-  if(idx >= 0) TRAINERS.splice(idx, 1);
-  const okT = await belSaveTest(o);
-  const okL = (idx >= 0) ? await belSaveTrainers() : true;
-  if(okT && okL) toast('Тест знову показується дитині ✔');
+  try{
+    await SK_API.save(o);
+    toast('Запис знову показується дитині ✔');
+  }catch(e){ console.error(e); o.hidden = true; toast('Не вдалося зберегти', true); }
   renderCard();
 }
 
-async function cardLinkToTrainer(){
-  const o = cardObj();
-  if(!o || !o.id) return;
-  if(!confirm('Перенести цю сторінку у випробування? Тест-обгортка зникне.')) return;
-  await belConvertTestToTrainer(o.id);
-  toast('Тепер це випробування — знайди його в списку');
-  mapOpenRecs(MAP_SUBJ);
-}
-
 /* ── ЗМІНА ФОРМАТУ ──
-   Між html і video — просто інший вигляд того самого випробування.
-   Між тестом і випробуванням — перенесення між колекціями наявними
-   конвертерами. Словник і книги — окремі сторінки. */
-async function cardSetFormat(next){
+   Усі формати живуть в одному документі tests, тож перемикання — це
+   просто інше значення поля `format`. Нічого нікуди не переноситься.
+   Словник і книги — окремі сторінки. */
+function cardSetFormat(next){
   const o = cardObj(); if(!o) return;
   const cur = cardFormat();
   if(next === cur) return;
@@ -1996,27 +1935,17 @@ async function cardSetFormat(next){
     return;
   }
 
-  if(MAP_REC.kind === 'trainer' && (next === 'html' || next === 'video')){
-    o.type = (next === 'video') ? 'video' : 'page';
-    if(!o.icon || o.icon === '📖' || o.icon === '🎬' || o.icon === '🔗') o.icon = (next === 'video') ? '🎬' : '🔗';
-    o.blank = (next === 'video');
-    renderCard();
-    return;
-  }
-  if(MAP_REC.kind === 'test' && (next === 'html' || next === 'video')){
-    if(!o.id){ toast('Спершу збережи запис, тоді зміниш формат', true); renderCard(); return; }
-    if(!confirm('Перенести у випробування? Тест сховається зі сторінки «Тести».')){ renderCard(); return; }
-    await belConvertTestToTrainer(o.id);
-    toast('Тепер це випробування — знайди його в списку');
-    mapOpenRecs(MAP_SUBJ);
-    return;
-  }
-  if(MAP_REC.kind === 'trainer' && next === 'test'){
-    if(!confirm('Зробити тестом?')){ renderCard(); return; }
-    await belConvertTrainerToTest(MAP_REC.idx);
-    toast('Тепер це тест — знайди його в списку');
-    mapOpenRecs(MAP_SUBJ);
-    return;
+  /* Переносити між колекціями більше нічого не треба — міняємо поле.
+     Питання й посилання лишаються в документі, тож перемикання туди-сюди
+     нічого не губить. */
+  if(next === 'test'){
+    o.format = (Array.isArray(o.levels) && o.levels.length) ? 'levels' : 'flat';
+  } else {
+    o.format = next;                                  // 'html' | 'video'
+    if(!o.icon || o.icon === '📖' || o.icon === '🎬' || o.icon === '🔗'){
+      o.icon = (next === 'video') ? '🎬' : '🔗';
+    }
+    if(next === 'video' && o.blank == null) o.blank = true;
   }
   renderCard();
 }
@@ -2026,80 +1955,62 @@ async function cardSave(){
   const o = cardObj(); if(!o){ toast('Немає запису', true); return; }
   const isNew = !!(MAP_REC && MAP_REC.isNew);
 
-  if(MAP_REC.kind === 'test'){
-    if(!String(o.title || '').trim()){ toast('Вкажи назву', true); return; }
-    o.subject = subjectShow(o.subject);
-    try{
-      const id = await SK_API.save(o);
-      if(isNew){
-        o.id = id || o.id;
-        if(!TESTS) TESTS = [];
-        TESTS.push(o);
-        MAP_REC = { kind:'test', id:o.id, idx:null };
-      }
-      toast(isNew ? 'Тест створено ✔' : 'Тест збережено ✔');
-      renderCard();
-    }catch(e){ console.error(e); toast('Помилка збереження тесту', true); }
-    return;
-  }
-
-  if(!String(o.label || '').trim() && !String(o.href || '').trim()){
-    toast('Вкажи назву або посилання', true); return;
-  }
+  if(!String(o.title || '').trim()){ toast('Вкажи назву', true); return; }
+  if(cardIsPage() && !String(o.linkHref || '').trim()){ toast('Вкажи посилання', true); return; }
   o.subject = subjectShow(o.subject);
-  if(isNew){
-    if(!TRAINERS) TRAINERS = [];
-    TRAINERS.push(o);
-    MAP_REC = { kind:'trainer', id:null, idx:TRAINERS.length - 1 };
-  }
-  if(await belSaveTrainers()){ toast(isNew ? 'Випробування створено ✔' : 'Випробування збережено ✔'); renderCard(); }
+
+  try{
+    const id = await SK_API.save(o);
+    if(isNew){
+      o.id = id || o.id;
+      if(!TESTS) TESTS = [];
+      TESTS.push(o);
+      MAP_REC = { kind:'test', id:o.id, idx:null };
+    }
+    toast(isNew ? 'Запис створено ✔' : 'Запис збережено ✔');
+    renderCard();
+  }catch(e){ console.error(e); toast('Помилка збереження', true); }
 }
 
 async function cardDelete(){
   const o = cardObj(); if(!o) return;
   if(MAP_REC && MAP_REC.isNew){ mapOpenRecs(MAP_SUBJ); return; }   // ще не збережений
   if(!confirm('Видалити цей запис назавжди?')) return;
-  if(MAP_REC.kind === 'test'){
-    const id = o.id;
-    let mapTouched = false;
-    if(MAP){
-      const idx = window.SKCUR.indexTests(TESTS);
-      MAP.tiers.forEach(t => (t.grades || []).forEach(g => (g.subjects || []).forEach(sj => (sj.topics || []).forEach(tp => {
-        const before = (tp.tests || []).length;
-        tp.tests = (tp.tests || []).filter(ref => {
-          const rt = window.SKCUR.findTest(ref, idx);
-          return !((rt && rt.id === id) || ref === id);
-        });
-        if(tp.tests.length !== before) mapTouched = true;
-      }))));
-    }
-    try{ await SK_API.remove(id); }
-    catch(e){ console.error(e); toast('Не вдалося видалити', true); return; }
-    TESTS = (TESTS || []).filter(x => x.id !== id);
-    if(mapTouched){ try{ await SK_API.saveMap(MAP); }catch(e){ console.error(e); } }
-    toast('Тест видалено');
-  } else {
-    TRAINERS.splice(MAP_REC.idx, 1);
-    if(!(await belSaveTrainers())) return;
-    toast('Випробування видалено');
+  const id = o.id;
+  let mapTouched = false;
+  if(MAP){
+    const idx = window.SKCUR.indexTests(TESTS);
+    MAP.tiers.forEach(t => (t.grades || []).forEach(g => (g.subjects || []).forEach(sj => (sj.topics || []).forEach(tp => {
+      const before = (tp.tests || []).length;
+      tp.tests = (tp.tests || []).filter(ref => {
+        const rt = window.SKCUR.findTest(ref, idx);
+        return !((rt && rt.id === id) || ref === id);
+      });
+      if(tp.tests.length !== before) mapTouched = true;
+    }))));
   }
+  try{ await SK_API.remove(id); }
+  catch(e){ console.error(e); toast('Не вдалося видалити', true); return; }
+  TESTS = (TESTS || []).filter(x => x.id !== id);
+  if(mapTouched){ try{ await SK_API.saveMap(MAP); }catch(e){ console.error(e); } }
+  toast('Запис видалено');
   mapOpenRecs(MAP_SUBJ);
 }
 
 /* ── СТВОРЕННЯ ── Та сама картка, режим «Створити». */
-let CARD_DRAFT = null;          // запис, якого ще немає в TESTS/TRAINERS
-function cardNew(kind, subject, grade){
+let CARD_DRAFT = null;          // запис, якого ще немає в TESTS
+function cardNew(fmt, subject, grade){
   const gr = Number(grade == null ? 1 : grade) || 0;
-  if(kind === 'test'){
-    CARD_DRAFT = { id:'', title:'', subject:subject || '', grade:gr,
-      stat:statForSubject(subject, gr) || '', format:'flat', topic:'',
-      statMode:'fixed', statValue:1, active:true, questions:[], levels:[] };
-  } else {
-    CARD_DRAFT = { subject:subject || '', tier:'', grade:'', href:'', icon:'🔗',
-      label:'', type:'page', blank:false, desc:'', rewards:[] };
-    belSetTrainerClass(CARD_DRAFT, String(gr));
-  }
-  MAP_REC = { kind, id:null, idx:null, isNew:true };
+  const page = (fmt === 'html' || fmt === 'video');
+  CARD_DRAFT = {
+    id:'', title:'', subject:subject || '', grade:gr,
+    stat:statForSubject(subject, gr) || '', statMode:'fixed', statValue:1,
+    format: page ? fmt : 'flat', topic:'', active:true,
+    questions:[], levels:[],
+    linkHref:'', icon: page ? (fmt === 'video' ? '🎬' : '🔗') : '',
+    desc:'', blank: (fmt === 'video'), imgCard:'', rewards:[]
+  };
+  MAP_REC = { kind:'test', id:null, idx:null, isNew:true };
   showOnly('viewMap');
   mapHideScreens();
   if($('mapScrCard')) $('mapScrCard').classList.remove('hidden');
@@ -2124,7 +2035,7 @@ async function openCardForTest(id){
 
 function cardAdd(){
   trFillItemsDatalist();   // підказки ID предметів для полів «нагороди»
-  cardNew(MAP_CAT === 'trainers' ? 'trainer' : 'test', MAP_SUBJ || '', MAP_GRADE);
+  cardNew('test', MAP_SUBJ || '', MAP_GRADE);   // формат міняється в самій картці
 }
 
 /* Стати — зі спільного списку SKCUR.STATS, того самого, що бачить дитина.
@@ -4150,7 +4061,6 @@ function bindEvents(){
     $('mapCardBody').addEventListener('change', onCardInput);
     $('mapCardBody').addEventListener('click', e => {
       if(e.target.closest('#cardEditQ')){ const o = cardObj(); if(o){ EDIT_RETURN = 'card'; openEditor(o); } return; }
-      if(e.target.closest('#cardToTrainer')){ cardLinkToTrainer(); return; }
       if(e.target.closest('#cardUnhide')){ cardUnhide(); }
     });
   }
