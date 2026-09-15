@@ -86,14 +86,6 @@ a{color:inherit;text-decoration:none}
   border-radius:22px;padding:12px;backdrop-filter:blur(2px);
   box-shadow:0 10px 30px rgba(20,40,80,.25);min-width:0
 }
-.name-banner{position:relative;text-align:center;margin:-2px 0 10px}
-.name-banner .ribbon{
-  background:linear-gradient(180deg,var(--banner),var(--banner2));
-  border:2px solid #fff;border-radius:14px;padding:9px 14px 11px;color:#fff;
-  box-shadow:0 6px 14px rgba(20,40,80,.3);position:relative
-}
-.name-banner h1{font-family:'Fredoka One',cursive;font-size:1.7rem;line-height:1;text-shadow:0 2px 4px rgba(0,0,0,.35)}
-.name-banner .edit{position:absolute;top:6px;right:8px;background:rgba(255,255,255,.2);border-radius:8px;width:24px;height:24px;font-size:.8rem;color:#fff;line-height:24px}
 .grade-chip{
   display:inline-block;margin-top:7px;background:linear-gradient(180deg,var(--gold),var(--gold2));
   color:#5a3d05;font-weight:900;font-size:.82rem;padding:3px 16px;border-radius:20px;
@@ -326,8 +318,6 @@ a{color:inherit;text-decoration:none}
 /* ліва панель: гнучкий стовпчик; портрет заповнює вільну висоту,
    тож панель по висоті = правій колонці (без внутрішньої пустоти) */
 .hero-panel{display:flex;flex-direction:column;padding:10px}
-.name-banner{margin:-2px 0 8px}
-.name-banner h1{font-size:1.45rem}
 .grade-chip{margin-top:5px;font-size:.78rem;padding:2px 14px}
 .portrait{flex:1 1 auto;aspect-ratio:auto;min-height:210px}
 .info{margin-top:10px;padding:10px 12px;gap:7px}
@@ -743,11 +733,7 @@ body.modal-open{overflow:hidden}
 .hero-panel .portrait{flex:0 0 auto;aspect-ratio:1/1;min-height:0}
 .hero-panel .adventure{flex:1 1 auto}
 
-/* рівень + XP */
-.ek-lvltop{display:flex;align-items:center;gap:8px;margin:0 0 10px}
-.ek-shield{width:44px;height:50px;flex:none;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.2rem;color:#3a2a06;background:linear-gradient(180deg,#FFE29A,#E7B23E);border:2px solid #b9822a;clip-path:polygon(50% 0,100% 12%,100% 66%,50% 100%,0 66%,0 12%);box-shadow:0 3px 6px rgba(0,0,0,.35)}
-.ek-xpwrap{flex:1;min-width:0;background:rgba(9,18,38,.72);border:1.5px solid rgba(224,164,42,.6);border-radius:12px;padding:6px 11px}
-.ek-xpwrap .t{font-size:.66rem;font-weight:800;color:#ffe9b8;letter-spacing:.03em;margin-bottom:3px}
+/* шкала XP (використовується в HUD героя) */
 .ek-xpbar{height:9px;border-radius:6px;background:rgba(0,0,0,.4);overflow:hidden}
 .ek-xpbar>i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#8fd0ff,#4d9bff)}
 
@@ -782,3 +768,130 @@ body.modal-open{overflow:hidden}
   .ek-stat .ek-sl{font-size:.66rem;min-height:2.2em}
   .ek-stat .ek-sv{font-size:1.2rem}
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   РЕДИЗАЙН v10 — КАРТКА ГЕРОЯ В СТИЛІ ІГРОВОГО HUD.
+   Крилатий щит рівня + банер імені з короною + золота шкала XP,
+   портрет у різьбленій рамі, шкали Здоровʼя/Мани з медальйонами.
+   Блок останній у файлі — навмисно перекриває попередні правила.
+   Лише градієнти/rgba (без color-mix) — стабільно на старших
+   вебвʼю шкільних планшетів.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── верхній HUD: щит | банер імені, під ними шкала XP і клас ── */
+.hero-hud{
+  display:grid;grid-template-columns:auto minmax(0,1fr);
+  gap:10px;align-items:center;margin:12px 0 12px
+}
+.hero-hud .hud-xp,
+.hero-hud .grade-chip{grid-column:1/-1}
+.hero-hud .grade-chip{justify-self:center;margin-top:0}
+
+/* крилатий щит рівня */
+.hud-lvl{position:relative;width:130px;height:80px;flex:none;
+  display:flex;flex-direction:column;align-items:center;justify-content:center}
+.hud-lvl .wings{position:absolute;top:13px;left:0;width:130px;height:auto;z-index:0;
+  pointer-events:none;filter:drop-shadow(0 3px 5px rgba(0,0,0,.5))}
+.lvl-shield{position:relative;z-index:1;width:56px;height:64px;display:grid;place-items:center;
+  clip-path:polygon(50% 0,100% 15%,100% 64%,50% 100%,0 64%,0 15%);
+  background:linear-gradient(180deg,#fff3c4,#d99f22);
+  filter:drop-shadow(0 4px 8px rgba(0,0,0,.5))}
+.lvl-shield b{width:43px;height:51px;display:grid;place-items:center;
+  clip-path:polygon(50% 0,100% 15%,100% 64%,50% 100%,0 64%,0 15%);
+  background:linear-gradient(180deg,#2a54a0,#0b1f44);
+  font-family:'Fredoka One',cursive;font-weight:400;font-size:1.5rem;line-height:1;color:#fff;
+  text-shadow:0 2px 4px rgba(0,0,0,.55)}
+.lvl-lab{position:relative;z-index:2;margin-top:-7px;
+  font-size:.54rem;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:#5a3d05;
+  background:linear-gradient(180deg,#ffe9a8,var(--gold2));border:1.5px solid #fff6d8;
+  border-radius:999px;padding:2px 10px;box-shadow:0 2px 5px rgba(0,0,0,.45)}
+
+/* банер імені з короною */
+.hud-name{position:relative;min-width:0;display:flex;align-items:center;justify-content:center;
+  padding:11px 36px 11px 14px;border-radius:14px;color:#fff;
+  background:linear-gradient(180deg,#3d86dd,#17408a);
+  border:2px solid var(--gold);
+  box-shadow:0 5px 14px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.35)}
+.hud-name h1{min-width:0;font-family:'Fredoka One',cursive;font-weight:400;
+  font-size:clamp(1.05rem,4.4vw,1.55rem);line-height:1.1;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  text-shadow:0 2px 4px rgba(0,0,0,.45)}
+.hud-crown{position:absolute;top:-15px;left:50%;transform:translateX(-50%);
+  font-size:1.35rem;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.55))}
+.hud-name .edit{position:absolute;right:7px;top:50%;transform:translateY(-50%);
+  width:27px;height:27px;display:grid;place-items:center;border-radius:9px;
+  background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.45);
+  color:#fff;font-size:.8rem;line-height:1;transition:background .15s,transform .12s}
+.hud-name .edit:hover{background:rgba(255,255,255,.36)}
+.hud-name .edit:active{transform:translateY(-50%) scale(.92)}
+
+/* золота шкала XP з короною справа */
+.hud-xp{display:flex;align-items:center;gap:9px;padding:6px 8px 6px 13px;border-radius:999px;
+  background:linear-gradient(180deg,#14305f,#0a1c3c);border:2px solid var(--gold2);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 4px 12px rgba(0,0,0,.42)}
+.hud-xp-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.hud-xp .t{font-size:.68rem;font-weight:900;letter-spacing:.04em;color:#ffe9b8;margin:0}
+.hud-xp .ek-xpbar{height:10px;border-radius:999px;background:rgba(0,0,0,.5);
+  border:1px solid rgba(255,255,255,.16);overflow:hidden}
+.hud-xp .ek-xpbar>i{border-radius:999px;transition:width .6s ease;
+  background:linear-gradient(90deg,#ffe9a8,#f0b53a);box-shadow:0 0 10px -2px rgba(244,200,66,.9)}
+.hud-xp-ic{flex:none;width:30px;height:30px;display:grid;place-items:center;border-radius:50%;
+  font-size:.95rem;line-height:1;background:linear-gradient(180deg,#ffe9a8,var(--gold2));
+  border:2px solid #fff6d8;box-shadow:0 2px 6px rgba(0,0,0,.45)}
+
+/* ── портрет у різьбленій золотій рамі ── */
+.portrait-frame{position:relative;flex:0 0 auto;padding:7px;border-radius:24px;
+  background:linear-gradient(160deg,#fff3c4,#f4c842 26%,#b8820f 52%,#f7d873 76%,#c9971f);
+  box-shadow:0 10px 26px rgba(0,0,0,.5),inset 0 0 0 2px rgba(255,255,255,.35)}
+.portrait-frame::after{content:"";position:absolute;inset:4px;border-radius:21px;
+  border:2px solid rgba(90,61,5,.45);pointer-events:none}
+.hero-panel .portrait-frame{margin-top:2px}
+.portrait-frame .portrait{border:none;border-radius:18px;aspect-ratio:1/1;min-height:0}
+.pf-gem{position:absolute;left:50%;transform:translateX(-50%);z-index:2;
+  width:22px;height:22px;display:grid;place-items:center;border-radius:50%;
+  font-size:.66rem;line-height:1;color:#17408a;
+  background:linear-gradient(180deg,#ffe9a8,var(--gold2));border:2px solid #fff6d8;
+  box-shadow:0 2px 5px rgba(0,0,0,.45)}
+.pf-gem.top{top:-11px}
+.pf-gem.bottom{bottom:-11px}
+
+/* ── Здоровʼя / Мана: медальйон + підпис + значення + шкала ── */
+.ek-bars{margin-top:14px;display:grid;gap:10px}
+.ek-bar{display:flex;align-items:center;gap:11px;padding:6px 14px 6px 6px;border-radius:999px;
+  background:linear-gradient(180deg,#14305f,#0a1c3c);border:2px solid var(--gold2);
+  box-shadow:0 5px 14px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.1)}
+.ek-bar .ek-bico{flex:none;width:40px;height:40px;display:grid;place-items:center;border-radius:50%;
+  font-size:1.15rem;line-height:1;border:2px solid var(--gold);
+  box-shadow:0 3px 8px rgba(0,0,0,.45),inset 0 -3px 7px rgba(0,0,0,.3)}
+.ek-bar.hp .ek-bico{background:radial-gradient(circle at 34% 28%,#ff8f9f,#b4172a)}
+.ek-bar.mp .ek-bico{background:radial-gradient(circle at 34% 28%,#9ad6ff,#1c4fb0)}
+.ek-bbody{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.ek-brow{display:flex;align-items:baseline;gap:8px}
+.ek-blab{font-weight:900;font-size:.8rem;color:#ffe9b8;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+.ek-bar .ek-val{position:static;display:block;margin-left:auto;text-shadow:0 1px 2px rgba(0,0,0,.55);
+  font-family:'Fredoka One',cursive;font-weight:400;font-size:.95rem;color:#fff}
+.ek-bar .ek-track{flex:none;height:13px;border-radius:999px;background:rgba(0,0,0,.5);
+  border:1px solid rgba(255,255,255,.16);overflow:hidden}
+.ek-bar .ek-track>i{border-radius:999px;transition:width .6s ease}
+.ek-bar.hp .ek-track>i{background:linear-gradient(90deg,#ff7ea6,#e6234f)}
+.ek-bar.mp .ek-track>i{background:linear-gradient(90deg,#7fd0ff,#2a6ff0)}
+
+/* дуже вузькі екрани — щит трохи менший, банер не тисне */
+@media(max-width:400px){
+  .hud-lvl{width:112px;height:74px}
+  .hud-lvl .wings{width:112px;top:11px}
+  .lvl-shield{width:50px;height:58px}
+  .lvl-shield b{width:38px;height:45px;font-size:1.3rem}
+  .hud-name{padding:10px 32px 10px 11px}
+  /* довге імʼя на вузькому екрані переноситься, а не обрізається «Мар…» */
+  .hud-name h1{white-space:normal;overflow-wrap:anywhere;line-height:1.05;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .ek-bar .ek-bico{width:36px;height:36px;font-size:1.05rem}
+}
+
+/* заголовки секцій — золоті лінії обабіч, у тон рамі героя */
+.sec-title{display:flex;align-items:center;justify-content:center;gap:10px}
+.sec-title::before,.sec-title::after{content:"";height:2px;flex:1;max-width:64px;border-radius:2px;
+  background:linear-gradient(90deg,rgba(244,200,66,0),var(--gold2))}
+.sec-title::after{background:linear-gradient(90deg,var(--gold2),rgba(244,200,66,0))}
