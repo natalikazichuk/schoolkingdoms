@@ -155,15 +155,18 @@
   .nav-row .big-btn{flex:1;white-space:nowrap}
   .nav-row .big-btn.side{flex:none;width:62px;padding-left:0;padding-right:0}
 
-  /* перевірка */
-  .prompt{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:6px 0}
-  .prompt .qtxt{font-weight:800;color:var(--soft);font-size:14px}
-  .prompt .qpic{width:100%;max-width:min(100%,320px);flex:0 1 auto;min-height:0;display:flex;align-items:center;justify-content:center}
-  .prompt .qpic img{max-width:100%;max-height:30vh;object-fit:contain}
+  /* перевірка.
+     Картинка віддає висоту першою і ніколи не вилазить за свій бокс:
+     на довгому слові («pencil sharpener» — три ряди літер) вона інакше
+     налазила на переклад під нею. */
+  .prompt{flex:1 1 auto;min-height:0;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;padding:6px 0}
+  .prompt .qtxt{flex:none;font-weight:800;color:var(--soft);font-size:14px}
+  .prompt .qpic{width:100%;max-width:min(100%,320px);flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center}
+  .prompt .qpic img{max-width:100%;max-height:min(30vh,100%);object-fit:contain;border-radius:12px}
   .prompt .qpic .emoji{font-size:74px}
-  .prompt .qword{font-family:'Fredoka';font-size:clamp(30px,8vw,44px)}
-  .prompt .quk{font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:clamp(24px,7vw,32px);color:var(--coral)}
-  .prompt .qgap{font-family:'Fredoka';font-size:clamp(22px,6vw,30px);text-align:center;line-height:1.3}
+  .prompt .qword{flex:none;font-family:'Fredoka';font-size:clamp(30px,8vw,44px)}
+  .prompt .quk{flex:none;font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:clamp(22px,6.5vw,32px);color:var(--coral);text-align:center;line-height:1.15}
+  .prompt .qgap{flex:none;font-family:'Fredoka';font-size:clamp(22px,6vw,30px);text-align:center;line-height:1.3}
   .prompt .qgap b{color:var(--coral)}
 
   .opts{display:grid;grid-template-columns:1fr 1fr;gap:10px;flex:none;margin-top:6px}
@@ -174,7 +177,12 @@
   .opt.no{background:#ffe6e2;border-color:var(--coral);color:var(--coral-d);animation:shake .35s}
   @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 
-  /* збери слово */
+  /* збери слово.
+     Довге слово («pencil sharpener») — дрібніші клітинки й літери, інакше
+     три ряди слотів плюс три ряди літер з'їдають увесь екран і зверху
+     нема де стати картинці з перекладом. */
+  .slots.long .slot{width:min(8.6vw,34px);height:min(10.5vw,42px);font-size:min(5.6vw,21px);border-radius:10px}
+  .keys.long .key{min-width:34px;height:40px;padding:0 7px;font-size:18px;border-radius:10px}
   .slots{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;flex:none;margin:4px 0}
   .slot{width:min(11vw,44px);height:min(13vw,54px);border-radius:12px;background:#eef4fc;border:2px dashed #b9cbe6;
     display:flex;align-items:center;justify-content:center;font-family:'Fredoka';font-size:min(7vw,26px);color:var(--primary)}
@@ -528,7 +536,8 @@ function renderBuild(w, A){
   var slotsHtml=letters.map(function(_,i){return '<div class="slot" data-i="'+i+'"></div>';}).join('');
   var keys=shuffle(letters.map(function(ch,i){return {ch:ch,k:i};}));
   var keysHtml=keys.map(function(o){return '<button class="key" data-k="'+o.k+'">'+esc(o.ch.toUpperCase())+'</button>';}).join('');
-  A.innerHTML='<div class="slots">'+slotsHtml+'</div><div class="keys">'+keysHtml+'</div>'
+  var big=letters.length>9?' long':'';          // довге слово — компактні клітинки
+  A.innerHTML='<div class="slots'+big+'">'+slotsHtml+'</div><div class="keys'+big+'">'+keysHtml+'</div>'
     +'<div class="tools"><button class="tool" id="bBack">⌫ Стерти</button><button class="tool" id="bHear">🔊 Ще раз</button></div>';
   var filled=[]; // {slotEl, keyEl, ch}
   var slots=A.querySelectorAll('.slot'), keyEls=A.querySelectorAll('.key');
