@@ -11,7 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
 <style>
   :root{
-    --bg1:#eaf4ff; --bg2:#dcecff; --ink:#1e3a6b; --soft:#7b869c; --line:#d9e2f0;
+    --bg1:#eaf6ff; --bg2:#ddecff; --bg3:#e2f3de; --ink:#1e3a6b; --soft:#7b869c; --line:#d9e2f0;
     --card:#fff; --primary:#3d86d4; --primary-d:#2f8fd6; --success:#37a052; --success-d:#2c8544;
     --gold:#f4c842; --gold-ink:#8a5e16; --coral:#ff6f52; --coral-d:#e2573c; --good-bg:#e7f7ee; --good:#1c8a52;
     --learn:#37b0c4; --e2:0 6px 18px rgba(19,63,120,.14);
@@ -19,7 +19,7 @@
   *{box-sizing:border-box}
   html,body{margin:0;height:100%}
   body{font-family:'Nunito',system-ui,sans-serif;color:var(--ink);
-    background:linear-gradient(180deg,var(--bg1),var(--bg2)) fixed;
+    background:linear-gradient(180deg,var(--bg1) 0%,var(--bg2) 46%,var(--bg3) 100%) fixed;
     -webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;
     display:flex;flex-direction:column;min-height:100dvh;padding:14px;}
   h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px;margin:0}
@@ -48,18 +48,59 @@
   .big-btn.ghost{background:#fff;color:var(--ink);box-shadow:0 4px 0 #cdd8ea;border:2px solid var(--line)}
   .big-btn.sm{font-size:16px;padding:12px 14px}
 
+  /* ── банер словника (екран вибору набору) ──
+     Картинка — намальована шапка. Якщо файлу немає, вона ховається і
+     лишається градієнт із тим самим написом: екран не їде. */
+  .hero{position:relative;flex:none;margin-bottom:13px;border-radius:22px;overflow:hidden;
+    aspect-ratio:941/348;background:linear-gradient(160deg,#7cc2f0,#3f83cf);box-shadow:var(--e2)}
+  .hero-txt{position:absolute;inset:0;z-index:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:5px;padding:0 14px;text-align:center;color:#fff}
+  .hero-txt b{font-family:'Fredoka';font-weight:700;font-size:clamp(20px,6.4vw,30px)}
+  .hero-txt small{font-weight:800;font-size:13px;opacity:.92}
+  .hero-bg{position:absolute;inset:0;z-index:1;width:100%;height:100%;object-fit:cover;display:block}
+  /* Стрілка стоїть рівно на намальованій кнопці банера й перекриває її. */
+  .hero-back{position:absolute;z-index:2;left:3.2%;top:4.4%;width:11.2%;height:21.5%;
+    min-width:40px;min-height:34px;border:none;border-radius:15px;background:#fff;color:var(--ink);
+    font-size:clamp(17px,4.8vw,23px);line-height:1;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;box-shadow:0 3px 9px rgba(19,63,120,.2)}
+  .hero-back:active{transform:translateY(2px)}
+
   /* вибір набору / режиму */
-  .pick{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:11px;padding:2px 0 4px}
-  .deck{display:flex;align-items:center;gap:13px;background:var(--card);border:2px solid var(--line);
-    border-radius:18px;padding:13px 15px;box-shadow:var(--e2);cursor:pointer;text-align:left}
-  .deck:active{transform:translateY(2px)}
-  .deck .ic{font-size:30px;flex:none}
-  .deck .dx{flex:1;min-width:0}
-  .deck .dt{font-family:'Fredoka';font-size:18px}
-  .deck .ds{font-size:13px;color:var(--soft);font-weight:800}
-  .deck .go{font-size:22px;color:var(--primary);flex:none}
+  .pick{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:13px;padding:2px 0 4px}
+  /* Набір — кольорова смужка: плитка з малюнком, назва, переклад, стрілка.
+     Колір приходить із JS (--c1/--c1b — плитка, --c2 — тло, --c3 — акцент). */
+  .deck{position:relative;overflow:hidden;display:flex;align-items:center;gap:13px;
+    background:var(--c2,#fff);border:3px solid #fff;border-radius:24px;padding:10px 12px;
+    box-shadow:0 7px 18px rgba(19,63,120,.16);cursor:pointer;text-align:left}
+  .deck:active{transform:translateY(2px);box-shadow:0 3px 10px rgba(19,63,120,.16)}
+  .deck .ic{position:relative;z-index:1;width:clamp(68px,21vw,86px);aspect-ratio:1;flex:none;
+    border-radius:19px;background:linear-gradient(160deg,var(--c1,#dbe9fb),var(--c1b,#b9d4f4));
+    display:flex;align-items:center;justify-content:center;font-size:clamp(34px,10vw,46px);overflow:hidden}
+  .deck .ic img{width:100%;height:100%;object-fit:contain;padding:9px}
+  .deck .dx{position:relative;z-index:1;flex:1;min-width:0}
+  .deck .dt{display:block;font-family:'Fredoka';font-size:clamp(19px,5.6vw,23px);line-height:1.15}
+  .deck .ds{display:block;font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;
+    font-size:clamp(14px,4vw,16px);color:var(--c3,#7b869c);margin-top:2px}
+  /* Прикраса тулиться до правого краю під стрілкою — так вона ніколи не
+     налазить на довгий підпис на вузькому екрані. */
+  .deck .wm{position:absolute;z-index:0;right:-6px;top:50%;transform:translateY(-50%);
+    font-size:56px;opacity:.13;pointer-events:none}
+  .deck .go{position:relative;z-index:1;width:42px;height:42px;flex:none;border-radius:50%;
+    background:linear-gradient(160deg,var(--c1,#dbe9fb),var(--c1b,#b9d4f4));color:var(--c3,#2f7ed6);
+    display:flex;align-items:center;justify-content:center;font-family:'Fredoka';font-size:26px;
+    box-shadow:0 2px 0 rgba(255,255,255,.8) inset}
   .lead{text-align:center;color:var(--soft);font-weight:800;font-size:13px;margin:0 0 8px}
   h1.page{font-family:'Comfortaa','Fredoka',sans-serif;font-size:26px;color:var(--ink);text-align:center;margin:2px 0 10px}
+
+  /* шапка обраного набору на екрані режимів — той самий кольоровий почерк */
+  .dhead{display:flex;align-items:center;gap:12px;background:var(--c2,#fff);border:3px solid #fff;
+    border-radius:22px;padding:10px 12px;box-shadow:0 6px 16px rgba(19,63,120,.14);margin-bottom:12px;flex:none}
+  .dhead .ic{width:60px;height:60px;flex:none;border-radius:16px;overflow:hidden;
+    background:linear-gradient(160deg,var(--c1,#dbe9fb),var(--c1b,#b9d4f4));
+    display:flex;align-items:center;justify-content:center;font-size:30px}
+  .dhead .ic img{width:100%;height:100%;object-fit:contain;padding:7px}
+  .dhead .dt{display:block;font-family:'Fredoka';font-size:21px;line-height:1.15}
+  .dhead .ds{display:block;font-weight:800;font-size:14px;color:var(--c3,#7b869c)}
 
   .mode-card{background:var(--card);border:2px solid var(--line);border-radius:20px;padding:16px;box-shadow:var(--e2);
     display:flex;flex-direction:column;gap:8px;text-align:left;cursor:pointer;margin-bottom:12px}
@@ -151,8 +192,12 @@
 
   <!-- вибір набору -->
   <section id="sDeck" class="screen on">
-    <div class="topbar"><button class="iconbtn" id="deckBack" title="Назад">←</button>
-      <div class="ttl">📘 Словник English<small>обери набір слів</small></div></div>
+    <div class="hero">
+      <span class="hero-txt"><b>Словник English</b><small>обери набір слів ❤️</small></span>
+      <img class="hero-bg" src="img/en-hero.webp" alt="Словник English"
+           onerror="this.style.display='none'">
+      <button class="hero-back" id="deckBack" title="Назад">←</button>
+    </div>
     <div class="pick" id="deckList"><div class="msg">Завантаження…</div></div>
   </section>
 
@@ -161,6 +206,7 @@
     <div class="topbar"><button class="iconbtn" id="modeBack">←</button>
       <div class="ttl" id="modeTitle">Набір</div></div>
     <div class="pick">
+      <div class="dhead" id="modeHead" hidden></div>
       <p class="lead" id="modeLead"></p>
       <button class="big-btn ghost sm" id="btnStudy">📖 Спочатку вивчити слова</button>
       <div style="height:6px"></div>
@@ -253,12 +299,73 @@ function beep(ok){
 function show(id){['sDeck','sMode','sStudy','sPlay','sDone'].forEach(function(s){$(s).classList.toggle('on',s===id);});}
 
 /* ============ ВИБІР НАБОРУ ============ */
+/* Кольори наборів ідуть по колу — набір лишається того самого кольору,
+   доки не змінився порядок у адмінці. */
+var DECK_SKINS=[
+  {c1:'#ffe3a3',c1b:'#ffc75c',c2:'#fff7e6',c3:'#cf8317'},
+  {c1:'#cdf0a6',c1b:'#93da6b',c2:'#eefae3',c3:'#4c9a2a'},
+  {c1:'#e0d4fb',c1b:'#bfa4f2',c2:'#f3edfe',c3:'#7a4fd0'},
+  {c1:'#ffd3e4',c1b:'#ffa5c6',c2:'#ffeef5',c3:'#df4d89'},
+  {c1:'#cfe6ff',c1b:'#9cc9fb',c2:'#e9f4ff',c3:'#2f7ed6'},
+  {c1:'#c3f1e7',c1b:'#8fdfd0',c2:'#e6f9f5',c3:'#14948a'},
+  {c1:'#dcdefb',c1b:'#b6bcf4',c2:'#eef0fe',c3:'#5a63d2'}
+];
+/* Малюнок і переклад теми. Набір в адмінці має лише title/topic, тож
+   картинку й українську назву впізнаємо за темою — і англійською, і
+   українською. Немає збігу — лишається 🗂 і те, що задано в адмінці. */
+var TOPIC_ART=[
+  {re:/action|verb|дії|дієслов/,                 emo:'🏃', uk:'Дії',                img:'img/en/EN-run.webp'},
+  {re:/animal|pet|тварин/,                       emo:'🐶', uk:'Тварини',            img:''},
+  {re:/classroom|school|клас|школ|приладд/,      emo:'🎒', uk:'Шкільне приладдя',   img:'img/en/EN-schoolbag.webp'},
+  {re:/colou?r|кольор/,                          emo:'🎨', uk:'Кольори',            img:'img/en/EN-palette.webp'},
+  {re:/number|count|числ|лічб|цифр/,             emo:'🔢', uk:'Числа',              img:''},
+  {re:/tech|comput|технолог|компʼют|компют/,     emo:'💻', uk:'Технології',         img:'img/en/EN-laptop.webp'},
+  {re:/home|house|room|дім|дом|кімнат|оселя/,    emo:'🏠', uk:'Дім',                img:'img/en/EN-room.webp'},
+  {re:/food|fruit|meal|їж|фрукт|харч|овоч/,      emo:'🍎', uk:'Їжа',                img:''},
+  {re:/famil|родин|сім/,                         emo:'👨‍👩‍👧', uk:'Родина',        img:''},
+  {re:/body|face|тіл|облич/,                     emo:'✋', uk:'Тіло',               img:''},
+  {re:/cloth|wear|одяг|вбранн/,                  emo:'👕', uk:'Одяг',               img:''},
+  {re:/weather|season|погод|пора рок/,           emo:'☀️', uk:'Погода',             img:''},
+  {re:/toy|game|іграшк|ігр/,                     emo:'🧸', uk:'Іграшки',            img:''},
+  {re:/nature|plant|природ|рослин/,              emo:'🌳', uk:'Природа',            img:''},
+  {re:/sport|спорт/,                             emo:'⚽', uk:'Спорт',              img:''}
+];
+function deckArt(d){
+  var hay=(String(d.title||'')+' '+String(d.topic||'')+' '+String(d.id||'')).toLowerCase();
+  for(var i=0;i<TOPIC_ART.length;i++) if(TOPIC_ART[i].re.test(hay)) return TOPIC_ART[i];
+  return null;
+}
+function nrm(v){ return String(v==null?'':v).toLowerCase().replace(/\s+/g,' ').trim(); }
 function renderDecks(){
   if(!DECKS.length){ $('deckList').innerHTML='<div class="msg">Наборів ще немає.<br>Додай їх в адмінці → Словник → Набори.</div>'; return; }
-  $('deckList').innerHTML=DECKS.map(function(d){
-    return '<button class="deck" data-deck="'+esc(d.id)+'"><span class="ic">🗂</span>'
-      +'<span class="dx"><span class="dt">'+esc(d.title||d.topic||d.id)+'</span>'
-      +'<span class="ds">'+esc(d.topic||'')+' · '+(d.grade||1)+' клас</span></span><span class="go">›</span></button>';
+  /* Клас пишемо в підписі лише тоді, коли в списку намішані різні класи —
+     інакше це шум: дитина й так у своєму. */
+  var grades={}; DECKS.forEach(function(d){ grades[String(d.grade||1)]=1; });
+  var manyGrades=Object.keys(grades).length>1;
+  $('deckList').innerHTML=DECKS.map(function(d,i){
+    var sk=DECK_SKINS[i%DECK_SKINS.length], art=deckArt(d);
+    var title=d.title||d.topic||d.id;
+    d._skin=sk;                         // той самий колір потім на екрані режимів
+    /* Підпис: свій переклад із адмінки → переклад теми → тема → клас. */
+    var sub=String(d.uk||d.subtitle||'').trim();
+    if(!sub && art && nrm(art.uk)!==nrm(title)) sub=art.uk;
+    if(!sub && d.topic && nrm(d.topic)!==nrm(title)) sub=String(d.topic);
+    if(manyGrades) sub=(sub?sub+' · ':'')+(d.grade||1)+' клас';
+    if(!sub) sub=(d.grade||1)+' клас';
+    var emo=(art&&art.emo)||'🗂';
+    var cover=String(d.img||'').trim()||(art&&art.img)||'';
+    /* Картинки може не бути в репо — тоді onerror лишає емодзі теми. */
+    var pic=cover
+      ? '<img src="'+esc(cover)+'" alt="" loading="lazy" onerror="this.parentNode.textContent=\''+esc(emo)+'\'">'
+      : esc(emo);
+    d._pic=pic; d._sub=sub;
+    return '<button class="deck" data-deck="'+esc(d.id)+'" '
+      +'style="--c1:'+sk.c1+';--c1b:'+sk.c1b+';--c2:'+sk.c2+';--c3:'+sk.c3+'">'
+      +'<span class="ic">'+pic+'</span>'
+      +'<span class="dx"><span class="dt">'+esc(title)+'</span>'
+      +'<span class="ds">'+esc(sub)+'</span></span>'
+      +'<span class="wm">'+esc(emo)+'</span>'
+      +'<span class="go">›</span></button>';
   }).join('');
 }
 async function openDeck(id){
@@ -267,7 +374,18 @@ async function openDeck(id){
   try{ WORDS=await window.SK.listActiveVocab(deck.topic, deck.grade); }catch(e){ WORDS=[]; }
   if(!WORDS.length){ alert('У цьому наборі ще немає слів. Додай їх в адмінці.'); return; }
   studyPos=0; flipped=false;
-  $('modeTitle').textContent=deck.title||deck.topic||deck.id;
+  var mh=$('modeHead'), sk=deck._skin;
+  if(mh){
+    if(sk){
+      mh.hidden=false;
+      mh.setAttribute('style','--c1:'+sk.c1+';--c1b:'+sk.c1b+';--c2:'+sk.c2+';--c3:'+sk.c3);
+      mh.innerHTML='<span class="ic">'+(deck._pic||'🗂')+'</span>'
+        +'<span class="dx"><span class="dt">'+esc(deck.title||deck.topic||deck.id)+'</span>'
+        +'<span class="ds">'+esc(deck._sub||'')+'</span></span>';
+    }else{ mh.hidden=true; mh.innerHTML=''; }
+  }
+  /* назва набору вже стоїть у кольоровій шапці — у топбарі не дублюємо */
+  $('modeTitle').textContent=(mh && !mh.hidden) ? 'Як тренуємось?' : (deck.title||deck.topic||deck.id);
   $('modeLead').textContent='Слів у наборі: '+WORDS.length;
   var sv=num(deck.test&&deck.test.statValue);
   $('tagTest').textContent='🔮 +'+sv+' мани';
