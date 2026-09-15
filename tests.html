@@ -15,14 +15,19 @@
   .page-head h1{font-family:'Playfair Display',serif;font-weight:900;
     font-size:clamp(1.4rem,4vw,1.9rem);color:var(--gold);margin:0;
     text-shadow:0 2px 6px rgba(0,0,0,.45)}
-  .page-head .sub{color:#eaf1ff;font-weight:700;font-size:.95rem;margin:4px 0 0;
-    text-shadow:0 1px 3px rgba(0,0,0,.4)}
+  .page-head{display:flex;align-items:center;gap:10px;margin:0 0 14px}
+  .page-head[hidden]{display:none}
+  .crumb{font-family:'Playfair Display',Georgia,serif;font-weight:800;color:#ffe9a8;
+    font-size:clamp(1.05rem,3.6vw,1.35rem);line-height:1.1;
+    text-shadow:0 2px 6px rgba(0,0,0,.35);min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
   /* ── кнопка «назад» усередині drill-down ── */
   .back{display:inline-flex;align-items:center;gap:7px;border:1.5px solid rgba(242,199,92,.5);
     background:linear-gradient(180deg,rgba(30,52,92,.7),rgba(12,28,54,.78));color:#fff;
     border-radius:12px;padding:9px 16px;font-family:inherit;font-weight:800;font-size:.9rem;
-    cursor:pointer;margin:0 0 14px;transition:transform .15s,border-color .15s}
+    cursor:pointer;margin:0;transition:transform .15s,border-color .15s}
+  #pgBack{flex:0 0 auto;padding:9px 14px;font-size:1.05rem;line-height:1}
   .back:hover{transform:translateY(-2px);border-color:var(--gold)}
 
   /* ── сітка карток ── */
@@ -133,9 +138,11 @@
   <!-- СПІЛЬНИЙ ХЕДЕР (бренд + шкала Героя) вставляється через sk-header.js -->
 
   <main class="wrap">
-    <div class="page-head">
-      <h1>📜 Тести королівства</h1>
-      <p class="sub" id="pgSub">Завантаження…</p>
+    <!-- Один компактний рядок: стрілочка назад + де дитина зараз.
+         Назву сторінки не дублюємо — вона вже є в шапці (SK_HEADER_SUB). -->
+    <div class="page-head" id="pgHead" hidden>
+      <button class="back" id="pgBack" type="button" aria-label="Назад">←</button>
+      <span class="crumb" id="pgSub"></span>
     </div>
     <div id="screen"><div class="empty">Завантаження тестів…</div></div>
   </main>
@@ -441,8 +448,19 @@
     return { g1:mix(.95), g2:mix(.55) };
   }
 
+  /* Рядок «← де я зараз». На екрані класів ховаємо: повертатись усередині
+     сторінки нікуди, для виходу є «Назад» у нижньому меню. */
+  function setCrumb(back, text){
+    var head=q('pgHead'), sub=q('pgSub'), btn=q('pgBack');
+    if(!head) return;
+    if(!back){ head.hidden = true; return; }
+    head.hidden = false;
+    if(sub) sub.textContent = text || '';
+    if(btn) btn.setAttribute('data-back', back);
+  }
+
   function renderClasses(){
-    q('pgSub').textContent='Обери клас.';
+    setCrumb(null);
     var list = visibleGrades();
     if(!list.length){
       q('screen').innerHTML='<div class="empty">Класів ще немає. Додай їх у адмінці → «🗺 Структура».</div>'; return;
@@ -463,9 +481,9 @@
     }).join('')+'</div>';
   }
   function renderSubjects(){
-    q('pgSub').textContent=secTitle(selGrade)+' — обери предмет.';
+    setCrumb('classes', secTitle(selGrade));
     var gr=IDX.grades[selGrade];
-    var html='<button class="back" data-back="classes">← Класи</button>';
+    var html='';
     if(!gr || !gr.order.length){ html+='<div class="empty">У цьому класі ще немає предметів із тестами.</div>'; q('screen').innerHTML=html; return; }
     html+='<div class="lvgrid">'+gr.order.map(function(sid){
       var sj=gr.subs[sid]; var p=subjProg(sj); var has=p.total>0;
@@ -485,8 +503,8 @@
   }
   function renderTests(){
     var gr=IDX.grades[selGrade]; var s=gr && gr.subs[selSubj];
-    q('pgSub').textContent=secTitle(selGrade)+' · '+(s?s.name:'');
-    var html='<button class="back" data-back="subjects">← Предмети</button>';
+    setCrumb('subjects', secTitle(selGrade));
+    var html='';
     if(!s || !s.tests.length){ html+='<div class="empty">Тестів поки немає — додай їх в адмін-панелі.</div>'; q('screen').innerHTML=html; return; }
     function cardHtml(t){
       var label, cls='';
@@ -532,6 +550,11 @@
     if(s){ selSubj=s.getAttribute('data-subj'); view='tests'; render(); window.scrollTo(0,0); return; }
     var b=e.target.closest('[data-back]');
     if(b){ view=b.getAttribute('data-back'); render(); window.scrollTo(0,0); return; }
+  });
+  /* Стрілочка тепер у шапці, а не всередині #screen. */
+  if(q('pgBack')) q('pgBack').addEventListener('click',function(){
+    var to=this.getAttribute('data-back'); if(!to) return;
+    view=to; render(); window.scrollTo(0,0);
   });
   /* при переході на тест — запамʼятати клас+предмет, щоб повернутись саме сюди.
      Зарахування тесту-посилання тепер відбувається ПРИ ЗАВЕРШЕННІ на самій
