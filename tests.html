@@ -294,8 +294,26 @@
     return { grades:G };
   }
   /* ── стандартні вбудовані картки: WORDS (English-словник) у КОЖНОМУ класі ── */
+  /* Предмет English цього класу так, як він описаний у карті: щоб у класі,
+     де англійська ще без тестів, картка словника лягла під справжню назву,
+     іконку й колір предмета, а не під підставні. */
+  function mapEngSubj(key){
+    var found = null;
+    CURRICULUM.forEach(function(t){
+      (t.grades||[]).forEach(function(g){
+        var k = isPreschoolTier(t) ? 'p' : String(Number(g.gradeNum)||0);
+        if(found || k !== String(key)) return;
+        (g.subjects||[]).forEach(function(s){
+          if(found) return;
+          if(s.id === 'eng' || /english|англ/i.test(String(s.name||''))) found = s;
+        });
+      });
+    });
+    return found;
+  }
   function injectStdCards(){
-    if(!IDX || !IDX.grades) return;
+    if(!IDX) return;
+    if(!IDX.grades) IDX.grades = {};
     /* Тільки класи, які справді є в карті: у заплановані («Скоро») вбудовану
        картку словника підставляти не можна — інакше порожній клас виглядав
        би так, ніби в ньому вже є контент. */
@@ -308,16 +326,24 @@
       var eng = gr.subs['eng'];
       if(!eng){ for(var sid in gr.subs){ if(gr.subs[sid] && /english|англ/i.test(gr.subs[sid].name||'')){ eng=gr.subs[sid]; break; } } }
       if(!eng){
-        eng = { id:'eng', name:'English', icon:'\ud83d\udd24', accent:'#3FB6A8', stat:'\u041c\u0430\u043d\u0430 \ud83d\udd2e', tests:[], _seen:{} };
-        gr.subs['eng']=eng; gr.order.push('eng');
+        var ms = mapEngSubj(key) || {};
+        eng = { id: ms.id||'eng', name: ms.name||'English', icon: ms.icon||'🔤',
+                accent: ms.accent||'#3FB6A8', stat: ms.stat||'Мана 🔮',
+                tests:[], _seen:{}, groups:[], _gseen:{} };
+        gr.subs[eng.id]=eng; gr.order.push(eng.id);
       }
       if(!eng._seen) eng._seen={};
       if(eng._seen['std-words-en']) return;
       eng._seen['std-words-en']=1;
+      /* std:true — картка не належить жодному розділу карти. renderTests малює
+         такі картки окремо, над розділами: інакше в класі, де в англійської
+         вже є розділи з тестами, словник лежав би лише в s.tests і на екран
+         не потрапляв (малюються тільки тести з розділів). */
       eng.tests.unshift({
-        id:'std-words-en', title:'WORDS',
+        id:'std-words-en', title:'WORDS', std:true,
         href:'slovnyk-en.html?skdone=t:std-words-en&skback=tests.html',
-        isLink:true, isLevels:false, levelCount:0, icon:'\ud83d\udd24', imgCard:''
+        isLink:true, isLevels:false, levelCount:0, icon:'🔤',
+        imgCard:'img/tr/slovnyk-en.webp'   // немає файлу → лишиться емодзі
       });
     });
   }
@@ -533,10 +559,15 @@
         + '<span class="tname">'+esc(t.title)+'</span>'
         + bar(testFrac(t), label, cls) + '</a>';
     }
+    /* Вбудовані картки (словник) не лежать у розділах карти — малюємо їх
+       першими, над розділами, у кожному класі, де є предмет English. */
+    var std = s.tests.filter(function(t){ return t.std; });
+    var rest = s.tests.filter(function(t){ return !t.std; });
+    if(std.length) html += '<div class="grid">'+std.map(cardHtml).join('')+'</div>';
     /* Групи — розділи з карти. Якщо розділ один і без назви, заголовки не
        малюємо: для предмета без структури нічого не змінюється. */
     var groups = (s.groups && s.groups.length) ? s.groups.filter(function(g){ return g.tests.length; })
-                                               : [{ name:'', tests:s.tests }];
+                                               : (rest.length ? [{ name:'', tests:rest }] : []);
     var titled = groups.filter(function(g){ return g.name; }).length;
     groups.forEach(function(g){
       var done = g.tests.filter(isPassed).length;
