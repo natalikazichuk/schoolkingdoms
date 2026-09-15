@@ -55,26 +55,37 @@ def pct_to_float(x):
         return float("nan")
 
 
-def fetch_for_exchange(exchange):
-    """Тягне з Finviz Performance + Technical view для однієї біржі та зливає по Ticker."""
+def fetch_for_exchange(exchange, rsi_filter=None, min_price=None, min_avg_vol=None,
+                       month_up=True, pause=None):
+    """Тягне з Finviz Performance + Technical view для однієї біржі та зливає по Ticker.
+
+    Без аргументів працює на константах згори (режим CLI); веб-бекенд (app.py)
+    передає свої значення з query-параметрів.
+    """
     from finvizfinance.screener.performance import Performance
     from finvizfinance.screener.technical import Technical
 
+    rsi_filter  = RSI_FILTER    if rsi_filter  is None else rsi_filter
+    min_price   = MIN_PRICE     if min_price   is None else min_price
+    min_avg_vol = MIN_AVG_VOL   if min_avg_vol is None else min_avg_vol
+    pause       = REQUEST_PAUSE if pause       is None else pause
+
     filters = {
         "Exchange": exchange,
-        "RSI (14)": RSI_FILTER,
-        "Performance": "Month Up",     # серверний фільтр: місяць у плюсі
+        "RSI (14)": rsi_filter,
     }
-    if MIN_PRICE:
-        filters["Price"] = MIN_PRICE
-    if MIN_AVG_VOL:
-        filters["Average Volume"] = MIN_AVG_VOL
+    if month_up:
+        filters["Performance"] = "Month Up"   # серверний фільтр: місяць у плюсі
+    if min_price:
+        filters["Price"] = min_price
+    if min_avg_vol:
+        filters["Average Volume"] = min_avg_vol
 
     # Performance view → Perf Week / Perf Month / Change / Volume / Price
     perf = Performance()
     perf.set_filter(filters_dict=filters)
     df_perf = perf.screener_view(verbose=0)
-    time.sleep(REQUEST_PAUSE)
+    time.sleep(pause)
 
     if df_perf is None or len(df_perf) == 0:
         return pd.DataFrame()
@@ -83,7 +94,7 @@ def fetch_for_exchange(exchange):
     tech = Technical()
     tech.set_filter(filters_dict=filters)
     df_tech = tech.screener_view(verbose=0)
-    time.sleep(REQUEST_PAUSE)
+    time.sleep(pause)
 
     if df_tech is not None and "Ticker" in df_tech.columns:
         keep_tech = [c for c in ["Ticker", "RSI", "SMA20", "SMA50", "SMA200", "ATR"] if c in df_tech.columns]
@@ -138,23 +149,54 @@ def add_macd(df):
     return df
 
 
-# ─────────────────────────── ОСНОВНЕ ───────────────────────────
+# ─────────────────────────── СКРИНІНГ ───────────────────────────
 
-def main():
+def screen(exchanges=None, rsi_filter=None, min_price=None, min_avg_vol=None,
+           require_day_up=None, require_week_up=None, require_month_up=None,
+           compute_macd=None, macd_only_bullish=None, pause=None,
+           errors=None, stats=None, progress=None):
+    """Повний прогін скринінгу → DataFrame, відсортований за денною зміною спадно.
+
+    Спільне ядро для CLI (main) і для веб-бекенда (app.py). Будь-який аргумент,
+    лишений як None, береться з констант згори.
+
+    Додає числові колонки `_chg` / `_week` / `_month` (розпарсені відсотки).
+    Помилка на окремій біржі не валить прогін: текст дописується у список
+    `errors`, решта бірж обробляється далі. У `stats` (dict) повертається
+    `raw` — скільки тікерів дали серверні фільтри Finviz, і `kept` — скільки
+    лишилось після пост-фільтрів. `progress` — колбек для повідомлень про хід.
+    """
+    exchanges         = EXCHANGES         if exchanges         is None else exchanges
+    require_day_up    = REQUIRE_DAY_UP    if require_day_up    is None else require_day_up
+    require_week_up   = REQUIRE_WEEK_UP   if require_week_up   is None else require_week_up
+    require_month_up  = REQUIRE_MONTH_UP  if require_month_up  is None else require_month_up
+    compute_macd      = COMPUTE_MACD      if compute_macd      is None else compute_macd
+    macd_only_bullish = MACD_ONLY_BULLISH if macd_only_bullish is None else macd_only_bullish
+    if errors is None:
+        errors = []
+    if stats is None:
+        stats = {}
+    stats.setdefault("raw", 0)
+    stats.setdefault("kept", 0)
+
     frames = []
-    for exch in EXCHANGES:
-        print(f"→ Finviz: {exch} ...")
+    for exch in exchanges:
+        if progress:
+            progress(f"→ Finviz: {exch} ...")
         try:
-            frames.append(fetch_for_exchange(exch))
+            frames.append(fetch_for_exchange(
+                exch, rsi_filter=rsi_filter, min_price=min_price,
+                min_avg_vol=min_avg_vol, month_up=require_month_up, pause=pause))
         except Exception as e:
-            print(f"   помилка для {exch}: {e}")
+            errors.append(f"{exch}: {e}")
 
-    if not frames or all(len(f) == 0 for f in frames):
-        print("Порожньо після серверних фільтрів Finviz. Спробуй RSI 'Oversold (40)'.")
-        return
+    frames = [f for f in frames if f is not None and len(f) > 0]
+    if not frames:
+        return pd.DataFrame()
 
-    df = pd.concat([f for f in frames if len(f) > 0], ignore_index=True)
+    df = pd.concat(frames, ignore_index=True)
     df = df.drop_duplicates(subset="Ticker")
+    stats["raw"] = len(df)
 
     # числові версії відсоткових колонок
     df["_chg"]   = df["Change"].apply(pct_to_float)     if "Change" in df.columns else float("nan")
@@ -162,27 +204,46 @@ def main():
     df["_month"] = df["Perf Month"].apply(pct_to_float) if "Perf Month" in df.columns else float("nan")
 
     mask = pd.Series(True, index=df.index)
-    if REQUIRE_DAY_UP:
+    if require_day_up:
         mask &= df["_chg"] > 0
-    if REQUIRE_WEEK_UP:
+    if require_week_up:
         mask &= df["_week"] > 0
-    if REQUIRE_MONTH_UP:
+    if require_month_up:
         mask &= df["_month"] > 0
     df = df[mask].copy()
 
     if len(df) == 0:
-        print("Нічого не пройшло пост-фільтр (день/тиждень/місяць).")
-        print("Порада: постав REQUIRE_WEEK_UP = False або RSI 'Oversold (40)'.")
-        return
+        return df
 
-    if COMPUTE_MACD:
-        print(f"→ Рахую MACD для {len(df)} тікерів (yfinance)...")
+    if compute_macd:
+        if progress:
+            progress(f"→ Рахую MACD для {len(df)} тікерів (yfinance)...")
         df = add_macd(df)
-        if MACD_ONLY_BULLISH and "MACD_bull" in df.columns:
+        if macd_only_bullish and "MACD_bull" in df.columns:
             df = df[df["MACD_bull"] == True]
 
     # сортуємо: найсильніший денний імпульс зверху
     df = df.sort_values("_chg", ascending=False)
+    stats["kept"] = len(df)
+    return df
+
+
+# ─────────────────────────── ОСНОВНЕ ───────────────────────────
+
+def main():
+    errors, stats = [], {}
+    df = screen(errors=errors, stats=stats, progress=print)
+
+    for msg in errors:
+        print(f"   помилка для {msg}")
+
+    if len(df) == 0:
+        if stats.get("raw", 0) == 0:
+            print("Порожньо після серверних фільтрів Finviz. Спробуй RSI 'Oversold (40)'.")
+        else:
+            print("Нічого не пройшло пост-фільтр (день/тиждень/місяць).")
+            print("Порада: постав REQUIRE_WEEK_UP = False або RSI 'Oversold (40)'.")
+        return
 
     show = ["Ticker", "Exchange", "Price", "Change", "Perf Week", "Perf Month", "RSI"]
     if COMPUTE_MACD:
