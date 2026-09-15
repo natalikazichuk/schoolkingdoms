@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="hero.css?v=10">
+<link rel="stylesheet" href="hero.css?v=11">
 <script src="sk-avatar.js"></script>
 <script type="module" src="firebase-config.js"></script>
 </head>
@@ -76,9 +76,6 @@
         <input type="file" id="avaFile" accept="image/*" hidden>
       </div>
     </div>
-
-    <!-- клас Героя — під аватаром -->
-    <div class="hud-grade"><span class="grade-chip" id="heroGrade">Перший клас</span></div>
 
     <!-- здоровʼя та мана під аватаром: медальйон + підпис + значення -->
     <div class="ek-bars">
@@ -270,7 +267,7 @@ function pct(v,max){ return Math.max(0, Math.round(v/max*100)); }
 function render(){
   // identity
   $('heroName').textContent=profile.name||'…';
-  $('heroGrade').textContent=profile.grade;
+  setTxt('heroGrade',profile.grade);   // елемента може не бути в розмітці
   setTxt('heroTitle',profile.title);
   // активні бойові стати (health/agility/mana/accuracy/level/xp/coins) —
   // ЄДИНЕ джерело: Firestore. Поки дані не прийшли — нейтральний стан очікування.
@@ -720,7 +717,7 @@ async function loadVyproProgress(){
           $('heroName').textContent = child.name;
           setTxt('avatarMini',(child.name||'🧒').trim().charAt(0).toUpperCase()||'🧒');
         }
-        if(child.grade!=null) $('heroGrade').textContent = gradeLabel(child.grade);
+        if(child.grade!=null) setTxt('heroGrade', gradeLabel(child.grade));
         // синхронізований аватар (емодзі/ілюстрація) → великий портрет
         try{ if(window.__skApplyHeroAvatar) window.__skApplyHeroAvatar(child.avatar); }catch(e){}
       }
