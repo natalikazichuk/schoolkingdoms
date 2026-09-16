@@ -37,6 +37,8 @@
   .row .ipa{color:var(--muted); font-size:.85rem}
   .row .tr{color:var(--ink); font-size:.9rem}
   .row .id{color:var(--muted); font-size:.72rem; font-weight:700}
+  .row .dupe{display:inline-block; margin-left:6px; padding:1px 7px; border-radius:999px;
+    background:#ffe6e2; color:var(--danger); font-size:.7rem; font-weight:800}
   .row .acts{display:flex; gap:6px; flex:0 0 auto; flex-wrap:wrap; justify-content:flex-end}
 
   .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
@@ -93,7 +95,7 @@
 <div class="modal" id="wModal"><div class="sheet">
   <h2 id="wTitle">Слово</h2>
   <div class="grid2">
-    <div class="field"><label>Код (id)</label><input type="text" id="f_id" placeholder="EN-0001"><div class="note">Стабільний. Картинка → <b>img/en/&lt;id&gt;.webp</b></div></div>
+    <div class="field"><label>Код (id)</label><input type="text" id="f_id" placeholder="EN-0001"><div class="note">Стабільний. Картинка → <b>img/en/&lt;id&gt;.webp</b>. Зміна коду <b>перейменовує</b> картку, а не створює нову.</div></div>
     <div class="field"><label>Слово (English)</label><input type="text" id="f_word" placeholder="apple"></div>
   </div>
   <div class="grid2">
@@ -185,6 +187,10 @@
 <script>
 "use strict";
 var WORDS=[], DECKS=[], ITEMS=[], editW=null, editD=null;
+/* Код, під яким картку відкрили. Якщо в полі його змінили — це
+   ПЕРЕЙМЕНУВАННЯ: запис треба перенести під новий код і прибрати
+   старий. Без цього в базі лишалось двоє: стара картка й нова. */
+var origWId='', origDId='';
 
 var $=SKADMIN.$;
 var esc=SKADMIN.esc;                 // спільний, екранує й апостроф
@@ -240,9 +246,21 @@ function fillGradeFilter(){
     +gs.map(function(g){ return '<option value="'+g+'">'+esc(gradeName(g))+'</option>'; }).join('');
   if(cur && gs.indexOf(Number(cur))>=0) sel.value=cur;
 }
+/* Слова, що відрізняються лише кодом: те саме слово, тема й клас.
+   Такі пари лишились від часів, коли зміна коду створювала другу картку
+   замість перейменування. Позначаємо, щоб їх було видно й легко прибрати. */
+function dupeKeys(){
+  var seen={}, dup={};
+  WORDS.forEach(function(w){
+    var k=[String(w.word||'').trim().toLowerCase(), String(w.topic||'').trim().toLowerCase(), wGradeNum(w)].join('\u0000');
+    if(seen[k]) dup[k]=1; else seen[k]=1;
+  });
+  return dup;
+}
 function renderWords(){
   var dl=$('topicList'); dl.innerHTML=topics().map(function(t){return '<option value="'+esc(t)+'">';}).join('');
   fillGradeFilter();
+  var dup=dupeKeys();
   var q=($('wSearch').value||'').trim().toLowerCase();
   var gf=($('wGrade').value||'');
   var list=WORDS.filter(function(w){
@@ -274,7 +292,10 @@ function renderWords(){
         +'<div class="cv">'+(src?'<img src="'+esc(src)+'" alt="" onerror="this.replaceWith(document.createTextNode(\'🖼\'))">':'<span>🔤</span>')+'</div>'
         +'<div class="meta"><div class="w">'+esc(w.word||'—')+' <span class="ipa">'+esc(w.ipa||'')+'</span></div>'
         +'<div class="tr">'+esc(w.uk||'')+'</div>'
-        +'<div class="id">'+esc(w.id||'')+(w.grade?(' · '+w.grade+' кл'):'')+((w.phrases&&w.phrases.length)?(' · '+w.phrases.length+' зв.'):'')+'</div></div>'
+        +'<div class="id">'+esc(w.id||'')+(w.grade?(' · '+w.grade+' кл'):'')+((w.phrases&&w.phrases.length)?(' · '+w.phrases.length+' зв.'):'')
+        +(dup[[String(w.word||'').trim().toLowerCase(), String(w.topic||'').trim().toLowerCase(), wGradeNum(w)].join('\u0000')]
+            ? '<span class="dupe">дубль?</span>' : '')
+        +'</div></div>'
         +'<div class="acts">'
         +'<button class="btn sm ghost" data-wtoggle="'+esc(w.id)+'">'+(w.active===false?'Увімк':'Вимк')+'</button>'
         +'<button class="btn sm pri" data-wedit="'+esc(w.id)+'">✎</button>'
@@ -295,6 +316,7 @@ function phraseRow(p){
   return d;
 }
 function openWord(w){
+  origWId = w ? String(w.id||'') : '';   // під яким кодом картка лежить у базі
   editW=w||{ id:nextId(), word:'', ipa:'', uk:'', topic:'', grade:1, order:(WORDS.length+1), img:'', audio:'', phrases:[], active:true };
   var isNew=!w;
   $('wTitle').textContent=isNew?'Нове слово':('Слово · '+editW.id);
@@ -334,7 +356,19 @@ async function saveWord(){
   var w=collectWord();
   if(!w.word){ toast('Введи слово',true); return; }
   if(!w.uk){ toast('Введи переклад',true); return; }
-  try{ await window.SK.saveVocab(w); toast('Збережено: '+w.word); $('wModal').classList.remove('open');
+  /* Код зайнятий іншим словом — зберігати не можна: запис ліг би поверх
+     чужого й затер його. */
+  var taken=WORDS.find(function(x){ return String(x.id)===String(w.id) && String(x.id)!==origWId; });
+  if(taken){ toast('Код '+w.id+' уже має слово «'+(taken.word||taken.id)+'»',true); return; }
+  var renamed = !!origWId && String(w.id)!==origWId;
+  if(renamed && !confirm('Перейменувати код '+origWId+' → '+w.id+'?\n\n'
+      +'Картка переїде під новий код, стару буде прибрано — дубля не лишиться.\n'
+      +'Картинку шукатимемо за img/en/'+w.id+'.webp')) return;
+  try{
+    await window.SK.saveVocab(w);
+    if(renamed) await window.SK.deleteVocab(origWId);   // інакше лишиться дубль
+    toast(renamed ? ('Перейменовано: '+origWId+' → '+w.id) : ('Збережено: '+w.word));
+    $('wModal').classList.remove('open');
     WORDS=await window.SK.listVocab(); renderWords(); }
   catch(e){ console.error(e); toast('Помилка збереження',true); }
 }
@@ -374,6 +408,7 @@ function rewRow(r){
   return d;
 }
 function openDeck(d){
+  origDId = d ? String(d.id||'') : '';
   editD=d||{ id:'', title:'', topic:'', grade:1, order:(DECKS.length+1), test:{statValue:5}, trial:{coins:10,rewards:[]}, active:true };
   var isNew=!d;
   $('dTitle').textContent=isNew?'Новий набір':('Набір · '+editD.id);
@@ -407,7 +442,16 @@ function collectDeck(){
 async function saveDeck(){
   var d=collectDeck();
   if(!d.topic){ toast('Вкажи тему (як у словах)',true); return; }
-  try{ await window.SK.saveVocabDeck(d); toast('Набір збережено'); $('dModal').classList.remove('open');
+  var taken=DECKS.find(function(x){ return String(x.id)===String(d.id) && String(x.id)!==origDId; });
+  if(taken){ toast('Код '+d.id+' уже має набір «'+(taken.title||taken.id)+'»',true); return; }
+  var renamed = !!origDId && String(d.id)!==origDId;
+  if(renamed && !confirm('Перейменувати код набору '+origDId+' → '+d.id+'?\n\n'
+      +'Набір переїде під новий код, старий буде прибрано — дубля не лишиться.')) return;
+  try{
+    await window.SK.saveVocabDeck(d);
+    if(renamed) await window.SK.deleteVocabDeck(origDId);
+    toast(renamed ? ('Перейменовано: '+origDId+' → '+d.id) : 'Набір збережено');
+    $('dModal').classList.remove('open');
     DECKS=await window.SK.listVocabDecks(); renderDecks(); }
   catch(e){ console.error(e); toast('Помилка збереження',true); }
 }
