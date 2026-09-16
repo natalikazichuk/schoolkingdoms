@@ -230,6 +230,9 @@
   .done-btns{width:100%;max-width:420px;display:flex;flex-direction:column;gap:9px;margin-top:4px}
 
   .msg{margin:auto;text-align:center;color:var(--soft);font-weight:800;padding:30px 14px}
+  .msg .gobtn{display:inline-block;margin-top:12px;padding:12px 20px;border-radius:16px;text-decoration:none;
+    background:var(--primary);color:#fff;font-family:'Fredoka';font-size:17px;box-shadow:0 5px 0 var(--primary-d)}
+  .msg .gobtn:active{transform:translateY(3px);box-shadow:0 2px 0 var(--primary-d)}
 </style>
 </head>
 <body>
@@ -385,8 +388,30 @@ function deckArt(d){
   return null;
 }
 function nrm(v){ return String(v==null?'':v).toLowerCase().replace(/\s+/g,' ').trim(); }
-function renderDecks(){
-  if(!DECKS.length){ $('deckList').innerHTML='<div class="msg">Наборів ще немає.<br>Додай їх в адмінці → Словник → Набори.</div>'; return; }
+/* Порожній екран має називати ПРИЧИНУ.
+   Раніше на всі три випадки — гість, збій читання і справді порожній
+   словник — писалось однакове «Наборів ще немає. Додай їх в адмінці»:
+   дитина без входу бачила пораду для адміна й не розуміла, що робити.
+   Набори читає лише той, хто увійшов (firestore.rules: vocabDecks →
+   allow read: if signedIn()). */
+function deckMsg(html){ $('deckList').innerHTML='<div class="msg">'+html+'</div>'; }
+function renderDecks(err){
+  if(!DECKS.length){
+    var signed = !!(window.SK && window.SK.user);
+    if(err || !signed){
+      deckMsg('Щоб відкрити словник, увійди Героєм.<br><a class="gobtn" href="login.html">Увійти</a>');
+      return;
+    }
+    /* Увійшли, база відповіла, а список порожній: або наборів немає, або
+       всі вимкнені перемикачем в адмінці. Друге кажемо окремо — інакше
+       марно шукати те, що вже створене. */
+    deckMsg('Наборів ще немає.<br>Додай їх в адмінці → Словник → Набори.');
+    if(window.SK.listVocabDecks) window.SK.listVocabDecks().then(function(all){
+      var off=(all||[]).filter(function(d){ return d.active===false; }).length;
+      if(off && !DECKS.length) deckMsg('Усі набори вимкнені ('+off+').<br>Увімкни їх в адмінці → Словник → Набори.');
+    }).catch(function(){});
+    return;
+  }
   /* Клас пишемо в підписі лише тоді, коли в списку намішані різні класи —
      інакше це шум: дитина й так у своєму. */
   var grades={}; DECKS.forEach(function(d){ grades[String(d.grade||1)]=1; });
@@ -747,7 +772,7 @@ function boot(){
     DECKS=list||[];
     if(!DECKS.length && grade!=null){ return window.SK.listActiveVocabDecks().then(function(all){ DECKS=all||[]; renderDecks(); }); }
     renderDecks();
-  }).catch(function(){ DECKS=[]; renderDecks(); });
+  }).catch(function(e){ console.error('[slovnyk] набори не прочитались:', e); DECKS=[]; renderDecks(e||true); });
 }
 (function whenSK(){
   var tries=0;
