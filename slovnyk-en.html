@@ -88,7 +88,10 @@
   .pick{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:13px;padding:2px 0 4px}
   /* Набір — кольорова смужка: плитка з малюнком, назва, переклад, стрілка.
      Колір приходить із JS (--c1/--c1b — плитка, --c2 — тло, --c3 — акцент). */
-  .deck{position:relative;overflow:hidden;display:flex;align-items:center;gap:13px;
+  /* flex:none обовʼязково: список — колонка зі скролом, і без цього кожна
+     картка стискалась тим сильніше, чим більше наборів. На десятку з
+     гаком тем вони злипались у смужки з обрізаним підписом. */
+  .deck{flex:none;position:relative;overflow:hidden;display:flex;align-items:center;gap:13px;
     background:var(--c2,#fff);border:3px solid #fff;border-radius:24px;padding:10px 12px;
     box-shadow:0 7px 18px rgba(19,63,120,.16);cursor:pointer;text-align:left}
   .deck:active{transform:translateY(2px);box-shadow:0 3px 10px rgba(19,63,120,.16)}
@@ -132,7 +135,7 @@
   .dhead .dt{display:block;font-family:'Fredoka';font-size:21px;line-height:1.15}
   .dhead .ds{display:block;font-weight:800;font-size:14px;color:var(--c3,#7b869c)}
 
-  .mode-card{background:var(--card);border:2px solid var(--line);border-radius:20px;padding:16px;box-shadow:var(--e2);
+  .mode-card{flex:none;background:var(--card);border:2px solid var(--line);border-radius:20px;padding:16px;box-shadow:var(--e2);
     display:flex;flex-direction:column;gap:8px;text-align:left;cursor:pointer;margin-bottom:12px}
   .mode-card:active{transform:translateY(2px)}
   .mode-card.trial{border-color:#f4d78a}
@@ -314,10 +317,14 @@ function num(n){var x=Number(n);return isFinite(x)?x:0;}
 function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
 function sample(a,n,not){var pool=a.filter(function(x){return x!==not;});return shuffle(pool).slice(0,n);}
 
-var HERO=null, HERO_SESSION=false, DECKS=[], deck=null, WORDS=[], mode='test';
+var HERO=null, HERO_SESSION=false, deck=null, WORDS=[], mode='test';
 /* ALLWORDS — усі слова теми (всіх класів); WORDS — те, що дитина зараз тренує.
    gradeSel: числen:'numbers', о = тілen:'body', ьки цей клас, null = усі класи набору. */
 var ALLWORDS=[], gradeSel=null;
+/* TOPICS — теми (Home, Numbers…), по одній картці на тему. Набори різних
+   класів однієї теми лежать усередині: byGrade[4] = набір 4 класу. Раніше
+   вони були окремими картками, і в списку двічі стояло «Home». */
+var TOPICS=[], topic=null;
 var QS=[], pos=0, attempts=1, studyPos=0, flipped=false;
 
 /* ---- шляхи ---- */
@@ -399,55 +406,6 @@ function nrm(v){ return String(v==null?'':v).toLowerCase().replace(/\s+/g,' ').t
    Набори читає лише той, хто увійшов (firestore.rules: vocabDecks →
    allow read: if signedIn()). */
 function deckMsg(html){ $('deckList').innerHTML='<div class="msg">'+html+'</div>'; }
-function renderDecks(err){
-  if(!DECKS.length){
-    var signed = !!(window.SK && window.SK.user);
-    if(err || !signed){
-      deckMsg('Щоб відкрити словник, увійди Героєм.<br><a class="gobtn" href="login.html">Увійти</a>');
-      return;
-    }
-    /* Увійшли, база відповіла, а список порожній: або наборів немає, або
-       всі вимкнені перемикачем в адмінці. Друге кажемо окремо — інакше
-       марно шукати те, що вже створене. */
-    deckMsg('Наборів ще немає.<br>Додай їх в адмінці → Словник → Набори.');
-    if(window.SK.listVocabDecks) window.SK.listVocabDecks().then(function(all){
-      var off=(all||[]).filter(function(d){ return d.active===false; }).length;
-      if(off && !DECKS.length) deckMsg('Усі набори вимкнені ('+off+').<br>Увімкни їх в адмінці → Словник → Набори.');
-    }).catch(function(){});
-    return;
-  }
-  /* Клас пишемо в підписі лише тоді, коли в списку намішані різні класи —
-     інакше це шум: дитина й так у своєму. */
-  var grades={}; DECKS.forEach(function(d){ grades[String(d.grade||1)]=1; });
-  var manyGrades=Object.keys(grades).length>1;
-  $('deckList').innerHTML=DECKS.map(function(d,i){
-    var sk=DECK_SKINS[i%DECK_SKINS.length], art=deckArt(d);
-    var title=d.title||d.topic||d.id;
-    d._skin=sk;                         // той самий колір потім на екрані режимів
-    /* Підпис: свій переклад із адмінки → переклад теми → тема → клас. */
-    var sub=String(d.uk||d.subtitle||'').trim();
-    /* Переклад теми ставимо лише за точним збігом назви: «School Subjects»
-       і «Classroom» — різні теми, хоч обидві про школу. */
-    if(!sub && art && art.en && nrm(title)===art.en && nrm(art.uk)!==nrm(title)) sub=art.uk;
-    if(!sub && d.topic && nrm(d.topic)!==nrm(title)) sub=String(d.topic);
-    if(manyGrades) sub=(sub?sub+' · ':'')+(d.grade||1)+' клас';
-    if(!sub) sub=(d.grade||1)+' клас';
-    var emo=(art&&art.emo)||'🗂';
-    var cover=String(d.img||'').trim()||(art&&art.img)||'';
-    /* Картинки може не бути в репо — тоді onerror лишає емодзі теми. */
-    var pic=cover
-      ? '<img src="'+esc(cover)+'" alt="" loading="lazy" onerror="this.parentNode.textContent=\''+esc(emo)+'\'">'
-      : esc(emo);
-    d._pic=pic; d._sub=sub;
-    return '<button class="deck" data-deck="'+esc(d.id)+'" '
-      +'style="--c1:'+sk.c1+';--c1b:'+sk.c1b+';--c2:'+sk.c2+';--c3:'+sk.c3+'">'
-      +'<span class="ic">'+pic+'</span>'
-      +'<span class="dx"><span class="dt">'+esc(title)+'</span>'
-      +'<span class="ds">'+esc(sub)+'</span></span>'
-      +'<span class="wm">'+esc(emo)+'</span>'
-      +'<span class="go">›</span></button>';
-  }).join('');
-}
 /* Клас слова: порожньо → 1, щоб старі записи без поля не випадали. */
 function wGrade(w){ var n=Number(w&&w.grade); return isFinite(n)&&n>=0 ? n : 1; }
 function gradeLabel(g){ return g===0 ? 'Дошкільнятко' : (g+' клас'); }
@@ -464,54 +422,24 @@ function renderGradePick(gs){
       }).join('')
     +'</div>';
 }
-/* WORDS = зріз ALLWORDS за обраним класом. Порожній зріз неможливий:
-   чіпи будуються з класів, які в темі справді є. */
-function applyGrade(){
-  WORDS = (gradeSel==null) ? ALLWORDS.slice()
-                           : ALLWORDS.filter(function(w){ return wGrade(w)===gradeSel; });
-  if(!WORDS.length){ gradeSel=null; WORDS=ALLWORDS.slice(); }
-  studyPos=0; flipped=false;
-  $('modeLead').textContent='Слів у наборі: '+WORDS.length
-    +' · '+(gradeSel==null ? 'усі класи' : gradeLabel(gradeSel));
-  $('gradePick').querySelectorAll('.gchip').forEach(function(b){
-    var v=b.getAttribute('data-g');
-    b.classList.toggle('on', (v==='all') ? gradeSel==null : Number(v)===gradeSel);
-  });
-}
-async function openDeck(id){
-  deck=DECKS.find(function(d){return String(d.id)===String(id);}); if(!deck) return;
-  ALLWORDS=[]; WORDS=[];
-  /* Беремо всю тему, а не лише клас набору: інакше слова, дописані для
-     іншого класу, не мали б де з'явитись, доки для них не створять набір. */
-  try{ ALLWORDS=await window.SK.listActiveVocab(deck.topic); }catch(e){ ALLWORDS=[]; }
-  if(!ALLWORDS.length){ alert('У цьому наборі ще немає слів. Додай їх в адмінці.'); return; }
-  var gs=[]; ALLWORDS.forEach(function(w){ var g=wGrade(w); if(gs.indexOf(g)<0) gs.push(g); });
-  gs.sort(function(a,b){ return a-b; });
-  var own=Number(deck.grade); if(!isFinite(own)) own=1;
+/* Набір того класу, що обраний зараз: із нього йдуть нагороди. Немає
+   такого набору — підставляємо заглушку без нагород. «Усі класи» беруть
+   набір свого класу Героя, інакше перший справжній набір теми. */
+function deckForGrade(g){
+  if(!topic) return null;
+  if(g!=null) return topic.byGrade[g] || autoDeck(topic.topic, g);
   var hg=(HERO && HERO.grade!=null) ? Number(HERO.grade) : NaN;
-  /* Стартуємо зі свого класу Героя, інакше — з класу набору: «четвертий»
-     не підмішується до «першого» сам собою. Немає ні того, ні того —
-     показуємо всі слова теми. */
-  gradeSel = (isFinite(hg) && gs.indexOf(hg)>=0) ? hg
-           : (gs.indexOf(own)>=0 ? own : null);
-  renderGradePick(gs);
-  var mh=$('modeHead'), sk=deck._skin;
-  if(mh){
-    if(sk){
-      mh.hidden=false;
-      mh.setAttribute('style','--c1:'+sk.c1+';--c1b:'+sk.c1b+';--c2:'+sk.c2+';--c3:'+sk.c3);
-      mh.innerHTML='<span class="ic">'+(deck._pic||'🗂')+'</span>'
-        +'<span class="dx"><span class="dt">'+esc(deck.title||deck.topic||deck.id)+'</span>'
-        +'<span class="ds">'+esc(deck._sub||'')+'</span></span>';
-    }else{ mh.hidden=true; mh.innerHTML=''; }
+  if(isFinite(hg) && topic.byGrade[hg]) return topic.byGrade[hg];
+  for(var i=0;i<topic.grades.length;i++){
+    var d=topic.byGrade[topic.grades[i]]; if(d) return d;
   }
-  /* назва набору вже стоїть у кольоровій шапці — у топбарі не дублюємо */
-  $('modeTitle').textContent=(mh && !mh.hidden) ? 'Як тренуємось?' : (deck.title||deck.topic||deck.id);
-  applyGrade();
-  var sv=num(deck.test&&deck.test.statValue);
-  var rc=((deck.trial&&deck.trial.rewards)||[]).length, tc=num(deck.trial&&deck.trial.coins);
-  if(deck._auto){
-    /* Тема без набору: нагороди задаються в адмінці, тож поки їх немає —
+  return autoDeck(topic.topic, topic.grades[0]||1);
+}
+function showRewards(){
+  var sv=num(deck&&deck.test&&deck.test.statValue);
+  var rc=((deck&&deck.trial&&deck.trial.rewards)||[]).length, tc=num(deck&&deck.trial&&deck.trial.coins);
+  if(!deck || deck._auto){
+    /* Клас без набору: нагороди задаються в адмінці, тож поки їх немає —
        краще сказати прямо, ніж малювати «+0 мани». */
     $('tagTest').textContent='🔮 без нагороди — набір ще не налаштований';
     $('tagTrial').textContent='🎁 без нагороди — набір ще не налаштований';
@@ -519,6 +447,104 @@ async function openDeck(id){
     $('tagTest').textContent='🔮 +'+sv+' мани';
     $('tagTrial').textContent='🎁 '+(rc?('предмет ('+rc+')'):'')+(tc?(' + '+tc+' 💰'):(rc?'':'💰'));
   }
+}
+/* WORDS = зріз ALLWORDS за обраним класом. Порожній зріз неможливий:
+   чіпи будуються з класів, у яких слова справді є. */
+function applyGrade(){
+  WORDS = (gradeSel==null) ? ALLWORDS.slice()
+                           : ALLWORDS.filter(function(w){ return wGrade(w)===gradeSel; });
+  if(!WORDS.length){ gradeSel=null; WORDS=ALLWORDS.slice(); }
+  studyPos=0; flipped=false;
+  deck=deckForGrade(gradeSel);
+  showRewards();
+  $('modeLead').textContent='Слів у наборі: '+WORDS.length
+    +' · '+(gradeSel==null ? 'усі класи' : gradeLabel(gradeSel));
+  $('gradePick').querySelectorAll('.gchip').forEach(function(b){
+    var v=b.getAttribute('data-g');
+    b.classList.toggle('on', (v==='all') ? gradeSel==null : Number(v)===gradeSel);
+  });
+}
+function gradesLabel(gs){
+  if(!gs || !gs.length) return '';
+  if(gs.length===1) return gradeLabel(gs[0]);
+  return 'класи ' + gs.map(function(g){ return g===0 ? 'дошк.' : g; }).join(', ');
+}
+function renderDecks(err){
+  if(!TOPICS.length){
+    var signed = !!(window.SK && window.SK.user);
+    if(err || !signed){
+      deckMsg('Щоб відкрити словник, увійди Героєм.<br><a class="gobtn" href="login.html">Увійти</a>');
+      return;
+    }
+    /* Увійшли, база відповіла, а список порожній: або наборів немає, або
+       всі вимкнені перемикачем в адмінці. Друге кажемо окремо — інакше
+       марно шукати в адмінці те, що вже створене. */
+    deckMsg('Наборів ще немає.<br>Додай їх в адмінці → Словник → Набори.');
+    if(window.SK.listVocabDecks) window.SK.listVocabDecks().then(function(all){
+      var off=(all||[]).filter(function(d){ return d.active===false; }).length;
+      if(off && !TOPICS.length) deckMsg('Усі набори вимкнені ('+off+').<br>Увімкни їх в адмінці → Словник → Набори.');
+    }).catch(function(){});
+    return;
+  }
+  $('deckList').innerHTML=TOPICS.map(function(t,i){
+    var sk=DECK_SKINS[i%DECK_SKINS.length], art=deckArt({title:t.title, topic:t.topic, id:t.key});
+    var title=t.title||t.topic;
+    t._skin=sk;                         // той самий колір потім на екрані режимів
+    /* Підпис: переклад теми (лише за точним збігом назви) плюс класи, у
+       яких ця тема є. «School Subjects» і «Classroom» — різні теми, хоч
+       обидві про школу, тож широке правило тут не годиться. */
+    var sub='';
+    if(art && art.en && nrm(title)===art.en && nrm(art.uk)!==nrm(title)) sub=art.uk;
+    /* Клас пишемо лише тоді, коли він не «свій»: дитина 1 класу й так у
+       своєму, тож «· 1 клас» на кожній картці — самий шум. */
+    var hg=(HERO && HERO.grade!=null) ? Number(HERO.grade) : NaN;
+    var onlyMine = t.grades.length===1 && isFinite(hg) && t.grades[0]===hg;
+    var gl = onlyMine ? '' : gradesLabel(t.grades);
+    sub = (sub && gl) ? (sub+' · '+gl) : (sub||gl);
+    var emo=(art&&art.emo)||'🗂';
+    var cover=(art&&art.img)||'';
+    /* Картинки може не бути в репо — тоді onerror лишає емодзі теми. */
+    var pic=cover
+      ? '<img src="'+esc(cover)+'" alt="" loading="lazy" onerror="this.parentNode.textContent=\''+esc(emo)+'\'">'
+      : esc(emo);
+    t._pic=pic; t._sub=sub;
+    return '<button class="deck" data-deck="'+esc(t.key)+'" '
+      +'style="--c1:'+sk.c1+';--c1b:'+sk.c1b+';--c2:'+sk.c2+';--c3:'+sk.c3+'">'
+      +'<span class="ic">'+pic+'</span>'
+      +'<span class="dx"><span class="dt">'+esc(title)+'</span>'
+      +'<span class="ds">'+esc(sub)+'</span></span>'
+      +'<span class="wm">'+esc(emo)+'</span>'
+      +'<span class="go">›</span></button>';
+  }).join('');
+}
+async function openDeck(key){
+  topic=TOPICS.find(function(t){ return String(t.key)===String(key); }); if(!topic) return;
+  ALLWORDS=[]; WORDS=[]; deck=null;
+  /* Беремо всю тему, а не окремий клас: усередині картки клас перемикається. */
+  try{ ALLWORDS=await window.SK.listActiveVocab(topic.topic); }catch(e){ ALLWORDS=[]; }
+  if(!ALLWORDS.length){ alert('У цій темі ще немає слів. Додай їх в адмінці.'); return; }
+  var gs=[]; ALLWORDS.forEach(function(w){ var g=wGrade(w); if(gs.indexOf(g)<0) gs.push(g); });
+  gs.sort(function(a,b){ return a-b; });
+  var hg=(HERO && HERO.grade!=null) ? Number(HERO.grade) : NaN;
+  /* Стартуємо зі свого класу Героя; немає його слів у темі — з класу, де
+     є набір із нагородами; немає й такого — з найменшого. */
+  var own=null;
+  for(var i=0;i<gs.length && own===null;i++) if(topic.byGrade[gs[i]]) own=gs[i];
+  gradeSel = (isFinite(hg) && gs.indexOf(hg)>=0) ? hg : (own!==null ? own : gs[0]);
+  renderGradePick(gs);
+  var mh=$('modeHead'), sk=topic._skin;
+  if(mh){
+    if(sk){
+      mh.hidden=false;
+      mh.setAttribute('style','--c1:'+sk.c1+';--c1b:'+sk.c1b+';--c2:'+sk.c2+';--c3:'+sk.c3);
+      mh.innerHTML='<span class="ic">'+(topic._pic||'🗂')+'</span>'
+        +'<span class="dx"><span class="dt">'+esc(topic.title||topic.topic)+'</span>'
+        +'<span class="ds">'+esc(topic._sub||'')+'</span></span>';
+    }else{ mh.hidden=true; mh.innerHTML=''; }
+  }
+  /* назва теми вже стоїть у кольоровій шапці — у топбарі не дублюємо */
+  $('modeTitle').textContent=(mh && !mh.hidden) ? 'Як тренуємось?' : (topic.title||topic.topic);
+  applyGrade();                 // виставить WORDS, набір потрібного класу й нагороди
   show('sMode');
 }
 
@@ -778,46 +804,52 @@ function wire(){
 }
 
 /* ============ СТАРТ ============ */
-/* Тема без набору не має зникати з екрана: слова вже додані в адмінці, а
-   набір із нагородами могли ще не створити. Показуємо таку тему карткою —
-   вивчати й тренуватись можна одразу, тільки без нагород. */
-function autoDecks(words, haveTopics){
+/* Тема без набору не зникає з екрана: слова вже додані в адмінці, а набір
+   із нагородами могли ще не створити. Для такого класу підставляємо набір-
+   заглушку з нульовими нагородами. */
+function autoDeck(t, grade){
+  return { id:'auto:'+t+'-'+grade, title:t, topic:t, grade:grade, active:true,
+           test:{statValue:0}, trial:{coins:0,rewards:[]}, _auto:true };
+}
+function buildTopics(decks, words){
   var by={};
-  (words||[]).forEach(function(w){
-    var t=String(w.topic||'').trim(); if(!t) return;
-    var k=t.toLowerCase();
-    if(haveTopics[k]) return;                       // набір на цю тему вже є
-    var g=Number(w.grade); if(!isFinite(g)||g<0) g=1;
-    var b=by[k] || (by[k]={topic:t, grade:g});
-    if(g<b.grade) b.grade=g;
+  function slot(name){
+    var k=nrm(name);
+    return by[k] || (by[k]={ key:k, topic:String(name).trim(), title:'', byGrade:{}, grades:[], order:9999 });
+  }
+  (decks||[]).forEach(function(d){
+    var t=slot(d.topic||d.title||d.id), g=Number(d.grade); if(!isFinite(g)||g<0) g=1;
+    t.byGrade[g]=d;
+    if(t.grades.indexOf(g)<0) t.grades.push(g);
+    if(!t.title) t.title=d.title||d.topic||d.id;
+    var o=Number(d.order)||0; if(o && o<t.order) t.order=o;
   });
-  return Object.keys(by).sort().map(function(k){
-    var b=by[k];
-    return { id:'auto:'+b.topic, title:b.topic, topic:b.topic, grade:b.grade, order:9000,
-             active:true, test:{statValue:0}, trial:{coins:0,rewards:[]}, _auto:true };
+  (words||[]).forEach(function(w){
+    var name=String(w.topic||'').trim(); if(!name) return;
+    var t=slot(name), g=wGrade(w);
+    if(t.grades.indexOf(g)<0) t.grades.push(g);
+    if(!t.title) t.title=name;
+  });
+  return Object.keys(by).map(function(k){
+    var t=by[k]; t.grades.sort(function(a,b){ return a-b; }); return t;
   });
 }
 function boot(){
   var grade=(HERO&&HERO.grade!=null)?Number(HERO.grade):null;
-  /* Набори беремо ВСІХ класів, а клас Героя лишається лише для порядку:
-     раніше набір, доданий для іншого класу, не було видно взагалі — хоч
-     усередині набору клас і так перемикається. */
+  /* Набори беремо ВСІХ класів і зводимо в теми: клас Героя лишається лише
+     для порядку — його теми йдуть першими. */
   Promise.all([
     window.SK.listActiveVocabDecks(),
     window.SK.listActiveVocab().catch(function(){ return []; })
   ]).then(function(res){
-    var decks=(res[0]||[]).slice(), words=res[1]||[];
-    var have={}; decks.forEach(function(d){ have[String(d.topic||'').trim().toLowerCase()]=1; });
-    DECKS=decks.concat(autoDecks(words, have));
-    if(grade!=null) DECKS.sort(function(a,b){
-      var ga=Number(a.grade)||1, gb=Number(b.grade)||1;
-      return (ga===grade?0:1)-(gb===grade?0:1)
-          || (Number(a.order)||0)-(Number(b.order)||0)
-          || ga-gb
-          || String(a.title||a.id).localeCompare(String(b.title||b.id),'uk');
+    TOPICS=buildTopics(res[0]||[], res[1]||[]);
+    TOPICS.sort(function(a,b){
+      var ha=(grade!=null && a.grades.indexOf(grade)>=0)?0:1;
+      var hb=(grade!=null && b.grades.indexOf(grade)>=0)?0:1;
+      return ha-hb || a.order-b.order || a.title.localeCompare(b.title,'uk');
     });
     renderDecks();
-  }).catch(function(e){ console.error('[slovnyk] набори не прочитались:', e); DECKS=[]; renderDecks(e||true); });
+  }).catch(function(e){ console.error('[slovnyk] набори не прочитались:', e); TOPICS=[]; renderDecks(e||true); });
 }
 (function whenSK(){
   var tries=0;
