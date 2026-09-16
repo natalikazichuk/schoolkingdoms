@@ -374,11 +374,46 @@ async function saveWord(){
 }
 
 /* ============ СПИСОК НАБОРІВ ============ */
+/* Тема для звірки: без регістру й крайніх пробілів — «Digital Life» і
+   «digital life » це одна тема, інакше набір мовчки показував би 0 слів. */
+function normTopic(v){ return String(v==null?'':v).trim().toLowerCase(); }
+/* Теми, у яких є слова, але немає набору: без набору тема не має нагород,
+   тож її легко проґавити. Показуємо їх окремим блоком із кнопкою. */
+function topicsWithoutDeck(){
+  var have={};
+  DECKS.forEach(function(d){ have[normTopic(d.topic)+'\u0000'+(+d.grade||1)]=1; });
+  var by={};
+  WORDS.forEach(function(w){
+    if(w.active===false) return;
+    var t=String(w.topic||'').trim(); if(!t) return;
+    var g=wGradeNum(w), k=normTopic(t)+'\u0000'+g;
+    if(have[k]) return;
+    if(!by[k]) by[k]={topic:t, grade:g, n:0};
+    by[k].n++;
+  });
+  return Object.keys(by).map(function(k){return by[k];})
+    .sort(function(a,b){ return a.topic.localeCompare(b.topic,'uk') || a.grade-b.grade; });
+}
+function renderNoDeck(){
+  var list=topicsWithoutDeck();
+  if(!list.length) return '';
+  return '<div class="group-h">Теми зі словами, для яких ще немає набору</div>'
+    + list.map(function(t){
+        return '<div class="row"><div class="cv"><span>➕</span></div>'
+          +'<div class="meta"><div class="w">'+esc(t.topic)+'</div>'
+          +'<div class="tr">'+esc(gradeName(t.grade))+' · '+t.n+' слів · набору немає, тож нагород теж</div></div>'
+          +'<div class="acts"><button class="btn sm gold" data-dmake="'+esc(t.topic)+'|'+t.grade+'">＋ Створити набір</button></div></div>';
+      }).join('');
+}
 function renderDecks(){
-  if(!DECKS.length){ $('dList').innerHTML='<div class="empty">Наборів ще немає. Створи набір під тему слів.</div>'; return; }
+  var extra=renderNoDeck();
+  if(!DECKS.length){
+    $('dList').innerHTML='<div class="empty">Наборів ще немає. Створи набір під тему слів.</div>'+extra;
+    return;
+  }
   var html='';
   DECKS.forEach(function(d){
-    var nWords=WORDS.filter(function(w){return w.active!==false && String(w.topic||'')===String(d.topic||'') && (+w.grade||1)===(+d.grade||1);}).length;
+    var nWords=WORDS.filter(function(w){return w.active!==false && normTopic(w.topic)===normTopic(d.topic) && wGradeNum(w)===(+d.grade||1);}).length;
     var rew=((d.trial&&d.trial.rewards)||[]).length;
     html+='<div class="row'+(d.active===false?' off':'')+'">'
       +'<div class="cv"><span>🗂</span></div>'
@@ -390,7 +425,7 @@ function renderDecks(){
       +'<button class="btn sm pri" data-dedit="'+esc(d.id)+'">✎</button>'
       +'</div></div>';
   });
-  $('dList').innerHTML=html;
+  $('dList').innerHTML=html+extra;
 }
 
 /* ============ РЕДАКТОР НАБОРУ ============ */
@@ -524,6 +559,15 @@ function wire(){
 
   $('dNew').onclick=function(){ openDeck(null); };
   $('dList').onclick=function(e){
+    var mk=e.target.closest('[data-dmake]');
+    if(mk){
+      var a=mk.getAttribute('data-dmake').split('|');
+      openDeck(null);                               // нова картка набору
+      $('d_topic').value=a[0]; $('d_grade').value=a[1];
+      $('d_title').value=a[0];
+      $('d_id').value=slug(a[0])+'-'+a[1];
+      return;
+    }
     var ed=e.target.closest('[data-dedit]'); if(ed){ var d=DECKS.find(function(x){return String(x.id)===ed.getAttribute('data-dedit');}); if(d) openDeck(d); return; }
     var tg=e.target.closest('[data-dtoggle]'); if(tg){ var id=tg.getAttribute('data-dtoggle'); var dd=DECKS.find(function(x){return String(x.id)===id;});
       window.SK.setVocabDeckActive(id, dd.active===false).then(function(){ dd.active=!(dd.active===false); renderDecks(); }); }
