@@ -73,6 +73,7 @@
       <button class="btn gold" id="wNew">＋ Нове слово</button>
       <button class="btn ghost sm" id="wImport">⬆ Імпорт JSON</button>
       <button class="btn ghost sm" id="wExport">⬇ Експорт</button>
+      <select id="wGrade" title="Клас"><option value="">Усі класи</option></select>
       <input type="text" id="wSearch" placeholder="🔎 Пошук: слово / переклад / id / тема">
     </div>
     <div id="wList"></div>
@@ -101,7 +102,7 @@
   </div>
   <div class="grid3">
     <div class="field"><label>Тема</label><input type="text" id="f_topic" list="topicList" placeholder="Food"><datalist id="topicList"></datalist></div>
-    <div class="field"><label>Клас</label><input type="number" id="f_grade" min="0" max="4" value="1"></div>
+    <div class="field"><label>Клас</label><input type="number" id="f_grade" min="0" max="11" value="1"></div>
     <div class="field"><label>Порядок</label><input type="number" id="f_order" value="1"></div>
   </div>
   <div class="field">
@@ -138,7 +139,7 @@
   </div>
   <div class="grid3">
     <div class="field"><label>Тема (=слова)</label><input type="text" id="d_topic" list="topicList" placeholder="Food"></div>
-    <div class="field"><label>Клас</label><input type="number" id="d_grade" min="0" max="4" value="1"></div>
+    <div class="field"><label>Клас</label><input type="number" id="d_grade" min="0" max="11" value="1"></div>
     <div class="field"><label>Порядок</label><input type="number" id="d_order" value="1"></div>
   </div>
 
@@ -226,20 +227,48 @@ function showTab(which){
 }
 
 /* ============ СПИСОК СЛІВ ============ */
+/* Клас слова: порожньо → 1 (старі записи без поля). */
+function wGradeNum(w){ var n=Number(w&&w.grade); return isFinite(n)&&n>=0 ? n : 1; }
+function gradeName(g){ return g===0 ? 'Дошкільнятко' : (g+' клас'); }
+/* Випадайка «Усі класи / 1 клас / 4 клас…» — лише ті класи, у яких є слова. */
+function fillGradeFilter(){
+  var sel=$('wGrade'); if(!sel) return;
+  var cur=sel.value, gs=[];
+  WORDS.forEach(function(w){ var g=wGradeNum(w); if(gs.indexOf(g)<0) gs.push(g); });
+  gs.sort(function(a,b){return a-b;});
+  sel.innerHTML='<option value="">Усі класи</option>'
+    +gs.map(function(g){ return '<option value="'+g+'">'+esc(gradeName(g))+'</option>'; }).join('');
+  if(cur && gs.indexOf(Number(cur))>=0) sel.value=cur;
+}
 function renderWords(){
   var dl=$('topicList'); dl.innerHTML=topics().map(function(t){return '<option value="'+esc(t)+'">';}).join('');
+  fillGradeFilter();
   var q=($('wSearch').value||'').trim().toLowerCase();
+  var gf=($('wGrade').value||'');
   var list=WORDS.filter(function(w){
+    if(gf!=='' && wGradeNum(w)!==Number(gf)) return false;
     if(!q) return true;
     return [w.word,w.uk,w.id,w.topic,w.ipa].some(function(x){return String(x||'').toLowerCase().indexOf(q)>=0;});
   });
-  if(!list.length){ $('wList').innerHTML='<div class="empty">Слів ще немає. Додай перше або імпортуй JSON.</div>'; return; }
-  var byTopic={};
-  list.forEach(function(w){ var t=w.topic||'— без теми'; (byTopic[t]=byTopic[t]||[]).push(w); });
+  if(!list.length){ $('wList').innerHTML='<div class="empty">'
+    +(WORDS.length?'Під цей фільтр слів немає.':'Слів ще немає. Додай перше або імпортуй JSON.')
+    +'</div>'; return; }
+  /* Групуємо не лише за темою, а й за класом: у темі «Home» слова 1 і 4
+     класу — це два різні набори, і в списку вони мають стояти окремо. */
+  var byKey={};
+  list.forEach(function(w){
+    var t=w.topic||'— без теми', g=wGradeNum(w), k=t+'\u0000'+g;
+    (byKey[k]=byKey[k]||{topic:t,grade:g,items:[]}).items.push(w);
+  });
+  var keys=Object.keys(byKey).sort(function(a,b){
+    var A=byKey[a], B=byKey[b];
+    return A.topic.localeCompare(B.topic,'uk') || (A.grade-B.grade);
+  });
   var html='';
-  Object.keys(byTopic).sort().forEach(function(t){
-    html+='<div class="group-h">'+esc(t)+' · '+byTopic[t].length+'</div>';
-    byTopic[t].forEach(function(w){
+  keys.forEach(function(k){
+    var grp=byKey[k];
+    html+='<div class="group-h">'+esc(grp.topic)+' · '+esc(gradeName(grp.grade))+' · '+grp.items.length+'</div>';
+    grp.items.forEach(function(w){
       var src=imgSrc(w);
       html+='<div class="row'+(w.active===false?' off':'')+'">'
         +'<div class="cv">'+(src?'<img src="'+esc(src)+'" alt="" onerror="this.replaceWith(document.createTextNode(\'🖼\'))">':'<span>🔤</span>')+'</div>'
@@ -429,6 +458,7 @@ function wire(){
 
   $('wNew').onclick=function(){ openWord(null); };
   $('wSearch').oninput=renderWords;
+  $('wGrade').onchange=renderWords;
   $('wImport').onclick=function(){ $('impText').value=''; $('impModal').classList.add('open'); };
   $('wExport').onclick=exportWords;
   $('wList').onclick=function(e){
