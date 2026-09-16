@@ -111,6 +111,17 @@
   .lead{text-align:center;color:var(--soft);font-weight:800;font-size:13px;margin:0 0 8px}
   h1.page{font-family:'Comfortaa','Fredoka',sans-serif;font-size:26px;color:var(--ink);text-align:center;margin:2px 0 10px}
 
+  /* Вибір класу всередині набору. Тема (Home, Numbers) може мати слова
+     кількох класів; за замовчуванням показуємо клас самого набору, щоб
+     четвертий клас не підмішувався до першого, але дитина може взяти всі. */
+  .gpick{flex:none;margin:0 0 10px}
+  .gpick .gp-lab{display:block;text-align:center;color:var(--soft);font-weight:800;font-size:13px;margin-bottom:6px}
+  .gpick .gp-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+  .gchip{border:2px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;
+    padding:8px 15px;font-family:'Fredoka';font-size:15px;line-height:1;cursor:pointer}
+  .gchip:active{transform:translateY(2px)}
+  .gchip.on{background:var(--learn);border-color:var(--learn);color:#fff;box-shadow:0 3px 0 #2a8b9b}
+
   /* шапка обраного набору на екрані режимів — той самий кольоровий почерк */
   .dhead{display:flex;align-items:center;gap:12px;background:var(--c2,#fff);border:3px solid #fff;
     border-radius:22px;padding:10px 12px;box-shadow:0 6px 16px rgba(19,63,120,.14);margin-bottom:12px;flex:none}
@@ -241,6 +252,7 @@
       <div class="ttl" id="modeTitle">Набір</div></div>
     <div class="pick">
       <div class="dhead" id="modeHead" hidden></div>
+      <div class="gpick" id="gradePick" hidden></div>
       <p class="lead" id="modeLead"></p>
       <button class="big-btn cta" id="btnStudy"><span class="cta-ic">📖</span>Спочатку вивчити слова</button>
       <div style="height:8px"></div>
@@ -300,6 +312,9 @@ function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(M
 function sample(a,n,not){var pool=a.filter(function(x){return x!==not;});return shuffle(pool).slice(0,n);}
 
 var HERO=null, HERO_SESSION=false, DECKS=[], deck=null, WORDS=[], mode='test';
+/* ALLWORDS — усі слова теми (всіх класів); WORDS — те, що дитина зараз тренує.
+   gradeSel: число = тільки цей клас, null = усі класи набору. */
+var ALLWORDS=[], gradeSel=null;
 var QS=[], pos=0, attempts=1, studyPos=0, flipped=false;
 
 /* ---- шляхи ---- */
@@ -402,12 +417,53 @@ function renderDecks(){
       +'<span class="go">›</span></button>';
   }).join('');
 }
+/* Клас слова: порожньо → 1, щоб старі записи без поля не випадали. */
+function wGrade(w){ var n=Number(w&&w.grade); return isFinite(n)&&n>=0 ? n : 1; }
+function gradeLabel(g){ return g===0 ? 'Дошкільнятко' : (g+' клас'); }
+/* Чіпи «Усі класи / 1 клас / 4 клас». Один клас у темі — рядок ховаємо:
+   вибирати нема з чого. */
+function renderGradePick(gs){
+  var box=$('gradePick'); if(!box) return;
+  if(!gs || gs.length<2){ box.hidden=true; box.innerHTML=''; return; }
+  box.hidden=false;
+  box.innerHTML='<span class="gp-lab">Слова якого класу?</span><div class="gp-row">'
+    +'<button class="gchip'+(gradeSel==null?' on':'')+'" data-g="all">Усі класи</button>'
+    +gs.map(function(g){
+        return '<button class="gchip'+(gradeSel===g?' on':'')+'" data-g="'+g+'">'+esc(gradeLabel(g))+'</button>';
+      }).join('')
+    +'</div>';
+}
+/* WORDS = зріз ALLWORDS за обраним класом. Порожній зріз неможливий:
+   чіпи будуються з класів, які в темі справді є. */
+function applyGrade(){
+  WORDS = (gradeSel==null) ? ALLWORDS.slice()
+                           : ALLWORDS.filter(function(w){ return wGrade(w)===gradeSel; });
+  if(!WORDS.length){ gradeSel=null; WORDS=ALLWORDS.slice(); }
+  studyPos=0; flipped=false;
+  $('modeLead').textContent='Слів у наборі: '+WORDS.length
+    +' · '+(gradeSel==null ? 'усі класи' : gradeLabel(gradeSel));
+  $('gradePick').querySelectorAll('.gchip').forEach(function(b){
+    var v=b.getAttribute('data-g');
+    b.classList.toggle('on', (v==='all') ? gradeSel==null : Number(v)===gradeSel);
+  });
+}
 async function openDeck(id){
   deck=DECKS.find(function(d){return String(d.id)===String(id);}); if(!deck) return;
-  WORDS=[];
-  try{ WORDS=await window.SK.listActiveVocab(deck.topic, deck.grade); }catch(e){ WORDS=[]; }
-  if(!WORDS.length){ alert('У цьому наборі ще немає слів. Додай їх в адмінці.'); return; }
-  studyPos=0; flipped=false;
+  ALLWORDS=[]; WORDS=[];
+  /* Беремо всю тему, а не лише клас набору: інакше слова, дописані для
+     іншого класу, не мали б де з'явитись, доки для них не створять набір. */
+  try{ ALLWORDS=await window.SK.listActiveVocab(deck.topic); }catch(e){ ALLWORDS=[]; }
+  if(!ALLWORDS.length){ alert('У цьому наборі ще немає слів. Додай їх в адмінці.'); return; }
+  var gs=[]; ALLWORDS.forEach(function(w){ var g=wGrade(w); if(gs.indexOf(g)<0) gs.push(g); });
+  gs.sort(function(a,b){ return a-b; });
+  var own=Number(deck.grade); if(!isFinite(own)) own=1;
+  var hg=(HERO && HERO.grade!=null) ? Number(HERO.grade) : NaN;
+  /* Стартуємо зі свого класу Героя, інакше — з класу набору: «четвертий»
+     не підмішується до «першого» сам собою. Немає ні того, ні того —
+     показуємо всі слова теми. */
+  gradeSel = (isFinite(hg) && gs.indexOf(hg)>=0) ? hg
+           : (gs.indexOf(own)>=0 ? own : null);
+  renderGradePick(gs);
   var mh=$('modeHead'), sk=deck._skin;
   if(mh){
     if(sk){
@@ -420,7 +476,7 @@ async function openDeck(id){
   }
   /* назва набору вже стоїть у кольоровій шапці — у топбарі не дублюємо */
   $('modeTitle').textContent=(mh && !mh.hidden) ? 'Як тренуємось?' : (deck.title||deck.topic||deck.id);
-  $('modeLead').textContent='Слів у наборі: '+WORDS.length;
+  applyGrade();
   var sv=num(deck.test&&deck.test.statValue);
   $('tagTest').textContent='🔮 +'+sv+' мани';
   var rc=((deck.trial&&deck.trial.rewards)||[]).length, tc=num(deck.trial&&deck.trial.coins);
@@ -663,6 +719,12 @@ function setSave(state){
 function wire(){
   $('deckList').addEventListener('click',function(e){ var b=e.target.closest('[data-deck]'); if(b) openDeck(b.getAttribute('data-deck')); });
   $('deckBack').onclick=function(){ var bb=document.getElementById('heroBackBtn'); if(bb) bb.click(); else location.href='tests.html'; };
+  $('gradePick').addEventListener('click',function(e){
+    var b=e.target.closest('.gchip'); if(!b) return;
+    var v=b.getAttribute('data-g');
+    gradeSel = (v==='all') ? null : Number(v);
+    applyGrade();
+  });
   $('modeBack').onclick=function(){ show('sDeck'); };
   $('cardTest').onclick=function(){ mode='test'; startPlay(); };
   $('cardTrial').onclick=function(){ mode='trial'; startPlay(); };
