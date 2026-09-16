@@ -138,6 +138,9 @@ function defaultHero(name, parentEmail, parentUid) {
 }
 
 /* ---------- публічний API: window.SK ---------- */
+/* Тема слова/набору для звірки: без регістру й крайніх пробілів. */
+function normTopic(v) { return String(v == null ? '' : v).trim().toLowerCase(); }
+
 const SK = {
   _userResolve: null,
   ready: null,
@@ -935,7 +938,9 @@ const SK = {
     snap.forEach(d => {
       const v = d.data();
       if (v.active === false) return;
-      if (topic != null && String(v.topic || '') !== String(topic)) return;
+      // Тему звіряємо без регістру й зайвих пробілів: «Digital Life» у наборі
+      // й «digital life » у слові — це та сама тема, а не дві різні.
+      if (topic != null && normTopic(v.topic) !== normTopic(topic)) return;
       if (grade != null && Number(v.grade) !== Number(grade)) return;
       out.push(Object.assign({ id: d.id }, v));
     });
