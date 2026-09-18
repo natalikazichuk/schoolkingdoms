@@ -154,7 +154,10 @@
   .fcard{flex:0 1 auto;min-height:0;background:var(--card);border-radius:24px;box-shadow:var(--e2);border:2px solid var(--line);
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:12px;cursor:pointer;position:relative}
   .fpic{width:100%;flex:0 1 auto;min-height:0;display:flex;align-items:center;justify-content:center}
-  .fpic img{max-width:100%;max-height:min(46vh,100%);object-fit:contain;border-radius:14px}
+  /* width:100% — щоб картка виглядала однаково, хоч джерело 294px, хоч 512:
+     без нього дрібніша картинка малювалась у свою натуральну величину і
+     поруч зі старими здавалась іншим розміром. */
+  .fpic img{width:100%;height:auto;max-height:min(46vh,100%);object-fit:contain;border-radius:14px}
   .fpic .emoji{font-size:72px}
   /* слово і 🔊 в один ряд — це економить цілий рядок висоти */
   .fwrow{display:flex;align-items:center;justify-content:center;gap:12px;flex:none}
@@ -176,7 +179,7 @@
   .prompt{flex:1 1 auto;min-height:0;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;padding:6px 0}
   .prompt .qtxt{flex:none;font-weight:800;color:var(--soft);font-size:14px}
   .prompt .qpic{width:100%;max-width:min(100%,320px);flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center}
-  .prompt .qpic img{max-width:100%;max-height:min(30vh,100%);object-fit:contain;border-radius:12px}
+  .prompt .qpic img{width:100%;height:auto;max-height:min(30vh,100%);object-fit:contain;border-radius:12px}
   .prompt .qpic .emoji{font-size:74px}
   .prompt .qword{flex:none;font-family:'Fredoka';font-size:clamp(30px,8vw,44px)}
   .prompt .quk{flex:none;font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:clamp(22px,6.5vw,32px);color:var(--coral);text-align:center;line-height:1.15}
@@ -328,7 +331,39 @@ var TOPICS=[], topic=null;
 var QS=[], pos=0, attempts=1, studyPos=0, flipped=false;
 
 /* ---- шляхи ---- */
-function wImg(w){var u=String((w&&w.img)||'').trim();if(/^https?:\/\//i.test(u))return u;if(w&&w.id)return 'img/en/'+w.id+'.webp';return '';}
+/* Шляхи до картинки слова, по черзі:
+     1) свій шлях із адмінки (і https://…, і відносний у репо);
+     2) за кодом слова — img/en/<id>.webp, домашня конвенція;
+     3) за самим словом — img/en/EN-<word>.webp.
+   Третій крок рятує слова з автоматичними кодами (EN-0001): картинки в
+   репо названі за словом, і без нього вони б не знаходились. */
+function wSlug(w){
+  return String((w&&w.word)||'').trim().toLowerCase()
+    .replace(/[’'`]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+}
+function wImgList(w){
+  var out=[], u=String((w&&w.img)||'').trim();
+  if(u) out.push(u);
+  if(w&&w.id) out.push('img/en/'+String(w.id)+'.webp');
+  var sl=wSlug(w); if(sl) out.push('img/en/EN-'+sl+'.webp');
+  return out.filter(function(v,i,a){ return v && a.indexOf(v)===i; });
+}
+function wImg(w){ var l=wImgList(w); return l.length ? l[0] : ''; }
+/* Не знайшли за першим шляхом — пробуємо наступний; скінчились — емодзі. */
+window.SKWFB=function(el){
+  var fb=String(el.getAttribute('data-fb')||'').split('|').filter(Boolean);
+  if(!fb.length){
+    el.replaceWith(Object.assign(document.createElement('div'),{className:'emoji',textContent:'🔤'}));
+    return;
+  }
+  el.setAttribute('data-fb', fb.slice(1).join('|'));
+  el.src=fb[0];
+};
+function wPic(w){
+  var l=wImgList(w);
+  if(!l.length) return '<div class="emoji">🔤</div>';
+  return '<img src="'+esc(l[0])+'" alt="" data-fb="'+esc(l.slice(1).join('|'))+'" onerror="SKWFB(this)">';
+}
 function itImg(base){var u=String((base&&base.img)||'').trim();if(/^https?:\/\//i.test(u))return u;if(base&&base.id)return 'img/items/'+base.id+'.webp';return '';}
 function aud(w){var u=String((w&&w.audio)||'').trim();return u||'';}
 
@@ -551,8 +586,7 @@ async function openDeck(key){
 /* ============ ВИВЧЕННЯ (флеш-картки) ============ */
 function renderStudy(){
   var w=WORDS[studyPos]; if(!w)return;
-  var src=wImg(w);
-  var pic=src?'<img src="'+esc(src)+'" alt="" onerror="this.replaceWith(Object.assign(document.createElement(\'div\'),{className:\'emoji\',textContent:\'🔤\'}))">':'<div class="emoji">🔤</div>';
+  var pic=wPic(w);
   var phr=(w.phrases||[]).slice(0,2).map(function(p){return esc(p.en)+(p.uk?(' — '+esc(p.uk)):'');}).join('<br>');
   if(!flipped){
     $('fcard').innerHTML='<div class="fpic">'+pic+'</div>'
@@ -612,8 +646,7 @@ function renderQ(){
     play(w);
   }
   else if(q.type==='picword'){
-    var src=wImg(w);
-    P.innerHTML='<div class="qtxt">Що це англійською?</div><div class="qpic"><img src="'+esc(src)+'" alt="" onerror="this.replaceWith(Object.assign(document.createElement(\'div\'),{className:\'emoji\',textContent:\'🔤\'}))"></div>';
+    P.innerHTML='<div class="qtxt">Що це англійською?</div><div class="qpic">'+wPic(w)+'</div>';
     var opts2=shuffle([w].concat(optWords(w,3)));
     A.innerHTML='<div class="opts">'+opts2.map(function(o){return '<button class="opt" data-en="'+esc(o.word)+'">'+esc(o.word)+'</button>';}).join('')+'</div>';
     A.querySelectorAll('.opt').forEach(function(b){ b.onclick=function(){ pick(b, b.getAttribute('data-en')===w.word); }; });
@@ -634,7 +667,7 @@ function renderQ(){
       head='<div class="qtxt">Збери пропущене слово</div><div class="qgap">'+esc(masked).replace('___','<b>___</b>')+'</div>'+(ph&&ph.uk?'<div class="qtxt">'+esc(ph.uk)+'</div>':'');
     }else{
       head='<div class="qtxt">Збери слово з літер</div>'
-        +(src2?'<div class="qpic"><img src="'+esc(src2)+'" alt="" onerror="this.remove()"></div>':'')
+        +(src2?'<div class="qpic">'+wPic(w)+'</div>':'')
         +'<div class="quk">'+esc(w.uk)+'</div>';
     }
     P.innerHTML=head;
