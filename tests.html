@@ -290,6 +290,8 @@
        іде в кінець без заголовка. */
     function ensureGroup(s, name){
       var key = name || '';
+      if(!s._gseen) s._gseen = {};       // не даємо формі предмета знести весь список
+      if(!s.groups) s.groups = [];
       var g = s._gseen[key];
       if(!g){ g = { name:key, tests:[] }; s._gseen[key]=g; s.groups.push(g); }
       return g;
@@ -316,9 +318,16 @@
       CURRICULUM.forEach(function(t){ if(isPreschoolTier(t)) return;
         (t.grades||[]).forEach(function(g){ if(firstKey==null) firstKey=String(Number(g.gradeNum)||1); }); });
       if(firstKey==null) firstKey='1';
+      /* ⚠ Форма предмета мусить збігатися з ensureSubj: groups/_gseen тут
+         колись забули, і ensureGroup(s,'') падав на s._gseen[''] —
+         «Cannot read properties of undefined (reading '')». Падіння ловив
+         зовнішній catch у bootMap, який відбудовував індекс порожнім, тож
+         ОДИН тест без відповідного предмета в карті стирав з екрана ВСІ
+         тести: у кожному класі лишалась сама вбудована картка словника. */
       function otherSubj(key, name){
         var gr=ensureGrade(key); var s=gr.subs['other'];
-        if(!s){ s={id:'other',name:name,icon:'📦',accent:'#8a8fb0',stat:'',tests:[],_seen:{}}; gr.subs['other']=s; gr.order.push('other'); }
+        if(!s){ s={id:'other',name:name,icon:'📦',accent:'#8a8fb0',stat:'',
+          tests:[],_seen:{},groups:[],_gseen:{}}; gr.subs['other']=s; gr.order.push('other'); }
         return s;
       }
       P.leftovers.forEach(function(t){
