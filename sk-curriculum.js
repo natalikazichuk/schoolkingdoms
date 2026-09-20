@@ -24,7 +24,7 @@
          admin.html/checkMap (одне правило), і копії розійшлися: перевірка
          звітувала про «сиріт», яких у дитини видно нормально, і мовчала про
          тести, що реально випадали через клас/предмет/однакову назву. */
-var API_VERSION = 6;
+var API_VERSION = 7;
 
 var PASS_RATIO = 0.55;
 
@@ -137,9 +137,29 @@ var DEFAULT_MAP = {
           ] }
       ] },
     { id:'senior', icon:'🏰', name:'Старша школа', status:'soon',
-      note:'5–11 класи. Заплановано.', grades:[] }
+      note:'5–9 класи. Заплановано.', grades:[] }
   ]
 };
+
+/* ─── чи ступінь уже відкритий ───
+   Раніше це вирішувало ЛИШЕ поле status у карті. Через це ступінь, у якому
+   вже є класи з предметами, місяцями лишався підписаним «Скоро»: статус
+   забували перемкнути руками в адмінці. Тепер status — лише явне «так»,
+   а якщо в ступені вже є що відкрити (бодай один клас із предметом), він
+   відкритий незалежно від поля. */
+function tierHasContent(t){
+  var gs = (t && t.grades) || [];
+  for(var i = 0; i < gs.length; i++){
+    var subs = (gs[i] && gs[i].subjects) || [];
+    if(subs.length) return true;
+  }
+  return false;
+}
+function tierIsOpen(t){
+  if(!t) return false;
+  if(t.status === 'wip' || t.status === 'ready') return true;
+  return tierHasContent(t);
+}
 
 /* ─── утиліти ─── */
 function norm(s){
@@ -460,6 +480,8 @@ var API = {
   STATS: STATS, statByKey: statByKey, statLabel: statLabel, statKeyFrom: statKeyFrom,
   normalize: normalize,
   subjectMatches: subjectMatches,
+  tierIsOpen: tierIsOpen,
+  tierHasContent: tierHasContent,
   eachSubject: eachSubject,
   chains: chains,
   chainRefs: chainRefs,

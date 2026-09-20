@@ -247,8 +247,17 @@
          + '</a>';
   }
 
+  /* Чи ступінь відкритий. Рішення живе в sk-curriculum.js, щоб «Скоро» в
+     шапці й на сторінках рахувалось однаково. Запасний варіант — старе
+     правило за полем status: якщо в кеші браузера лежить давній
+     sk-curriculum.js без tierIsOpen, хедер не має впасти. */
+  function tierOpen(t){
+    try{ if(window.SKCUR && SKCUR.tierIsOpen) return !!SKCUR.tierIsOpen(t); }catch(e){}
+    return !!(t && (t.status === 'wip' || t.status === 'ready'));
+  }
+
   function tierMenu(tier){
-    var statusOn = (tier.status === 'wip' || tier.status === 'ready');
+    var statusOn = tierOpen(tier);
     var pill = statusOn
       ? '<span class="sk-hd__mpill on">Активно</span>'
       : '<span class="sk-hd__mpill soon">Скоро</span>';
@@ -284,7 +293,7 @@
 
     nav.innerHTML = map.tiers.map(function(t){
       var isActive = (t.id === actId);
-      var soon = (t.status !== 'wip' && t.status !== 'ready');
+      var soon = !tierOpen(t);
       return '<div class="sk-hd__ni'+(isActive?' active':'')+'" data-tier="'+esc(t.id)+'">'
            +   '<button type="button" class="sk-hd__nbtn'+(soon?' soon':'')+'" aria-haspopup="true" aria-expanded="false">'
            +     esc(shortTierName(t))+'<span class="sk-hd__car">▾</span>'
@@ -346,7 +355,7 @@
       s.id = 'sk-curriculum-loader';
       // версія — та сама, що в <script> на сторінках, інакше сюди
       // приїде закешована карта й правки адміна не доїдуть.
-      s.src = BASE + 'sk-curriculum.js?v=3';
+      s.src = BASE + 'sk-curriculum.js?v=4';
       document.head.appendChild(s);
     }
     var tries = 0;

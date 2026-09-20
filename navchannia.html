@@ -255,6 +255,38 @@
       ptx.textContent = p+' / '+tot;
     }
 
+    /* Плитка «Старша школа» лежить у розмітці закритою — поки карта не
+       приїхала, ми ще не знаємо, чи є там що відкривати, і краще не блимати.
+       Щойно в ступені з'являється клас із предметом, вона відкривається сама:
+       те саме правило, що й для чипа в шапці (SKCUR.tierIsOpen). */
+    function seniorTier(){
+      for(var i = 0; i < CUR.length; i++){
+        var t = CUR[i];
+        var v = (String(t && t.id || '') + ' ' + String(t && t.name || '')).toLowerCase();
+        if(v.indexOf('senior') >= 0 || v.indexOf('старш') >= 0) return t;
+      }
+      return null;
+    }
+    function openSeniorTile(){
+      var el = q('tileSenior');
+      if(!el || el.tagName === 'A') return;             // немає або вже відкрита
+      var t = seniorTier();
+      if(!t || !SKCUR.tierIsOpen || !SKCUR.tierIsOpen(t)) return;
+      var a = document.createElement('a');
+      a.className = 'lv';
+      a.id = 'tileSenior';
+      a.href = 'tests.html#open=' + encodeURIComponent(t.id || 'senior');
+      a.setAttribute('style', el.getAttribute('style') || '');
+      a.innerHTML =
+          '<img class="lv-bg" src="img/nav/starsha.webp" alt="" loading="lazy" onerror="this.style.display=\'none\'">'
+        + '<span class="lv-scrim"></span>'
+        + '<span class="lv-body">'
+        +   '<span class="lv-prog"><span class="lv-track" id="barSenior"><i></i></span>'
+        +   '<span class="lv-ptx" id="ptxSenior">0 / 0</span></span>'
+        + '</span>';
+      el.parentNode.replaceChild(a, el);
+    }
+
     function recount(){
       var tiles = { doshk:{p:0,t:0}, junior:{p:0,t:0}, senior:{p:0,t:0} };
       var gp = {};   // gradeNum → {p,t}
@@ -269,7 +301,8 @@
 
       setBar('barDoshk','ptxDoshk', tiles.doshk.p, tiles.doshk.t);
       setBar('barJunior','ptxJunior', tiles.junior.p, tiles.junior.t);
-      // Старша школа лишається «Скоро» (плитка закрита)
+      openSeniorTile();      // відкриється, щойно в ступені буде що показати
+      setBar('barSenior','ptxSenior', tiles.senior.p, tiles.senior.t);
 
       renderContinue(gp);
     }
@@ -359,13 +392,13 @@
        після завантаження сторінки; якщо дитина встигала клікнути по плитці,
        той запит обривався, лишав у кеші биту відповідь — і на наступній
        сторінці sk-curriculum.js «успішно» віддавався порожнім. -->
-  <script src="sk-curriculum.js?v=3"></script>
+  <script src="sk-curriculum.js?v=4"></script>
 
   <script type="module" src="firebase-config.js"></script>
 
   <!-- СПІЛЬНИЙ ХЕДЕР -->
   <script>window.SK_HEADER_SUB='Навчання';</script>
-  <script src="sk-header.js?v=2"></script>
+  <script src="sk-header.js?v=3"></script>
 
   <!-- СПІЛЬНИЙ ФУТЕР -->
   <script src="sk-footer.js?v=5" data-active="navch" data-back="hero.html"></script>
