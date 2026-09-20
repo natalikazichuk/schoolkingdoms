@@ -137,7 +137,7 @@ var DEFAULT_MAP = {
           ] }
       ] },
     { id:'senior', icon:'🏰', name:'Старша школа', status:'soon',
-      note:'5–11 класи. Заплановано.', grades:[] }
+      note:'5–9 класи. Заплановано.', grades:[] }
   ]
 };
 
