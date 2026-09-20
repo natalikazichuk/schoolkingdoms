@@ -24,6 +24,13 @@
   /* Плитки (.lvgrid/.nv-grid + .lv*) — спільні, у sk-styles.css.
      Тут їх НЕ дублюємо: саме через копії розміри розʼїжджались. */
 
+  /* Які предмети вже мають тести, знає база — відповідь приходить за мить після
+     показу сторінки. Доти «🔒 Скоро» лише блимало й перемальовувалось на
+     смужку прогресу (скарга з «Помилок»). Тримаємо місце, але не показуємо
+     напис, поки не знаємо правди. */
+  .nv-grid.is-loading .lv-soon{opacity:0}
+  .nv-grid .lv-soon{transition:opacity .18s}
+
 </style>
 </head>
 <body>
@@ -44,7 +51,7 @@
          Плитка відкривається сама, щойно в тому предметі зʼявиться бодай один
          тест: скрипт унизу проставляє href на tests.html і прибирає «Скоро».
          Картинки на фон додаються через github у img/nav/ (назви нижче). -->
-    <div class="nv-grid" id="disGrid">
+    <div class="nv-grid is-loading" id="disGrid">
 
       <a class="lv locked" data-subj="math" data-keys="математик" style="--g1:#3a5aa0;--g2:#1c356b" aria-disabled="true">
         <img class="lv-bg" src="img/nav/dis-tsyfry.webp" alt="" loading="lazy" onerror="this.style.display='none'">
@@ -104,6 +111,17 @@
     if(!grid) return;
     var PROG = null;   // progress Героя з бази; поки null — рахуємо з localStorage
     var TIERS = null, TESTS = null;
+
+    /* Знімаємо «очікування» рівно один раз — коли стало зрозуміло, які плитки
+       відкриті. Якщо база мовчить, показуємо як є через 5 с, щоб сторінка не
+       лишилась без підписів. */
+    var settled = false;
+    function markReady(){
+      if(settled) return;
+      settled = true;
+      grid.classList.remove('is-loading');
+    }
+    setTimeout(markReady, 5000);
 
     function isPreTier(t){
       var s=(String(t&&t.id||'')+' '+String(t&&t.name||'')).toLowerCase();
@@ -198,7 +216,7 @@
     }
 
     function start(){
-      if(!window.SKCUR) return;                 // без карти лишаємо як є
+      if(!window.SKCUR){ markReady(); return; }  // без карти лишаємо як є
       var mapP = (window.SKCUR.ready && window.SKCUR.ready.then)
         ? window.SKCUR.ready.catch(function(){ return null; })
         : Promise.resolve(null);
@@ -212,8 +230,9 @@
         TIERS = (r[0] && r[0].tiers) || window.SKCUR.map.tiers;
         TESTS = r[1];
         run(TIERS, TESTS);      // одразу — з localStorage
+        markReady();
         loadHero();             // прийде прогрес із бази → перерахуємо
-      }).catch(function(){});
+      }).catch(markReady);
     }
     /* Прогрес Героя приходить пізніше за localStorage — коли приїде,
        перемальовуємо смужки (ті самі ключі, що на tests.html). */
@@ -236,6 +255,7 @@
     (function wait(){
       if(window.SKCUR){ start(); return; }
       if(tries++ < 120) setTimeout(wait, 50);
+      else markReady();
     })();
   })();
   </script>
