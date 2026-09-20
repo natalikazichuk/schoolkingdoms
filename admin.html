@@ -1261,6 +1261,40 @@ function mapGradeExists(n){
   if(!MAP) return false;
   return MAP.tiers.some(t => (t.grades || []).some(g => Number(g.gradeNum) === Number(n)));
 }
+/* Створює клас n у карті, якщо його ще немає.
+   ⚠ Цю функцію викликали у двох місцях (mapOpenContent і mapOpenSubjects),
+   але ніколи не оголошували: у сітці класів ступеня відсутні класи показані
+   як «＋ додати», і клік по них падав з ReferenceError — 3 і 4 клас просто
+   не створювались.
+   Ступінь добираємо за схемою TIER_GRADE_RANGE (1–4 — молодша, 5–11 —
+   старша), нульовий клас — у дошкільний ступінь, інакше кладемо у відкритий
+   зараз. Зміна лягає в чернетку MAP; на сервер її кладе «💾 Зберегти карту»,
+   як і будь-яку іншу правку структури — саме це обіцяє текст підтвердження.
+   Повертає true, якщо після виклику клас у карті є. */
+function mapEnsureGrade(n){
+  n = Number(n);
+  if(!isFinite(n)) return false;
+  if(mapGradeExists(n)) return true;
+
+  const tiers = mapTiers();
+  if(!tiers.length) return false;
+
+  let t = tiers.find(x => (TIER_GRADE_RANGE[x && x.id] || []).indexOf(n) >= 0);
+  if(!t && n === 0) t = tiers.find(x => x && x.id === 'preschool') || tiers.find(mapTierIsPre);
+  if(!t && MAP_TIER) t = mapTierById(MAP_TIER);
+  if(!t) t = tiers[0];
+  if(!t) return false;
+
+  if(!Array.isArray(t.grades)) t.grades = [];
+  const g = EMPTY_GRADE(n);
+  if(n === 0) g.name = 'Дошкільнятко';
+  // id класу йде в посилання (grade=g3), тож не даємо йому збігтися з чужим
+  if(t.grades.some(x => x && x.id === g.id)) g.id = 'g' + n + '-' + Date.now().toString(36);
+  t.grades.push(g);
+  t.grades.sort((a, b) => Number(a.gradeNum) - Number(b.gradeNum));
+  return true;
+}
+
 /* Кількість тестів (посилань у розділах) для класу n. */
 function mapTestsCountFor(n){
   let c = 0;
