@@ -160,11 +160,48 @@
   var GRADE_ID2NUM = {};    // gradeId → gradeNum (для навігації з хедера)
   var PROG = null;          // прогрес Героя з Firebase (heroes/{id}.progress)
 
+  /* Чому список тестів порожній. Раніше помилка доступу й «тестів справді
+     немає» виглядали однаково: .catch мовчки підставляв [], і на екрані
+     лишалась сама вбудована картка словника — «1 тест» у кожному класі.
+     LOAD.err — текст причини, LOAD.raw — скільки документів віддала база,
+     LOAD.shown — скільки лишилось після фільтра hidden. */
+  var LOAD = { err:'', raw:null, shown:null };
+
   var view = 'classes', selGrade = null, selSubj = null;
   /* Ступінь, у якому зараз дитина. Сторінка показує класи ЛИШЕ цього
      ступеня: дошкільний вміст живе у «Дошкільнятку» (doshkillya.html) і
      не має стояти поруч із «1 клас». null — ступінь ще невідомий. */
   var selTier = null;
+
+  /* Код помилки Firestore → зрозуміла причина. Саме він відрізняє
+     «база не пускає» від «у базі порожньо». */
+  function whyFailed(e){
+    var code = String((e && (e.code || e.name)) || '').toLowerCase();
+    if(code.indexOf('permission-denied') >= 0)
+      return 'база не дозволила читати тести — перевір правила доступу до колекції tests або вхід в акаунт';
+    if(code.indexOf('resource-exhausted') >= 0)
+      return 'вичерпано денний ліміт Firebase — тести повернуться завтра або на платному тарифі';
+    if(code.indexOf('unauthenticated') >= 0)
+      return 'вхід в акаунт злетів — дитину треба залогінити заново';
+    if(code.indexOf('unavailable') >= 0 || code.indexOf('deadline') >= 0)
+      return 'база не відповіла — схоже на мережу';
+    var msg = String((e && e.message) || e || '').slice(0, 120);
+    return msg || 'невідома помилка';
+  }
+
+  /* Рядок-пояснення над сіткою класів, коли тестів з бази не приїхало. */
+  function loadNote(){
+    if(LOAD.err)
+      return '<div class="empty">⚠️ Тести не завантажились: ' + esc(LOAD.err)
+           + '<br><span>Показано лише вбудовану картку словника.</span></div>';
+    if(LOAD.raw === 0)
+      return '<div class="empty">⚠️ База відповіла, але жодного тесту в ній немає.'
+           + '<br><span>Перевір адмінку → «Тести»: можливо, їх вимкнено (active) або видалено.</span></div>';
+    if(LOAD.raw > 0 && LOAD.shown === 0)
+      return '<div class="empty">⚠️ Тестів у базі ' + LOAD.raw + ', але всі вони приховані (hidden).'
+           + '<br><span>Такі тести живуть лише як посилання-випробування і в цьому списку не показуються.</span></div>';
+    return '';
+  }
 
   function q(id){ return document.getElementById(id); }
   function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -506,9 +543,9 @@
     setCrumb(null);
     var list = visibleGrades();
     if(!list.length){
-      q('screen').innerHTML='<div class="empty">Класів ще немає. Додай їх у адмінці → «🗺 Структура».</div>'; return;
+      q('screen').innerHTML=loadNote()+'<div class="empty">Класів ще немає. Додай їх у адмінці → «🗺 Структура».</div>'; return;
     }
-    q('screen').innerHTML='<div class="lvgrid">'+list.map(function(g){
+    q('screen').innerHTML=loadNote()+'<div class="lvgrid">'+list.map(function(g){
       var gr=IDX.grades[g.key]; var p=gradeProg(gr); var has=p.total>0;
       var pre = !!g.preschool;
       return lvTile({
@@ -705,8 +742,20 @@
     var mapP = SKCUR.ready;
     var trP = new Promise(function(res){
       whenSK(function(SK){
-        if(!SK || !SK.listActiveTests){ res([]); return; }
-        SK.ready.then(function(){ return SK.listActiveTests(); }).then(res).catch(function(){ res([]); });
+        if(!SK || !SK.listActiveTests){
+          LOAD.err = 'Firebase не підключився';
+          res([]); return;
+        }
+        SK.ready.then(function(u){
+          if(!u) LOAD.err = 'немає входу в акаунт';
+          return SK.listActiveTests();
+        }).then(function(list){
+          LOAD.raw = (list || []).length;
+          res(list);
+        }).catch(function(e){
+          LOAD.err = whyFailed(e);
+          res([]);
+        });
       });
     });
     Promise.all([mapP, trP]).then(function(res){
@@ -714,11 +763,13 @@
       buildGradeMeta();
       // ховаємо тести, перетворені на випробування (hidden) — вони живуть як посилання
       var tlist = (res[1] || []).filter(function(t){ return !(t && t.hidden); });
+      LOAD.shown = tlist.length;
       IDX = buildIndex(tlist);
       injectStdCards();
       if(!openFromHash()){ restoreView(); render(); }
       loadHeroProgress();
-    }).catch(function(){
+    }).catch(function(e){
+      if(!LOAD.err) LOAD.err = whyFailed(e);
       CURRICULUM = SKCUR.clone(SKCUR.map.tiers);
       buildGradeMeta(); IDX = buildIndex([]); injectStdCards();
       render();
