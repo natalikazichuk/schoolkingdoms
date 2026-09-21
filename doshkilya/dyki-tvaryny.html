@@ -132,18 +132,24 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .lc-emoji{font-size:96px;line-height:1}
 .lc-draft{position:absolute;left:10px;bottom:8px;font-size:11px;font-weight:800;color:#b9ad93;
   background:rgba(255,255,255,.8);border-radius:8px;padding:2px 8px}
-.lc-word{padding:12px 14px 16px;text-align:center;background:#fff}
+.lc-word{padding:6px 4px 4px;text-align:center;background:#fff}
 .lc-word b{font-family:'Fredoka';font-size:30px;display:block;color:var(--ac,var(--ink))}
 .lc-word b .hl{color:var(--red)}
 .lc-word .note{color:var(--soft);font-weight:800;font-size:13px;margin-top:2px;display:block}
-/* кнопка «Прослухати» — всередині картки, під назвою (як у «Вчимо літери») */
-.lc-listen{display:inline-flex;align-items:center;gap:6px;margin-top:10px;border:none;cursor:pointer;
+/* дві кнопки під назвою: «Прослухати» (назва) і голос самої тварини */
+.listen-row{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;
+  background:#fff;padding:0 12px 12px;flex:none}
+.lc-listen{display:inline-flex;align-items:center;gap:6px;border:none;cursor:pointer;
   background:var(--blue);color:#fff;font-family:'Fredoka';font-weight:600;font-size:15px;
   padding:8px 16px;border-radius:999px;box-shadow:0 4px 0 #2f8fd6}
 .lc-listen:active{transform:translateY(3px);box-shadow:0 2px 0 #2f8fd6}
 .lc-listen .ic{font-size:16px;line-height:1;display:inline-flex}
 .lc-listen .ic svg{width:16px;height:16px;display:block}
 .lc-listen.on{animation:pulse 1s infinite}
+/* голос тварини — помаранчева пігулка з самим звуком на ній */
+.lc-listen.beast{background:#ff922b;box-shadow:0 4px 0 #e8590c}
+.lc-listen.beast:active{box-shadow:0 2px 0 #e8590c}
+.lc-listen.beast .ic{font-size:15px}
 @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
 .pic-wrap{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
 .word-row{display:flex;align-items:center;gap:8px;background:#fff;padding:4px 10px 8px}
@@ -294,7 +300,8 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .btn-row .big-btn{font-size:17px;padding:15px}
 
 .foot{text-align:center;color:var(--soft);font-size:12px;font-weight:800;padding:12px 0 2px}
-.no-voice .q-speak,.no-voice .lc-listen,.no-voice .voice-row{display:none!important}
+/* без синтезу ховаємо лише кнопку назви — голос тварини грає з mp3 */
+.no-voice .q-speak,.no-voice .lc-listen.name,.no-voice .voice-row{display:none!important}
 @media(max-width:440px){
   /* компактніший старт, щоб кнопки й прогрес влізли на телефоні */
   .abc-blocks{gap:8px;margin:2px 0;padding-left:48px}  /* лишаємо місце під стрілку зліва */
@@ -392,11 +399,13 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
         <div class="word-row">
           <button class="card-nav prev" id="prevB" onclick="event.stopPropagation();move(-1)" aria-label="Попередня">‹</button>
           <div class="word-col">
-            <div class="lc-word"><b id="aName">Корова</b>
-              <button class="lc-listen" id="cardSpeak" onclick="event.stopPropagation();speakCard()" aria-label="Прослухати"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a8 8 0 0 1 0 12"/></svg></span> Прослухати</button>
-            </div>
+            <div class="lc-word"><b id="aName">Корова</b></div>
           </div>
           <button class="card-nav next" id="nextB" onclick="event.stopPropagation();move(1)" aria-label="Наступна">›</button>
+        </div>
+        <div class="listen-row">
+          <button class="lc-listen name" id="cardSpeak" onclick="event.stopPropagation();speakCard()" aria-label="Прослухати назву"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a8 8 0 0 1 0 12"/></svg></span> Прослухати</button>
+          <button class="lc-listen beast" id="cardBeast" onclick="event.stopPropagation();speakBeast()" aria-label="Як говорить тварина"><span class="ic">🐾</span> <span id="beastSnd">Р-р-р!</span></button>
         </div>
       </div>
     </div>
@@ -531,6 +540,7 @@ function renderCard(){
   im.src=a.img;
   if(im.complete && im.naturalWidth){ im.onload(); }   // кеш → миттєво
   document.getElementById('aName').textContent=a.name;
+  const bs=document.getElementById('beastSnd'); if(bs) bs.textContent=a.sound||'';
   document.getElementById('aCard').style.setProperty('--ac',a.color);
   if(!state.learned[a.id]){ state.learned[a.id]=true; save(); }
   document.getElementById('prevB').disabled=idx<=0;
@@ -547,7 +557,12 @@ function cardTap(e){
 }
 function move(d){ userGesture=true; const n=idx+d; if(n<0||n>=ALL)return; idx=n; renderCard(); }
 function updateLearnBar(){ const c=learnedCount(); document.getElementById('learnBar').style.width=Math.round(c/ALL*100)+'%'; document.getElementById('learnPt').textContent=c+' / '+ALL; }
-function speakCard(){ userGesture=true; const a=ANIMALS[idx]; playAudio('../audio/tvaryna_'+a.id+'.mp3', a.name, 'cardSpeak'); }
+/* Назва тварини — те, що звучить само, коли дитина гортає картки.
+   Якщо колись запишемо audio/nazva_<id>.mp3 — гратиме він, інакше синтез. */
+function speakCard(){ userGesture=true; const a=ANIMALS[idx]; playAudio('../audio/nazva_'+a.id+'.mp3', a.name, 'cardSpeak'); }
+/* Голос самої тварини — окрема кнопка, лише на дотик. Є mp3 — грає він,
+   немає (заєць, білка, їжак…) — синтез вимовляє «туп туп», «цок цок». */
+function speakBeast(){ userGesture=true; const a=ANIMALS[idx]; playAudio('../audio/tvaryna_'+a.id+'.mp3', a.say||a.sound||'', 'cardBeast'); }
 
 /* ── сітка всіх тварин ── */
 function openGrid(){
@@ -750,6 +765,7 @@ function stopAudio(){
   if(curAudio){ try{curAudio.pause();curAudio.currentTime=0;}catch(e){} curAudio=null; }
   if('speechSynthesis' in window){ try{speechSynthesis.cancel();}catch(e){} }
   setSpeakOn('cardSpeak',false);
+  setSpeakOn('cardBeast',false);
 }
 function setSpeakOn(btnId,on){ if(!btnId)return; const b=document.getElementById(btnId); if(b)b.classList.toggle('on',!!on); }
 const SND_ON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a8 8 0 0 1 0 12"/></svg>';
