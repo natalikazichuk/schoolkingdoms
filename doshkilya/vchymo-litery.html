@@ -203,6 +203,12 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .win-title{font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:24px;color:var(--coral);margin:6px 0 2px}
 .win-sub{color:var(--ink);font-weight:800;font-size:15px;margin:0 0 14px}
 .win-got{font-family:'Fredoka';font-weight:700;font-size:17px;color:var(--coral);margin:0 0 12px;line-height:1.2}
+.win-stat{display:inline-flex;align-items:center;gap:8px;background:#eaf7ef;border:2px solid #9ad8b4;
+  color:#1f7a4d;font-family:'Fredoka';font-weight:700;font-size:16px;padding:7px 16px;border-radius:999px;margin:0 0 10px}
+.gtile.done{border-color:#9ad8b4;background:#f4fcf7}
+.done-note{color:var(--good);font-family:'Fredoka';font-weight:700;font-size:15px;margin:8px 0 0}
+.retry-note{font-size:14px;margin-top:8px}
+.gtile.done .go{color:var(--good)}
 .win-coins{display:inline-flex;align-items:center;gap:8px;background:#fff6df;border:2px solid #f4c842;
   color:#8a5e16;font-family:'Fredoka';font-weight:700;font-size:20px;padding:8px 18px;border-radius:999px;margin-bottom:16px}
 .reward-item{position:relative;display:flex;align-items:center;gap:14px;text-align:left;background:#fff;
@@ -478,11 +484,11 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
     </div>
 
     <div class="games-list" id="gamesList">
-      <div class="gtile" onclick="playGame('sklad')"><div class="ic" style="--c:var(--red)">🔤</div><div class="tx"><b>Склади слово</b><span>Постав літери по порядку</span></div><div class="go">▶</div></div>
-      <div class="gtile" onclick="playGame('litera')"><div class="ic" style="--c:var(--orange)">🎧</div><div class="tx"><b>Яку літеру чуєш?</b><span>Послухай і вибери літеру</span></div><div class="go">▶</div></div>
-      <div class="gtile" onclick="playGame('persha')"><div class="ic" style="--c:var(--green)">🎯</div><div class="tx"><b>Перша літера</b><span>З якої літери починається слово?</span></div><div class="go">▶</div></div>
-      <div class="gtile" onclick="playGame('para')"><div class="ic" style="--c:var(--purple)">🧩</div><div class="tx"><b>Знайди пару</b><span>Велика і маленька літера</span></div><div class="go">▶</div></div>
-      <div class="gtile" onclick="playGame('propushchena')"><div class="ic" style="--c:var(--blue)"><span class="gapU">У</span></div><div class="tx"><b>Пропущена літера</b><span>Якої літери не вистачає?</span></div><div class="go">▶</div></div>
+      <div class="gtile" data-g="sklad" onclick="playGame('sklad')"><div class="ic" style="--c:var(--red)">🔤</div><div class="tx"><b>Склади слово</b><span>Постав літери по порядку</span></div><div class="go">▶</div></div>
+      <div class="gtile" data-g="litera" onclick="playGame('litera')"><div class="ic" style="--c:var(--orange)">🎧</div><div class="tx"><b>Яку літеру чуєш?</b><span>Послухай і вибери літеру</span></div><div class="go">▶</div></div>
+      <div class="gtile" data-g="persha" onclick="playGame('persha')"><div class="ic" style="--c:var(--green)">🎯</div><div class="tx"><b>Перша літера</b><span>З якої літери починається слово?</span></div><div class="go">▶</div></div>
+      <div class="gtile" data-g="para" onclick="playGame('para')"><div class="ic" style="--c:var(--purple)">🧩</div><div class="tx"><b>Знайди пару</b><span>Велика і маленька літера</span></div><div class="go">▶</div></div>
+      <div class="gtile" data-g="propushchena" onclick="playGame('propushchena')"><div class="ic" style="--c:var(--blue)"><span class="gapU">У</span></div><div class="tx"><b>Пропущена літера</b><span>Якої літери не вистачає?</span></div><div class="go">▶</div></div>
     </div>
     <div class="foot">Прогрес зберігається на цьому пристрої</div>
   </section>
@@ -524,6 +530,7 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
     <div class="win-sub">Ти вивчив українську абетку!</div>
     <div class="win-got" id="winGot" style="display:none"></div>
     <div class="win-coins" id="winCoins" style="display:none">+0 <span>🪙</span> монет</div>
+    <div class="win-stat" id="winStat" style="display:none"></div>
     <div id="winReward"></div>
     <div class="win-actions">
       <button class="big-btn success" onclick="claimAndPlay()">🎮 Грати далі</button>
@@ -620,14 +627,16 @@ function picBox(id,emoji,alt){
 
 /* ══════ СТАН ══════ */
 const SAVE_KEY='sk_litery_v1';
-const REWARD_KEY='sk_litery_reward_v1';
+const REWARD_KEY='sk_litery_reward_v1';   // «Вітаємо» за літери показано
+const PRIZE_KEY='sk_litery_prize_v1';     // нагороду за всі ігри вже показано
 /* Старі ключі писались через дефіс (sk-litery-…). firebase-config синхронізує
    лише простір sk_* (підкреслення), тож дефісні ключі не прив'язувались до Героя
    й були спільні для всіх на пристрої (звідси «100% у всіх»). Прибираємо їх
    один раз, щоб протікання зникло; далі прогрес живе в sk_litery_* per-Hero. */
 const LEGACY_KEYS=['sk-litery-v1','sk-litery-reward-v1'];
 const ALL=ABC.length;
-let state={learned:{},soundOn:true};
+const GAME_KEYS=['sklad','litera','persha','para','propushchena'];
+let state={learned:{},soundOn:true,games:{}};   // games: {ключ гри: найкращі зірки}
 let idx=0;                 // поточна картка
 let userGesture=false;     // чи вже була взаємодія (для автоозвучки)
 let picToken=0;            // щоб картинка, яка довго вантажилась, не «стрибнула» на чужу картку
@@ -636,11 +645,14 @@ let winShown=false;        // «Вітаємо» — захист від пов�
 
 function load(){
   try{ LEGACY_KEYS.forEach(k=>localStorage.removeItem(k)); }catch(e){}   // прибрати старе device-global протікання
-  try{ const s=JSON.parse(localStorage.getItem(SAVE_KEY)); if(s){ state.learned=s.learned||{}; state.soundOn=s.soundOn!==false; } }catch(e){}
+  try{ const s=JSON.parse(localStorage.getItem(SAVE_KEY)); if(s){ state.learned=s.learned||{}; state.soundOn=s.soundOn!==false; state.games=s.games||{}; } }catch(e){}
 }
 function save(){ try{ localStorage.setItem(SAVE_KEY,JSON.stringify(state)); }catch(e){} }
 function learnedCount(){ return ABC.filter(x=>state.learned[x.id]).length; }
 function allLearned(){ return learnedCount()>=ALL; }
+/* Скільки міні-ігор уже пройдено (гра зарахована, щойно дійшла до підсумку). */
+function gamesDone(){ return GAME_KEYS.filter(k=>state.games[k]>0).length; }
+function allGamesDone(){ return gamesDone()>=GAME_KEYS.length; }
 load();
 
 /* ══════ ЕКРАНИ ══════ */
@@ -739,13 +751,54 @@ function closeGrid(){ document.getElementById('gridOv').classList.remove('on'); 
 
 /* ══════ СВЯТКОВА НАГОРОДА ══════ */
 let confettiRAF=null;
-function openWin(){ try{ if(window.skFinishRecord) skFinishRecord(); }catch(e){}
+/* Віха «вивчив усі літери» — свято без нагороди: нагорода чекає на повне
+   проходження всіх п'яти ігор (див. openPrize). */
+function openWin(){
   // Позначаємо показ одразу при відкритті — щоб «Вітаємо» більше не зʼявлялось
   // навіть якщо закрити через «Закрити» (а не «Грати далі»).
   try{ localStorage.setItem(REWARD_KEY,'1'); }catch(e){}
+  fillWin({emoji:'🎉', title:'Вітаємо!', sub:'Ти вивчив українську абетку!',
+           got:'Лишились ігри: пройди всі 5 — і отримаєш нагороду 🎁',
+           action:'🎮 Грати далі', onAction:'claimAndPlay()'});
   document.getElementById('winOv').classList.add('on');
   launchConfetti();
-  claimAndFill();   // забрати нагороду (одноразово) і показати «Ти отримав …!»
+}
+
+/* ══════ НАГОРОДА ЗА ПОВНЕ ПРОХОДЖЕННЯ ══════
+   Спрацьовує, коли пройдено всі міні-ігри. Зараховує запис у базу
+   (sk_testpass_<id> + pushLocal) і забирає нагороду, налаштовану в адмінці:
+   монети, предмет в інвентар і одиниці характеристики. */
+let prizeShown=false;
+async function openPrize(){
+  if(prizeShown) return;
+  prizeShown=true;
+  try{ if(window.skFinishRecord) skFinishRecord(); }catch(e){}   // зарахувати запис
+  fillWin({emoji:'🏆', title:'Усі ігри пройдено!', sub:'Ти впорався з усіма завданнями абетки!',
+           action:'🎮 Грати ще', onAction:'claimAndPlay()'});
+  document.getElementById('winOv').classList.add('on');
+  launchConfetti();
+  const res=await claimAndFill();   // забрати нагороду (одноразово) і показати «Ти отримав …!»
+  /* Замок ставимо ЛИШЕ коли нагорода справді бралась. Якщо дитина була офлайн
+     (чи зайшла не Героєм), res.skipped — і наступного разу попап спробує ще раз,
+     інакше нагорода згоріла б назавжди. */
+  if(res && !res.skipped){ try{ localStorage.setItem(PRIZE_KEY,'1'); }catch(e){} }
+  else prizeShown=false;
+}
+
+/* Спільне наповнення попапа: шапка + очищені блоки нагороди. */
+function fillWin(o){
+  const q=id=>document.getElementById(id);
+  const ov=q('winOv');
+  ov.querySelector('.win-emoji').textContent=o.emoji;
+  ov.querySelector('.win-title').textContent=o.title;
+  ov.querySelector('.win-sub').textContent=o.sub;
+  const btn=ov.querySelector('.win-actions .big-btn');
+  btn.textContent=o.action; btn.setAttribute('onclick',o.onAction);
+  const got=q('winGot'), coins=q('winCoins'), stat=q('winStat'), rew=q('winReward');
+  if(got){ got.style.display=o.got?'':'none'; got.textContent=o.got||''; }
+  if(coins) coins.style.display='none';
+  if(stat){ stat.style.display='none'; stat.textContent=''; }
+  if(rew) rew.innerHTML='';
 }
 
 /* Ім'я цієї сторінки — за ним sk-rewards зіставляє налаштовані в адмінці
@@ -759,17 +812,16 @@ async function claimAndFill(){
   function bonusTxt(b){ return b>1.15?'+20%':(b>1?'+10%':(b<1?'−10%':'')); }
   const coinsEl=document.getElementById('winCoins');
   const gotEl=document.getElementById('winGot');
+  const statEl=document.getElementById('winStat');
   const rewrap=document.getElementById('winReward');
-  if(rewrap) rewrap.innerHTML='';
-  if(coinsEl) coinsEl.style.display='none';
-  if(gotEl){ gotEl.style.display='none'; gotEl.textContent=''; }
 
   let res=null;
   try{ if(window.SKREWARD) res=await SKREWARD.claim(TR_HREF); }catch(e){ res=null; }
-  if(!res || res.skipped) return;                 // не сесія Героя / офлайн → просто свято
-  if(res.already){ if(gotEl){ gotEl.style.display=''; gotEl.textContent='Нагороду вже отримано 🎁'; } return; }
+  if(!res || res.skipped) return res||{skipped:true};   // не сесія Героя / офлайн → просто свято
+  if(res.already){ if(gotEl){ gotEl.style.display=''; gotEl.textContent='Нагороду вже отримано 🎁'; } return res; }
 
   if(res.coins>0 && coinsEl){ coinsEl.style.display=''; coinsEl.innerHTML='+'+res.coins+' <span>🪙</span> монет'; }
+  if(res.stat && statEl){ statEl.style.display=''; statEl.textContent='✨ +'+res.stat.value+' до «'+res.stat.label+'»'; }
 
   if(res.items && res.items.length){
     if(gotEl){ gotEl.style.display='';
@@ -785,9 +837,10 @@ async function claimAndFill(){
           +'<div class="rmeta">Додано в інвентар героя</div></div></div>';
       }).join('');
     }
-  } else if(res.coins>0 && gotEl){
+  } else if((res.coins>0 || res.stat) && gotEl){
     gotEl.style.display=''; gotEl.textContent='Ти отримав нагороду!';
   }
+  return res;
 }
 function closeWin(){
   document.getElementById('winOv').classList.remove('on');
@@ -849,6 +902,17 @@ function renderGamesHub(){
   document.getElementById('gamesList').classList.toggle('locked',locked);
   document.getElementById('lockText').textContent=
     'Вивчено '+learnedCount()+' із '+ALL+'. Пройди всі літери — і відкриються 5 ігор!';
+  // скільки ігор позаду і що лишилось до нагороди
+  const sub=document.getElementById('gamesSub');
+  if(sub) sub.textContent = allGamesDone()
+    ? 'Усі 5 ігор пройдено 🏆'
+    : ('Пройдено '+gamesDone()+' з '+GAME_KEYS.length+' · нагорода за всі 🎁');
+  document.querySelectorAll('.gtile[data-g]').forEach(t=>{
+    t.classList.toggle('done', state.games[t.dataset.g]>0);
+  });
+  /* Другий шанс: якщо всі ігри пройдені, а нагорода ще не бралась (дитина була
+     офлайн під час попапа) — пробуємо знову, щойно вона зайшла в хаб. */
+  if(allGamesDone() && !localStorage.getItem(PRIZE_KEY)) setTimeout(openPrize,500);
 }
 function playGame(key){ if(!allLearned())return; startGame(key); }
 
@@ -1128,24 +1192,34 @@ function tapMem(i,btn){
 function endGame(){
   const total=game.rounds.length;
   const acc = game.key==='para' ? 1 : game.correct/total;
-  const stars = acc>=.9?3 : acc>=.6?2 : 1;
+  /* Гра зараховується лише за ВСІ правильні відповіді, тож і третя зірка —
+     теж лише за бездоганне проходження: інакше дитина бачила б ★★★ і напис
+     «потрібні всі правильні» водночас. */
+  const perfect = game.correct>=total;
+  const stars = perfect?3 : acc>=.6?2 : 1;
   const body=document.getElementById('playBody');
   document.getElementById('playFb').className='feedback';
   document.getElementById('playNext').style.display='none';
   document.getElementById('playDots').innerHTML='';
-  const msg=stars===3?'Ідеально!':stars===2?'Гарна робота!':'Молодець, що спробував!';
+  const msg=perfect?'Ідеально!':stars===2?'Гарна робота!':'Молодець, що спробував!';
   const starHtml=[0,1,2].map(i=>'<span class="s'+(i<stars?' f':'')+'">★</span>').join('');
   body.innerHTML='<div class="result-card">'+
       '<div class="big-stars">'+starHtml+'</div>'+
       '<h2>'+msg+'</h2>'+
       (game.key==='para'?'<p class="sub">Усі пари знайдено!</p>'
         :'<p class="sub">Правильних: <b>'+game.correct+' з '+total+'</b></p>')+
+      (perfect?'<p class="done-note">✓ Гру зараховано</p>'
+              :'<p class="sub retry-note">Щоб зарахувати гру, потрібні всі правильні 💪</p>')+
     '</div>'+
     '<div class="btn-row" style="margin-top:14px">'+
       '<button class="big-btn blue" onclick="startGame(\''+game.key+'\')">↻ Ще раз</button>'+
       '<button class="big-btn" onclick="goGames()">До ігор →</button>'+
     '</div>';
   try{ if(window.navigator.vibrate) navigator.vibrate(stars>=3?[40,60,40]:30); }catch(e){}
+  // зараховуємо гру лише за бездоганне проходження
+  if(perfect && !(state.games[game.key]>=stars)){ state.games[game.key]=stars; save(); }
+  // усі 5 ігор позаду → запис у базу + нагорода з адмінки (один раз)
+  if(allGamesDone() && !localStorage.getItem(PRIZE_KEY)) setTimeout(openPrize,700);
 }
 
 /* ══════ ДОПОМІЖНІ ══════ */
@@ -1241,7 +1315,9 @@ refreshStart();
 <script src="../sk-avatar.js"></script>
 <script type="module" src="../firebase-config.js"></script>
 <script src="../sk-items.js?v=1"></script>
+<script src="../sk-curriculum.js?v=7"></script>
+<script src="../sk-rewards.js?v=1"></script>
 
-<script src="../sk-finish.js?v=3"></script>
+<script src="../sk-finish.js?v=4"></script>
 </body>
 </html>
