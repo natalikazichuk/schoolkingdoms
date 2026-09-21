@@ -206,6 +206,8 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .win-stat{display:inline-flex;align-items:center;gap:8px;background:#eaf7ef;border:2px solid #9ad8b4;
   color:#1f7a4d;font-family:'Fredoka';font-weight:700;font-size:16px;padding:7px 16px;border-radius:999px;margin:0 0 10px}
 .gtile.done{border-color:#9ad8b4;background:#f4fcf7}
+.done-note{color:var(--good);font-family:'Fredoka';font-weight:700;font-size:15px;margin:8px 0 0}
+.retry-note{font-size:14px;margin-top:8px}
 .gtile.done .go{color:var(--good)}
 .win-coins{display:inline-flex;align-items:center;gap:8px;background:#fff6df;border:2px solid #f4c842;
   color:#8a5e16;font-family:'Fredoka';font-weight:700;font-size:20px;padding:8px 18px;border-radius:999px;margin-bottom:16px}
@@ -1190,26 +1192,32 @@ function tapMem(i,btn){
 function endGame(){
   const total=game.rounds.length;
   const acc = game.key==='para' ? 1 : game.correct/total;
-  const stars = acc>=.9?3 : acc>=.6?2 : 1;
+  /* Гра зараховується лише за ВСІ правильні відповіді, тож і третя зірка —
+     теж лише за бездоганне проходження: інакше дитина бачила б ★★★ і напис
+     «потрібні всі правильні» водночас. */
+  const perfect = game.correct>=total;
+  const stars = perfect?3 : acc>=.6?2 : 1;
   const body=document.getElementById('playBody');
   document.getElementById('playFb').className='feedback';
   document.getElementById('playNext').style.display='none';
   document.getElementById('playDots').innerHTML='';
-  const msg=stars===3?'Ідеально!':stars===2?'Гарна робота!':'Молодець, що спробував!';
+  const msg=perfect?'Ідеально!':stars===2?'Гарна робота!':'Молодець, що спробував!';
   const starHtml=[0,1,2].map(i=>'<span class="s'+(i<stars?' f':'')+'">★</span>').join('');
   body.innerHTML='<div class="result-card">'+
       '<div class="big-stars">'+starHtml+'</div>'+
       '<h2>'+msg+'</h2>'+
       (game.key==='para'?'<p class="sub">Усі пари знайдено!</p>'
         :'<p class="sub">Правильних: <b>'+game.correct+' з '+total+'</b></p>')+
+      (perfect?'<p class="done-note">✓ Гру зараховано</p>'
+              :'<p class="sub retry-note">Щоб зарахувати гру, потрібні всі правильні 💪</p>')+
     '</div>'+
     '<div class="btn-row" style="margin-top:14px">'+
       '<button class="big-btn blue" onclick="startGame(\''+game.key+'\')">↻ Ще раз</button>'+
       '<button class="big-btn" onclick="goGames()">До ігор →</button>'+
     '</div>';
   try{ if(window.navigator.vibrate) navigator.vibrate(stars>=3?[40,60,40]:30); }catch(e){}
-  // гра зарахована — зберігаємо найкращі зірки
-  if(!(state.games[game.key]>=stars)){ state.games[game.key]=stars; save(); }
+  // зараховуємо гру лише за бездоганне проходження
+  if(perfect && !(state.games[game.key]>=stars)){ state.games[game.key]=stars; save(); }
   // усі 5 ігор позаду → запис у базу + нагорода з адмінки (один раз)
   if(allGamesDone() && !localStorage.getItem(PRIZE_KEY)) setTimeout(openPrize,700);
 }
