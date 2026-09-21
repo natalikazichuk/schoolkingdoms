@@ -630,6 +630,7 @@ const ALL=ABC.length;
 let state={learned:{},soundOn:true};
 let idx=0;                 // поточна картка
 let userGesture=false;     // чи вже була взаємодія (для автоозвучки)
+let picToken=0;            // щоб картинка, яка довго вантажилась, не «стрибнула» на чужу картку
 let againShown=false;      // «ти вже знаєш літери» — показуємо раз за сесію
 let winShown=false;        // «Вітаємо» — захист від повторного запуску в межах сесії
 
@@ -683,10 +684,11 @@ function renderCard(){
   // малюнок: справжній, емодзі-чернетка — лише як резерв, якщо файлу нема
   const pic=document.getElementById('lcPic');
   pic.innerHTML='';                    // не показуємо емодзі наперед (без блимання)
+  const my=++picToken;                 // картинка попередньої літери вже не актуальна
   const im=new Image();
   im.alt=it.w;
-  im.onload =()=>{ pic.innerHTML=''; pic.appendChild(im); };
-  im.onerror=()=>{ pic.innerHTML='<span class="lc-emoji">'+it.e+'</span><span class="lc-draft">чернетка</span>'; };
+  im.onload =()=>{ if(my!==picToken) return; pic.innerHTML=''; pic.appendChild(im); };
+  im.onerror=()=>{ if(my!==picToken) return; pic.innerHTML='<span class="lc-emoji">'+it.e+'</span><span class="lc-draft">чернетка</span>'; };
   im.src='../img/litery/'+it.id+'.webp';
   if(im.complete && im.naturalWidth){ im.onload(); }  // кеш → миттєво, без порожнечі
   // прогрес/навігація (лічильник позиції — у верхньому рядку прогресу)

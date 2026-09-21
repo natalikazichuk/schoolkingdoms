@@ -519,8 +519,13 @@ const WORDS=[
 ];
 
 /* ══════ СТАН ══════ */
-const SAVE_KEY='sk-abc-v1';
+const SAVE_KEY='sk_abc_v1';
 const DONE_KEY='sk_abc_done_v1';   // «Вітаємо» показуємо один раз за весь час
+/* Старий ключ писався через дефіс (sk-abc-v1). firebase-config синхронізує
+   лише простір sk_* (підкреслення), тож дефісний ключ не прив'язувався до Героя
+   й був спільний для всіх на пристрої. Прибираємо його один раз, щоб протікання
+   зникло; далі прогрес живе в sk_abc_* per-Hero і їде у Firestore. */
+const LEGACY_KEYS=['sk-abc-v1'];
 const ALL=ABC.length;
 let state={learned:{},soundOn:true};
 let idx=0;                 // поточна картка
@@ -530,6 +535,7 @@ let againShown=false;      // «ти вже знаєш літери» — пок
 let winShown=false;        // «Вітаємо» — захист від повторного запуску в межах сесії
 
 function load(){
+  try{ LEGACY_KEYS.forEach(k=>localStorage.removeItem(k)); }catch(e){}   // прибрати старе device-global протікання
   try{ const s=JSON.parse(localStorage.getItem(SAVE_KEY)); if(s){ state.learned=s.learned||{}; state.soundOn=s.soundOn!==false; } }catch(e){}
 }
 function save(){ try{ localStorage.setItem(SAVE_KEY,JSON.stringify(state)); }catch(e){} }
