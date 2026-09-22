@@ -285,11 +285,31 @@
     return html;
   }
 
+  /* Ступінь, який показує сама сторінка (window.SK_HEADER_TIER або
+     skHeaderSetTier). Він важливіший за клас Героя: відкрито «Дошкільнятко» —
+     підсвічуємо «Дошкільна», навіть якщо Герой у 2 класі. 'preschool'
+     шукаємо через isPreTier, бо в адмінці ступінь має згенерований id. */
+  function pageTierId(map){
+    var want = window.SK_HEADER_TIER;
+    if(!want || !map || !map.tiers) return null;
+    var i;
+    for(i=0;i<map.tiers.length;i++) if(map.tiers[i].id === want) return want;
+    if(String(want).indexOf('preschool') >= 0){
+      for(i=0;i<map.tiers.length;i++) if(isPreTier(map.tiers[i])) return map.tiers[i].id;
+    }
+    return null;
+  }
+  window.skHeaderSetTier = function(id){
+    if(window.SK_HEADER_TIER === id) return;
+    window.SK_HEADER_TIER = id;
+    if(navMap){ try{ buildNav(navMap); }catch(e){} }
+  };
+
   function buildNav(map){
     navMap = map;
     var nav = document.getElementById('skHdNav');
     if(!nav || !map || !map.tiers || !map.tiers.length){ return; }
-    var actId = tierOfGrade(map, activeGrade);
+    var actId = pageTierId(map) || tierOfGrade(map, activeGrade);
 
     nav.innerHTML = map.tiers.map(function(t){
       var isActive = (t.id === actId);
