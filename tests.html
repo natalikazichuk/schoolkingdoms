@@ -158,6 +158,7 @@
   var IDX = null;           // { grades:{num:{num,order[],subs{}}}, nums[] }
   var ALL_GRADES = [];      // усі класи з карти (для сітки, навіть порожні)
   var GRADE_ID2NUM = {};    // gradeId → gradeNum (для навігації з хедера)
+  var GRADE_NUM2ID = {};    // і назад: щоб адреса рядка завжди знала поточний клас
   var PROG = null;          // прогрес Героя з Firebase (heroes/{id}.progress)
 
   /* Чому список тестів порожній. Раніше помилка доступу й «тестів справді
@@ -396,16 +397,17 @@
     });
   }
   function buildGradeMeta(){
-    ALL_GRADES=[]; GRADE_ID2NUM={};
+    ALL_GRADES=[]; GRADE_ID2NUM={}; GRADE_NUM2ID={};
     var pre=null, nums=[], seen={};
     CURRICULUM.forEach(function(t){
       if(isPreschoolTier(t)){
         if(!pre) pre={key:'p', preschool:true, icon:(t.icon||'🌱'), label:'Дошкільнятко', tier:(t.id||'preschool')};
-        (t.grades||[]).forEach(function(g){ GRADE_ID2NUM[g.id]='p'; });
+        (t.grades||[]).forEach(function(g){ GRADE_ID2NUM[g.id]='p'; if(!GRADE_NUM2ID['p']) GRADE_NUM2ID['p']=g.id; });
         return;
       }
       (t.grades||[]).forEach(function(g){
         var n=Number(g.gradeNum)||0; GRADE_ID2NUM[g.id]=String(n);
+        if(!GRADE_NUM2ID[String(n)]) GRADE_NUM2ID[String(n)]=g.id;
         if(!seen[n]){ seen[n]=1; nums.push({key:String(n), num:n, name:g.name||(n+' клас'), tier:(t.id||'')}); }
       });
     });
@@ -634,6 +636,21 @@
     if(view==='subjects' && IDX && IDX.grades[selGrade]) renderSubjects();
     else if(view==='tests' && IDX && IDX.grades[selGrade] && IDX.grades[selGrade].subs[selSubj]) renderTests();
     else { view='classes'; renderClasses(); }
+    syncHash();
+  }
+  /* Переходи всередині сторінки не міняли адресу, тож у рядку лишався хеш
+     тієї плитки, з якої дитина зайшла, — і оновлення сторінки повертало її
+     туди (зайшла в «Букви», перейшла в English, F5 → знову «Букви»).
+     Тепер адреса завжди описує те, що на екрані. replaceState не додає
+     записів в історію і не кидає hashchange, тож повторного рендера немає. */
+  function syncHash(){
+    var p=[];
+    if(selTier) p.push('open='+encodeURIComponent(selTier));
+    if(view!=='classes' && selGrade!=null && GRADE_NUM2ID[selGrade]) p.push('grade='+encodeURIComponent(GRADE_NUM2ID[selGrade]));
+    if(view==='tests' && selSubj) p.push('subj='+encodeURIComponent(selSubj));
+    var h = p.length ? '#'+p.join('&') : '';
+    if(h === (location.hash||'')) return;
+    try{ history.replaceState(null,'', location.pathname+location.search+h); }catch(e){}
   }
 
   /* ── навігація картками + збереження позиції для повернення ── */

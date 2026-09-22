@@ -265,7 +265,7 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px}
 
     <!-- Обкладинка. Якщо файлу немає — тимчасовий знак, щоб екран не зяяв порожнечею. -->
     <div class="start-hero" id="startHero">
-      <img src="../img/tr/first_words.webp?v=1" alt=""
+      <img src="../img/tr/first-words.webp?v=1" alt=""
            onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('div'),{className:'hero-stub',textContent:'🔤'}))">
     </div>
 
@@ -366,23 +366,25 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px}
 /* ── СЛОВА ЗА ТЕМАМИ. id — імʼя файлу картинки в img/fw/ ── */
 const THEMES=[
   {id:'animals', name:'Animals', uk:'Тварини', ic:'🐾', c:'var(--orange)', words:[
-    {id:'cat', w:'CAT', e:'🐱'},   {id:'dog',  w:'DOG',  e:'🐶'},  {id:'pig',  w:'PIG',  e:'🐷'},
-    {id:'fox', w:'FOX', e:'🦊'},   {id:'frog', w:'FROG', e:'🐸'},  {id:'duck', w:'DUCK', e:'🦆'},
-    {id:'fish',w:'FISH',e:'🐟'},   {id:'lion', w:'LION', e:'🦁'},  {id:'zebra',w:'ZEBRA',e:'🦓'},
-    {id:'tiger',w:'TIGER',e:'🐯'}]},
+    {id:'cat', w:'CAT', e:'🐱', pic:'abc_c'},  {id:'dog',  w:'DOG',  e:'🐶', pic:'abc_d'},
+    {id:'pig', w:'PIG', e:'🐷', pic:'abc_p'},  {id:'fox',  w:'FOX',  e:'🦊'},
+    {id:'frog',w:'FROG',e:'🐸'},               {id:'duck', w:'DUCK', e:'🦆'},
+    {id:'fish',w:'FISH',e:'🐟', pic:'abc_f'},  {id:'lion', w:'LION', e:'🦁', pic:'abc_l'},
+    {id:'zebra',w:'ZEBRA',e:'🦓',pic:'abc_z'}, {id:'tiger',w:'TIGER',e:'🐯', pic:'abc_t'}]},
   {id:'food', name:'Food', uk:'Смачного', ic:'🍎', c:'var(--red)', words:[
-    {id:'cake',w:'CAKE',e:'🍰'},   {id:'milk', w:'MILK', e:'🥛'},
-    {id:'apple',w:'APPLE',e:'🍎'}, {id:'juice',w:'JUICE',e:'🧃'}]},
+    {id:'cake',w:'CAKE',e:'🍰'},               {id:'milk', w:'MILK', e:'🥛'},
+    {id:'apple',w:'APPLE',e:'🍎',pic:'abc_a'}, {id:'juice',w:'JUICE',e:'🧃', pic:'abc_j'}]},
   {id:'things', name:'Things', uk:'Речі', ic:'🎒', c:'var(--purple)', words:[
-    {id:'bed', w:'BED', e:'🛏️'},  {id:'cup',  w:'CUP',  e:'☕'},   {id:'box',  w:'BOX',  e:'📦'},
-    {id:'pen', w:'PEN', e:'🖊️'},  {id:'book', w:'BOOK', e:'📚'},  {id:'hat',  w:'HAT',  e:'🎩'},
-    {id:'ball',w:'BALL',e:'⚽'}]},
+    {id:'bed', w:'BED', e:'🛏️'},              {id:'cup',  w:'CUP',  e:'☕'},
+    {id:'box', w:'BOX', e:'📦'},               {id:'pen',  w:'PEN',  e:'🖊️'},
+    {id:'book',w:'BOOK',e:'📚'},               {id:'hat',  w:'HAT',  e:'🎩', pic:'abc_h'},
+    {id:'ball',w:'BALL',e:'⚽', pic:'abc_b'}]},
   {id:'go', name:'On the go', uk:'У дорозі', ic:'🚗', c:'var(--blue)', words:[
-    {id:'bus', w:'BUS', e:'🚌'},   {id:'car',  w:'CAR',  e:'🚗'},
-    {id:'van', w:'VAN', e:'🚐'},   {id:'kite', w:'KITE', e:'🪁'}]},
+    {id:'bus', w:'BUS', e:'🚌'},               {id:'car',  w:'CAR',  e:'🚗'},
+    {id:'van', w:'VAN', e:'🚐', pic:'abc_v'},  {id:'kite', w:'KITE', e:'🪁', pic:'abc_k'}]},
   {id:'outside', name:'Outside', uk:'Надворі', ic:'🌳', c:'var(--green)', words:[
-    {id:'sun', w:'SUN', e:'☀️'},   {id:'star', w:'STAR', e:'⭐'},
-    {id:'tree',w:'TREE',e:'🌳'},   {id:'moon', w:'MOON', e:'🌙'}]}
+    {id:'sun', w:'SUN', e:'☀️', pic:'abc_s'},  {id:'star', w:'STAR', e:'⭐'},
+    {id:'tree',w:'TREE',e:'🌳'},               {id:'moon', w:'MOON', e:'🌙', pic:'abc_m'}]}
 ];
 const ALL_WORDS=THEMES.reduce((a,t)=>a.concat(t.words),[]);
 const ALL=ALL_WORDS.length;
@@ -469,15 +471,9 @@ function renderWord(){
   card.style.setProperty('--sw', sw+'px');
   card.style.setProperty('--tw', tw+'px');
 
-  // малюнок слова; якщо файлу нема — емодзі цього ж слова
-  const pic=document.getElementById('wcPic');
-  pic.innerHTML='';
-  const im=new Image(); im.alt=cur.w;
-  const tok=(renderWord._tok=(renderWord._tok||0)+1);
-  im.onload =()=>{ if(tok!==renderWord._tok) return; pic.innerHTML=''; pic.appendChild(im); };
-  im.onerror=()=>{ if(tok!==renderWord._tok) return; pic.innerHTML='<span class="wc-emoji">'+cur.e+'</span>'; };
-  im.src='../img/fw/'+cur.id+'.webp';
-  if(im.complete && im.naturalWidth) im.onload();
+  // Малюнок слова. Спершу власний файл тренажера, тоді той самий малюнок
+  // із Learn ABC (частина слів звідти), і лише як останній резерв — емодзі.
+  showPic(['../img/fw/'+cur.id+'.webp'].concat(cur.pic?['../img/'+cur.pic+'.webp']:[]), cur.e);
 
   const hint=document.getElementById('wcHint');
   hint.textContent=cur.w;
@@ -495,6 +491,20 @@ function renderWord(){
   document.getElementById('nextBtn').classList.remove('on');
   updatePlayBar();
   speakWord();
+}
+/* Пробуємо картинки по черзі; жодна не підійшла — лишається емодзі. */
+function showPic(srcs,emoji){
+  const pic=document.getElementById('wcPic');
+  const tok=(showPic._tok=(showPic._tok||0)+1);
+  pic.innerHTML='<span class="wc-emoji">'+emoji+'</span>';   // видно одразу, без блимання порожнечі
+  (function tryNext(i){
+    if(i>=srcs.length || tok!==showPic._tok) return;
+    const im=new Image(); im.alt=cur?cur.w:'';
+    im.onload =()=>{ if(tok!==showPic._tok) return; pic.innerHTML=''; pic.appendChild(im); };
+    im.onerror=()=>{ tryNext(i+1); };
+    im.src=srcs[i];
+    if(im.complete && im.naturalWidth) im.onload();
+  })(0);
 }
 function updatePlayBar(){
   const d=themeDone(theme), all=theme.words.length;
