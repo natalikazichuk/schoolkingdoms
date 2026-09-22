@@ -203,6 +203,8 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .win-title{font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:24px;color:var(--coral);margin:6px 0 2px}
 .win-sub{color:var(--ink);font-weight:800;font-size:15px;margin:0 0 14px}
 .win-got{font-family:'Fredoka';font-weight:700;font-size:17px;color:var(--coral);margin:0 0 12px;line-height:1.2}
+.win-why{display:block;margin-top:6px;font-family:'Nunito',sans-serif;font-weight:700;
+  font-size:11px;color:var(--soft);word-break:break-word}
 .win-stat{display:inline-flex;align-items:center;gap:8px;background:#eaf7ef;border:2px solid #9ad8b4;
   color:#1f7a4d;font-family:'Fredoka';font-weight:700;font-size:16px;padding:7px 16px;border-radius:999px;margin:0 0 10px}
 .gtile.done{border-color:#9ad8b4;background:#f4fcf7}
@@ -327,6 +329,13 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 @keyframes optshake{10%,90%{transform:translateX(-2px)}20%,80%{transform:translateX(4px)}30%,50%,70%{transform:translateX(-7px)}40%,60%{transform:translateX(7px)}}
 .opt:disabled{cursor:default}
 .round-label{text-align:center;font-family:'Fredoka';font-weight:700;color:var(--coral);font-size:14px;margin:-2px 0 0}
+/* Екран гри теж обмежуємо висотою вікна: тоді маскот стоїть рівно над
+   футером — не заїжджає під нього на невисоких екранах і не висить
+   посеред порожнечі. Питання з варіантами за потреби прокручується. */
+#play.screen{min-height:0}
+#play.screen.on{flex:0 0 auto;height:calc(100dvh - 96px - env(safe-area-inset-bottom))}
+#play>.play-top,#play>.round-label,#play>.feedback,#play>#playNext,#play>.mascot{flex:none}
+#play>#playBody{flex:1 1 auto;min-height:0;overflow-y:auto}
 .mascot{margin-top:auto;display:flex;flex-direction:row;align-items:flex-end;justify-content:flex-end;
   gap:10px;opacity:.96;pointer-events:none;padding:4px 2px 0;width:100%}
 .mascot .m-ic{line-height:0;font-size:54px;filter:drop-shadow(0 4px 5px rgba(0,0,0,.15));animation:mfloat 3s ease-in-out infinite}
@@ -628,7 +637,7 @@ function picBox(id,emoji,alt){
 /* ══════ СТАН ══════ */
 const SAVE_KEY='sk_litery_v1';
 const REWARD_KEY='sk_litery_reward_v1';   // «Вітаємо» за літери показано
-const PRIZE_KEY='sk_litery_prize_v1';     // нагороду за всі ігри вже показано
+const PRIZE_KEY='sk_litery_prize_v2';     // нагороду за всі ігри вже показано (v2: див. sk-rewards.js)
 /* Старі ключі писались через дефіс (sk-litery-…). firebase-config синхронізує
    лише простір sk_* (підкреслення), тож дефісні ключі не прив'язувались до Героя
    й були спільні для всіх на пристрої (звідси «100% у всіх»). Прибираємо їх
@@ -781,7 +790,9 @@ async function openPrize(){
   /* Замок ставимо ЛИШЕ коли нагорода справді бралась. Якщо дитина була офлайн
      (чи зайшла не Героєм), res.skipped — і наступного разу попап спробує ще раз,
      інакше нагорода згоріла б назавжди. */
-  if(res && !res.skipped){ try{ localStorage.setItem(PRIZE_KEY,'1'); }catch(e){} }
+  /* Замок — лише коли нагорода справді збереглась у базі. Офлайн (skipped)
+     або відмова запису (failed) → наступного разу спробуємо ще раз. */
+  if(res && !res.skipped && !res.failed){ try{ localStorage.setItem(PRIZE_KEY,'1'); }catch(e){} }
   else prizeShown=false;
 }
 
@@ -818,6 +829,14 @@ async function claimAndFill(){
   let res=null;
   try{ if(window.SKREWARD) res=await SKREWARD.claim(TR_HREF); }catch(e){ res=null; }
   if(!res || res.skipped) return res||{skipped:true};   // не сесія Героя / офлайн → просто свято
+  if(res.failed){                                       // база не прийняла запис
+    if(gotEl){ gotEl.style.display='';
+      /* Дитині — зрозуміла фраза, дорослому поруч — технічна причина
+         (напр. inventory: permission-denied), щоб було видно без консолі. */
+      gotEl.innerHTML='Нагорода не збереглась — заберемо її, щойно буде звʼязок 🎁'
+        +'<span class="win-why">'+escH(res.failed.join(' · '))+'</span>'; }
+    return res;
+  }
   if(res.already){ if(gotEl){ gotEl.style.display=''; gotEl.textContent='Нагороду вже отримано 🎁'; } return res; }
 
   if(res.coins>0 && coinsEl){ coinsEl.style.display=''; coinsEl.innerHTML='+'+res.coins+' <span>🪙</span> монет'; }
@@ -1316,7 +1335,7 @@ refreshStart();
 <script type="module" src="../firebase-config.js"></script>
 <script src="../sk-items.js?v=1"></script>
 <script src="../sk-curriculum.js?v=7"></script>
-<script src="../sk-rewards.js?v=1"></script>
+<script src="../sk-rewards.js?v=2"></script>
 
 <script src="../sk-finish.js?v=4"></script>
 </body>

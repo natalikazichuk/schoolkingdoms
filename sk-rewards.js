@@ -23,7 +23,9 @@
    і виклик у момент повного проходження:
      const res = await SKREWARD.claim();
 
-   Повертає {skipped, reason, already, coins, items:[{id,name,img,bonus}], stat}.
+   Повертає {skipped, reason, already, failed, coins, items:[{id,name,img,bonus}], stat}.
+   Якщо запис у базу не пройшов (правила, офлайн), повертається failed[] —
+   замок знімається, щоб нагорода не згоріла, і сторінка каже про це дитині.
    Без сесії Героя / без запису в базі — {skipped:true}: сторінка просто
    святкує без нагороди, нічого не ламається.
    ============================================================ */
@@ -35,6 +37,19 @@
   var STAT_BASE    = { health: 50, mana: 20, agility: 50, accuracy: 50 };
 
   function param(n) { try { return new URLSearchParams(location.search).get(n); } catch (e) { return null; } }
+
+  /* Корінь сайту рахуємо від власного <script src>: тренажери лежать у
+     підпапках (doshkilya/, klas-1/), тож 'img/items/…' звідти вело б у нікуди. */
+  var SELF = (document.currentScript && document.currentScript.src) || '';
+  var BASE_URL = SELF ? SELF.replace(/[?#].*$/, '').replace(/[^/]*$/, '') : '';
+
+  /* Картинка предмета. Поле img в адмінці — лише для зовнішнього посилання;
+     свої файли лежать за домовленістю в img/items/<id>.webp. */
+  function itemImg(base) {
+    var u = String((base && base.img) || '').trim();
+    if (/^https?:\/\//i.test(u)) return u;
+    return BASE_URL + 'img/items/' + encodeURIComponent(base.id) + '.webp';
+  }
   function num(v) { var n = Number(v); return isFinite(n) ? n : 0; }
 
   /* Стат у картці міг лишитись підписом («Точність 🎯») — канонізуємо. */
@@ -87,9 +102,13 @@
     });
   }
 
-  function guardKey(rec) { return 'sk_reward_' + String(rec.id || '').replace(/[^\w-]/g, ''); }
+  /* v2: у першій версії замок ставився ДО запису в базу, тож невдала видача
+     (відмова правил) блокувала нагороду назавжди. Нова назва ключа дає тим
+     Героям ще одну спробу. */
+  function guardKey(rec) { return 'sk_reward2_' + String(rec.id || '').replace(/[^\w-]/g, ''); }
   function wasClaimed(rec) { try { return !!localStorage.getItem(guardKey(rec)); } catch (e) { return false; } }
   function markClaimed(rec) { try { localStorage.setItem(guardKey(rec), String(Date.now())); } catch (e) {} }
+  function unmarkClaimed(rec) { try { localStorage.removeItem(guardKey(rec)); } catch (e) {} }
 
   /* Розіграти слоти нагород. Шанс — на весь слот; слот без предмета
      (самі монети) не розігрується, а видається завжди. */
@@ -122,24 +141,45 @@
           : { uid: 'inv_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6),
               id: base.id, qty: 1, bonus: 1, durMax: null, durCur: null, identified: false };
         instances.push(inst);
-        items.push({ id: base.id, name: base.name || base.id, img: base.img || '', bonus: inst.bonus });
+        items.push({ id: base.id, name: base.name || base.id, img: itemImg(base), bonus: inst.bonus });
       });
       return { items: items, instances: instances };
     });
   }
 
+  /* Кожен запис у базу перевіряємо окремо: false або виняток — це відмова
+     (найчастіше правила Firestore), і про неї треба знати, а не мовчки
+     «видати» нагороду лише на екрані. */
+  function job(name, p) {
+    return p.then(
+      function (r) { return { name: name, ok: r !== false, value: r }; },
+      function (e) { return { name: name, ok: false, err: String((e && (e.code || e.message)) || e) }; }
+    );
+  }
+
   function grantStat(rec) {
     var key = statKey(rec.stat);
     var val = Math.max(0, Math.floor(num(rec.statValue)));
-    if (!key || !val) return Promise.resolve(null);
+    if (!key || !val) return Promise.resolve({ name: 'stat', ok: true, value: null });
     return SK.getHero().then(function (h) {
       h = h || {};
       var cur = (h[key] != null) ? num(h[key]) : (STAT_BASE[key] || 0);
       var patch = {}; patch[key] = cur + val;
-      return SK.saveHeroStats(patch).then(function () {
-        return { key: key, label: statLabel(key), value: val };
+      return SK.saveHeroStats(patch).then(function (r) {
+        return { name: 'stat', ok: r !== false, value: { key: key, label: statLabel(key), value: val } };
       });
-    }).catch(function () { return null; });
+    }).catch(function (e) { return { name: 'stat', ok: false, err: String((e && (e.code || e.message)) || e) }; });
+  }
+
+  /* Предмет справді ліг у heroes/{id}.inventory? Перечитуємо — так ловимо
+     відмову правил, яку сам запис міг не повернути. */
+  function verifyItems(instances) {
+    if (!instances.length) return Promise.resolve(true);
+    return SK.getInventory().then(function (inv) {
+      var have = {};
+      (inv || []).forEach(function (x) { if (x && x.uid) have[x.uid] = 1; });
+      return instances.every(function (i) { return have[i.uid]; });
+    }).catch(function () { return false; });
   }
 
   var SKREWARD = {
@@ -161,13 +201,28 @@
 
           return buildInstances(roll.itemIds).then(function (built) {
             var jobs = [];
-            if (built.instances.length) jobs.push(SK.addToInventory(built.instances).catch(function () {}));
-            if (roll.coins > 0) jobs.push(SK.addCoins(roll.coins).catch(function () {}));
+            if (built.instances.length) jobs.push(job('inventory', SK.addToInventory(built.instances)));
+            if (roll.coins > 0) jobs.push(job('coins', SK.addCoins(roll.coins)));
             jobs.push(grantStat(rec));
-            return Promise.all(jobs).then(function (r) {
-              var stat = r[r.length - 1] || null;
-              try { if (SK.pushLocal) SK.pushLocal().catch(function () {}); } catch (e) {}
-              return { coins: roll.coins, items: built.items, stat: stat, recordId: rec.id };
+            return Promise.all(jobs).then(function (results) {
+              return verifyItems(built.instances).then(function (inInventory) {
+                var failed = results.filter(function (r) { return !r.ok; })
+                  .map(function (r) { return r.name + (r.err ? ' (' + r.err + ')' : ''); });
+                if (!inInventory) failed.push('inventory (предмет не зʼявився в базі)');
+
+                var stat = null;
+                results.forEach(function (r) { if (r.name === 'stat' && r.ok) stat = r.value; });
+                try { if (SK.pushLocal) SK.pushLocal().catch(function () {}); } catch (e) {}
+
+                if (failed.length) {
+                  /* Нічого (або не все) не записалось — знімаємо замок, щоб
+                     нагорода не згоріла, і кажемо про це вголос. */
+                  unmarkClaimed(rec);
+                  try { console.error('[sk-rewards] нагорода не збереглась:', failed.join(', ')); } catch (e) {}
+                  return { failed: failed, coins: roll.coins, items: built.items, stat: stat, recordId: rec.id };
+                }
+                return { coins: roll.coins, items: built.items, stat: stat, recordId: rec.id };
+              });
             });
           });
         });
