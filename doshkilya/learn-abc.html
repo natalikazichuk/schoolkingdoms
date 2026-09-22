@@ -711,7 +711,7 @@ function updateLearnBar(){
 function speakCard(){
   userGesture=true;
   const it=ABC[idx];
-  const text=it.speak || (it.L+'. '+it.w+'.');
+  const text=it.speak || [it.L, it.w];     // масив = дві репліки з паузою між ними
   playAudio('../audio/abc_'+it.id+'.mp3', text, 'cardSpeak');
 }
 
@@ -1227,6 +1227,8 @@ function distinctLetters(correct,n){
 /* ══════════════ АУДІО ══════════════
    Спершу mp3 (audio/abc_<id>.mp3), якщо нема — синтез англ. голосом. */
 let curAudio=null, ukVoices=[], chosenVoice=null;
+const SPEAK_GAP=850;                       // пауза між літерою і словом, мс
+let speakGapTimer=null, speakSeq=0;
 function playAudio(url, text, btnId){
   if(!state.soundOn) return;
   stopAudio();
@@ -1245,14 +1247,28 @@ function playAudio(url, text, btnId){
 function speakTTS(text,btnId){
   if(!('speechSynthesis' in window)||!text) return;
   try{ speechSynthesis.cancel(); }catch(e){}
-  const u=new SpeechSynthesisUtterance(text);
-  if(chosenVoice){ u.voice=chosenVoice; u.lang=chosenVoice.lang; } else { u.lang='en-US'; }
-  u.rate=0.85; u.pitch=1.05;
-  u.onstart=()=>setSpeakOn(btnId,true);
-  u.onend=()=>setSpeakOn(btnId,false);
-  try{ speechSynthesis.speak(u); }catch(e){}
+  const parts=(Array.isArray(text)?text:[text]).filter(Boolean);
+  if(!parts.length) return;
+  clearTimeout(speakGapTimer);
+  const seq=++speakSeq;                    // cancel() кличе onend, тож старий ланцюжок не має продовжуватись
+  let i=0;
+  const say=function(){
+    if(seq!==speakSeq) return;
+    const u=new SpeechSynthesisUtterance(parts[i]);
+    if(chosenVoice){ u.voice=chosenVoice; u.lang=chosenVoice.lang; } else { u.lang='en-US'; }
+    u.rate=0.85; u.pitch=1.05;
+    u.onstart=()=>setSpeakOn(btnId,true);
+    u.onend=function(){
+      if(seq!==speakSeq) return;
+      if(++i<parts.length){ speakGapTimer=setTimeout(say,SPEAK_GAP); }   // чутна пауза перед словом
+      else setSpeakOn(btnId,false);
+    };
+    try{ speechSynthesis.speak(u); }catch(e){}
+  };
+  say();
 }
 function stopAudio(){
+  speakSeq++; clearTimeout(speakGapTimer);   // недомовлене слово не має наздогнати наступну картку
   if(curAudio){ try{curAudio.pause();curAudio.currentTime=0;}catch(e){} curAudio=null; }
   if('speechSynthesis' in window){ try{speechSynthesis.cancel();}catch(e){} }
   setSpeakOn('cardSpeak',false);
