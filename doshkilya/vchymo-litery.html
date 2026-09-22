@@ -819,7 +819,6 @@ const TR_HREF=(location.pathname.split('/').pop()||'').toLowerCase()||'vchymo-li
 /* Забрати нагороду й наповнити попап. Реальна видача (інвентар + монети,
    одноразово) робиться в SK.grantTrainerReward усередині SKREWARD.claim. */
 async function claimAndFill(){
-  function escH(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
   function bonusTxt(b){ return b>1.15?'+20%':(b>1?'+10%':(b<1?'−10%':'')); }
   const coinsEl=document.getElementById('winCoins');
   const gotEl=document.getElementById('winGot');
@@ -932,6 +931,29 @@ function renderGamesHub(){
   /* Другий шанс: якщо всі ігри пройдені, а нагорода ще не бралась (дитина була
      офлайн під час попапа) — пробуємо знову, щойно вона зайшла в хаб. */
   if(allGamesDone() && !localStorage.getItem(PRIZE_KEY)) setTimeout(openPrize,500);
+  /* Нагорода вже взята — тихо звіряємо, чи предмет справді лежить в інвентарі.
+     Якщо тоді не дійшов (правила, обрив) — SKREWARD докладе його ще раз, і ми
+     покажемо попап, щоб дитина побачила, що річ таки її. */
+  else if(allGamesDone()) checkLostPrize();
+}
+
+let lostChecked=false;
+async function checkLostPrize(){
+  if(lostChecked || !window.SKREWARD) return;
+  lostChecked=true;
+  let res=null;
+  try{ res=await SKREWARD.claim(TR_HREF); }catch(e){ res=null; }
+  if(!res || !res.restored || !res.items || !res.items.length) return;
+  fillWin({emoji:'🎁', title:'Ось твоя нагорода!', sub:'Вона не встигла зберегтись минулого разу.',
+           action:'🎮 Грати ще', onAction:'claimAndPlay()'});
+  const gotEl=document.getElementById('winGot'), rewrap=document.getElementById('winReward');
+  if(gotEl){ gotEl.style.display=''; gotEl.textContent='Ти отримав: '+res.items.map(x=>x.name).join(', ')+'!'; }
+  if(rewrap) rewrap.innerHTML=res.items.map(function(it){
+    return '<div class="reward-item"><span class="reward-new">НОВЕ</span>'
+      +'<div class="pic"><img src="'+escH(it.img)+'" alt="'+escH(it.name)+'" onerror="this.onerror=null;this.parentNode.textContent=\'🎁\'"></div>'
+      +'<div class="rx"><div class="rname">'+escH(it.name)+'</div>'
+      +'<div class="rmeta">Додано в інвентар героя</div></div></div>'; }).join('');
+  document.getElementById('winOv').classList.add('on');
 }
 function playGame(key){ if(!allLearned())return; startGame(key); }
 
@@ -1247,6 +1269,8 @@ function pick(a){ return a[randInt(a.length)]; }
 function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=randInt(i+1);[a[i],a[j]]=[a[j],a[i]];} return a; }
 function capFirst(w){ return w.charAt(0)+w.slice(1).toLowerCase(); } // ДІМ → Дім (для озвучки)
 function esc(s){ return String(s).replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+/* для вставки в innerHTML (назви предметів, шляхи картинок) */
+function escH(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
 /* 4 різні літери: правильна + випадкові з абетки */
 function distinctLetters(correct,n){
   const set=new Set([correct]);
@@ -1335,7 +1359,7 @@ refreshStart();
 <script type="module" src="../firebase-config.js"></script>
 <script src="../sk-items.js?v=1"></script>
 <script src="../sk-curriculum.js?v=7"></script>
-<script src="../sk-rewards.js?v=2"></script>
+<script src="../sk-rewards.js?v=3"></script>
 
 <script src="../sk-finish.js?v=4"></script>
 </body>

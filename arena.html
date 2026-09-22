@@ -2002,6 +2002,7 @@ var SLOT_DEFS=[
 ];
 var STAT_UK={agility:'спритність',accuracy:'точність',damage:'урон',armor:'броня',health:"здоров'я",mana:'мана',magicDamage:'магічний урон',magicResist:'магічна стійкість',critDamage:'шанс крит. урону',block:'шанс блоку',stun:'оглушення',healthRegen:"відновлення здоров'я",extraAttack:'додаткова атака',beltSlots:'комірки пояса'};
 var CATALOG=[], BYID={}, ALL_INST=[], INV=[], loaded=false, loading=false;
+var LOAD_ERR=null, MISSING=[];   /* чому інвентар порожній: помилка читання / предмет не з каталогу */
 var CATMAP={'Шоломи':'head','Обладунки':'body','Рукавиці':'gloves','Наручі':'bracers','Пояси':'belt','Штани':'pants','Взуття':'boots','Зброя':'weapon','Щити':'weapon','Кільце':'ring','Амулет':'amulet','Зелья':'other','Свиток':'other'};
 function mapCat(c){return CATMAP[c]||'other';}
 function entryOf(inst){var base=BYID[inst.id];if(!base)return null;return {uid:inst.uid,id:inst.id,qty:inst.qty||1,name:base.name,cat:mapCat(base.category),icon:'img/items/'+base.id+'.webp',_inst:inst,bonus:inst.bonus,identified:inst.identified,usable:!!base.consumable};}
@@ -2009,7 +2010,9 @@ var BELT=[];
 function rebuild(){
  for(var s in EQUIP)EQUIP[s]=null;
  var beltInst=[],rest=[];
- ALL_INST.forEach(function(inst){var e=entryOf(inst);if(!e)return;
+ MISSING=[];
+ ALL_INST.forEach(function(inst){var e=entryOf(inst);
+   if(!e){ if(MISSING.indexOf(inst.id)<0) MISSING.push(inst.id); return; }
    if(inst.slot&&/^belt\d+$/.test(inst.slot)){beltInst.push(inst);return;}
    if(inst.slot&&SLOT_CAT[inst.slot]!==undefined&&!EQUIP[inst.slot]&&compat(e.cat,inst.slot)){EQUIP[inst.slot]=e;}
    else{inst.slot=null;rest.push(e);}
@@ -2024,7 +2027,9 @@ function firstFreeBelt(){for(var i=0;i<BELT.length;i++)if(!BELT[i])return i;retu
 function equipToBelt(u,idx){var inst=findInst(u);if(!inst)return;var e=entryOf(inst);if(!e||!e.usable)return;if(idx<0||idx>=BELT.length)return;var cur=BELT[idx];if(cur&&cur._inst)cur._inst.slot=null;inst.slot='belt'+idx;rebuild();renderAll();persist();}
 function unequipBelt(idx){var e=BELT[idx];if(!e||!e._inst)return;e._inst.slot=null;rebuild();renderAll();persist();}
 function moveBelt(a,b){if(a===b)return;var ea=BELT[a];if(!ea)return;var eb=BELT[b];if(ea._inst)ea._inst.slot='belt'+b;if(eb&&eb._inst)eb._inst.slot='belt'+a;rebuild();renderAll();persist();}
-function persist(){try{if(window.SK&&SK.saveInventory)SK.saveInventory(ALL_INST);}catch(e){}}
+/* Пишемо інвентар лише якщо справді його прочитали: інакше невдале
+   завантаження (обрив, правила) затерло б у базі все, що там лежало. */
+function persist(){try{if(loaded&&window.SK&&SK.saveInventory)SK.saveInventory(ALL_INST);}catch(e){}}
 var EQUIP={helmet:null,armor:null,gloves:null,bracers:null,belt:null,pants:null,boots:null,weaponR:null,weaponL:null,ring1:null,ring2:null,amulet:null};
 var TABS=[
  ['all','Усі','🎒',function(){return true;}],
@@ -2070,7 +2075,11 @@ function renderSlots(){q('ek-slots').innerHTML=SLOT_DEFS.map(function(d){var id=
 
 function renderInv(){var f=null;for(var i=0;i<TABS.length;i++)if(TABS[i][0]===curTab)f=TABS[i][3];
  var list=INV.filter(function(x){return x.qty>0&&f(x.cat);});var g=q('ek-invGrid');
- if(!list.length){g.innerHTML='<div class="ek-empty">Порожньо</div>';return;}
+ if(!list.length){
+   var why='Порожньо';
+   if(LOAD_ERR) why='Не вдалося прочитати інвентар<br><small>'+esc(String(LOAD_ERR))+'</small>';
+   else if(MISSING.length) why='У базі є '+MISSING.length+' предмет(ів), але їх немає в каталозі:<br><small>'+esc(MISSING.join(', '))+'</small>';
+   g.innerHTML='<div class="ek-empty">'+why+'</div>';return;}
  g.innerHTML=list.map(function(x){return '<div class="ek-cell" data-uid="'+x.uid+'">'+
   '<span class="ek-chip ek-drag" data-src="inv" data-uid="'+x.uid+'" title="'+esc(bonusTitle(x))+'">'+iconHTML(x.icon)+'</span>'+
   (x.qty>1?'<span class="ek-qty">'+x.qty+'</span>':'')+'</div>';}).join('');}
@@ -2129,9 +2138,12 @@ document.addEventListener('pointerup',function(e){if(down&&down.started)endDrag(
 document.addEventListener('pointercancel',function(){cleanup();down=null;});
 document.addEventListener('click',function(e){var t=e.target.closest?e.target.closest('#ek-tabs .ek-tab'):null;if(!t)return;curTab=t.getAttribute('data-tab');renderTabs();renderInv();});
 
-function loadData(){if(loaded||loading)return Promise.resolve();loading=true;
- return (window.SK&&SK.ready?SK.ready:Promise.resolve()).then(function(){var pC=(window.SK&&SK.listItems)?SK.listItems():Promise.resolve([]);var pI=(window.SK&&SK.getInventory)?SK.getInventory():Promise.resolve([]);return Promise.all([pC,pI]);}).then(function(res){CATALOG=res[0]||[];BYID={};CATALOG.forEach(function(b){BYID[b.id]=b;});ALL_INST=(res[1]||[]).filter(function(x){return x&&x.id;});loaded=true;loading=false;rebuild();renderAll();}).catch(function(){loading=false;});}
-window.EKEQUIP={render:function(token,hd){if(hd){['health','mana','agility','accuracy','coins','baseHP'].forEach(function(k){if(hd[k]!=null)HERO[k]=hd[k];});if(hd.level!=null)LEVEL.level=hd.level;if(hd.xp!=null)LEVEL.xp=hd.xp;if(hd.xpMax!=null&&hd.xpMax>0)LEVEL.xpMax=hd.xpMax;if(hd.name!=null){var nn=document.getElementById('ek-heroName');if(nn)nn.textContent=hd.name;}if(hd.grade!=null){var gg=document.getElementById('ek-heroGrade');if(gg)gg.textContent=hd.grade;}}paintAvatar(token);renderAll();loadData();},reload:function(){loaded=false;return loadData();}};
+function loadData(){if(loaded||loading)return Promise.resolve();loading=true;LOAD_ERR=null;
+ return (window.SK&&SK.ready?SK.ready:Promise.resolve()).then(function(){var pC=(window.SK&&SK.listItems)?SK.listItems():Promise.resolve([]);var pI=(window.SK&&SK.getInventory)?SK.getInventory():Promise.resolve([]);return Promise.all([pC,pI]);}).then(function(res){CATALOG=res[0]||[];BYID={};CATALOG.forEach(function(b){BYID[b.id]=b;});ALL_INST=(res[1]||[]).filter(function(x){return x&&x.id;});loaded=true;loading=false;rebuild();renderAll();}).catch(function(e){loading=false;
+   LOAD_ERR=(e&&(e.code||e.message))||e;                       // причина замість мовчазного «Порожньо»
+   try{console.error('[гардероб] не вдалось прочитати предмети:',e);}catch(_){}
+   renderAll();});}
+window.EKEQUIP={render:function(token,hd){if(hd){['health','mana','agility','accuracy','coins','baseHP'].forEach(function(k){if(hd[k]!=null)HERO[k]=hd[k];});if(hd.level!=null)LEVEL.level=hd.level;if(hd.xp!=null)LEVEL.xp=hd.xp;if(hd.xpMax!=null&&hd.xpMax>0)LEVEL.xpMax=hd.xpMax;if(hd.name!=null){var nn=document.getElementById('ek-heroName');if(nn)nn.textContent=hd.name;}if(hd.grade!=null){var gg=document.getElementById('ek-heroGrade');if(gg)gg.textContent=hd.grade;}}paintAvatar(token);renderAll();loaded=false;loadData();},reload:function(){loaded=false;return loadData();}};
 function init(){renderAll();paintAvatar(null);loadData();}
 if(document.readyState!=='loading')init();else document.addEventListener('DOMContentLoaded',init);
 })();

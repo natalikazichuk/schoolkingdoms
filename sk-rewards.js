@@ -107,7 +107,21 @@
      Героям ще одну спробу. */
   function guardKey(rec) { return 'sk_reward2_' + String(rec.id || '').replace(/[^\w-]/g, ''); }
   function wasClaimed(rec) { try { return !!localStorage.getItem(guardKey(rec)); } catch (e) { return false; } }
-  function markClaimed(rec) { try { localStorage.setItem(guardKey(rec), String(Date.now())); } catch (e) {} }
+  function markClaimed(rec, payload) {
+    /* Пишемо не просто «видано», а що саме: за uid згодом видно, чи предмет
+       справді лежить в інвентарі, чи загубився дорогою. */
+    var v = { at: Date.now() };
+    if (payload) { v.coins = payload.coins || 0; v.uids = payload.uids || []; v.ids = payload.ids || []; }
+    try { localStorage.setItem(guardKey(rec), JSON.stringify(v)); } catch (e) {}
+  }
+  function claimedInfo(rec) {
+    try {
+      var raw = localStorage.getItem(guardKey(rec));
+      if (!raw) return null;
+      if (raw.charAt(0) !== '{') return { at: +raw || 0 };   // старий формат — просто час
+      return JSON.parse(raw) || null;
+    } catch (e) { return null; }
+  }
   function unmarkClaimed(rec) { try { localStorage.removeItem(guardKey(rec)); } catch (e) {} }
 
   /* Розіграти слоти нагород. Шанс — на весь слот; слот без предмета
@@ -182,6 +196,41 @@
     }).catch(function () { return false; });
   }
 
+  /* Нагороду вже брали. Перевіряємо, чи предмети з неї справді лежать в
+     інвентарі: якщо запис тоді не дійшов (правила, обрив звʼязку), тихо
+     докладаємо їх ще раз. Монети й характеристику не чіпаємо — вони або
+     записались, або ні, і подвоювати їх не можна. */
+  function restoreLost(rec) {
+    var info = claimedInfo(rec);
+    var uids = (info && info.uids) || [];
+    var ids  = (info && info.ids)  || [];
+    if (!uids.length) return Promise.resolve({ already: true, coins: 0, items: [] });
+    return SK.getInventory().then(function (inv) {
+      var have = {};
+      (inv || []).forEach(function (x) { if (x && x.uid) have[x.uid] = 1; });
+      var lostIds = [];
+      uids.forEach(function (u, i) { if (!have[u] && ids[i]) lostIds.push(ids[i]); });
+      if (!lostIds.length) return { already: true, coins: 0, items: [] };
+      return buildInstances(lostIds).then(function (built) {
+        if (!built.instances.length) return { already: true, coins: 0, items: [] };
+        return job('inventory', SK.addToInventory(built.instances)).then(function (r) {
+          return verifyItems(built.instances).then(function (ok) {
+            if (!r.ok || !ok) {
+              try { console.error('[sk-rewards] загублений предмет не вдалось повернути'); } catch (e) {}
+              return { already: true, failed: ['inventory (не вдалось повернути предмет)'], coins: 0, items: [] };
+            }
+            /* Оновлюємо замок новими uid, щоб наступна перевірка шукала їх. */
+            markClaimed(rec, { coins: (info && info.coins) || 0,
+              uids: built.instances.map(function (i) { return i.uid; }),
+              ids: built.items.map(function (i) { return i.id; }) });
+            try { if (SK.pushLocal) SK.pushLocal().catch(function () {}); } catch (e) {}
+            return { already: true, restored: true, coins: 0, items: built.items };
+          });
+        });
+      });
+    }).catch(function () { return { already: true, coins: 0, items: [] }; });
+  }
+
   var SKREWARD = {
     /* Забрати нагороду за повне проходження. hrefFallback — ім'я сторінки,
        якщо вона відкрита без ?skdone (напр. 'vchymo-litery.html'). */
@@ -194,7 +243,7 @@
 
         return findRecord(hrefFallback).then(function (rec) {
           if (!rec) return { skipped: true, reason: 'no-record' };
-          if (wasClaimed(rec)) return { already: true, coins: 0, items: [] };
+          if (wasClaimed(rec)) return restoreLost(rec);
 
           markClaimed(rec);                       // спершу замок, потім видача:
           var roll = rollSlots(rec.rewards);      // подвійний клік не подвоїть нагороду
@@ -214,6 +263,11 @@
                 results.forEach(function (r) { if (r.name === 'stat' && r.ok) stat = r.value; });
                 try { if (SK.pushLocal) SK.pushLocal().catch(function () {}); } catch (e) {}
 
+                if (!failed.length) {
+                  markClaimed(rec, { coins: roll.coins,
+                    uids: built.instances.map(function (i) { return i.uid; }),
+                    ids: built.items.map(function (i) { return i.id; }) });
+                }
                 if (failed.length) {
                   /* Нічого (або не все) не записалось — знімаємо замок, щоб
                      нагорода не згоріла, і кажемо про це вголос. */
