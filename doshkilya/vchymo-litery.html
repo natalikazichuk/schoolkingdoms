@@ -84,12 +84,22 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .sub{color:var(--soft);font-weight:800;margin:0;font-size:16px}
 .rhyme{background:#fff;border:3px dashed #cdd8ea;border-radius:20px;padding:13px 18px;
   font-style:italic;color:#3a5a8c;font-weight:800;max-width:400px;margin:2px auto 0;box-shadow:var(--e1)}
-.start-hero{max-width:440px;width:100%;margin:0 auto;flex:1 1 auto;min-height:0;
+.start-hero{max-width:440px;width:100%;margin:0 auto;flex:1 1 auto;min-height:120px;
   max-height:clamp(170px,34vh,340px);display:flex;align-items:center;justify-content:center;overflow:hidden}
 .start-hero img{max-width:100%;max-height:100%;width:auto;height:auto;display:block}
 .start-btns{display:flex;flex-direction:column;gap:10px;max-width:440px;margin:2px auto 0;width:100%}
 .big-btn.blue.locked{background:#3d76bd;box-shadow:0 6px 0 #2d5990}
 .big-btn.blue.locked:active{box-shadow:0 3px 0 #2d5990}
+/* «Тренажер пройдено» — одразу під назвою, замість підказки-віршика */
+.done-card{display:none;align-items:center;gap:12px;max-width:440px;width:100%;margin:2px auto 0;
+  background:linear-gradient(180deg,#fffdf4,#fff6df);border:3px solid #f4c842;border-radius:20px;
+  padding:10px 14px;text-align:left;box-shadow:0 0 0 3px #fff9e6,var(--e2)}
+.done-card.on{display:flex}
+.done-card .dc-ic{font-size:30px;flex:none;animation:dctrophy 2.4s ease-in-out infinite}
+@keyframes dctrophy{0%,100%{transform:rotate(0)}45%{transform:rotate(-8deg) scale(1.08)}70%{transform:rotate(6deg)}}
+.done-card .dc-body{flex:1;min-width:0}
+.done-card .dc-got{font-family:'Fredoka';font-weight:700;font-size:15px;color:#8a5e16;line-height:1.2}
+.done-card .dc-go{font-weight:800;font-size:12px;color:var(--soft);margin-top:3px;line-height:1.25}
 .prog-card{display:flex;align-items:center;gap:12px;background:#fff;border:3px solid var(--line);
   border-radius:20px;padding:12px 16px;max-width:440px;margin:2px auto 0;width:100%;box-shadow:var(--e2)}
 .prog-card .pc-ic{font-size:26px;flex:none}
@@ -422,7 +432,15 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
     </div>
     <h1>Вчимо літери!</h1>
     <p class="sub">Абетка для найменших · 33 літери</p>
-    <p class="rhyme">Літеру побачив — назви.<br>Послухай, як вона звучить!</p>
+    <p class="rhyme" id="startRhyme">Літеру побачив — назви.<br>Послухай, як вона звучить!</p>
+
+    <div class="done-card" id="startDone">
+      <span class="dc-ic">🏆</span>
+      <div class="dc-body">
+        <div class="dc-got" id="doneGot">Тренажер пройдено!</div>
+        <div class="dc-go" id="doneGo">Вирушай за новими досягненнями!</div>
+      </div>
+    </div>
 
     <div class="start-hero" id="startHero">
       <img src="../img/tr/vchymo-litery.webp?v=3" alt="" onerror="this.closest('.start-hero').style.display='none'">
@@ -685,6 +703,40 @@ function refreshStart(){
   const gb=document.getElementById('startGamesBtn');
   gb.textContent = done ? '🎮 Гратися в ігри' : '🔒 Ігри (вивчи всі літери)';
   gb.classList.toggle('locked',!done);
+  renderDoneCard();
+}
+
+/* Що саме дитина отримала за цей тренажер (з PRIZE_KEY). Старе значення '1'
+   означає «пройдено, подробиць не лишилось». */
+function prizeSummary(){
+  let raw=null;
+  try{ raw=localStorage.getItem(PRIZE_KEY); }catch(e){}
+  if(!raw) return null;
+  if(raw.charAt(0)!=='{') return {};
+  try{ return JSON.parse(raw)||{}; }catch(e){ return {}; }
+}
+function renderDoneCard(){
+  const card=document.getElementById('startDone'); if(!card) return;
+  const p=prizeSummary();
+  card.classList.toggle('on',!!p);
+  const rhyme=document.getElementById('startRhyme');
+  if(rhyme) rhyme.style.display = p ? 'none' : '';   // замість підказки — нагорода
+  const learnBtn=document.querySelector('#start .start-btns .big-btn');
+  if(learnBtn) learnBtn.textContent = p ? '↻ Повторити літери' : '📚 Вчити літери ▶';
+  if(!p) return;
+  /* Перший рядок — головне (що за річ), другий — дрібниці й заклик.
+     Стат показуємо значком із підпису («Здоровʼя ❤️» → ❤️), щоб було коротко. */
+  document.getElementById('doneGot').textContent = (p.names && p.names.length)
+    ? ('Ти отримав нагороду — '+p.names.join(', ')+'!')
+    : 'Тренажер пройдено — нагороду отримано!';
+  const bits=[];
+  if(p.coins) bits.push(p.coins+' 🪙');
+  if(p.stat && p.stat.value){
+    const ic=(String(p.stat.label||'').match(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF\u2764\uFE0F]+/u)||[''])[0];
+    bits.push('+'+p.stat.value+' '+(ic||p.stat.label));
+  }
+  bits.push('Вирушай за новими досягненнями!');
+  document.getElementById('doneGo').textContent = bits.join(' · ');
 }
 
 /* ══════ КАРТКА ЛІТЕРИ ══════ */
@@ -792,7 +844,16 @@ async function openPrize(){
      інакше нагорода згоріла б назавжди. */
   /* Замок — лише коли нагорода справді збереглась у базі. Офлайн (skipped)
      або відмова запису (failed) → наступного разу спробуємо ще раз. */
-  if(res && !res.skipped && !res.failed){ try{ localStorage.setItem(PRIZE_KEY,'1'); }catch(e){} }
+  if(res && !res.skipped && !res.failed){
+    /* Зберігаємо не «1», а що саме отримано — щоб стартовий екран міг
+       одразу написати «Ти отримав нагороду — …» без звернення до бази. */
+    try{ localStorage.setItem(PRIZE_KEY, JSON.stringify({
+      at:Date.now(), coins:res.coins||0,
+      names:(res.items||[]).map(function(i){return i.name;}),
+      stat:res.stat?{label:res.stat.label,value:res.stat.value}:null
+    })); }catch(e){}
+    refreshStart();
+  }
   else prizeShown=false;
 }
 
@@ -819,7 +880,6 @@ const TR_HREF=(location.pathname.split('/').pop()||'').toLowerCase()||'vchymo-li
 /* Забрати нагороду й наповнити попап. Реальна видача (інвентар + монети,
    одноразово) робиться в SK.grantTrainerReward усередині SKREWARD.claim. */
 async function claimAndFill(){
-  function escH(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
   function bonusTxt(b){ return b>1.15?'+20%':(b>1?'+10%':(b<1?'−10%':'')); }
   const coinsEl=document.getElementById('winCoins');
   const gotEl=document.getElementById('winGot');
@@ -932,6 +992,29 @@ function renderGamesHub(){
   /* Другий шанс: якщо всі ігри пройдені, а нагорода ще не бралась (дитина була
      офлайн під час попапа) — пробуємо знову, щойно вона зайшла в хаб. */
   if(allGamesDone() && !localStorage.getItem(PRIZE_KEY)) setTimeout(openPrize,500);
+  /* Нагорода вже взята — тихо звіряємо, чи предмет справді лежить в інвентарі.
+     Якщо тоді не дійшов (правила, обрив) — SKREWARD докладе його ще раз, і ми
+     покажемо попап, щоб дитина побачила, що річ таки її. */
+  else if(allGamesDone()) checkLostPrize();
+}
+
+let lostChecked=false;
+async function checkLostPrize(){
+  if(lostChecked || !window.SKREWARD) return;
+  lostChecked=true;
+  let res=null;
+  try{ res=await SKREWARD.claim(TR_HREF); }catch(e){ res=null; }
+  if(!res || !res.restored || !res.items || !res.items.length) return;
+  fillWin({emoji:'🎁', title:'Ось твоя нагорода!', sub:'Вона не встигла зберегтись минулого разу.',
+           action:'🎮 Грати ще', onAction:'claimAndPlay()'});
+  const gotEl=document.getElementById('winGot'), rewrap=document.getElementById('winReward');
+  if(gotEl){ gotEl.style.display=''; gotEl.textContent='Ти отримав: '+res.items.map(x=>x.name).join(', ')+'!'; }
+  if(rewrap) rewrap.innerHTML=res.items.map(function(it){
+    return '<div class="reward-item"><span class="reward-new">НОВЕ</span>'
+      +'<div class="pic"><img src="'+escH(it.img)+'" alt="'+escH(it.name)+'" onerror="this.onerror=null;this.parentNode.textContent=\'🎁\'"></div>'
+      +'<div class="rx"><div class="rname">'+escH(it.name)+'</div>'
+      +'<div class="rmeta">Додано в інвентар героя</div></div></div>'; }).join('');
+  document.getElementById('winOv').classList.add('on');
 }
 function playGame(key){ if(!allLearned())return; startGame(key); }
 
@@ -1247,6 +1330,8 @@ function pick(a){ return a[randInt(a.length)]; }
 function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=randInt(i+1);[a[i],a[j]]=[a[j],a[i]];} return a; }
 function capFirst(w){ return w.charAt(0)+w.slice(1).toLowerCase(); } // ДІМ → Дім (для озвучки)
 function esc(s){ return String(s).replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+/* для вставки в innerHTML (назви предметів, шляхи картинок) */
+function escH(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
 /* 4 різні літери: правильна + випадкові з абетки */
 function distinctLetters(correct,n){
   const set=new Set([correct]);
@@ -1335,7 +1420,7 @@ refreshStart();
 <script type="module" src="../firebase-config.js"></script>
 <script src="../sk-items.js?v=1"></script>
 <script src="../sk-curriculum.js?v=7"></script>
-<script src="../sk-rewards.js?v=2"></script>
+<script src="../sk-rewards.js?v=3"></script>
 
 <script src="../sk-finish.js?v=4"></script>
 </body>
