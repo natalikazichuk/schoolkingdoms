@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Читаємо по звуках — англійська</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<style>
+:root{
+  --ink:#2c2b3a;--soft:#6b6a7d;--paper:#fff9ef;--line:#ece3d2;--card:#fff;
+  --red:#ff6b6b;--orange:#ffa94d;--yellow:#ffd43b;--green:#51cf66;--teal:#22b8cf;
+  --blue:#4dabf7;--indigo:#748ffc;--purple:#cc5de8;--pink:#f783ac;
+  --good:#37b26f;--good-bg:#e4f7ec;--bad:#e06666;--bad-bg:#fbe7e7;
+
+  /* ── СЕМАНТИКА КОЛЬОРІВ (ролі, а не просто кольори) ── */
+  --coral:#ff7a5c;          /* літера / поточне завдання — фірмовий колір алфавіту */
+  --primary:var(--blue);    /* основна дія */
+  --success:var(--green);   /* успіх */
+  --learn:var(--teal);      /* навчальний контент (прогрес) */
+  --nav:#16294f;            /* навігація */
+
+  /* ── ЄДИНА СИСТЕМА ELEVATION (мʼякі тіні для поверхонь) ── */
+  --e1:0 1px 3px rgba(44,43,58,.14);    /* рівень 1 — дрібні контроли (іконки) */
+  --e2:0 5px 16px rgba(44,43,58,.10);   /* рівень 2 — картки / поверхні */
+  --e3:0 12px 28px rgba(44,43,58,.16);  /* рівень 3 — оверлеї / модалки */
+  /* тактильна база для натискних кнопок (суцільний зсув) */
+  --shadow:0 6px 0 rgba(44,43,58,.13);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  font-family:'Nunito',system-ui,sans-serif;color:var(--ink);
+  background:
+    radial-gradient(circle at 12% 8%,rgba(255,212,59,.28),transparent 42%),
+    radial-gradient(circle at 88% 14%,rgba(77,171,247,.26),transparent 44%),
+    radial-gradient(circle at 78% 92%,rgba(204,93,232,.22),transparent 46%),
+    radial-gradient(circle at 8% 86%,rgba(81,207,102,.24),transparent 44%),
+    var(--paper);
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  padding:14px;padding-bottom:calc(82px + env(safe-area-inset-bottom));
+}
+.wrap{width:100%;max-width:540px;flex:1;display:flex;flex-direction:column}
+h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px}
+.screen{display:none;flex:1;flex-direction:column}
+.screen.on{display:flex;animation:pop .32s ease}
+@keyframes pop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ── дрібні кнопки ── */
+.iconbtn{width:44px;height:44px;border:2px solid var(--line);background:#fff;border-radius:14px;
+  font-size:20px;cursor:pointer;display:grid;place-items:center;flex:none;color:var(--ink)}
+.iconbtn.off{opacity:.4}
+.abcbtn{font-family:'Fredoka',sans-serif;font-weight:700;font-size:15px;letter-spacing:.5px;color:var(--coral)}
+.sndbtn svg{width:22px;height:22px;display:block}
+.iconbtn:active{transform:translateY(2px)}
+.big-btn{border:none;border-radius:18px;padding:16px 20px;font-family:'Fredoka';font-size:20px;
+  cursor:pointer;color:#fff;background:var(--primary);box-shadow:0 6px 0 #2f8fd6;width:100%}
+.big-btn:active{transform:translateY(3px);box-shadow:0 3px 0 #2f8fd6}
+.big-btn.blue{background:var(--primary);box-shadow:0 6px 0 #2f8fd6}
+.big-btn.blue:active{box-shadow:0 3px 0 #2f8fd6}
+.big-btn.success{background:var(--success);box-shadow:0 6px 0 #37a052}
+.big-btn.success:active{box-shadow:0 3px 0 #37a052}
+.big-btn:disabled{filter:grayscale(.5);opacity:.65;cursor:not-allowed}
+
+/* ══════════════ START ══════════════ */
+#start{justify-content:flex-start;text-align:center;gap:11px;padding-top:6px;position:relative}
+/* Стартовий екран теж вміщаємо над фіксованим футером, щоб прогрес-бар було
+   видно без прокрутки. Картинка героя — гнучка: стискається, коли місця мало. */
+#start.screen{min-height:0}
+#start.screen.on{flex:0 0 auto;height:calc(100dvh - 96px - env(safe-area-inset-bottom));overflow-y:auto}
+.start-top{position:absolute;top:22px;left:0;width:auto;margin:0;z-index:5}
+.abc-blocks{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:6px 0 2px}
+.ab{position:relative;width:64px;height:64px;border-radius:18px;display:grid;place-items:center;
+  font-family:'Fredoka';font-weight:700;font-size:34px;color:#fff;transform:rotate(var(--r));
+  box-shadow:0 6px 0 rgba(0,0,0,.14),inset 0 -5px 0 rgba(0,0,0,.12),inset 0 3px 0 rgba(255,255,255,.28)}
+.ab::after{content:attr(data-o);position:absolute;right:-9px;bottom:-9px;font-size:23px;
+  filter:drop-shadow(0 1px 1px rgba(0,0,0,.25))}
+.ab:nth-child(1){background:var(--red);--r:-7deg}.ab:nth-child(2){background:var(--orange);--r:5deg}
+.ab:nth-child(3){background:var(--green);--r:-4deg}.ab:nth-child(4){background:var(--blue);--r:6deg}
+.ab:nth-child(5){background:var(--purple);--r:-5deg}
+#start h1{font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:38px;margin:8px 0 0;line-height:1.05;color:#1e3a6b}
+.sub{color:var(--soft);font-weight:800;margin:0;font-size:16px}
+.rhyme{background:#fff;border:3px dashed #cdd8ea;border-radius:20px;padding:13px 18px;
+  font-style:italic;color:#3a5a8c;font-weight:800;max-width:400px;margin:2px auto 0;box-shadow:var(--e1)}
+.start-hero{max-width:440px;width:100%;margin:0 auto;flex:1 1 auto;min-height:120px;
+  max-height:clamp(170px,34vh,340px);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.start-hero img{max-width:100%;max-height:100%;width:auto;height:auto;display:block}
+.start-btns{display:flex;flex-direction:column;gap:10px;max-width:440px;margin:2px auto 0;width:100%}
+.big-btn.blue.locked{background:#3d76bd;box-shadow:0 6px 0 #2d5990}
+.big-btn.blue.locked:active{box-shadow:0 3px 0 #2d5990}
+/* «Тренажер пройдено» — одразу під назвою, замість підказки-віршика */
+.done-card{display:none;align-items:center;gap:12px;max-width:440px;width:100%;margin:2px auto 0;
+  background:linear-gradient(180deg,#fffdf4,#fff6df);border:3px solid #f4c842;border-radius:20px;
+  padding:10px 14px;text-align:left;box-shadow:0 0 0 3px #fff9e6,var(--e2)}
+.done-card.on{display:flex}
+.done-card .dc-ic{font-size:30px;flex:none;animation:dctrophy 2.4s ease-in-out infinite}
+@keyframes dctrophy{0%,100%{transform:rotate(0)}45%{transform:rotate(-8deg) scale(1.08)}70%{transform:rotate(6deg)}}
+.done-card .dc-body{flex:1;min-width:0}
+.done-card .dc-got{font-family:'Fredoka';font-weight:700;font-size:15px;color:#8a5e16;line-height:1.2}
+.done-card .dc-go{font-weight:800;font-size:12px;color:var(--soft);margin-top:3px;line-height:1.25}
+.prog-card{display:flex;align-items:center;gap:12px;background:#fff;border:3px solid var(--line);
+  border-radius:20px;padding:12px 16px;max-width:440px;margin:2px auto 0;width:100%;box-shadow:var(--e2)}
+.prog-card .pc-ic{font-size:26px;flex:none}
+.prog-card .pc-body{flex:1;min-width:0;text-align:left}
+.prog-card .pc-txt{font-family:'Fredoka';font-weight:700;color:var(--ink);font-size:16px;margin-bottom:7px}
+.prog-card .pc-bar{height:12px;background:#efe6d3;border-radius:999px;overflow:hidden}
+.prog-card .pc-bar>span{display:block;height:100%;width:0;border-radius:999px;
+  background:linear-gradient(90deg,#51cf66,#94e08a);transition:width .5s ease}
+.prog-card .pc-star{font-size:22px;flex:none;filter:grayscale(1) opacity(.55);transition:filter .3s,transform .3s}
+.prog-card.done{border-color:#f4c842;box-shadow:0 0 0 3px #fff3c9,var(--e2)}
+.prog-card.done .pc-star{filter:none;animation:pcstar 1.2s ease-in-out infinite}
+@keyframes pcstar{0%,100%{transform:scale(1)}50%{transform:scale(1.18) rotate(8deg)}}
+
+/* ── верхня панель ── */
+.topbar{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.topbar .title{flex:1;min-width:0;font-family:'Fredoka';font-size:20px;line-height:1.1}
+.topbar .title small{display:block;font-family:'Nunito';font-weight:800;font-size:12px;color:var(--soft)}
+.progress-line{flex:1;min-width:0}
+.bar{height:12px;background:#f0e7d6;border-radius:8px;overflow:hidden}
+.bar>span{display:block;height:100%;background:linear-gradient(90deg,var(--learn),#63d3e3);
+  border-radius:8px;transition:width .45s}
+.progress-line .pt{font-weight:800;font-size:12px;color:var(--soft);margin:3px 2px 0;display:block}
+
+/* вибір голосу */
+.voice-row{display:flex;align-items:center;gap:8px;font-size:.82rem;color:var(--soft);
+  font-weight:800;margin:0 0 10px;padding:6px 10px;background:#fff;border:2px solid var(--line);border-radius:12px}
+.voice-row.hidden{display:none}
+.voice-row select{font:800 .82rem 'Nunito',sans-serif;color:var(--ink);border:none;background:transparent;flex:1;min-width:0}
+.voice-row select:focus{outline:2px solid var(--yellow)}
+
+/* ══════════════ LEARN — картка літери ══════════════ */
+#learn{gap:12px}
+.card-stage{flex:1;display:flex;flex-direction:column;min-height:0}
+.letter-card{background:var(--card);border-radius:28px;box-shadow:var(--e2);
+  border:4px solid #fff;overflow:hidden;position:relative;cursor:pointer;transition:transform .12s;
+  display:flex;flex-direction:column;flex:1;min-height:0}
+.letter-card:active{transform:scale(.985)}
+.lc-head{padding:26px 18px 14px;display:flex;align-items:flex-end;justify-content:center;gap:6px;
+  color:#fff;background:linear-gradient(180deg,#ff8a6b,#ff6f52)}
+.lc-big{font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:104px;line-height:1.16;
+  transform:translateY(var(--lraise,0px));
+  background:linear-gradient(180deg,#fff 0%,#fff 52%,#e7ecf6 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;
+  filter:drop-shadow(0 3px 0 rgba(0,0,0,.16)) drop-shadow(0 7px 9px rgba(0,0,0,.20))}
+.lc-small{font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:58px;line-height:1.16;opacity:.96;
+  transform:translateY(var(--lraise,0px));
+  background:linear-gradient(180deg,#fff 0%,#fff 52%,#e7ecf6 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;
+  filter:drop-shadow(0 2px 0 rgba(0,0,0,.14)) drop-shadow(0 5px 7px rgba(0,0,0,.18))}
+/* Блок зображення завжди максимального розміру (flex:1), картинка підлаштовується (contain) */
+.pic-wrap{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;cursor:pointer}
+.lc-pic{background:#f5eeda;display:flex;align-items:center;justify-content:center;position:relative;padding:10px;flex:1;min-height:0;overflow:hidden}
+.lc-pic img{position:absolute;inset:8px;width:calc(100% - 16px);height:calc(100% - 16px);object-fit:contain;display:block}
+.lc-emoji{font-size:96px;line-height:1}
+.lc-draft{position:absolute;left:10px;bottom:8px;font-size:11px;font-weight:800;color:#b9ad93;
+  background:rgba(255,255,255,.8);border-radius:8px;padding:2px 8px}
+.lc-word{padding:6px 4px 4px;text-align:center;background:#fff}
+.lc-word b{font-family:'Fredoka';font-size:30px;display:block}
+.lc-word b .hl{color:var(--coral)}
+.lc-word .note{color:var(--soft);font-weight:800;font-size:13px;margin-top:2px;display:block}
+.lc-listen{display:inline-flex;align-items:center;gap:6px;margin-top:10px;border:none;cursor:pointer;
+  background:var(--blue);color:#fff;font-family:'Fredoka';font-weight:600;font-size:15px;
+  padding:8px 16px;border-radius:999px;box-shadow:0 4px 0 #2f8fd6}
+.lc-listen:active{transform:translateY(3px);box-shadow:0 2px 0 #2f8fd6}
+.lc-listen .ic{font-size:16px;line-height:1;display:inline-flex}
+.lc-listen .ic svg{width:16px;height:16px;display:block}
+.lc-listen b{font-weight:700}
+.lc-listen.on{animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+
+/* Ряд надписів зі стрілками навігації по боках */
+.word-row{display:flex;align-items:center;gap:8px;background:#fff;padding:4px 10px 8px}
+.word-col{flex:1;min-width:0}
+.card-nav{flex:none;width:46px;height:46px;border-radius:50%;
+  border:none;background:#fff;color:var(--ink);font-family:'Fredoka';font-size:30px;line-height:0;
+  display:grid;place-items:center;cursor:pointer;box-shadow:0 4px 10px rgba(0,0,0,.18);z-index:3;transition:transform .1s}
+.card-nav:active{transform:scale(.9)}
+.card-nav:disabled{opacity:.28;pointer-events:none;box-shadow:none}
+
+/* ── Екран літери вміщається над фіксованим футером (десктоп / низька висота вікна).
+   Раніше на десктопі картка (min-height 40vh) + банер + стрілки виходили за екран,
+   і нижній ряд стрілок ховався під футером. Тепер екран обмежений по висоті,
+   а картинка стискається, щоб «←  X/33  →» завжди були видимі. ── */
+#learn.screen{min-height:0}
+#learn.screen.on{flex:0 0 auto;height:calc(100dvh - 96px - env(safe-area-inset-bottom))}
+#learn .card-stage{flex:1 1 auto;min-height:0}
+#learn .letter-card{flex:1 1 auto;min-height:0;max-height:min(100%,760px);margin:0 auto;width:100%}
+#learn .lc-head,#learn .word-row{flex:none}
+#learn .lc-pic{flex:1 1 auto;min-height:0}
+/* низькі вікна (десктоп-ландшафт): стискаємо картку, щоб кнопка й стрілки не підрізались */
+@media (max-height:760px){
+  #learn .lc-head{padding:10px 16px 6px}
+  #learn .lc-big{font-size:74px}
+  #learn .lc-small{font-size:42px}
+  #learn .word-row{padding:2px 10px 6px}
+  #learn .lc-word{padding:6px 8px 6px}
+  #learn .lc-word b{font-size:24px}
+  #learn .lc-listen{margin-top:8px;padding:9px 18px;font-size:16px}
+}
+
+/* ── СВЯТКОВА НАГОРОДА ── */
+.win-ov{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
+  padding:18px;background:rgba(28,27,42,.62);overflow:hidden}
+.win-ov.on{display:flex}
+.win-confetti{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.win-card{position:relative;z-index:1;width:100%;max-width:400px;background:var(--paper);
+  border-radius:26px;padding:24px 20px 20px;text-align:center;box-shadow:var(--e3);
+  animation:winpop .42s cubic-bezier(.2,1.35,.4,1) both}
+@keyframes winpop{from{opacity:0;transform:scale(.82) translateY(18px)}to{opacity:1;transform:none}}
+.win-emoji{font-size:46px;line-height:1}
+.win-title{font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:24px;color:var(--coral);margin:6px 0 2px}
+.win-sub{color:var(--ink);font-weight:800;font-size:15px;margin:0 0 14px}
+.win-got{font-family:'Fredoka';font-weight:700;font-size:17px;color:var(--coral);margin:0 0 12px;line-height:1.2}
+.win-why{display:block;margin-top:6px;font-family:'Nunito',sans-serif;font-weight:700;
+  font-size:11px;color:var(--soft);word-break:break-word}
+.win-stat{display:inline-flex;align-items:center;gap:8px;background:#eaf7ef;border:2px solid #9ad8b4;
+  color:#1f7a4d;font-family:'Fredoka';font-weight:700;font-size:16px;padding:7px 16px;border-radius:999px;margin:0 0 10px}
+.gtile.done{border-color:#9ad8b4;background:#f4fcf7}
+.done-note{color:var(--good);font-family:'Fredoka';font-weight:700;font-size:15px;margin:8px 0 0}
+.retry-note{font-size:14px;margin-top:8px}
+.gtile.done .go{color:var(--good)}
+.win-coins{display:inline-flex;align-items:center;gap:8px;background:#fff6df;border:2px solid #f4c842;
+  color:#8a5e16;font-family:'Fredoka';font-weight:700;font-size:20px;padding:8px 18px;border-radius:999px;margin-bottom:16px}
+.reward-item{position:relative;display:flex;align-items:center;gap:14px;text-align:left;background:#fff;
+  border:3px solid var(--line);border-radius:20px;padding:14px;box-shadow:var(--e2);margin-bottom:18px}
+.reward-new{position:absolute;top:-9px;left:12px;background:var(--coral);color:#fff;font-family:'Fredoka';
+  font-weight:700;font-size:10px;letter-spacing:.5px;padding:2px 9px;border-radius:8px}
+.reward-item .pic{width:88px;height:88px;flex:none;border-radius:16px;display:grid;place-items:center;
+  font-size:46px;background:linear-gradient(160deg,#efe4ff,#d3bcff);box-shadow:inset 0 -4px 0 rgba(0,0,0,.08)}
+.reward-item .pic img{width:100%;height:100%;object-fit:contain;padding:8px}
+.reward-item .rx{flex:1;min-width:0}
+.reward-item .rname{font-family:'Fredoka';font-weight:700;font-size:17px;color:var(--ink);margin-bottom:5px;line-height:1.15}
+.reward-item .rstat{display:inline-block;background:var(--good-bg);color:var(--good);font-weight:800;font-size:13px;padding:3px 10px;border-radius:8px}
+.reward-item .rmeta{color:var(--soft);font-weight:700;font-size:12px;margin-top:5px}
+.win-actions{display:flex;flex-direction:column;gap:8px}
+.win-close{background:none;border:none;color:var(--soft);font-family:'Nunito',sans-serif;font-weight:800;
+  font-size:15px;cursor:pointer;padding:6px}
+
+/* ── сітка всіх літер ── */
+.grid-ov{position:fixed;inset:0;background:rgba(44,43,58,.55);z-index:50;display:none;
+  padding:16px;overflow:auto}
+.grid-ov.on{display:block;animation:pop .25s ease}
+.grid-inner{max-width:540px;margin:0 auto;background:var(--paper);border-radius:22px;padding:16px;box-shadow:var(--e3)}
+.grid-inner h3{margin:2px 0 12px;text-align:center;font-size:20px}
+.abc-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.gcell{aspect-ratio:1;border-radius:14px;border:none;font-family:'Fredoka';font-size:24px;
+  color:#fff;cursor:pointer;position:relative;box-shadow:inset 0 -4px 0 rgba(0,0,0,.12)}
+.gcell.learned::after{content:"✓";position:absolute;top:2px;right:5px;font-size:11px;color:#fff}
+.gcell.cur{outline:3px solid var(--ink);outline-offset:2px}
+
+/* ══════════════ GAMES HUB ══════════════ */
+#games{gap:12px}
+.games-lock{background:#fff;border:3px dashed var(--line);border-radius:20px;padding:22px 18px;
+  text-align:center;display:none}
+.games-lock.on{display:block}
+.games-lock .lk{font-size:44px}
+.games-lock h3{margin:8px 0 4px;font-size:22px}
+.games-list{display:flex;flex-direction:column;gap:12px}
+.games-list.locked{opacity:.45;pointer-events:none;filter:grayscale(.6)}
+.gtile{display:flex;align-items:center;gap:14px;background:#fff;border:3px solid var(--line);
+  border-radius:20px;padding:14px;cursor:pointer;box-shadow:var(--e2);transition:transform .12s,box-shadow .12s}
+.gtile:active{transform:translateY(1px) scale(.99);box-shadow:var(--e1)}
+.gtile .ic{width:60px;height:60px;border-radius:18px;flex:none;display:grid;place-items:center;
+  font-size:30px;color:#fff;background-color:var(--c,var(--blue));
+  background-image:linear-gradient(180deg,rgba(255,255,255,.32),rgba(255,255,255,0) 45%),
+                  linear-gradient(0deg,rgba(0,0,0,.18),rgba(0,0,0,0) 42%);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.4),inset 0 -5px 0 rgba(0,0,0,.18),0 4px 9px rgba(0,0,0,.20);
+  text-shadow:0 2px 3px rgba(0,0,0,.28)}
+.gtile .ic .gapU{font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:26px;line-height:1;
+  padding:0 3px 3px;border-bottom:4px solid rgba(255,255,255,.9);border-radius:2px}
+.gtile .tx{flex:1;min-width:0}
+.gtile .tx b{font-family:'Fredoka';font-size:19px;display:block;line-height:1.1}
+.gtile .tx span{color:var(--soft);font-size:13px;font-weight:800}
+.gtile .go{font-size:24px;color:var(--soft)}
+
+/* ══════════════ PLAY ══════════════ */
+#play{gap:8px}
+.play-top{display:flex;align-items:center;gap:10px}
+.dots-row{display:flex;gap:5px;flex:1;flex-wrap:wrap}
+.dots-row i{flex:1;min-width:12px;height:11px;border-radius:4px;background:#ecdfca}
+.dots-row i.ok{background:var(--green)}.dots-row i.no{background:#cdbfa6}
+.qbox{background:#fff;border:3px solid var(--line);border-radius:24px;box-shadow:var(--e2);
+  padding:12px 14px;text-align:center;position:relative}
+.qlabel{color:var(--coral);font-weight:800;font-size:13px;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px}
+.q-emoji{font-size:64px;line-height:1;margin:0;min-height:100px;display:flex;align-items:center;justify-content:center}
+.q-emoji img{max-width:150px;max-height:100px;width:auto;height:auto;object-fit:contain;display:block}
+.q-word{font-family:'Fredoka';font-size:40px;letter-spacing:4px;margin:4px 0 2px}
+.q-word .gap{display:inline-block;min-width:.62em;text-align:center;color:var(--coral);border-bottom:5px solid var(--coral);border-radius:2px}
+.q-word .gap.filled{color:var(--good);border-bottom-color:var(--good);animation:gappop .35s ease}
+@keyframes gappop{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.25)}100%{transform:scale(1)}}
+/* літера, що летить із кнопки у пропуск */
+.fly-letter{position:fixed;z-index:70;pointer-events:none;font-family:'Fredoka';font-weight:700;
+  color:var(--good);line-height:1;will-change:transform,opacity;text-shadow:0 3px 6px rgba(0,0,0,.18)}
+.q-speak{margin-top:8px;background:var(--blue);color:#fff;border:none;border-radius:14px;
+  padding:9px 16px;font-family:'Fredoka';font-size:16px;cursor:pointer;box-shadow:0 4px 0 #2f8fd6}
+.q-speak:active{transform:translateY(3px);box-shadow:0 1px 0 #2f8fd6}
+.q-sub{color:var(--soft);font-weight:800;margin:8px 0 0;font-size:15px}
+.q-ask{font-family:'Fredoka';font-weight:700;color:var(--ink);font-size:18px;margin:0}
+.sound-fx{position:relative;display:flex;align-items:center;justify-content:center;gap:6px;
+  width:100%;height:92px;margin:0 auto;cursor:pointer}
+.sound-fx .sf-ic{font-size:46px;filter:drop-shadow(0 3px 5px rgba(0,0,0,.2));animation:sfbob 1.8s ease-in-out infinite}
+.sf-arcs{display:inline-flex;align-items:center;gap:5px}
+.sf-arcs i{display:block;border:5px solid transparent;border-right-color:var(--blue);border-radius:50%;
+  animation:sfarc 1.5s ease-in-out infinite}
+.sf-arcs i:nth-child(1){width:11px;height:20px;animation-delay:0s}
+.sf-arcs i:nth-child(2){width:16px;height:32px;animation-delay:.18s}
+.sf-arcs i:nth-child(3){width:21px;height:44px;animation-delay:.36s}
+.sf-note{position:absolute;font-size:17px;pointer-events:none;animation:sffloat 2.4s ease-in-out infinite}
+.sf-note.n1{left:24%;top:0;animation-delay:0s}
+.sf-note.n2{right:20%;top:-2px;font-size:14px;animation-delay:.6s}
+.sf-note.n3{left:20%;bottom:4px;font-size:14px;animation-delay:1.2s}
+.sound-fx.on .sf-ic{animation-duration:.55s}
+.sound-fx.on .sf-arcs i{animation-duration:.7s}
+@keyframes sfarc{0%,100%{opacity:.16;transform:translateX(0)}50%{opacity:1;transform:translateX(3px)}}
+@keyframes sfbob{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-5px) rotate(4deg)}}
+@keyframes sffloat{0%,100%{transform:translateY(0);opacity:.5}50%{transform:translateY(-9px);opacity:1}}
+.listen-btn{display:inline-flex;align-items:center;gap:10px;border:none;cursor:pointer;margin-top:4px;
+  background:var(--blue);color:#fff;font-family:'Fredoka';font-weight:700;font-size:16px;
+  padding:8px 20px 8px 8px;border-radius:999px;box-shadow:0 5px 0 #2f8fd6}
+.listen-btn:active{transform:translateY(3px);box-shadow:0 2px 0 #2f8fd6}
+.listen-btn .pic{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.24);
+  display:grid;place-items:center;font-size:15px}
+@media(prefers-reduced-motion:reduce){
+  .sound-fx .sf-ic,.sf-arcs i,.sf-note{animation:none}
+  .sf-arcs i{opacity:.7}.sf-note{opacity:.8}}
+
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.opt{position:relative;background:#fff;border:3px solid var(--line);border-radius:18px;padding:11px 8px;
+  font-family:'Fredoka';font-size:28px;cursor:pointer;box-shadow:0 5px 0 rgba(44,43,58,.13);transition:transform .1s;color:var(--ink)}
+.opt.word{font-size:20px}
+/* мʼякі пастельні картки за позицією */
+.opts .opt:nth-child(1){background:#f3e8ff;border-color:#d8b4fe;box-shadow:0 5px 0 #c9a3f5}
+.opts .opt:nth-child(2){background:#e3f0ff;border-color:#9ec5fe;box-shadow:0 5px 0 #8fb8f5}
+.opts .opt:nth-child(3){background:#fde7f1;border-color:#f7a8cd;box-shadow:0 5px 0 #ef8fbc}
+.opts .opt:nth-child(4){background:#ffeede;border-color:#ffc98f;box-shadow:0 5px 0 #f5bd7f}
+.opts .opt:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(44,43,58,.22)}
+.opt.correct{background:var(--good-bg)!important;border-color:var(--good)!important;color:var(--good)!important;box-shadow:0 5px 0 #86d3a6!important}
+.opt.correct::after{content:"⭐";position:absolute;top:5px;right:9px;font-size:16px}
+.opt.shake{animation:optshake .45s cubic-bezier(.36,.07,.19,.97)}
+@keyframes optshake{10%,90%{transform:translateX(-2px)}20%,80%{transform:translateX(4px)}30%,50%,70%{transform:translateX(-7px)}40%,60%{transform:translateX(7px)}}
+.opt.miss{background:var(--bad-bg)!important;border-color:var(--bad)!important;
+  color:var(--bad)!important;box-shadow:none!important;opacity:.45}
+.opt:disabled{cursor:default}
+.round-label{text-align:center;font-family:'Fredoka';font-weight:700;color:var(--coral);font-size:14px;margin:-2px 0 0}
+/* Екран гри теж обмежуємо висотою вікна: тоді маскот стоїть рівно над
+   футером — не заїжджає під нього на невисоких екранах і не висить
+   посеред порожнечі. Питання з варіантами за потреби прокручується. */
+#play.screen{min-height:0}
+#play.screen.on{flex:0 0 auto;height:calc(100dvh - 96px - env(safe-area-inset-bottom))}
+#play>.play-top,#play>.round-label,#play>.feedback,#play>#playNext,#play>.mascot{flex:none}
+#play>#playBody{flex:1 1 auto;min-height:0;overflow-y:auto}
+.mascot{margin-top:auto;display:flex;flex-direction:row;align-items:flex-end;justify-content:flex-end;
+  gap:10px;opacity:.96;pointer-events:none;padding:4px 2px 0;width:100%}
+.mascot .m-ic{line-height:0;font-size:54px;filter:drop-shadow(0 4px 5px rgba(0,0,0,.15));animation:mfloat 3s ease-in-out infinite}
+.mascot .m-ic img.m-full{height:132px;width:auto;display:block;filter:drop-shadow(0 5px 6px rgba(0,0,0,.22))}
+.mascot .m-ic img.m-photo{width:84px;height:84px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:var(--e2);display:block}
+.mascot .m-bubble{position:relative;align-self:center;margin-bottom:28px;background:#fff;border:2px solid var(--line);
+  border-radius:16px;padding:8px 14px;font-family:'Fredoka';font-weight:700;font-size:14px;color:var(--soft);box-shadow:var(--e1)}
+.mascot .m-bubble::after{content:"";position:absolute;right:-8px;top:50%;transform:translateY(-50%);
+  border:7px solid transparent;border-left-color:#fff}
+/* нижчі екрани — зменшуємо, але лишаємо героя внизу */
+@media(max-height:760px){.mascot .m-ic img.m-full{height:106px}.mascot .m-bubble{margin-bottom:22px}}
+@media(max-height:680px){.mascot .m-ic img.m-full{height:86px}.mascot .m-bubble{font-size:12px;padding:6px 10px;margin-bottom:16px}}
+@media(max-height:600px){.mascot{display:none}}
+@keyframes mfloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@media(prefers-reduced-motion:reduce){.mascot .m-ic{animation:none}}
+
+/* склади слово */
+.slots{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:14px 0 4px}
+.slot{width:52px;height:60px;border-radius:14px;border:3px dashed var(--line);background:#faf4e6;
+  display:grid;place-items:center;font-family:'Fredoka';font-size:34px;color:var(--ink)}
+.slot.full{border-style:solid;border-color:var(--green);background:var(--good-bg);color:var(--good)}
+.tiles{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:6px}
+.tile{width:56px;height:64px;border-radius:16px;border:none;background:var(--blue);color:#fff;
+  font-family:'Fredoka';font-size:34px;cursor:pointer;box-shadow:0 5px 0 #2f8fd6}
+.tile:active{transform:translateY(3px);box-shadow:0 2px 0 #2f8fd6}
+.tile.used{opacity:.28;pointer-events:none}
+
+/* пам'ять / знайди пару */
+.mem-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.mem{aspect-ratio:1;border-radius:16px;border:none;font-family:'Fredoka';font-size:30px;cursor:pointer;
+  background:var(--indigo);color:transparent;box-shadow:0 5px 0 rgba(0,0,0,.18);transition:transform .1s}
+.mem:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.2)}
+.mem.up{color:#fff;background:var(--purple)}
+.mem.matched{background:var(--good);color:#fff;pointer-events:none;box-shadow:0 5px 0 #37a052}
+.mem.wrong{background:var(--bad);color:#fff}
+
+.feedback{border-radius:18px;padding:10px;text-align:center;font-weight:800;font-size:16px;display:none}
+.feedback.on{display:block}
+.feedback.good{background:var(--good-bg);color:var(--good)}
+.feedback.bad{background:var(--bad-bg);color:var(--bad)}
+
+/* результат */
+.result-card{background:#fff;border:3px solid var(--line);border-radius:26px;padding:26px 20px;
+  box-shadow:var(--e2);text-align:center}
+.big-stars{font-size:52px;letter-spacing:8px}
+.big-stars .s{color:#e5dcc9}
+.big-stars .s.f{color:var(--yellow);animation:star .4s ease both}
+.big-stars .s.f:nth-child(2){animation-delay:.15s}.big-stars .s.f:nth-child(3){animation-delay:.3s}
+@keyframes star{from{transform:scale(0) rotate(-40deg)}to{transform:none}}
+.result-card h2{font-size:28px;margin:10px 0 4px}
+.btn-row{display:flex;gap:10px}
+.btn-row .big-btn{font-size:17px;padding:15px}
+
+.foot{text-align:center;color:var(--soft);font-size:12px;font-weight:800;padding:12px 0 2px}
+.no-voice .lc-listen,.no-voice .q-speak,.no-voice .listen-btn,.no-voice .voice-row{display:none!important}
+@media(max-width:380px){.lc-big{font-size:80px}.lc-small{font-size:46px}.abc-grid{grid-template-columns:repeat(5,1fr)}}
+@media(max-width:440px){
+  /* абетка в один рядок + компактніший старт, щоб кнопки й прогрес влізли на телефоні */
+  .abc-blocks{gap:8px;margin:2px 0;padding-left:48px}  /* лишаємо місце під стрілку зліва */
+  .ab{width:52px;height:52px;border-radius:14px;font-size:28px}
+  .ab::after{font-size:19px;right:-7px;bottom:-7px}
+  #start{gap:8px;padding-top:8px}
+  #start h1{font-size:30px}
+  .sub{font-size:14px}
+  .rhyme{padding:9px 14px;font-size:14px;border-radius:16px}
+  .start-btns{gap:8px}
+  #start .big-btn{padding:13px 18px;font-size:18px}
+  .prog-card{padding:10px 14px}
+  .prog-card .pc-txt{margin-bottom:5px}
+}
+
+/* ══════════════ PHONICS: плитки звуків на картці ══════════════
+   Голосні — червоні, приголосні — сині, «дві букви — один звук» — фіолетові.
+   «Злий звуки» підсвічує плитки по черзі, а потім зсуває їх в одне слово. */
+#learn .lc-head{flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:12px 12px 12px}
+.stage-chip{font-family:'Fredoka';font-weight:600;font-size:13px;color:#fff;background:rgba(255,255,255,.22);
+  border-radius:999px;padding:3px 12px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ph-tiles{display:flex;gap:10px;justify-content:center;align-items:flex-start;flex-wrap:nowrap;transition:gap .35s ease;max-width:100%}
+.ph{display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;border:0;background:none;padding:0;min-width:0}
+.ph b{display:block;background:#fff;border-radius:16px;padding:2px 12px 6px;min-width:62px;text-align:center;
+  font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:58px;line-height:1.16;color:#1e3a6b;
+  box-shadow:0 5px 0 rgba(0,0,0,.14);transition:transform .15s,background .15s,border-radius .35s}
+.ph.v b{color:#e8453c}
+.ph.dg b{color:#8a3fd1}
+.ph small{font-family:'Nunito';font-weight:800;font-size:12px;color:#fff;white-space:nowrap;min-height:15px;transition:opacity .25s}
+.ph.lit b{background:#fff3b0;transform:translateY(-6px)}
+.ph:active b{transform:translateY(3px)}
+.ph-tiles.merged{gap:0}
+.ph-tiles.merged .ph b{border-radius:0}
+.ph-tiles.merged .ph:first-child b{border-radius:16px 0 0 16px}
+.ph-tiles.merged .ph:last-child b{border-radius:0 16px 16px 0}
+.ph-tiles.merged small{opacity:0}
+.ph-tiles.n4 .ph b{font-size:50px;min-width:52px;padding:2px 9px 6px}
+.ph-tiles.n5 .ph b{font-size:44px;min-width:46px;padding:2px 8px 6px}
+.ph-tiles.syl .ph b{font-size:40px;padding:4px 12px 8px}
+.ph-tiles.one .ph b{font-size:96px;min-width:128px;padding:2px 26px 8px}
+.ph-tiles.one small{font-size:15px}
+#learn .lc-word b .hl{color:#e8453c}
+#learn .lc-word .tr{color:var(--soft);font-family:'Nunito';font-weight:800;font-size:15px;margin-left:6px}
+.legend{display:flex;gap:12px;justify-content:center;font-weight:800;font-size:11px;color:var(--soft);margin:-4px 0 0}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+
+/* список етапів (замість сітки літер) */
+.st-list{display:flex;flex-direction:column;gap:10px}
+.st-row{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:#fff;border:3px solid var(--line);
+  border-radius:18px;padding:10px 12px;cursor:pointer;box-shadow:var(--e1);font:inherit;color:var(--ink)}
+.st-row.cur{border-color:var(--coral)}
+.st-row.done{border-color:#9ad8b4;background:#f4fcf7}
+.st-num{width:40px;height:40px;border-radius:12px;flex:none;display:grid;place-items:center;color:#fff;
+  font-family:'Fredoka';font-weight:700;font-size:20px;box-shadow:inset 0 -4px 0 rgba(0,0,0,.14)}
+.st-tx{flex:1;min-width:0}
+.st-tx b{font-family:'Fredoka';font-size:17px;display:block;line-height:1.15}
+.st-tx span{color:var(--soft);font-size:13px;font-weight:800}
+.st-pr{font-family:'Fredoka';font-weight:700;font-size:14px;color:var(--soft);white-space:nowrap}
+.st-row.done .st-pr{color:var(--good)}
+.abcbtn.st{font-size:13px;letter-spacing:0}
+
+@media (max-height:760px){
+  .ph b{font-size:46px}
+  .ph-tiles.n4 .ph b{font-size:40px}
+  .ph-tiles.n5 .ph b{font-size:36px}
+  .ph-tiles.syl .ph b{font-size:34px}
+  .ph-tiles.one .ph b{font-size:72px;min-width:104px}
+  #learn .lc-head{gap:5px;padding:8px 10px}
+}
+@media (max-width:380px){
+  .ph-tiles{gap:7px}
+  .ph b{font-size:44px;min-width:48px;padding:2px 8px 5px}
+  .ph-tiles.n4 .ph b{font-size:38px;min-width:42px;padding:2px 7px 5px}
+  .ph-tiles.n5 .ph b{font-size:32px;min-width:36px;padding:2px 6px 5px}
+  .ph-tiles.syl .ph b{font-size:30px;padding:4px 9px 7px}
+}
+.ab.two{font-size:27px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ══════ START ══════ -->
+  <section id="start" class="screen on">
+    <div class="start-top">
+      <button class="iconbtn" onclick="stopAudio();location.href=(window.skBackUrl?skBackUrl('tests.html'):'../tests.html')" title="Назад до тестів" aria-label="Назад до тестів">←</button>
+    </div>
+    <div class="abc-blocks">
+      <div class="ab" data-o="☀️">s</div><div class="ab" data-o="🍎">a</div><div class="ab" data-o="🐯">t</div><div class="ab two" data-o="🚢">sh</div><div class="ab two" data-o="🦆">ck</div>
+    </div>
+    <h1>Читаємо по звуках</h1>
+    <p class="sub">Англійська · phonics · 7 етапів</p>
+    <p class="rhyme" id="startRhyme">Кожна буква — це звук.<br>Злий звуки разом — і вийде слово!</p>
+
+    <div class="done-card" id="startDone">
+      <span class="dc-ic">🏆</span>
+      <div class="dc-body">
+        <div class="dc-got" id="doneGot">Тренажер пройдено!</div>
+        <div class="dc-go" id="doneGo">Вирушай за новими досягненнями!</div>
+      </div>
+    </div>
+
+    <div class="start-hero" id="startHero">
+      <img src="../img/tr/chytaemo-po-zvukakh.webp?v=1" alt="" onerror="this.closest('.start-hero').style.display='none'">
+    </div>
+
+    <div class="start-btns">
+      <button class="big-btn" id="startLearnBtn" onclick="startLearn()">📚 Читати по звуках ▶</button>
+      <button class="big-btn blue" onclick="goGames()">🏆 Випробування: 5 ігор</button>
+    </div>
+
+    <div class="prog-card" id="startProgCard">
+      <span class="pc-ic">📘</span>
+      <div class="pc-body">
+        <div class="pc-txt" id="startProgTxt">Прочитано 0</div>
+        <div class="pc-bar"><span id="startProgFill" style="width:0%"></span></div>
+      </div>
+      <span class="pc-star" id="startProgStar">⭐</span>
+    </div>
+  </section>
+
+  <!-- ══════ LEARN ══════ -->
+  <section id="learn" class="screen">
+    <div class="topbar">
+      <button class="iconbtn" onclick="goStart()" title="Назад">←</button>
+      <div class="progress-line">
+        <div class="bar"><span id="learnBar" style="width:0%"></span></div>
+        <span class="pt" id="learnPt">0 / 0</span>
+      </div>
+      <button class="iconbtn abcbtn st" onclick="openGrid()" title="Усі етапи" aria-label="Усі етапи">1–7</button>
+      <button class="iconbtn sndbtn" onclick="toggleSound()" title="Звук уроку" aria-label="Звук уроку"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a8 8 0 0 1 0 12"/></svg></button>
+    </div>
+    <div class="voice-row hidden" id="voiceRow">
+      <span>🎙</span><select id="voiceSel" aria-label="Голос"></select>
+    </div>
+
+    <div class="card-stage">
+      <div class="letter-card" id="letterCard" onclick="speakCard()">
+        <div class="lc-head" id="lcHead">
+          <span class="stage-chip" id="stChip">Етап 1</span>
+          <div class="ph-tiles" id="phTiles"></div>
+        </div>
+        <div class="pic-wrap" onclick="event.stopPropagation();move(1)" title="Наступна картка">
+          <div class="lc-pic" id="lcPic"></div>
+        </div>
+        <div class="word-row">
+          <button class="card-nav prev" id="prevB" onclick="event.stopPropagation();move(-1)" aria-label="Попередня картка">‹</button>
+          <div class="word-col">
+            <div class="lc-word"><b id="lcWord">cat</b><span class="note" id="lcNote"></span>
+              <button class="lc-listen" id="cardSpeak" onclick="event.stopPropagation();speakCard()" aria-label="Прослухати"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a8 8 0 0 1 0 12"/></svg></span> <span id="listenTx">Злий звуки</span></button>
+            </div>
+          </div>
+          <button class="card-nav next" id="nextB" onclick="event.stopPropagation();move(1)" aria-label="Наступна картка">›</button>
+        </div>
+      </div>
+    </div>
+    <div class="legend" aria-hidden="true"><span><i style="background:#e8453c"></i>голосний</span><span><i style="background:#1e3a6b"></i>приголосний</span><span><i style="background:#8a3fd1"></i>дві букви — один звук</span></div>
+  </section>
+
+</div>
+
+<!-- список етапів -->
+<div class="grid-ov" id="gridOv" onclick="if(event.target===this)closeGrid()">
+  <div class="grid-inner">
+    <h3>Обери етап</h3>
+    <div class="st-list" id="stList"></div>
+    <button class="big-btn blue" style="margin-top:14px" onclick="closeGrid()">Закрити</button>
+  </div>
+</div>
+
+<!-- ══════ СВЯТКОВА НАГОРОДА ══════ -->
+<div class="win-ov" id="winOv" onclick="if(event.target===this)closeWin()">
+  <canvas class="win-confetti" id="winConfetti"></canvas>
+  <div class="win-card">
+    <div class="win-emoji">🎉</div>
+    <div class="win-title">Вітаємо!</div>
+    <div class="win-sub">Ти прочитав усі слова по звуках!</div>
+    <div class="win-got" id="winGot" style="display:none"></div>
+    <div class="win-coins" id="winCoins" style="display:none">+0 <span>🪙</span> монет</div>
+    <div class="win-stat" id="winStat" style="display:none"></div>
+    <div id="winReward"></div>
+    <div class="win-actions">
+      <button class="big-btn success" onclick="claimAndPlay()">🏆 До випробування</button>
+      <button class="win-close" onclick="closeWin()">Закрити</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ ПОВТОРНЕ ПРОХОДЖЕННЯ ══════ -->
+<div class="win-ov" id="againOv" onclick="if(event.target===this)closeAgain()">
+  <div class="win-card">
+    <div class="win-emoji">🌟</div>
+    <div class="win-title">Молодець!</div>
+    <div class="win-sub">Ти вже читаєш усі ці слова. Спробуй випробування! 🏆</div>
+    <div class="win-actions">
+      <button class="big-btn success" onclick="againPlay()">🏆 До випробування</button>
+      <button class="win-close" onclick="closeAgain()">Ще погортати картки</button>
+    </div>
+  </div>
+</div>
+
+<script src="../sk-footer.js?v=5" data-base="../" data-back="tests.html"></script>
+<script src="../sk-phonics.js?v=1"></script>
+
+<script>
+/* ============================================================
+   ЧИТАЄМО ПО ЗВУКАХ (англійська, phonics) — картки.
+   Дані (етапи, слова, звуки) — спільні з «Випробуванням»: ../sk-phonics.js (SKPH).
+   Прогрес: localStorage 'sk_phonics_v1' (простір sk_* — синхронізується per-Hero).
+   Нагорода з адмінки — один раз, коли прочитано всі картки (PRIZE_KEY).
+   ============================================================ */
+const BASE='../';
+const P=window.SKPH;
+const CARDS=P.cards();
+const ALL=CARDS.length;
+const ST_COL=['var(--red)','var(--orange)','var(--green)','var(--teal)','var(--blue)','var(--purple)','var(--pink)'];
+
+/* ══════ СТАН ══════ */
+const SAVE_KEY='sk_phonics_v1';
+const PRIZE_KEY='sk_phonics_prize_v1';    // нагороду за всі картки вже взято
+let state={learned:{},soundOn:true,pos:0};
+let idx=0, userGesture=false, picToken=0, againShown=false, prizeShown=false;
+let prizeTried=false;   // попап нагороди — не частіше разу за сесію (офлайн / не Герой → не набридаємо на кожній картці)
+
+function load(){
+  try{ const s=JSON.parse(localStorage.getItem(SAVE_KEY)); if(s){ state.learned=s.learned||{}; state.soundOn=s.soundOn!==false; state.pos=+s.pos||0; } }catch(e){}
+  idx=Math.min(Math.max(0,state.pos),ALL-1);
+}
+function save(){ try{ localStorage.setItem(SAVE_KEY,JSON.stringify(state)); }catch(e){} }
+function learnedCount(){ return CARDS.filter(c=>state.learned[c.id]).length; }
+function allLearned(){ return learnedCount()>=ALL; }
+load();
+
+/* ══════ ЕКРАНИ ══════ */
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+  window.scrollTo(0,0);
+}
+function goStart(){ stopAudio(); show('start'); refreshStart(); }
+function startLearn(){ show('learn'); renderCard(); }
+/* «Випробування» — окремий тренажер у цій же папці */
+function goGames(){ stopAudio(); location.href='vyprobuvannya-zvuky.html'; }
+
+function refreshStart(){
+  const n=learnedCount(), done=n>=ALL;
+  document.getElementById('startProgTxt').textContent = done ? '🎉 Усі картки прочитано!' : ('Прочитано '+n+' з '+ALL);
+  document.getElementById('startProgFill').style.width=Math.round(n/ALL*100)+'%';
+  document.getElementById('startProgCard').classList.toggle('done',done);
+  renderDoneCard();
+  if(done && !localStorage.getItem(PRIZE_KEY) && !prizeTried){ prizeTried=true; setTimeout(openPrize,500); }   // другий шанс (був офлайн)
+  else if(done) checkLostPrize();
+}
+function prizeSummary(){
+  let raw=null; try{ raw=localStorage.getItem(PRIZE_KEY); }catch(e){}
+  if(!raw) return null;
+  if(raw.charAt(0)!=='{') return {};
+  try{ return JSON.parse(raw)||{}; }catch(e){ return {}; }
+}
+function renderDoneCard(){
+  const card=document.getElementById('startDone'); if(!card) return;
+  const p=prizeSummary();
+  card.classList.toggle('on',!!p);
+  document.getElementById('startRhyme').style.display = p ? 'none' : '';
+  document.getElementById('startLearnBtn').textContent = p ? '↻ Повторити картки' : (learnedCount()>0?'📚 Читати далі ▶':'📚 Читати по звуках ▶');
+  if(!p) return;
+  document.getElementById('doneGot').textContent = (p.names && p.names.length)
+    ? ('Ти отримав нагороду — '+p.names.join(', ')+'!') : 'Тренажер пройдено — нагороду отримано!';
+  const bits=[];
+  if(p.coins) bits.push(p.coins+' 🪙');
+  if(p.stat && p.stat.value){
+    const ic=(String(p.stat.label||'').match(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF\u2764\uFE0F]+/u)||[''])[0];
+    bits.push('+'+p.stat.value+' '+(ic||p.stat.label));
+  }
+  bits.push('Вирушай за новими досягненнями!');
+  document.getElementById('doneGo').textContent = bits.join(' · ');
+}
+
+/* ══════ КАРТКА ══════ */
+function stageOf(c){ return P.STAGES.find(s=>s.id===c.stage); }
+function tileHTML(i,g,cls,hint){
+  return '<button class="ph '+cls+'" data-i="'+i+'" onclick="event.stopPropagation();tapPh('+i+')">'+
+         '<b>'+escH(g)+'</b><small>'+escH(hint||'')+'</small></button>';
+}
+function renderCard(){
+  stopAudio();
+  const c=CARDS[idx], st=stageOf(c);
+  document.getElementById('stChip').textContent='Етап '+st.id+' · '+st.title;
+  const tw=document.getElementById('phTiles');
+  tw.className='ph-tiles';
+  let word, img, emoji, noteHtml;
+  if(c.type==='s'){
+    const S=P.SOUNDS[c.g];
+    tw.classList.add('one');
+    tw.innerHTML=tileHTML(0,c.g,(P.isVowel(c.g)?'v':c.g.length>1?'dg':''),'звук '+S.ua);
+    const k=S.w.indexOf(c.g);
+    word=(k===0?'<span class="hl">'+escH(c.g)+'</span>'+escH(S.w.slice(c.g.length)):escH(S.w));
+    img=S.w; emoji=S.e;
+    noteHtml='Звук '+escH(S.ua)+' — як на початку слова';
+    document.getElementById('listenTx').textContent='Прослухати звук';
+  } else {
+    const info=P.WORDS[c.w]||{}, segs=P.segment(c.w);
+    const syl=segs[0]&&segs[0].syl;
+    tw.classList.add(syl?'syl':('n'+Math.min(5,Math.max(3,segs.length))));
+    tw.innerHTML=segs.map((s,i)=>tileHTML(i,s.g,
+      syl?'':(P.isVowel(s.g)?'v':s.g.length>1?'dg':''),
+      syl?'склад '+(i+1):(P.SOUNDS[s.g]?P.SOUNDS[s.g].ua:''))).join('');
+    word=escH(c.w)+(info.tr?'<span class="tr">— '+escH(info.tr)+'</span>':'');
+    img=c.w; emoji=info.e||'📖';
+    noteHtml=syl?'Прочитай по складах, потім разом':'Натискай на букви по черзі';
+    document.getElementById('listenTx').textContent=syl?'Злий склади':'Злий звуки';
+  }
+  document.getElementById('lcWord').innerHTML=word;
+  document.getElementById('lcNote').innerHTML=noteHtml;
+  // малюнок: справжній файл, емодзі — лише резерв (без блимання)
+  const pic=document.getElementById('lcPic'); pic.innerHTML='';
+  const my=++picToken, im=new Image(); im.alt='';
+  im.onload =()=>{ if(my!==picToken) return; pic.innerHTML=''; pic.appendChild(im); };
+  im.onerror=()=>{ if(my!==picToken) return; pic.innerHTML='<span class="lc-emoji">'+emoji+'</span><span class="lc-draft">чернетка</span>'; };
+  im.src=P.picSrc(BASE,img);
+  if(im.complete && im.naturalWidth) im.onload();
+  document.getElementById('prevB').disabled=idx===0;
+  document.getElementById('nextB').disabled=idx===ALL-1;
+  if(!state.learned[c.id]) state.learned[c.id]=true;
+  state.pos=idx; save();
+  updateLearnBar();
+  if(allLearned() && userGesture){
+    if(!prizeTried && !localStorage.getItem(PRIZE_KEY)){ prizeTried=true; setTimeout(openPrize,450); }   // перше проходження — нагорода (один раз)
+    else if(idx===ALL-1 && !againShown && localStorage.getItem(PRIZE_KEY)){ againShown=true; setTimeout(openAgain,450); }
+  }
+  if(userGesture) setTimeout(speakCard,200);
+}
+function move(d){
+  userGesture=true;
+  const n=idx+d; if(n<0||n>=ALL) return;
+  idx=n; renderCard();
+}
+function updateLearnBar(){
+  const c=learnedCount();
+  document.getElementById('learnBar').style.width=Math.round(c/ALL*100)+'%';
+  document.getElementById('learnPt').textContent=c+' / '+ALL;
+}
+
+/* Один звук / склад — дотиком до плитки */
+function tapPh(i){
+  userGesture=true;
+  const c=CARDS[idx];
+  if(c.type==='s'){ speakCard(); return; }
+  const tw=document.getElementById('phTiles');
+  tw.classList.remove('merged');
+  const s=P.segment(c.w)[i], el=tw.children[i];
+  stopAudio();
+  [...tw.children].forEach(x=>x.classList.remove('lit'));
+  el.classList.add('lit');
+  const tok=seqTok;
+  playP(s.syl?null:P.sndUrl(BASE,s.g), s.syl?s.g:P.SOUNDS[s.g].say, .8).then(()=>{ if(tok===seqTok) el.classList.remove('lit'); });
+}
+
+/* Картка: звук → звук + слово-приклад; слово → «злий звуки» */
+function speakCard(){
+  userGesture=true;
+  const c=CARDS[idx];
+  if(c.type==='s'){
+    stopAudio(); const tok=seqTok, S=P.SOUNDS[c.g];
+    const t=document.getElementById('phTiles').children[0];
+    if(t) t.classList.add('lit'); setSpeakOn('cardSpeak',true);
+    playP(P.sndUrl(BASE,c.g),S.say,.8)
+      .then(()=>tok===seqTok&&wait(250))
+      .then(()=>tok===seqTok&&playP(P.wordUrl(BASE,S.w),S.w,.85))
+      .then(()=>{ if(tok===seqTok){ if(t)t.classList.remove('lit'); setSpeakOn('cardSpeak',false); } });
+    return;
+  }
+  blend();
+}
+async function blend(){
+  stopAudio();
+  const tok=seqTok, c=CARDS[idx];
+  const tw=document.getElementById('phTiles'), tiles=[...tw.children], segs=P.segment(c.w);
+  tw.classList.remove('merged');
+  setSpeakOn('cardSpeak',true);
+  for(let i=0;i<tiles.length;i++){
+    if(tok!==seqTok) return;
+    tiles.forEach(x=>x.classList.remove('lit')); tiles[i].classList.add('lit');
+    const s=segs[i];
+    await playP(s.syl?null:P.sndUrl(BASE,s.g), s.syl?s.g:P.SOUNDS[s.g].say, .8);
+    await wait(140);
+  }
+  if(tok!==seqTok) return;
+  tiles.forEach(x=>x.classList.remove('lit'));
+  tw.classList.add('merged');                    // плитки зсуваються в одне слово
+  await wait(380);
+  if(tok!==seqTok) return;
+  await playP(P.wordUrl(BASE,c.w),c.w,.7);
+  if(tok===seqTok) setSpeakOn('cardSpeak',false);
+}
+
+/* ── список етапів ── */
+function openGrid(){
+  const cur=CARDS[idx].stage;
+  document.getElementById('stList').innerHTML=P.STAGES.map((st,k)=>{
+    const cs=CARDS.filter(c=>c.stage===st.id), n=cs.filter(c=>state.learned[c.id]).length, done=n>=cs.length;
+    return '<button class="st-row'+(st.id===cur?' cur':'')+(done?' done':'')+'" onclick="jumpStage('+st.id+')">'+
+      '<span class="st-num" style="background:'+ST_COL[k%ST_COL.length]+'">'+st.id+'</span>'+
+      '<span class="st-tx"><b>'+escH(st.title)+'</b><span>'+escH(st.tag)+'</span></span>'+
+      '<span class="st-pr">'+(done?'✓ ':'')+n+'/'+cs.length+'</span></button>';
+  }).join('');
+  document.getElementById('gridOv').classList.add('on');
+}
+function closeGrid(){ document.getElementById('gridOv').classList.remove('on'); }
+function jumpStage(id){
+  userGesture=true;
+  const cs=CARDS.map((c,i)=>({c,i})).filter(o=>o.c.stage===id);
+  const first=cs.find(o=>!state.learned[o.c.id])||cs[0];
+  idx=first.i; closeGrid(); renderCard();
+}
+
+/* ══════ НАГОРОДА ЗА ВСІ КАРТКИ ══════ */
+let confettiRAF=null;
+async function openPrize(){
+  if(prizeShown) return;
+  prizeShown=true;
+  try{ if(window.skFinishRecord) skFinishRecord(); }catch(e){}
+  fillWin({emoji:'🏆', title:'Вітаємо!', sub:'Ти прочитав усі слова по звуках!',
+           action:'🏆 До випробування', onAction:'claimAndPlay()'});
+  document.getElementById('winOv').classList.add('on');
+  launchConfetti();
+  const res=await claimAndFill();
+  if(res && !res.skipped && !res.failed){
+    try{ localStorage.setItem(PRIZE_KEY, JSON.stringify({
+      at:Date.now(), coins:res.coins||0,
+      names:(res.items||[]).map(function(i){return i.name;}),
+      stat:res.stat?{label:res.stat.label,value:res.stat.value}:null
+    })); }catch(e){}
+    renderDoneCard();
+  }
+  else prizeShown=false;
+}
+function fillWin(o){
+  const q=id=>document.getElementById(id);
+  const ov=q('winOv');
+  ov.querySelector('.win-emoji').textContent=o.emoji;
+  ov.querySelector('.win-title').textContent=o.title;
+  ov.querySelector('.win-sub').textContent=o.sub;
+  const btn=ov.querySelector('.win-actions .big-btn');
+  btn.textContent=o.action; btn.setAttribute('onclick',o.onAction);
+  const got=q('winGot'), coins=q('winCoins'), stat=q('winStat'), rew=q('winReward');
+  if(got){ got.style.display=o.got?'':'none'; got.textContent=o.got||''; }
+  if(coins) coins.style.display='none';
+  if(stat){ stat.style.display='none'; stat.textContent=''; }
+  if(rew) rew.innerHTML='';
+}
+
+/* Ім'я цієї сторінки — за ним sk-rewards зіставляє налаштовані в адмінці
+   нагороди (curriculum/trainers). */
+const TR_HREF=(location.pathname.split('/').pop()||'').toLowerCase()||'chytaemo-po-zvukakh.html';
+
+/* Забрати нагороду й наповнити попап. Реальна видача (інвентар + монети,
+   одноразово) робиться в SK.grantTrainerReward усередині SKREWARD.claim. */
+async function claimAndFill(){
+  function bonusTxt(b){ return b>1.15?'+20%':(b>1?'+10%':(b<1?'−10%':'')); }
+  const coinsEl=document.getElementById('winCoins');
+  const gotEl=document.getElementById('winGot');
+  const statEl=document.getElementById('winStat');
+  const rewrap=document.getElementById('winReward');
+
+  let res=null;
+  try{ if(window.SKREWARD) res=await SKREWARD.claim(TR_HREF); }catch(e){ res=null; }
+  if(!res || res.skipped) return res||{skipped:true};   // не сесія Героя / офлайн → просто свято
+  if(res.failed){                                       // база не прийняла запис
+    if(gotEl){ gotEl.style.display='';
+      /* Дитині — зрозуміла фраза, дорослому поруч — технічна причина
+         (напр. inventory: permission-denied), щоб було видно без консолі. */
+      gotEl.innerHTML='Нагорода не збереглась — заберемо її, щойно буде звʼязок 🎁'
+        +'<span class="win-why">'+escH(res.failed.join(' · '))+'</span>'; }
+    return res;
+  }
+  if(res.already){ if(gotEl){ gotEl.style.display=''; gotEl.textContent='Нагороду вже отримано 🎁'; } return res; }
+
+  if(res.coins>0 && coinsEl){ coinsEl.style.display=''; coinsEl.innerHTML='+'+res.coins+' <span>🪙</span> монет'; }
+  if(res.stat && statEl){ statEl.style.display=''; statEl.textContent='✨ +'+res.stat.value+' до «'+res.stat.label+'»'; }
+
+  if(res.items && res.items.length){
+    if(gotEl){ gotEl.style.display='';
+      gotEl.textContent='Ти отримав: '+res.items.map(function(x){return x.name;}).join(', ')+'!'; }
+    if(rewrap){
+      rewrap.innerHTML=res.items.map(function(it){
+        const b=bonusTxt(it.bonus);
+        return '<div class="reward-item">'
+          +'<span class="reward-new">НОВЕ</span>'
+          +'<div class="pic"><img src="'+escH(it.img)+'" alt="'+escH(it.name)+'" onerror="this.onerror=null;this.parentNode.textContent=\'🎁\'"></div>'
+          +'<div class="rx"><div class="rname">'+escH(it.name)+'</div>'
+          +(b?'<span class="rstat">✨ Бонус '+b+'</span>':'')
+          +'<div class="rmeta">Додано в інвентар героя</div></div></div>';
+      }).join('');
+    }
+  } else if((res.coins>0 || res.stat) && gotEl){
+    gotEl.style.display=''; gotEl.textContent='Ти отримав нагороду!';
+  }
+  return res;
+}
+function closeWin(){
+  document.getElementById('winOv').classList.remove('on');
+  if(confettiRAF){ cancelAnimationFrame(confettiRAF); confettiRAF=null; }
+}
+function claimAndPlay(){ closeWin(); goGames(); }   // нагороду вже видано у openWin()
+
+/* ══════ ПОВТОРНЕ ПРОХОДЖЕННЯ ══════ */
+function openAgain(){ const el=document.getElementById('againOv'); if(el) el.classList.add('on'); }
+function closeAgain(){ const el=document.getElementById('againOv'); if(el) el.classList.remove('on'); }
+function againPlay(){ closeAgain(); goGames(); }
+
+
+function launchConfetti(){
+  const cv=document.getElementById('winConfetti'); if(!cv) return;
+  const ctx=cv.getContext('2d'); const dpr=Math.min(window.devicePixelRatio||1,2);
+  const W=cv.clientWidth, H=cv.clientHeight;
+  cv.width=W*dpr; cv.height=H*dpr; ctx.scale(dpr,dpr);
+  const cols=['#ff7a5c','#4dabf7','#51cf66','#ffd43b','#cc5de8','#22b8cf'];
+  const N=140, parts=[];
+  for(let i=0;i<N;i++){
+    parts.push({x:Math.random()*W, y:-20-Math.random()*H*0.5,
+      w:6+Math.random()*7, h:8+Math.random()*8,
+      vy:2+Math.random()*3.5, vx:-1.5+Math.random()*3,
+      rot:Math.random()*Math.PI, vr:-0.2+Math.random()*0.4,
+      c:cols[i%cols.length], sway:Math.random()*6.28});
+  }
+  const start=performance.now(); const DUR=2600;
+  function frame(t){
+    const el=t-start; ctx.clearRect(0,0,W,H);
+    parts.forEach(p=>{
+      p.sway+=0.05; p.x+=p.vx+Math.sin(p.sway)*0.6; p.y+=p.vy; p.rot+=p.vr;
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot);
+      ctx.fillStyle=p.c; ctx.globalAlpha=el>DUR-600?Math.max(0,(DUR-el)/600):1;
+      ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h); ctx.restore();
+    });
+    if(el<DUR){ confettiRAF=requestAnimationFrame(frame); }
+    else { ctx.clearRect(0,0,W,H); confettiRAF=null; }
+  }
+  if(confettiRAF) cancelAnimationFrame(confettiRAF);
+  confettiRAF=requestAnimationFrame(frame);
+}
+
+let lostChecked=false;
+async function checkLostPrize(){
+  if(lostChecked || !window.SKREWARD) return;
+  lostChecked=true;
+  let res=null;
+  try{ res=await SKREWARD.claim(TR_HREF); }catch(e){ res=null; }
+  if(!res || !res.restored || !res.items || !res.items.length) return;
+  fillWin({emoji:'🎁', title:'Ось твоя нагорода!', sub:'Вона не встигла зберегтись минулого разу.',
+           action:'🎮 Грати ще', onAction:'claimAndPlay()'});
+  const gotEl=document.getElementById('winGot'), rewrap=document.getElementById('winReward');
+  if(gotEl){ gotEl.style.display=''; gotEl.textContent='Ти отримав: '+res.items.map(x=>x.name).join(', ')+'!'; }
+  if(rewrap) rewrap.innerHTML=res.items.map(function(it){
+    return '<div class="reward-item"><span class="reward-new">НОВЕ</span>'
+      +'<div class="pic"><img src="'+escH(it.img)+'" alt="'+escH(it.name)+'" onerror="this.onerror=null;this.parentNode.textContent=\'🎁\'"></div>'
+      +'<div class="rx"><div class="rname">'+escH(it.name)+'</div>'
+      +'<div class="rmeta">Додано в інвентар героя</div></div></div>'; }).join('');
+  document.getElementById('winOv').classList.add('on');
+}
+
+/* свайп по картці + стрілки */
+(function(){
+  const card=document.getElementById('letterCard'); let tx=0;
+  card.addEventListener('touchstart',e=>{tx=e.changedTouches[0].clientX;},{passive:true});
+  card.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-tx; if(Math.abs(dx)>50)move(dx<0?1:-1);},{passive:true});
+})();
+document.addEventListener('keydown',e=>{
+  if(!document.getElementById('learn').classList.contains('on'))return;
+  if(e.key==='ArrowRight')move(1); else if(e.key==='ArrowLeft')move(-1);
+});
+
+/* ══════ ДОПОМІЖНІ ══════ */
+function escH(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+function onVoiceChange(){ speakCard(); }
+
+/* ══════════════ АУДІО (англійська, en-GB) ══════════════
+   Спершу mp3 (audio/phon_*.mp3), якщо файлу нема — синтез англійським голосом.
+   playP повертає Promise, щоб звуки можна було програвати по черзі;
+   seqTok обриває чергу, щойно дитина перегорнула картку чи вийшла. */
+let curAudio=null, enVoices=[], chosenVoice=null, seqTok=0;
+const missingAudio=new Set();       // mp3, яких немає — щоб не смикати 404 щоразу
+function playP(url,text,rate){
+  return new Promise(res=>{
+    if(!state.soundOn){ res(); return; }
+    let done=false; const fin=()=>{ if(!done){ done=true; res(); } };
+    const tts=()=>{
+      if(!('speechSynthesis' in window)||!text){ fin(); return; }
+      const u=new SpeechSynthesisUtterance(text);
+      if(chosenVoice){ u.voice=chosenVoice; u.lang=chosenVoice.lang; } else { u.lang='en-GB'; }
+      u.rate=rate||.85; u.pitch=1.05;
+      u.onend=fin; u.onerror=fin;
+      setTimeout(fin,1200+String(text).length*170);   // страховка: onend інколи не приходить
+      try{ speechSynthesis.speak(u); }catch(e){ fin(); }
+    };
+    if(!url || missingAudio.has(url)){ tts(); return; }
+    const a=new Audio(); let fell=false; a.src=url; curAudio=a;
+    const fall=()=>{ if(!fell){ fell=true; missingAudio.add(url); tts(); } };
+    a.onended=fin; a.onerror=fall;
+    const pr=a.play(); if(pr&&pr.catch) pr.catch(fall);
+    setTimeout(fin,7000);
+  });
+}
+/* разовий звук із підсвіткою кнопки */
+function playAudio(url,text,btnId,rate){
+  stopAudio(); const tok=seqTok;
+  setSpeakOn(btnId,true);
+  playP(url,text,rate).then(()=>{ if(tok===seqTok) setSpeakOn(btnId,false); });
+}
+function stopAudio(){
+  seqTok++;
+  if(curAudio){ try{curAudio.pause();curAudio.currentTime=0;}catch(e){} curAudio=null; }
+  if('speechSynthesis' in window){ try{speechSynthesis.cancel();}catch(e){} }
+  document.querySelectorAll('.on-speak,.lc-listen.on,.sound-fx.on').forEach(b=>b.classList.remove('on','on-speak'));
+}
+function setSpeakOn(btnId,on){
+  if(!btnId)return; const b=document.getElementById(btnId); if(b)b.classList.toggle('on',!!on);
+}
+const SND_ON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a8 8 0 0 1 0 12"/></svg>';
+const SND_OFF='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 9l4 6M21 9l-4 6"/></svg>';
+function renderSndBtns(){
+  document.querySelectorAll('.sndbtn').forEach(b=>{ b.classList.toggle('off',!state.soundOn); b.innerHTML=state.soundOn?SND_ON:SND_OFF; });
+}
+function toggleSound(){
+  state.soundOn=!state.soundOn; save();
+  if(!state.soundOn) stopAudio();
+  renderSndBtns();
+}
+/* Британський голос у пріоритеті, далі будь-який англійський */
+function rankVoices(){
+  const vs=(window.speechSynthesis?speechSynthesis.getVoices():[])||[];
+  const en=vs.filter(v=>/^en/i.test(v.lang));
+  const score=v=>(/en[-_]GB/i.test(v.lang)?10:0)+(/natural|neural|online|premium|enhanced/i.test(v.name)?3:/google/i.test(v.name)?2:1);
+  en.sort((a,b)=>score(b)-score(a));
+  enVoices=en;
+  let saved=null; try{ saved=localStorage.getItem('sk_en_voice'); }catch(e){}
+  chosenVoice=en.find(v=>v.name===saved)||en[0]||null;
+  buildVoicePicker();
+  document.body.classList.toggle('no-voice', !('speechSynthesis' in window));
+}
+function buildVoicePicker(){
+  const row=document.getElementById('voiceRow'), sel=document.getElementById('voiceSel');
+  if(!row||!sel)return;
+  if(enVoices.length<2){ row.classList.add('hidden'); return; }
+  row.classList.remove('hidden');
+  sel.innerHTML=enVoices.map(v=>'<option value="'+escH(v.name)+'">'+escH(v.name.replace(/\s*\(.*?\)\s*$/,''))+' · '+escH(v.lang)+'</option>').join('');
+  if(chosenVoice) sel.value=chosenVoice.name;
+  sel.onchange=()=>{ chosenVoice=enVoices.find(v=>v.name===sel.value)||null;
+    try{ if(chosenVoice) localStorage.setItem('sk_en_voice',chosenVoice.name); }catch(e){}
+    if(typeof onVoiceChange==='function') onVoiceChange(); };
+}
+rankVoices();
+if('speechSynthesis' in window) speechSynthesis.onvoiceschanged=rankVoices;
+
+
+/* ── старт ── */
+renderSndBtns();
+refreshStart();
+</script>
+
+<!-- Firebase лише для кнопки «Вийти» у спільному футері + нагороди -->
+<script src="../sk-avatar.js"></script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=1"></script>
+<script src="../sk-curriculum.js?v=7"></script>
+<script src="../sk-rewards.js?v=3"></script>
+
+<script src="../sk-finish.js?v=4"></script>
+</body>
+</html>
