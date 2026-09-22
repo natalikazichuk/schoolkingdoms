@@ -393,7 +393,10 @@
                 {k:'🔮', v:h.mana},
                 {k:'🏃', v:h.agility},
                 {k:'🎯', v:h.accuracy},
-                {k:'⭐', v:h.xp}
+                /* Були зірочки (XP) — дитині незрозуміло, та й XP тепер
+                   росте лише з батьківських завдань. Показуємо монети: їх
+                   видно де завгодно — у нагородах, крамниці, інвентарі. */
+                {k:'🪙', v:h.coins}
               ];
               var box = document.getElementById('skHdStats');
               if(box) box.innerHTML = stats.map(function(s){
