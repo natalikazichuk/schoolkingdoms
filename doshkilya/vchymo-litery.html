@@ -290,6 +290,9 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .q-word .gap{display:inline-block;min-width:.62em;text-align:center;color:var(--coral);border-bottom:5px solid var(--coral);border-radius:2px}
 .q-word .gap.filled{color:var(--good);border-bottom-color:var(--good);animation:gappop .35s ease}
 @keyframes gappop{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.25)}100%{transform:scale(1)}}
+/* літера, що летить із кнопки у пропуск */
+.fly-letter{position:fixed;z-index:70;pointer-events:none;font-family:'Fredoka';font-weight:700;
+  color:var(--good);line-height:1;will-change:transform,opacity;text-shadow:0 3px 6px rgba(0,0,0,.18)}
 .q-speak{margin-top:8px;background:var(--blue);color:#fff;border:none;border-radius:14px;
   padding:9px 16px;font-family:'Fredoka';font-size:16px;cursor:pointer;box-shadow:0 4px 0 #2f8fd6}
 .q-speak:active{transform:translateY(3px);box-shadow:0 1px 0 #2f8fd6}
@@ -1099,11 +1102,6 @@ function finishRound(ok){
   fb.innerHTML = ok ? (pick(['🎉 Молодець!','⭐ Правильно!','👏 Так!','🥳 Супер!'])) 
                     : ('Правильно: <b>'+(r.answerLabel||'')+'</b>');
   setMascot(ok?pick(['Так тримати!','Молодець!','Ти супер!']):'Нічого, ось вона!');
-  // «Пропущена літера»: підставляємо правильну літеру у слово над рискою
-  if(r.kind==='propushchena'){
-    const g=document.getElementById('gapSlot');
-    if(g){ g.textContent=r.answerLabel||''; g.classList.add('filled'); }
-  }
   const nb=document.getElementById('playNext');
   nb.style.display='block';
   nb.textContent=(game.i>=game.rounds.length-1)?'Побачити результат →':'Далі →';
@@ -1190,13 +1188,53 @@ function chooseOpt(btn,o,r){
   if(game.answered)return;
   const wrap=document.getElementById('optWrap');
   [...wrap.children].forEach(c=>c.disabled=true);
-  if(o.correct){ btn.classList.add('correct'); finishRound(true); }
+  if(o.correct){
+    btn.classList.add('correct');
+    if(r.kind==='propushchena') flyLetterToGap(btn,r.answerLabel);
+    finishRound(true);
+  }
   else{
     btn.classList.add('shake');
     setTimeout(()=>btn.classList.remove('shake'),500);
-    [...wrap.children].forEach(c=>{ if(c.textContent===r.answerLabel)c.classList.add('correct'); });
+    let right=null;
+    [...wrap.children].forEach(c=>{ if(c.textContent===r.answerLabel){ c.classList.add('correct'); right=c; } });
+    // показуємо, куди мала стати правильна літера — дитина бачить відповідь
+    if(r.kind==='propushchena') flyLetterToGap(right,r.answerLabel);
     finishRound(false);
   }
+}
+
+/* Правильна літера летить із кнопки у пропуск слова й «сідає» на місце.
+   Без анімацій (prefers-reduced-motion, старий браузер) просто зʼявляється. */
+function flyLetterToGap(btn,letter){
+  const gap=document.getElementById('gapSlot');
+  const fill=()=>{ if(gap && !gap.classList.contains('filled')){ gap.textContent=letter; gap.classList.add('filled'); } };
+  let reduce=false;
+  try{ reduce=window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+  if(!gap || !btn || reduce || typeof btn.animate!=='function'){ fill(); return; }
+  const a=btn.getBoundingClientRect(), b=gap.getBoundingClientRect();
+  if(!a.width || !b.width){ fill(); return; }
+  const from=parseFloat(getComputedStyle(btn).fontSize)||34;
+  const to=parseFloat(getComputedStyle(gap.parentNode).fontSize)||40;
+  const el=document.createElement('div');
+  el.className='fly-letter'; el.textContent=letter;
+  el.style.left=(a.left+a.width/2)+'px';
+  el.style.top=(a.top+a.height/2)+'px';
+  el.style.fontSize=from+'px';
+  document.body.appendChild(el);
+  const dx=(b.left+b.width/2)-(a.left+a.width/2);
+  const dy=(b.top+b.height/2)-(a.top+a.height/2);
+  const k=to/from;
+  const done=()=>{ if(el.parentNode) el.parentNode.removeChild(el); fill(); };
+  try{
+    const an=el.animate([
+      {transform:'translate(-50%,-50%) scale(1) rotate(0deg)',opacity:1},
+      {transform:'translate(calc(-50% + '+(dx*0.5)+'px), calc(-50% + '+(dy*0.5-30)+'px)) scale('+(1+(k-1)*0.6)+') rotate(-8deg)',opacity:1,offset:.55},
+      {transform:'translate(calc(-50% + '+dx+'px), calc(-50% + '+dy+'px)) scale('+k+') rotate(0deg)',opacity:1}
+    ],{duration:460,easing:'cubic-bezier(.22,.7,.3,1)',fill:'forwards'});
+    an.onfinish=done;
+    setTimeout(done,900);            // страховка, якщо onfinish не прийде
+  }catch(e){ done(); }
 }
 
 /* ── СКЛАДИ СЛОВО ── */
