@@ -297,6 +297,7 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .opt:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(44,43,58,.13)}
 .opt.correct{background:var(--good-bg);border-color:var(--good);color:var(--good)}
 .opt.wrong{background:var(--bad-bg);border-color:var(--bad);color:var(--bad)}
+.opt.miss{background:var(--bad-bg);border-color:var(--bad);color:var(--bad);opacity:.45}
 .opt:disabled{cursor:default}
 
 /* склади слово */
@@ -711,7 +712,7 @@ function updateLearnBar(){
 function speakCard(){
   userGesture=true;
   const it=ABC[idx];
-  const text=it.speak || (it.L+'. '+it.w+'.');
+  const text=it.speak || [it.L, it.w];     // масив = дві репліки з паузою між ними
   playAudio('../audio/abc_'+it.id+'.mp3', text, 'cardSpeak');
 }
 
@@ -958,11 +959,26 @@ function finishRound(ok){
   const fb=document.getElementById('playFb');
   fb.className='feedback on '+(ok?'good':'bad');
   fb.innerHTML = ok ? (pick(['🎉 Молодець!','⭐ Правильно!','👏 Так!','🥳 Супер!'])) 
-                    : ('Правильно: <b>'+(r.answerLabel||'')+'</b>');
+                    : ('✓ Тепер правильно: <b>'+(r.answerLabel||'')+'</b>');
   const nb=document.getElementById('playNext');
   nb.style.display='block';
   nb.textContent=(game.i>=game.rounds.length-1)?'Побачити результат →':'Далі →';
   renderDots();
+}
+/* Повтор після помилки бере тільки ті питання, де дитина схибила,
+   а не всю гру спочатку. */
+function retryMissed(){
+  const bad=game.rounds.filter(r=>r.ok===false);
+  if(!bad.length){ startGame(game.key); return; }
+  bad.forEach(function(r){
+    r.ok=undefined; r.missed=false;
+    if(r.options) r.options=shuffle(r.options);
+    if(r.kind==='sklad'){ r.filled=''; r.order=shuffle(r.order); }
+  });
+  game.rounds=bad; game.i=0; game.correct=0; game.answered=false;
+  document.getElementById('playFb').className='feedback';
+  document.getElementById('playNext').style.display='none';
+  renderRound();
 }
 function playAdvance(){
   game.i++;
@@ -1013,14 +1029,14 @@ function renderChoice(r){
     top='<p class="qlabel">Гра · Перша літера</p>'+
         '<div class="q-emoji">'+r.emoji+'</div>'+
         '<div class="q-word" style="font-size:30px;letter-spacing:2px">'+r.word+'</div>'+
-        '<button class="q-speak" onclick="playAudio(null,\''+esc(r.speak)+'\',null)">🔊 '+r.word+'</button>'+
+        '<button class="q-speak" onclick="playAudio(null,\''+esc(r.speak)+'\',null)">🔊 Послухати</button>'+
         '<p class="q-sub">З якої літери починається?</p>';
   } else {
     const wHtml=r.shown.split('').map(ch=>ch==='_'?'<span class="gap" id="qGap">&nbsp;&nbsp;</span>':ch).join('');
     top='<p class="qlabel">Гра · Пропущена літера</p>'+
         '<div class="q-emoji">'+r.emoji+'</div>'+
         '<div class="q-word">'+wHtml+'</div>'+
-        '<button class="q-speak" onclick="playAudio(null,\''+esc(r.speak)+'\',null)">🔊 '+r.word+'</button>'+
+        '<button class="q-speak" onclick="playAudio(null,\''+esc(r.speak)+'\',null)">🔊 Послухати</button>'+
         '<p class="q-sub">Якої літери не вистачає?</p>';
   }
   body.innerHTML='<div class="qbox">'+top+'</div>'+
@@ -1033,23 +1049,25 @@ function renderChoice(r){
     ow.appendChild(b);
   });
 }
+/* Хибна відповідь не забирає питання: кнопка гасне, дитина пробує далі.
+   Питання зараховується як помилка (r.missed) — на зірки це впливає,
+   але ніде не починається спочатку. */
 function chooseOpt(btn,o,r){
   if(game.answered)return;
   const wrap=document.getElementById('optWrap');
+  if(!o.correct){
+    r.missed=true;
+    btn.classList.add('miss');
+    btn.disabled=true;
+    const fb=document.getElementById('playFb');
+    fb.className='feedback on bad'; fb.innerHTML='Спробуй іще 💪';
+    try{ if(navigator.vibrate) navigator.vibrate(25); }catch(e){}
+    return;
+  }
   [...wrap.children].forEach(c=>c.disabled=true);
-  if(o.correct){
-    btn.classList.add('correct');
-    if(r.kind==='propushchena') flyLetterToGap(btn,r.answerLabel);
-    finishRound(true);
-  }
-  else{
-    btn.classList.add('wrong');
-    let right=null;
-    [...wrap.children].forEach(c=>{ if(c.textContent===r.answerLabel){ c.classList.add('correct'); right=c; } });
-    // показуємо, куди мала стати правильна літера — дитина бачить відповідь
-    if(r.kind==='propushchena') flyLetterToGap(right,r.answerLabel);
-    finishRound(false);
-  }
+  btn.classList.add('correct');
+  if(r.kind==='propushchena') flyLetterToGap(btn,r.answerLabel);
+  finishRound(!r.missed);
 }
 
 /* Правильна літера летить із кнопки у пропуск слова й «сідає» на місце.
@@ -1100,7 +1118,7 @@ function renderSklad(r){
   body.innerHTML='<div class="qbox">'+
       '<p class="qlabel">Гра · Склади слово</p>'+
       '<div class="q-emoji">'+r.emoji+'</div>'+
-      '<button class="q-speak" onclick="playAudio(null,\''+esc(r.speak)+'\',null)">🔊 '+r.word+'</button>'+
+      '<button class="q-speak" onclick="playAudio(null,\''+esc(r.speak)+'\',null)">🔊 Послухати</button>'+
       '<div class="slots">'+slots+'</div>'+
       '<p class="q-sub">Постав літери по порядку</p>'+
     '</div>'+
@@ -1112,6 +1130,7 @@ function tapTile(ti){
   const t=r.order[ti];
   const need=r.word[r.filled.length];
   if(t.ch!==need){                       // невірна літера
+    r.missed=true;
     const el=document.getElementById('tile'+ti);
     el.style.background='var(--bad)'; el.style.boxShadow='0 5px 0 #b04a4a';
     setTimeout(()=>{el.style.background='';el.style.boxShadow='';},350);
@@ -1121,7 +1140,7 @@ function tapTile(ti){
   document.getElementById('tile'+ti).classList.add('used');
   const s=document.getElementById('slot'+(r.filled.length-1));
   s.textContent=t.ch; s.classList.add('full');
-  if(r.filled.length===r.word.length) finishRound(true);
+  if(r.filled.length===r.word.length) finishRound(!r.missed);
 }
 
 /* ── ЗНАЙДИ ПАРУ (пам'ять: велика ↔ мала) ── */
@@ -1178,6 +1197,7 @@ function tapMem(i,btn){
 /* ── РЕЗУЛЬТАТ ── */
 function endGame(){
   const total=game.rounds.length;
+  const missed=game.rounds.filter(r=>r.ok===false);   // лише вони підуть на повтор
   const acc = game.key==='para' ? 1 : game.correct/total;
   /* Гра зараховується лише за ВСІ правильні відповіді, тож і третя зірка —
      теж лише за бездоганне проходження. */
@@ -1195,10 +1215,12 @@ function endGame(){
       (game.key==='para'?'<p class="sub">Усі пари знайдено!</p>'
         :'<p class="sub">Правильних: <b>'+game.correct+' з '+total+'</b></p>')+
       (perfect?'<p class="done-note">✓ Гру зараховано</p>'
-              :'<p class="sub retry-note">Щоб зарахувати гру, потрібні всі правильні 💪</p>')+
+              :'<p class="sub retry-note">Щоб зарахувати гру, повтори те, де схибив 💪</p>')+
     '</div>'+
     '<div class="btn-row" style="margin-top:14px">'+
-      '<button class="big-btn blue" onclick="startGame(\''+game.key+'\')">↻ Ще раз</button>'+
+      (missed.length
+        ? '<button class="big-btn blue" onclick="retryMissed()">↻ Повторити '+missed.length+'</button>'
+        : '<button class="big-btn blue" onclick="startGame(\''+game.key+'\')">↻ Ще раз</button>')+
       '<button class="big-btn" onclick="goGames()">До ігор →</button>'+
     '</div>';
   try{ if(window.navigator.vibrate) navigator.vibrate(stars>=3?[40,60,40]:30); }catch(e){}
@@ -1227,6 +1249,8 @@ function distinctLetters(correct,n){
 /* ══════════════ АУДІО ══════════════
    Спершу mp3 (audio/abc_<id>.mp3), якщо нема — синтез англ. голосом. */
 let curAudio=null, ukVoices=[], chosenVoice=null;
+const SPEAK_GAP=850;                       // пауза між літерою і словом, мс
+let speakGapTimer=null, speakSeq=0;
 function playAudio(url, text, btnId){
   if(!state.soundOn) return;
   stopAudio();
@@ -1245,14 +1269,28 @@ function playAudio(url, text, btnId){
 function speakTTS(text,btnId){
   if(!('speechSynthesis' in window)||!text) return;
   try{ speechSynthesis.cancel(); }catch(e){}
-  const u=new SpeechSynthesisUtterance(text);
-  if(chosenVoice){ u.voice=chosenVoice; u.lang=chosenVoice.lang; } else { u.lang='en-US'; }
-  u.rate=0.85; u.pitch=1.05;
-  u.onstart=()=>setSpeakOn(btnId,true);
-  u.onend=()=>setSpeakOn(btnId,false);
-  try{ speechSynthesis.speak(u); }catch(e){}
+  const parts=(Array.isArray(text)?text:[text]).filter(Boolean);
+  if(!parts.length) return;
+  clearTimeout(speakGapTimer);
+  const seq=++speakSeq;                    // cancel() кличе onend, тож старий ланцюжок не має продовжуватись
+  let i=0;
+  const say=function(){
+    if(seq!==speakSeq) return;
+    const u=new SpeechSynthesisUtterance(parts[i]);
+    if(chosenVoice){ u.voice=chosenVoice; u.lang=chosenVoice.lang; } else { u.lang='en-US'; }
+    u.rate=0.85; u.pitch=1.05;
+    u.onstart=()=>setSpeakOn(btnId,true);
+    u.onend=function(){
+      if(seq!==speakSeq) return;
+      if(++i<parts.length){ speakGapTimer=setTimeout(say,SPEAK_GAP); }   // чутна пауза перед словом
+      else setSpeakOn(btnId,false);
+    };
+    try{ speechSynthesis.speak(u); }catch(e){}
+  };
+  say();
 }
 function stopAudio(){
+  speakSeq++; clearTimeout(speakGapTimer);   // недомовлене слово не має наздогнати наступну картку
   if(curAudio){ try{curAudio.pause();curAudio.currentTime=0;}catch(e){} curAudio=null; }
   if('speechSynthesis' in window){ try{speechSynthesis.cancel();}catch(e){} }
   setSpeakOn('cardSpeak',false);
