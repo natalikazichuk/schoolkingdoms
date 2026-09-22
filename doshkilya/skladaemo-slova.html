@@ -160,19 +160,18 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px}
   font-size:calc(var(--tw,46px) * .62);cursor:pointer;box-shadow:0 5px 0 #2f8fd6}
 .tile:active{transform:translateY(3px);box-shadow:0 2px 0 #2f8fd6}
 .tile.used{opacity:.22;pointer-events:none;box-shadow:none}
-.tile.gone{opacity:.18;pointer-events:none;box-shadow:none;color:transparent}   /* літера втекла — лишилась порожня плитка */
 .tile.shake{animation:tshake .45s cubic-bezier(.36,.07,.19,.97);background:var(--bad);box-shadow:0 5px 0 #b34a4a}
 @keyframes tshake{10%,90%{transform:translateX(-2px)}20%,80%{transform:translateX(4px)}30%,50%,70%{transform:translateX(-7px)}40%,60%{transform:translateX(7px)}}
 /* літера, що летить із плитки в комірку */
 .fly-letter{position:fixed;z-index:70;pointer-events:none;font-family:'Fredoka';font-weight:700;
   color:var(--good);line-height:1;will-change:transform;text-shadow:0 3px 6px rgba(0,0,0,.18)}
-/* зайві літери розбігаються: у них виростають ніжки */
+/* складене слово розбігається: у літер виростають ніжки */
 .runner{position:fixed;z-index:71;pointer-events:none;font-family:'Fredoka';font-weight:700;
-  color:var(--blue);line-height:1;will-change:transform;text-shadow:0 3px 6px rgba(0,0,0,.18)}
+  color:var(--good);line-height:1;will-change:transform;text-shadow:0 3px 6px rgba(0,0,0,.18)}
 .runner .ch{display:block}
 .runner .legs{position:absolute;left:50%;bottom:-.32em;transform:translateX(-50%);
   display:flex;gap:.28em;height:.32em}
-.runner .legs i{display:block;width:.13em;height:100%;border-radius:.07em;background:var(--blue);
+.runner .legs i{display:block;width:.13em;height:100%;border-radius:.07em;background:var(--good);
   transform-origin:top center;animation:legstep .2s linear infinite alternate}
 .runner .legs i:last-child{animation-delay:.1s}
 @keyframes legstep{from{transform:rotate(-32deg)}to{transform:rotate(32deg)}}
@@ -568,35 +567,32 @@ function flyLetter(btn,slot,ch){
 function finishWord(){
   wordDone=true;
   if(!state.done[cur.id]){ state.done[cur.id]=true; save(); }
-  document.getElementById('doneWord').classList.add('on');
+  const dw=document.getElementById('doneWord');
+  dw.textContent='✓ '+cur.w+' — молодець!';       // слово втече з комірок, тож лишаємо його тут
+  dw.classList.add('on');
   document.getElementById('nextBtn').classList.add('on');
   updatePlayBar();
   try{ if(navigator.vibrate) navigator.vibrate([40,60,40]); }catch(e){}
-  runTimers.push(setTimeout(escapeExtras,460));    // даємо останній літері долетіти в комірку
+  runTimers.push(setTimeout(escapeLetters,460));   // даємо останній літері долетіти в комірку
   setTimeout(speakWord,420);
 }
 
-/* Слово зібране — зайвим літерам тут більше нема чого робити: у них виростають
-   ніжки і вони розбігаються з екрана. Саме слово лишається в комірках. */
+/* Слово зібране — у літер виростають ніжки і вони розбігаються зі свого слова. */
 let runTimers=[];
 function clearRunners(){
   runTimers.forEach(clearTimeout); runTimers=[];
   const old=document.querySelectorAll('.runner');
   for(let i=0;i<old.length;i++) if(old[i].parentNode) old[i].parentNode.removeChild(old[i]);
 }
-function escapeExtras(){
+function escapeLetters(){
   clearRunners();
   let reduce=false;
   try{ reduce=window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
-  const extras=[].slice.call(document.querySelectorAll('#tiles .tile:not(.used)'));
-  if(!extras.length) return;
-  if(reduce || typeof document.createElement('div').animate!=='function'){   // без анімацій просто прибираємо зайві
-    extras.forEach(function(t){ t.classList.add('gone'); });
-    return;
-  }
+  const slots=[].slice.call(document.querySelectorAll('#slots .slot'));
+  if(reduce || !slots.length || typeof document.createElement('div').animate!=='function') return;  // літери просто лишаються в комірках
   const W=window.innerWidth||360;
-  extras.forEach(function(tile,i){
-    const r=tile.getBoundingClientRect(), ch=tile.textContent;
+  slots.forEach(function(slot,i){
+    const r=slot.getBoundingClientRect(), ch=slot.textContent;
     if(!r.width || !ch) return;
     const cx=r.left+r.width/2;
     const el=document.createElement('div');
@@ -604,10 +600,10 @@ function escapeExtras(){
     el.innerHTML='<span class="ch">'+escH(ch)+'</span><span class="legs"><i></i><i></i></span>';
     el.style.left=cx+'px';
     el.style.top=(r.top+r.height/2)+'px';
-    el.style.fontSize=getComputedStyle(tile).fontSize;
+    el.style.fontSize=Math.round(parseFloat(getComputedStyle(slot).fontSize)*1.35)+'px';
     el.style.transform='translate(-50%,-50%)';
     document.body.appendChild(el);
-    tile.classList.add('gone');                                // плитка спорожніла, лишилась тільки лунка
+    slot.textContent=''; slot.classList.remove('full');        // комірка звільнилась
     const dir=cx<W/2?-1:1;                                     // кожна тікає до ближчого краю
     const dx=dir<0 ? -(cx+r.width+70) : (W-cx+70);
     const drop=function(){ if(el.parentNode) el.parentNode.removeChild(el); };
@@ -623,7 +619,7 @@ function escapeExtras(){
         an.onfinish=drop;
         runTimers.push(setTimeout(drop,1400));                 // страховка, якщо onfinish не прийде
       }catch(e){ drop(); }
-    }, 130*i));
+    }, Math.min(130, Math.round(700/slots.length))*i));   // довге слово розбігається швидше, ніж коротке
   });
 }
 function nextWord(){
