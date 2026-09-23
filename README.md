@@ -240,7 +240,7 @@ python3 -m http.server 8000     # або: npx serve .
 
 - **Фони плиток** — `img/nav/`: 16:10, 1200×750 px, WebP, до 150 КБ. Імена й запасні варіанти описані в [`img/nav/README.md`](img/nav/README.md).
 - **Решта зображень** — `img/` за домовленим іменуванням (`abc_<letter>.webp`, `colors_<n>.jpg`, …).
-- **Озвучка** — `audio/` (`tvaryna_<slug>.mp3`, `abc_<letter>.mp3`).
+- **Озвучка** — `audio/` (`tvaryna_<slug>.mp3`); Learn ABC! — `audio/abc/abc_<letter>.mp3` (генерує `gen_abc.py`).
 - **Phonics (англійська)** — `audio/phonics/`: `sounds/phon_s_<графема>.mp3` (звуки), `words/phon_<слово>.mp3` (слова), `letters/phon_n_<літера>.mp3` (назви літер), `male/` (звуки чоловічим голосом, про запас).
 - Якщо файлу немає, код не падає: показує запасну картинку за темою або емодзі-чернетку.
 
