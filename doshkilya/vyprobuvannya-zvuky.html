@@ -1128,7 +1128,7 @@ function rankVoices(){
 function buildVoicePicker(){
   const row=document.getElementById('voiceRow'), sel=document.getElementById('voiceSel');
   if(!row||!sel)return;
-  if(enVoices.length<2){ row.classList.add('hidden'); return; }
+  if(hasRecorded||enVoices.length<2){ row.classList.add('hidden'); return; }
   row.classList.remove('hidden');
   sel.innerHTML=enVoices.map(v=>'<option value="'+escH(v.name)+'">'+escH(v.name.replace(/\s*\(.*?\)\s*$/,''))+' · '+escH(v.lang)+'</option>').join('');
   if(chosenVoice) sel.value=chosenVoice.name;
@@ -1136,6 +1136,14 @@ function buildVoicePicker(){
     try{ if(chosenVoice) localStorage.setItem('sk_en_voice',chosenVoice.name); }catch(e){}
     if(typeof onVoiceChange==='function') onVoiceChange(); };
 }
+/* Є записаний голос (audio/phon_*.mp3) — вибір голосу телефона ховаємо:
+   синтез лишається лише запасним для файлів, яких бракує. */
+let hasRecorded=false;
+(function(){
+  const a=new Audio(); a.preload='metadata';
+  a.onloadedmetadata=()=>{ hasRecorded=true; buildVoicePicker(); };
+  a.src=P.sndUrl(BASE,'s');
+})();
 rankVoices();
 if('speechSynthesis' in window) speechSynthesis.onvoiceschanged=rankVoices;
 
