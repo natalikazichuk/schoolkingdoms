@@ -11,8 +11,10 @@
              поки файлу нема — емодзі-чернетка (поле e).
    ОЗВУЧКА:  говорить голос телефона (синтез en-GB) — той самий, яким
              звучать слова. Якщо поруч покласти файл, він має перевагу:
-             audio/phon_<word>.mp3       — слово
-             audio/phon_s_<grapheme>.mp3 — окремий звук (s, a, sh, ch…)
+             audio/phonics/words/phon_<word>.mp3       — слово
+             audio/phonics/sounds/phon_s_<grapheme>.mp3 — окремий звук (s, a, sh, ch…)
+             (поруч: letters/phon_n_<літера>.mp3 — назви літер,
+              male/phon_s_<grapheme>_m.mp3 — звуки чоловічим голосом; поки не вживаються)
 
    Поле say — це те, що віддаємо синтезатору. Він не вміє вимовляти голу
    фонему: рядок, якого немає в його словнику, він читає ПО БУКВАХ —
@@ -153,8 +155,8 @@
 
   /* файли: base — префікс кореня ('../' з doshkilya/) */
   function picSrc(base,word){ return base+'img/phonics/'+word+'.webp'; }
-  function wordUrl(base,word){ return base+'audio/phon_'+word+'.mp3'; }
-  function sndUrl(base,g){ return base+'audio/phon_s_'+g+'.mp3'; }
+  function wordUrl(base,word){ return base+'audio/phonics/words/phon_'+word+'.mp3'; }
+  function sndUrl(base,g){ return base+'audio/phonics/sounds/phon_s_'+g+'.mp3'; }
 
   window.SKPH={SOUNDS:SOUNDS, STAGES:STAGES, WORDS:WORDS, segment:segment, cards:cards,
                picSrc:picSrc, sndUrl:sndUrl, wordUrl:wordUrl, isVowel:isVowel};

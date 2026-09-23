@@ -985,7 +985,7 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
 function onVoiceChange(){ speakCard(); }
 
 /* ══════════════ АУДІО (англійська, en-GB) ══════════════
-   Спершу mp3 (audio/phon_*.mp3), якщо файлу нема — синтез англійським голосом.
+   Спершу mp3 (audio/phonics/), якщо файлу нема — синтез англійським голосом.
    playP повертає Promise, щоб звуки можна було програвати по черзі;
    seqTok обриває чергу, щойно дитина перегорнула картку чи вийшла. */
 let curAudio=null, enVoices=[], chosenVoice=null, seqTok=0;
@@ -1051,7 +1051,7 @@ function rankVoices(){
 function buildVoicePicker(){
   const row=document.getElementById('voiceRow'), sel=document.getElementById('voiceSel');
   if(!row||!sel)return;
-  if(enVoices.length<2){ row.classList.add('hidden'); return; }
+  if(hasRecorded||enVoices.length<2){ row.classList.add('hidden'); return; }
   row.classList.remove('hidden');
   sel.innerHTML=enVoices.map(v=>'<option value="'+escH(v.name)+'">'+escH(v.name.replace(/\s*\(.*?\)\s*$/,''))+' · '+escH(v.lang)+'</option>').join('');
   if(chosenVoice) sel.value=chosenVoice.name;
@@ -1059,6 +1059,14 @@ function buildVoicePicker(){
     try{ if(chosenVoice) localStorage.setItem('sk_en_voice',chosenVoice.name); }catch(e){}
     if(typeof onVoiceChange==='function') onVoiceChange(); };
 }
+/* Є записаний голос (audio/phonics/) — вибір голосу телефона ховаємо:
+   синтез лишається лише запасним для файлів, яких бракує. */
+let hasRecorded=false;
+(function(){
+  const a=new Audio(); a.preload='metadata';
+  a.onloadedmetadata=()=>{ hasRecorded=true; buildVoicePicker(); };
+  a.src=P.sndUrl(BASE,'s');
+})();
 rankVoices();
 if('speechSynthesis' in window) speechSynthesis.onvoiceschanged=rankVoices;
 
