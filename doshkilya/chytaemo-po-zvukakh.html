@@ -528,6 +528,18 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
   .pa-grid.single .pa-tiles.one b{font-size:200pt}
   .pa-grid.single .pa-word{font-size:40pt}
   .pa-grid.single .pa-word span{font-size:24pt}
+  /* список слів — у дві колонки, етап за етапом */
+  .pa-list-h{font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:18pt;color:#1e3a6b;
+    text-align:center;margin:0 0 5mm}
+  .pa-list{columns:2;column-gap:10mm}
+  .pa-st{font-family:'Fredoka',sans-serif;font-weight:700;font-size:13pt;color:#555;
+    margin:0 0 1.5mm;padding-top:2mm;border-bottom:.8pt solid #bbb;break-after:avoid;page-break-after:avoid}
+  .pa-li{display:flex;align-items:baseline;gap:3mm;padding:1.2mm 0;border-bottom:.5pt dotted #ccc;
+    break-inside:avoid;page-break-inside:avoid}
+  .pa-li b{font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:20pt;line-height:1.2;color:#1e3a6b;letter-spacing:.5pt}
+  .pa-li b .v{color:#e8453c}.pa-li b .dg{color:#8a3fd1}.pa-li b .sy{color:#1e3a6b}
+  .pa-li b .sy+.sy{margin-left:1.5mm;padding-left:1.5mm;border-left:1pt solid #bbb}
+  .pa-li span{font-family:'Nunito',sans-serif;font-weight:700;font-size:12pt;color:#555}
 }
 .ab.two{font-size:27px}
 </style>
@@ -630,7 +642,7 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 <!-- друк карток -->
 <div class="grid-ov" id="printOv" onclick="if(event.target===this)closePrint()">
   <div class="grid-inner">
-    <h3>Роздрукувати картки</h3>
+    <h3>Роздрукувати</h3>
     <div class="pr-opts" id="prOpts"></div>
     <button class="big-btn blue" style="margin-top:14px" onclick="closePrint()">Закрити</button>
   </div>
@@ -923,7 +935,9 @@ function openPrint(){
   document.getElementById('prOpts').innerHTML=
     row('one','1','var(--coral)','Цю картку',cardLabel(c)+' · на весь аркуш','1 арк.')+
     row('stage',st.id,ST_COL[(st.id-1)%ST_COL.length],'Етап '+st.id+' · '+st.title,'усі картки етапу, 8 на аркуші',n+' шт.')+
-    row('all','∑','var(--indigo)','Усі картки','усі 7 етапів, 8 на аркуші',ALL+' шт.');
+    row('all','∑','var(--indigo)','Усі картки','усі 7 етапів, 8 на аркуші',ALL+' шт.')+
+    row('list-stage','≡',ST_COL[(st.id-1)%ST_COL.length],'Список слів · етап '+st.id,'слова з перекладом, без карток',st.words.length+' сл.')+
+    row('list-all','≡','var(--indigo)','Список усіх слів','усі 7 етапів, з перекладом',P.STAGES.reduce((a,x)=>a+x.words.length,0)+' сл.');
   document.getElementById('printOv').classList.add('on');
 }
 function closePrint(){ document.getElementById('printOv').classList.remove('on'); }
@@ -944,8 +958,26 @@ function printCardHTML(c){
     segs.map(s=>'<b class="'+(syl?'':P.isVowel(s.g)?'v':s.g.length>1?'dg':'')+'">'+escH(s.g)+'</b>').join('')+'</div>'+
     '<div class="pa-word">'+word+'</div></div>';
 }
+/* Список слів: кольорові літери (як на картці) + переклад */
+function printListHTML(stages){
+  const word=w=>{
+    const segs=P.segment(w), syl=segs[0]&&segs[0].syl;
+    return segs.map(s=>'<i class="'+(syl?'sy':P.isVowel(s.g)?'v':s.g.length>1?'dg':'')+'" style="font-style:normal">'+escH(s.g)+'</i>').join('');
+  };
+  return '<div class="pa-list-h">Читаємо по звуках · слова</div><div class="pa-list">'+
+    stages.map(st=>'<div class="pa-st">Етап '+st.id+' · '+escH(st.title)+'</div>'+
+      st.words.map(w=>{ const info=P.WORDS[w]||{};
+        return '<div class="pa-li"><b>'+word(w)+'</b>'+(info.tr?'<span>— '+escH(info.tr)+'</span>':'')+'</div>'; }).join('')
+    ).join('')+'</div>';
+}
 function doPrint(kind){
   closePrint();
+  if(kind==='list-stage'||kind==='list-all'){
+    const st=stageOf(CARDS[idx]);
+    document.getElementById('printArea').innerHTML=printListHTML(kind==='list-all'?P.STAGES:[st]);
+    setTimeout(()=>window.print(),60);
+    return;
+  }
   const cur=CARDS[idx];
   const list=kind==='one'?[cur]:kind==='stage'?CARDS.filter(c=>c.stage===cur.stage):CARDS;
   const area=document.getElementById('printArea');
