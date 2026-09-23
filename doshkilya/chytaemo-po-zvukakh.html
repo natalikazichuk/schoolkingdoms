@@ -424,14 +424,16 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 
 /* ══════════════ PHONICS: плитки звуків на картці ══════════════
    Голосні — червоні, приголосні — сині, «дві букви — один звук» — фіолетові.
-   «Злий звуки» підсвічує плитки по черзі, а потім зсуває їх в одне слово. */
+   «Почути слово» підсвічує плитки по черзі, а потім зсуває їх в одне слово.
+   Розмір літер — через --phk (1 = базовий); fitTiles() зменшує його, якщо
+   слово не влазить у ширину картки. Розміри в em — масштабуються разом. */
 #learn .lc-head{flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:12px 12px 12px}
 .stage-chip{font-family:'Fredoka';font-weight:600;font-size:13px;color:#fff;background:rgba(255,255,255,.22);
   border-radius:999px;padding:3px 12px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ph-tiles{display:flex;gap:10px;justify-content:center;align-items:flex-start;flex-wrap:nowrap;transition:gap .35s ease;max-width:100%}
 .ph{display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;border:0;background:none;padding:0;min-width:0}
-.ph b{display:block;background:#fff;border-radius:16px;padding:2px 12px 6px;min-width:62px;text-align:center;
-  font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:58px;line-height:1.16;color:#1e3a6b;
+.ph b{display:block;background:#fff;border-radius:16px;padding:.03em .2em .1em;min-width:1.05em;text-align:center;
+  font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:calc(96px*var(--phk,1));line-height:1.16;color:#1e3a6b;
   box-shadow:0 5px 0 rgba(0,0,0,.14);transition:transform .15s,background .15s,border-radius .35s}
 .ph.v b{color:#e8453c}
 .ph.dg b{color:#8a3fd1}
@@ -443,10 +445,10 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .ph-tiles.merged .ph:first-child b{border-radius:16px 0 0 16px}
 .ph-tiles.merged .ph:last-child b{border-radius:0 16px 16px 0}
 .ph-tiles.merged small{opacity:0}
-.ph-tiles.n4 .ph b{font-size:50px;min-width:52px;padding:2px 9px 6px}
-.ph-tiles.n5 .ph b{font-size:44px;min-width:46px;padding:2px 8px 6px}
-.ph-tiles.syl .ph b{font-size:40px;padding:4px 12px 8px}
-.ph-tiles.one .ph b{font-size:96px;min-width:128px;padding:2px 26px 8px}
+.ph-tiles.n4 .ph b{font-size:calc(80px*var(--phk,1))}
+.ph-tiles.n5 .ph b{font-size:calc(66px*var(--phk,1))}
+.ph-tiles.syl .ph b{font-size:calc(58px*var(--phk,1));padding:.06em .2em .13em}
+.ph-tiles.one .ph b{font-size:calc(116px*var(--phk,1));min-width:1.3em;padding:.02em .25em .08em}
 .ph-tiles.one small{font-size:15px}
 #learn .lc-word b .hl{color:#e8453c}
 #learn .lc-word .tr{color:var(--soft);font-family:'Nunito';font-weight:800;font-size:15px;margin-left:6px}
@@ -469,19 +471,75 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .abcbtn.st{font-size:13px;letter-spacing:0}
 
 @media (max-height:760px){
-  .ph b{font-size:46px}
-  .ph-tiles.n4 .ph b{font-size:40px}
-  .ph-tiles.n5 .ph b{font-size:36px}
-  .ph-tiles.syl .ph b{font-size:34px}
-  .ph-tiles.one .ph b{font-size:72px;min-width:104px}
+  .ph b{font-size:calc(84px*var(--phk,1))}
+  .ph-tiles.n4 .ph b{font-size:calc(70px*var(--phk,1))}
+  .ph-tiles.n5 .ph b{font-size:calc(58px*var(--phk,1))}
+  .ph-tiles.syl .ph b{font-size:calc(50px*var(--phk,1))}
+  .ph-tiles.one .ph b{font-size:calc(96px*var(--phk,1))}
   #learn .lc-head{gap:5px;padding:8px 10px}
 }
-@media (max-width:380px){
-  .ph-tiles{gap:7px}
-  .ph b{font-size:44px;min-width:48px;padding:2px 8px 5px}
-  .ph-tiles.n4 .ph b{font-size:38px;min-width:42px;padding:2px 7px 5px}
-  .ph-tiles.n5 .ph b{font-size:32px;min-width:36px;padding:2px 6px 5px}
-  .ph-tiles.syl .ph b{font-size:30px;padding:4px 9px 7px}
+@media (max-width:380px){ .ph-tiles{gap:7px} }
+
+/* Літери — головне: шапка з літерами забирає більшу частку висоти,
+   емодзі-картинка — меншу (але не зникає). */
+#learn .lc-head{flex:1.4 1 auto}
+#learn .lc-pic{flex:1 1 0;min-height:80px}
+#learn .lc-emoji{font-size:clamp(52px,11vh,88px)}
+
+/* ── список слів + друк (над карткою) ── */
+/* праворуч лишаємо місце під плаваючу 🐞 (sk-report.js, right:10px, 40px) */
+.pick-row{display:flex;align-items:center;gap:8px;margin:-4px 44px 0 0}
+.pick-row select{flex:1;min-width:0;height:44px;border:2px solid var(--line);border-radius:14px;background:#fff;
+  font-family:'Fredoka',sans-serif;font-weight:600;font-size:17px;color:var(--ink);padding:0 38px 0 12px;
+  -webkit-appearance:none;appearance:none;cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b6a7d' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 10px center;background-size:20px}
+.pick-row select:focus{outline:2px solid var(--yellow)}
+.printbtn svg{width:22px;height:22px;display:block}
+.pr-opts{display:flex;flex-direction:column;gap:10px}
+
+/* ── друк ── */
+#printArea{display:none}
+@media print{
+  @page{size:A4 portrait;margin:10mm}
+  html,body{background:#fff!important;margin:0!important;padding:0!important;display:block!important;min-height:0!important}
+  body>*{display:none!important}
+  #printArea{display:block!important;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .pa-grid{display:grid;grid-template-columns:1fr 1fr;gap:4mm}
+  .pa-card{height:64mm;border:1.2pt dashed #9a9a9a;border-radius:5mm;padding:3mm;overflow:hidden;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5mm;
+    break-inside:avoid;page-break-inside:avoid}
+  .pa-tiles{display:flex;gap:1.5mm;justify-content:center}
+  .pa-tiles b{display:block;border:1pt solid #c9c9c9;border-radius:3mm;padding:0 2.2mm 1mm;min-width:1em;text-align:center;
+    font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:60pt;line-height:1.16;color:#1e3a6b}
+  .pa-tiles.n4 b{font-size:50pt}.pa-tiles.n5 b{font-size:40pt}.pa-tiles.syl b{font-size:38pt}
+  .pa-tiles.one b{font-size:90pt}
+  .pa-tiles b.v{color:#e8453c}.pa-tiles b.dg{color:#8a3fd1}
+  .pa-word{font-family:'Fredoka',sans-serif;font-weight:700;font-size:18pt;text-align:center;line-height:1.1}
+  .pa-word span{font-family:'Nunito',sans-serif;font-weight:700;font-size:12pt;color:#555}
+  /* одна картка — на весь аркуш */
+  .pa-grid.single{grid-template-columns:1fr}
+  .pa-grid.single .pa-card{height:265mm;gap:16mm;border-radius:8mm}
+  .pa-grid.single .pa-tiles{gap:3mm}
+  .pa-grid.single .pa-tiles b{font-size:110pt;border-radius:6mm;padding:0 5mm 2mm}
+  .pa-grid.single .pa-tiles.n4 b{font-size:92pt}
+  .pa-grid.single .pa-tiles.n5 b{font-size:76pt}
+  .pa-grid.single .pa-tiles.syl b{font-size:70pt}
+  .pa-grid.single .pa-tiles.one b{font-size:200pt}
+  .pa-grid.single .pa-word{font-size:40pt}
+  .pa-grid.single .pa-word span{font-size:24pt}
+  /* список слів — у дві колонки, етап за етапом */
+  .pa-list-h{font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:18pt;color:#1e3a6b;
+    text-align:center;margin:0 0 5mm}
+  .pa-list{columns:2;column-gap:10mm}
+  .pa-st{font-family:'Fredoka',sans-serif;font-weight:700;font-size:13pt;color:#555;
+    margin:0 0 1.5mm;padding-top:2mm;border-bottom:.8pt solid #bbb;break-after:avoid;page-break-after:avoid}
+  .pa-li{display:flex;align-items:baseline;gap:3mm;padding:1.2mm 0;border-bottom:.5pt dotted #ccc;
+    break-inside:avoid;page-break-inside:avoid}
+  .pa-li b{font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:20pt;line-height:1.2;color:#1e3a6b;letter-spacing:.5pt}
+  .pa-li b .v{color:#e8453c}.pa-li b .dg{color:#8a3fd1}.pa-li b .sy{color:#1e3a6b}
+  .pa-li b .sy+.sy{margin-left:1.5mm;padding-left:1.5mm;border-left:1pt solid #bbb}
+  .pa-li span{font-family:'Nunito',sans-serif;font-weight:700;font-size:12pt;color:#555}
 }
 .ab.two{font-size:27px}
 </style>
@@ -536,8 +594,12 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
         <div class="bar"><span id="learnBar" style="width:0%"></span></div>
         <span class="pt" id="learnPt">0 / 0</span>
       </div>
+      <button class="iconbtn printbtn" onclick="openPrint()" title="Роздрукувати" aria-label="Роздрукувати"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg></button>
       <button class="iconbtn abcbtn st" onclick="openGrid()" title="Усі етапи" aria-label="Усі етапи">1–7</button>
       <button class="iconbtn sndbtn" onclick="toggleSound()" title="Звук уроку" aria-label="Звук уроку"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a8 8 0 0 1 0 12"/></svg></button>
+    </div>
+    <div class="pick-row">
+      <select id="wordSel" aria-label="Обрати слово" onchange="pickCard(this.value)"></select>
     </div>
     <div class="voice-row hidden" id="voiceRow">
       <span>🎙</span><select id="voiceSel" aria-label="Голос"></select>
@@ -556,7 +618,7 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
           <button class="card-nav prev" id="prevB" onclick="event.stopPropagation();move(-1)" aria-label="Попередня картка">‹</button>
           <div class="word-col">
             <div class="lc-word"><b id="lcWord">cat</b><span class="note" id="lcNote"></span>
-              <button class="lc-listen" id="cardSpeak" onclick="event.stopPropagation();speakCard()" aria-label="Прослухати"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a8 8 0 0 1 0 12"/></svg></span> <span id="listenTx">Злий звуки</span></button>
+              <button class="lc-listen" id="cardSpeak" onclick="event.stopPropagation();speakCard()" aria-label="Прослухати"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a8 8 0 0 1 0 12"/></svg></span> <span id="listenTx">Почути слово</span></button>
             </div>
           </div>
           <button class="card-nav next" id="nextB" onclick="event.stopPropagation();move(1)" aria-label="Наступна картка">›</button>
@@ -576,6 +638,16 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
     <button class="big-btn blue" style="margin-top:14px" onclick="closeGrid()">Закрити</button>
   </div>
 </div>
+
+<!-- друк карток -->
+<div class="grid-ov" id="printOv" onclick="if(event.target===this)closePrint()">
+  <div class="grid-inner">
+    <h3>Роздрукувати</h3>
+    <div class="pr-opts" id="prOpts"></div>
+    <button class="big-btn blue" style="margin-top:14px" onclick="closePrint()">Закрити</button>
+  </div>
+</div>
+<div id="printArea"></div>
 
 <!-- ══════ СВЯТКОВА НАГОРОДА ══════ -->
 <div class="win-ov" id="winOv" onclick="if(event.target===this)closeWin()">
@@ -706,7 +778,7 @@ function renderCard(){
     word=(k===0?'<span class="hl">'+escH(c.g)+'</span>'+escH(S.w.slice(c.g.length)):escH(S.w));
     img=S.w; emoji=S.e;
     noteHtml='Звук '+escH(S.ua)+' — як на початку слова';
-    document.getElementById('listenTx').textContent='Прослухати звук';
+    document.getElementById('listenTx').textContent='Почути звук';
   } else {
     const info=P.WORDS[c.w]||{}, segs=P.segment(c.w);
     const syl=segs[0]&&segs[0].syl;
@@ -717,8 +789,10 @@ function renderCard(){
     word=escH(c.w)+(info.tr?'<span class="tr">— '+escH(info.tr)+'</span>':'');
     img=c.w; emoji=info.e||'📖';
     noteHtml=syl?'Прочитай по складах, потім разом':'Натискай на букви по черзі';
-    document.getElementById('listenTx').textContent=syl?'Злий склади':'Злий звуки';
+    document.getElementById('listenTx').textContent='Почути слово';
   }
+  fitTiles();
+  document.getElementById('wordSel').value=String(idx);
   document.getElementById('lcWord').innerHTML=word;
   document.getElementById('lcNote').innerHTML=noteHtml;
   // малюнок: справжній файл, емодзі — лише резерв (без блимання)
@@ -748,6 +822,33 @@ function updateLearnBar(){
   const c=learnedCount();
   document.getElementById('learnBar').style.width=Math.round(c/ALL*100)+'%';
   document.getElementById('learnPt').textContent=c+' / '+ALL;
+}
+
+/* Слово має влазити в ширину картки: зменшуємо --phk, доки не влізе */
+function fitTiles(){
+  const tw=document.getElementById('phTiles'), head=document.getElementById('lcHead');
+  tw.style.setProperty('--phk','1');
+  const cs=getComputedStyle(head);
+  const room=head.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight);
+  if(room>0 && tw.scrollWidth>room) tw.style.setProperty('--phk',(Math.floor(room/tw.scrollWidth*100)/100).toFixed(2));
+}
+window.addEventListener('resize',()=>{ if(document.getElementById('learn').classList.contains('on')) fitTiles(); });
+
+/* ── випадаючий список усіх слів (по етапах) ── */
+function cardLabel(c){
+  if(c.type==='s') return 'звук '+c.g+'  '+P.SOUNDS[c.g].ua;
+  const info=P.WORDS[c.w]||{};
+  return c.w+(info.tr?' — '+info.tr:'');
+}
+function buildWordSel(){
+  document.getElementById('wordSel').innerHTML=P.STAGES.map(st=>
+    '<optgroup label="Етап '+st.id+' · '+escH(st.title)+'">'+
+    CARDS.map((c,i)=>c.stage===st.id?'<option value="'+i+'">'+escH(cardLabel(c))+'</option>':'').join('')+
+    '</optgroup>').join('');
+}
+function pickCard(v){
+  const n=+v; if(!(n>=0&&n<ALL)) return;
+  userGesture=true; idx=n; renderCard();
 }
 
 /* Один звук / склад — дотиком до плитки */
@@ -821,6 +922,67 @@ function jumpStage(id){
   const cs=CARDS.map((c,i)=>({c,i})).filter(o=>o.c.stage===id);
   const first=cs.find(o=>!state.learned[o.c.id])||cs[0];
   idx=first.i; closeGrid(); renderCard();
+}
+
+/* ══════ ДРУК КАРТОК (A4, без малюнків) ══════ */
+function openPrint(){
+  stopAudio();
+  const c=CARDS[idx], st=stageOf(c), n=CARDS.filter(x=>x.stage===st.id).length;
+  const row=(k,num,col,title,sub,cnt)=>'<button class="st-row" onclick="doPrint(\''+k+'\')">'+
+    '<span class="st-num" style="background:'+col+'">'+num+'</span>'+
+    '<span class="st-tx"><b>'+escH(title)+'</b><span>'+escH(sub)+'</span></span>'+
+    '<span class="st-pr">'+cnt+'</span></button>';
+  document.getElementById('prOpts').innerHTML=
+    row('one','1','var(--coral)','Цю картку',cardLabel(c)+' · на весь аркуш','1 арк.')+
+    row('stage',st.id,ST_COL[(st.id-1)%ST_COL.length],'Етап '+st.id+' · '+st.title,'усі картки етапу, 8 на аркуші',n+' шт.')+
+    row('all','∑','var(--indigo)','Усі картки','усі 7 етапів, 8 на аркуші',ALL+' шт.')+
+    row('list-stage','≡',ST_COL[(st.id-1)%ST_COL.length],'Список слів · етап '+st.id,'слова з перекладом, без карток',st.words.length+' сл.')+
+    row('list-all','≡','var(--indigo)','Список усіх слів','усі 7 етапів, з перекладом',P.STAGES.reduce((a,x)=>a+x.words.length,0)+' сл.');
+  document.getElementById('printOv').classList.add('on');
+}
+function closePrint(){ document.getElementById('printOv').classList.remove('on'); }
+function printCardHTML(c){
+  let segs, word;
+  if(c.type==='s'){
+    const S=P.SOUNDS[c.g];
+    segs=[{g:c.g}];
+    word=escH(S.w)+' <span>— звук '+escH(S.ua)+'</span>';
+  } else {
+    const info=P.WORDS[c.w]||{};
+    segs=P.segment(c.w);
+    word=escH(c.w)+(info.tr?' <span>— '+escH(info.tr)+'</span>':'');
+  }
+  const syl=segs[0]&&segs[0].syl;
+  const cls=c.type==='s'?'one':syl?'syl':('n'+Math.min(5,Math.max(3,segs.length)));
+  return '<div class="pa-card"><div class="pa-tiles '+cls+'">'+
+    segs.map(s=>'<b class="'+(syl?'':P.isVowel(s.g)?'v':s.g.length>1?'dg':'')+'">'+escH(s.g)+'</b>').join('')+'</div>'+
+    '<div class="pa-word">'+word+'</div></div>';
+}
+/* Список слів: кольорові літери (як на картці) + переклад */
+function printListHTML(stages){
+  const word=w=>{
+    const segs=P.segment(w), syl=segs[0]&&segs[0].syl;
+    return segs.map(s=>'<i class="'+(syl?'sy':P.isVowel(s.g)?'v':s.g.length>1?'dg':'')+'" style="font-style:normal">'+escH(s.g)+'</i>').join('');
+  };
+  return '<div class="pa-list-h">Читаємо по звуках · слова</div><div class="pa-list">'+
+    stages.map(st=>'<div class="pa-st">Етап '+st.id+' · '+escH(st.title)+'</div>'+
+      st.words.map(w=>{ const info=P.WORDS[w]||{};
+        return '<div class="pa-li"><b>'+word(w)+'</b>'+(info.tr?'<span>— '+escH(info.tr)+'</span>':'')+'</div>'; }).join('')
+    ).join('')+'</div>';
+}
+function doPrint(kind){
+  closePrint();
+  if(kind==='list-stage'||kind==='list-all'){
+    const st=stageOf(CARDS[idx]);
+    document.getElementById('printArea').innerHTML=printListHTML(kind==='list-all'?P.STAGES:[st]);
+    setTimeout(()=>window.print(),60);
+    return;
+  }
+  const cur=CARDS[idx];
+  const list=kind==='one'?[cur]:kind==='stage'?CARDS.filter(c=>c.stage===cur.stage):CARDS;
+  const area=document.getElementById('printArea');
+  area.innerHTML='<div class="pa-grid'+(kind==='one'?' single':'')+'">'+list.map(printCardHTML).join('')+'</div>';
+  setTimeout(()=>window.print(),60);   // друкуємо без малюнків — лише літери й слово
 }
 
 /* ══════ НАГОРОДА ЗА ВСІ КАРТКИ ══════ */
@@ -976,6 +1138,7 @@ async function checkLostPrize(){
 })();
 document.addEventListener('keydown',e=>{
   if(!document.getElementById('learn').classList.contains('on'))return;
+  if(e.target && e.target.tagName==='SELECT') return;   // стрілки в списку слів — не гортають картку
   if(e.key==='ArrowRight')move(1); else if(e.key==='ArrowLeft')move(-1);
 });
 
@@ -1072,6 +1235,7 @@ if('speechSynthesis' in window) speechSynthesis.onvoiceschanged=rankVoices;
 
 
 /* ── старт ── */
+buildWordSel();
 renderSndBtns();
 refreshStart();
 </script>
