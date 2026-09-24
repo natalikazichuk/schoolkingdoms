@@ -783,7 +783,7 @@ function finishTest(){
       h=h||{}; var patch={};
       if(gain>0){ var cur=(h.mana!=null)?num(h.mana):0; patch.mana=cur+gain; }
       return window.SK.saveHeroStats(patch);
-    }).then(function(){ if(window.SK.pushLocal) window.SK.pushLocal().catch(function(){}); try{localStorage.setItem('sk_en_test_'+deck.id,'1');}catch(e){} setSave(true); })
+    }).then(function(){ try{localStorage.setItem('sk_en_test_'+deck.id,'1');}catch(e){} saveEnProg(); if(window.SK.pushLocal) window.SK.pushLocal().catch(function(){}); setSave(true); })
       .catch(function(){ setSave(false); });
   }
 }
@@ -811,7 +811,7 @@ function finishTrial(){
     var chain=Promise.resolve();
     if(coins>0) chain=chain.then(function(){return window.SK.addCoins(coins);});
     if(inst) chain=chain.then(function(){return window.SK.addToInventory(inst);});
-    chain.then(function(){ if(window.SK.pushLocal) window.SK.pushLocal().catch(function(){}); try{localStorage.setItem('sk_en_trial_'+deck.id,'1');}catch(e){} setSave(true); })
+    chain.then(function(){ try{localStorage.setItem('sk_en_trial_'+deck.id,'1');}catch(e){} saveEnProg(); if(window.SK.pushLocal) window.SK.pushLocal().catch(function(){}); setSave(true); })
       .catch(function(){ setSave(false); });
   }
 
@@ -924,6 +924,33 @@ function autoDeck(t, grade){
   return { id:'auto:'+t+'-'+grade, title:t, topic:t, grade:grade, active:true,
            test:{statValue:0}, trial:{coins:0,rewards:[]}, _auto:true };
 }
+/* Підсумок прогресу словника для обкладинки WORDS у «Навчанні» (tests.html).
+   Кожна тема класу — два кроки: «Тест» і «Випробування». Ключ
+   sk_en_prog = {"0":[зроблено,усього], "1":[…], …} за класами (0 — дошкілля).
+   Префікс sk_ — тож він їде в прогрес Героя разом з рештою (pushLocal). */
+function enProgSummary(){
+  var out={};
+  TOPICS.forEach(function(t){
+    t.grades.forEach(function(g){
+      var d=t.byGrade[g] || autoDeck(t.topic, g), n=0;
+      try{
+        if(localStorage.getItem('sk_en_test_'+d.id)==='1') n++;
+        if(localStorage.getItem('sk_en_trial_'+d.id)==='1') n++;
+      }catch(e){}
+      var r=out[g] || (out[g]=[0,0]);
+      r[0]+=n; r[1]+=2;
+    });
+  });
+  return out;
+}
+function saveEnProg(){
+  if(!TOPICS.length) return false;
+  var v=JSON.stringify(enProgSummary()), old=null;
+  try{ old=localStorage.getItem('sk_en_prog'); }catch(e){}
+  if(old===v) return false;
+  try{ localStorage.setItem('sk_en_prog', v); }catch(e){ return false; }
+  return true;
+}
 function buildTopics(decks, words){
   var by={};
   function slot(name){
@@ -962,6 +989,8 @@ function boot(){
       return ha-hb || a.order-b.order || a.title.localeCompare(b.title,'uk');
     });
     renderDecks();
+    /* Тем могло додатись в адмінці — оновлюємо «усього» на обкладинці. */
+    if(saveEnProg() && HERO_SESSION && window.SK.pushLocal) window.SK.pushLocal().catch(function(){});
   }).catch(function(e){ console.error('[slovnyk] набори не прочитались:', e); TOPICS=[]; renderDecks(e||true); });
 }
 (function whenSK(){

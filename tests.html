@@ -231,14 +231,29 @@
   /* пройдено = прапорець проходження / 100% АБО (тести-рівні) ≥ PASS_RATIO рівнів —
      точно ті самі правила, що були на старій сторінці */
   function isPassed(t){
+    if(t.std){ var ep=enProg(t.gkey); if(ep) return ep[0]>=ep[1]; }
     if(truthy(lsGet('sk_testpass_'+t.id)) || truthy(pgGet('sk_testpass_'+t.id))) return true;
     if(truthy(lsGet('sk_test100_'+t.id)) || truthy(pgGet('sk_test100_'+t.id))) return true;
     if(t.isLevels && t.levelCount>0) return (doneLevels(t.id)/t.levelCount) >= SKCUR.PASS_RATIO;
     return false;
   }
-  /* дріб для смужки на КАРТЦІ ТЕСТУ (гранулярно): рівні або 0/1 */
+  /* Прогрес словника (WORDS) для класу key: [зроблено, усього] або null.
+     Пише його slovnyk-en.html у sk_en_prog — по два кроки на тему
+     («Тест» + «Випробування»). Беремо більше з локального й Героєвого. */
+  function enProg(key){
+    var g = (key==='p') ? '0' : String(Number(key)||0), best=null;
+    [lsGet('sk_en_prog'), pgGet('sk_en_prog')].forEach(function(raw){
+      var o=raw; if(typeof o==='string'){ try{ o=JSON.parse(o); }catch(e){ o=null; } }
+      var r=o && o[g];
+      if(r && r.length===2 && Number(r[1])>0 && (!best || Number(r[0])>best[0])) best=[Number(r[0]), Number(r[1])];
+    });
+    if(best && best[0]>best[1]) best[0]=best[1];
+    return best;
+  }
+  /* дріб для смужки на КАРТЦІ ТЕСТУ (гранулярно): рівні, словник або 0/1 */
   function testFrac(t){
     if(t.isLevels && t.levelCount>0){ var d=doneLevels(t.id); if(d>t.levelCount)d=t.levelCount; return d/t.levelCount; }
+    if(t.std){ var ep=enProg(t.gkey); if(ep) return ep[0]/ep[1]; }
     return isPassed(t) ? 1 : 0;
   }
   function subjProg(s){ var passed=0; s.tests.forEach(function(t){ if(isPassed(t)) passed++; }); return {total:s.tests.length, passed:passed}; }
@@ -389,7 +404,7 @@
          вже є розділи з тестами, словник лежав би лише в s.tests і на екран
          не потрапляв (малюються тільки тести з розділів). */
       eng.tests.unshift({
-        id:'std-words-en', title:'WORDS', std:true,
+        id:'std-words-en', title:'WORDS', std:true, gkey:key,   // клас — для прогресу словника
         href:'slovnyk-en.html?skdone=t:std-words-en&skback=tests.html',
         isLink:true, isLevels:false, levelCount:0, icon:'🔤',
         imgCard:'img/tr/slovnyk-en.webp'   // немає файлу → лишиться емодзі
@@ -599,7 +614,9 @@
     if(!s || !s.tests.length){ html+='<div class="empty">Тестів поки немає — додай їх в адмін-панелі.</div>'; q('screen').innerHTML=html; return; }
     function cardHtml(t){
       var label, cls='';
-      if(t.isLink){ var pdl=isPassed(t); label=pdl?'✅ пройдено':'▶ відкрити'; if(pdl) cls='done'; }
+      var ep = t.std ? enProg(t.gkey) : null;
+      if(ep){ label = (ep[0]>=ep[1]) ? '✅ пройдено' : ('📖 '+ep[0]+' / '+ep[1]); if(ep[0]>=ep[1]) cls='done'; }
+      else if(t.isLink){ var pdl=isPassed(t); label=pdl?'✅ пройдено':'▶ відкрити'; if(pdl) cls='done'; }
       else if(t.isLevels){ var d=doneLevels(t.id); if(d>t.levelCount)d=t.levelCount;
         label='🧩 '+d+'/'+t.levelCount+' рівнів'; if(t.levelCount && d>=t.levelCount) cls='done'; }
       else { var pd=isPassed(t); label=pd?'✅ пройдено':'▶ не пройдено'; if(pd) cls='done'; }
