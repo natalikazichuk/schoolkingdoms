@@ -591,7 +591,14 @@ function nextWord(){
 }
 function speakWord(){
   if(!cur) return;
-  playAudio('../audio/sl_'+cur.id+'.mp3', cur.w, 'listenBtn');
+  // mp3 беремо лише там, де він справді записаний (a:1 у sk-slovnykovi.js).
+  // Інакше — одразу синтезатор: спроба неіснуючого файлу забирала час, і фраза
+  // звучала вже поза дотиком дитини — телефон (особливо iPhone) її глушив.
+  playAudio(cur.a ? '../audio/sl_'+cur.id+'.mp3' : null, speakText(cur.w), 'listenBtn');
+}
+/* Для синтезатора: типографський апостроф «ʼ» деякі голоси читають як паузу
+   чи зайвий звук — віддаємо звичайний. */
+function speakText(w){ return String(w).replace(/[ʼ’]/g,"'");
 }
 function toggleHint(){
   state.hint=!state.hint; save();
@@ -749,7 +756,7 @@ function plural(n,one,few,many){ const a=n%10,b=n%100;
 function escH(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
 
 /* ══════ АУДІО ══════
-   Спершу mp3 (audio/sl_<id>.mp3), якщо нема — синтез українським голосом. */
+   mp3 (audio/sl_<id>.mp3) — лише для слів з a:1, решта — синтез українським голосом. */
 let curAudio=null, ukVoices=[], chosenVoice=null;
 function playAudio(url,text,btnId){
   if(!state.soundOn) return;
