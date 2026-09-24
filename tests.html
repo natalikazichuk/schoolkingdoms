@@ -250,11 +250,25 @@
     if(best && best[0]>best[1]) best[0]=best[1];
     return best;
   }
-  /* дріб для смужки на КАРТЦІ ТЕСТУ (гранулярно): рівні, словник або 0/1 */
+  /* Частковий прогрес тренажера-посилання: [зроблено, усього] або null.
+     Пише сам тренажер у sk_testprog_<id> (напр. «Словникові слова» — скільки
+     слів складено). Беремо більше з локального й Героєвого. */
+  function linkProg(id){
+    var best=null;
+    [lsGet('sk_testprog_'+id), pgGet('sk_testprog_'+id)].forEach(function(raw){
+      var o=raw; if(typeof o==='string'){ try{ o=JSON.parse(o); }catch(e){ o=null; } }
+      if(o && o.length===2 && Number(o[1])>0 && (!best || Number(o[0])>best[0])) best=[Number(o[0]), Number(o[1])];
+    });
+    if(best && best[0]>best[1]) best[0]=best[1];
+    return best;
+  }
+  /* дріб для смужки на КАРТЦІ ТЕСТУ (гранулярно): рівні, словник, тренажер або 0/1 */
   function testFrac(t){
     if(t.isLevels && t.levelCount>0){ var d=doneLevels(t.id); if(d>t.levelCount)d=t.levelCount; return d/t.levelCount; }
     if(t.std){ var ep=enProg(t.gkey); if(ep) return ep[0]/ep[1]; }
-    return isPassed(t) ? 1 : 0;
+    if(isPassed(t)) return 1;
+    if(t.isLink){ var lp=linkProg(t.id); if(lp) return lp[0]/lp[1]; }
+    return 0;
   }
   function subjProg(s){ var passed=0; s.tests.forEach(function(t){ if(isPassed(t)) passed++; }); return {total:s.tests.length, passed:passed}; }
   function gradeProg(gr){ var total=0,passed=0; if(gr) gr.order.forEach(function(sid){ gr.subs[sid].tests.forEach(function(t){ total++; if(isPassed(t)) passed++; }); }); return {total:total,passed:passed}; }
@@ -616,7 +630,8 @@
       var label, cls='';
       var ep = t.std ? enProg(t.gkey) : null;
       if(ep){ label = (ep[0]>=ep[1]) ? '✅ пройдено' : ('📖 '+ep[0]+' / '+ep[1]); if(ep[0]>=ep[1]) cls='done'; }
-      else if(t.isLink){ var pdl=isPassed(t); label=pdl?'✅ пройдено':'▶ відкрити'; if(pdl) cls='done'; }
+      else if(t.isLink){ var pdl=isPassed(t), lp=pdl?null:linkProg(t.id);
+        label=pdl?'✅ пройдено':((lp && lp[0]>0)?('▶ '+lp[0]+' / '+lp[1]):'▶ відкрити'); if(pdl) cls='done'; }
       else if(t.isLevels){ var d=doneLevels(t.id); if(d>t.levelCount)d=t.levelCount;
         label='🧩 '+d+'/'+t.levelCount+' рівнів'; if(t.levelCount && d>=t.levelCount) cls='done'; }
       else { var pd=isPassed(t); label=pd?'✅ пройдено':'▶ не пройдено'; if(pd) cls='done'; }
