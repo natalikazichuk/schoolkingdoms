@@ -143,6 +143,7 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px}
 .wc-pic{background:#f5eeda;position:relative;flex:1 1 auto;min-height:90px;display:flex;
   align-items:center;justify-content:center;padding:10px;overflow:hidden;cursor:pointer}
 .wc-pic img{position:absolute;inset:8px;width:calc(100% - 16px);height:calc(100% - 16px);object-fit:contain;display:block}
+.wc-pic.has-img{background:#fff}          /* малюнки намальовані на білому */
 .wc-emoji{font-size:84px;line-height:1}
 .wc-body{background:#fff;padding:8px 10px 12px;flex:none}
 /* зразок слова — блідий, щоб дитина бачила, що складати */
@@ -487,11 +488,12 @@ function renderWord(){
 function showPic(srcs,emoji){
   const pic=document.getElementById('wcPic');
   const tok=(showPic._tok=(showPic._tok||0)+1);
+  pic.classList.remove('has-img');
   pic.innerHTML='<span class="wc-emoji">'+emoji+'</span>';   // видно одразу, без блимання порожнечі
   (function tryNext(i){
     if(i>=srcs.length || tok!==showPic._tok) return;
     const im=new Image(); im.alt=cur?cur.w:'';
-    im.onload =()=>{ if(tok!==showPic._tok) return; pic.innerHTML=''; pic.appendChild(im); };
+    im.onload =()=>{ if(tok!==showPic._tok) return; pic.innerHTML=''; pic.appendChild(im); pic.classList.add('has-img'); };
     im.onerror=()=>{ tryNext(i+1); };
     im.src=srcs[i];
     if(im.complete && im.naturalWidth) im.onload();
