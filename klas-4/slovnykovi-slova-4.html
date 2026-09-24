@@ -408,7 +408,18 @@ function load(){
   try{ const s=JSON.parse(localStorage.getItem(SAVE_KEY));
     if(s){ state.done=s.done||{}; state.soundOn=s.soundOn!==false; } }catch(e){}
 }
-function save(){ try{ localStorage.setItem(SAVE_KEY,JSON.stringify(state)); }catch(e){} }
+function save(){ try{ localStorage.setItem(SAVE_KEY,JSON.stringify(state)); }catch(e){} reportProg(); }
+/* Частковий прогрес для картки в «Навчанні» (tests.html): sk_testprog_<id> =
+   [складено, усього]. id запису — з ?skdone=t:<id>, з яким картка відкриває
+   тренажер. Ключ із простору sk_*, тож їде в heroes/{id}.progress разом з
+   рештою (firebase-config синхронізує, коли вкладку згортають). */
+function reportProg(){
+  let id=null;
+  try{ const raw=new URLSearchParams(location.search).get('skdone')||'';
+    const ci=raw.indexOf(':'); id=ci>0?raw.slice(ci+1):raw; }catch(e){}
+  if(!id || !ALL) return;
+  try{ localStorage.setItem('sk_testprog_'+id, JSON.stringify([doneCount(),ALL])); }catch(e){}
+}
 function doneCount(){ return ALL_WORDS.filter(w=>state.done[w.id]).length; }
 function themeDone(t){ return t.words.filter(w=>state.done[w.id]).length; }
 function allDone(){ return doneCount()>=ALL; }
@@ -880,6 +891,7 @@ if('speechSynthesis' in window) speechSynthesis.onvoiceschanged=rankVoices;
 /* ── старт ── */
 renderSndBtns();
 refreshStart();
+reportProg();          // прогрес, складений раніше (чи з іншого пристрою), — одразу в картку
 // малюнки всього класу — у фоні, поки дитина на стартовому екрані
 (window.requestIdleCallback||function(f){ setTimeout(f,600); })(function(){ preloadPics(ALL_WORDS); });
 </script>
