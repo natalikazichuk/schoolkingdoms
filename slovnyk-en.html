@@ -173,7 +173,20 @@
   .speak:active{transform:translateY(3px);box-shadow:0 1px 0 var(--primary-d)}
   .nav-row{display:flex;gap:9px;align-items:stretch;margin-top:10px;flex:none}
   .nav-row .big-btn{flex:1;white-space:nowrap}
-  .nav-row .big-btn.side{flex:none;width:62px;padding-left:0;padding-right:0}
+  .nav-row .big-btn.side{flex:none;width:84px;padding-left:0;padding-right:0;font-size:26px}
+  /* перше/останнє слово — стрілка гасне, щоб було видно, що далі нікуди */
+  .nav-row .big-btn.side:disabled{opacity:.35;box-shadow:none;transform:none;cursor:default}
+  /* гортання: картка виїжджає в бік свайпу, нова заїжджає з протилежного */
+  .fcard{touch-action:pan-y;user-select:none;-webkit-user-select:none}
+  .fcard img{-webkit-user-drag:none;pointer-events:none}   /* інакше браузер тягне саму картинку і свайп обривається */
+  .fcard.drag{transition:none}
+  .fcard.in-l{animation:fInL .22s ease-out}
+  .fcard.in-r{animation:fInR .22s ease-out}
+  @keyframes fInL{from{transform:translateX(38%);opacity:0}to{transform:none;opacity:1}}
+  @keyframes fInR{from{transform:translateX(-38%);opacity:0}to{transform:none;opacity:1}}
+  .fcard.flip{animation:fFlip .2s ease-out}
+  @keyframes fFlip{from{transform:scaleX(.9);opacity:.6}to{transform:none;opacity:1}}
+  @media (prefers-reduced-motion:reduce){.fcard.in-l,.fcard.in-r,.fcard.flip{animation:none}}
 
   /* перевірка.
      Картинка віддає висоту першою і ніколи не вилазить за свій бокс:
@@ -599,7 +612,7 @@ function renderStudy(){
       +'<div class="fwrow"><div class="fword">'+esc(w.word)+'</div>'
       +'<button class="speak" id="fspeak">🔊</button></div>'
       +(w.ipa?'<div class="fipa">'+esc(w.ipa)+'</div>':'')
-      +'<div class="fhint">торкнись картки → переклад</div>';
+      +'<div class="fhint">торкнись → переклад · гортай ← →</div>';
   }else{
     $('fcard').innerHTML='<div class="fpic">'+pic+'</div>'
       +'<div class="fuk">'+esc(w.uk)+'</div>'
@@ -609,7 +622,30 @@ function renderStudy(){
   var sp=$('fspeak'); if(sp) sp.onclick=function(ev){ev.stopPropagation();play(w);};
   var pct=Math.round((studyPos+1)/WORDS.length*100);
   $('studyBar').style.width=pct+'%'; $('studyPt').textContent=(studyPos+1)+' / '+WORDS.length;
+  $('fPrev').disabled = studyPos<=0;
+  $('fNext').disabled = studyPos>=WORDS.length-1;
+  preloadNear();
   if(!flipped) play(w);
+}
+/* Картинки сусідніх слів вантажимо заздалегідь — щоб при гортанні картка
+   не стояла порожньою, поки картинка тягнеться з мережі. */
+function preloadNear(){
+  [studyPos+1, studyPos+2, studyPos-1].forEach(function(i){
+    var w=WORDS[i]; if(!w) return;
+    var src=wImg(w); if(src){ var im=new Image(); im.src=src; }
+  });
+}
+/* dir: +1 — наступне, -1 — попереднє. Анімація лише візуальна: слово
+   змінюється одразу, тож швидкі тапи не губляться. */
+function studyGo(dir){
+  var n=studyPos+dir;
+  if(n<0 || n>WORDS.length-1) return;
+  studyPos=n; flipped=false; renderStudy();
+  animCard(dir>0 ? 'in-l' : 'in-r');
+}
+function animCard(cls){
+  var c=$('fcard'); if(!c) return;
+  c.classList.remove('in-l','in-r','flip'); void c.offsetWidth; c.classList.add(cls);
 }
 
 /* ============ ГЕНЕРАЦІЯ ПИТАНЬ ============ */
@@ -834,9 +870,47 @@ function wire(){
   $('btnStudy').onclick=function(){ studyPos=0; flipped=false; show('sStudy'); renderStudy(); };
 
   $('studyBack').onclick=function(){ show('sMode'); };
-  $('fcard').onclick=function(){ flipped=!flipped; renderStudy(); };
-  $('fPrev').onclick=function(){ if(studyPos>0){studyPos--;flipped=false;renderStudy();} };
-  $('fNext').onclick=function(){ if(studyPos<WORDS.length-1){studyPos++;flipped=false;renderStudy();} };
+  var swiped=false;
+  $('fcard').onclick=function(){
+    if(swiped){ swiped=false; return; }            // це був свайп, а не тап
+    flipped=!flipped; renderStudy(); animCard('flip');
+  };
+  $('fPrev').onclick=function(){ studyGo(-1); };
+  $('fNext').onclick=function(){ studyGo(1); };
+  /* Свайп по картці: картка йде за пальцем, відпустив далі ніж на 60px —
+     гортаємо; менше — повертається на місце і лишається звичайним тапом. */
+  (function(){
+    var c=$('fcard'), x0=null, y0=0, dx=0;
+    c.addEventListener('pointerdown',function(e){
+      if(e.target.closest('.speak')) return;
+      x0=e.clientX; y0=e.clientY; dx=0;
+    });
+    c.addEventListener('pointermove',function(e){
+      if(x0==null) return;
+      dx=e.clientX-x0;
+      if(Math.abs(dx)<8 || Math.abs(dx)<Math.abs(e.clientY-y0)) return;
+      c.classList.add('drag');
+      c.style.transform='translateX('+dx+'px) rotate('+(dx/40)+'deg)';
+    });
+    function end(){
+      if(x0==null) return;
+      x0=null; c.classList.remove('drag'); c.style.transform='';
+      if(Math.abs(dx)>=60){ swiped=true; studyGo(dx<0 ? 1 : -1); }
+      else if(Math.abs(dx)>=8){ swiped=true; }
+      dx=0;
+      setTimeout(function(){ swiped=false; },0);
+    }
+    c.addEventListener('pointerup',end);
+    c.addEventListener('pointercancel',end);
+    c.addEventListener('pointerleave',end);
+  })();
+  /* клавіатура (планшет із клавіатурою, компʼютер) */
+  document.addEventListener('keydown',function(e){
+    var st=$('sStudy'); if(!st || !st.classList.contains('on')) return;
+    if(e.key==='ArrowLeft'){ studyGo(-1); e.preventDefault(); }
+    else if(e.key==='ArrowRight'){ studyGo(1); e.preventDefault(); }
+    else if(e.key===' '||e.key==='Enter'){ flipped=!flipped; renderStudy(); animCard('flip'); e.preventDefault(); }
+  });
   $('fStart').onclick=function(){ mode='test'; show('sMode'); };
 
   $('playBack').onclick=function(){ if(confirm('Вийти з перевірки? Прогрес не збережеться.')) show('sMode'); };
