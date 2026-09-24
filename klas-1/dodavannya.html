@@ -170,7 +170,7 @@ h1{font-family:"Caveat",cursive;font-weight:700;font-size:34px;line-height:1.05;
   <div id="screen-map">
     <div class="eyebrow">Математика · 10 рівнів · <span id="sync" class="sync">…</span></div>
     <h1>Швидке додавання</h1>
-    <img class="cover" src="../img/tr/dodavannya.webp?v=1" alt="" onerror="this.remove()">
+    <img class="cover" src="../img/tr/dodavannya.webp?v=2" alt="" onerror="this.remove()">
     <div class="hud">
       <div class="stat"><span class="k">XP</span><b id="hud-xp">0</b></div>
       <div class="stat"><span class="k">Рекорд/хв</span><b id="hud-rec">—</b></div>
@@ -178,7 +178,7 @@ h1{font-family:"Caveat",cursive;font-weight:700;font-size:34px;line-height:1.05;
     </div>
     <div class="map" id="map"></div>
     <div class="rule"></div>
-    <div class="eyebrow">Супер-результат — 45 правильних за хвилину</div>
+    <div class="eyebrow">Супер-результат — 30 правильних за хвилину</div>
     <a class="backlink" href="../igry.html">← До ігор</a>
   </div>
 
@@ -476,7 +476,7 @@ function endRound(){
   $("d-super").innerHTML   = correct >= SUPER ? `<span class="super">🏆 СУПЕР · 30+ за хвилину</span>` : "";
 
   let line;
-  if(correct >= SUPER)      line = "Неймовірно! Ти справжній чемпіон таблиці множення.";
+  if(correct >= SUPER)      line = "Неймовірно! Ти справжній чемпіон додавання.";
   else if(correct >= 20)    line = "Чудово! До супер-результату лишилось зовсім трохи.";
   else if(correct >= PASS)  line = "Рівень пройдено! Спробуй побити свій рекорд.";
   else                      line = `Треба ${PASS}, щоб відчинити наступний рівень. Ще один спринт!`;
@@ -511,11 +511,25 @@ function readLS(){
 }
 function saveProgress(){
   try{ localStorage.setItem(LS_KEY, JSON.stringify({unlocked:S.unlocked, done:S.done, best:S.best, xp:S.xp})); }catch(e){}
+  reportProg();
   if(window.SK && SK.pushLocal){
     SK.pushLocal().then(ok=>setSync(ok?"збережено":"локально",ok?"ok":"no")).catch(()=>setSync("локально","no"));
   }
 }
 window.addEventListener("pagehide", saveProgress);
+
+/* Прогрес для картки в «Навчанні» (tests.html): sk_testprog_<id> = [пройдено рівнів, 10].
+   id запису — з ?skdone=t:<id>, з яким картка відкриває гру. Усі 10 рівнів —
+   запис зараховано (skFinishRecord із sk-finish.js). Без ?skdone — нічого. */
+function reportProg(){
+  let id = null;
+  try{ const raw = new URLSearchParams(location.search).get("skdone") || "";
+    const ci = raw.indexOf(":"); id = ci > 0 ? raw.slice(ci+1) : raw; }catch(e){}
+  if(!id) return;
+  const n = S.done.filter(Boolean).length;
+  try{ localStorage.setItem("sk_testprog_"+id, JSON.stringify([n, 10])); }catch(e){}
+  if(n >= 10){ try{ if(window.skFinishRecord) skFinishRecord(); }catch(e){} }
+}
 
 function waitSK(cb){
   let n = 0;
@@ -526,14 +540,14 @@ function waitSK(cb){
   })();
 }
 function boot(){
-  readLS(); drawMap(); setSync("з'єднання…");
+  readLS(); drawMap(); reportProg(); setSync("з'єднання…");
   waitSK(ok => {
     if(!ok){ setSync("локально — без хмари","no"); return; }
     SK.ready.then(async () => {
       try{
         if(!SK.isHeroSession || !SK.isHeroSession()){ setSync("увійди як Герой","no"); return; }
         await SK.pullLocal();               // хмара → localStorage
-        readLS(); drawMap();
+        readLS(); drawMap(); reportProg();
         const hero = await SK.getActiveChild();
         setSync(hero && hero.name ? hero.name : "прогрес у хмарі", "ok");
       }catch(e){ setSync("локально","no"); }
