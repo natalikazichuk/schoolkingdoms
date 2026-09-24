@@ -85,8 +85,13 @@
   .speak:active{transform:scale(.92)}
   .speak.on{background:var(--gold);animation:pulse 1s infinite}
 
-  /* Слайд-переходи */
-  .card{animation:slideIn .4s cubic-bezier(.2,.7,.3,1) both}
+  /* Однаковий розмір картки, як у решті тренажерів (змінні — з sk-cards.js):
+     картка не стрибає від довгого чи короткого тексту; довгий — гортається
+     всередині. Перехід між слайдами — бічний, від sk-cards.js. */
+  .stage .card{width:min(100%,var(--sk-card-w,440px));height:var(--sk-card-h,min(560px,58dvh));
+    overflow-y:auto;box-sizing:border-box}
+  .stage .photo-wrap{width:min(260px,72%)}
+  .stage{padding-left:14px;padding-right:14px}   /* ширина картки = як у решті тренажерів */
   .card .photo-wrap{animation:pop .5s .08s both}
   .card .slide-title{animation:rise .45s .14s both}
   .card .slide-text{animation:rise .45s .2s both}
@@ -385,16 +390,16 @@ document.addEventListener('keydown', e => {
 });
 prevBtn.addEventListener('click', () => go(idx-1));
 
-/* ── Свайп на телефоні ── */
-let tx = 0;
-stage.addEventListener('touchstart', e => { tx = e.changedTouches[0].clientX; }, {passive:true});
-stage.addEventListener('touchend', e => {
-  const dx = e.changedTouches[0].clientX - tx;
-  if(Math.abs(dx) > 50) go(dx < 0 ? idx+1 : idx-1);
-}, {passive:true});
+/* ── Свайп — у спільному sk-cards.js (підключено внизу) ── */
 
 render();
 </script>
+
+<!-- однакове гортання й розмір карток у всіх тренажерах -->
+<script src="../sk-cards.js?v=1"></script>
+<script>SKCards.attach({card:'#stage',fn:'go',abs:true,size:false,stage:false,
+  index:function(){ return idx; },
+  canGo:function(d){ var n=idx+d; return n>=0 && n<SLIDES.length; }});</script>
 
 <!-- 🐞 «Повідомити про помилку» -->
 <script src="../sk-report.js?v=2" defer></script>

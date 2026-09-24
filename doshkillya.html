@@ -165,6 +165,17 @@
     function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
     function truthy(v){ return v==='1'||v===1||v===true; }
     function isDone(id){
+      /* Словник (WORDS) пройдено, коли зроблено всі теми дошкілля — так само,
+         як рахує tests.html із підсумку sk_en_prog, що пише slovnyk-en.html. */
+      if(id==='std-words-en'){
+        var ep=null;
+        [lsGet('sk_en_prog'), PROG && PROG['sk_en_prog']].forEach(function(raw){
+          var o=raw; if(typeof o==='string'){ try{ o=JSON.parse(o); }catch(e){ o=null; } }
+          var r=o && o['0'];
+          if(r && Number(r[1])>0 && (!ep || Number(r[0])>ep[0])) ep=[Number(r[0]),Number(r[1])];
+        });
+        if(ep) return ep[0]>=ep[1];
+      }
       var k='sk_testpass_'+id;
       return truthy(lsGet(k)) || truthy(PROG && PROG[k]) || truthy(lsGet('sk_test100_'+id));
     }
