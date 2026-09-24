@@ -521,7 +521,9 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
    МАЛЮНКИ (встав свої):  img/abc_<id>.webp   (id — латинка, див. поле id)
      напр. A → img/abc_a.webp,  Z → img/abc_z.webp
      поки файлу немає — показуємо велике емодзі-чернетку.
-   ОЗВУЧКА (за бажанням):  audio/abc_<id>.mp3
+   ОЗВУЧКА (за бажанням):  audio/abc/abc_<id>.mp3 — картка: «Ay. … Apple.» (gen_abc.py)
+     гра «Яка літера?» — лише назва: audio/phonics/letters/phon_n_<id>.mp3,
+     щоб слово не підказувало відповідь.
      якщо файл є — грає він; якщо нема — синтез англійським голосом.
    ============================================================ */
 
@@ -713,7 +715,7 @@ function speakCard(){
   userGesture=true;
   const it=ABC[idx];
   const text=it.speak || [it.L, it.w];     // масив = дві репліки з паузою між ними
-  playAudio('../audio/abc_'+it.id+'.mp3', text, 'cardSpeak');
+  playAudio('../audio/abc/abc_'+it.id+'.mp3', text, 'cardSpeak');
 }
 
 /* ── сітка всіх літер ── */
@@ -994,7 +996,7 @@ function buildChoice(key){
     if(key==='litera'){
       const it=ABC[randInt(ABC.length)];
       const opts=distinctLetters(it.L,4);
-      rounds.push({kind:'litera', letter:it.L, audio:'../audio/abc_'+it.id+'.mp3',
+      rounds.push({kind:'litera', letter:it.L, audio:'../audio/phonics/letters/phon_n_'+it.id+'.mp3',
         speak:it.speak||it.L, autoSpeak:true, answerLabel:it.L,
         options:shuffle(opts.map(L=>({label:L,correct:L===it.L})))});
     } else if(key==='persha'){
@@ -1247,7 +1249,7 @@ function distinctLetters(correct,n){
 }
 
 /* ══════════════ АУДІО ══════════════
-   Спершу mp3 (audio/abc_<id>.mp3), якщо нема — синтез англ. голосом. */
+   Спершу mp3 (audio/abc/…, audio/phonics/letters/…), якщо нема — синтез англ. голосом. */
 let curAudio=null, ukVoices=[], chosenVoice=null;
 const SPEAK_GAP=850;                       // пауза між літерою і словом, мс
 let speakGapTimer=null, speakSeq=0;

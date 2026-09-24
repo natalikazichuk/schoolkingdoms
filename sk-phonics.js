@@ -9,11 +9,21 @@
 
    МАЛЮНКИ:  img/phonics/<word>.webp   (прозорий фон, contain)
              поки файлу нема — емодзі-чернетка (поле e).
-   ОЗВУЧКА (необовʼязково — синтез en-GB, якщо файлу нема):
-             audio/phon_<word>.mp3       — слово
-             audio/phon_s_<grapheme>.mp3 — окремий звук (s, a, sh, ch…)
-   Синтез мовлення погано вимовляє окремі приголосні («t» → «tuh»),
-   тож для звуків записані mp3 дають помітно кращий результат.
+   ОЗВУЧКА:  говорить голос телефона (синтез en-GB) — той самий, яким
+             звучать слова. Якщо поруч покласти файл, він має перевагу:
+             audio/phonics/words/phon_<word>.mp3       — слово
+             audio/phonics/sounds/phon_s_<grapheme>.mp3 — окремий звук (s, a, sh, ch…)
+             (поруч: letters/phon_n_<літера>.mp3 — назви літер,
+              male/phon_s_<grapheme>_m.mp3 — звуки чоловічим голосом; поки не вживаються)
+
+   Поле say — це те, що віддаємо синтезатору. Він не вміє вимовляти голу
+   фонему: рядок, якого немає в його словнику, він читає ПО БУКВАХ —
+   «sss» виходило «ес-ес-ес», «ih» — «ай-ейч», «th» — «ті-ейч».
+   Тому кожен say має бути схожий на слово: приголосні з коротким [ə]
+   («suh», «tuh»), голосні — вигуками («ahh», «ehh»). Голосні синтез
+   усе одно вимовляє приблизно — тут допоможе лише живий запис у mp3.
+   (Пробували генерувати звуки машинним синтезом у файли — звучало
+   механічно поряд із живим голосом, тож повернулись до голосу телефона.)
    ============================================================ */
 (function(){
   'use strict';
@@ -21,34 +31,43 @@
   /* say — що віддаємо синтезатору, ua — підказка українською,
      w/e — слово-приклад, що починається з цього звуку. */
   const SOUNDS={
-    s:{say:'sss',  ua:'[с]',        w:'sun',     e:'☀️'},
-    a:{say:'ah',   ua:'[е] широке', w:'apple',   e:'🍎'},
+    s:{say:'suh',  ua:'[с]',        w:'sun',     e:'☀️'},
+    a:{say:'ahh',   ua:'[е] широке', w:'apple',   e:'🍎'},
     t:{say:'tuh',  ua:'[т]',        w:'tiger',   e:'🐯'},
     p:{say:'puh',  ua:'[п]',        w:'pig',     e:'🐷'},
-    i:{say:'ih',   ua:'[і] коротке',w:'insect',  e:'🐞'},
-    n:{say:'nnn',  ua:'[н]',        w:'nest',    e:'🪺'},
+    i:{say:'ihh',   ua:'[і] коротке',w:'insect',  e:'🐞'},
+    n:{say:'nuh',  ua:'[н]',        w:'nest',    e:'🪺'},
     c:{say:'kuh',  ua:'[к]',        w:'cat',     e:'🐱'},
     k:{say:'kuh',  ua:'[к]',        w:'kite',    e:'🪁'},
-    e:{say:'eh',   ua:'[е]',        w:'egg',     e:'🥚'},
+    e:{say:'ehh',   ua:'[е]',        w:'egg',     e:'🥚'},
     h:{say:'huh',  ua:'[х] легке',  w:'hat',     e:'🎩'},
-    r:{say:'rrr',  ua:'[р] мʼяке',  w:'rabbit',  e:'🐰'},
-    m:{say:'mmm',  ua:'[м]',        w:'moon',    e:'🌙'},
+    r:{say:'ruh',  ua:'[р] мʼяке',  w:'rabbit',  e:'🐰'},
+    m:{say:'muh',  ua:'[м]',        w:'moon',    e:'🌙'},
     d:{say:'duh',  ua:'[д]',        w:'dog',     e:'🐶'},
     g:{say:'guh',  ua:'[ґ]',        w:'goat',    e:'🐐'},
-    o:{say:'o',    ua:'[о]',        w:'octopus', e:'🐙'},
-    u:{say:'uh',   ua:'[а]',        w:'umbrella',e:'☂️'},
-    l:{say:'lll',  ua:'[л]',        w:'lion',    e:'🦁'},
-    f:{say:'fff',  ua:'[ф]',        w:'fish',    e:'🐟'},
+    o:{say:'ohh',    ua:'[о]',        w:'octopus', e:'🐙'},
+    u:{say:'uhh',   ua:'[а]',        w:'umbrella',e:'☂️'},
+    l:{say:'luh',  ua:'[л]',        w:'lion',    e:'🦁'},
+    f:{say:'fuh',  ua:'[ф]',        w:'fish',    e:'🐟'},
     b:{say:'buh',  ua:'[б]',        w:'bus',     e:'🚌'},
     w:{say:'wuh',  ua:'[в] губами', w:'web',     e:'🕸️'},
-    x:{say:'ks',   ua:'[кс]',       w:'box',     e:'📦'},
+    x:{say:'ex',   ua:'[кс]',       w:'box',     e:'📦'},
     y:{say:'yuh',  ua:'[й]',        w:'yo-yo',   e:'🪀'},
     j:{say:'juh',  ua:'[дж]',       w:'jam',     e:'🍯'},
-    sh:{say:'shh', ua:'[ш]',        w:'ship',    e:'🚢'},
+    sh:{say:'shuh', ua:'[ш]',        w:'ship',    e:'🚢'},
     ch:{say:'chuh',ua:'[ч]',        w:'chip',    e:'🍟'},
-    th:{say:'th',  ua:'язик між зубами', w:'thumb', e:'👍'},
+    th:{say:'thuh',  ua:'язик між зубами', w:'thumb', e:'👍'},
     ck:{say:'kuh', ua:'[к]',        w:'duck',    e:'🦆'}
   };
+
+  /* ТИМЧАСОВО, поки немає згенерованих audio/phon_s_<g>.mp3: звук-картки
+     озвучуються назвою літери, як у Learn ABC («A», «B», диграфи — по буквах
+     «S H»). Фонетичні say вище лишаються — повернути їх: поставити false.
+     Файли phon_s_*.mp3, щойно з'являться, і так мають перевагу над синтезом. */
+  const SAY_LETTER_NAMES=true;
+  if(SAY_LETTER_NAMES){
+    Object.keys(SOUNDS).forEach(function(g){ SOUNDS[g].say=g.toUpperCase().split('').join(' '); });
+  }
 
   /* Порядок навчання: спершу 3 групи звуків для дошкільнят (кожна з готовими
      словами), далі решта CVC, злиття приголосних, диграфи, довгі слова. */
@@ -136,8 +155,8 @@
 
   /* файли: base — префікс кореня ('../' з doshkilya/) */
   function picSrc(base,word){ return base+'img/phonics/'+word+'.webp'; }
-  function wordUrl(base,word){ return base+'audio/phon_'+word+'.mp3'; }
-  function sndUrl(base,g){ return base+'audio/phon_s_'+g+'.mp3'; }
+  function wordUrl(base,word){ return base+'audio/phonics/words/phon_'+word+'.mp3'; }
+  function sndUrl(base,g){ return base+'audio/phonics/sounds/phon_s_'+g+'.mp3'; }
 
   window.SKPH={SOUNDS:SOUNDS, STAGES:STAGES, WORDS:WORDS, segment:segment, cards:cards,
                picSrc:picSrc, sndUrl:sndUrl, wordUrl:wordUrl, isVowel:isVowel};
