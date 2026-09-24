@@ -442,6 +442,7 @@ function renderThemes(){
 /* ══════ ГРА ══════ */
 function startTheme(id){
   theme=THEMES.find(t=>t.id===id); if(!theme) return;
+  preloadPics(theme.words);
   // спершу — те, що ще не складене; складене лишаємо в кінці для повторення
   const fresh=theme.words.filter(w=>!state.done[w.id]);
   const old=theme.words.filter(w=>state.done[w.id]);
@@ -465,7 +466,8 @@ function renderWord(){
 
   // Малюнок слова. Спершу власний файл тренажера, тоді готовий малюнок
   // із інших наборів проєкту (pic), і лише як останній резерв — емодзі.
-  showPic(['../img/sl/'+cur.id+'.webp'].concat(cur.pic?['../img/'+cur.pic+'.webp']:[]), cur.e);
+  showPic(cur);
+  const nx=queue[qi+1]; if(nx) preloadPics([nx]);          // наступне слово — наперед
 
   const hint=document.getElementById('wcHint');
   hint.textContent=cur.w;
@@ -485,19 +487,48 @@ function renderWord(){
   speakWord();
 }
 /* Пробуємо картинки по черзі; жодна не підійшла — лишається емодзі. */
-function showPic(srcs,emoji){
+/* ══════ МАЛЮНКИ: ЗАВАНТАЖУЄМО НАПЕРЕД ══════
+   Раніше малюнок вантажився лише тоді, коли слово вже на екрані, — дитина
+   спершу бачила емодзі, а картинка підмінювала його із запізненням.
+   Тепер малюнки теми вантажаться ще до першого слова (а решта класу —
+   тихо у фоні), і слово зʼявляється одразу з готовою картинкою.
+   PICS[id]: Promise<Image|null> — null, якщо жоден файл не знайшовся
+   (тоді лишається емодзі й файл більше не смикаємо). */
+const PICS={};
+function picSrcs(w){ return ['../img/sl/'+w.id+'.webp'].concat(w.pic?['../img/'+w.pic+'.webp']:[]); }
+function loadPic(w){
+  if(PICS[w.id]) return PICS[w.id];
+  const srcs=picSrcs(w);
+  return PICS[w.id]=new Promise(function(done){
+    (function tryNext(i){
+      if(i>=srcs.length){ done(null); return; }
+      const im=new Image(); im.alt=w.w; im.decoding='async';
+      im.onload=function(){
+        // decode() — щоб картинка лягла на екран без «проявлення» кадрами
+        (im.decode?im.decode().catch(function(){}):Promise.resolve()).then(function(){ done(im); });
+      };
+      im.onerror=function(){ tryNext(i+1); };
+      im.src=srcs[i];
+    })(0);
+  });
+}
+function preloadPics(words){ words.forEach(function(w){
+  const p=loadPic(w); if(!p._hooked){ p._hooked=1; p.then(function(im){ p._done=1; p._im=im; }); } }); }
+function showPic(w){
   const pic=document.getElementById('wcPic');
   const tok=(showPic._tok=(showPic._tok||0)+1);
-  pic.classList.remove('has-img');
-  pic.innerHTML='<span class="wc-emoji">'+emoji+'</span>';   // видно одразу, без блимання порожнечі
-  (function tryNext(i){
-    if(i>=srcs.length || tok!==showPic._tok) return;
-    const im=new Image(); im.alt=cur?cur.w:'';
-    im.onload =()=>{ if(tok!==showPic._tok) return; pic.innerHTML=''; pic.appendChild(im); pic.classList.add('has-img'); };
-    im.onerror=()=>{ tryNext(i+1); };
-    im.src=srcs[i];
-    if(im.complete && im.naturalWidth) im.onload();
-  })(0);
+  const put=function(im){
+    if(tok!==showPic._tok) return;
+    if(im){ pic.innerHTML=''; pic.appendChild(im); pic.classList.add('has-img'); }
+    else { pic.classList.remove('has-img'); pic.innerHTML='<span class="wc-emoji">'+w.e+'</span>'; }
+  };
+  preloadPics([w]);
+  const p=PICS[w.id];
+  if(p._done){ put(p._im); return; }                  // уже завантажено — одразу, без емодзі
+  // ще вантажиться: коротко чекаємо, щоб не блимати емодзі, і лише тоді показуємо його
+  pic.classList.remove('has-img'); pic.innerHTML='';
+  const t=setTimeout(function(){ if(tok===showPic._tok && !p._done) put(null); }, 250);
+  p.then(function(im){ clearTimeout(t); put(im); });
 }
 function updatePlayBar(){
   const d=themeDone(theme), all=theme.words.length;
@@ -824,6 +855,8 @@ if('speechSynthesis' in window) speechSynthesis.onvoiceschanged=rankVoices;
 /* ── старт ── */
 renderSndBtns();
 refreshStart();
+// малюнки всього класу — у фоні, поки дитина на стартовому екрані
+(window.requestIdleCallback||function(f){ setTimeout(f,600); })(function(){ preloadPics(ALL_WORDS); });
 </script>
 
 <!-- Firebase лише для кнопки «Вийти» у спільному футері -->
