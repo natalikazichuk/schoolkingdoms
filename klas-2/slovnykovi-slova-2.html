@@ -143,12 +143,9 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px}
 .wc-pic{background:#f5eeda;position:relative;flex:1 1 auto;min-height:90px;display:flex;
   align-items:center;justify-content:center;padding:10px;overflow:hidden;cursor:pointer}
 .wc-pic img{position:absolute;inset:8px;width:calc(100% - 16px);height:calc(100% - 16px);object-fit:contain;display:block}
+.wc-pic.has-img{background:#fff}          /* малюнки намальовані на білому */
 .wc-emoji{font-size:84px;line-height:1}
 .wc-body{background:#fff;padding:8px 10px 12px;flex:none}
-/* зразок слова — блідий, щоб дитина бачила, що складати */
-.wc-hint{font-family:'Fredoka','Nunito',sans-serif;font-weight:700;font-size:15px;letter-spacing:3px;color:#bdb7ab;
-  text-align:center;margin:0 0 6px;min-height:19px}
-.wc-hint.off{visibility:hidden}
 
 .slots{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
 .slot{width:var(--sw,46px);height:calc(var(--sw,46px) * 1.18);border-radius:12px;border:3px dashed var(--line);
@@ -237,8 +234,24 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px}
 }
 @media (max-height:700px){
   .wc-body{padding:6px 8px 8px}
-  .wc-hint{font-size:13px;margin-bottom:4px}
   .listen-btn{padding:10px;font-size:16px}
+}
+
+/* ══════ ДРУК ══════ */
+#printSheet{display:none}
+@media print{
+  @page{size:A4;margin:14mm}
+  body{background:#fff!important;padding:0!important;display:block;min-height:0}
+  body>*:not(#printSheet){display:none!important}
+  #printSheet{display:block;color:#000;font-family:'Nunito',sans-serif}
+  #printSheet h1{font-family:'Comfortaa','Nunito',sans-serif;font-size:24pt;margin:0;text-align:center}
+  #printSheet .ps-sub{text-align:center;margin:2mm 0 5mm;font-size:11pt;color:#555}
+  #printSheet section{break-inside:avoid;margin-bottom:4mm}
+  #printSheet h2{font-family:'Nunito',sans-serif;font-size:14pt;margin:0 0 2mm;border-bottom:1px solid #bbb;padding-bottom:1mm}
+  #printSheet ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:2mm 6mm}
+  #printSheet li{display:flex;align-items:center;gap:3mm;font-size:17pt;break-inside:avoid}
+  #printSheet li img{width:13mm;height:13mm;object-fit:contain;flex:none}
+  #printSheet li .ps-e{width:13mm;text-align:center;font-size:20pt;flex:none}
 }
 </style>
 </head>
@@ -304,7 +317,7 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px}
         <div class="bar"><span id="playBar" style="width:0%"></span></div>
         <span class="pt" id="playPt">0 / 0</span>
       </div>
-      <button class="iconbtn" id="hintBtn" onclick="toggleHint()" title="Підказка: показати слово" aria-label="Підказка: показати слово">👁</button>
+      <button class="iconbtn" id="printBtn" onclick="printWords()" title="Друкувати список слів" aria-label="Друкувати список слів">🖨️</button>
       <button class="iconbtn sndbtn" onclick="toggleSound()" title="Звук уроку" aria-label="Звук уроку"></button>
     </div>
     <div class="voice-row hidden" id="voiceRow"><span>🎙</span><select id="voiceSel" aria-label="Голос"></select></div>
@@ -312,7 +325,6 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px}
     <div class="word-card">
       <div class="wc-pic" id="wcPic" onclick="speakWord()"></div>
       <div class="wc-body">
-        <div class="wc-hint" id="wcHint">слово</div>
         <div class="slots" id="slots"></div>
         <div class="tiles" id="tiles"></div>
         <div class="done-word" id="doneWord">✓ Молодець!</div>
@@ -346,6 +358,8 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px}
   </div>
 </div>
 
+<div id="printSheet" aria-hidden="true"></div>
+
 <script src="../sk-slovnykovi.js?v=1"></script>
 <script src="../sk-footer.js?v=5" data-base="../" data-back="tests.html"></script>
 
@@ -360,8 +374,8 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px}
    • помилка повертає слово на початок: комірки спалахують і порожніють,
      і слово збирається з першої букви.
 
-   Підказка (слово над комірками) вмикається оком у шапці. Без підказки —
-   це вже справжній словниковий диктант: лише малюнок і голос.
+   Зразка слова на екрані немає — лише малюнок і голос, як на диктанті.
+   Кнопка 🖨️ у шапці друкує список слів класу за темами — щоб вивчити.
 
    Слова — у ../sk-slovnykovi.js (SK_SLOVNYKOVI[GRADE]). Сторінка однакова
    для всіх класів: клас береться з папки (klas-N/), а назва файлу в кожному
@@ -384,13 +398,13 @@ const SAVE_KEY='sk_sl'+GRADE+'_v1';
 const PRIZE_KEY='sk_sl'+GRADE+'_prize_v1';   // нагороду вже показано (і що саме)
 const TR_HREF=(location.pathname.split('/').pop()||'').toLowerCase()||'slovnykovi-slova.html';
 
-let state={done:{},soundOn:true,hint:true};
+let state={done:{},soundOn:true};
 let theme=null, queue=[], qi=0, cur=null, filled=0, wordDone=false;
 let wordSeq=0, resetting=false, retryTimer=null;
 
 function load(){
   try{ const s=JSON.parse(localStorage.getItem(SAVE_KEY));
-    if(s){ state.done=s.done||{}; state.soundOn=s.soundOn!==false; state.hint=s.hint!==false; } }catch(e){}
+    if(s){ state.done=s.done||{}; state.soundOn=s.soundOn!==false; } }catch(e){}
 }
 function save(){ try{ localStorage.setItem(SAVE_KEY,JSON.stringify(state)); }catch(e){} }
 function doneCount(){ return ALL_WORDS.filter(w=>state.done[w.id]).length; }
@@ -441,6 +455,7 @@ function renderThemes(){
 /* ══════ ГРА ══════ */
 function startTheme(id){
   theme=THEMES.find(t=>t.id===id); if(!theme) return;
+  preloadPics(theme.words);
   // спершу — те, що ще не складене; складене лишаємо в кінці для повторення
   const fresh=theme.words.filter(w=>!state.done[w.id]);
   const old=theme.words.filter(w=>state.done[w.id]);
@@ -464,12 +479,9 @@ function renderWord(){
 
   // Малюнок слова. Спершу власний файл тренажера, тоді готовий малюнок
   // із інших наборів проєкту (pic), і лише як останній резерв — емодзі.
-  showPic(['../img/sl/'+cur.id+'.webp'].concat(cur.pic?['../img/'+cur.pic+'.webp']:[]), cur.e);
+  showPic(cur);
+  const nx=queue[qi+1]; if(nx) preloadPics([nx]);          // наступне слово — наперед
 
-  const hint=document.getElementById('wcHint');
-  hint.textContent=cur.w;
-  hint.classList.toggle('off',!state.hint);
-  document.getElementById('hintBtn').classList.toggle('off',!state.hint);
 
   document.getElementById('slots').innerHTML=letters.map((ch,i)=>'<div class="slot'+(ch===' '?' gap':'')+'" id="slot'+i+'"></div>').join('');
   // плиток рівно стільки, скільки літер у слові — зайвих немає (пробіл — не плитка)
@@ -484,18 +496,48 @@ function renderWord(){
   speakWord();
 }
 /* Пробуємо картинки по черзі; жодна не підійшла — лишається емодзі. */
-function showPic(srcs,emoji){
+/* ══════ МАЛЮНКИ: ЗАВАНТАЖУЄМО НАПЕРЕД ══════
+   Раніше малюнок вантажився лише тоді, коли слово вже на екрані, — дитина
+   спершу бачила емодзі, а картинка підмінювала його із запізненням.
+   Тепер малюнки теми вантажаться ще до першого слова (а решта класу —
+   тихо у фоні), і слово зʼявляється одразу з готовою картинкою.
+   PICS[id]: Promise<Image|null> — null, якщо жоден файл не знайшовся
+   (тоді лишається емодзі й файл більше не смикаємо). */
+const PICS={};
+function picSrcs(w){ return ['../img/sl/'+w.id+'.webp'].concat(w.pic?['../img/'+w.pic+'.webp']:[]); }
+function loadPic(w){
+  if(PICS[w.id]) return PICS[w.id];
+  const srcs=picSrcs(w);
+  return PICS[w.id]=new Promise(function(done){
+    (function tryNext(i){
+      if(i>=srcs.length){ done(null); return; }
+      const im=new Image(); im.alt=w.w; im.decoding='async';
+      im.onload=function(){
+        // decode() — щоб картинка лягла на екран без «проявлення» кадрами
+        (im.decode?im.decode().catch(function(){}):Promise.resolve()).then(function(){ done(im); });
+      };
+      im.onerror=function(){ tryNext(i+1); };
+      im.src=srcs[i];
+    })(0);
+  });
+}
+function preloadPics(words){ words.forEach(function(w){
+  const p=loadPic(w); if(!p._hooked){ p._hooked=1; p.then(function(im){ p._done=1; p._im=im; }); } }); }
+function showPic(w){
   const pic=document.getElementById('wcPic');
   const tok=(showPic._tok=(showPic._tok||0)+1);
-  pic.innerHTML='<span class="wc-emoji">'+emoji+'</span>';   // видно одразу, без блимання порожнечі
-  (function tryNext(i){
-    if(i>=srcs.length || tok!==showPic._tok) return;
-    const im=new Image(); im.alt=cur?cur.w:'';
-    im.onload =()=>{ if(tok!==showPic._tok) return; pic.innerHTML=''; pic.appendChild(im); };
-    im.onerror=()=>{ tryNext(i+1); };
-    im.src=srcs[i];
-    if(im.complete && im.naturalWidth) im.onload();
-  })(0);
+  const put=function(im){
+    if(tok!==showPic._tok) return;
+    if(im){ pic.innerHTML=''; pic.appendChild(im); pic.classList.add('has-img'); }
+    else { pic.classList.remove('has-img'); pic.innerHTML='<span class="wc-emoji">'+w.e+'</span>'; }
+  };
+  preloadPics([w]);
+  const p=PICS[w.id];
+  if(p._done){ put(p._im); return; }                  // уже завантажено — одразу, без емодзі
+  // ще вантажиться: коротко чекаємо, щоб не блимати емодзі, і лише тоді показуємо його
+  pic.classList.remove('has-img'); pic.innerHTML='';
+  const t=setTimeout(function(){ if(tok===showPic._tok && !p._done) put(null); }, 250);
+  p.then(function(im){ clearTimeout(t); put(im); });
 }
 function updatePlayBar(){
   const d=themeDone(theme), all=theme.words.length;
@@ -591,12 +633,33 @@ function nextWord(){
 }
 function speakWord(){
   if(!cur) return;
-  playAudio('../audio/sl_'+cur.id+'.mp3', cur.w, 'listenBtn');
+  // mp3 беремо лише там, де він справді записаний (a:1 у sk-slovnykovi.js).
+  // Інакше — одразу синтезатор: спроба неіснуючого файлу забирала час, і фраза
+  // звучала вже поза дотиком дитини — телефон (особливо iPhone) її глушив.
+  playAudio(cur.a ? '../audio/sl_'+cur.id+'.mp3' : null, speakText(cur.w), 'listenBtn');
 }
-function toggleHint(){
-  state.hint=!state.hint; save();
-  document.getElementById('wcHint').classList.toggle('off',!state.hint);
-  document.getElementById('hintBtn').classList.toggle('off',!state.hint);
+/* Для синтезатора: типографський апостроф «ʼ» деякі голоси читають як паузу
+   чи зайвий звук — віддаємо звичайний. */
+function speakText(w){ return String(w).replace(/[ʼ’]/g,"'");
+}
+/* ══════ ДРУК: СПИСОК СЛІВ КЛАСУ ══════
+   Аркуш будуємо щоразу заново з SK_SLOVNYKOVI — теми з малюнками й словами.
+   На папір іде лише #printSheet (див. @media print), решта сторінки ховається. */
+function printWords(){
+  const sheet=document.getElementById('printSheet');
+  sheet.innerHTML='<h1>Словникові слова — '+GRADE+' клас</h1>'
+    +'<p class="ps-sub">'+ALL+' '+plural(ALL,'слово','слова','слів')+' · SchoolKingdoms</p>'
+    +THEMES.map(function(t){
+      return '<section><h2>'+escH(t.ic+' '+t.name)+'</h2><ul>'
+        +t.words.map(function(w){
+          const p=PICS[w.id], im=p&&p._done&&p._im;
+          const pic=im?'<img src="'+escH(im.src)+'" alt="">':'<span class="ps-e">'+w.e+'</span>';
+          return '<li>'+pic+'<b>'+escH(w.w)+'</b></li>';
+        }).join('')+'</ul></section>';
+    }).join('');
+  stopAudio();
+  // малюнкам на аркуші даємо мить домалюватись
+  setTimeout(function(){ try{ window.print(); }catch(e){} }, 150);
 }
 
 /* ══════ НАГОРОДА ЗА ПОВНЕ ПРОХОДЖЕННЯ ══════ */
@@ -749,7 +812,7 @@ function plural(n,one,few,many){ const a=n%10,b=n%100;
 function escH(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
 
 /* ══════ АУДІО ══════
-   Спершу mp3 (audio/sl_<id>.mp3), якщо нема — синтез українським голосом. */
+   mp3 (audio/sl_<id>.mp3) — лише для слів з a:1, решта — синтез українським голосом. */
 let curAudio=null, ukVoices=[], chosenVoice=null;
 function playAudio(url,text,btnId){
   if(!state.soundOn) return;
@@ -815,6 +878,8 @@ if('speechSynthesis' in window) speechSynthesis.onvoiceschanged=rankVoices;
 /* ── старт ── */
 renderSndBtns();
 refreshStart();
+// малюнки всього класу — у фоні, поки дитина на стартовому екрані
+(window.requestIdleCallback||function(f){ setTimeout(f,600); })(function(){ preloadPics(ALL_WORDS); });
 </script>
 
 <!-- Firebase лише для кнопки «Вийти» у спільному футері -->
