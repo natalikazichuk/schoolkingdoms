@@ -50,6 +50,10 @@
    +'.sk-card-stage{flex:0 0 auto!important;min-height:0;display:flex!important;flex-direction:column;align-items:center;justify-content:center}'
    +'.sk-swipe{touch-action:pan-y;user-select:none;-webkit-user-select:none}'
    +'.sk-swipe img{-webkit-user-drag:none;user-drag:none}'
+   /* touch-action не успадковується крізь елемент із власною прокруткою
+      (картка «Комп'ютера» гортає довгий текст) — ставимо на всіх нащадків,
+      інакше браузер сам забирає горизонтальний жест і свайп обривається. */
+   +'.sk-swipe *{touch-action:pan-y}'
    +'.sk-swipe.sk-drag{transition:none!important;animation:none!important}'
    +'.sk-in-l{animation:skInL .24s ease-out}'
    +'.sk-in-r{animation:skInR .24s ease-out}'
@@ -128,7 +132,9 @@
       dx = e.clientX - x0;
       var dy = e.clientY - y0;
       if(!dragging){
-        if(Math.abs(dx) < 8) return;
+        /* 14px — щоб тремтіння дитячого пальця на «Прослухати» не ставало
+           свайпом і не гасило натискання. */
+        if(Math.abs(dx) < 14) return;
         if(Math.abs(dy) > Math.abs(dx)){ x0 = null; return; }   // це прокрутка
         dragging = true;
         card.classList.add('sk-drag');
@@ -155,7 +161,11 @@
     }
     card.addEventListener('pointerup', end);
     card.addEventListener('pointercancel', end);
-    card.addEventListener('lostpointercapture', end);
+    /* Лише втрата захоплення самою карткою. На сенсорі браузер спершу
+       тримає дотик на елементі всередині (картинці, кнопці); коли ми
+       забираємо його на картку, той елемент кидає lostpointercapture, і
+       воно спливає сюди — раніше це обривало свайп на першому ж русі. */
+    card.addEventListener('lostpointercapture', function(e){ if(e.target === card) end(); });
     /* після свайпу клік не має спрацювати як тап (переворот, озвучка) */
     card.addEventListener('click', function(e){
       if(justSwiped){ justSwiped = false; e.stopPropagation(); e.preventDefault(); }
