@@ -122,6 +122,11 @@ function heroEmail(login) {
   return sanitizeLogin(login) + '@' + HERO_EMAIL_DOMAIN;
 }
 
+// бойові стати, які лише ростуть: saveHeroStats не пропускає їх зниження
+const GROW_ONLY_STATS = ['health', 'mana', 'agility', 'accuracy'];
+// скільки останніх змін статів тримати в heroes/{id}.statLog (для розслідувань)
+const STAT_LOG_MAX = 30;
+
 // початкові характеристики Героя (повний набір, як у базі)
 function defaultHero(name, parentEmail, parentUid) {
   return {
@@ -322,15 +327,74 @@ const SK = {
   async getActiveHero() { return SK.getActiveChild(); },
 
   // Зберегти характеристики Героя (похідні від прогресу). Монети НЕ чіпаємо.
+  /* ⚠ Бойові стати (health/mana/agility/accuracy) за задумом ЛИШЕ ростуть.
+     Раніше кожна сторінка читала героя, додавала приріст і писала суму
+     окремим setDoc. Між читанням і записом інша вкладка/сторінка могла вже
+     записати інше значення, і старе затирало новіше (скарга: здоров'я після
+     тесту «+N, збережено», а потім знову 50). Тепер читання й запис — одна
+     транзакція, зниження бойових статів не пропускаємо, а приріст краще
+     передавати через addHeroStats — він додається до значення В БАЗІ.
+     Кожну зміну пишемо в heroes/{id}.statLog (останні STAT_LOG_MAX): звідки
+     прийшов запис, що було і що стало — щоб наступний такий випадок було
+     видно в консолі Firebase, а не вгадувати. */
   async saveHeroStats(stats) {
+    if (!stats) return false;
+    return SK._writeHeroStats(() => stats);
+  },
+
+  // Додати приріст до статів Героя атомарно: {health: 2} → health = (у базі) + 2.
+  // Поля немає в документі — рахуємо від початкового значення (defaultHero).
+  async addHeroStats(delta) {
+    if (!delta) return false;
+    const base = defaultHero();
+    return SK._writeHeroStats(cur => {
+      const out = {};
+      Object.keys(delta).forEach(k => {
+        const d = Number(delta[k]);
+        if (!isFinite(d) || !d) return;
+        const c = (cur[k] != null && isFinite(Number(cur[k]))) ? Number(cur[k]) : (Number(base[k]) || 0);
+        out[k] = c + d;
+      });
+      return out;
+    });
+  },
+
+  // спільна транзакція для saveHeroStats/addHeroStats → true | false (немає Героя)
+  async _writeHeroStats(compute) {
     const heroId = SK._heroUid();
-    if (!heroId || !stats) return false;
-    const patch = {};
-    ['health','mana','agility','accuracy','level','xp']
-      .forEach(k => { if (stats[k] != null) patch[k] = stats[k]; });
-    if (stats.health != null) patch.HP = stats.health; // дзеркало для сумісності
-    patch.updatedAt = serverTimestamp();
-    await setDoc(doc(db, 'heroes', heroId), patch, { merge: true });
+    if (!heroId) return false;
+    const ref = doc(db, 'heroes', heroId);
+    let page = '';
+    try { page = (location.pathname.split('/').pop() || '') + (location.search || ''); } catch (e) {}
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref);
+      const cur = snap.exists() ? snap.data() : {};
+      const stats = compute(cur) || {};
+      const patch = {}, ch = {}, blocked = {};
+      ['health','mana','agility','accuracy','level','xp'].forEach(k => {
+        if (stats[k] == null) return;
+        const v = Number(stats[k]);
+        if (!isFinite(v)) return;
+        const old = (cur[k] != null && isFinite(Number(cur[k]))) ? Number(cur[k]) : null;
+        if (GROW_ONLY_STATS.indexOf(k) !== -1 && old != null && v < old) { blocked[k] = { from: old, to: v }; return; }
+        patch[k] = v;
+        if (old !== v) ch[k] = { from: old, to: v };
+      });
+      if (patch.health != null) patch.HP = patch.health; // дзеркало для сумісності
+      if (Object.keys(blocked).length) {
+        try { console.warn('[SK] зниження стата відхилено', blocked, page); } catch (e) {}
+      }
+      if (Object.keys(ch).length || Object.keys(blocked).length) {
+        const entry = { at: Date.now(), page: page.slice(0, 120) };
+        if (Object.keys(ch).length) entry.ch = ch;
+        if (Object.keys(blocked).length) entry.blocked = blocked;
+        const log = Array.isArray(cur.statLog) ? cur.statLog.slice(-(STAT_LOG_MAX - 1)) : [];
+        log.push(entry);
+        patch.statLog = log;
+      }
+      patch.updatedAt = serverTimestamp();
+      tx.set(ref, patch, { merge: true });
+    });
     return true;
   },
 

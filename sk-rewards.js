@@ -175,13 +175,17 @@
     var key = statKey(rec.stat);
     var val = Math.max(0, Math.floor(num(rec.statValue)));
     if (!key || !val) return Promise.resolve({ name: 'stat', ok: true, value: null });
-    return SK.getHero().then(function (h) {
+    /* Приріст додається до значення В БАЗІ однією транзакцією (SK.addHeroStats):
+       окреме «прочитали → додали → записали» затирало новіші записи інших сторінок. */
+    var add = {}; add[key] = val;
+    var write = SK.addHeroStats ? SK.addHeroStats(add) : SK.getHero().then(function (h) {
       h = h || {};
       var cur = (h[key] != null) ? num(h[key]) : (STAT_BASE[key] || 0);
       var patch = {}; patch[key] = cur + val;
-      return SK.saveHeroStats(patch).then(function (r) {
-        return { name: 'stat', ok: r !== false, value: { key: key, label: statLabel(key), value: val } };
-      });
+      return SK.saveHeroStats(patch);
+    });
+    return write.then(function (r) {
+      return { name: 'stat', ok: r !== false, value: { key: key, label: statLabel(key), value: val } };
     }).catch(function (e) { return { name: 'stat', ok: false, err: String((e && (e.code || e.message)) || e) }; });
   }
 
