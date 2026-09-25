@@ -854,16 +854,19 @@ function finishLevel(){
 }
 
 function saveReward(statGain){
-  SK.getHero().then(function(h){
-    h=h||{};
-    var patch={};
-    var key=TEST.stat;
-    if(statGain>0 && ACTIVE_STATS[key]){
-      var cur = (h[key]!=null) ? num(h[key]) : (STAT_BASE[key]||0);
-      patch[key]=cur+statGain;
-    }
-    return SK.saveHeroStats(patch);
-  }).then(function(){
+  var key=TEST.stat;
+  var add={};
+  if(statGain>0 && ACTIVE_STATS[key]) add[key]=statGain;
+  // приріст додається до значення В БАЗІ однією транзакцією (SK.addHeroStats):
+  // окреме «прочитали → додали → записали» затирало новіші записи інших сторінок
+  var write = !Object.keys(add).length ? Promise.resolve(true)
+    : SK.addHeroStats ? SK.addHeroStats(add)
+    : SK.getHero().then(function(h){
+        h=h||{}; var patch={};
+        patch[key]=((h[key]!=null) ? num(h[key]) : (STAT_BASE[key]||0))+statGain;
+        return SK.saveHeroStats(patch);
+      });
+  write.then(function(){
     // тягнемо прогрес (рівні + маркер «пройдено») у heroes/{id}.progress одразу
     if(SK.pushLocal) SK.pushLocal().catch(function(){});
     var n=document.getElementById('saveNote'); if(n){ n.textContent='✅ Збережено!'; n.style.color='#0f6b38'; }
