@@ -442,14 +442,15 @@ function saveReward(statGain, coinGain, correct, total){
   }
 
   // 1) здоров'я (health) — XP/рівень більше не нараховуються
-  SK.getHero().then(function(h){
-    h=h||{};
-    if(statGain>0 && BOOK.stat==='health'){
-      var cur=(h.health!=null)?num(h.health):(STAT_BASE.health||0);
-      return SK.saveHeroStats({ health: cur+statGain });
-    }
-    return true;
-  }).then(function(){ step(true); }).catch(function(){ step(false); });
+  // приріст додається до значення В БАЗІ однією транзакцією (SK.addHeroStats)
+  (!(statGain>0 && BOOK.stat==='health') ? Promise.resolve(true)
+    : SK.addHeroStats ? SK.addHeroStats({ health: statGain })
+    : SK.getHero().then(function(h){
+        h=h||{};
+        var cur=(h.health!=null)?num(h.health):(STAT_BASE.health||0);
+        return SK.saveHeroStats({ health: cur+statGain });
+      })
+  ).then(function(){ step(true); }).catch(function(){ step(false); });
 
   // 2) Запис у бібліотеку Героя + монети (атомарно)
   SK.recordBookRead({

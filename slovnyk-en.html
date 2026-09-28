@@ -775,11 +775,14 @@ function finishTest(){
     +'<div class="rv">+'+gain+'</div></div>';
   showDone('🎯','Тест пройдено!', rows);
   if(HERO_SESSION){
-    window.SK.getHero().then(function(h){
-      h=h||{}; var patch={};
-      if(gain>0){ var cur=(h.mana!=null)?num(h.mana):0; patch.mana=cur+gain; }
-      return window.SK.saveHeroStats(patch);
-    }).then(function(){ try{localStorage.setItem('sk_en_test_'+deck.id,'1');}catch(e){} saveEnProg(); if(window.SK.pushLocal) window.SK.pushLocal().catch(function(){}); setSave(true); })
+    // приріст додається до значення В БАЗІ однією транзакцією (SK.addHeroStats)
+    (!(gain>0) ? Promise.resolve(true)
+      : window.SK.addHeroStats ? window.SK.addHeroStats({ mana: gain })
+      : window.SK.getHero().then(function(h){
+          h=h||{}; var cur=(h.mana!=null)?num(h.mana):0;
+          return window.SK.saveHeroStats({ mana: cur+gain });
+        })
+    ).then(function(){ try{localStorage.setItem('sk_en_test_'+deck.id,'1');}catch(e){} saveEnProg(); if(window.SK.pushLocal) window.SK.pushLocal().catch(function(){}); setSave(true); })
       .catch(function(){ setSave(false); });
   }
 }
