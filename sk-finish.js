@@ -52,6 +52,12 @@
      за все каже ?skback= (звідки дитина прийшла — «Тести» чи «Навчання»),
      інакше — запасний шлях від сторінки. Доступні на КОЖНІЙ сторінці з
      sk-finish.js, навіть коли ?skdone немає. */
+  /* Офлайн: реєструємо sw.js (корінь сайту), щоб гра, раз відкрита з
+     інтернетом, працювала й без нього. Кешує та керує всім sw.js. */
+  try {
+    if(BASE && 'serviceWorker' in navigator) navigator.serviceWorker.register(BASE + 'sw.js').catch(function(){});
+  } catch(e){}
+
   window.skBackUrl = function(fallback){ return backUrl(param('skback') || fallback); };
   window.skGoBack  = function(fallback){ location.href = window.skBackUrl(fallback); };
 
