@@ -1180,7 +1180,7 @@ function renderMap(){
             + colBtn(kS, (sj.topics || []).length, 'розд.')
             + '<span class="map-lvl">ПРЕДМЕТ</span>'
             + '<input type="text" class="w-ic" data-f="subj.icon" data-p="' + pS + '" value="' + esc(sj.icon) + '">'
-            + '<input type="text" class="grow" data-f="subj.name" data-p="' + pS + '" value="' + esc(sj.name) + '">'
+            + '<select class="grow" data-f="subj.name" data-p="' + pS + '">' + mapSubjNameOpts(sj.name) + '</select>'
             + '<input type="color" class="w-color" data-f="subj.accent" data-p="' + pS + '" value="' + esc(sj.accent) + '">'
             + '<span class="map-btns">'
               + '<button class="btn xs" data-a="subj.up" data-p="' + pS + '" title="Вище">↑</button>'
@@ -2137,6 +2137,29 @@ function statusOpts(v){
   }).join('');
 }
 
+/* Назва предмета в карті — випадаючий список з уже відомих предметів
+   (з усіх класів) + «＋ Новий предмет…», що питає назву. */
+function mapSubjNameOpts(cur){
+  cur = String(cur || '');
+  const list = subjectList();
+  if(cur && !list.some(n => subjNorm(n) === subjNorm(cur))) list.unshift(cur);
+  return list.map(n => '<option value="' + esc(n) + '"' + (subjNorm(n) === subjNorm(cur) ? ' selected' : '') + '>' + esc(n) + '</option>').join('')
+    + '<option value="__new__">＋ Новий предмет…</option>';
+}
+/* Обрали предмет, який уже є в іншому класі — підтягуємо його іконку,
+   колір, характеристику й ключі, якщо в цьому ще стоять заготовки. */
+function mapSubjAdopt(sj, name){
+  let src = null;
+  window.SKCUR.eachSubject(MAP, x => { if(!src && x !== sj && subjNorm(x.name) === subjNorm(name)) src = x; });
+  sj.name = name;
+  if(!src) return;
+  const blank = EMPTY_SUBJECT();
+  if(!sj.icon || sj.icon === blank.icon)         sj.icon = src.icon;
+  if(!sj.accent || sj.accent === blank.accent)   sj.accent = src.accent;
+  if(!sj.statKey && src.statKey){ sj.statKey = src.statKey; sj.stat = window.SKCUR.statLabel(src.statKey); }
+  if(!(sj.keys || []).length && (src.keys || []).length) sj.keys = src.keys.slice();
+}
+
 /* ── правки полів ── */
 function onMapInput(e){
   const el = e.target;
@@ -2153,7 +2176,14 @@ function onMapInput(e){
     case 'grade.num':   gradeAt(p).gradeNum = Math.max(0, parseInt(v, 10) || 0); break;
     case 'grade.status':gradeAt(p).status = v; break;
     case 'subj.icon':   subjAt(p).icon = v; break;
-    case 'subj.name':   subjAt(p).name = v; break;
+    case 'subj.name': {
+      if(e.type !== 'change') return;            // select шле і input, і change
+      if(v === '__new__'){
+        const nm = (prompt('Назва нового предмета:') || '').trim();
+        if(nm) subjAt(p).name = nm;
+      } else mapSubjAdopt(subjAt(p), v);
+      renderMap(); return;
+    }
     case 'subj.accent': {
       // НЕ перемальовуємо: input type=color кидає «input» безперервно, поки
       // відкрито системну піпетку. renderMap() знищив би саме той <input>,
