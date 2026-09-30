@@ -2147,17 +2147,32 @@ function mapSubjNameOpts(cur){
     + '<option value="__new__">＋ Новий предмет…</option>';
 }
 /* Обрали предмет, який уже є в іншому класі — підтягуємо його іконку,
-   колір, характеристику й ключі, якщо в цьому ще стоять заготовки. */
+   колір і характеристику, якщо в цьому ще стоять заготовки. Ключі
+   підставляємо завжди: це ключі нової назви, старі до неї не пасують. */
 function mapSubjAdopt(sj, name){
-  let src = null;
-  window.SKCUR.eachSubject(MAP, x => { if(!src && x !== sj && subjNorm(x.name) === subjNorm(name)) src = x; });
+  const same = [];
+  window.SKCUR.eachSubject(MAP, x => { if(x !== sj && subjNorm(x.name) === subjNorm(name)) same.push(x); });
   sj.name = name;
+  sj.keys = mapSubjKeys(name, same);
+  const src = same[0];
   if(!src) return;
   const blank = EMPTY_SUBJECT();
   if(!sj.icon || sj.icon === blank.icon)         sj.icon = src.icon;
   if(!sj.accent || sj.accent === blank.accent)   sj.accent = src.accent;
   if(!sj.statKey && src.statKey){ sj.statKey = src.statKey; sj.stat = window.SKCUR.statLabel(src.statKey); }
-  if(!(sj.keys || []).length && (src.keys || []).length) sj.keys = src.keys.slice();
+}
+/* Ключі для назви: об'єднання ключів такого ж предмета в інших класах,
+   а якщо його ще ніде немає — сама назва й основа першого слова. */
+function mapSubjKeys(name, same){
+  const out = [], seen = new Set();
+  const add = k => { k = String(k || '').trim().toLowerCase(); if(k && !seen.has(k)){ seen.add(k); out.push(k); } };
+  same.forEach(x => (x.keys || []).forEach(add));
+  if(out.length) return out;
+  const nm = String(name || '').trim().toLowerCase();
+  const w = nm.split(/\s+/)[0] || '';
+  if(w.length > 6) add(w.slice(0, 5));
+  add(nm);
+  return out;
 }
 
 /* ── правки полів ── */
@@ -2180,7 +2195,7 @@ function onMapInput(e){
       if(e.type !== 'change') return;            // select шле і input, і change
       if(v === '__new__'){
         const nm = (prompt('Назва нового предмета:') || '').trim();
-        if(nm) subjAt(p).name = nm;
+        if(nm) mapSubjAdopt(subjAt(p), nm);
       } else mapSubjAdopt(subjAt(p), v);
       renderMap(); return;
     }
