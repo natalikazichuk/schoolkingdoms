@@ -761,6 +761,12 @@ const SK = {
     if (!map || typeof map !== 'object') throw new Error('empty-curriculum');
     const data = Object.assign({}, map);
     data.updatedAt = serverTimestamp();
+    // Перед перезаписом кладемо попередню версію в curriculum/map_prev —
+    // щоб випадкове збереження не губило карту безповоротно.
+    try {
+      const prev = await getDoc(doc(db, 'curriculum', 'map'));
+      if (prev.exists()) await setDoc(doc(db, 'curriculum', 'map_prev'), prev.data());
+    } catch (e) { console.warn('map_prev backup failed', e); }
     await setDoc(doc(db, 'curriculum', 'map'), data);
     return true;
   },
