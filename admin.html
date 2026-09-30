@@ -1756,6 +1756,32 @@ function cardSubjOpts(cur){
   if(sel && !known) html += '<option value="' + esc(sel) + '" selected>⚠ ' + esc(sel) + ' — немає в карті</option>';
   return html;
 }
+/* Тема — випадаючий список: розділи карти для цього класу й предмета
+   плюс теми, які вже стоять в інших записах. «＋ Нова тема…» питає назву. */
+function cardTopicSel(o){
+  const cur = String(o.topic || '').trim(), grade = Number(o.grade == null ? 1 : o.grade);
+  const seen = new Set(), list = [];
+  const add = nm => { nm = String(nm || '').trim(); const k = nm.toLowerCase();
+    if(nm && !seen.has(k)){ seen.add(k); list.push(nm); } };
+  ((MAP && MAP.tiers) || []).forEach(tier => (tier.grades || []).forEach(g => {
+    if(Number(g.gradeNum) !== grade) return;
+    (g.subjects || []).forEach(sj => {
+      if(o.subject && !drillSameSubj(sj.name, subjectCanon(o.subject) || o.subject)) return;
+      (sj.topics || []).forEach(tp => add(tp.topic));
+    });
+  }));
+  (TESTS || []).forEach(t => {
+    if(!t || Number(t.grade == null ? 1 : t.grade) !== grade) return;
+    if(o.subject && !drillSameSubj(t.subject, o.subject)) return;
+    add(t.topic);
+  });
+  if(cur) add(cur);
+  let h = '<select data-cf="topic"><option value=""' + (cur ? '' : ' selected') + '>— без теми —</option>';
+  list.forEach(nm => {
+    h += '<option value="' + esc(nm) + '"' + (nm.toLowerCase() === cur.toLowerCase() ? ' selected' : '') + '>' + esc(nm) + '</option>';
+  });
+  return h + '<option value="__new__">＋ Нова тема…</option></select>';
+}
 function cardFormatSel(cur){
   return '<select data-cf="cformat">' + CONTENT_FORMATS.map(f =>
     '<option value="' + f.id + '"' + (f.id === cur ? ' selected' : '') + '>' + f.label + '</option>').join('') + '</select>';
@@ -1821,14 +1847,14 @@ function cardBodyHtml(o){
       + '<option value="levels"' + (o.format === 'levels' ? ' selected' : '') + '>Рівні</option>'
       + '</select>';
     head += fld('Вигляд тесту', sub)
-         +  fld('Тема (для групування)', '<input type="text" data-cf="topic" value="' + esc(o.topic || '') + '">');
+         +  fld('Тема (для групування)', cardTopicSel(o));
   } else {
     head += fld('Емодзі-іконка', '<input type="text" data-cf="icon" value="' + esc(o.icon || '') + '">')
          +  '<div class="field full">' + lbl(fmt === 'video' ? 'Посилання на відео' : 'Посилання на сторінку')
          +  '<input type="text" data-cf="linkHref" value="' + esc(o.linkHref || '') + '" placeholder="english-reading.html  або  https://…"></div>'
          +  '<div class="field full">' + lbl('Опис')
          +  '<input type="text" data-cf="desc" value="' + esc(o.desc || '') + '" placeholder="Короткий опис (як у грі)"></div>'
-         +  fld('Тема (для групування)', '<input type="text" data-cf="topic" value="' + esc(o.topic || '') + '">');
+         +  fld('Тема (для групування)', cardTopicSel(o));
   }
   head += '</div>';
 
@@ -1911,10 +1937,17 @@ function onCardInput(e){
      більше немає. `format` — це формат запису, «вигляд тесту» приходить
      під ключем tform, щоб не битися з ним іменами. */
   switch(f){
-    case 'subject':   o.subject = v; break;
-    case 'grade':     o.grade = Number(v) || 0; break;
+    case 'subject':   o.subject = v; if(e.type === 'change') renderCard(); break;
+    case 'grade':     o.grade = Number(v) || 0; if(e.type === 'change') renderCard(); break;
     case 'title':     o.title = v; break;
-    case 'topic':     o.topic = v; break;
+    case 'topic':
+      if(v === '__new__'){
+        if(e.type !== 'change') return;          // select шле і input, і change — питаємо раз
+        const nm = (prompt('Назва нової теми:') || '').trim();
+        if(nm) o.topic = nm;
+        renderCard(); return;
+      }
+      o.topic = v; break;
     case 'stat':      o.stat = v; break;
     case 'statMode':  o.statMode = v; break;
     case 'statValue': o.statValue = Math.max(0, Math.floor(Number(v) || 0)); break;
