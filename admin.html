@@ -311,6 +311,16 @@
   .drill-rec{display:flex;align-items:center;gap:10px;width:100%;text-align:left;cursor:pointer;
     background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-top:8px;transition:.15s;font-family:inherit;color:var(--text)}
   .drill-rec:hover{border-color:var(--gold-ink);transform:translateY(-1px)}
+  .rec-row{display:flex;align-items:center;gap:6px}
+  .rec-row .drill-rec{flex:1 1 auto;min-width:0}
+  .rec-mv{display:flex;flex-direction:column;gap:2px;flex:0 0 auto}
+  .rec-mv .btn{padding:1px 7px;min-width:28px;line-height:1.2}
+  .rec-sec{border:1px dashed var(--border);border-radius:12px;padding:6px 10px 10px;margin:10px 0}
+  .rec-sec .rec-group{margin:4px 2px 8px;align-items:center;flex-wrap:wrap}
+  .rg-acts{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
+  .rg-acts .btn[disabled],.rec-mv .btn[disabled]{opacity:.35;pointer-events:none}
+  .rg-chain,.rg-hint{font-size:.72rem;font-weight:800;color:var(--muted)}
+  .rec-empty{font-size:.82rem;color:var(--muted);padding:6px 4px}
   .drill-rec .ic{font-size:1.35rem;line-height:1;flex:0 0 auto}
   .rec-group{display:flex;align-items:baseline;gap:9px;margin:16px 2px 7px}
   .rec-group:first-child{margin-top:2px}
@@ -677,7 +687,8 @@
         </div>
         <div id="mapRecsList"></div>
         <div class="toolbar" style="margin:12px 0 0">
-          <button class="btn gold" id="mapRecAdd">＋ Додати</button>
+          <button class="btn gold" id="mapRecSec">＋ Розділ</button>
+          <button class="btn" id="mapRecAdd" title="Тест поза розділами">＋ Запис без розділу</button>
         </div>
       </div>
     </div>
@@ -1620,45 +1631,118 @@ function mapOpenRecs(subjName){
   if($('mapRecsCrumb')) $('mapRecsCrumb').innerHTML =
     pill(catLbl) + pill(grLbl) + pill(subjName);
   if($('mapRecsHint')) $('mapRecsHint').textContent =
-    'Увесь контент цього предмета — тести, сторінки й відео разом. '
-    + 'Натисни, щоб відкрити картку; тип задається полем «Формат».';
+    'Уся структура предмета: розділи й записи в тому порядку, що бачить дитина. '
+    + 'Зміни зберігаються одразу. Тест, створений у розділі, сам туди потрапляє.';
   renderMapRecs();
   try{ window.scrollTo(0, 0); }catch(e){}
 }
+/* ── Екран 4 — ОДНА сторінка предмета: розділи + записи ──
+   Тут і структура, і контент: створити/перейменувати/пересунути/видалити
+   розділ, додати тест одразу в розділ, пересунути тест. Кожна дія одразу
+   зберігає карту (mapAutoSave) — окремо «Зберегти карту» тиснути не треба.
+   Розділ тесту = його поле «Розділ» у картці: збереження картки саме кладе
+   тест у цей розділ (cardPlaceInMap). */
+let RECS_TOPICS = [];     // [{sj, tp}] — розділи на екрані, індекс = data-ti
+
+/* Предмети карти для обраного класу/предмета (зазвичай один). */
+function recsSubjects(){
+  const out = [];
+  drillGradeCtx().forEach(({ g }) => (g.subjects || []).forEach(sj => {
+    if(drillSameSubj(sj.name, MAP_SUBJ)) out.push(sj);
+  }));
+  return out;
+}
+/* id тестів розділу в його порядку (посилання-назви теж розпізнаємо). */
+function topicTestIds(tp){
+  const idx = window.SKCUR.indexTests(TESTS || []);
+  return (tp.tests || []).map(ref => {
+    const t = ref && window.SKCUR.findTest(ref, idx);
+    return t && t.id ? t.id : null;
+  });
+}
+
+/* Карту — у базу за мить після останньої правки (кілька кліків підряд —
+   один запис). Зберігаємо копію, MAP лишається тим самим обʼєктом. */
+let MAP_AUTOSAVE_T = null;
+function mapAutoSave(){
+  clearTimeout(MAP_AUTOSAVE_T);
+  MAP_AUTOSAVE_T = setTimeout(async () => {
+    try{
+      await SK_API.saveMap(window.SKCUR.normalize(MAP));
+      MAP_FROM_DB = true;
+      toast('Структуру збережено ✔');
+    }catch(e){ console.error(e); toast('Не вдалося зберегти структуру', true); }
+  }, 700);
+}
+
+/* Тест лежить рівно в одному розділі — тому, що в полі «Розділ» картки.
+   Прибираємо його з усіх розділів карти й кладемо в потрібний (розділ
+   створюється, якщо такого ще немає). Порожнє поле — поза розділами.
+   Повертає true, якщо карта змінилась. */
+function cardPlaceInMap(o){
+  if(!MAP || !o || !o.id) return false;
+  const idx = window.SKCUR.indexTests(TESTS || []);
+  const want = String(o.topic || '').trim();
+  const norm = v => String(v || '').trim().toLowerCase();
+  const grade = Number(o.grade == null || o.grade === '' ? 1 : o.grade);
+
+  let target = null;
+  if(want){
+    MAP.tiers.forEach(t => (t.grades || []).forEach(g => {
+      if(target || Number(g.gradeNum) !== grade) return;
+      (g.subjects || []).forEach(sj => {
+        if(target) return;
+        let ok = false;
+        try { ok = window.SKCUR.subjectMatches(sj, o.subject); } catch(e){}
+        if(ok) target = sj;
+      });
+    }));
+  }
+
+  let changed = false, already = false;
+  MAP.tiers.forEach(t => (t.grades || []).forEach(g => (g.subjects || []).forEach(sj => (sj.topics || []).forEach(tp => {
+    const here = sj === target && norm(tp.topic) === norm(want);
+    const before = (tp.tests || []).length;
+    tp.tests = (tp.tests || []).filter(ref => {
+      const rt = window.SKCUR.findTest(ref, idx);
+      const mine = (rt && rt.id === o.id) || ref === o.id;
+      if(mine && here && !already){ already = true; return true; }
+      return !mine;
+    });
+    if(tp.tests.length !== before) changed = true;
+  }))));
+
+  if(target && !already){
+    if(!Array.isArray(target.topics)) target.topics = [];
+    let tp = target.topics.find(x => norm(x.topic) === norm(want));
+    if(!tp){ tp = EMPTY_TOPIC(); tp.topic = want; target.topics.push(tp); }
+    if(!Array.isArray(tp.tests)) tp.tests = [];
+    tp.tests.push(o.id);
+    changed = true;
+  }
+  if(want && !target) toast('Предмета «' + (o.subject || '—') + '» немає в карті цього класу — розділ не призначено', true);
+  return changed;
+}
+
+/* Змінити поле «Розділ» у кількох тестах і зберегти їх (перейменування
+   чи видалення розділу). */
+async function recsSetTopic(ids, name){
+  for(const id of ids){
+    const t = (TESTS || []).find(x => x.id === id);
+    if(!t || String(t.topic || '') === name) continue;
+    t.topic = name;
+    try{ await SK_API.save(t); }catch(e){ console.error(e); }
+  }
+}
+
 function renderMapRecs(){
   const host = $('mapRecsList'); if(!host) return;
-  /* Сховані — це тести-обгортки, які лишилися після «Тест → Випробування».
-     Типово показуємо (щоб лічильник предмета збігався зі списком), але їх
-     можна прибрати з очей галочкою. */
   const showHidden = !$('mapRecsShowHidden') || $('mapRecsShowHidden').checked;
+  const visible = o => showHidden || !(o && o.hidden);
   const all  = drillRecords(MAP_SUBJ);
-  const recs = showHidden ? all : all.filter(r => !(r.kind === 'test' && r.obj && r.obj.hidden));
-  if(!recs.length){
-    host.innerHTML = all.length
-      ? '<div class="drill-empty">Усі записи цього предмета — сховані.<br>Увімкни «Показати сховані», щоб їх побачити.</div>'
-      : '<div class="drill-empty">Тут поки порожньо. Натисни «＋ Додати».</div>';
-    return;
-  }
-  /* Групуємо за розділом структури — тим самим, що бачить дитина.
-     Порядок розділів беремо з карти; що поза розділами — в кінець. */
-  const order = [];
-  const byTopic = new Map();
-  drillGradeCtx().forEach(({ g }) => (g.subjects || []).forEach(sj => {
-    if(!drillSameSubj(sj.name, MAP_SUBJ)) return;
-    (sj.topics || []).forEach(tp => {
-      const nm = tp.topic || '';
-      if(nm && !byTopic.has(nm)){ byTopic.set(nm, []); order.push(nm); }
-    });
-  }));
-  byTopic.set('', []); order.push('');
-  recs.forEach(r => {
-    const nm = byTopic.has(r.topic || '') ? (r.topic || '') : '';
-    byTopic.get(nm).push(r);
-  });
+  const byId = new Map(all.map(r => [r.id, r]));
 
-  let html = '';
-  const titled = order.filter(nm => nm && byTopic.get(nm).length).length;
-  const rowHtml = r => {
+  const rowHtml = (r, ti, pos, n) => {
     const o   = r.obj || {};
     const f   = String(o.format || '');
     const page  = (f === 'html' || f === 'link');
@@ -1668,7 +1752,7 @@ function renderMapRecs(){
     let badge = '';
     if(o.hidden)          badge += ' <span class="bel-badge">сховано</span>';
     if(o.active === false) badge += ' <span class="bel-badge">вимкнено</span>';
-    /* Запис потрапив сюди з розділу структури, але його власні клас/предмет
+    /* Запис лежить у розділі цього предмета, але його власні клас/предмет
        кажуть інше — дитина його тут не побачить, поки картку не виправлять. */
     if(r.viaMap){
       const gn = Number(o.grade == null || o.grade === '' ? 1 : o.grade);
@@ -1679,24 +1763,122 @@ function renderMapRecs(){
       }
     }
     const meta = video ? 'відео' : (page ? 'сторінка' : (countQ(o) + ' пит.'));
-    const key  = 'test:' + r.id;
-    return '<button class="drill-rec" data-mrec="' + esc(key) + '">'
+    const moves = (ti == null) ? '' : '<span class="rec-mv">'
+      + '<button class="btn xs" data-ra="t-up" data-ti="' + ti + '" data-id="' + esc(r.id) + '"' + (pos === 0 ? ' disabled' : '') + ' title="Вище">↑</button>'
+      + '<button class="btn xs" data-ra="t-down" data-ti="' + ti + '" data-id="' + esc(r.id) + '"' + (pos === n - 1 ? ' disabled' : '') + ' title="Нижче">↓</button>'
+      + '</span>';
+    return '<div class="rec-row">'
+      + '<button class="drill-rec" data-mrec="test:' + esc(r.id) + '">'
       + '<span class="ic">' + esc(ic) + '</span>'
       + '<span class="nm">' + esc(nm) + badge + '</span>'
       + '<span class="meta">' + esc(meta) + '</span>'
-      + '<span class="chev">›</span></button>';
+      + '<span class="chev">›</span></button>' + moves + '</div>';
   };
-  order.forEach(name => {
-    const list = byTopic.get(name) || [];
-    if(!list.length) return;
-    if(titled){
-      html += '<div class="rec-group"><span class="rg-name">'
-        + esc(name || 'Поза розділами') + '</span>'
-        + '<span class="rg-cnt">' + list.length + '</span></div>';
-    }
-    html += list.map(rowHtml).join('');
-  });
+
+  RECS_TOPICS = [];
+  const placed = new Set();
+  let html = '';
+  recsSubjects().forEach(sj => (sj.topics || []).forEach(tp => {
+    const ti = RECS_TOPICS.push({ sj, tp }) - 1;
+    const ids = topicTestIds(tp).filter(id => id && byId.has(id));
+    ids.forEach(id => placed.add(id));
+    const rows = ids.filter(id => visible(byId.get(id).obj));
+    const nTop = (sj.topics || []).length, pi = sj.topics.indexOf(tp);
+    html += '<div class="rec-sec">'
+      + '<div class="rec-group">'
+        + '<span class="rg-name">' + esc(tp.topic || 'Без назви') + '</span>'
+        + '<span class="rg-cnt">' + ids.length + '</span>'
+        + (tp.chain ? '<span class="rg-chain" title="Тести цього розділу відкриваються по черзі">🔗 ланцюг</span>' : '')
+        + '<span class="rg-acts">'
+          + '<button class="btn xs" data-ra="s-add" data-ti="' + ti + '" title="Додати тест у цей розділ">＋ Тест</button>'
+          + '<button class="btn xs" data-ra="s-ren" data-ti="' + ti + '" title="Перейменувати розділ">✏</button>'
+          + '<button class="btn xs" data-ra="s-chain" data-ti="' + ti + '" title="Ланцюг: відкривати тести по черзі">' + (tp.chain ? '🔗✓' : '🔗') + '</button>'
+          + '<button class="btn xs" data-ra="s-up" data-ti="' + ti + '"' + (pi === 0 ? ' disabled' : '') + ' title="Розділ вище">↑</button>'
+          + '<button class="btn xs" data-ra="s-down" data-ti="' + ti + '"' + (pi === nTop - 1 ? ' disabled' : '') + ' title="Розділ нижче">↓</button>'
+          + '<button class="btn xs" data-ra="s-del" data-ti="' + ti + '" title="Видалити розділ (тести лишаться)">✕</button>'
+        + '</span></div>'
+      + (rows.length
+          ? rows.map((id, pos) => rowHtml(byId.get(id), ti, pos, rows.length)).join('')
+          : '<div class="rec-empty">Порожній розділ — натисни «＋ Тест».</div>')
+      + '</div>';
+  }));
+
+  const loose = all.filter(r => !placed.has(r.id) && visible(r.obj));
+  if(loose.length){
+    html += '<div class="rec-sec"><div class="rec-group"><span class="rg-name">Поза розділами</span>'
+      + '<span class="rg-cnt">' + loose.length + '</span>'
+      + '<span class="rg-hint">відкрий картку й обери «Розділ»</span></div>'
+      + loose.map(r => rowHtml(r, null)).join('') + '</div>';
+  }
+  if(!html) html = '<div class="drill-empty">Тут поки порожньо. Створи розділ, а в ньому — тест.</div>';
   host.innerHTML = html;
+}
+
+/* Кнопки на сторінці предмета. */
+async function onRecsAction(btn){
+  const act = btn.getAttribute('data-ra');
+  const ref = RECS_TOPICS[Number(btn.getAttribute('data-ti'))];
+  if(!ref) return;
+  const { sj, tp } = ref;
+  const topics = sj.topics;
+  const pi = topics.indexOf(tp);
+  switch(act){
+    case 's-add':
+      trFillItemsDatalist();
+      cardNew('test', MAP_SUBJ || '', MAP_GRADE, tp.topic || '');
+      return;
+    case 's-ren': {
+      const old = tp.topic || '';
+      const nm = (prompt('Нова назва розділу:', old) || '').trim();
+      if(!nm || nm === old) return;
+      tp.topic = nm;
+      await recsSetTopic(topicTestIds(tp).filter(Boolean), nm);
+      break;
+    }
+    case 's-chain': tp.chain = !tp.chain; break;
+    case 's-up':   if(!move(topics, pi, -1)) return; break;
+    case 's-down': if(!move(topics, pi, +1)) return; break;
+    case 's-del': {
+      const ids = topicTestIds(tp).filter(Boolean);
+      if(!confirm('Видалити розділ «' + (tp.topic || '') + '»?'
+          + (ids.length ? '\n\nЙого тести (' + ids.length + ') не видаляються — вони перейдуть у «Поза розділами».' : ''))) return;
+      topics.splice(pi, 1);
+      await recsSetTopic(ids, '');
+      break;
+    }
+    case 't-up': case 't-down': {
+      const id = btn.getAttribute('data-id');
+      const ids = topicTestIds(tp);
+      const i = ids.indexOf(id);
+      if(i < 0) return;
+      /* Сусід — найближчий видимий запис (сховані можуть бути приховані). */
+      const showHidden = !$('mapRecsShowHidden') || $('mapRecsShowHidden').checked;
+      const ok = j => ids[j] && (showHidden || !((TESTS || []).find(x => x.id === ids[j]) || {}).hidden);
+      let j = i;
+      do { j += (act === 't-up' ? -1 : 1); } while(j >= 0 && j < ids.length && !ok(j));
+      if(j < 0 || j >= ids.length) return;
+      const t = tp.tests[i]; tp.tests[i] = tp.tests[j]; tp.tests[j] = t;
+      break;
+    }
+    default: return;
+  }
+  renderMapRecs();
+  mapAutoSave();
+}
+
+/* «＋ Розділ» — новий розділ у кінці предмета. */
+function recsAddSection(){
+  const sj = recsSubjects()[0];
+  if(!sj){ toast('Предмета немає в карті цього класу', true); return; }
+  const nm = (prompt('Назва нового розділу:') || '').trim();
+  if(!nm) return;
+  const norm = v => String(v || '').trim().toLowerCase();
+  if(!Array.isArray(sj.topics)) sj.topics = [];
+  if(sj.topics.some(x => norm(x.topic) === norm(nm))){ toast('Такий розділ уже є', true); return; }
+  const tp = EMPTY_TOPIC(); tp.topic = nm;
+  sj.topics.push(tp);
+  renderMapRecs();
+  mapAutoSave();
 }
 
 /* ── Екран 5: єдина картка запису ── */
@@ -1704,6 +1886,10 @@ function mapOpenCard(key){
   if(key.indexOf('test:') !== 0) return;
   MAP_REC = { kind:'test', id:key.slice(5), idx:null };
   CARD_DRAFT = null;
+  /* Розділ у картці = розділ, де тест реально лежить у структурі. */
+  const rec = drillRecords(MAP_SUBJ).find(r => r.id === MAP_REC.id);
+  const o0 = (TESTS || []).find(t => t.id === MAP_REC.id);
+  if(rec && o0 && rec.topic && rec.topic !== o0.topic) o0.topic = rec.topic;
   trFillItemsDatalist();   // підказки ID предметів для полів «нагороди» у картці
   showOnly('viewMap');
   mapHideScreens();
@@ -1807,11 +1993,11 @@ function cardTopicSel(o){
     add(t.topic);
   });
   if(cur) add(cur);
-  let h = '<select data-cf="topic"><option value=""' + (cur ? '' : ' selected') + '>— без теми —</option>';
+  let h = '<select data-cf="topic"><option value=""' + (cur ? '' : ' selected') + '>— поза розділами —</option>';
   list.forEach(nm => {
     h += '<option value="' + esc(nm) + '"' + (nm.toLowerCase() === cur.toLowerCase() ? ' selected' : '') + '>' + esc(nm) + '</option>';
   });
-  return h + '<option value="__new__">＋ Нова тема…</option></select>';
+  return h + '<option value="__new__">＋ Новий розділ…</option></select>';
 }
 function cardFormatSel(cur){
   return '<select data-cf="cformat">' + CONTENT_FORMATS.map(f =>
@@ -1880,12 +2066,12 @@ function cardBodyHtml(o){
       + '<option value="levels"' + (o.format === 'levels' ? ' selected' : '') + '>Рівні</option>'
       + '</select>';
     h += cfld('s2', 'Вигляд тесту', sub)
-      +  cfld('s2', 'Тема (для групування)', cardTopicSel(o))
+      +  cfld('s2', 'Розділ', cardTopicSel(o), 'Розділ предмета, у якому тест стоїть у структурі')
       +  cfld('s2', 'Обкладинка (необовʼязково)',
            '<input type="text" data-cf="imgCard" value="' + esc(o.imgCard || '') + '" placeholder="img/tr/nazva.webp">', coverTitle);
   } else {
     h += cfld('s1', 'Іконка', '<input type="text" data-cf="icon" value="' + esc(o.icon || '') + '">')
-      +  cfld('s2', 'Тема (для групування)', cardTopicSel(o))
+      +  cfld('s2', 'Розділ', cardTopicSel(o), 'Розділ предмета, у якому тест стоїть у структурі')
       +  cfld('s3', 'Обкладинка (необовʼязково)',
            '<input type="text" data-cf="imgCard" value="' + esc(o.imgCard || '') + '" placeholder="img/tr/nazva.webp  або  https://…">', coverTitle)
       +  cfld('s3', fmt === 'video' ? 'Посилання на відео' : 'Посилання на сторінку',
@@ -1956,7 +2142,7 @@ function onCardInput(e){
     case 'topic':
       if(v === '__new__'){
         if(e.type !== 'change') return;          // select шле і input, і change — питаємо раз
-        const nm = (prompt('Назва нової теми:') || '').trim();
+        const nm = (prompt('Назва нового розділу:') || '').trim();
         if(nm) o.topic = nm;
         renderCard(); return;
       }
@@ -2056,6 +2242,11 @@ async function cardSave(){
       TESTS.push(o);
       MAP_REC = { kind:'test', id:o.id, idx:null };
     }
+    /* Поле «Розділ» — це і є місце тесту в структурі: кладемо його туди. */
+    if(cardPlaceInMap(o)){
+      try{ await SK_API.saveMap(window.SKCUR.normalize(MAP)); MAP_FROM_DB = true; }
+      catch(e){ console.error(e); toast('Тест збережено, але структуру — ні', true); renderCard(); return; }
+    }
     toast(isNew ? 'Запис створено ✔' : 'Запис збережено ✔');
     renderCard();
   }catch(e){ console.error(e); toast('Помилка збереження', true); }
@@ -2088,13 +2279,13 @@ async function cardDelete(){
 
 /* ── СТВОРЕННЯ ── Та сама картка, режим «Створити». */
 let CARD_DRAFT = null;          // запис, якого ще немає в TESTS
-function cardNew(fmt, subject, grade){
+function cardNew(fmt, subject, grade, topic){
   const gr = Number(grade == null ? 1 : grade) || 0;
   const page = (fmt === 'html' || fmt === 'video');
   CARD_DRAFT = {
     id:'', title:'', subject:subject || '', grade:gr,
     stat:statForSubject(subject, gr) || '', statMode:'fixed', statValue:1,
-    format: page ? fmt : 'flat', topic:'', active:true,
+    format: page ? fmt : 'flat', topic:topic || '', active:true,
     questions:[], levels:[],
     linkHref:'', icon: page ? (fmt === 'video' ? '🎬' : '🔗') : '',
     desc:'', blank: (fmt === 'video'), imgCard:'', rewards:[]
@@ -3631,10 +3822,13 @@ function bindEvents(){
   // Екран 4: записи
   if($('mapRecsBack')) $('mapRecsBack').onclick = () => mapOpenSubjects(MAP_GRADE);
   if($('mapRecsList')) $('mapRecsList').addEventListener('click', e => {
+    const ra = e.target.closest('[data-ra]');
+    if(ra){ if(!ra.disabled) onRecsAction(ra); return; }
     const b = e.target.closest('[data-mrec]'); if(!b) return;
     mapOpenCard(b.getAttribute('data-mrec'));
   });
   if($('mapRecAdd')) $('mapRecAdd').onclick = cardAdd;
+  if($('mapRecSec')) $('mapRecSec').onclick = recsAddSection;
   if($('mapRecsShowHidden')) $('mapRecsShowHidden').onchange = renderMapRecs;
   // Екран 5: картка
   if($('mapCardBack')) $('mapCardBack').onclick = () => mapOpenRecs(MAP_SUBJ);
