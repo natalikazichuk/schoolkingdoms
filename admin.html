@@ -541,7 +541,6 @@
     <div class="toolbar">
       <button class="btn ghost" id="mapBack">🏠 Головна</button>
       <div class="spacer"></div>
-      <button class="btn ghost" id="mapReset">↺ Запасна карта</button>
       <button class="btn" id="mapCheck">🔍 Перевірити</button>
       <button class="btn" id="mapFixGrades" title="Поставити кожному тесту той клас і предмет, у чийому розділі він лежить">🧩 Виправити клас і предмет</button>
       <button class="btn gold" id="mapSave">💾 Зберегти карту</button>
@@ -1180,7 +1179,7 @@ function renderMap(){
             + colBtn(kS, (sj.topics || []).length, 'розд.')
             + '<span class="map-lvl">ПРЕДМЕТ</span>'
             + '<input type="text" class="w-ic" data-f="subj.icon" data-p="' + pS + '" value="' + esc(sj.icon) + '">'
-            + '<input type="text" class="grow" data-f="subj.name" data-p="' + pS + '" value="' + esc(sj.name) + '">'
+            + '<select class="grow" data-f="subj.name" data-p="' + pS + '">' + mapSubjNameOpts(sj.name) + '</select>'
             + '<input type="color" class="w-color" data-f="subj.accent" data-p="' + pS + '" value="' + esc(sj.accent) + '">'
             + '<span class="map-btns">'
               + '<button class="btn xs" data-a="subj.up" data-p="' + pS + '" title="Вище">↑</button>'
@@ -1756,6 +1755,32 @@ function cardSubjOpts(cur){
   if(sel && !known) html += '<option value="' + esc(sel) + '" selected>⚠ ' + esc(sel) + ' — немає в карті</option>';
   return html;
 }
+/* Тема — випадаючий список: розділи карти для цього класу й предмета
+   плюс теми, які вже стоять в інших записах. «＋ Нова тема…» питає назву. */
+function cardTopicSel(o){
+  const cur = String(o.topic || '').trim(), grade = Number(o.grade == null ? 1 : o.grade);
+  const seen = new Set(), list = [];
+  const add = nm => { nm = String(nm || '').trim(); const k = nm.toLowerCase();
+    if(nm && !seen.has(k)){ seen.add(k); list.push(nm); } };
+  ((MAP && MAP.tiers) || []).forEach(tier => (tier.grades || []).forEach(g => {
+    if(Number(g.gradeNum) !== grade) return;
+    (g.subjects || []).forEach(sj => {
+      if(o.subject && !drillSameSubj(sj.name, subjectCanon(o.subject) || o.subject)) return;
+      (sj.topics || []).forEach(tp => add(tp.topic));
+    });
+  }));
+  (TESTS || []).forEach(t => {
+    if(!t || Number(t.grade == null ? 1 : t.grade) !== grade) return;
+    if(o.subject && !drillSameSubj(t.subject, o.subject)) return;
+    add(t.topic);
+  });
+  if(cur) add(cur);
+  let h = '<select data-cf="topic"><option value=""' + (cur ? '' : ' selected') + '>— без теми —</option>';
+  list.forEach(nm => {
+    h += '<option value="' + esc(nm) + '"' + (nm.toLowerCase() === cur.toLowerCase() ? ' selected' : '') + '>' + esc(nm) + '</option>';
+  });
+  return h + '<option value="__new__">＋ Нова тема…</option></select>';
+}
 function cardFormatSel(cur){
   return '<select data-cf="cformat">' + CONTENT_FORMATS.map(f =>
     '<option value="' + f.id + '"' + (f.id === cur ? ' selected' : '') + '>' + f.label + '</option>').join('') + '</select>';
@@ -1821,14 +1846,14 @@ function cardBodyHtml(o){
       + '<option value="levels"' + (o.format === 'levels' ? ' selected' : '') + '>Рівні</option>'
       + '</select>';
     head += fld('Вигляд тесту', sub)
-         +  fld('Тема (для групування)', '<input type="text" data-cf="topic" value="' + esc(o.topic || '') + '">');
+         +  fld('Тема (для групування)', cardTopicSel(o));
   } else {
     head += fld('Емодзі-іконка', '<input type="text" data-cf="icon" value="' + esc(o.icon || '') + '">')
          +  '<div class="field full">' + lbl(fmt === 'video' ? 'Посилання на відео' : 'Посилання на сторінку')
          +  '<input type="text" data-cf="linkHref" value="' + esc(o.linkHref || '') + '" placeholder="english-reading.html  або  https://…"></div>'
          +  '<div class="field full">' + lbl('Опис')
          +  '<input type="text" data-cf="desc" value="' + esc(o.desc || '') + '" placeholder="Короткий опис (як у грі)"></div>'
-         +  fld('Тема (для групування)', '<input type="text" data-cf="topic" value="' + esc(o.topic || '') + '">');
+         +  fld('Тема (для групування)', cardTopicSel(o));
   }
   head += '</div>';
 
@@ -1911,10 +1936,17 @@ function onCardInput(e){
      більше немає. `format` — це формат запису, «вигляд тесту» приходить
      під ключем tform, щоб не битися з ним іменами. */
   switch(f){
-    case 'subject':   o.subject = v; break;
-    case 'grade':     o.grade = Number(v) || 0; break;
+    case 'subject':   o.subject = v; if(e.type === 'change') renderCard(); break;
+    case 'grade':     o.grade = Number(v) || 0; if(e.type === 'change') renderCard(); break;
     case 'title':     o.title = v; break;
-    case 'topic':     o.topic = v; break;
+    case 'topic':
+      if(v === '__new__'){
+        if(e.type !== 'change') return;          // select шле і input, і change — питаємо раз
+        const nm = (prompt('Назва нової теми:') || '').trim();
+        if(nm) o.topic = nm;
+        renderCard(); return;
+      }
+      o.topic = v; break;
     case 'stat':      o.stat = v; break;
     case 'statMode':  o.statMode = v; break;
     case 'statValue': o.statValue = Math.max(0, Math.floor(Number(v) || 0)); break;
@@ -2104,6 +2136,44 @@ function statusOpts(v){
   }).join('');
 }
 
+/* Назва предмета в карті — випадаючий список з уже відомих предметів
+   (з усіх класів) + «＋ Новий предмет…», що питає назву. */
+function mapSubjNameOpts(cur){
+  cur = String(cur || '');
+  const list = subjectList();
+  if(cur && !list.some(n => subjNorm(n) === subjNorm(cur))) list.unshift(cur);
+  return list.map(n => '<option value="' + esc(n) + '"' + (subjNorm(n) === subjNorm(cur) ? ' selected' : '') + '>' + esc(n) + '</option>').join('')
+    + '<option value="__new__">＋ Новий предмет…</option>';
+}
+/* Обрали предмет, який уже є в іншому класі — підтягуємо його іконку,
+   колір і характеристику, якщо в цьому ще стоять заготовки. Ключі
+   підставляємо завжди: це ключі нової назви, старі до неї не пасують. */
+function mapSubjAdopt(sj, name){
+  const same = [];
+  window.SKCUR.eachSubject(MAP, x => { if(x !== sj && subjNorm(x.name) === subjNorm(name)) same.push(x); });
+  sj.name = name;
+  sj.keys = mapSubjKeys(name, same);
+  const src = same[0];
+  if(!src) return;
+  const blank = EMPTY_SUBJECT();
+  if(!sj.icon || sj.icon === blank.icon)         sj.icon = src.icon;
+  if(!sj.accent || sj.accent === blank.accent)   sj.accent = src.accent;
+  if(!sj.statKey && src.statKey){ sj.statKey = src.statKey; sj.stat = window.SKCUR.statLabel(src.statKey); }
+}
+/* Ключі для назви: об'єднання ключів такого ж предмета в інших класах,
+   а якщо його ще ніде немає — сама назва й основа першого слова. */
+function mapSubjKeys(name, same){
+  const out = [], seen = new Set();
+  const add = k => { k = String(k || '').trim().toLowerCase(); if(k && !seen.has(k)){ seen.add(k); out.push(k); } };
+  same.forEach(x => (x.keys || []).forEach(add));
+  if(out.length) return out;
+  const nm = String(name || '').trim().toLowerCase();
+  const w = nm.split(/\s+/)[0] || '';
+  if(w.length > 6) add(w.slice(0, 5));
+  add(nm);
+  return out;
+}
+
 /* ── правки полів ── */
 function onMapInput(e){
   const el = e.target;
@@ -2120,7 +2190,14 @@ function onMapInput(e){
     case 'grade.num':   gradeAt(p).gradeNum = Math.max(0, parseInt(v, 10) || 0); break;
     case 'grade.status':gradeAt(p).status = v; break;
     case 'subj.icon':   subjAt(p).icon = v; break;
-    case 'subj.name':   subjAt(p).name = v; break;
+    case 'subj.name': {
+      if(e.type !== 'change') return;            // select шле і input, і change
+      if(v === '__new__'){
+        const nm = (prompt('Назва нового предмета:') || '').trim();
+        if(nm) mapSubjAdopt(subjAt(p), nm);
+      } else mapSubjAdopt(subjAt(p), v);
+      renderMap(); return;
+    }
     case 'subj.accent': {
       // НЕ перемальовуємо: input type=color кидає «input» безперервно, поки
       // відкрито системну піпетку. renderMap() знищив би саме той <input>,
@@ -3513,13 +3590,6 @@ function bindEvents(){
   $('mapCheck').onclick = () => { checkMap(); };
   if($('mapFixGrades')) $('mapFixGrades').onclick = fixMapGrades;
   $('mapBack').onclick  = goHome;
-  $('mapReset').onclick = () => {
-    if(!confirm('Замінити чернетку карти на запасну (ту, що в sk-curriculum.js)? Збережена в базі карта не зміниться, доки не натиснеш «Зберегти карту».')) return;
-    MAP = window.SKCUR.normalize(window.SKCUR.DEFAULT_MAP);
-    $('mapMsg').innerHTML = '';
-    mapShowCats();
-    toast('Відновлено запасну карту (ще не збережено)');
-  };
   // ---- Навігація «Структура»: розділ → клас → зміст ----
   if($('mapTierGrid')) $('mapTierGrid').addEventListener('click', e => {
     const b = e.target.closest('[data-mtier]'); if(!b) return;
