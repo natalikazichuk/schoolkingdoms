@@ -101,6 +101,7 @@
         <button class="btn-sm" id="gExpand">▾ Розгорнути всі</button>
       </div>
     </div>
+    <div id="gOffline" class="empty-note" hidden>📡 Немає інтернету — граємо в збережені ігри.</div>
     <div id="gsecs"></div>
   </main>
 
@@ -130,16 +131,16 @@ var GAMES_DEFAULT = [
   { href:'games/pamyat.html',           icon:'🧠', name:"Пам'ять королівства",     desc:'Перевертай картки й шукай однакові пари.', group:'Логіка та памʼять', blank:true },
   { href:'klas-1/slovo.html',            icon:'🔤', name:'Вгадай слово',            desc:'Відгадуй слово по буквах, доки є сердечка.', group:'Українська мова', blank:true },
   { href:'games/labirynt.html',         icon:'🌀', name:'Математичний лабіринт',   desc:"Розв'язуй приклади й прокладай шлях до замку.", group:'Математика', blank:true },
-  { href:'klas-1/notky.html',            icon:'🎵', name:'Нотна математика',        desc:"Розв'язуй приклади й грай справжню мелодію на ксилофоні.", group:'Математика', blank:true },
-  { href:'klas-1/sklad.html',            icon:'🏠', name:'Будиночки чисел',         desc:'Склад числа: засели поверхи так, щоб разом вийшло число з даху.', group:'Математика', blank:true },
+  { href:'doshkilya/notky.html',            icon:'🎵', name:'Нотна математика',        desc:"Розв'язуй приклади й грай справжню мелодію на ксилофоні.", group:'Математика', blank:true },
+  { href:'doshkilya/sklad.html',            icon:'🏠', name:'Будиночки чисел',         desc:'Склад числа: засели поверхи так, щоб разом вийшло число з даху.', group:'Математика', blank:true },
   { href:'klas-1/susidy.html',           icon:'🏘️', name:'Цифри-сусіди',           desc:'Постав числа-сусіди: яке перед, а яке після. Числа до 19.', group:'Математика', blank:true },
-  { href:'klas-1/ryad.html',             icon:'🔢', name:'Числовий ряд',            desc:'Знайди пропущене число у ряду зірочок, сердечок і тістечок.', group:'Математика', blank:true },
+  { href:'doshkilya/ryad.html',             icon:'🔢', name:'Числовий ряд',            desc:'Знайди пропущене число у ряду зірочок, сердечок і тістечок.', group:'Математика', blank:true },
   { href:'games/pazly.html',            icon:'🧩', name:'Математичні пазли',       desc:'Збери корону, вставляючи частинку, якої не вистачає у прикладі.', group:'Математика', blank:true },
   { href:'klas-1/komponenty.html',       icon:'🏷️', name:'Компоненти дій',         desc:"Підпиши деталі рівності: доданок, сума, зменшуване, від'ємник, різниця.", group:'Математика', blank:true },
   { href:'klas-1/rozriady.html',         icon:'🔟', name:'Десятки і одиниці',       desc:'Виклади число паличками й кубиками. Десять одиниць — і збереться десяток.', group:'Математика', blank:true },
   { href:'klas-1/chas.html',             icon:'🕰️', name:'Годинник королівства',   desc:'Читай стрілки й став їх сам. Година, доба, тиждень.', group:'Математика', blank:true },
   { href:'klas-1/zadachi-zapys.html',    icon:'📝', name:'Задачі: короткий запис',  desc:'Прочитай задачу й склади її короткий запис, а тоді обчисли.', group:'Математика', blank:true },
-  { href:'klas-1/zadachi-malyunok.html', icon:'🖼️', name:'Задачі за малюнком',     desc:'Порахуй на малюнку: скільки стало разом і скільки залишилося.', group:'Математика', blank:true },
+  { href:'doshkilya/zadachi-malyunok.html', icon:'🖼️', name:'Задачі за малюнком',     desc:'Порахуй на малюнку: скільки стало разом і скільки залишилося.', group:'Математика', blank:true },
   { href:'klas-1/zadachi-diya.html',     icon:'➕', name:'Вибери правильну дію',    desc:'Стало більше чи менше? Постав + або − і розвʼяжи задачу.', group:'Математика', blank:true },
   { href:'klas-1/hroshi.html',           icon:'🪙', name:'Королівський гаманець',   desc:'Кидай монети в гаманець і збери рівно стільки, скільки коштує товар.', group:'Математика', blank:true },
   { href:'klas-1/heometriya.html',       icon:'📐', name:'Королівська геометрія',   desc:'Крейда малює фігури: точка, відрізок, ламана, коло, круг, трикутник, квадрат, прямокутник.', group:'Математика', blank:true },
@@ -262,20 +263,55 @@ function whenSK(cb){
   }, 50);
 }
 
-// показуємо вбудований список одразу (швидко), тоді уточнюємо з бази
-GAMES = GAMES_DEFAULT.slice();
+/* ── ОФЛАЙН ──
+   sw.js кешує ігротеку й ігри, тож без інтернету в них можна грати.
+   Останній список із бази тримаємо в localStorage — офлайн показуємо саме
+   його (а не вбудований), і кажемо sw.js докешувати ігри з цього списку. */
+var GAMES_LS = 'sk_games_cache';
+function lsGames(){
+  try{ var d = JSON.parse(localStorage.getItem(GAMES_LS) || 'null'); return Array.isArray(d) && d.length ? d : null; }
+  catch(e){ return null; }
+}
+function warmOffline(list){
+  try{
+    if(!navigator.serviceWorker || !navigator.serviceWorker.controller) return;
+    navigator.serviceWorker.controller.postMessage({ type:'sk-warm',
+      pages: list.map(function(g){ return g && g.href; }).filter(Boolean) });
+  }catch(e){}
+}
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').then(function(){
+    return navigator.serviceWorker.ready;
+  }).then(function(){
+    // перший візит: sw.js ще не керує сторінкою — чекаємо, доки перейме
+    if(navigator.serviceWorker.controller) warmOffline(GAMES);
+    else navigator.serviceWorker.addEventListener('controllerchange', function(){ warmOffline(GAMES); }, { once:true });
+  }).catch(function(){});
+}
+function showOfflineNote(){
+  var el = document.getElementById('gOffline');
+  if(el) el.hidden = navigator.onLine !== false;
+}
+window.addEventListener('online', showOfflineNote);
+window.addEventListener('offline', showOfflineNote);
+showOfflineNote();
+
+// показуємо збережений (або вбудований) список одразу, тоді уточнюємо з бази
+GAMES = (lsGames() || GAMES_DEFAULT).slice();
 render();
 
 whenSK(async function(){
   try{
-    if(window.SK && window.SK.getGames){
+    if(navigator.onLine !== false && window.SK && window.SK.getGames){
       var d = await window.SK.getGames();
       if(d && Array.isArray(d.games) && d.games.length){
         GAMES = d.games;
+        try{ localStorage.setItem(GAMES_LS, JSON.stringify(GAMES)); }catch(e){}
         render();
+        warmOffline(GAMES);
       }
     }
-  }catch(e){ /* лишаємо вбудований список */ }
+  }catch(e){ /* лишаємо збережений / вбудований список */ }
 });
 </script>
 </body>
