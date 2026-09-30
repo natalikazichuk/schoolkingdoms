@@ -2119,7 +2119,11 @@ function renderCard(){
   if(!body) return;
   if(!o){ body.innerHTML = '<div class="drill-empty">Запис не знайдено.</div>'; return; }
   const ttl = $('mapCardMode');
-  if(ttl) ttl.textContent = (MAP_REC && MAP_REC.isNew) ? '➕ Створити' : '✏ Редагувати';
+  /* Новий запис: замість підпису «Створити» — імпорт готового тесту з JSON
+     прямо в цю картку (клас, предмет і розділ лишаються звідси). */
+  if(ttl) ttl.innerHTML = (MAP_REC && MAP_REC.isNew)
+    ? '<button class="btn xs" id="cardImport" type="button" title="Заповнити картку з JSON-файлу тесту">⬆ Імпорт JSON</button>'
+    : '✏ Редагувати';
   body.innerHTML = cardBodyHtml(o);
 }
 
@@ -3972,10 +3976,62 @@ function bindEvents(){
   });
 
   // Імпорт JSON
-  $('btnImport').onclick   = () => { $('importText').value=''; $('importModal').classList.add('open'); };
-  $('importCancel').onclick= () => $('importModal').classList.remove('open');
+  $('btnImport').onclick   = () => { IMPORT_TO_CARD = false; $('importText').value=''; $('importModal').classList.add('open'); };
+  if($('mapCardMode')) $('mapCardMode').addEventListener('click', e => {
+    if(!e.target.closest('#cardImport')) return;
+    IMPORT_TO_CARD = true; $('importText').value=''; $('importModal').classList.add('open');
+  });
+  $('importCancel').onclick= () => { IMPORT_TO_CARD = false; $('importModal').classList.remove('open'); };
   $('importModal').addEventListener('click', e => { if (e.target.id==='importModal') $('importModal').classList.remove('open'); });
   $('importApply').onclick = doImport;
+}
+
+/* Імпорт у картку нового запису (кнопка «⬆ Імпорт JSON» у картці).
+   Клас, предмет і розділ беремо з картки — тобто звідти, де натиснули
+   «＋ Тест»; з JSON — назву, питання/рівні, характеристику тощо.
+   Один тест — заповнює картку (перевір і «Зберегти»); кілька — одразу
+   зберігаються в цей розділ. */
+let IMPORT_TO_CARD = false;
+async function importIntoCard(arr){
+  const draft = cardObj();
+  if(!draft || !(MAP_REC && MAP_REC.isNew)){ toast('Відкрий картку нового запису', true); return; }
+  const ctx = { grade:draft.grade, subject:draft.subject, topic:draft.topic };
+  const list = arr.map(normalizeImported).filter(Boolean);
+  if(!list.length){ toast('У JSON немає тесту з назвою й питаннями', true); return; }
+  $('importModal').classList.remove('open');
+
+  if(list.length === 1){
+    const t = list[0];
+    delete t.id;
+    Object.assign(draft, t, {
+      grade: ctx.grade,
+      subject: ctx.subject || t.subject,
+      topic: ctx.topic || t.topic || ''
+    });
+    if(!('stat' in t) || t.stat === 'accuracy') draft.stat = statForSubject(draft.subject, draft.grade) || t.stat || '';
+    renderCard();
+    toast('Тест завантажено в картку — перевір і натисни «Зберегти»');
+    return;
+  }
+
+  if(!confirm('У JSON ' + list.length + ' тест(ів). Зберегти їх усі одразу'
+      + (ctx.topic ? ' в розділ «' + ctx.topic + '»' : '') + '?')) return;
+  let ok = 0, mapChanged = false;
+  for(const t of list){
+    delete t.id;
+    t.grade = ctx.grade;
+    t.subject = subjectShow(ctx.subject || t.subject);
+    t.topic = ctx.topic || t.topic || '';
+    try{
+      t.id = await SK_API.save(t);
+      if(!t.id) continue;
+      TESTS.push(t); ok++;
+      if(cardPlaceInMap(t)) mapChanged = true;
+    }catch(e){ console.error(e); }
+  }
+  if(mapChanged){ try{ await SK_API.saveMap(window.SKCUR.normalize(MAP)); MAP_FROM_DB = true; }catch(e){ console.error(e); } }
+  toast(ok ? ('Імпортовано тестів: ' + ok) : 'Нічого не імпортовано', !ok);
+  mapOpenRecs(MAP_SUBJ);
 }
 
 async function doImport(){
@@ -3983,6 +4039,7 @@ async function doImport(){
   try { data = JSON.parse($('importText').value); }
   catch(e){ toast('Некоректний JSON', true); return; }
   const arr = Array.isArray(data) ? data : [data];
+  if(IMPORT_TO_CARD){ IMPORT_TO_CARD = false; await importIntoCard(arr); return; }
   let ok = 0;
   for (const raw of arr){
     const t = normalizeImported(raw);
