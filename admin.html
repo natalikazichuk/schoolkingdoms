@@ -419,6 +419,36 @@
     margin-left:6px;background:#fdf5e0;color:var(--gold-ink);vertical-align:middle}
   .bel-badge.tr{background:#eaf1fb;color:#2f5ea8}
   @media(max-width:560px){ .bel-row .bel-name{flex:1 1 100%} .bel-row select{flex:1 1 30%} }
+  /* ── Картка запису: щільний вигляд, щоб уся форма влазила в екран ── */
+  .cc-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+  .cc-top .map-crumb{margin:0}
+  .cc-top .section-title{margin:0 0 0 auto;font-size:.95rem}
+  #mapScrCard .panel{padding-top:12px;padding-bottom:12px}
+  .cg{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px 10px;align-items:end}
+  .cg .field{margin:0;gap:2px;min-width:0}
+  .cg .field label{font-size:.7rem;letter-spacing:.02em}
+  .cg input[type=text],.cg input[type=number],.cg select{height:32px;padding:3px 9px;font-size:.88rem;border-radius:9px}
+  .cg .s1{grid-column:span 1}.cg .s2{grid-column:span 2}.cg .s3{grid-column:span 3}.cg .s6{grid-column:1 / -1}
+  .cc-sec{grid-column:1 / -1;margin:6px 0 -2px;font-size:.8rem;font-weight:900;color:var(--gold-ink);
+    display:flex;align-items:baseline;gap:8px;border-top:1px dashed var(--border);padding-top:6px}
+  .cc-sec .hint{margin:0;font-size:.72rem}
+  .cc-rw{grid-column:1 / -1;display:grid;grid-template-columns:1fr 1fr;gap:6px 14px}
+  .cc-rw .tr-reward{gap:6px}
+  .cc-rw .tr-reward input[list],.cc-rw .tr-reward .rw-coins,.cc-rw .tr-reward .rw-chance{height:30px;padding:2px 8px;font-size:.85rem}
+  .cc-rw .tr-reward .rw-coins{width:84px}
+  .cc-rw .tr-reward .rw-chance{width:84px}
+  .cc-flags{grid-column:1 / -1;display:flex;flex-wrap:wrap;align-items:center;gap:8px 22px}
+  .cc-flags .hint{margin:0}
+  .field label.switch,label.switch{display:inline-flex}
+  .cc-foot{margin:10px 0 0}
+  .cc-foot .btn,.cc-q .btn{padding:6px 14px}
+  .cc-q{grid-column:1 / -1;display:flex;align-items:center;gap:10px}
+  .cc-q .spacer{flex:1}
+  @media (max-width:760px){
+    .cg{grid-template-columns:1fr 1fr}
+    .cg .s1{grid-column:span 1}.cg .s2,.cg .s3{grid-column:1 / -1}
+    .cc-rw{grid-template-columns:1fr}
+  }
   .hidden{display:none !important}
 
   @media (max-width:640px){
@@ -655,11 +685,13 @@
     <!-- ЕКРАН 5: КАРТКА ЗАПИСУ (єдина для тесту й випробування) -->
     <div id="mapScrCard" class="hidden">
       <div class="panel">
-        <button class="back-lnk" id="mapCardBack">← Записи</button>
-        <div class="map-crumb" id="mapCardCrumb"></div>
-        <div class="section-title" id="mapCardMode">✏ Редагувати</div>
+        <div class="cc-top">
+          <button class="back-lnk" id="mapCardBack">← Записи</button>
+          <div class="map-crumb" id="mapCardCrumb"></div>
+          <div class="section-title" id="mapCardMode">✏ Редагувати</div>
+        </div>
         <div id="mapCardBody"></div>
-        <div class="toolbar" style="margin:16px 0 0">
+        <div class="toolbar cc-foot">
           <button class="btn ghost danger" id="mapCardDel">🗑 Видалити</button>
           <div class="spacer"></div>
           <button class="btn gold" id="mapCardSave">💾 Зберегти</button>
@@ -1793,20 +1825,16 @@ function cardFormatSel(cur){
    набори на обидва типи — це нові поля в базі, тож окремим кроком. */
 function cardRewardsHtml(o, fmt){
   /* Нагороди однакові для всіх форматів: характеристика + до 4 слотів
-     «предмет/шанс/монетки». Раніше stat був лише в тестів, а предмети —
-     лише у випробувань; тепер це один документ, тож і поля спільні.
-     Видачу предметів робимо окремим етапом — поле вже є, куди писати. */
+     «предмет/шанс/монетки». Видачу предметів робимо окремим етапом. */
   const modeSel = '<select data-cf="statMode">'
     + '<option value="fixed"'      + (o.statMode !== 'perCorrect' ? ' selected' : '') + '>Фіксовано за запис</option>'
     + '<option value="perCorrect"' + (o.statMode === 'perCorrect' ? ' selected' : '') + '>За кожну правильну</option>'
     + '</select>';
 
-  let inner = '<div class="form-grid">'
-    + fld('Розвиває характеристику', '<select data-cf="stat">' + statMapOpts(o.stat || '') + '</select>')
-    + fld('Одиниці характеристики',
-        '<div class="reward-row">' + modeSel
-        + '<input type="number" min="0" data-cf="statValue" value="' + esc(String(o.statValue == null ? 1 : o.statValue)) + '"></div>')
-    + '</div>';
+  let h = '<div class="cc-sec">🏆 Нагороди</div>'
+    + cfld('s3', 'Розвиває характеристику', '<select data-cf="stat">' + statMapOpts(o.stat || '') + '</select>')
+    + cfld('s2', 'Одиниці', modeSel)
+    + cfld('s1', 'Скільки', '<input type="number" min="0" data-cf="statValue" value="' + esc(String(o.statValue == null ? 1 : o.statValue)) + '">');
 
   const rw = Array.isArray(o.rewards) ? o.rewards : [];
   let rows = '';
@@ -1814,104 +1842,90 @@ function cardRewardsHtml(o, fmt){
     const x = rw[r] || {};
     rows += '<div class="tr-reward">'
       + '<span class="rw-badge">🎁 ' + (r + 1) + '</span>'
-      + '<input type="text" list="trItems" data-cf="rItem" data-r="' + r + '" placeholder="ID предмета (напр. IT-001)" value="' + esc(x.item || '') + '">'
+      + '<input type="text" list="trItems" data-cf="rItem" data-r="' + r + '" placeholder="ID предмета (IT-001)" value="' + esc(x.item || '') + '">'
       + '<select class="rw-chance" data-cf="rChance" data-r="' + r + '" title="Шанс випадіння (крок 10%)">' + trChanceOpts(x.chance) + '</select>'
-      + '<input type="number" class="rw-coins" min="0" step="1" data-cf="rCoins" data-r="' + r + '" placeholder="монетки" value="' + (x.coins ? esc(String(x.coins)) : '') + '">'
-      + '<span class="rw-unit" title="монетки">🪙</span>'
+      + '<input type="number" class="rw-coins" min="0" step="1" data-cf="rCoins" data-r="' + r + '" placeholder="🪙" title="Монетки" value="' + (x.coins ? esc(String(x.coins)) : '') + '">'
     + '</div>';
   }
-  inner += '<div class="hint" style="margin:10px 0 6px">Предмети й монетки поки лише зберігаються — '
-        +  'видачу налаштуємо окремо.</div>' + rows;
-
-  return '<div class="section-title">🏆 Нагороди</div>' + inner;
+  return h + '<div class="cc-rw" title="Предмети й монетки поки лише зберігаються — видачу налаштуємо окремо">' + rows + '</div>';
+}
+/* Поле щільної сітки картки: s1/s2/s3/s6 — скільки колонок із 6 займає. */
+function cfld(span, label, inner, title){
+  return '<div class="field ' + span + '"' + (title ? ' title="' + esc(title) + '"' : '') + '>' + lbl(label) + inner + '</div>';
+}
+function cswitch(cf, on, text, title){
+  return '<label class="switch"' + (title ? ' title="' + esc(title) + '"' : '') + '>'
+    + '<input type="checkbox" data-cf="' + cf + '"' + (on ? ' checked' : '') + '>'
+    + '<span class="track"></span><span class="sw-txt">' + text + '</span></label>';
 }
 
+/* Картка запису — одна щільна сітка на 6 колонок, щоб уся форма
+   вміщалась на екран без прокрутки. Пояснення — у підказках (title). */
 function cardBodyHtml(o){
   const fmt = cardFormat();
   const isTest = (fmt === 'test');
-  const nameField = fld(isTest ? 'Назва тесту' : 'Назва',
-    '<input type="text" data-cf="title" value="' + esc(o.title || '') + '">');
+  const coverTitle = isTest
+    ? 'Порожньо — дитина побачить емодзі предмета.'
+    : 'Порожньо — береться img/tr/<назва-сторінки>.webp, а якщо файлу немає — емодзі-іконка.';
 
-  /* Порядок полів — як у схемі: Назва · Клас · Предмет · Формат, а прапорці
-     («активність», «окрема сторінка») — наприкінці, після «Нагород». */
-  let head = '<div class="form-grid">'
-    + nameField
-    + fld('Клас', cardGradeSel(o.grade))
-    + fld('Предмет', '<select data-cf="subject">' + cardSubjOpts(o.subject) + '</select>')
-    + fld('Формат', cardFormatSel(fmt));
+  let h = '<div class="cg">'
+    + cfld('s3', isTest ? 'Назва тесту' : 'Назва', '<input type="text" data-cf="title" value="' + esc(o.title || '') + '">')
+    + cfld('s1', 'Клас', cardGradeSel(o.grade))
+    + cfld('s1', 'Предмет', '<select data-cf="subject">' + cardSubjOpts(o.subject) + '</select>')
+    + cfld('s1', 'Формат', cardFormatSel(fmt));
 
   if(isTest){
     const sub = '<select data-cf="tform">'
       + '<option value="flat"'   + (o.format !== 'levels' ? ' selected' : '') + '>Один список питань</option>'
       + '<option value="levels"' + (o.format === 'levels' ? ' selected' : '') + '>Рівні</option>'
       + '</select>';
-    head += fld('Вигляд тесту', sub)
-         +  fld('Тема (для групування)', cardTopicSel(o));
+    h += cfld('s2', 'Вигляд тесту', sub)
+      +  cfld('s2', 'Тема (для групування)', cardTopicSel(o))
+      +  cfld('s2', 'Обкладинка (необовʼязково)',
+           '<input type="text" data-cf="imgCard" value="' + esc(o.imgCard || '') + '" placeholder="img/tr/nazva.webp">', coverTitle);
   } else {
-    head += fld('Емодзі-іконка', '<input type="text" data-cf="icon" value="' + esc(o.icon || '') + '">')
-         +  '<div class="field full">' + lbl(fmt === 'video' ? 'Посилання на відео' : 'Посилання на сторінку')
-         +  '<input type="text" data-cf="linkHref" value="' + esc(o.linkHref || '') + '" placeholder="english-reading.html  або  https://…"></div>'
-         +  '<div class="field full">' + lbl('Опис')
-         +  '<input type="text" data-cf="desc" value="' + esc(o.desc || '') + '" placeholder="Короткий опис (як у грі)"></div>'
-         +  fld('Тема (для групування)', cardTopicSel(o));
+    h += cfld('s1', 'Іконка', '<input type="text" data-cf="icon" value="' + esc(o.icon || '') + '">')
+      +  cfld('s2', 'Тема (для групування)', cardTopicSel(o))
+      +  cfld('s3', 'Обкладинка (необовʼязково)',
+           '<input type="text" data-cf="imgCard" value="' + esc(o.imgCard || '') + '" placeholder="img/tr/nazva.webp  або  https://…">', coverTitle)
+      +  cfld('s3', fmt === 'video' ? 'Посилання на відео' : 'Посилання на сторінку',
+           '<input type="text" data-cf="linkHref" value="' + esc(o.linkHref || '') + '" placeholder="english-reading.html  або  https://…">')
+      +  cfld('s3', 'Опис', '<input type="text" data-cf="desc" value="' + esc(o.desc || '') + '" placeholder="Короткий опис (як у грі)">');
   }
-  head += '</div>';
 
-  /* Прапорці — окремим блоком наприкінці форми (схема). */
-  let flags = '<div class="section-title">⚙ Показ</div><div class="form-grid">'
-    + '<div class="field full"><label class="switch" style="align-self:flex-start">'
-    + '<input type="checkbox" data-cf="active"' + (o.active !== false ? ' checked' : '') + '>'
-    + '<span class="track"></span><span class="sw-txt">Активний (показувати дитині)</span></label></div>';
-  if(!isTest){
-    flags += '<div class="field full"><label class="switch" style="align-self:flex-start">'
-          +  '<input type="checkbox" data-cf="blank"' + (o.blank ? ' checked' : '') + '>'
-          +  '<span class="track"></span><span class="sw-txt">↗ Відкривати окремою вкладкою</span></label></div>';
-  }
-  /* Що робить помилка. У тесті з рівнями вона завжди повертає на початок
-     рівня — це вбудоване правило. Для тесту одним списком це вибір: за
-     замовчуванням показуємо правильну відповідь і йдемо далі, а галочка
-     вмикає ту саму суворість, що й у рівнях (дитина чекала саме її —
-     скарга «тест після неварної відповіді не скидається»). */
+  h += cardRewardsHtml(o, fmt);
+
+  /* Прапорці — одним рядком. У тесті з рівнями помилка завжди повертає на
+     початок рівня (вбудоване правило); для тесту одним списком це вибір. */
+  let flags = cswitch('active', o.active !== false, 'Активний (показувати дитині)');
+  if(!isTest) flags += cswitch('blank', o.blank, '↗ Відкривати окремою вкладкою');
   if(isTest){
     flags += (o.format === 'levels')
-      ? '<div class="field full"><span class="hint">🔁 У тесті з рівнями помилка завжди повертає на початок рівня.</span></div>'
-      : '<div class="field full"><label class="switch" style="align-self:flex-start">'
-        + '<input type="checkbox" data-cf="resetOnWrong"' + (o.resetOnWrong ? ' checked' : '') + '>'
-        + '<span class="track"></span><span class="sw-txt">🔁 Помилка → починати тест спочатку</span></label>'
-        + '<span class="hint">Вимкнено: показуємо правильну відповідь і йдемо далі, бал — у підсумку.</span></div>';
+      ? '<span class="hint">🔁 У тесті з рівнями помилка завжди повертає на початок рівня.</span>'
+      : cswitch('resetOnWrong', o.resetOnWrong, '🔁 Помилка → починати тест спочатку',
+          'Вимкнено: показуємо правильну відповідь і йдемо далі, бал — у підсумку.');
   }
-  flags += '</div>';
+  h += '<div class="cc-sec">⚙ Показ</div><div class="cc-flags">' + flags + '</div>';
+
+  if(isTest){
+    h += '<div class="cc-q">'
+      + '<span class="drill-card-note">Питання (' + countQ(o) + ') редагуються окремо.</span>'
+      + '<span class="spacer"></span>'
+      + '<button class="btn" id="cardEditQ">✏ Редагувати питання →</button></div>';
+  }
+  h += '</div>';
 
   /* hidden сильніший за «Активний»: tests.html викидає такі записи зовсім.
      Новий редактор цього прапорця не ставить — він лишився на записах, які
      колись перетворювали на «випробування». Даємо його зняти. */
-  let hiddenBox = '';
   if(o.hidden && MAP_REC && !MAP_REC.isNew){
-    hiddenBox = '<div class="map-warn" style="margin:10px 0">🙈 Цей запис <b>схований</b> — '
+    h = '<div class="map-warn" style="margin:0 0 8px">🙈 Цей запис <b>схований</b> — '
       + 'дитина не бачить його ніде, хоч би як стояв «Активний». Прапорець лишився '
       + 'від старого поділу на тести й випробування.'
       + '<div class="toolbar" style="margin:8px 0 0">'
-      + '<button class="btn xs" id="cardUnhide">👁 Показати дитині</button></div></div>';
+      + '<button class="btn xs" id="cardUnhide">👁 Показати дитині</button></div></div>' + h;
   }
-
-  const legacy = '';   // окремого «випробування» більше немає — формат і є канон
-
-  const cover = '<div class="section-title">🖼 Обкладинка</div><div class="form-grid">'
-      + '<div class="field full">' + lbl('Картинка (необовʼязково)')
-      + '<input type="text" data-cf="imgCard" value="' + esc(o.imgCard || '') + '" placeholder="img/tr/nazva.webp  або  https://…">'
-      + '<span class="hint">' + (isTest
-          ? 'Порожньо — дитина побачить емодзі предмета.'
-          : 'Порожньо — береться img/tr/&lt;назва-сторінки&gt;.webp, а якщо файлу немає — емодзі-іконка.')
-      + '</span></div></div>';
-
-  const questions = isTest
-    ? '<div class="toolbar" style="margin:14px 0 0">'
-      + '<span class="drill-card-note">Питання (' + countQ(o) + ') редагуються окремо.</span>'
-      + '<div class="spacer"></div>'
-      + '<button class="btn" id="cardEditQ">✏ Редагувати питання →</button></div>'
-    : '';
-
-  return head + hiddenBox + legacy + cover + cardRewardsHtml(o, fmt) + flags + questions;
+  return h;
 }
 
 function renderCard(){
