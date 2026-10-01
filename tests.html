@@ -716,6 +716,13 @@
   q('screen').addEventListener('click',function(e){
     var a=e.target.closest('a.tcard'); if(!a) return;
     try{ sessionStorage.setItem('sk_tests_view', JSON.stringify({g:selGrade,s:selSubj})); }catch(_){}
+    /* Нова вкладка (rel="noopener") не отримує sessionStorage — тоді «Назад»
+       відкривав тести з типовим ступенем (молодша школа замість дошкілля).
+       Передаємо поточний розділ прямо в ?skback=tests.html#open=…&grade=…&subj=… */
+    if(a.target==='_blank' && location.hash){
+      var hr=a.getAttribute('href')||'';
+      a.setAttribute('href', hr.replace(/skback=tests\.html(?=&|$)/, 'skback='+encodeURIComponent('tests.html'+location.hash)));
+    }
   }, true);
   function restoreView(){
     var raw=null; try{ raw=sessionStorage.getItem('sk_tests_view'); }catch(_){}
