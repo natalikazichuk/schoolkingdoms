@@ -60,6 +60,21 @@
 
   window.skBackUrl = function(fallback){ return backUrl(param('skback') || fallback); };
   window.skGoBack  = function(fallback){ location.href = window.skBackUrl(fallback); };
+  /* «Назад — туди, звідки прийшли»: ?skback=, інакше сторінка цього ж сайту,
+     з якої дитина прийшла (та сама вкладка — history.back, нова вкладка —
+     перехід на неї), інакше fallback. */
+  window.skGoBackSmart = function(fallback){
+    if(param('skback')){ location.href = window.skBackUrl(fallback); return; }
+    var ref = ''; try{ ref = document.referrer || ''; }catch(e){}
+    try{
+      var u = new URL(ref);
+      if(u.origin === location.origin && u.pathname !== location.pathname){
+        if(history.length > 1){ history.back(); return; }
+        location.href = ref; return;
+      }
+    }catch(e){}
+    location.href = backUrl(fallback);
+  };
 
   /* «жучок» 🐞 «Повідомити про помилку» — на кожній сторінці з цим скриптом.
      Багато тренажерів не мають ані футера, ані шапки, тож раніше дитині не було
