@@ -11,6 +11,7 @@
 | `doshkillyatko.webp`, `molodsha.webp`, `starsha.webp` | ступені на «Навчанні» + запасний фон класів |
 | `klas-1.webp` … `klas-11.webp` | окрема картинка для кожного класу (без неї — `molodsha/starsha`) |
 | `dis-tsyfry.webp`, `dis-bukvy.webp`, `dis-english.webp`, `dis-svit.webp` | дошкільні напрями + запасний фон предметів за темою |
+| `tema-informatyka.webp`, `tema-istoriya.webp`, `tema-dozvillya.webp` | запасний фон предметів «Інформатика», «Історія», «Дозвілля» за назвою (будь-який клас) |
 | `subj-math.webp`, `subj-ukr.webp`, `subj-eng.webp`, `subj-yads.webp`, `subj-fun.webp` | окрема картинка для предмета (`subj-<id предмета>.webp`) |
 
 `<id предмета>` видно в адмінці → «🗺 Структура». Для доданого в адмінці предмета
