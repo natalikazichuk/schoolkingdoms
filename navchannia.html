@@ -160,6 +160,7 @@
          • активні тести      — SK.listActiveTests()
          • прогрес Героя      — heroes/{id}.progress ∪ localStorage
        Зв'язку з адмінкою тут НЕМАЄ: плитки й дисципліни задані статично. -->
+  <script src="sk-covers.js?v=1"></script>
   <script>
   (function(){
     'use strict';
@@ -205,28 +206,6 @@
     function tileOfGrade(gn){ gn=Number(gn)||0; if(gn===0) return 'doshk'; if(gn>=5) return 'senior'; return 'junior'; }
 
     /* той самий toTestObj, що на tests.html (посилання/рівні/обкладинка) */
-    /* Обкладинка за назвою теми, якщо в адмінці її не задано (Інформатика 1 кл.).
-       Порядок важливий: «Прості алгоритми» раніше за «Алгоритми»,
-       «Безпечний Інтернет» — раніше за «Мережу Інтернет». */
-    var TITLE_IMG = [
-      [/миш.*клавіатур/,                 'inf1-mysha-klaviatura'],
-      [/пристрої навколо/,               'inf1-mysha-klaviatura-2'],
-      [/детектив/,                       'komputer'],
-      [/послідовн.*дій/,                 'inf1-poslidovnist-diy'],
-      [/прості алгоритм/,                'inf1-prosti-alhorytmy'],
-      [/^алгоритм/,                      'inf1-alhorytmy'],
-      [/робота з файл/,                  'inf1-robota-z-failamy'],
-      [/інформаці.*джерел/,              'inf1-informatsiya-dzherela'],
-      [/безпечн.*інтернет/,              'inf1-bezpechnyy-internet'],
-      [/мереж.*інтернет/,                'inf1-merezha-internet'],
-      [/правила роботи за компютер/,     'inf1-pravyla-roboty'],
-      [/компютер і його частин/,         'inf1-komputer-chastyny']
-    ];
-    function titleImg(title){
-      var s = String(title||'').toLowerCase().replace(/[’'`ʼ]/g,'').trim();
-      for(var i=0;i<TITLE_IMG.length;i++) if(TITLE_IMG[i][0].test(s)) return 'img/tr/'+TITLE_IMG[i][1]+'.webp';
-      return '';
-    }
     function toTestObj(t, subjIcon){
       /* 'html' (стара назва 'link') і 'video' ведуть на окрему сторінку,
          решта — на test.html. Окремого сховища «випробувань» немає. */
@@ -237,7 +216,7 @@
         : ('test.html?id='+encodeURIComponent(t.id));
       var img = t.imgCard||t.cover||'';
       if(isLink && !img){ var slug=String(t.linkHref).replace(/[?#].*$/,'').replace(/\.html?$/i,'').replace(/^.*\//,''); if(slug) img='img/tr/'+slug+'.webp'; }
-      if(!img) img = titleImg(t.title);
+      if(!img && window.SKCovers) img = SKCovers.byTitle(t.title);
       return { id:t.id, title:t.title||'Тест', href:href, isLink:isLink, blank:!!t.blank,
         isLevels:!!lv, levelCount: lv ? (Array.isArray(t.levels)?t.levels.length:0) : 0,
         icon:(t.icon||subjIcon||'📝'), imgCard: img };
