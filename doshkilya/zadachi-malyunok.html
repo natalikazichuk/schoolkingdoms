@@ -35,7 +35,10 @@ body{
 h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-serif;letter-spacing:.3px;}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
-#wrap{position:fixed; inset:0; display:flex; flex-direction:column;}
+/* ── увесь ігровий шар — над футером ── */
+#wrap{position:fixed; top:0; left:0; right:0;
+  bottom:calc(60px + env(safe-area-inset-bottom));
+  display:flex; flex-direction:column;}
 
 /* ── верхня панель ── */
 #top{display:flex; align-items:center; gap:8px;
@@ -329,12 +332,15 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
   #startScreen{background:linear-gradient(180deg,#fff9ef,#fdf3e2); backdrop-filter:none;
     justify-content:flex-start; text-align:center; gap:11px; overflow-y:auto;
     padding:calc(env(safe-area-inset-top) + 16px) 20px calc(env(safe-area-inset-bottom) + 20px);}
-  #startScreen .start-top{position:absolute; top:calc(env(safe-area-inset-top) + 10px); left:14px; z-index:5;}
+  /* шапка (← + цифри + заголовок) — в одній колонці 540px, як у «Вчимось рахувати» */
+  #startScreen .start-head{position:relative; width:100%; max-width:540px; margin:0 auto;
+    display:flex; flex-direction:column; align-items:center; flex:none;}
+  #startScreen .start-top{position:absolute; top:22px; left:0; z-index:5;}
   #startScreen .iconbtn{width:44px; height:44px; border:2px solid #ece3d2; background:#fff; border-radius:14px;
     font-family:inherit; font-weight:700; font-size:20px; color:#2c2b3a; cursor:pointer;
     display:grid; place-items:center; box-shadow:0 1px 3px rgba(44,43,58,.14);}
   #startScreen .iconbtn:active{transform:translateY(2px);}
-  #startScreen .num-blocks{display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin:6px 0 2px; padding-left:48px;}
+  #startScreen .num-blocks{display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin:6px 0 2px;}
   #startScreen .nb{position:relative; width:58px; height:58px; border-radius:16px; display:grid; place-items:center;
     font-family:"Fredoka",sans-serif; font-weight:700; font-size:30px; color:#fff; transform:rotate(var(--r));
     box-shadow:0 6px 0 rgba(0,0,0,.14), inset 0 -5px 0 rgba(0,0,0,.12), inset 0 3px 0 rgba(255,255,255,.28);}
@@ -351,6 +357,7 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
   #startScreen .rhyme{background:#fff; border:3px dashed #cdd8ea; border-radius:20px; padding:13px 18px;
     font-style:italic; color:#3a5a8c; font-weight:800; max-width:400px; margin:2px auto 0;
     box-shadow:0 1px 3px rgba(44,43,58,.14); line-height:1.4;}
+  #startScreen > *:not(.start-hero){flex-shrink:0;}
   #startScreen .start-hero{max-width:440px; width:100%; margin:0 auto; flex:1 1 auto; min-height:120px;
     max-height:clamp(170px,48vh,420px); display:flex; align-items:center; justify-content:center; overflow:hidden;}
   #startScreen .start-hero img{max-width:100%; max-height:100%; width:auto; height:auto; display:block;}
@@ -370,13 +377,20 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
     #startScreen .rhyme{padding:9px 14px; font-size:14px; border-radius:16px;}
     #startScreen .big-btn{padding:13px 18px; font-size:18px;}
   }
+  /* вузький екран: стрілочка ← зліва від цифр, не поверх «1» */
+  @media (max-width:520px){
+    #startScreen .start-top{top:12px;}
+    #startScreen .num-blocks{padding:0 48px; gap:6px;}
+    #startScreen .nb{width:44px; height:44px; border-radius:12px; font-size:24px;}
+    #startScreen .nb::after{font-size:16px; right:-6px; bottom:-6px;}
+  }
   @media (max-width:380px){
     #startScreen{padding-left:14px; padding-right:14px;}
-    #startScreen .num-blocks{gap:6px;}
-    #startScreen .nb{width:46px; height:46px; font-size:25px;}
+  }
+  @media (max-height:640px) and (min-width:521px){
+    #startScreen .nb{width:50px; height:50px; font-size:26px;}
   }
   @media (max-height:640px){
-    #startScreen .nb{width:50px; height:50px; font-size:26px;}
     #startScreen h1{font-size:28px;}
     #startScreen .start-hero{max-height:22vh;}
   }
@@ -402,13 +416,15 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
   <div id="tray"></div>
 
   <div class="screen" id="startScreen">
-    <div class="start-top">
-      <button class="iconbtn" onclick="window.skGoBackSmart?skGoBackSmart('tests.html'):(location.href=(window.skBackUrl?skBackUrl('tests.html'):'../tests.html'))" title="Назад" aria-label="Назад">←</button>
+    <div class="start-head">
+      <div class="start-top">
+        <button class="iconbtn" onclick="window.skGoBackSmart?skGoBackSmart('tests.html'):(location.href=(window.skBackUrl?skBackUrl('tests.html'):'../tests.html'))" title="Назад" aria-label="Назад">←</button>
+      </div>
+      <div class="num-blocks">
+        <div class="nb" data-o="🍎">1</div><div class="nb" data-o="🐟">2</div><div class="nb" data-o="🐦">3</div><div class="nb" data-o="🌸">4</div><div class="nb" data-o="🎈">5</div>
+      </div>
+      <h1>Задачі за малюнком</h1>
     </div>
-    <div class="num-blocks">
-      <div class="nb" data-o="🍎">1</div><div class="nb" data-o="🐟">2</div><div class="nb" data-o="🐦">3</div><div class="nb" data-o="🌸">4</div><div class="nb" data-o="🎈">5</div>
-    </div>
-    <h1>Задачі за малюнком</h1>
     <p class="start-sub">Малюнкова математика · для найменших</p>
     <p class="rhyme" id="startRhyme">Подивись на малюнок уважно —<br>полічи, і задача не важка!</p>
 
@@ -815,6 +831,7 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
 })();
 </script>
 <!-- Firebase + нагороди з адмінки -->
+<script src="../sk-footer.js?v=5" data-base="../" data-back="tests.html"></script>
 <script type="module" src="../firebase-config.js"></script>
 <script src="../sk-items.js?v=1"></script>
 <script src="../sk-curriculum.js?v=7"></script>
