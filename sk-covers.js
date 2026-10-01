@@ -7,6 +7,10 @@
 
      SKCovers.byTitle('Мережа Інтернет')  // → 'img/tr/inf1-merezha-internet.webp'
      SKCovers.byTitle('Додавання')        // → ''
+     SKCovers.bySubject('Інформатика', 1)  // → обкладинка предмета для решти тем
+
+   Тема без власної обкладинки і без збігу за назвою бере обкладинку
+   предмета й класу (bySubject), якщо така є.
 
    Порядок важливий: «Прості алгоритми» раніше за «Алгоритми»,
    «Безпечний Інтернет» — раніше за «Мережу Інтернет».
@@ -32,5 +36,13 @@
     for(var i=0;i<TITLE_IMG.length;i++) if(TITLE_IMG[i][0].test(s)) return 'img/tr/'+TITLE_IMG[i][1]+'.webp';
     return '';
   }
-  window.SKCovers = { byTitle: byTitle };
+  var SUBJ_IMG = [
+    [/інформат|informat/, 1, 'inf1-informatyka']
+  ];
+  function bySubject(subj, grade){
+    var s = String(subj||'').toLowerCase(), n = Number(grade)||0;
+    for(var i=0;i<SUBJ_IMG.length;i++) if(SUBJ_IMG[i][1]===n && SUBJ_IMG[i][0].test(s)) return 'img/tr/'+SUBJ_IMG[i][2]+'.webp';
+    return '';
+  }
+  window.SKCovers = { byTitle: byTitle, bySubject: bySubject };
 })();
