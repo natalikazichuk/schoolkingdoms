@@ -75,14 +75,24 @@
     [/здоровий спосіб/,                'yads-zdorovya'],
     [/професі|ким бути/,               'yads-profesii'],
     [/досягнен|успіх/,                 'yads-dosyahnennya', /ядс|досліджую|світ/],
-    [/гроші|фінанс|заощадж|кишеньков/, 'yads-hroshi'],
+    [/гроші|фінанс|заощадж|кишеньков/, 'yads-hroshi', /ядс|досліджую|світ/],
     [/досягти результат/,              'yads-zirka-shchyt'],
     /* Математика та загальні */
     [/канікул/,                        'mat-kanikuly'],
     [/досягнен|успіх/,                 'mat-dosyahnennya'],
     [/попереднє.*наступне|наступне.*попереднє/, 'mat-poperednie-nastupne'],
     [/лабіринт/,                       'mat-labiryint'],
-    [/пазл/,                           'mat-pazly']
+    [/пазл/,                           'mat-pazly'],
+    [/компонент.*додаван/,             'mat-komp-dodavannya'],
+    [/компонент.*відніман/,            'mat-komp-vidnimannya'],
+    [/компонент.*рівн/,                'mat-komp-dii-rivni'],
+    [/компоненти дій/,                 'mat-komp-dii'],
+    [/одиниці довжини|^довжин/,        'mat-dovzhyna'],
+    [/гроші|^монети/,                  'mat-hroshi'],
+    [/^маса([^а-яіїєґ]|$)/,            'mat-masa'],
+    [/місткість/,                      'mat-mistkist'],
+    [/^час([^а-яіїєґ]|$)|годинник/,    'mat-chas'],
+    [/периметр|геометрі/,              'mat-perymetr']
   ];
   function byTitle(title, subj){
     var s = String(title||'').toLowerCase().replace(/[’'`ʼ]/g,'').trim();
