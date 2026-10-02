@@ -49,7 +49,31 @@
     [/вчимос.? писати/,                'ukr-vchymos-pysaty'],
     [/мовний квест/,                   'ukr-movnyi-kvest'],
     [/^текст/,                         'ukr-tekst'],
-    [/^речення/,                       'ukr-rechennya']
+    [/^речення/,                       'ukr-rechennya'],
+    /* ЯДС */
+    [/державн.*символ/,                'yads-symvoly'],
+    [/батьківщин/,                     'yads-batkivshchyna'],
+    [/^моє місто|^місто/,              'yads-misto'],
+    [/^моя школа/,                     'yads-shkola'],
+    [/школярик/,                       'yads-shkolyaryk'],
+    [/^я і (моя )?родина|^моя родина|^родина|^сімя/, 'yads-rodyna'],
+    [/дружба/,                         'yads-druzhba'],
+    [/безпека вдома|безпека вдомі/,    'yads-bezpeka-vdoma'],
+    [/безпека на вулиці/,              'yads-bezpeka-vulytsia'],
+    [/правила дорожнього руху|^пдр/,   'yads-pdr'],
+    [/пожежн/,                         'yads-pozhezhna'],
+    [/вода.*повітря|повітря.*ґрунт/,   'yads-voda-povitria'],
+    [/^досліди|дослідження за природ/, 'yads-doslidy'],
+    [/осінь.*зима|пори року/,          'yads-pory-roku'],
+    [/^рослини/,                       'yads-roslyny'],
+    [/^тварини/,                       'yads-tvaryny'],
+    [/екологі|бережлив.*природ/,       'yads-ekolohiya'],
+    [/погода/,                         'yads-pohoda'],
+    [/корисна їжа|здорове харчування/, 'yads-korysna-yizha'],
+    [/здоровий спосіб/,                'yads-zdorovya'],
+    [/професі|ким бути/,               'yads-profesii'],
+    [/досягнен|успіх/,                 'yads-dosyahnennya'],
+    [/гроші|фінанс|заощадж|кишеньков/, 'yads-hroshi']
   ];
   function byTitle(title){
     var s = String(title||'').toLowerCase().replace(/[’'`ʼ]/g,'').trim();
