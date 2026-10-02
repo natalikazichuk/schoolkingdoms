@@ -106,7 +106,14 @@
     [/знайди зайве|^зайве/,            'mat-znaidy-zaive'],
     [/уваг.*спостережлив|^увага|спостережлив/, 'mat-uvaha'],
     [/память/,                         'mat-pamyat'],
-    [/кмітлив/,                        'mat-kmitlyvist']
+    [/кмітлив/,                        'mat-kmitlyvist'],
+    [/задачі на додавання/,            'mat-zadachi-dodavannya'],
+    [/невідом.*компонент/,             'mat-nevidomyi-komponent'],
+    [/знайди помилку/,                 'mat-znaidy-pomylku'],
+    [/десятки (і|й) одиниці/,          'mat-desyatky-odynytsi'],
+    [/розряд/,                         'mat-rozryad'],
+    [/у дві дії|у 2 дії/,              'mat-vyrazy-dvi-dii'],
+    [/у три дії|у 3 дії/,              'mat-vyrazy-try-dii']
   ];
   function byTitle(title, subj){
     var s = String(title||'').toLowerCase().replace(/[’'`ʼ]/g,'').trim();
