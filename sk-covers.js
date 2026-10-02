@@ -92,7 +92,17 @@
     [/^маса([^а-яіїєґ]|$)/,            'mat-masa'],
     [/місткість/,                      'mat-mistkist'],
     [/^час([^а-яіїєґ]|$)|годинник/,    'mat-chas'],
-    [/периметр|геометрі/,              'mat-perymetr']
+    [/периметр/,                       'mat-perymetr'],
+    /* «Геометричні фігури» містить «геометрі», тож фігури — раніше */
+    [/геометричн.*фігур|^фігури/,      'mat-figury'],
+    [/геометрі/,                       'mat-heometriya'],
+    [/порівнян.*чисел/,                'mat-porivnyannya-chysel'],
+    [/порівнян.*до 10([^0-9]|$)/,      'mat-porivnyannya-10'],
+    [/порівнян.*до 20([^0-9]|$)/,      'mat-porivnyannya-20'],
+    [/нестандартн/,                    'mat-nestandartni'],
+    [/вежа логіки/,                    'mat-vezha-lohiky'],
+    [/логічн.*рівнян/,                 'mat-lohichni-rivnyannya'],
+    [/логічне мислення/,               'mat-lohichne-myslennya']
   ];
   function byTitle(title, subj){
     var s = String(title||'').toLowerCase().replace(/[’'`ʼ]/g,'').trim();
