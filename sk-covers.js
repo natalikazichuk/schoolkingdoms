@@ -102,7 +102,11 @@
     [/нестандартн/,                    'mat-nestandartni'],
     [/вежа логіки/,                    'mat-vezha-lohiky'],
     [/логічн.*рівнян/,                 'mat-lohichni-rivnyannya'],
-    [/логічне мислення/,               'mat-lohichne-myslennya']
+    [/логічне мислення/,               'mat-lohichne-myslennya'],
+    [/знайди зайве|^зайве/,            'mat-znaidy-zaive'],
+    [/уваг.*спостережлив|^увага|спостережлив/, 'mat-uvaha'],
+    [/память/,                         'mat-pamyat'],
+    [/кмітлив/,                        'mat-kmitlyvist']
   ];
   function byTitle(title, subj){
     var s = String(title||'').toLowerCase().replace(/[’'`ʼ]/g,'').trim();
