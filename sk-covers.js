@@ -73,7 +73,8 @@
     [/здоровий спосіб/,                'yads-zdorovya'],
     [/професі|ким бути/,               'yads-profesii'],
     [/досягнен|успіх/,                 'yads-dosyahnennya'],
-    [/гроші|фінанс|заощадж|кишеньков/, 'yads-hroshi']
+    [/гроші|фінанс|заощадж|кишеньков/, 'yads-hroshi'],
+    [/досягти результат/,              'yads-zirka-shchyt']
   ];
   function byTitle(title){
     var s = String(title||'').toLowerCase().replace(/[’'`ʼ]/g,'').trim();
