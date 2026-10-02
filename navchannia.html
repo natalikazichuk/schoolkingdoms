@@ -160,7 +160,7 @@
          • активні тести      — SK.listActiveTests()
          • прогрес Героя      — heroes/{id}.progress ∪ localStorage
        Зв'язку з адмінкою тут НЕМАЄ: плитки й дисципліни задані статично. -->
-  <script src="sk-covers.js?v=7"></script>
+  <script src="sk-covers.js?v=12"></script>
   <script>
   (function(){
     'use strict';
@@ -206,7 +206,7 @@
     function tileOfGrade(gn){ gn=Number(gn)||0; if(gn===0) return 'doshk'; if(gn>=5) return 'senior'; return 'junior'; }
 
     /* той самий toTestObj, що на tests.html (посилання/рівні/обкладинка) */
-    function toTestObj(t, subjIcon){
+    function toTestObj(t, subjIcon, subjName){
       /* 'html' (стара назва 'link') і 'video' ведуть на окрему сторінку,
          решта — на test.html. Окремого сховища «випробувань» немає. */
       var isLink = !!((t.format==='link'||t.format==='html'||t.format==='video') && t.linkHref);
@@ -216,7 +216,7 @@
         : ('test.html?id='+encodeURIComponent(t.id));
       var img = t.imgCard||t.cover||'';
       if(isLink && !img){ var slug=String(t.linkHref).replace(/[?#].*$/,'').replace(/\.html?$/i,'').replace(/^.*\//,''); if(slug) img='img/tr/'+slug+'.webp'; }
-      if(!img && window.SKCovers) img = SKCovers.byTitle(t.title);
+      if(!img && window.SKCovers) img = SKCovers.byTitle(t.title, subjName);
       return { id:t.id, title:t.title||'Тест', href:href, isLink:isLink, blank:!!t.blank,
         isLevels:!!lv, levelCount: lv ? (Array.isArray(t.levels)?t.levels.length:0) : 0,
         icon:(t.icon||subjIcon||'📝'), imgCard: img };
@@ -229,7 +229,7 @@
       var subjIcon = (b.subj && b.subj.icon) || '📘';
       var g = gradeMap[gn] || (gradeMap[gn] = {num:gn, tests:[], seen:{}});
       b.tests.forEach(function(raw){
-        var o = toTestObj(raw, subjIcon);
+        var o = toTestObj(raw, subjIcon, subjName);
         if(!o.imgCard && window.SKCovers) o.imgCard = SKCovers.bySubject(subjName, gn);
         if(!g.seen[o.id]){ g.seen[o.id]=1; g.tests.push(o); }
         if(!oseen[o.id]){ oseen[o.id]=1; order.push({t:o, gn:gn, subj:subjName}); }

@@ -122,7 +122,7 @@
 
 <!-- Спільна карта королівства. МАЄ йти перед інлайн-скриптом нижче -->
 <script src="sk-curriculum.js?v=4"></script>
-<script src="sk-covers.js?v=7"></script>
+<script src="sk-covers.js?v=12"></script>
 <script>
 /* ── Запобіжник: sk-curriculum.js має бути свіжим ── */
 (function(){
@@ -302,7 +302,7 @@
     return '<span class="emoji">'+esc(t.icon)+'</span>';
   }
 
-  function toTestObj(t, subjIcon){
+  function toTestObj(t, subjIcon, subjName){
     /* 'html' (стара назва 'link') і 'video' ведуть на окрему сторінку,
        решта — на test.html. Окремого сховища «випробувань» немає. */
     var isLink = !!((t.format==='link'||t.format==='html'||t.format==='video') && t.linkHref);
@@ -316,7 +316,7 @@
     var img = t.imgCard||t.cover||'';
     if(img) imgs.push(img);
     else if(isLink){ var slug=String(t.linkHref).replace(/[?#].*$/,'').replace(/\.html?$/i,'').replace(/^.*\//,''); if(slug) imgs.push('img/tr/'+slug+'.webp'); }
-    if(!img && window.SKCovers){ var byT = SKCovers.byTitle(t.title); if(byT) imgs.push(byT); }
+    if(!img && window.SKCovers){ var byT = SKCovers.byTitle(t.title, subjName); if(byT) imgs.push(byT); }
     return { id:t.id, title:t.title||'Тест', href:href, isLink:isLink, blank:!!t.blank,
       isLevels:!!lv, levelCount: lv ? (Array.isArray(t.levels)?t.levels.length:0) : 0,
       icon:(t.icon||subjIcon||'📝'), imgCard: imgs[0]||'', imgs: imgs };
@@ -352,7 +352,7 @@
       var grp = ensureGroup(s, gname);
       b.tests.forEach(function(t){
         if(s._seen[t.id]) return; s._seen[t.id]=1;
-        var o = toTestObj(t, b.subj.icon);
+        var o = toTestObj(t, b.subj.icon, b.subj.name);
         if(!(t.imgCard||t.cover) && window.SKCovers){
           var bySubj = SKCovers.bySubject(b.subj.name, key);
           if(bySubj){ o.imgs.push(bySubj); o.imgCard = o.imgs[0]; }

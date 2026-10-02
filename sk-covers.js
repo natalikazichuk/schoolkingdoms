@@ -7,6 +7,8 @@
 
      SKCovers.byTitle('Мережа Інтернет')  // → 'img/tr/inf1-merezha-internet.webp'
      SKCovers.byTitle('Додавання')        // → ''
+     SKCovers.byTitle('Досягнення', 'ЯДС')  // третій елемент правила — предмет:
+                                         // таке правило діє лише для нього
      SKCovers.bySubject('Інформатика', 1)  // → обкладинка предмета для решти тем
 
    Тема без власної обкладинки і без збігу за назвою бере обкладинку
@@ -72,12 +74,48 @@
     [/корисна їжа|здорове харчування/, 'yads-korysna-yizha'],
     [/здоровий спосіб/,                'yads-zdorovya'],
     [/професі|ким бути/,               'yads-profesii'],
-    [/досягнен|успіх/,                 'yads-dosyahnennya'],
-    [/гроші|фінанс|заощадж|кишеньков/, 'yads-hroshi']
+    [/досягнен|успіх/,                 'yads-dosyahnennya', /ядс|досліджую|світ/],
+    [/гроші|фінанс|заощадж|кишеньков/, 'yads-hroshi', /ядс|досліджую|світ/],
+    [/досягти результат/,              'yads-zirka-shchyt'],
+    /* Математика та загальні */
+    [/канікул/,                        'mat-kanikuly'],
+    [/досягнен|успіх/,                 'mat-dosyahnennya'],
+    [/попереднє.*наступне|наступне.*попереднє/, 'mat-poperednie-nastupne'],
+    [/лабіринт/,                       'mat-labiryint'],
+    [/пазл/,                           'mat-pazly'],
+    [/компонент.*додаван/,             'mat-komp-dodavannya'],
+    [/компонент.*відніман/,            'mat-komp-vidnimannya'],
+    [/компонент.*рівн/,                'mat-komp-dii-rivni'],
+    [/компоненти дій/,                 'mat-komp-dii'],
+    [/одиниці довжини|^довжин/,        'mat-dovzhyna'],
+    [/гроші|^монети/,                  'mat-hroshi'],
+    [/^маса([^а-яіїєґ]|$)/,            'mat-masa'],
+    [/місткість/,                      'mat-mistkist'],
+    [/^час([^а-яіїєґ]|$)|годинник/,    'mat-chas'],
+    [/периметр/,                       'mat-perymetr'],
+    /* «Геометричні фігури» містить «геометрі», тож фігури — раніше */
+    [/геометричн.*фігур|^фігури/,      'mat-figury'],
+    [/геометрі/,                       'mat-heometriya'],
+    [/порівнян.*чисел/,                'mat-porivnyannya-chysel'],
+    [/порівнян.*до 10([^0-9]|$)/,      'mat-porivnyannya-10'],
+    [/порівнян.*до 20([^0-9]|$)/,      'mat-porivnyannya-20'],
+    [/нестандартн/,                    'mat-nestandartni'],
+    [/вежа логіки/,                    'mat-vezha-lohiky'],
+    [/логічн.*рівнян/,                 'mat-lohichni-rivnyannya'],
+    [/логічне мислення/,               'mat-lohichne-myslennya'],
+    [/знайди зайве|^зайве/,            'mat-znaidy-zaive'],
+    [/уваг.*спостережлив|^увага|спостережлив/, 'mat-uvaha'],
+    [/память/,                         'mat-pamyat'],
+    [/кмітлив/,                        'mat-kmitlyvist']
   ];
-  function byTitle(title){
+  function byTitle(title, subj){
     var s = String(title||'').toLowerCase().replace(/[’'`ʼ]/g,'').trim();
-    for(var i=0;i<TITLE_IMG.length;i++) if(TITLE_IMG[i][0].test(s)) return 'img/tr/'+TITLE_IMG[i][1]+'.webp';
+    var sj = String(subj||'').toLowerCase();
+    for(var i=0;i<TITLE_IMG.length;i++){
+      var r = TITLE_IMG[i];
+      if(r[2] && !r[2].test(sj)) continue;
+      if(r[0].test(s)) return 'img/tr/'+r[1]+'.webp';
+    }
     return '';
   }
   var SUBJ_IMG = [
