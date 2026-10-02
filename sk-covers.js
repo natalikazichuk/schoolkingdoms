@@ -14,6 +14,11 @@
    Тема без власної обкладинки і без збігу за назвою бере обкладинку
    предмета й класу (bySubject), якщо така є.
 
+   FORCED — короткий список тем, де картинка звідси важливіша за поле
+   «Обкладинка» в адмінці (там лишились старі картинки, які треба
+   замінити). Для цих тем поле в адмінці не діє:
+     SKCovers.forced('Додавання до 10')  // → абакус, навіть якщо в адмінці інше
+
    Порядок важливий: «Прості алгоритми» раніше за «Алгоритми»,
    «Безпечний Інтернет» — раніше за «Мережу Інтернет».
    ============================================================ */
@@ -137,5 +142,16 @@
     for(var i=0;i<SUBJ_IMG.length;i++) if(SUBJ_IMG[i][1]===n && SUBJ_IMG[i][0].test(s)) return 'img/tr/'+SUBJ_IMG[i][2]+'.webp';
     return '';
   }
-  window.SKCovers = { byTitle: byTitle, bySubject: bySubject };
+  var FORCED = [
+    [/попереднє.*наступне|наступне.*попереднє/, 'mat-poperednie-nastupne'],
+    [/^додавання до 10([^0-9]|$)/,     'mat-dodavannya-vidnimannya-10'],
+    [/^віднімання до 10([^0-9]|$)/,    'mat-dodavannya-vidnimannya-10'],
+    [/дні тижня/,                      'mat-dni-tyzhnya']
+  ];
+  function forced(title){
+    var s = String(title||'').toLowerCase().replace(/[’'`ʼ]/g,'').trim();
+    for(var i=0;i<FORCED.length;i++) if(FORCED[i][0].test(s)) return 'img/tr/'+FORCED[i][1]+'.webp';
+    return '';
+  }
+  window.SKCovers = { byTitle: byTitle, bySubject: bySubject, forced: forced };
 })();
