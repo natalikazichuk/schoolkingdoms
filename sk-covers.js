@@ -70,7 +70,10 @@
     [/екологі|бережлив.*природ/,       'yads-ekolohiya'],
     [/погода/,                         'yads-pohoda'],
     [/корисна їжа|здорове харчування/, 'yads-korysna-yizha'],
-    [/здоровий спосіб/,                'yads-zdorovya']
+    [/здоровий спосіб/,                'yads-zdorovya'],
+    [/професі|ким бути/,               'yads-profesii'],
+    [/досягнен|успіх/,                 'yads-dosyahnennya'],
+    [/гроші|фінанс|заощадж|кишеньков/, 'yads-hroshi']
   ];
   function byTitle(title){
     var s = String(title||'').toLowerCase().replace(/[’'`ʼ]/g,'').trim();
