@@ -42,7 +42,12 @@
     [/^голосні.*приголосн/,            'ukr-holosni-pryholosni'],
     [/назви предметів/,                'ukr-nazvy-predmetiv'],
     [/дії предметів/,                  'ukr-dii-predmetiv'],
-    [/ознаки предметів/,               'ukr-oznaky-predmetiv']
+    [/ознаки предметів/,               'ukr-oznaky-predmetiv'],
+    [/велик.*мал.*літер/,              'ukr-velyka-mala'],
+    [/літер.*письмов|письмов.*літер/,  'ukr-znaidy-pysmovu'],
+    [/^списуван/,                      'ukr-spysuvannya'],
+    [/вчимос.? писати/,                'ukr-vchymos-pysaty'],
+    [/мовний квест/,                   'ukr-movnyi-kvest']
   ];
   function byTitle(title){
     var s = String(title||'').toLowerCase().replace(/[’'`ʼ]/g,'').trim();
