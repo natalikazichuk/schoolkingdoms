@@ -110,6 +110,8 @@
     [/память/,                         'mat-pamyat'],
     [/кмітлив/,                        'mat-kmitlyvist'],
     [/задачі на додавання/,            'mat-zadachi-dodavannya'],
+    [/задачі на віднімання/,           'mat-zadachi-vidnimannya'],
+    [/додавання\s*(і|й|та|\/)\s*віднімання/, 'mat-dodavannya-vidnimannya-10'],
     [/невідом.*компонент/,             'mat-nevidomyi-komponent'],
     [/знайди помилку/,                 'mat-znaidy-pomylku-2'],
     [/десятки (і|й) одиниці/,          'mat-desyatky-odynytsi'],
