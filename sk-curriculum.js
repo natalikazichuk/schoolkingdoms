@@ -389,55 +389,70 @@ function placeTests(map, tests){
     });
   });
 
-  /* 1) розділи */
+  /* 1) розділи. Три проходи по ВСІХ розділах, щоб сильніше правило не
+     програвало слабшому лише через порядок розділів у карті:
+       а) явні посилання (поле «Розділ» у картці кладе тест саме так);
+       б) поле topic тесту;
+       в) префікс назви («Задачі на …» → розділ «Задачі»).
+     Інакше тест «Задачі на невідомий компонент», явно покладений у
+     «Випробування», забирав би розділ «Задачі», що стоїть вище. */
+  var buckets = [];
   slots.forEach(function(e){
-    if(!(e.subj.topics || []).length) return;
     (e.subj.topics || []).forEach(function(tp){
-      var bucket = { tier: e.tier, grade: e.grade, subj: e.subj, topic: tp, tests: [] };
-      var tpN = norm(tp.topic);
-
-      // via: 'ref' — явне посилання, 'auto' — правило (б)/(в).
-      // Про мовчазну втрату звітуємо лише для явних посилань: перекриття за
-      // префіксом («Задачі» і «Задачі у дві дії») — нормальне явище, перший
-      // розділ у порядку карти забирає тест, і це не помилка.
-      function add(t, via){
-        if(!t || !t.title) return;
-        if(usedId[t.id]){
-          if(via === 'ref' && byId[t.id] && byId[t.id].topic !== tp.topic){
-            dropped.push({ test: t, reason: 'duplicate', topic: tp.topic,
-                           subject: e.subj.name, first: byId[t.id] });
-          }
-          return;
-        }
-        if(((t.grade == null || t.grade === '') ? 1 : Number(t.grade)) !== Number(e.grade.gradeNum)){
-          if(via === 'ref'){
-            dropped.push({ test: t, reason: 'grade', topic: tp.topic, subject: e.subj.name,
-                           expected: e.grade.gradeNum, got: t.grade });
-          }
-          return;
-        }
-        bucket.tests.push(t);
-        usedId[t.id] = true;
-        takenTitle[norm(t.title)] = true;
-        byId[t.id] = { subject: e.subj.name, topic: tp.topic };
-      }
-
-      (tp.tests || []).forEach(function(ref){
-        var t = findTest(ref, idx);
-        if(!t){ unresolved.push({ ref: String(ref), topic: tp.topic, subject: e.subj.name }); return; }
-        add(t, 'ref');
-      });
-      all.forEach(function(t){
-        if(!t.title) return;
-        if(!subjectMatches(e.subj, t.subject)) return;
-        var byField  = t.topic && norm(t.topic) === tpN;
-        var byPrefix = norm(t.title).indexOf(tpN) === 0;
-        if(byField || byPrefix) add(t, 'auto');
-      });
-
-      topics.push(bucket);
+      buckets.push({ e: e, tp: tp, tpN: norm(tp.topic),
+                     out: { tier: e.tier, grade: e.grade, subj: e.subj, topic: tp, tests: [] } });
     });
   });
+
+  // via: 'ref' — явне посилання, 'auto' — правило (б)/(в).
+  // Про мовчазну втрату звітуємо лише для явних посилань: перекриття за
+  // префіксом («Задачі» і «Задачі у дві дії») — нормальне явище, перший
+  // розділ у порядку карти забирає тест, і це не помилка.
+  function add(b, t, via){
+    var e = b.e, tp = b.tp;
+    if(!t || !t.title) return;
+    if(usedId[t.id]){
+      if(via === 'ref' && byId[t.id] && byId[t.id].topic !== tp.topic){
+        dropped.push({ test: t, reason: 'duplicate', topic: tp.topic,
+                       subject: e.subj.name, first: byId[t.id] });
+      }
+      return;
+    }
+    if(((t.grade == null || t.grade === '') ? 1 : Number(t.grade)) !== Number(e.grade.gradeNum)){
+      if(via === 'ref'){
+        dropped.push({ test: t, reason: 'grade', topic: tp.topic, subject: e.subj.name,
+                       expected: e.grade.gradeNum, got: t.grade });
+      }
+      return;
+    }
+    b.out.tests.push(t);
+    usedId[t.id] = true;
+    takenTitle[norm(t.title)] = true;
+    byId[t.id] = { subject: e.subj.name, topic: tp.topic };
+  }
+
+  buckets.forEach(function(b){
+    (b.tp.tests || []).forEach(function(ref){
+      var t = findTest(ref, idx);
+      if(!t){ unresolved.push({ ref: String(ref), topic: b.tp.topic, subject: b.e.subj.name }); return; }
+      add(b, t, 'ref');
+    });
+  });
+  buckets.forEach(function(b){
+    all.forEach(function(t){
+      if(!t.title || !t.topic || norm(t.topic) !== b.tpN) return;
+      if(!subjectMatches(b.e.subj, t.subject)) return;
+      add(b, t, 'auto');
+    });
+  });
+  buckets.forEach(function(b){
+    all.forEach(function(t){
+      if(!t.title || norm(t.title).indexOf(b.tpN) !== 0) return;
+      if(!subjectMatches(b.e.subj, t.subject)) return;
+      add(b, t, 'auto');
+    });
+  });
+  buckets.forEach(function(b){ topics.push(b.out); });
 
   /* 2) решта → у предмет за класом і предметом (без розділів) */
   var extra = [];

@@ -375,7 +375,7 @@
       s.id = 'sk-curriculum-loader';
       // версія — та сама, що в <script> на сторінках, інакше сюди
       // приїде закешована карта й правки адміна не доїдуть.
-      s.src = BASE + 'sk-curriculum.js?v=4';
+      s.src = BASE + 'sk-curriculum.js?v=8';
       document.head.appendChild(s);
     }
     var tries = 0;
