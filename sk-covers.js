@@ -29,7 +29,20 @@
     [/безпечн.*інтернет/,              'inf1-bezpechnyy-internet'],
     [/мереж.*інтернет/,                'inf1-merezha-internet'],
     [/правила роботи за компютер/,     'inf1-pravyla-roboty'],
-    [/компютер і його частин/,         'inf1-komputer-chastyny']
+    [/компютер і його частин/,         'inf1-komputer-chastyny'],
+    /* Українська мова. «Слово. Назви, ознаки та дії…» — раніше за окремі
+       «Назви/Дії/Ознаки предметів»; «приголосні» містить «голосні»,
+       тож «Голосні та приголосні» ловимо лише з початку назви. */
+    [/^слово([.,: ]|$)/,              'ukr-slovo'],
+    [/букви і звуки/,                  'ukr-bukvy-zvuky'],
+    [/порядок букв/,                   'ukr-poryadok-bukv'],
+    [/порядок літер/,                  'ukr-poryadok-liter'],
+    [/дзвінк.*глух/,                   'ukr-dzvinki-hlukhi'],
+    [/тверд.*мяк/,                     'ukr-tverdi-miaki'],
+    [/^голосні.*приголосн/,            'ukr-holosni-pryholosni'],
+    [/назви предметів/,                'ukr-nazvy-predmetiv'],
+    [/дії предметів/,                  'ukr-dii-predmetiv'],
+    [/ознаки предметів/,               'ukr-oznaky-predmetiv']
   ];
   function byTitle(title){
     var s = String(title||'').toLowerCase().replace(/[’'`ʼ]/g,'').trim();
