@@ -283,10 +283,21 @@
   }
 
   /* ── обкладинка тесту: якщо в базі задано imgCard — показуємо, інакше емодзі предмета ── */
+  /* Якщо файлу немає — пробуємо наступну картинку з data-fb (за назвою теми,
+     за предметом), а коли скінчились — ставимо емодзі. Раніше тренажер-посилання
+     без img/tr/<сторінка>.webp одразу падав на емодзі й до картинки за назвою
+     не доходив. */
+  window.SKTHUMBFB = function(el){
+    var fb = String(el.getAttribute('data-fb')||'').split('|').filter(Boolean);
+    if(fb.length){ el.setAttribute('data-fb', fb.slice(1).join('|')); el.src = fb[0]; return; }
+    var sp = document.createElement('span'); sp.className = 'emoji'; sp.textContent = el.getAttribute('data-ic')||'';
+    el.parentNode.replaceWith(sp);
+  };
   function testVisual(t){
-    if(t.imgCard){
-      return '<span class="thumb"><img src="'+esc(t.imgCard)+'" alt="" loading="lazy" '
-           + 'onerror="this.parentNode.outerHTML=\'<span class=&quot;emoji&quot;>'+esc(t.icon)+'</span>\'"></span>';
+    var imgs = (t.imgs||[t.imgCard]).filter(Boolean);
+    if(imgs.length){
+      return '<span class="thumb"><img src="'+esc(imgs[0])+'" alt="" loading="lazy" data-ic="'+esc(t.icon)+'"'
+           + ' data-fb="'+esc(imgs.slice(1).join('|'))+'" onerror="SKTHUMBFB(this)"></span>';
     }
     return '<span class="emoji">'+esc(t.icon)+'</span>';
   }
@@ -299,12 +310,16 @@
     var href = isLink
       ? (String(t.linkHref) + (String(t.linkHref).indexOf('?')>=0?'&':'?') + 'skdone=t:' + encodeURIComponent(t.id) + '&skback=tests.html')
       : ('test.html?id='+encodeURIComponent(t.id));
+    /* Черга обкладинок: з адмінки → img/tr/<сторінка>.webp → за назвою теми
+       (далі addBucket докидає картинку предмета). Перша, що завантажиться, і є. */
+    var imgs = [];
     var img = t.imgCard||t.cover||'';
-    if(isLink && !img){ var slug=String(t.linkHref).replace(/[?#].*$/,'').replace(/\.html?$/i,'').replace(/^.*\//,''); if(slug) img='img/tr/'+slug+'.webp'; }
-    if(!img && window.SKCovers) img = SKCovers.byTitle(t.title);
+    if(img) imgs.push(img);
+    else if(isLink){ var slug=String(t.linkHref).replace(/[?#].*$/,'').replace(/\.html?$/i,'').replace(/^.*\//,''); if(slug) imgs.push('img/tr/'+slug+'.webp'); }
+    if(!img && window.SKCovers){ var byT = SKCovers.byTitle(t.title); if(byT) imgs.push(byT); }
     return { id:t.id, title:t.title||'Тест', href:href, isLink:isLink, blank:!!t.blank,
       isLevels:!!lv, levelCount: lv ? (Array.isArray(t.levels)?t.levels.length:0) : 0,
-      icon:(t.icon||subjIcon||'📝'), imgCard: img };
+      icon:(t.icon||subjIcon||'📝'), imgCard: imgs[0]||'', imgs: imgs };
   }
   function buildIndex(tests){
     var P = SKCUR.placeTests(CURRICULUM, tests);
@@ -338,7 +353,10 @@
       b.tests.forEach(function(t){
         if(s._seen[t.id]) return; s._seen[t.id]=1;
         var o = toTestObj(t, b.subj.icon);
-        if(!o.imgCard && window.SKCovers) o.imgCard = SKCovers.bySubject(b.subj.name, key);
+        if(!(t.imgCard||t.cover) && window.SKCovers){
+          var bySubj = SKCovers.bySubject(b.subj.name, key);
+          if(bySubj){ o.imgs.push(bySubj); o.imgCard = o.imgs[0]; }
+        }
         s.tests.push(o); grp.tests.push(o);
       });
     }
