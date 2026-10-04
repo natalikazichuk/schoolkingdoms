@@ -718,10 +718,15 @@ body.scr-battle .wrap{max-width:1500px}
 #ek-tip{position:fixed;z-index:210;max-width:260px;pointer-events:none;background:rgba(14,24,44,.96);border:1.5px solid rgba(255,214,115,.55);border-radius:10px;padding:8px 11px;box-shadow:0 8px 20px rgba(0,0,0,.5);font-size:.82rem;line-height:1.35;color:#dbe6f7}
 #ek-tip[hidden]{display:none}
 #ek-tip .tp-name{font-weight:900;font-size:.92rem;margin-bottom:4px}
-#ek-tip .tp-name.b20{color:#ffd93b}
-#ek-tip .tp-name.b10{color:#c9d3de}
+/* колір назви = бонус речі: +20% золото, +10% срібло (металевий відлив, щоб не зливалось із білим), 0 білий, −10% сірий */
+#ek-tip .tp-name.b20{color:#ffd93b;background:linear-gradient(180deg,#fff3a8 0%,#ffd23b 45%,#c98a12 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+#ek-tip .tp-name.b10{color:#b9c6d8;background:linear-gradient(180deg,#ffffff 0%,#d6e1f0 45%,#93a6c4 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 #ek-tip .tp-name.b0{color:#ffffff}
-#ek-tip .tp-name.bm10{color:#8a8f98}
+#ek-tip .tp-name.bm10{color:#7a7f88}
+#ek-tip.b20{border-color:#ffd23b;background:linear-gradient(180deg,rgba(201,138,18,.30),rgba(14,24,44,.96) 38px)}
+#ek-tip.b10{border-color:#cfdbec;background:linear-gradient(180deg,rgba(190,206,230,.32),rgba(14,24,44,.96) 38px)}
+#ek-tip.b0{border-color:rgba(255,255,255,.55)}
+#ek-tip.bm10{border-color:#6b7079}
 #ek-tip .tp-row{white-space:normal}
 #ek-tip .tp-hid{opacity:.75}
 .ek-hint2{margin-top:10px;font-size:.72rem;color:#9fb2d6;text-align:center}
@@ -1990,7 +1995,7 @@ body.scr-battle .wrap{max-width:1500px}
 })();
 </script>
 
-<script src="sk-items.js"></script>
+<script src="sk-items.js?v=2"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
    Дані ЗАРАЗ demo (локально). Крок 2: джерело речей → Firestore (адмінка).
@@ -2057,7 +2062,7 @@ function totals(){var baseHero={health:HERO.health||0,mana:HERO.mana||0,agility:
  var t={health:0,mana:0,agility:0,accuracy:0,armor:0,magicResist:0,magicDamage:0,damage:0};
  if(window.SKIT&&SKIT.combine){var c=SKIT.combine(baseHero,bases,insts);for(var k in c.stats)t[k]=c.stats[k];t._pctOnly=c.pctOnly;}else{t.health=baseHero.health;t.mana=baseHero.mana;t.agility=baseHero.agility;t.accuracy=baseHero.accuracy;}
  return t;}
-function bonusClass(b){return b>1.15?'b20':(b>1?'b10':(b<1?'bm10':'b0'));}
+function bonusClass(b){b=Number(b);return b>1.15?'b20':(b>1?'b10':(b<1?'bm10':'b0'));}
 function tipHTML(x){var base=BYID[x.id];var bc=bonusClass(x.bonus!=null?x.bonus:1);
  var h='<div class="tp-name '+bc+'">'+esc(x.name||'')+'</div>';if(!base)return h;
  var eff=(window.SKIT&&SKIT.effective)?SKIT.effective(base,x._inst||{bonus:1}):null;if(!eff)return h;var p=[];
@@ -2077,7 +2082,7 @@ function entryOfChip(el){var src=el.getAttribute('data-src');
 var tip=null;function hideTip(){if(tip)tip.hidden=true;}
 function showTip(el,x,y){var e=entryOfChip(el);if(!e){hideTip();return;}
  if(!tip){tip=document.createElement('div');tip.id='ek-tip';tip.hidden=true;document.body.appendChild(tip);}
- tip.innerHTML=tipHTML(e);tip.hidden=false;placeTip(x,y);}
+ tip.innerHTML=tipHTML(e);tip.className=bonusClass(e.bonus!=null?Number(e.bonus):1);tip.hidden=false;placeTip(x,y);}
 function placeTip(x,y){if(!tip||tip.hidden)return;var w=tip.offsetWidth,h=tip.offsetHeight,vw=window.innerWidth,vh=window.innerHeight;
  var l=x+14,t=y+16;if(l+w>vw-6)l=Math.max(6,x-w-14);if(t+h>vh-6)t=Math.max(6,y-h-12);tip.style.left=l+'px';tip.style.top=t+'px';}
 
