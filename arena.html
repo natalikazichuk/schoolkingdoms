@@ -1499,7 +1499,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
     try{
       localStorage.setItem(BATTLE_KEY, JSON.stringify({
         v:1, heroId:battleHeroId(), round:B.round,
-        me:{force:B.me.force, max:B.me.max, p:B.me.p, eq:B.me.eq||[]},
+        me:{force:B.me.force, max:B.me.max, p:B.me.p, eq:B.me.eq||[], atk:B.me.atk||null, block:B.me.block||null},
         op:{force:B.op.force, max:B.op.max, f:B.op.f},
         steps:B.steps||'', wear:B.wear||newWear()
       }));
@@ -1519,7 +1519,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
   function restoreBattle(o){
     B = {
       round: +o.round || 1, over:false, resolving:false,
-      me: {f:hero,    p:o.me.p || plainFighter(hero), eq:o.me.eq || [],             force:o.me.force, max:o.me.max || maxForce(hero),  atk:null, block:null},
+      me: {f:hero,    p:o.me.p || plainFighter(hero), eq:o.me.eq || [],             force:o.me.force, max:o.me.max || maxForce(hero),  atk:o.me.atk||null, block:o.me.block||null},
       op: {f:o.op.f,  p:o.op.f.p || plainFighter(o.op.f),         force:o.op.force, max:o.op.max || maxForce(o.op.f), atk:null, block:null},
       timer:null, left:TURN_SECONDS, steps:o.steps||'', wear:Object.assign(newWear(), o.wear||{})
     };
@@ -1540,7 +1540,9 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 
     updateForce('p', B.me); updateForce('o', B.op);
     $('roundNum').textContent = B.round;
+    var keepA = B.me.atk, keepB = B.me.block;
     clearSel();
+    B.me.atk = keepA || null; B.me.block = keepB || null; applySel();   // вибір переживає вихід / перезавантаження
     resetSteps();
     if(B.steps){ var box=$('steps'); if(box){ box.innerHTML=B.steps; box.scrollTop=0; } }
   }
@@ -1665,6 +1667,17 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
     $('guardRow').querySelectorAll('.gbtn').forEach(function(b){ b.classList.remove('sel'); });
     B.me.atk=null; B.me.block=null;
     setRole('p', null); setRole('o', null);
+  }
+  function clearFlash(){
+    document.querySelectorAll('#atkRow .tcard').forEach(function(z){ z.classList.remove('hitflash','blockflash'); });
+  }
+  /* показати вже обрані зони (після перезавантаження бою) */
+  function applySel(){
+    if(!B) return;
+    document.querySelectorAll('#atkRow .tcard').forEach(function(z){ z.classList.toggle('sel', z.getAttribute('data-zone')===B.me.atk); });
+    $('guardRow').querySelectorAll('.gbtn').forEach(function(b){ b.classList.toggle('sel', b.getAttribute('data-zone')===B.me.block); });
+    setRole('o', B.me.atk); setRole('p', B.me.block);
+    refreshStrike();
   }
   function refreshStrike(){
     $('strikeBtn').disabled = !(B && !B.over && !B.resolving && B.me.atk && B.me.block);
@@ -1926,7 +1939,9 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
       if(meDown || opDown){ endBattle(meDown, opDown); return; }
       // наступний раунд
       B.round++; $('roundNum').textContent = B.round;
-      clearSel(); B.op.atk=null; B.op.block=null;
+      // вибір атаки й захисту ЛИШАЄТЬСЯ — можна одразу тиснути «Атака» ще раз
+      // або змінити лише одну зону; знімаємо тільки підсвітку попереднього удару
+      clearFlash(); B.op.atk=null; B.op.block=null;
       B.resolving = false; refreshStrike();
       saveBattle();          // раунд завершено — стан бою переживе вихід і перезавантаження
       startTimer();
