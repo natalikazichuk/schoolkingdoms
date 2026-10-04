@@ -1054,7 +1054,7 @@ body.scr-battle .wrap{max-width:1500px}
 <script type="module" src="firebase-config.js"></script>
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
-<script src="sk-arena-rules.js?v=5"></script>
+<script src="sk-arena-rules.js?v=6"></script>
 <script>
 (function(){
   'use strict';
@@ -1069,12 +1069,12 @@ body.scr-battle .wrap{max-width:1500px}
         Тут — запасні значення, якщо файл не завантажився. ── */
   var CFG = Object.assign({
     baseDmg: 10, minDmg: 1, critBase: 1, critMult: 2, hitBase: 0.5, hitMin: 0.2, hitMax: 0.95,
-    blockKeep: 0, botVary: 0.2, xpWin: 50, xpDraw: 25, xpLose: 8, xpAdv: 0.5, xpLevels: [1000, 2000, 4000, 8000], xpFlat: 8000
+    blockKeep: 0, botVary: 0.2, xpWin: 50, xpDraw: 25, xpLose: 8, xpAdv: 0.5, xpStep: 500, xpFlat: 8000
   }, RULES.BATTLE || {});
   var WEAR = Object.assign({ zoneHit:1, zoneCrit:2, weaponHit:1, weaponCrit:1, shieldBlock:2, shieldCritBlock:5 }, RULES.WEAR || {});
   function newWear(){ return {head:0, body:0, arms:0, legs:0, weapon:0, shield:0}; }
-  /* досвіду до наступного рівня: 1000, 2000, 4000, 8000, далі стало (SKARENA.xpNeed) */
-  function xpNeed(lv){ if(RULES.xpNeed) return RULES.xpNeed(lv); var L=CFG.xpLevels||[]; return L[Math.max(1,lv)-1] || CFG.xpFlat || 1000; }
+  /* досвіду до наступного рівня: 500, 1000, 1500 … 8000, далі стало 8000 (SKARENA.xpNeed) */
+  function xpNeed(lv){ if(RULES.xpNeed) return RULES.xpNeed(lv); return Math.min(Math.max(1,lv)*CFG.xpStep, CFG.xpFlat); }
 
   /* ── вміння за рівні (заглушки під майбутні скіли) ── */
   var SKILLS = [

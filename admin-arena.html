@@ -13,7 +13,7 @@
 <script src="sk-admin.js?v=1"></script>
 <script src="sk-curriculum.js?v=8"></script>
 <script src="sk-items.js?v=2"></script>
-<script src="sk-arena-rules.js?v=5"></script>
+<script src="sk-arena-rules.js?v=6"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -360,7 +360,6 @@ function mechHTML(){
   function row(name,val,how){return '<tr><td><span class="nm">'+esc(name)+'</span></td><td class="num max">'+esc(String(val))+'</td><td>'+how+'</td></tr>';}
   var pct=function(x){return Math.round(x*1000)/10+'%';};
   var hc=function(a,d){return pct(R.hitChance({accuracy:a},{agility:d}));};
-  var lv=(B.xpLevels||[]).map(function(x,i){return (i+1)+'→'+(i+2)+': '+x;}).join(', ');
   var battle=[
     row('Час на хід',B.turnSeconds+' с','Не встиг — атака й захист добираються випадково.'),
     row("Бойове здоров'я (витривалість)","здоров'я + речі",'Скільки урону Герой може отримати, доки не вибуде з бою. Здоров\'я Героя + «Здоров\'я» з речей, × відсотки з речей.'),
@@ -378,7 +377,7 @@ function mechHTML(){
     row('Досвід за нічию',B.xpDraw+' × коефіцієнт','Той самий коефіцієнт сили.'),
     row('Досвід за поразку','+'+B.xpLose,'Без коефіцієнта. Здався кнопкою «Вихід з гри» — 0.'),
     row('Сила бійця (для коефіцієнта)','сума показників','Витривалість + точність + спритність + броня + маг. захист + середній урон удару.'),
-    row('Досвід до рівня',lv+', далі по '+B.xpFlat,'Перші рівні подвоюються, після рівня '+((B.xpLevels||[]).length+1)+' — стала кількість на кожен рівень.')
+    row('Досвід до рівня','рівень × '+B.xpStep+', максимум '+B.xpFlat,'1→2: '+R.xpNeed(1)+', 2→3: '+R.xpNeed(2)+', 3→4: '+R.xpNeed(3)+' … кожен рівень на '+B.xpStep+' більше, доки не сягне '+B.xpFlat+' (з рівня '+Math.ceil(B.xpFlat/B.xpStep)+'); далі — стало '+B.xpFlat+' на кожен рівень.')
   ].join('');
   var zones=R.ZONES.map(function(z){return '<tr><td><span class="nm">'+esc(z.label)+'</span><br><span class="key">'+esc(z.key)+'</span></td><td>'+z.slots.map(function(sl){return '<span class="tag">'+esc(U[sl]||sl)+'</span>';}).join('')+'</td></tr>';}).join('')
     +'<tr><td><span class="nm">Руки (зброя / щит)</span></td><td>'+R.HAND_SLOTS.map(function(sl){return '<span class="tag">'+esc(U[sl]||sl)+'</span>';}).join('')+' <span class="key">за категорією речі: «Зброя» або «Щити»</span></td></tr>';
@@ -423,7 +422,7 @@ function mechHTML(){
       ['Частота критів','базовий шанс у %; + «Шанс крит. урону» речей','sk-arena-rules.js → BATTLE.critBase ('+B.critBase+'%)'],
       ['Влучання','точність проти спритності; межі шансу','BATTLE.hitBase / hitMin / hitMax ('+B.hitBase+' / '+B.hitMin+' / '+B.hitMax+')'],
       ['Сила блоку','скільки урону проходить у заблоковану зону (0 — нічого)','BATTLE.blockKeep ('+B.blockKeep+')'],
-      ['Досвід','за перемогу / нічию / поразку, коефіцієнт сили, рівні','BATTLE.xpWin / xpDraw / xpLose / xpAdv / xpLevels / xpFlat'],
+      ['Досвід','за перемогу / нічию / поразку, коефіцієнт сили, рівні','BATTLE.xpWin / xpDraw / xpLose / xpAdv / xpStep / xpFlat'],
       ['Мінімальний урон','влучний удар крізь велику броню','BATTLE.minDmg ('+B.minDmg+')'],
       ['Кількість ударів','+1 удар за кожну «Додаткову атаку»','Адмінка → Items: «Додаткова атака»'],
       ['Сила суперника','розкид профілю бота від Героя','BATTLE.botVary ('+B.botVary+')']
