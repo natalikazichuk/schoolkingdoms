@@ -143,6 +143,16 @@ h1,.title,.cta,.opt,.key,.slot,.barbtn,.pill{font-family:'Fredoka',sans-serif;le
   font-family:'Fredoka'; font-weight:700; font-size:20px; color:#fff;
   background:var(--blue); box-shadow:0 6px 0 #2f8fd6;}
 .big-btn:active{transform:translateY(3px); box-shadow:0 3px 0 #2f8fd6;}
+/* «Нагороду отримано» — на старті замість віршика, як у тренажерах */
+.done-card{display:none; align-items:center; gap:12px; max-width:440px; width:100%; margin:0 auto; text-align:left;
+  background:linear-gradient(180deg,#fffdf4,#fff6df); border:3px solid #f4c842; border-radius:20px;
+  padding:10px 14px; box-shadow:0 0 0 3px #fff9e6;}
+.done-card.on{display:flex;}
+.done-card .dc-ic{font-size:30px; flex:none;}
+.done-card .dc-got{font-family:'Fredoka'; font-weight:700; font-size:15px; color:#8a5e16; line-height:1.2;}
+.done-card .dc-go{font-weight:800; font-size:12px; color:var(--soft); margin-top:3px; line-height:1.25;}
+.goal{font-weight:800; font-size:13px; color:var(--soft);}
+.goal b{color:var(--orange); font-family:'Fredoka';}
 @media (max-width:520px){
   #startScreen .start-top{top:12px;}
   .abc-blocks{padding:0 48px; gap:6px;}
@@ -170,7 +180,7 @@ h1,.title,.cta,.opt,.key,.slot,.barbtn,.pill{font-family:'Fredoka',sans-serif;le
 <div id="wrap">
   <div id="top">
     <button class="iconbtn" id="topBack" type="button" title="Меню" aria-label="Назад до меню">←</button>
-    <div class="pill"><span class="lbl">Слово</span> <span id="scoreVal">1</span></div>
+    <div class="pill"><span class="lbl">Відгадано</span> <span id="scoreVal">0/10</span></div>
     <div id="lives">❤️❤️❤️❤️❤️❤️</div>
   </div>
 
@@ -199,7 +209,12 @@ h1,.title,.cta,.opt,.key,.slot,.barbtn,.pill{font-family:'Fredoka',sans-serif;le
       <h1>Вгадай слово</h1>
     </div>
     <p class="start-sub">Відгадуй слово по буквах, доки є сердечка</p>
-    <p class="rhyme">Букву за буквою знайди —<br>і слово враз відгадай ти!</p>
+    <p class="rhyme" id="startRhyme">Букву за буквою знайди —<br>і слово враз відгадай ти!</p>
+    <div class="done-card" id="startDone">
+      <span class="dc-ic">🏆</span>
+      <div><div class="dc-got" id="doneGot">Тренажер пройдено!</div>
+        <div class="dc-go" id="doneGo">Вирушай за новими досягненнями!</div></div>
+    </div>
 
     <div class="start-hero">
       <img src="../img/tr/ukr-slovo.webp" alt="" onerror="this.closest('.start-hero').style.display='none'">
@@ -219,6 +234,7 @@ h1,.title,.cta,.opt,.key,.slot,.barbtn,.pill{font-family:'Fredoka',sans-serif;le
       </div>
     </div>
 
+    <div class="goal" id="startGoal">🎯 Відгадай <b>10 слів</b> за одну гру — і отримаєш нагороду!</div>
     <div class="start-btns">
       <button class="big-btn" id="playBtn">Грати ▶</button>
     </div>
@@ -346,6 +362,11 @@ h1,.title,.cta,.opt,.key,.slot,.barbtn,.pill{font-family:'Fredoka',sans-serif;le
     ["ЯЙЦЕ","Їжа","Біле, з нього вилуплюється курча"]
   ];
 
+  var GOAL=10;                         // відгадати за одну гру → тренажер пройдено
+  var PRIZE_KEY="sk_slovo_prize_v1";   // нагороду отримано (і що саме)
+  var TR_HREF="slovo.html";            // за цим іменем sk-rewards шукає нагороду з адмінки
+  var prizeShown=false;                // поп-ап — один раз за відкриття сторінки
+
   var maxLives=6, showClue=true;
   var word="", cat="", clue="", got={}, lives=6, solved=0, done=false, pool=[];
 
@@ -411,11 +432,31 @@ h1,.title,.cta,.opt,.key,.slot,.barbtn,.pill{font-family:'Fredoka',sans-serif;le
       "❤️".repeat(Math.max(0,lives)) + "🖤".repeat(Math.max(0,maxLives-Math.max(0,lives)));
   }
 
+  function paintScore(){
+    document.getElementById("scoreVal").textContent = solved<GOAL ? (solved+"/"+GOAL) : String(solved);
+  }
+
   function win(){
     done=true; solved++;
-    document.getElementById("scoreVal").textContent=solved+1;
+    paintScore();
     msgEl.textContent="Правильно! 🎉 Наступне слово…"; msgEl.className="good";
     setTimeout(function(){ if(lives>0) nextWord(); }, 1100);
+    // перше повне проходження (GOAL слів за гру) → нагорода з адмінки, один раз
+    if(solved===GOAL && !prizeShown && window.SKPRIZE && !SKPRIZE.summary(PRIZE_KEY)){
+      prizeShown=true;
+      SKPRIZE.claim({key:PRIZE_KEY, href:TR_HREF, title:"Відгадано "+GOAL+" слів!", onClose:refreshStart});
+    }
+  }
+
+  function refreshStart(){
+    var p = window.SKPRIZE ? SKPRIZE.summary(PRIZE_KEY) : null;
+    document.getElementById("startDone").classList.toggle("on", !!p);
+    document.getElementById("startRhyme").style.display = p ? "none" : "";   // замість віршика — нагорода
+    document.getElementById("startGoal").style.display = p ? "none" : "";
+    if(!p) return;
+    var t=SKPRIZE.doneText(p, "Вгадай слово пройдено — нагороду отримано!");
+    document.getElementById("doneGot").textContent=t.got;
+    document.getElementById("doneGo").textContent=t.go;
   }
 
   function lose(){
@@ -423,16 +464,17 @@ h1,.title,.cta,.opt,.key,.slot,.barbtn,.pill{font-family:'Fredoka',sans-serif;le
     wordRow.innerHTML=word.split("").map(function(ch){
       return '<div class="slot'+(got[ch]?" filled":" miss")+'">'+ch+'</div>';
     }).join("");
-    document.getElementById("resultMark").textContent = solved>0 ? "🙂" : "🙃";
+    document.getElementById("resultMark").textContent = solved>=GOAL ? "🏆" : (solved>0 ? "🙂" : "🙃");
     document.getElementById("resultText").textContent = "Слово було: "+word;
     document.getElementById("resultSub").textContent =
-      solved>0 ? ("Відгадано слів: "+solved+". Це добре!") : ("Підказка: "+clue);
+      solved>=GOAL ? ("Відгадано слів: "+solved+". Чудова гра!")
+      : solved>0 ? ("Відгадано слів: "+solved+" з "+GOAL+". Це добре!") : ("Підказка: "+clue);
     document.getElementById("overScreen").classList.remove("hidden");
   }
 
   function startGame(){
     lives=maxLives; solved=0; pool=[];
-    document.getElementById("scoreVal").textContent="1";
+    paintScore();
     paintLives();
     document.getElementById("startScreen").classList.add("hidden");
     document.getElementById("overScreen").classList.add("hidden");
@@ -454,13 +496,8 @@ h1,.title,.cta,.opt,.key,.slot,.barbtn,.pill{font-family:'Fredoka',sans-serif;le
   document.getElementById("skipBtn").addEventListener("click", function(){
     if(lives>0) nextWord();
   });
-  document.getElementById("menuBtn").addEventListener("click", function(){
-    document.getElementById("startScreen").classList.remove("hidden");
-  });
-  document.getElementById("backBtn").addEventListener("click", function(){
-    document.getElementById("overScreen").classList.add("hidden");
-    document.getElementById("startScreen").classList.remove("hidden");
-  });
+  document.getElementById("menuBtn").addEventListener("click", function(){ openMenu(); });
+  document.getElementById("backBtn").addEventListener("click", function(){ openMenu(); });
 
   /* «Назад» — туди, звідки прийшли (?skback= / попередня сторінка сайту), інакше «Ігри» */
   function goBack(){
@@ -468,6 +505,7 @@ h1,.title,.cta,.opt,.key,.slot,.barbtn,.pill{font-family:'Fredoka',sans-serif;le
     location.href="../igry.html";
   }
   function openMenu(){
+    refreshStart();
     document.getElementById("overScreen").classList.add("hidden");
     document.getElementById("startScreen").classList.remove("hidden");
   }
@@ -480,9 +518,15 @@ h1,.title,.cta,.opt,.key,.slot,.barbtn,.pill{font-family:'Fredoka',sans-serif;le
     else goBack();
   });
 
-  paintLives(); nextWord();
+  paintLives(); nextWord(); refreshStart();
+  window.addEventListener("load", refreshStart);   // sk-prize.js підключено нижче
 })();
 </script>
-<script src="../sk-finish.js?v=4"></script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=2"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=3"></script>
+<script src="../sk-prize.js?v=1"></script>
+<script src="../sk-finish.js?v=5"></script>
 </body>
 </html>

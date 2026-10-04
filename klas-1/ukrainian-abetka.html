@@ -48,6 +48,15 @@ h1,h2,h3,.display{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacin
 .rhyme{background:#fff;border:2px dashed var(--line);border-radius:16px;padding:14px 16px;
   font-style:italic;color:var(--ink-soft);font-weight:700;max-width:360px;margin:0 auto}
 
+/* «Тренажер пройдено» — на старті замість віршика */
+.done-card{display:none;align-items:center;gap:12px;max-width:400px;width:100%;margin:0 auto;
+  background:linear-gradient(180deg,#fffdf4,#fff6df);border:3px solid #f4c842;border-radius:20px;
+  padding:10px 14px;text-align:left;box-shadow:0 0 0 3px #fff9e6}
+.done-card.on{display:flex}
+.done-card .dc-ic{font-size:30px;flex:none}
+.done-card .dc-got{font-family:'Fredoka';font-weight:700;font-size:15px;color:#8a5e16;line-height:1.2}
+.done-card .dc-go{font-weight:800;font-size:12px;color:var(--ink-soft);margin-top:3px;line-height:1.25}
+
 .topbar{display:flex;align-items:center;gap:10px;margin-bottom:14px}
 .topbar .back{font-size:22px;background:#fff;border:2px solid var(--line);border-radius:12px;
   width:42px;height:42px;display:grid;place-items:center;cursor:pointer;color:var(--ink);flex:none}
@@ -202,7 +211,12 @@ h1,h2,h3,.display{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacin
     <div class="dots"><i></i><i></i><i></i><i></i><i></i><i></i></div>
     <h1>Українська абетка</h1>
     <p class="sub">Тренажер із читання · Абетка</p>
-    <p class="rhyme">Букви — бачимо й пишемо.<br>Звуки — вимовляємо і чуємо.</p>
+    <p class="rhyme" id="startRhyme">Букви — бачимо й пишемо.<br>Звуки — вимовляємо і чуємо.</p>
+    <div class="done-card" id="startDone">
+      <span class="dc-ic">🏆</span>
+      <div><div class="dc-got" id="doneGot">Тренажер пройдено!</div>
+        <div class="dc-go" id="doneGo">Вирушай за новими досягненнями!</div></div>
+    </div>
     <button class="next" style="max-width:280px;margin:6px auto 0" onclick="goMap()">Грати ▶</button>
     <p class="sub" style="font-size:13px">8 рівнів · букви, звуки, склади, наголос</p>
   </section>
@@ -618,7 +632,29 @@ function renderMap(){
     box.appendChild(el);
   });
 }
-function goStart(){ if(window.speechSynthesis)window.speechSynthesis.cancel(); show('start'); }
+function goStart(){ if(window.speechSynthesis)window.speechSynthesis.cancel(); refreshStart(); show('start'); }
+
+/* ================== НАГОРОДА ==================
+   Тренажер пройдено, коли кожен рівень має хоч одну зірку. Перше повне
+   проходження → нагорода з адмінки (sk-prize.js / sk-rewards.js), один раз. */
+const PRIZE_KEY='sk_ukr_abetka_prize_v1';
+const TR_HREF='ukrainian-abetka.html';
+let prizeShown=false;
+function allLevelsDone(){ return state.stars.every(s=>s>0); }
+function refreshStart(){
+  const p=window.SKPRIZE?SKPRIZE.summary(PRIZE_KEY):null;
+  document.getElementById('startDone').classList.toggle('on',!!p);
+  document.getElementById('startRhyme').style.display=p?'none':'';
+  if(!p) return;
+  const t=SKPRIZE.doneText(p,'Українську абетку пройдено — нагороду отримано!');
+  document.getElementById('doneGot').textContent=t.got;
+  document.getElementById('doneGo').textContent=t.go;
+}
+function checkPrize(){
+  if(prizeShown||!allLevelsDone()||!window.SKPRIZE||SKPRIZE.summary(PRIZE_KEY)) return;
+  prizeShown=true;
+  SKPRIZE.claim({key:PRIZE_KEY,href:TR_HREF,title:'Усі рівні пройдено!',onClose:refreshStart});
+}
 function exitPage(){
   if(window.speechSynthesis)window.speechSynthesis.cancel();
   if(window.skGoBackSmart) skGoBackSmart('tests.html'); else location.href='../tests.html';
@@ -759,17 +795,24 @@ function finishLevel(){
   else{cont.textContent='До карти →';cont.onclick=goMap;}
   if(window.speechSynthesis)window.speechSynthesis.cancel();
   show('result');
+  checkPrize();
 }
 function retryLevel(){ startLevel(game.idx); }
 
 /* ================== СТАРТ ================== */
 loadState();updateSoundBtns();applyVoiceUI();
+window.addEventListener('load',refreshStart);   // sk-prize.js підключено нижче
 if(window.speechSynthesis){refreshVoice();window.speechSynthesis.onvoiceschanged=refreshVoice;}
 </script>
 
 <script src="../sk-footer.js?v=5" data-back="tests.html" data-base="../"></script>
 
-<script src="../sk-finish.js?v=4"></script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=2"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=3"></script>
+<script src="../sk-prize.js?v=1"></script>
+<script src="../sk-finish.js?v=5"></script>
 </body>
 </html>
 

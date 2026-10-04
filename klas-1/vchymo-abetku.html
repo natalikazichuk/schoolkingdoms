@@ -76,6 +76,15 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.2px;ma
 .prog-card .pc-bar{height:12px;background:#efe6d3;border-radius:999px;overflow:hidden}
 .prog-card .pc-bar>span{display:block;height:100%;width:0;border-radius:999px;
   background:linear-gradient(90deg,#f2a24e,#f6cd47);transition:width .5s ease}
+/* «Тренажер пройдено» — одразу під назвою, замість віршика */
+.done-card{display:none;align-items:center;gap:12px;max-width:440px;width:100%;margin:2px auto 0;
+  background:linear-gradient(180deg,#fffdf4,#fff6df);border:3px solid #f4c842;border-radius:20px;
+  padding:10px 14px;text-align:left;box-shadow:0 0 0 3px #fff9e6}
+.done-card.on{display:flex}
+.done-card .dc-ic{font-size:30px;flex:none}
+.done-card .dc-got{font-family:'Fredoka';font-weight:700;font-size:15px;color:#8a5e16;line-height:1.2}
+.done-card .dc-go{font-weight:800;font-size:12px;color:var(--ink-soft);margin-top:3px;line-height:1.25}
+.gcard .ok{font-size:13px;color:var(--good);font-weight:800}
 @media(max-width:440px){
   /* абетка в один рядок + компактніший старт, щоб кнопки й прогрес влізли на телефоні */
   .abc-blocks{gap:8px;margin:2px 0;padding-left:48px}
@@ -198,7 +207,12 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.2px;ma
     </div>
     <h1>Вчимо Абетку!</h1>
     <p class="start-sub">Українська абетка · 33 букви по порядку</p>
-    <p class="rhyme">Від А до Я — усі підряд,<br>букви стоять, як на параді!</p>
+    <p class="rhyme" id="startRhyme">Від А до Я — усі підряд,<br>букви стоять, як на параді!</p>
+    <div class="done-card" id="startDone">
+      <span class="dc-ic">🏆</span>
+      <div><div class="dc-got" id="doneGot">Тренажер пройдено!</div>
+        <div class="dc-go" id="doneGo">Вирушай за новими досягненнями!</div></div>
+    </div>
 
     <div class="start-hero">
       <img src="../img/tr/ukr-poryadok-bukv.webp" alt="" onerror="this.closest('.start-hero').style.display='none'">
@@ -212,7 +226,7 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.2px;ma
     <div class="prog-card">
       <span class="pc-ic">⭐</span>
       <div class="pc-body">
-        <div class="pc-txt" id="startProgTxt">Рекорди: 0 з 5 ігор</div>
+        <div class="pc-txt" id="startProgTxt">Пройдено 0 з 5 ігор</div>
         <div class="pc-bar"><span id="startProgFill" style="width:0%"></span></div>
       </div>
     </div>
@@ -235,7 +249,7 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.2px;ma
   <!-- ================= РОЗДІЛ 2: ІГРИ ================= -->
   <section id="games" class="screen">
     <h1 class="hero-h1">Ігри на порядок букв</h1>
-    <p class="hero-p">Обирай гру — і перевір, чи знаєш абетку по порядку.</p>
+    <p class="hero-p">У кожній грі дай <b>5 правильних відповідей поспіль</b> — і отримаєш нагороду!</p>
     <div class="games" id="gamesList"></div>
   </section>
 
@@ -309,6 +323,11 @@ function distractors(n,exclude){
   var pool=ALPHA.filter(function(l){ return exclude.indexOf(l)<0; });
   return shuffle(pool).slice(0,n);
 }
+/* Гра пройдена — GOAL правильних поспіль; усі ігри пройдено → тренажер пройдено. */
+var GOAL=5;
+var PRIZE_KEY="sk_abetka_prize_v1";     // нагороду отримано (і що саме)
+var TR_HREF="vchymo-abetku.html";       // за цим іменем sk-rewards шукає нагороду з адмінки
+var prizeShown=false;                   // поп-ап — один раз за відкриття сторінки
 function bestKey(id){ return "sk_abetka_best_"+id; }
 function getBest(id){ try{ return +localStorage.getItem(bestKey(id))||0; }catch(e){ return 0; } }
 function setBest(id,v){ try{ if(v>getBest(id)) localStorage.setItem(bestKey(id), v); }catch(e){} }
@@ -354,7 +373,7 @@ function buildGamesList(){
     el.className="gcard";
     el.innerHTML='<span class="em" style="background:'+g.color+'">'+g.em+'</span>'+
       '<span class="gt"><b>'+g.name+'</b><span>'+g.desc+'</span></span>'+
-      (best?'<span class="star">★ '+best+'</span>':'<span class="arw">→</span>');
+      (best>=GOAL?'<span class="ok">✓ ★ '+best+'</span>':best?'<span class="star">★ '+best+'</span>':'<span class="arw">→</span>');
     el.onclick=function(){ startGame(g.id); };
     host.appendChild(el);
   });
@@ -389,25 +408,44 @@ function stepBack(){
   else if(cur==="board"||cur==="games") goStart();
   else exitPage();
 }
+function passedCount(){ return GAMES.filter(function(g){ return getBest(g.id)>=GOAL; }).length; }
 function refreshStart(){
-  var n=GAMES.filter(function(g){ return getBest(g.id)>0; }).length;
+  var n=passedCount();
   document.getElementById("startProgTxt").textContent =
-    n>=GAMES.length ? "🎉 Рекорд у кожній грі!" : ("Рекорди: "+n+" з "+GAMES.length+" ігор");
+    n>=GAMES.length ? "🎉 Усі ігри пройдено!" : ("Пройдено "+n+" з "+GAMES.length+" ігор");
   document.getElementById("startProgFill").style.width=Math.round(n/GAMES.length*100)+"%";
+  var p = window.SKPRIZE ? SKPRIZE.summary(PRIZE_KEY) : null;
+  document.getElementById("startDone").classList.toggle("on", !!p);
+  document.getElementById("startRhyme").style.display = p ? "none" : "";   // замість віршика — нагорода
+  if(!p) return;
+  var t=SKPRIZE.doneText(p, "Вчимо Абетку пройдено — нагороду отримано!");
+  document.getElementById("doneGot").textContent=t.got;
+  document.getElementById("doneGo").textContent=t.go;
+}
+/* перше повне проходження → нагорода з адмінки (один раз) */
+function checkPrize(){
+  if(prizeShown || passedCount()<GAMES.length || !window.SKPRIZE || SKPRIZE.summary(PRIZE_KEY)) return;
+  prizeShown=true;
+  SKPRIZE.claim({key:PRIZE_KEY, href:TR_HREF, title:"Усі ігри пройдено!", onClose:refreshStart});
 }
 
 function startGame(id){
   var g=GAMES.find(function(x){return x.id===id;});
   G.id=id; G.streak=0; setTitle(g.name);
-  document.getElementById("hudBest").textContent = getBest(id)?("Рекорд: "+getBest(id)):"";
+  paintBest();
   updateHud(); showScreen("game");
   rounds[id]();
+}
+function paintBest(){
+  var b=getBest(G.id);
+  document.getElementById("hudBest").textContent = b>=GOAL ? ("✓ Рекорд: "+b) : ("Рекорд: "+b+" · ціль "+GOAL);
 }
 function updateHud(){ document.getElementById("hudStreak").textContent="🔥 "+G.streak; }
 function win(msg){
   G.streak++; if(G.streak>getBest(G.id)) setBest(G.id,G.streak);
-  document.getElementById("hudBest").textContent = getBest(G.id)?("Рекорд: "+getBest(G.id)):"";
+  paintBest();
   updateHud();
+  checkPrize();
   var fb=document.getElementById("fb"); fb.className="fb good"; fb.textContent=msg||"Правильно! 🎉";
   document.getElementById("nextBtn").style.display="block";
 }
@@ -557,10 +595,16 @@ document.getElementById("heroBackBtn").addEventListener("click",stepBack);
 
 /* ============ СТАРТ ============ */
 buildBoard(); buildGamesList(); refreshStart(); updateSoundBtn();
+window.addEventListener("load", refreshStart);   // sk-prize.js підключено нижче
 document.body.classList.add("on-start");
 if(window.speechSynthesis){ refreshVoice(); window.speechSynthesis.onvoiceschanged=refreshVoice; }
 else applyVoiceUI();
 </script>
-<script src="../sk-finish.js?v=4"></script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=2"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=3"></script>
+<script src="../sk-prize.js?v=1"></script>
+<script src="../sk-finish.js?v=5"></script>
 </body>
 </html>
