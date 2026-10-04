@@ -1054,7 +1054,7 @@ body.scr-battle .wrap{max-width:1500px}
 <script type="module" src="firebase-config.js"></script>
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
-<script src="sk-arena-rules.js?v=4"></script>
+<script src="sk-arena-rules.js?v=5"></script>
 <script>
 (function(){
   'use strict';
@@ -1068,11 +1068,13 @@ body.scr-battle .wrap{max-width:1500px}
         щоб адмінка («Арена» → «Механіка») показувала ті самі, за якими йде бій.
         Тут — запасні значення, якщо файл не завантажився. ── */
   var CFG = Object.assign({
-    baseDmg: 10, minDmg: 1, critChance: 280, critMult: 2, hitBase: 0.5, hitMin: 0.2, hitMax: 0.95,
-    blockKeep: 0.30, botVary: 0.2, xpWin: 25, xpLose: 8, xpPerLvl: 120
+    baseDmg: 10, minDmg: 1, critBase: 1, critMult: 2, hitBase: 0.5, hitMin: 0.2, hitMax: 0.95,
+    blockKeep: 0, botVary: 0.2, xpWin: 50, xpDraw: 25, xpLose: 8, xpAdv: 0.5, xpLevels: [1000, 2000, 4000, 8000], xpFlat: 8000
   }, RULES.BATTLE || {});
   var WEAR = Object.assign({ zoneHit:1, zoneCrit:2, weaponHit:1, weaponCrit:1, shieldBlock:2, shieldCritBlock:5 }, RULES.WEAR || {});
   function newWear(){ return {head:0, body:0, arms:0, legs:0, weapon:0, shield:0}; }
+  /* досвіду до наступного рівня: 1000, 2000, 4000, 8000, далі стало (SKARENA.xpNeed) */
+  function xpNeed(lv){ if(RULES.xpNeed) return RULES.xpNeed(lv); var L=CFG.xpLevels||[]; return L[Math.max(1,lv)-1] || CFG.xpFlat || 1000; }
 
   /* ── вміння за рівні (заглушки під майбутні скіли) ── */
   var SKILLS = [
@@ -1358,7 +1360,7 @@ body.scr-battle .wrap{max-width:1500px}
   }
 
   function heroGrade(){ try{ var p=JSON.parse(localStorage.getItem('sk_hero_profile')||'{}'); return p.grade || 'Перший клас'; }catch(e){ return 'Перший клас'; } }
-  function ekHeroData(){ return { health:hero.health, mana:hero.mana, agility:hero.agility, accuracy:hero.accuracy, coins:hero.coins, level:arena.level, xp:arena.xp, xpMax:arena.level*CFG.xpPerLvl, baseHP:CFG.baseHP, name:(hero.name||'Герой'), grade:heroGrade() }; }
+  function ekHeroData(){ return { health:hero.health, mana:hero.mana, agility:hero.agility, accuracy:hero.accuracy, coins:hero.coins, level:arena.level, xp:arena.xp, xpMax:xpNeed(arena.level), baseHP:CFG.baseHP, name:(hero.name||'Герой'), grade:heroGrade() }; }
   function openWardrobe(){
     buildLookGrid();
     if(window.EKEQUIP){ EKEQUIP.render(hero.avatar, ekHeroData()); }
@@ -1398,7 +1400,7 @@ body.scr-battle .wrap{max-width:1500px}
 
     $('rankBadge').textContent = arena.level;
     $('rankName').textContent  = rankName(arena.level);
-    var need = arena.level*CFG.xpPerLvl;
+    var need = xpNeed(arena.level);
     $('xpFill').style.width = Math.min(100, arena.xp/need*100) + '%';
     $('xpNow').textContent  = arena.xp + ' / ' + need + ' XP';
     $('lvlNow').textContent = arena.level;
@@ -1772,7 +1774,7 @@ body.scr-battle .wrap{max-width:1500px}
     var lines = ['Журнал бою — SchoolKingdoms, Турнірна арена',
       d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes())];
     if(B && B.op) lines.push((hero.name||'Ти')+' проти '+B.op.f.name+' · раунд '+B.round
-      +' · сила '+Math.max(0,Math.round(B.me.force))+'/'+B.me.max+' проти '+Math.max(0,Math.round(B.op.force))+'/'+B.op.max);
+      +' · витривалість '+Math.max(0,Math.round(B.me.force))+'/'+B.me.max+' проти '+Math.max(0,Math.round(B.op.force))+'/'+B.op.max);
     lines.push('Режим: '+(full ? 'детальний' : 'простий'), '');
     Array.prototype.forEach.call(box.querySelectorAll('.step'), function(r){
       var no = r.querySelector('.no'), txt = r.querySelector('.txt'); if(!txt) return;
@@ -1818,7 +1820,7 @@ body.scr-battle .wrap{max-width:1500px}
     var note = prompt('Що сталося в цьому бою? (можна не писати)', '');
     if(note === null) return;                         // скасували
     var head = '🚩 Скарга з арени (зловживання)'
-      + (B && B.op ? '\nСуперник: ' + B.op.f.name + ' · раунд ' + B.round + ' · сила ' + Math.round(B.me.force) + '/' + B.me.max + ' проти ' + Math.round(B.op.force) + '/' + B.op.max : '')
+      + (B && B.op ? '\nСуперник: ' + B.op.f.name + ' · раунд ' + B.round + ' · витривалість ' + Math.round(B.me.force) + '/' + B.me.max + ' проти ' + Math.round(B.op.force) + '/' + B.op.max : '')
       + (note ? '\nКоментар: ' + note : '');
     var msg = (head + '\n\nЖурнал бою:\n' + (text || '(порожній)')).slice(0, 3900);
     var send = (window.SK && SK.submitReport)
@@ -1884,13 +1886,13 @@ body.scr-battle .wrap{max-width:1500px}
     var rb = $('rbig'); if(!rb) return;
     var cls, num, lbl;
     if(meHit.kind==='dodge'){ cls='miss'; num='0'; lbl='Промах'; }
-    else if(meHit.kind==='block'){ cls='blk'; num='−'+meHit.dmg; lbl='Захист суперника 🛡️'; }
+    else if(meHit.kind==='block'){ cls='blk'; num=meHit.dmg ? '−'+meHit.dmg : '0'; lbl='Суперник заблокував 🛡️'; }
     else if(meHit.kind==='crit'){ cls='crit'; num='−'+meHit.dmg; lbl='Влучний удар!'; }
     else { cls='hit'; num='−'+meHit.dmg; lbl='Влучив!'; }
     // короткий підсумок відповіді суперника
     var ok;
     if(opHit.kind==='dodge') ok='промах';
-    else if(opHit.kind==='block') ok='ти захистився (−'+opHit.dmg+')';
+    else if(opHit.kind==='block') ok='ти заблокував'+(opHit.dmg ? ' (−'+opHit.dmg+')' : '');
     else ok='−'+opHit.dmg+' тобі';
     rb.className = 'rbig ' + cls;
     var h0 = (meHit.hits || [meHit])[0] || {};
@@ -1925,7 +1927,7 @@ body.scr-battle .wrap{max-width:1500px}
     var card = $(side==='p' ? 'pScene' : 'oScene'); if(!card) return;
     var el = document.createElement('div');
     if(hit.kind==='dodge'){ el.className='dmg-float miss'; el.textContent='промах'; }
-    else if(hit.kind==='block'){ el.className='dmg-float blk'; el.textContent='−'+hit.dmg; }
+    else if(hit.kind==='block'){ el.className='dmg-float blk'; el.textContent= hit.dmg ? '−'+hit.dmg : 'блок'; }
     else if(hit.kind==='crit'){ el.className='dmg-float crit'; el.textContent='−'+hit.dmg+'!'; }
     else { el.className='dmg-float hit'; el.textContent='−'+hit.dmg; }
     card.appendChild(el);
@@ -1967,7 +1969,7 @@ body.scr-battle .wrap{max-width:1500px}
     var t = ' title="'+hs.map(function(h,i){ return (hs.length>1?(i+1)+') ':'')+(h.calc||'')+' = '+h.dmg; }).join('&#10;').replace(/"/g,'&quot;')+'"';
     var x = hs.length>1 ? ' ×'+hs.length : '';
     if(hit.kind==='dodge') return '<span'+t+'>'+prefix+': <span class="b">промах!</span>'+x+'</span>';
-    if(hit.kind==='block') return '<span'+t+'>'+prefix+': <span class="b">захист спрацював</span> (−'+hit.dmg+')'+x+'</span>';
+    if(hit.kind==='block') return '<span'+t+'>'+prefix+': <span class="b">заблоковано</span>'+(hit.dmg ? ' (−'+hit.dmg+')' : '')+x+'</span>';
     if(hit.kind==='crit')  return '<span'+t+'>'+prefix+': <span class="r">влучний удар!</span> (−'+hit.dmg+')'+x+'</span>';
     return '<span'+t+'>'+prefix+': <span class="g">влучив</span> (−'+hit.dmg+')'+x+'</span>';
   }
@@ -1984,26 +1986,28 @@ body.scr-battle .wrap{max-width:1500px}
     B.over = true; B.resolving = true; stopTimer();
     clearBattle();
     var res = $('result');
+    // досвід за перемогу / нічию × коефіцієнт різниці сил (SKARENA.xpCoef, ±50%)
+    var coef = (RULES.xpCoef && B.me.p && B.op.p) ? RULES.xpCoef(B.me.p, B.op.p) : 1;
+    B.xpCoef = coef;
     if(meDown && opDown){
-      // нічия → окремий лічильник, досвід як за гідний бій
       arena.draws++;
-      finishResult(false, '🤝', 'Нічия!', 'Обидва бійці видихлись — гідний бій!', CFG.xpLose);
+      finishResult(false, '🤝', 'Нічия!', 'Обидва бійці видихлись — гідний бій!', Math.round(CFG.xpDraw*coef), coef);
     }else if(opDown){
       arena.wins++;
-      finishResult(true, '🏆', 'Перемога!', B.op.f.name + ' здається. Ти виграв бій!', CFG.xpWin);
+      finishResult(true, '🏆', 'Перемога!', B.op.f.name + ' здається. Ти виграв бій!', Math.round(CFG.xpWin*coef), coef);
     }else{
       arena.losses++;
-      finishResult(false, '🛡️', 'Не цього разу', 'Сили скінчились. Наступного разу вийде!', CFG.xpLose);
+      finishResult(false, '🛡️', 'Не цього разу', 'Витривалість скінчилась. Наступного разу вийде!', CFG.xpLose);
     }
   }
 
-  function finishResult(win, em, big, txt, xp){
+  function finishResult(win, em, big, txt, xp, coef){
     var before = arena.level;
     arena.xp += xp;
     // рівні
     var leveled = [];
-    while(arena.xp >= arena.level*CFG.xpPerLvl){
-      arena.xp -= arena.level*CFG.xpPerLvl;
+    while(arena.xp >= xpNeed(arena.level)){
+      arena.xp -= xpNeed(arena.level);
       arena.level++;
       leveled.push(arena.level);
     }
@@ -2015,7 +2019,10 @@ body.scr-battle .wrap{max-width:1500px}
     $('resEm').textContent = em;
     $('resBig').textContent = big;
     $('resTxt').textContent = txt;
-    if(xp>0){ $('resXp').textContent = '+' + xp + ' досвіду'; $('resXp').style.display=''; }
+    if(xp>0){
+      var cn = (coef && Math.abs(coef-1) >= 0.01) ? ' (×' + coef.toFixed(2).replace('.', ',') + (coef > 1 ? ' — суперник сильніший' : ' — суперник слабший') + ')' : '';
+      $('resXp').textContent = '+' + xp + ' досвіду' + cn; $('resXp').style.display='';
+    }
     else { $('resXp').style.display='none'; }
     res.hidden = false;
 
