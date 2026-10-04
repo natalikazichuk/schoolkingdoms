@@ -464,6 +464,10 @@ body.scr-battle .wrap{max-width:1500px}
 .step .g{color:var(--ok)} .step .b{color:#ffcf4d} .step .r{color:#ff9a6b}
 .step .dice{display:block;margin-top:2px;font-size:.64rem;font-weight:700;color:#a9c1e4;line-height:1.3}
 .step .dice b{color:#eaf2ff}
+.step .crit{color:#ff3b3b;font-weight:900}               /* Критичний урон !!! */
+.step .mag{color:#d06bff;font-weight:900}                /* магічний урон — яскраво фіолетовим */
+.result .logsave{display:flex;gap:8px;justify-content:center;margin:2px 0 10px}
+.result .logsave button{font:inherit;font-size:.78rem;font-weight:800;color:#cfe0f5;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.2);border-radius:999px;padding:6px 12px;cursor:pointer}
 /* журнал: простий режим ховає кидки й розрахунки; поломки речей видно завжди */
 .rsteps.simple .dice{display:none}
 .step.brk .txt{font-weight:900}
@@ -953,7 +957,8 @@ body.scr-battle .wrap{max-width:1500px}
           <button type="button" id="logFull">Детальний</button>
           <span class="lb-sp"></span>
           <button type="button" id="logCopy" title="Скопіювати журнал у буфер обміну">📋 Копіювати</button>
-          <button type="button" id="logSave" title="Зберегти журнал у текстовий файл">💾 Зберегти</button>
+          <button type="button" id="logSave" title="Зберегти журнал (кольоровий, відкривається в браузері)">💾 Зберегти</button>
+          <button type="button" id="logSaveTxt" title="Зберегти журнал як простий текст">📄 .txt</button>
           <button type="button" id="logClear" title="Очистити журнал (бій триває)">🧹 Скинути</button>
           <button type="button" id="logReport" class="warn" title="Повідомити адміністратора про нечесний бій">🚩 Поскаржитись</button>
         </div>
@@ -989,6 +994,11 @@ body.scr-battle .wrap{max-width:1500px}
     <p id="resTxt">Суперник здався.</p>
     <div class="xpwon" id="resXp">+25 досвіду</div>
     <div class="wearline" id="resWear" style="display:none"></div>
+    <div class="logsave">
+      <button type="button" id="resSaveLog" title="Зберегти журнал бою (кольоровий, відкривається в браузері)">💾 Зберегти журнал</button>
+      <button type="button" id="resSaveTxt" title="Зберегти журнал як простий текст">📄 .txt</button>
+      <button type="button" id="resCopyLog" title="Скопіювати журнал">📋</button>
+    </div>
     <button class="cta" id="againBtn">Ще бій</button>
     <button class="cta ghost" id="backTavernBtn" style="margin-top:8px">У таверну</button>
   </div>
@@ -1054,7 +1064,7 @@ body.scr-battle .wrap{max-width:1500px}
 <script type="module" src="firebase-config.js"></script>
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
-<script src="sk-arena-rules.js?v=7"></script>
+<script src="sk-arena-rules.js?v=8"></script>
 <script>
 (function(){
   'use strict';
@@ -1527,7 +1537,7 @@ body.scr-battle .wrap{max-width:1500px}
     $('roundNum').textContent = B.round;
     clearSel();
     resetSteps();
-    if(B.steps){ var box=$('steps'); if(box){ box.innerHTML=B.steps; box.scrollTop=box.scrollHeight; } }
+    if(B.steps){ var box=$('steps'); if(box){ box.innerHTML=B.steps; box.scrollTop=0; } }
   }
   function enterBattle(){
     paintBattle();
@@ -1753,8 +1763,20 @@ body.scr-battle .wrap{max-width:1500px}
     row.className = 'step brk ' + (b.owner==='me' ? 'lost' : 'won');
     row.innerHTML = '<span class="no">💥</span><span class="txt">'
       + (b.owner==='me' ? 'Твоя річ вийшла з ладу: ' : 'Ти вивів з ладу річ суперника: ') + b.name + '</span>';
-    box.appendChild(row); box.scrollTop = box.scrollHeight;
+    // одразу під ходом, у якому зламалось (хід щойно став першим рядком)
+    var cur = box.querySelector('.step:not(.brk)');
+    box.insertBefore(row, cur ? cur.nextSibling : box.firstChild); box.scrollTop = 0;
     if(B) B.steps = box.innerHTML;
+  }
+  /* рядки журналу в хронологічному порядку (для копіювання й файлів):
+     на екрані новіші зверху, а хід разом зі своїми поломками — одна група */
+  function stepsChrono(box){
+    var groups = [], cur = null;
+    Array.prototype.forEach.call(box.querySelectorAll('.step'), function(r){
+      if(!r.classList.contains('brk') || !cur){ cur = [r]; groups.push(cur); } else cur.push(r);
+    });
+    var out = []; groups.reverse().forEach(function(g){ out = out.concat(g); });
+    return out;
   }
 
   /* ── журнал: простий / детальний, скинути, поскаржитись ── */
@@ -1776,7 +1798,7 @@ body.scr-battle .wrap{max-width:1500px}
     if(B && B.op) lines.push((hero.name||'Ти')+' проти '+B.op.f.name+' · раунд '+B.round
       +' · витривалість '+Math.max(0,Math.round(B.me.force))+'/'+B.me.max+' проти '+Math.max(0,Math.round(B.op.force))+'/'+B.op.max);
     lines.push('Режим: '+(full ? 'детальний' : 'простий'), '');
-    Array.prototype.forEach.call(box.querySelectorAll('.step'), function(r){
+    stepsChrono(box).forEach(function(r){
       var no = r.querySelector('.no'), txt = r.querySelector('.txt'); if(!txt) return;
       var c = txt.cloneNode(true), dice = [];
       Array.prototype.forEach.call(c.querySelectorAll('.dice'), function(x){ dice.push(x.textContent.replace(/\s+/g,' ').trim()); x.remove(); });
@@ -1799,15 +1821,40 @@ body.scr-battle .wrap{max-width:1500px}
     if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(ok, fallback);
     else fallback();
   }
-  function saveLog(){
-    var t = logText(logMode()==='full');
-    var d = new Date(), pad = function(n){ return (n<10?'0':'')+n; };
-    var name = 'arena-log-'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'-'+pad(d.getHours())+pad(d.getMinutes())+'.txt';
-    var url = URL.createObjectURL(new Blob(['\ufeff'+t], {type:'text/plain;charset=utf-8'}));   // BOM — щоб Блокнот показав кирилицю
+  /* .txt: без кольорів, але крит позначено «Критичний урон !!!», магічний урон — ✨ (BOM — щоб Блокнот показав кирилицю) */
+  function saveLog(){ download(logName('txt'), logText(logMode()==='full'), 'text/plain;charset=utf-8'); }
+
+  /* журнал як кольоровий HTML-файл: ті самі рядки й кольори, що на екрані
+     (крит — червоним, магічний урон — фіолетовим, поломки — червоним/жовтим) */
+  function logHtml(full){
+    var box = $('steps'); if(!box) return '';
+    var c = document.createElement('div');
+    stepsChrono(box).forEach(function(r){ c.appendChild(r.cloneNode(true)); });   // у файлі — від першого ходу
+    if(!c.firstChild) c.innerHTML = '<div class="steps-empty">(журнал порожній)</div>';
+    if(!full) Array.prototype.forEach.call(c.querySelectorAll('.dice'), function(x){ x.remove(); });
+    Array.prototype.forEach.call(c.querySelectorAll('[title]'), function(x){ x.removeAttribute('title'); });
+    var head = logText(full).split('\n').slice(0,4).map(function(l){ return l ? '<div>'+l.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</div>' : ''; }).join('');
+    return '<!doctype html><html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+      + '<title>Журнал бою — SchoolKingdoms</title><style>'
+      + 'body{margin:0;padding:18px;background:#0f1e3a;color:#eaf2ff;font:600 14px/1.45 system-ui,Segoe UI,Arial,sans-serif}'
+      + '.hd{color:#c3d5f0;margin-bottom:12px}.hd div:first-child{font-size:18px;font-weight:900;color:#ffd54a}'
+      + '.step{display:flex;gap:8px;align-items:flex-start;margin:6px 0}.no{flex:none;background:#ffd54a;color:#0c2247;border-radius:20px;padding:1px 8px;font-size:12px;font-weight:900}'
+      + '.dice{display:block;margin-top:2px;font-size:12px;color:#a9c1e4}.dice b{color:#eaf2ff}'
+      + '.g{color:#5fdc8f}.b{color:#ffcf4d}.r{color:#ff9a6b}.crit{color:#ff3b3b;font-weight:900}.mag{color:#d06bff;font-weight:900}'
+      + '.brk.lost .txt{color:#ff5a5a;font-weight:900}.brk.won .txt{color:#ffe14d;font-weight:900}.steps-empty{color:#7d93b6}'
+      + '</style></head><body><div class="hd">'+head+'</div>'+c.innerHTML+'</body></html>';
+  }
+  function download(name, text, type){
+    var url = URL.createObjectURL(new Blob(['\ufeff'+text], {type:type}));
     var a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
     showToast('Журнал збережено', name);
   }
+  function logName(ext){
+    var d = new Date(), pad = function(n){ return (n<10?'0':'')+n; };
+    return 'arena-log-'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'-'+pad(d.getHours())+pad(d.getMinutes())+'.'+ext;
+  }
+  function saveLogHtml(){ download(logName('html'), logHtml(logMode()==='full'), 'text/html;charset=utf-8'); }
 
   function clearLog(){
     var box = $('steps'); if(!box) return;
@@ -1816,7 +1863,7 @@ body.scr-battle .wrap{max-width:1500px}
   }
   function reportAbuse(){
     var box = $('steps');
-    var text = box ? Array.prototype.map.call(box.querySelectorAll('.step'), function(r){ return r.textContent.replace(/\s+/g,' ').trim(); }).join('\n') : '';
+    var text = box ? stepsChrono(box).map(function(r){ return r.textContent.replace(/\s+/g,' ').trim(); }).join('\n') : '';
     var note = prompt('Що сталося в цьому бою? (можна не писати)', '');
     if(note === null) return;                         // скасували
     var head = '🚩 Скарга з арени (зловживання)'
@@ -1940,8 +1987,8 @@ body.scr-battle .wrap{max-width:1500px}
     var empty = box.querySelector('.steps-empty'); if(empty) empty.remove();
     var row = document.createElement('div'); row.className='step';
     row.innerHTML = '<span class="no">Хід '+n+'</span><span class="txt">'+html+'</span>';
-    box.appendChild(row);
-    box.scrollTop = box.scrollHeight;
+    box.insertBefore(row, box.firstChild);   // новий хід — зверху (журнал знизу вверх)
+    box.scrollTop = 0;
     if(B) B.steps = box.innerHTML;   // журнал належить бою, а не екрану
   }
   function resetSteps(){
@@ -1951,6 +1998,23 @@ body.scr-battle .wrap{max-width:1500px}
 
   /* рядок кидків одного бійця: 🎲 d100 на влучання (≤ шансу — влучив), 🎲 на крит,
      і розрахунок урону — щоб дитина бачила, чому вийшло саме так */
+  /* урон удару для журналу: магічна частина — яскраво фіолетовим (✨) */
+  function dmgHtml(dmg, mag){
+    mag = mag || 0;
+    if(mag > 0 && mag >= dmg) return '✨<span class="mag">'+dmg+'</span>';
+    if(mag > 0) return dmg+' (✨<span class="mag">'+mag+'</span> маг.)';
+    return String(dmg);
+  }
+  function sumMag(hit){ return (hit.hits || [hit]).reduce(function(a,h){ return a + (h.magDmg||0); }, 0); }
+  /* розрахунок удару: магічна частина фіолетовим, крит — червоним */
+  function calcHtml(h){
+    var q = h.parts; if(!q) return h.calc || '';
+    var t = '(' + q.physRaw + ' − броня ' + q.armor + ')' + (q.dmgPct ? ' × ' + (100+q.dmgPct) + '%' : '');
+    if(q.magRaw) t += ' + <span class="mag">(✨маг. ' + q.magRaw + ' − захист ' + q.mres + ')' + (q.magPct ? ' × ' + (100+q.magPct) + '%' : '') + '</span>';
+    if(h.crit) t += ' <span class="crit">× ' + q.mult + ' — Критичний урон !!!</span>';
+    return t;
+  }
+
   function diceLine(who, hit){
     var hs = hit.hits || [hit];
     return '<span class="dice">'+who+': '+hs.map(function(h,i){
@@ -1959,7 +2023,7 @@ body.scr-battle .wrap{max-width:1500px}
         + '🎲 <b>'+h.hitRoll+'</b> '+(h.hitRoll<=h.hitNeed?'≤':'>')+' '+h.hitNeed+'% '+(h.kind==='dodge'?'— промах':'— влучив');
       if(h.kind==='block') t += ' · '+h.calc;                       // блок: крит перевіряється після блоку — для зносу щита
       else if(h.kind!=='dodge') t += ' · крит 🎲 <b>'+h.critRoll+'</b> '+(h.crit?'≤':'>')+' '+h.critNeed+'%'
-        + ' · '+h.calc+' = <b>'+h.dmg+'</b>';
+        + ' · '+calcHtml(h)+' = <b>'+dmgHtml(h.dmg, h.magDmg)+'</b>';
       return t;
     }).join(' &nbsp;|&nbsp; ')+'</span>';
   }
@@ -1971,8 +2035,8 @@ body.scr-battle .wrap{max-width:1500px}
     var x = hs.length>1 ? ' ×'+hs.length : '';
     if(hit.kind==='dodge') return '<span'+t+'>'+prefix+': <span class="b">промах!</span>'+x+'</span>';
     if(hit.kind==='block') return '<span'+t+'>'+prefix+': <span class="b">заблоковано</span>'+(hit.dmg ? ' (−'+hit.dmg+')' : '')+x+'</span>';
-    if(hit.kind==='crit')  return '<span'+t+'>'+prefix+': <span class="r">влучний удар!</span> (−'+hit.dmg+')'+x+'</span>';
-    return '<span'+t+'>'+prefix+': <span class="g">влучив</span> (−'+hit.dmg+')'+x+'</span>';
+    if(hit.kind==='crit')  return '<span'+t+'>'+prefix+': <span class="crit">Критичний урон !!!</span> (−'+dmgHtml(hit.dmg, sumMag(hit))+')'+x+'</span>';
+    return '<span'+t+'>'+prefix+': <span class="g">влучив</span> (−'+dmgHtml(hit.dmg, sumMag(hit))+')'+x+'</span>';
   }
 
   function flashZone(zone, cls){
@@ -2061,7 +2125,11 @@ body.scr-battle .wrap{max-width:1500px}
     $('logFull').addEventListener('click', function(){ setLogMode('full'); });
     $('logClear').addEventListener('click', clearLog);
     $('logCopy').addEventListener('click', copyLog);
-    $('logSave').addEventListener('click', saveLog);
+    $('logSave').addEventListener('click', function(){ saveLogHtml(); });
+    $('logSaveTxt').addEventListener('click', saveLog);
+    $('resSaveLog').addEventListener('click', function(){ saveLogHtml(); });
+    $('resSaveTxt').addEventListener('click', saveLog);
+    $('resCopyLog').addEventListener('click', copyLog);
     $('logReport').addEventListener('click', reportAbuse);
     setLogMode(logMode());
     $('findBtn').addEventListener('click', function(){
