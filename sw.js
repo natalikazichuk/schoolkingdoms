@@ -43,15 +43,10 @@ const FIREBASE_SDK = [
 /* Ті самі ігри, що й GAMES_DEFAULT в igry.html. Решту (додані в адмінці)
    докешує повідомлення sk-warm з ігротеки. */
 const GAMES = [
-  'klas-1/komputer.html', 'games/zabig.html', 'games/zmiyka.html',
+  'games/zabig.html', 'games/zmiyka.html',
   'games/hrestyky.html', 'games/shashky.html', 'games/shakhy.html',
-  'games/kartynka.html', 'games/pamyat.html', 'klas-1/slovo.html',
-  'games/labirynt.html', 'doshkilya/notky.html', 'doshkilya/sklad.html',
-  'klas-1/susidy.html', 'doshkilya/ryad.html', 'games/pazly.html',
-  'klas-1/komponenty.html', 'klas-1/rozriady.html', 'klas-1/chas.html',
-  'klas-1/zadachi-zapys.html', 'doshkilya/zadachi-malyunok.html',
-  'klas-1/zadachi-diya.html', 'klas-1/hroshi.html', 'klas-1/heometriya.html',
-  'klas-1/lohika.html'
+  'games/kartynka.html', 'games/pamyat.html',
+  'games/labirynt.html', 'games/pazly.html'
 ];
 
 const ROOT = new URL('./', self.location).href;          // …/schoolkingdoms/
