@@ -141,16 +141,37 @@ function n0(v){v=Number(v);return isNaN(v)?0:v;}
    • тест «фіксовано» — statValue за тест, а в тесті з рівнями — за КОЖЕН
      рівень (finishLevel у test.html нараховує на кожному рівні);
    • запис без питань (тренажер) — statValue один раз (SKREWARD.grantStat). */
-function countQ(t){
-  var lv=Array.isArray(t.levels)&&t.levels.length;
-  return lv?t.levels.reduce(function(s,L){return s+((L&&L.questions)||[]).length;},0):(t.questions||[]).length;
+/* Скільки питань дитина РЕАЛЬНО бачить за прохід — точно як test.html:
+   • рівень із пулом questions[] і count < пулу → показує count (випадкова
+     вибірка), інакше весь пул; рівень без пулу (генератор) → count або 5;
+   • плаский тест із генератором → count || questions.length || 10,
+     без генератора → усі questions.
+   Раніше тут множили на весь пул, і тест «24 приклади, показувати 12»
+   рахувався вдвічі більшим, а генераторні тести — як тренажер (раз). */
+function hasGen(t){return !!(t.generator&&(t.generator.type||t.generator.op));}
+function levelCount(L){
+  L=L||{};var pool=Array.isArray(L.questions)?L.questions.length:0,c=parseInt(L.count,10);
+  if(pool)return (!isNaN(c)&&c>0&&c<pool)?c:pool;
+  return isNaN(c)?5:c;
+}
+function isLevels(t){return t.format==='levels'||(Array.isArray(t.levels)&&t.levels.length>0);}
+function playedQ(t){
+  if(isLevels(t))return (t.levels||[]).reduce(function(s,L){return s+levelCount(L);},0);
+  if(hasGen(t))return n0(t.count)||(t.questions||[]).length||10;
+  return (t.questions||[]).length;
 }
 function testGain(t){
   var v=Math.max(0,Math.floor(n0(t.statValue)));if(!v)return 0;
-  var lv=(Array.isArray(t.levels)&&t.levels.length)?t.levels.length:0,q=countQ(t);
+  var q=playedQ(t);
   if(!q)return v;                                  // тренажер / запис без питань
-  if(t.statMode==='perCorrect')return v*q;
-  return lv?v*lv:v;
+  if(t.statMode==='perCorrect')return v*q;         // за кожну правильну
+  return isLevels(t)?v*(t.levels||[]).length:v;    // фіксовано: за тест або за кожен рівень
+}
+function testHow(t){
+  var v=Math.floor(n0(t.statValue)),q=playedQ(t),lv=isLevels(t)?(t.levels||[]).length:0;
+  if(!q)return v+' (тренажер, раз)';
+  if(t.statMode==='perCorrect')return v+' × '+q+' правильних'+(lv?' ('+lv+' рів.)':'');
+  return lv?v+' × '+lv+' рівнів':v+' за тест';
 }
 function testSums(){
   var by={};
@@ -158,8 +179,9 @@ function testSums(){
     if(!t||t.active===false||!t.stat)return;
     var k=(window.SKCUR&&SKCUR.statKeyFrom)?SKCUR.statKeyFrom(t.stat):t.stat;if(!k)return;
     var g=testGain(t);if(!g)return;
-    var r=by[k]||(by[k]={sum:0,n:0});r.sum+=g;r.n++;
+    var r=by[k]||(by[k]={sum:0,n:0,list:[]});r.sum+=g;r.n++;r.list.push({t:t,g:g});
   });
+  Object.keys(by).forEach(function(k){by[k].list.sort(function(a,b){return b.g-a.g;});});
   return by;
 }
 function heroMax(key,sums){var s=sums[key];return n0(HERO_START[key])+(s?s.sum:0);}
@@ -234,6 +256,12 @@ function tabsHTML(){
   return '<div class="tabs">'+b('hero','🦸 Базові характеристики Героя')+b('items','🎒 Характеристики речей')+'</div>';
 }
 
+/* Розгортаний список записів, від найщедрішого: видно, хто дає найбільше. */
+function testsList(ts){
+  return '<details class="its"><summary>які записи</summary><ul>'+ts.list.map(function(x){
+    var t=x.t;return '<li><b>+'+x.g+'</b> '+esc(t.title||t.id)+' <span class="iid">'+esc(testHow(t))
+      +(t.grade!=null?' · '+esc(String(t.grade))+' клас':'')+(t.subject?' · '+esc(t.subject):'')+'</span></li>';}).join('')+'</ul></details>';
+}
 function heroHTML(){
   var sums=testSums();
   var rows=heroStats().map(function(s){
@@ -242,7 +270,7 @@ function heroHTML(){
     return '<tr class="'+(s.active?'':'off')+'">'
       +'<td><span class="nm">'+s.emoji+' '+esc(s.label)+'</span><br><span class="key">'+esc(s.key)+'</span></td>'
       +'<td class="num">'+(s.start!=null?s.start:'—')+'</td>'
-      +'<td class="num max">'+(max!=null?max:'—')+(ts?'<br><span class="key">+'+ts.sum+' з '+ts.n+' записів</span>':'')+'</td>'
+      +'<td class="num max">'+(max!=null?max:'—')+(ts?'<br><span class="key">+'+ts.sum+' з '+ts.n+' записів</span>'+testsList(ts):'')+'</td>'
       +'<td>'+(s.active?'<span class="tag yes">росте</span>':'<span class="tag no">у базі, не росте</span>')+'</td>'
       +'<td>'+esc(s.note||'—')+'</td>'
       +'<td>'+(arena?'<span class="tag yes">так</span> '+esc(arena):'<span class="tag no">ні</span>')+'</td>'
