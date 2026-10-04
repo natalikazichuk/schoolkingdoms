@@ -610,6 +610,7 @@ function toggleSound(){ state.soundOn=!state.soundOn; if(!state.soundOn&&window.
 function renderMap(){
   /* замість очок/XP — скільки рівнів пройдено (нагорода — лише та, що в адмінці) */
   const done=state.stars.filter(s=>s>0).length;
+  if(window.skReportProgress) skReportProgress(done, LEVELS.length);   // прогрес для картки в «Навчанні»
   document.getElementById('lvlDone').textContent=done+'/'+LEVELS.length;
   document.getElementById('lvlBar').style.width=Math.round(done/LEVELS.length*100)+'%';
   const box=document.getElementById('levels');box.innerHTML='';
@@ -776,6 +777,7 @@ function finishLevel(){
   const total=game.list.length,acc=Math.round(game.correct/total*100);
   let stars=acc>=90?3:acc>=70?2:1;
   if(stars>state.stars[game.idx])state.stars[game.idx]=stars;
+  if(window.skReportProgress) skReportProgress(state.stars.filter(s=>s>0).length, LEVELS.length);
   saveState();
   document.getElementById('bigStars').innerHTML=[0,1,2].map(s=>`<span class="s${s<stars?' f':''}">★</span>`).join('');
   document.getElementById('resTitle').textContent=acc>=90?'Ідеально!':acc>=70?'Відмінно!':'Добре!';
@@ -792,7 +794,8 @@ function finishLevel(){
 function retryLevel(){ startLevel(game.idx); }
 
 /* ================== СТАРТ ================== */
-loadState();updateSoundBtns();applyVoiceUI();
+loadState();updateSoundBtns();
+window.addEventListener('load',()=>{ if(window.skReportProgress) skReportProgress(state.stars.filter(s=>s>0).length, LEVELS.length); });   // прогрес для картки в «Навчанні»applyVoiceUI();
 window.addEventListener('load',refreshStart);   // sk-prize.js підключено нижче
 if(window.speechSynthesis){refreshVoice();window.speechSynthesis.onvoiceschanged=refreshVoice;}
 </script>
@@ -804,7 +807,7 @@ if(window.speechSynthesis){refreshVoice();window.speechSynthesis.onvoiceschanged
 <script src="../sk-curriculum.js?v=8"></script>
 <script src="../sk-rewards.js?v=3"></script>
 <script src="../sk-prize.js?v=1"></script>
-<script src="../sk-finish.js?v=5"></script>
+<script src="../sk-finish.js?v=6"></script>
 </body>
 </html>
 

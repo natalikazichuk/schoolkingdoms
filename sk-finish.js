@@ -15,6 +15,10 @@
    Дає:
      • window.skFinishRecord() — зарахувати запис. Кличе сам тренажер, коли
        дитина дійшла до кінця (канонічний openWin).
+     • window.skReportProgress(done, total) — частковий прогрес для картки
+       в «Навчанні» / «Тестах»: sk_testprog_<id> = [done, total]. Лише
+       збільшується (менше значення не затирає більше). Тренажер кличе його
+       при відкритті й після кожного кроку.
 
    Кнопки «✅ Я завершив(ла)» в куті екрана більше немає: вона висіла поверх
    гри, і випадковий дотик закривав завдання. Завдання зараховується тоді,
@@ -89,7 +93,7 @@
   }
 
   var raw = param('skdone');
-  if(!raw){ window.skFinishRecord = function(){}; return; }
+  if(!raw){ window.skFinishRecord = function(){}; window.skReportProgress = function(){}; return; }
 
   var key = raw, ci = raw.indexOf(':');
   if(ci > 0){ key = raw.slice(ci + 1); }
@@ -112,5 +116,17 @@
     syncSoon();
   }
   window.skFinishRecord = record;
+
+  var progKey = 'sk_testprog_' + key;
+  window.skReportProgress = function(done, total){
+    done = Math.floor(Number(done) || 0); total = Math.floor(Number(total) || 0);
+    if(total <= 0) return;
+    if(done > total) done = total;
+    var prev = null;
+    try{ prev = JSON.parse(localStorage.getItem(progKey) || 'null'); }catch(e){}
+    if(prev && prev.length === 2 && Number(prev[1]) === total && Number(prev[0]) >= done) return;
+    try{ localStorage.setItem(progKey, JSON.stringify([done, total])); }catch(e){}
+    syncSoon();
+  };
 
 })();
