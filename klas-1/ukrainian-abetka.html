@@ -226,8 +226,8 @@ h1,h2,h3,.display{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacin
     <div class="topbar">
       <button class="back" onclick="goStart()" title="Назад" aria-label="Назад">←</button>
       <div class="rank">
-        <div class="r-top"><span class="r-name" id="rankName">Новачок</span><span id="rankXp">0 XP</span></div>
-        <div class="bar"><span id="rankBar" style="width:0%"></span></div>
+        <div class="r-top"><span class="r-name">Пройдено рівнів</span><span id="lvlDone">0/0</span></div>
+        <div class="bar"><span id="lvlBar" style="width:0%"></span></div>
       </div>
       <button class="iconbtn sndbtn" title="Звук" onclick="toggleSound()">🔊</button>
     </div>
@@ -276,8 +276,7 @@ h1,h2,h3,.display{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacin
       <p class="sub" id="resSub">Рівень пройдено</p>
       <div class="score-row">
         <div><b id="resAcc">0%</b><span>точність</span></div>
-        <div><b id="resXp">+0</b><span>XP</span></div>
-        <div><b id="resStreak">0</b><span>найкраща серія</span></div>
+                <div><b id="resStreak">0</b><span>найкраща серія</span></div>
       </div>
     </div>
     <div class="btn-row">
@@ -550,20 +549,18 @@ const LEVELS=[
     ]},
 ];
 
-const RANKS=[[0,'Новачок'],[100,'Учень'],[250,'Читач'],[500,'Знавець'],[800,'Майстер'],[1200,'Профі'],[1800,'Чемпіон']];
 
 /* ================== СТАН ==================
    Прогрес зберігається в localStorage цього пристрою (ключ sk-abetka-v1). */
 const SAVE_KEY='sk-abetka-v1';
-const state={ xp:0, soundOn:true, stars:LEVELS.map(()=>0) };
+const state={ soundOn:true, stars:LEVELS.map(()=>0) };
 function saveState(){
-  try{ localStorage.setItem(SAVE_KEY,JSON.stringify({xp:state.xp,stars:state.stars,soundOn:state.soundOn})); }catch(e){}
+  try{ localStorage.setItem(SAVE_KEY,JSON.stringify({stars:state.stars,soundOn:state.soundOn})); }catch(e){}
 }
 function loadState(){
   try{
     const s=JSON.parse(localStorage.getItem(SAVE_KEY));
     if(s){
-      if(typeof s.xp==='number') state.xp=s.xp;
       if(Array.isArray(s.stars) && s.stars.length===LEVELS.length) state.stars=s.stars;
       if(typeof s.soundOn==='boolean') state.soundOn=s.soundOn;
     }
@@ -610,14 +607,12 @@ function updateSoundBtns(){
 function toggleSound(){ state.soundOn=!state.soundOn; if(!state.soundOn&&window.speechSynthesis)window.speechSynthesis.cancel(); updateSoundBtns(); saveState(); }
 
 /* ================== КАРТА ================== */
-function rankFor(xp){let r=RANKS[0];for(const x of RANKS)if(xp>=x[0])r=x;return r;}
-function nextRankXp(xp){for(const x of RANKS)if(xp<x[0])return x[0];return RANKS[RANKS.length-1][0];}
 function renderMap(){
-  const rank=rankFor(state.xp),nextXp=nextRankXp(state.xp),prevXp=rank[0];
-  const pct=nextXp>prevXp?Math.min(100,Math.round((state.xp-prevXp)/(nextXp-prevXp)*100)):100;
-  document.getElementById('rankName').textContent=rank[1];
-  document.getElementById('rankXp').textContent=state.xp+' XP';
-  document.getElementById('rankBar').style.width=pct+'%';
+  /* замість очок/XP — скільки рівнів пройдено (нагорода — лише та, що в адмінці) */
+  const done=state.stars.filter(s=>s>0).length;
+  if(window.skReportProgress) skReportProgress(done, LEVELS.length);   // прогрес для картки в «Навчанні»
+  document.getElementById('lvlDone').textContent=done+'/'+LEVELS.length;
+  document.getElementById('lvlBar').style.width=Math.round(done/LEVELS.length*100)+'%';
   const box=document.getElementById('levels');box.innerHTML='';
   LEVELS.forEach((lv,i)=>{
     const unlocked=i===0||state.stars[i-1]>0;
@@ -722,7 +717,7 @@ let game=null;
 function startLevel(idx){
   const lv=LEVELS[idx];
   const pool=shuffle([...lv.q]).slice(0,Math.min(N_Q,lv.q.length));
-  game={idx,lv,list:pool,i:0,correct:0,streak:0,bestStreak:0,xp:0,results:[],q:null,locked:false};
+  game={idx,lv,list:pool,i:0,correct:0,streak:0,bestStreak:0,results:[],q:null,locked:false};
   renderQuestion(); show('game');
 }
 function renderProgress(){
@@ -766,9 +761,8 @@ function answer(btn,choice){
   const fb=document.getElementById('feedback');
   if(ok){
     game.correct++;game.streak++;game.bestStreak=Math.max(game.bestStreak,game.streak);
-    const gain=10+Math.min(10,(game.streak-1)*2);game.xp+=gain;
     fb.className='feedback good';
-    fb.innerHTML=`Правильно! +${gain} XP <span class="why">${esc(q.w)} — ${esc(q.why)}</span>`;
+    fb.innerHTML=`Правильно! <span class="why">${esc(q.w)} — ${esc(q.why)}</span>`;
   }else{
     game.streak=0;fb.className='feedback bad';
     fb.innerHTML=`Правильна відповідь: <b>${esc(correct)}</b> <span class="why">${esc(q.w)} — ${esc(q.why)}</span>`;
@@ -783,12 +777,12 @@ function finishLevel(){
   const total=game.list.length,acc=Math.round(game.correct/total*100);
   let stars=acc>=90?3:acc>=70?2:1;
   if(stars>state.stars[game.idx])state.stars[game.idx]=stars;
-  state.xp+=game.xp;saveState();
+  if(window.skReportProgress) skReportProgress(state.stars.filter(s=>s>0).length, LEVELS.length);
+  saveState();
   document.getElementById('bigStars').innerHTML=[0,1,2].map(s=>`<span class="s${s<stars?' f':''}">★</span>`).join('');
   document.getElementById('resTitle').textContent=acc>=90?'Ідеально!':acc>=70?'Відмінно!':'Добре!';
   document.getElementById('resSub').textContent=`${game.lv.name} · ${game.correct} з ${total}`;
   document.getElementById('resAcc').textContent=acc+'%';
-  document.getElementById('resXp').textContent='+'+game.xp;
   document.getElementById('resStreak').textContent=game.bestStreak;
   const cont=document.getElementById('continueBtn'),hasNext=game.idx<LEVELS.length-1;
   if(hasNext){cont.textContent='Наступний →';cont.onclick=()=>showRules(game.idx+1);}
@@ -800,7 +794,8 @@ function finishLevel(){
 function retryLevel(){ startLevel(game.idx); }
 
 /* ================== СТАРТ ================== */
-loadState();updateSoundBtns();applyVoiceUI();
+loadState();updateSoundBtns();
+window.addEventListener('load',()=>{ if(window.skReportProgress) skReportProgress(state.stars.filter(s=>s>0).length, LEVELS.length); });   // прогрес для картки в «Навчанні»applyVoiceUI();
 window.addEventListener('load',refreshStart);   // sk-prize.js підключено нижче
 if(window.speechSynthesis){refreshVoice();window.speechSynthesis.onvoiceschanged=refreshVoice;}
 </script>
@@ -812,7 +807,7 @@ if(window.speechSynthesis){refreshVoice();window.speechSynthesis.onvoiceschanged
 <script src="../sk-curriculum.js?v=8"></script>
 <script src="../sk-rewards.js?v=3"></script>
 <script src="../sk-prize.js?v=1"></script>
-<script src="../sk-finish.js?v=5"></script>
+<script src="../sk-finish.js?v=6"></script>
 </body>
 </html>
 

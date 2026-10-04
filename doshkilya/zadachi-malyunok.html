@@ -400,7 +400,6 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
 <div id="wrap">
   <div id="top">
     <div class="pill q"><span class="lab">Задача</span><span class="val" id="qNum">1/12</span></div>
-    <div class="pill"><span class="lab">Очки</span><span class="val" id="score">0</span></div>
     <div id="spacer"></div>
     <button id="menuBtn">☰ Меню</button>
   </div>
@@ -482,7 +481,6 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
   var qIconEl = document.getElementById("qIcon");
   var trayEl  = document.getElementById("tray");
   var hintEl  = document.getElementById("hint");
-  var scoreEl = document.getElementById("score");
   var qNumEl  = document.getElementById("qNum");
   var fillEl  = document.getElementById("barFill");
   var sayBtn  = document.getElementById("sayBtn");
@@ -560,7 +558,7 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
     });
   }
 
-  var score = 0, qIndex = 0, mistakes = 0;
+  var qIndex = 0, mistakes = 0;
   var task = null, locked = false, sayText = "";
 
   /* ── озвучка (для тих, хто ще не читає) ── */
@@ -603,7 +601,7 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
     var c = nn[6];
     if(c === "bird")   return { cls: "th-branch", decor: "🌿" };
     if(c === "fish")   return { cls: "th-pond",   decor: "🌊" };
-    if(c === "animal") return { cls: "th-meadow", decor: "🌸" };
+    if(c === "animal" || c === "insect") return { cls: "th-meadow", decor: "🌸" };
     return { cls: "th-garden", decor: "🌳" };
   }
   function setScene(cls, decor, html){
@@ -714,8 +712,6 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
   /* ── реакції ── */
   function solved(){
     locked = true;
-    score += 10;
-    scoreEl.textContent = score;
     setTimeout(next, 900);
   }
   function wrong(el, cls){
@@ -773,6 +769,7 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
 
   function next(){
     qIndex++;
+    if(window.skReportProgress) skReportProgress(qIndex, TOTAL);   // найдалі за гру — для картки в «Навчанні»
     if(qIndex >= TOTAL) return win();
     newTask();
   }
@@ -783,7 +780,7 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
     document.getElementById("winStars").textContent = "⭐⭐⭐".slice(0, stars * 2);
     document.getElementById("winSub").textContent =
       mistakes === 0 ? "Жодної помилки — гостре око!" :
-      "Помилок: " + mistakes + ". Очки: " + score + ".";
+      "Помилок: " + mistakes + ".";
     // перше повне проходження → нагорода з адмінки (один раз)
     document.getElementById("prize").classList.remove("on");
     if(!prizeSummary()) claimPrize();
@@ -792,8 +789,7 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
   }
 
   function start(){
-    score = 0; qIndex = 0; mistakes = 0;
-    scoreEl.textContent = "0";
+    qIndex = 0; mistakes = 0;
     document.getElementById("startScreen").classList.add("hidden");
     document.getElementById("winScreen").classList.add("hidden");
     newTask();
@@ -836,6 +832,6 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
 <script src="../sk-items.js?v=2"></script>
 <script src="../sk-curriculum.js?v=8"></script>
 <script src="../sk-rewards.js?v=3"></script>
-<script src="../sk-finish.js?v=5"></script>
+<script src="../sk-finish.js?v=6"></script>
 </body>
 </html>

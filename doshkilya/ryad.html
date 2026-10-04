@@ -303,7 +303,6 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
 <div id="wrap">
   <div id="top">
     <div class="pill q"><span class="lab">Питання</span><span class="val" id="qNum">1/20</span></div>
-    <div class="pill"><span class="lab">Очки</span><span class="val" id="score">0</span></div>
     <div id="spacer"></div>
     <button id="menuBtn">☰ Меню</button>
   </div>
@@ -380,7 +379,6 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
   var rowEl   = document.getElementById("row");
   var trayEl  = document.getElementById("tray");
   var hintEl  = document.getElementById("hint");
-  var scoreEl = document.getElementById("score");
   var qNumEl  = document.getElementById("qNum");
   var fillEl  = document.getElementById("barFill");
 
@@ -464,7 +462,7 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
     });
   }
 
-  var score=0, streak=0, qIndex=0, mistakes=0;
+  var streak=0, qIndex=0, mistakes=0;
   var current=null, locked=false, socketEl=null;
 
   function rnd(min,max){ return min + Math.floor(Math.random()*(max-min+1)); }
@@ -627,11 +625,11 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
         socketEl.classList.add("good","pop");
         socketEl.querySelector(".val").textContent=current.answer;
       }
-      streak++; var gain=10+Math.min(streak-1,5)*2; score+=gain;
-      scoreEl.textContent=score;
+      streak++;
       buzz(20); chime();
       hintEl.textContent = streak>=3 ? ("Так тримати! "+streak+" поспіль 🔥") : "Правильно! 🎉";
       qIndex++;
+      if(window.skReportProgress) skReportProgress(qIndex, TOTAL);   // найдалі за гру — для картки в «Навчанні»
       fillEl.style.width = Math.round(qIndex/TOTAL*100)+"%";
       if(qIndex>=TOTAL){ setTimeout(finish, 620); return; }
       setTimeout(function(){
@@ -674,7 +672,7 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
     document.getElementById("winTitle").textContent =
       mistakes===0 ? "Бездоганно!" : "Ряд зібрано!";
     document.getElementById("winSub").textContent =
-      "Пройдено "+TOTAL+" з "+TOTAL+" • Помилок: "+mistakes+" • Очки: "+score;
+      "Пройдено "+TOTAL+" з "+TOTAL+" • Помилок: "+mistakes;
     // перше повне проходження → нагорода з адмінки (один раз)
     document.getElementById("prize").classList.remove("on");
     if(!prizeSummary()) claimPrize();
@@ -682,9 +680,8 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
   }
 
   function startGame(){
-    score=0; streak=0; qIndex=0; mistakes=0;
+    streak=0; qIndex=0; mistakes=0;
     lastKey=""; lastTheme="";
-    scoreEl.textContent=score;
     hintEl.textContent="Перетягни або торкнись потрібної цифри 🔢";
     document.getElementById("startScreen").classList.add("hidden");
     document.getElementById("winScreen").classList.add("hidden");
@@ -708,6 +705,6 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
 <script src="../sk-items.js?v=2"></script>
 <script src="../sk-curriculum.js?v=8"></script>
 <script src="../sk-rewards.js?v=3"></script>
-<script src="../sk-finish.js?v=5"></script>
+<script src="../sk-finish.js?v=6"></script>
 </body>
 </html>

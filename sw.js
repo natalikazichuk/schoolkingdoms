@@ -26,7 +26,7 @@ const CACHE   = VERSION;
 const CORE = [
   'igry.html',
   'sk-styles.css', 'sk-game.css', 'sk-game-chalk.css',
-  'sk-header.js?v=5', 'sk-footer.js?v=5', 'sk-finish.js?v=4', 'sk-report.js?v=2',
+  'sk-header.js?v=5', 'sk-footer.js?v=5', 'sk-finish.js?v=6', 'sk-report.js?v=2',
   'sk-zadachi.js', 'sk-voice.js', 'sk-curriculum.js?v=8', 'firebase-config.js',
   'manifest.webmanifest', 'favicon-32.png', 'apple-touch-icon.png',
   'icon-192.png', 'icon-512.png', 'logo-small.png'
