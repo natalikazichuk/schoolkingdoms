@@ -952,6 +952,8 @@ body.scr-battle .wrap{max-width:1500px}
           <button type="button" id="logSimple">Простий</button>
           <button type="button" id="logFull">Детальний</button>
           <span class="lb-sp"></span>
+          <button type="button" id="logCopy" title="Скопіювати журнал у буфер обміну">📋 Копіювати</button>
+          <button type="button" id="logSave" title="Зберегти журнал у текстовий файл">💾 Зберегти</button>
           <button type="button" id="logClear" title="Очистити журнал (бій триває)">🧹 Скинути</button>
           <button type="button" id="logReport" class="warn" title="Повідомити адміністратора про нечесний бій">🚩 Поскаржитись</button>
         </div>
@@ -1762,6 +1764,49 @@ body.scr-battle .wrap{max-width:1500px}
     if($('logSimple')) $('logSimple').classList.toggle('on', m!=='full');
     if($('logFull'))   $('logFull').classList.toggle('on', m==='full');
   }
+  /* журнал як текст: шапка + кожен хід окремим рядком; у детальному режимі
+     під ходом — кидки й розрахунки (як на екрані) */
+  function logText(full){
+    var box = $('steps'); if(!box) return '';
+    var d = new Date(), pad = function(n){ return (n<10?'0':'')+n; };
+    var lines = ['Журнал бою — SchoolKingdoms, Турнірна арена',
+      d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes())];
+    if(B && B.op) lines.push((hero.name||'Ти')+' проти '+B.op.f.name+' · раунд '+B.round
+      +' · сила '+Math.max(0,Math.round(B.me.force))+'/'+B.me.max+' проти '+Math.max(0,Math.round(B.op.force))+'/'+B.op.max);
+    lines.push('Режим: '+(full ? 'детальний' : 'простий'), '');
+    Array.prototype.forEach.call(box.querySelectorAll('.step'), function(r){
+      var no = r.querySelector('.no'), txt = r.querySelector('.txt'); if(!txt) return;
+      var c = txt.cloneNode(true), dice = [];
+      Array.prototype.forEach.call(c.querySelectorAll('.dice'), function(x){ dice.push(x.textContent.replace(/\s+/g,' ').trim()); x.remove(); });
+      var head = (no ? no.textContent.trim() : '');
+      lines.push((r.classList.contains('brk') ? '💥 ' : (head ? head+': ' : '')) + c.textContent.replace(/\s+/g,' ').trim());
+      if(full) dice.forEach(function(t){ lines.push('    '+t); });
+    });
+    if(lines.length <= 5) lines.push('(журнал порожній)');
+    return lines.join('\n');
+  }
+  function copyLog(){
+    var t = logText(logMode()==='full');
+    function ok(){ showToast('Журнал скопійовано', 'Встав його будь-де: Ctrl+V'); }
+    function fallback(){
+      var ta = document.createElement('textarea'); ta.value = t; ta.setAttribute('readonly','');
+      ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select();
+      var done = false; try{ done = document.execCommand('copy'); }catch(e){}
+      ta.remove(); done ? ok() : showToast('Не вдалося скопіювати', 'Спробуй «Зберегти»');
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(ok, fallback);
+    else fallback();
+  }
+  function saveLog(){
+    var t = logText(logMode()==='full');
+    var d = new Date(), pad = function(n){ return (n<10?'0':'')+n; };
+    var name = 'arena-log-'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'-'+pad(d.getHours())+pad(d.getMinutes())+'.txt';
+    var url = URL.createObjectURL(new Blob(['\ufeff'+t], {type:'text/plain;charset=utf-8'}));   // BOM — щоб Блокнот показав кирилицю
+    var a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+    showToast('Журнал збережено', name);
+  }
+
   function clearLog(){
     var box = $('steps'); if(!box) return;
     box.innerHTML = '<div class="steps-empty">Журнал очищено. Нові ходи зʼявляться тут…</div>';
@@ -1852,7 +1897,7 @@ body.scr-battle .wrap{max-width:1500px}
     rb.innerHTML = '<span class="rnum">'+num+'</span><span class="rlbl">'+lbl+'</span>'
       + (h0.hitRoll!=null ? '<span class="rdice" id="rdice"></span>' : '')
       + '<span class="ropp">Суперник → '+ZONE_UA[B.op.atk]+': '+ok+'</span>';
-    if(h0.hitRoll!=null) rollDice($('rdice'), h0.hitRoll, h0.hitNeed);
+    if(h0.hitRoll!=null) rollDice($('rdice'), meHit.hits || [meHit]);
     void rb.offsetWidth;              // перезапуск drop-анімації
     rb.classList.add('show');
   }
@@ -1860,13 +1905,18 @@ body.scr-battle .wrap{max-width:1500px}
   /* кубик у панелі результату: ~0.5 с «крутиться» випадковими числами, потім
      зупиняється на справжньому кидку: «🎲 37 — треба ≤ 49» */
   var diceT = null;
-  function rollDice(el, roll, need){
+  function rollDice(el, hits){
     if(!el) return; clearInterval(diceT);
+    hits = (hits||[]).filter(function(h){ return h.hitRoll!=null; });
     var n = 0; el.classList.add('rolling');
     diceT = setInterval(function(){
       if(++n >= 12){ clearInterval(diceT); el.classList.remove('rolling');
-        el.textContent = '🎲 ' + roll + (roll<=need ? ' ≤ ' : ' > ') + need + '% — ' + (roll<=need ? 'влучив' : 'промах'); return; }
-      el.textContent = '🎲 ' + (1 + Math.floor(Math.random()*100));
+        // кілька ударів («Додаткова атака») — кидок кожного: 🎲 78 > 55% промах · 🎲 17 ≤ 55% влучив
+        el.textContent = hits.map(function(h){
+          var ok = h.hitRoll <= h.hitNeed;
+          return '🎲 ' + h.hitRoll + (ok ? ' ≤ ' : ' > ') + h.hitNeed + '% ' + (ok ? 'влучив' : 'промах');
+        }).join(' · '); return; }
+      el.textContent = hits.map(function(){ return '🎲 ' + (1 + Math.floor(Math.random()*100)); }).join(' · ');
     }, 45);
   }
 
@@ -2002,6 +2052,8 @@ body.scr-battle .wrap{max-width:1500px}
     $('logSimple').addEventListener('click', function(){ setLogMode('simple'); });
     $('logFull').addEventListener('click', function(){ setLogMode('full'); });
     $('logClear').addEventListener('click', clearLog);
+    $('logCopy').addEventListener('click', copyLog);
+    $('logSave').addEventListener('click', saveLog);
     $('logReport').addEventListener('click', reportAbuse);
     setLogMode(logMode());
     $('findBtn').addEventListener('click', function(){
