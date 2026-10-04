@@ -18,10 +18,11 @@
           (кидок 🎲 d100: випало ≤ шансу у % — влучив). Промах → 0, далі не рахуємо.
        2) заблокував? удар у зону, яку захищає суперник, — блок (щит приймає удар):
           проходить blockKeep (0 — нічого). Кидок на крит робиться лише для зносу щита.
-       3) урон: фізичний = baseDmg + урон зброї (випадково з її діапазону) + сталий «Урон» речей;
-          магічний = магічний урон зброї (діапазон) + сталий «Маг. урон» речей
-       4) фізичний − броня захисника, магічний − магічний захист (не нижче 0)
-       5) × відсоткові підвищення з речей (+N% урону / +N% маг. урону)
+       3) урон: ТИП визначає зброя в руках.
+          Магічна зброя → увесь удар магічний (і база теж): baseDmg + маг. зброя + «Маг. урон» речей.
+          Без зброї / фізична → увесь удар фізичний: baseDmg + зброя + «Урон» речей.
+       4) магічний − магічний захист захисника, фізичний − броня (не нижче 0)
+       5) × відсотки з речей свого типу (+N% маг. урону / +N% урону)
        6) крит: шанс = critBase% + «Шанс крит. урону» речей (і вмінь) → × critMult
           (кидок 🎲 d100: випало ≤ шансу у % — крит)
        Влучний (не заблокований) удар завдає щонайменше minDmg.
@@ -52,8 +53,8 @@
   var COMBAT_STATS = [
     { key: 'armor',       label: 'Броня',                 emoji: '🛡️', base: 0, arena: 'віднімається від фізичного урону суперника' },
     { key: 'magicResist', label: 'Магічний захист',       emoji: '🔮', base: 0, arena: 'віднімається від магічного урону суперника' },
-    { key: 'damage',      label: 'Фізичний урон',         emoji: '⚔️', base: 0, arena: 'зброя в руках — діапазон удару; інші речі — + до удару, % — множник' },
-    { key: 'magicDamage', label: 'Магічний урон',         emoji: '✨', base: 0, arena: 'магічна частина удару; % — множник' },
+    { key: 'damage',      label: 'Фізичний урон',         emoji: '⚔️', base: 0, arena: 'фізична зброя — діапазон удару; інші речі — + до удару, % — множник (лише для фізичного удару)' },
+    { key: 'magicDamage', label: 'Магічний урон',         emoji: '✨', base: 0, arena: 'магічна зброя робить увесь удар магічним; інші речі — + до удару, % — множник (лише для магічного удару)' },
     { key: 'critDamage',  label: 'Шанс крит. урону',      emoji: '💥', base: 0, arena: '+ до шансу криту (у %)' },
     { key: 'extraAttack', label: 'Додаткова атака',       emoji: '⚡', base: 0, arena: '+1 удар за хід за кожну одиницю' },
     { key: 'block',       label: 'Шанс блоку',            emoji: '🧱', base: 0, arena: null },
@@ -161,6 +162,8 @@
     return Math.max(BATTLE.hitMin, Math.min(BATTLE.hitMax, c));
   }
   function critChance(att) { return num(BATTLE.critBase) / 100 + num(att.critPct) / 100; }
+  /* магічна зброя в руках (головна характеристика «Магічний урон») → удар магічний */
+  function isMagic(p) { return num(p && p.magMax) > 0; }
 
   /* ── досвід ──
      power — «загальна сила» бійця: сума бойових показників
@@ -171,9 +174,9 @@
        min(level × xpStep, xpFlat) → 500, 1000, 1500 … 8000, далі 8000. */
   function power(p) {
     p = p || {};
-    var avgPhys = BATTLE.baseDmg + (num(p.wMin) + num(p.wMax)) / 2 + num(p.dmgFlat);
-    var avgMag = (num(p.magMin) + num(p.magMax)) / 2 + num(p.magFlat);
-    return Math.max(1, num(p.hp) + num(p.accuracy) + num(p.agility) + num(p.armor) + num(p.magicResist) + avgPhys + avgMag);
+    var avgHit = BATTLE.baseDmg + (isMagic(p) ? (num(p.magMin) + num(p.magMax)) / 2 + num(p.magFlat)
+                                              : (num(p.wMin) + num(p.wMax)) / 2 + num(p.dmgFlat));
+    return Math.max(1, num(p.hp) + num(p.accuracy) + num(p.agility) + num(p.armor) + num(p.magicResist) + avgHit);
   }
   function xpCoef(me, op) {
     var c = 1 + BATTLE.xpAdv * Math.log(power(op) / power(me)) / Math.LN2;
@@ -208,24 +211,27 @@
         calc: 'блок — удар не пройшов · крит? 🎲 ' + out.critRoll + (bc ? ' ≤ ' : ' > ') + out.critNeed + '% — '
           + (bc ? 'критичний → щит −' + WEAR.shieldCritBlock : 'звичайний → щит −' + WEAR.shieldBlock) });
     }
-    // 3) урон
-    var w = rollRange(att.wMin, att.wMax, rnd), m = rollRange(att.magMin, att.magMax, rnd);
-    var physRaw = BATTLE.baseDmg + w + num(att.dmgFlat), magRaw = m + num(att.magFlat);
+    // 3) урон. ТИП удару визначає зброя в руках:
+    //    магічна зброя («Магічний урон») → УВЕСЬ удар магічний (і база baseDmg теж):
+    //      база + маг. зброя + «Маг. урон» речей − маг. захист × «% маг. урону»;
+    //    без зброї або фізична → увесь удар фізичний:
+    //      база + зброя + «Урон» речей − броня × «% урону».
+    var magic = isMagic(att);
+    var raw = BATTLE.baseDmg + (magic ? rollRange(att.magMin, att.magMax, rnd) + num(att.magFlat)
+                                      : rollRange(att.wMin, att.wMax, rnd) + num(att.dmgFlat));
+    var defV = magic ? num(def.magicResist) : num(def.armor);
+    var pctV = magic ? num(att.magPct) : num(att.dmgPct);
     // 4) мінус захист, 5) відсотки
-    var phys = Math.max(0, physRaw - num(def.armor)) * (1 + num(att.dmgPct) / 100);
-    var mag = Math.max(0, magRaw - num(def.magicResist)) * (1 + num(att.magPct) / 100);
+    var base = Math.max(0, raw - defV) * (1 + pctV / 100);
     // 6) крит
     var crit = critCheck();
     var mult = crit ? BATTLE.critMult : 1;
-    var dmg = Math.max(BATTLE.minDmg, Math.round((phys + mag) * mult));
-    out.raw = physRaw + magRaw; out.armor = num(def.armor) + (magRaw ? num(def.magicResist) : 0);
-    // частини для показу (журнал фарбує магічну фіолетовим): скільки з dmg — магічний урон
-    out.magDmg = Math.min(dmg, Math.round(mag * mult)); out.physDmg = dmg - out.magDmg;
-    out.parts = { physRaw: physRaw, armor: num(def.armor), dmgPct: num(att.dmgPct),
-                  magRaw: magRaw, mres: num(def.magicResist), magPct: num(att.magPct), mult: mult };
-    var calc = '(' + physRaw + ' − броня ' + num(def.armor) + ')' + (att.dmgPct ? ' × ' + (100 + num(att.dmgPct)) + '%' : '')
-      + (magRaw ? ' + (маг. ' + magRaw + ' − захист ' + num(def.magicResist) + ')' + (att.magPct ? ' × ' + (100 + num(att.magPct)) + '%' : '') : '')
-      + (crit ? ' × ' + BATTLE.critMult + ' крит' : '');
+    var dmg = Math.max(BATTLE.minDmg, Math.round(base * mult));
+    out.raw = raw; out.armor = defV; out.magic = magic;
+    out.magDmg = magic ? dmg : 0; out.physDmg = magic ? 0 : dmg;   // журнал фарбує магічний урон фіолетовим
+    out.parts = { magic: magic, raw: raw, def: defV, pct: pctV, mult: mult };
+    var calc = (magic ? '✨маг. (' + raw + ' − маг. захист ' + defV + ')' : '(' + raw + ' − броня ' + defV + ')')
+      + (pctV ? ' × ' + (100 + pctV) + '%' : '') + (crit ? ' × ' + BATTLE.critMult + ' крит' : '');
     if (blocked) {   // частковий блок (лише якщо blockKeep > 0)
       var kept = Math.round(dmg * BATTLE.blockKeep);
       return ret({ dmg: kept, kind: 'block', crit: crit, calc: 'блок: ' + calc + ' = ' + dmg + ' → проходить ' + Math.round(BATTLE.blockKeep * 100) + '%' });
@@ -245,7 +251,7 @@
   root.SKARENA = {
     BATTLE: BATTLE, ZONES: ZONES, HAND_SLOTS: HAND_SLOTS, WEAR: WEAR, COMBAT_STATS: COMBAT_STATS,
     SLOT_UK: SLOT_UK, zoneOfSlot: zoneOfSlot,
-    fighter: fighter, varyFighter: varyFighter, hitChance: hitChance, critChance: critChance,
+    fighter: fighter, varyFighter: varyFighter, hitChance: hitChance, critChance: critChance, isMagic: isMagic,
     strike: strike, attack: attack, d100: d100,
     power: power, xpCoef: xpCoef, xpNeed: xpNeed
   };
