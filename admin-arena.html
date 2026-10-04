@@ -64,6 +64,8 @@
   .tab.on{background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:var(--gold-ink);border-color:var(--gold-deep)}
   .max{font-weight:900;font-size:1.02rem;color:#1f7a4d}
   .max.pctc{color:#2f5ea8}
+  pre.fx{white-space:pre-wrap;background:#f7f4ea;border:1px solid var(--border);border-radius:12px;padding:12px 14px;font-size:.84rem;color:var(--ink);margin:0;font-family:ui-monospace,Menlo,Consolas,monospace}
+  ul.exl{margin:4px 0 0;padding-left:20px;font-size:.88rem;color:var(--ink)}
   td.cats{min-width:140px;max-width:220px}
 </style>
 </head>
@@ -372,7 +374,44 @@ function mechHTML(){
     row('Промах','0','Удар не влучив — нічого не зношується.')
   ].join('');
   function tbl(h,body){return '<div class="tblwrap"><table class="st"><thead><tr>'+h.map(function(x){return '<th>'+x+'</th>';}).join('')+'</tr></thead><tbody>'+body+'</tbody></table></div>';}
-  return '<section class="sec"><h2>⚔️ Бій</h2><p class="hint">Урон рахується для <b>кожного удару окремо</b>, кроки 1–6 по черзі. Числа змінюються в <b>sk-arena-rules.js</b> (BATTLE) — і арена, і ця сторінка беруть їх звідти. У журналі бою наведи мишу на рядок — побачиш розрахунок кожного удару.</p>'
+  /* приклад розрахунку живими числами з правил: меч 5–20 (випало 15), +10% урону,
+     суперник з бронею 3; звичайний удар і критичний */
+  var ex=(function(){
+    var att={accuracy:100,agility:50,wMin:15,wMax:15,magMin:0,magMax:0,dmgFlat:0,magFlat:0,dmgPct:10,magPct:0,critPct:0,extra:0};
+    var def={agility:50,armor:3,magicResist:0};
+    var seq=function(a){var i=0;return function(){return a[i++%a.length];};};
+    return {hit:R.strike(att,def,false,seq([0.99,0])),crit:R.strike(att,def,false,seq([0,0])),blk:R.strike(att,def,true,seq([0.99,0]))};
+  })();
+  var formula='<section class="sec"><h2>🧮 Формула урону</h2>'
+    +'<p class="hint">Для <b>кожного</b> удару окремо (ударів за хід = 1 + «Додаткова атака»):</p>'
+    +'<pre class="fx">урон = ( (база '+B.baseDmg+' + зброя + «Урон» речей − броня суперника) × (100% + «% урону»)\n'
+    +'       + (маг. зброя + «Маг. урон» речей − маг. захист суперника) × (100% + «% маг. урону») )\n'
+    +'       × '+B.critMult+', якщо крит\n'
+    +'       → промах (0), якщо не влучив;  × '+Math.round(B.blockKeep*100)+'%, якщо зона заблокована;  мінімум '+B.minDmg+'\n\n'
+    +'шанс влучити = '+B.hitBase+' × точність / спритність суперника  (від '+Math.round(B.hitMin*100)+'% до '+Math.round(B.hitMax*100)+'%)\n'
+    +'шанс криту   = точність / '+B.critChance+' + «Шанс крит. урону» речей</pre>'
+    +'<p class="hint" style="margin-top:10px"><b>Приклад</b> (меч 5–20, випало 15; «+10% урону»; у суперника броня 3):</p>'
+    +'<ul class="exl"><li>звичайний: '+esc(ex.hit.calc)+' = <b>'+ex.hit.dmg+'</b></li>'
+    +'<li>критичний: '+esc(ex.crit.calc)+' = <b>'+ex.crit.dmg+'</b></li>'
+    +'<li>у блок: '+esc(ex.blk.calc)+' = <b>'+ex.blk.dmg+'</b></li></ul>'
+    +'<p class="hint" style="margin-top:12px"><b>Як впливати на урон</b></p>'
+    +'<div class="tblwrap"><table class="st"><thead><tr><th>Що змінити</th><th>Ефект</th><th>Де</th></tr></thead><tbody>'
+    +[['Базовий урон удару','більше урону всім, навіть без зброї','sk-arena-rules.js → BATTLE.baseDmg ('+B.baseDmg+')'],
+      ['Урон зброї','діапазон «Урон» / «Магічний урон» зброї в руках','Адмінка → Items: зброя, головна характеристика від–до'],
+      ['Сталий урон','«Фіз. Урон» / «Маг. Урон» без % у додаткових навичках','Адмінка → Items: додаткові навички'],
+      ['Відсоток урону','«Фіз. Урон %» / «Маг. Урон %» множить урон після броні','Адмінка → Items: навичка з галочкою %'],
+      ['Броня / маг. захист','віднімається від кожного удару суперника','Адмінка → Items: «Броня», «Магічний захист»'],
+      ['Множник криту','у скільки разів б\'є крит','sk-arena-rules.js → BATTLE.critMult ('+B.critMult+')'],
+      ['Частота критів','менше число = частіше; + «Шанс крит. урону» речей','sk-arena-rules.js → BATTLE.critChance ('+B.critChance+')'],
+      ['Влучання','точність проти спритності; межі шансу','BATTLE.hitBase / hitMin / hitMax ('+B.hitBase+' / '+B.hitMin+' / '+B.hitMax+')'],
+      ['Сила блоку','скільки урону проходить у заблоковану зону','BATTLE.blockKeep ('+B.blockKeep+')'],
+      ['Мінімальний урон','влучний удар крізь велику броню','BATTLE.minDmg ('+B.minDmg+')'],
+      ['Кількість ударів','+1 удар за кожну «Додаткову атаку»','Адмінка → Items: «Додаткова атака»'],
+      ['Сила суперника','розкид профілю бота від Героя','BATTLE.botVary ('+B.botVary+')']
+     ].map(function(r){return '<tr><td><span class="nm">'+esc(r[0])+'</span></td><td>'+esc(r[1])+'</td><td><span class="key">'+esc(r[2])+'</span></td></tr>';}).join('')
+    +'</tbody></table></div>'
+    +'<p class="hint" style="margin-top:8px">Після зміни sk-arena-rules.js підніми ?v= у підключенні файлу на arena.html і admin-arena.html, щоб браузери взяли нову версію.</p></section>';
+  return formula+'<section class="sec"><h2>⚔️ Бій</h2><p class="hint">Урон рахується для <b>кожного удару окремо</b>, кроки 1–6 по черзі. Числа змінюються в <b>sk-arena-rules.js</b> (BATTLE) — і арена, і ця сторінка беруть їх звідти. У журналі бою наведи мишу на рядок — побачиш розрахунок кожного удару.</p>'
     +tbl(['Що','Значення','Як працює'],battle)+'</section>'
     +'<section class="sec"><h2>🎯 Зони удару → речі</h2><p class="hint">Які слоти екіпіровки закривають кожну зону. Удар у зону зношує всі речі цієї зони.</p>'
     +tbl(['Зона','Слоти'],zones)+'</section>'
