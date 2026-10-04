@@ -159,6 +159,15 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
   text-align:center;font-weight:800;color:#a06a1a;display:none}
 .isle-clap.on{display:block;animation:pop .3s ease}
 
+
+/* «Нагороду отримано» — на старті замість віршика (sk-prize.js) */
+.done-card{display:none;align-items:center;gap:12px;max-width:440px;width:100%;margin:2px auto 0;text-align:left;
+  background:linear-gradient(180deg,#fffdf4,#fff6df);border:3px solid #f4c842;border-radius:20px;
+  padding:10px 14px;box-shadow:0 0 0 3px #fff9e6}
+.done-card.on{display:flex}
+.done-card .dc-ic{font-size:30px;flex:none}
+.done-card .dc-got{font-family:'Fredoka',sans-serif;font-weight:700;font-size:15px;color:#8a5e16;line-height:1.2}
+.done-card .dc-go{font-family:'Nunito',sans-serif;font-weight:800;font-size:12px;color:#6b6a7d;margin-top:3px;line-height:1.25}
 </style>
 </head>
 <body>
@@ -171,7 +180,12 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
     </div>
     <h1>Як ти проводиш<br>канікули?</h1>
     <p class="sub">8 запитань · дізнайся, хто ти на відпочинку</p>
-    <p class="rhyme">Дай відповіді чесно — і я підкажу, яке хобі зробить твої канікули найкращими! 🌞</p>
+    <p class="rhyme" id="startRhyme">Дай відповіді чесно — і я підкажу, яке хобі зробить твої канікули найкращими! 🌞</p>
+    <div class="done-card" id="startDone">
+      <span class="dc-ic">🏆</span>
+      <div><div class="dc-got" id="doneGot">Тренажер пройдено!</div>
+        <div class="dc-go" id="doneGo">Вирушай за новими досягненнями!</div></div>
+    </div>
     <div class="start-btns">
       <button class="big-btn" onclick="startQuiz()">▶ Почати тест</button>
       <button class="big-btn gold" id="mapBtn" style="display:none" onclick="openMap()">🗺️ Моя Карта пригод</button>
@@ -426,6 +440,7 @@ function finish(){
   try{ localStorage.setItem(STORE, JSON.stringify(ranked)); }catch(e){}
   renderResult(ranked);
   show('result');
+  if(window.skpClaim) skpClaim('Тест пройдено!');   // перше проходження → нагорода (один раз)
 }
 
 function showLast(){
@@ -611,6 +626,30 @@ function toggleTask(i){
 <!-- Firebase лише для спільного футера (кнопка «Назад») -->
 <script type="module" src="../firebase-config.js"></script>
 
+<script>
+/* ── Нагорода з адмінки (sk-prize.js) — один раз, за перше повне проходження:
+   поп-ап + предмет в інвентар героя; на старті потім картка замість віршика. ── */
+var SKP_KEY="sk_kanikuly_prize_v1", SKP_HREF="yak-kanikuly.html";
+function skpRefresh(){
+  var p = window.SKPRIZE ? SKPRIZE.summary(SKP_KEY) : null;
+  var card=document.getElementById("startDone"), rhyme=document.getElementById("startRhyme");
+  if(card) card.classList.toggle("on", !!p);
+  if(rhyme) rhyme.style.display = p ? "none" : "";
+  if(!p || !card) return;
+  var t=SKPRIZE.doneText(p, "Тест «Як провести канікули» пройдено — нагороду отримано!");
+  document.getElementById("doneGot").textContent=t.got;
+  document.getElementById("doneGo").textContent=t.go;
+}
+function skpClaim(title){
+  if(!window.SKPRIZE || SKPRIZE.summary(SKP_KEY)) return;
+  SKPRIZE.claim({key:SKP_KEY, href:SKP_HREF, title:title, onClose:skpRefresh});
+}
+window.addEventListener("load", skpRefresh);
+</script>
+<script src="../sk-items.js?v=2"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=3"></script>
+<script src="../sk-prize.js?v=1"></script>
 <script src="../sk-finish.js?v=4"></script>
 </body>
 </html>

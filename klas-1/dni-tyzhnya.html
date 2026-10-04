@@ -227,6 +227,15 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .no-voice .dc-speak,.no-voice .q-speak,.no-voice .hearword,.no-voice .voice-row{display:none!important}
 @media(max-width:380px){.dc-name{font-size:32px}.dc-emoji{font-size:88px}.tile.day{min-width:82px;font-size:13px}}
 
+
+/* «Нагороду отримано» — на старті замість віршика (sk-prize.js) */
+.done-card{display:none;align-items:center;gap:12px;max-width:440px;width:100%;margin:2px auto 0;text-align:left;
+  background:linear-gradient(180deg,#fffdf4,#fff6df);border:3px solid #f4c842;border-radius:20px;
+  padding:10px 14px;box-shadow:0 0 0 3px #fff9e6}
+.done-card.on{display:flex}
+.done-card .dc-ic{font-size:30px;flex:none}
+.done-card .dc-got{font-family:'Fredoka',sans-serif;font-weight:700;font-size:15px;color:#8a5e16;line-height:1.2}
+.done-card .dc-go{font-family:'Nunito',sans-serif;font-weight:800;font-size:12px;color:#6b6a7d;margin-top:3px;line-height:1.25}
 </style>
 </head>
 <body>
@@ -240,11 +249,16 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
     </div>
     <h1>Дні тижня</h1>
     <p class="sub">Вивчи 7 днів та їхній порядок</p>
-    <div class="rhyme">
+    <div class="rhyme" id="startRhyme">
       Пн, Вт, Ср, Чт, Пт —<br>
       п'ять днів працюємо й вчимось.<br>
       А Субота і Неділя —<br>
       відпочинок для родини! 🎉
+    </div>
+    <div class="done-card" id="startDone">
+      <span class="dc-ic">🏆</span>
+      <div><div class="dc-got" id="doneGot">Тренажер пройдено!</div>
+        <div class="dc-go" id="doneGo">Вирушай за новими досягненнями!</div></div>
     </div>
     <div class="start-btns">
       <button class="big-btn" onclick="startLearn()">📚 Вивчати дні ▶</button>
@@ -674,6 +688,8 @@ function finishGame(){
   const stars=pct>=1?3:pct>=0.66?2:pct>0?1:0;
   const prev=state.stars[play.game]||0;
   if(stars>prev){ state.stars[play.game]=stars; save(); }
+  // кожна гра пройдена хоч на зірку → тренажер пройдено, нагорода (один раз)
+  if(GAMES.every(g=>(state.stars[g.id]||0)>0) && window.skpClaim) skpClaim('Усі ігри пройдено!');
   const shown=Math.max(stars,0);
   const body=document.getElementById('playBody');
   const msg=stars===3?'Ідеально! Усе правильно!':stars===2?'Дуже добре!':stars===1?'Гарний початок!':'Спробуй ще раз!';
@@ -784,6 +800,30 @@ if(!state.soundOn) document.querySelectorAll('.sndbtn').forEach(b=>{b.classList.
 <!-- Firebase лише для кнопки «Вийти» у спільному футері -->
 <script type="module" src="../firebase-config.js"></script>
 
+<script>
+/* ── Нагорода з адмінки (sk-prize.js) — один раз, за перше повне проходження:
+   поп-ап + предмет в інвентар героя; на старті потім картка замість віршика. ── */
+var SKP_KEY="sk_dni_prize_v1", SKP_HREF="dni-tyzhnya.html";
+function skpRefresh(){
+  var p = window.SKPRIZE ? SKPRIZE.summary(SKP_KEY) : null;
+  var card=document.getElementById("startDone"), rhyme=document.getElementById("startRhyme");
+  if(card) card.classList.toggle("on", !!p);
+  if(rhyme) rhyme.style.display = p ? "none" : "";
+  if(!p || !card) return;
+  var t=SKPRIZE.doneText(p, "Дні тижня пройдено — нагороду отримано!");
+  document.getElementById("doneGot").textContent=t.got;
+  document.getElementById("doneGo").textContent=t.go;
+}
+function skpClaim(title){
+  if(!window.SKPRIZE || SKPRIZE.summary(SKP_KEY)) return;
+  SKPRIZE.claim({key:SKP_KEY, href:SKP_HREF, title:title, onClose:skpRefresh});
+}
+window.addEventListener("load", skpRefresh);
+</script>
+<script src="../sk-items.js?v=2"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=3"></script>
+<script src="../sk-prize.js?v=1"></script>
 <script src="../sk-finish.js?v=4"></script>
 <!-- однакове гортання й розмір карток у всіх тренажерах -->
 <script src="../sk-cards.js?v=2"></script>
