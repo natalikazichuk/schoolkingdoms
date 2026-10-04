@@ -18,27 +18,30 @@
           магічний  = магічний урон зброї (діапазон) + сталий «Маг. урон» речей
        2) фізичний − броня захисника, магічний − магічний захист (не нижче 0)
        3) × відсоткові підвищення з речей (+N% урону / +N% маг. урону)
-       4) крит: шанс = точність / critChance + «Шанс крит. урону» речей → × critMult
+       4) крит: шанс = critBase% + «Шанс крит. урону» речей (і вмінь) → × critMult
           (кидок 🎲 d100: випало ≤ шансу у % — крит)
        5) влучив? шанс = hitBase × точність / спритність захисника, в межах [hitMin; hitMax]
           (кидок 🎲 d100: випало ≤ шансу у % — влучив; мінімум 20% → 🎲 1..20 влучає завжди)
-       6) удар у заблоковану зону проходить на blockKeep
+       6) удар у заблоковану зону повністю поглинається (blockKeep = 0)
        Влучний удар завдає щонайменше minDmg.
      Ударів за хід = 1 + «Додаткова атака» з речей. */
   var BATTLE = {
     turnSeconds: 30,   // секунд на хід
     baseDmg: 10,       // базовий фізичний урон удару
     minDmg: 1,         // мінімум урону влучного удару (навіть крізь велику броню)
-    critChance: 280,   // шанс криту = точність / critChance (менше = частіше)
+    critBase: 1,       // базовий шанс криту, % (далі — речі й уміння Героя)
     critMult: 2,       // крит множить урон
     hitBase: 0.5,      // точність = спритність → 50% влучити
     hitMin: 0.20,      // шанс влучити не нижче
     hitMax: 0.95,      // і не вище
-    blockKeep: 0.30,   // скільки урону проходить крізь блок (мінімум 1)
+    blockKeep: 0,      // скільки урону проходить крізь блок (0 — блок поглинає повністю)
     botVary: 0.20,     // суперник: ±20% від показників Героя
-    xpWin: 25,         // досвід за перемогу
-    xpLose: 8,         // досвід за поразку / нічию
-    xpPerLvl: 120      // досвіду на рівень = рівень × xpPerLvl
+    xpWin: 50,         // досвід за перемогу (× коефіцієнт сили суперника)
+    xpDraw: 25,        // досвід за нічию (× той самий коефіцієнт)
+    xpLose: 8,         // досвід за поразку (без коефіцієнта)
+    xpAdv: 0.5,        // ±50%: суперник удвічі сильніший → ×1.5, удвічі слабший → ×0.5
+    xpLevels: [1000, 2000, 4000, 8000],   // досвіду до рівня 2, 3, 4, 5
+    xpFlat: 8000       // далі — стала кількість на кожен рівень
   };
 
   /* ── бойові характеристики Героя, яких немає в базі Героя ──
@@ -156,7 +159,28 @@
     var c = BATTLE.hitBase * num(att.accuracy) / Math.max(1, num(def.agility));
     return Math.max(BATTLE.hitMin, Math.min(BATTLE.hitMax, c));
   }
-  function critChance(att) { return num(att.accuracy) / BATTLE.critChance + num(att.critPct) / 100; }
+  function critChance(att) { return num(BATTLE.critBase) / 100 + num(att.critPct) / 100; }
+
+  /* ── досвід ──
+     power — «загальна сила» бійця: сума бойових показників
+       витривалість + точність + спритність + броня + маг. захист + середній урон удару.
+     xpCoef — множник досвіду за різницю сил: 1 + xpAdv × log2(сила суперника / сила Героя),
+       у межах [1 − xpAdv; 1 + xpAdv]. Удвічі сильніший суперник → ×1.5, рівний → ×1, удвічі слабший → ×0.5.
+     xpNeed(level) — скільки досвіду потрібно з рівня level до наступного. */
+  function power(p) {
+    p = p || {};
+    var avgPhys = BATTLE.baseDmg + (num(p.wMin) + num(p.wMax)) / 2 + num(p.dmgFlat);
+    var avgMag = (num(p.magMin) + num(p.magMax)) / 2 + num(p.magFlat);
+    return Math.max(1, num(p.hp) + num(p.accuracy) + num(p.agility) + num(p.armor) + num(p.magicResist) + avgPhys + avgMag);
+  }
+  function xpCoef(me, op) {
+    var c = 1 + BATTLE.xpAdv * Math.log(power(op) / power(me)) / Math.LN2;
+    return Math.max(1 - BATTLE.xpAdv, Math.min(1 + BATTLE.xpAdv, c));
+  }
+  function xpNeed(level) {
+    var L = BATTLE.xpLevels || [], i = Math.max(1, Math.floor(num(level) || 1)) - 1;
+    return i < L.length ? L[i] : (BATTLE.xpFlat || L[L.length - 1] || 1000);
+  }
 
   /* Кидок кубика d100: 1..100. Подія спрацьовує, якщо випало ≤ шансу у відсотках
      (шанс 49% → треба 1..49). Так кидок видно в журналі: «🎲 37 ≤ 49». */
@@ -183,7 +207,10 @@
     function ret(o) { for (var k in o) out[k] = o[k]; return out; }
     if (hitRoll > hitNeed) return ret({ dmg: 0, kind: 'dodge', crit: false, calc: 'промах: 🎲 ' + hitRoll + ' > ' + hitNeed });
     dmg = Math.max(BATTLE.minDmg, Math.round(dmg));
-    if (blocked) return ret({ dmg: Math.max(1, Math.round(dmg * BATTLE.blockKeep)), kind: 'block', crit: crit, calc: calc + ' → блок ' + Math.round(BATTLE.blockKeep * 100) + '%' });
+    if (blocked) {
+      var kept = Math.round(dmg * BATTLE.blockKeep);
+      return ret({ dmg: kept, kind: 'block', crit: crit, calc: calc + (kept ? ' → блок, проходить ' + Math.round(BATTLE.blockKeep * 100) + '%' : ' = ' + dmg + ' → блок поглинув усе') });
+    }
     return ret({ dmg: dmg, kind: crit ? 'crit' : 'hit', crit: crit, calc: calc });
   }
 
@@ -200,6 +227,7 @@
     BATTLE: BATTLE, ZONES: ZONES, HAND_SLOTS: HAND_SLOTS, WEAR: WEAR, COMBAT_STATS: COMBAT_STATS,
     SLOT_UK: SLOT_UK, zoneOfSlot: zoneOfSlot,
     fighter: fighter, varyFighter: varyFighter, hitChance: hitChance, critChance: critChance,
-    strike: strike, attack: attack, d100: d100
+    strike: strike, attack: attack, d100: d100,
+    power: power, xpCoef: xpCoef, xpNeed: xpNeed
   };
 })(typeof window !== 'undefined' ? window : this);
