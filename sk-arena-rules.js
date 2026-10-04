@@ -19,7 +19,9 @@
        2) фізичний − броня захисника, магічний − магічний захист (не нижче 0)
        3) × відсоткові підвищення з речей (+N% урону / +N% маг. урону)
        4) крит: шанс = точність / critChance + «Шанс крит. урону» речей → × critMult
+          (кидок 🎲 d100: випало ≤ шансу у % — крит)
        5) влучив? шанс = hitBase × точність / спритність захисника, в межах [hitMin; hitMax]
+          (кидок 🎲 d100: випало ≤ шансу у % — влучив; мінімум 20% → 🎲 1..20 влучає завжди)
        6) удар у заблоковану зону проходить на blockKeep
        Влучний удар завдає щонайменше minDmg.
      Ударів за хід = 1 + «Додаткова атака» з речей. */
@@ -38,6 +40,23 @@
     xpLose: 8,         // досвід за поразку / нічию
     xpPerLvl: 120      // досвіду на рівень = рівень × xpPerLvl
   };
+
+  /* ── бойові характеристики Героя, яких немає в базі Героя ──
+     Стартове значення в усіх 0: Герой отримує їх лише з речей
+     (fighter() читає stats[key] — відсутнє = 0). arena — що вони роблять
+     у бою зараз (null — поки не діє). */
+  var COMBAT_STATS = [
+    { key: 'armor',       label: 'Броня',                 emoji: '🛡️', base: 0, arena: 'віднімається від фізичного урону суперника' },
+    { key: 'magicResist', label: 'Магічний захист',       emoji: '🔮', base: 0, arena: 'віднімається від магічного урону суперника' },
+    { key: 'damage',      label: 'Фізичний урон',         emoji: '⚔️', base: 0, arena: 'зброя в руках — діапазон удару; інші речі — + до удару, % — множник' },
+    { key: 'magicDamage', label: 'Магічний урон',         emoji: '✨', base: 0, arena: 'магічна частина удару; % — множник' },
+    { key: 'critDamage',  label: 'Шанс крит. урону',      emoji: '💥', base: 0, arena: '+ до шансу криту (у %)' },
+    { key: 'extraAttack', label: 'Додаткова атака',       emoji: '⚡', base: 0, arena: '+1 удар за хід за кожну одиницю' },
+    { key: 'block',       label: 'Шанс блоку',            emoji: '🧱', base: 0, arena: null },
+    { key: 'stun',        label: 'Оглушення',             emoji: '💫', base: 0, arena: null },
+    { key: 'healthRegen', label: "Відновлення здоров'я",  emoji: '💚', base: 0, arena: null },
+    { key: 'beltSlots',   label: 'Комірки пояса',         emoji: '🧵', base: 0, arena: null }
+  ];
 
   /* ── зони удару → слоти екіпіровки, які її закривають ──
      Ключі слотів — як у EQUIP в arena.html (inst.slot у інвентарі). */
@@ -139,22 +158,33 @@
   }
   function critChance(att) { return num(att.accuracy) / BATTLE.critChance + num(att.critPct) / 100; }
 
-  /* Один удар: {dmg, kind:'hit'|'crit'|'block'|'dodge', crit, calc} */
+  /* Кидок кубика d100: 1..100. Подія спрацьовує, якщо випало ≤ шансу у відсотках
+     (шанс 49% → треба 1..49). Так кидок видно в журналі: «🎲 37 ≤ 49». */
+  function d100(rnd) { return 1 + Math.floor(rnd() * 100); }
+  function pctOf(x) { return Math.max(0, Math.min(100, Math.round(x * 100))); }
+
+  /* Один удар. Порядок як у формулі: урон → броня → % → крит → влучання → блок.
+     Повертає {dmg, kind:'hit'|'crit'|'block'|'dodge', crit,
+               hitRoll, hitNeed, critRoll, critNeed, armor, raw, calc} */
   function strike(att, def, blocked, rnd) {
     rnd = rnd || Math.random;
     var w = rollRange(att.wMin, att.wMax, rnd), m = rollRange(att.magMin, att.magMax, rnd);
     var physRaw = BATTLE.baseDmg + w + num(att.dmgFlat), magRaw = m + num(att.magFlat);
     var phys = Math.max(0, physRaw - num(def.armor)) * (1 + num(att.dmgPct) / 100);
     var mag = Math.max(0, magRaw - num(def.magicResist)) * (1 + num(att.magPct) / 100);
-    var crit = rnd() < critChance(att);
+    var critNeed = pctOf(critChance(att)), critRoll = d100(rnd), crit = critRoll <= critNeed;
+    var hitNeed = pctOf(hitChance(att, def)), hitRoll = d100(rnd);
     var dmg = (phys + mag) * (crit ? BATTLE.critMult : 1);
     var calc = '(' + physRaw + ' − броня ' + num(def.armor) + ')' + (att.dmgPct ? ' × ' + (100 + num(att.dmgPct)) + '%' : '')
       + (magRaw ? ' + (маг. ' + magRaw + ' − захист ' + num(def.magicResist) + ')' + (att.magPct ? ' × ' + (100 + num(att.magPct)) + '%' : '') : '')
       + (crit ? ' × ' + BATTLE.critMult + ' крит' : '');
-    if (rnd() >= hitChance(att, def)) return { dmg: 0, kind: 'dodge', crit: false, calc: 'промах (шанс ' + Math.round(hitChance(att, def) * 100) + '%)' };
+    var out = { hitRoll: hitRoll, hitNeed: hitNeed, critRoll: critRoll, critNeed: critNeed,
+                raw: physRaw + magRaw, armor: num(def.armor) + (magRaw ? num(def.magicResist) : 0) };
+    function ret(o) { for (var k in o) out[k] = o[k]; return out; }
+    if (hitRoll > hitNeed) return ret({ dmg: 0, kind: 'dodge', crit: false, calc: 'промах: 🎲 ' + hitRoll + ' > ' + hitNeed });
     dmg = Math.max(BATTLE.minDmg, Math.round(dmg));
-    if (blocked) return { dmg: Math.max(1, Math.round(dmg * BATTLE.blockKeep)), kind: 'block', crit: crit, calc: calc + ' → блок ' + Math.round(BATTLE.blockKeep * 100) + '%' };
-    return { dmg: dmg, kind: crit ? 'crit' : 'hit', crit: crit, calc: calc };
+    if (blocked) return ret({ dmg: Math.max(1, Math.round(dmg * BATTLE.blockKeep)), kind: 'block', crit: crit, calc: calc + ' → блок ' + Math.round(BATTLE.blockKeep * 100) + '%' });
+    return ret({ dmg: dmg, kind: crit ? 'crit' : 'hit', crit: crit, calc: calc });
   }
 
   /* Атака за хід: 1 + extra ударів, кожен окремо. Підсумок — для показу. */
@@ -167,9 +197,9 @@
   }
 
   root.SKARENA = {
-    BATTLE: BATTLE, ZONES: ZONES, HAND_SLOTS: HAND_SLOTS, WEAR: WEAR,
+    BATTLE: BATTLE, ZONES: ZONES, HAND_SLOTS: HAND_SLOTS, WEAR: WEAR, COMBAT_STATS: COMBAT_STATS,
     SLOT_UK: SLOT_UK, zoneOfSlot: zoneOfSlot,
     fighter: fighter, varyFighter: varyFighter, hitChance: hitChance, critChance: critChance,
-    strike: strike, attack: attack
+    strike: strike, attack: attack, d100: d100
   };
 })(typeof window !== 'undefined' ? window : this);

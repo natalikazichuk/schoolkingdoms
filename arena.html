@@ -462,6 +462,22 @@ body.scr-battle .wrap{max-width:1500px}
 .step .no{flex:none;font-family:'Fredoka';font-weight:700;font-size:.64rem;color:#0c2247;background:var(--gold);border-radius:20px;padding:1px 7px;margin-top:1px}
 .step .txt{color:#eaf2ff}
 .step .g{color:var(--ok)} .step .b{color:#ffcf4d} .step .r{color:#ff9a6b}
+.step .dice{display:block;margin-top:2px;font-size:.64rem;font-weight:700;color:#a9c1e4;line-height:1.3}
+.step .dice b{color:#eaf2ff}
+/* журнал: простий режим ховає кидки й розрахунки; поломки речей видно завжди */
+.rsteps.simple .dice{display:none}
+.step.brk .txt{font-weight:900}
+.step.brk.lost .txt{color:#ff5a5a}          /* твою річ вивели з ладу — червоним */
+.step.brk.won .txt{color:#ffe14d}           /* ти вивів з ладу річ суперника — яскраво жовтим */
+.step.brk .no{background:#3a1420;color:#ffd0d0}
+.step.brk.won .no{background:#4a3a08;color:#ffe14d}
+.logbar{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 8px}
+.logbar button{font:inherit;font-size:.68rem;font-weight:800;color:#cfe0f5;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.16);border-radius:999px;padding:4px 10px;cursor:pointer}
+.logbar button.on{background:var(--gold);color:#0c2247;border-color:var(--gold)}
+.logbar .lb-sp{flex:1}
+.logbar button.warn{border-color:rgba(255,120,120,.45);color:#ffb3b3}
+.rbig .rdice{display:block;margin-top:3px;font-size:.74rem;font-weight:800;color:#ffe08a;font-variant-numeric:tabular-nums}
+.rbig .rdice.rolling{opacity:.7}
 
 /* спливаючі цифри шкоди на банерах бійців — великі, повільно зникають */
 .dmg-float{position:absolute;top:34%;left:50%;z-index:50;pointer-events:none;
@@ -932,6 +948,15 @@ body.scr-battle .wrap{max-width:1500px}
       <div class="rbig plain" id="rbig">Обери ціль і тисни «Атака»</div>
       <details class="rlog">
         <summary>Журнал бою</summary>
+        <div class="logbar">
+          <button type="button" id="logSimple">Простий</button>
+          <button type="button" id="logFull">Детальний</button>
+          <span class="lb-sp"></span>
+          <button type="button" id="logCopy" title="Скопіювати журнал у буфер обміну">📋 Копіювати</button>
+          <button type="button" id="logSave" title="Зберегти журнал у текстовий файл">💾 Зберегти</button>
+          <button type="button" id="logClear" title="Очистити журнал (бій триває)">🧹 Скинути</button>
+          <button type="button" id="logReport" class="warn" title="Повідомити адміністратора про нечесний бій">🚩 Поскаржитись</button>
+        </div>
         <div class="rsteps" id="steps"><div class="steps-empty">Ходи бою зʼявляться тут…</div></div>
       </details>
     </div>
@@ -1029,7 +1054,7 @@ body.scr-battle .wrap{max-width:1500px}
 <script type="module" src="firebase-config.js"></script>
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
-<script src="sk-arena-rules.js?v=2"></script>
+<script src="sk-arena-rules.js?v=4"></script>
 <script>
 (function(){
   'use strict';
@@ -1426,13 +1451,13 @@ body.scr-battle .wrap{max-width:1500px}
   }
   function loadHeroFighter(){
     var stats = {health:hero.health, accuracy:hero.accuracy, agility:hero.agility, mana:hero.mana};
-    if(!RULES.fighter || !window.SKIT || !window.SK || !SK.getInventory || !SK.listItems) return Promise.resolve(plainFighter(stats));
+    if(!RULES.fighter || !window.SKIT || !window.SK || !SK.getInventory || !SK.listItems) return Promise.resolve({p:plainFighter(stats), eq:[]});
     return Promise.all([SK.getInventory(), SK.listItems()]).then(function(r){
       var by = {}; (r[1]||[]).forEach(function(it){ by[it.id] = it; });
       var eq = (r[0]||[]).filter(function(i){ return i && i.slot && !/^belt\d/.test(i.slot) && by[i.id]; })
                          .map(function(i){ return {base:by[i.id], inst:i}; });
-      return RULES.fighter(stats, eq, window.SKIT);
-    }).catch(function(e){ try{ console.error('[арена] екіпіровку не прочитано:', e); }catch(_){} return plainFighter(stats); });
+      return {p:RULES.fighter(stats, eq, window.SKIT), eq:eq};
+    }).catch(function(e){ try{ console.error('[арена] екіпіровку не прочитано:', e); }catch(_){} return {p:plainFighter(stats), eq:[]}; });
   }
 
   /* ── ПАУЗА БОЮ ───────────────────────────────────────────────────
@@ -1457,7 +1482,7 @@ body.scr-battle .wrap{max-width:1500px}
     try{
       localStorage.setItem(BATTLE_KEY, JSON.stringify({
         v:1, heroId:battleHeroId(), round:B.round,
-        me:{force:B.me.force, max:B.me.max, p:B.me.p},
+        me:{force:B.me.force, max:B.me.max, p:B.me.p, eq:B.me.eq||[]},
         op:{force:B.op.force, max:B.op.max, f:B.op.f},
         steps:B.steps||'', wear:B.wear||newWear()
       }));
@@ -1477,7 +1502,7 @@ body.scr-battle .wrap{max-width:1500px}
   function restoreBattle(o){
     B = {
       round: +o.round || 1, over:false, resolving:false,
-      me: {f:hero,    p:o.me.p || plainFighter(hero),             force:o.me.force, max:o.me.max || maxForce(hero),  atk:null, block:null},
+      me: {f:hero,    p:o.me.p || plainFighter(hero), eq:o.me.eq || [],             force:o.me.force, max:o.me.max || maxForce(hero),  atk:null, block:null},
       op: {f:o.op.f,  p:o.op.f.p || plainFighter(o.op.f),         force:o.op.force, max:o.op.max || maxForce(o.op.f), atk:null, block:null},
       timer:null, left:TURN_SECONDS, steps:o.steps||'', wear:Object.assign(newWear(), o.wear||{})
     };
@@ -1514,7 +1539,8 @@ body.scr-battle .wrap{max-width:1500px}
     // безкоштовним лікуванням і втечею від поразки.
     if(hasLiveBattle()){ enterBattle(); return; }
     if(startBattle.busy) return; startBattle.busy = true;
-    loadHeroFighter().then(function(mp){
+    loadHeroFighter().then(function(r){
+      var mp = r.p;
       startBattle.busy = false;
       if(hasLiveBattle()){ enterBattle(); return; }
       var bot = pickBot();
@@ -1522,7 +1548,7 @@ body.scr-battle .wrap{max-width:1500px}
       bot.p = RULES.varyFighter ? RULES.varyFighter(mp, CFG.botVary) : plainFighter(bot);
       B = {
         round:1, over:false, resolving:false,
-        me:   {f:hero, p:mp,    force:mp.hp,    max:mp.hp,    atk:null, block:null},
+        me:   {f:hero, p:mp, eq:eqLite(r.eq), force:mp.hp, max:mp.hp, atk:null, block:null},
         op:   {f:bot,  p:bot.p, force:bot.p.hp, max:bot.p.hp, atk:null, block:null},
         timer:null, left:TURN_SECONDS, steps:'', wear:newWear()
       };
@@ -1684,6 +1710,125 @@ body.scr-battle .wrap{max-width:1500px}
     }).catch(function(e){ try{ console.error('[арена] знос речей не збережено:', e); }catch(_){} });
   }
 
+  /* ── поломки речей під час бою ──
+     eq — вдягнені речі Героя на старті бою (з міцністю на той момент).
+     Річ виходить з ладу, коли накопичений за бій знос її зони / зброї / щита
+     сягає її міцності. Тоді вона одразу перестає діяти (профіль перераховується),
+     а в журналі з'являється рядок: червоним — якщо зламали твою річ,
+     яскраво жовтим — якщо ти зламав річ суперника. */
+  function eqLite(eq){
+    return (eq||[]).map(function(e){
+      return {uid:e.inst.uid, slot:e.inst.slot, dur:(e.inst.durMax==null ? null : Number(e.inst.durCur!=null ? e.inst.durCur : e.inst.durMax)),
+              base:e.base, inst:{uid:e.inst.uid, id:e.inst.id, slot:e.inst.slot, bonus:e.inst.bonus, durMax:e.inst.durMax, durCur:e.inst.durCur}};
+    });
+  }
+  function wearOf(e, w){
+    var z = RULES.zoneOfSlot ? RULES.zoneOfSlot(e.slot) : null;
+    if(z) return w[z]||0;
+    if((RULES.HAND_SLOTS||[]).indexOf(e.slot) >= 0) return (e.base && e.base.category==='Щити') ? w.shield : w.weapon;
+    return 0;
+  }
+  function checkBreaks(){
+    var out = [], eq = B.me.eq || [], w = B.wear || newWear();
+    eq.forEach(function(e){
+      if(e.broken || e.dur == null || e.dur <= 0) return;
+      if(wearOf(e, w) >= e.dur){
+        e.broken = true; e.inst.durCur = 0;
+        out.push({owner:'me', name:(e.base && e.base.name) || (RULES.SLOT_UK||{})[e.slot] || e.slot});
+      }
+    });
+    if(out.length && RULES.fighter && window.SKIT){
+      // зламане більше не діє: перерахувати бойові показники (сила/HP не змінюються)
+      var np = RULES.fighter({health:hero.health, accuracy:hero.accuracy, agility:hero.agility, mana:hero.mana},
+        eq.map(function(e){ return {base:e.base, inst:e.inst}; }), window.SKIT);
+      np.hp = B.me.p.hp; B.me.p = np;
+    }
+    return out;
+  }
+  function addBreak(b){
+    var box = $('steps'); if(!box) return;
+    var row = document.createElement('div');
+    row.className = 'step brk ' + (b.owner==='me' ? 'lost' : 'won');
+    row.innerHTML = '<span class="no">💥</span><span class="txt">'
+      + (b.owner==='me' ? 'Твоя річ вийшла з ладу: ' : 'Ти вивів з ладу річ суперника: ') + b.name + '</span>';
+    box.appendChild(row); box.scrollTop = box.scrollHeight;
+    if(B) B.steps = box.innerHTML;
+  }
+
+  /* ── журнал: простий / детальний, скинути, поскаржитись ── */
+  var LOG_MODE_KEY = 'sk_arena_logmode';
+  function logMode(){ try{ return localStorage.getItem(LOG_MODE_KEY)==='full' ? 'full' : 'simple'; }catch(e){ return 'simple'; } }
+  function setLogMode(m){
+    try{ localStorage.setItem(LOG_MODE_KEY, m); }catch(e){}
+    var box = $('steps'); if(box) box.classList.toggle('simple', m!=='full');
+    if($('logSimple')) $('logSimple').classList.toggle('on', m!=='full');
+    if($('logFull'))   $('logFull').classList.toggle('on', m==='full');
+  }
+  /* журнал як текст: шапка + кожен хід окремим рядком; у детальному режимі
+     під ходом — кидки й розрахунки (як на екрані) */
+  function logText(full){
+    var box = $('steps'); if(!box) return '';
+    var d = new Date(), pad = function(n){ return (n<10?'0':'')+n; };
+    var lines = ['Журнал бою — SchoolKingdoms, Турнірна арена',
+      d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes())];
+    if(B && B.op) lines.push((hero.name||'Ти')+' проти '+B.op.f.name+' · раунд '+B.round
+      +' · сила '+Math.max(0,Math.round(B.me.force))+'/'+B.me.max+' проти '+Math.max(0,Math.round(B.op.force))+'/'+B.op.max);
+    lines.push('Режим: '+(full ? 'детальний' : 'простий'), '');
+    Array.prototype.forEach.call(box.querySelectorAll('.step'), function(r){
+      var no = r.querySelector('.no'), txt = r.querySelector('.txt'); if(!txt) return;
+      var c = txt.cloneNode(true), dice = [];
+      Array.prototype.forEach.call(c.querySelectorAll('.dice'), function(x){ dice.push(x.textContent.replace(/\s+/g,' ').trim()); x.remove(); });
+      var head = (no ? no.textContent.trim() : '');
+      lines.push((r.classList.contains('brk') ? '💥 ' : (head ? head+': ' : '')) + c.textContent.replace(/\s+/g,' ').trim());
+      if(full) dice.forEach(function(t){ lines.push('    '+t); });
+    });
+    if(lines.length <= 5) lines.push('(журнал порожній)');
+    return lines.join('\n');
+  }
+  function copyLog(){
+    var t = logText(logMode()==='full');
+    function ok(){ showToast('Журнал скопійовано', 'Встав його будь-де: Ctrl+V'); }
+    function fallback(){
+      var ta = document.createElement('textarea'); ta.value = t; ta.setAttribute('readonly','');
+      ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select();
+      var done = false; try{ done = document.execCommand('copy'); }catch(e){}
+      ta.remove(); done ? ok() : showToast('Не вдалося скопіювати', 'Спробуй «Зберегти»');
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(ok, fallback);
+    else fallback();
+  }
+  function saveLog(){
+    var t = logText(logMode()==='full');
+    var d = new Date(), pad = function(n){ return (n<10?'0':'')+n; };
+    var name = 'arena-log-'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'-'+pad(d.getHours())+pad(d.getMinutes())+'.txt';
+    var url = URL.createObjectURL(new Blob(['\ufeff'+t], {type:'text/plain;charset=utf-8'}));   // BOM — щоб Блокнот показав кирилицю
+    var a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+    showToast('Журнал збережено', name);
+  }
+
+  function clearLog(){
+    var box = $('steps'); if(!box) return;
+    box.innerHTML = '<div class="steps-empty">Журнал очищено. Нові ходи зʼявляться тут…</div>';
+    if(B){ B.steps = ''; saveBattle(); }
+  }
+  function reportAbuse(){
+    var box = $('steps');
+    var text = box ? Array.prototype.map.call(box.querySelectorAll('.step'), function(r){ return r.textContent.replace(/\s+/g,' ').trim(); }).join('\n') : '';
+    var note = prompt('Що сталося в цьому бою? (можна не писати)', '');
+    if(note === null) return;                         // скасували
+    var head = '🚩 Скарга з арени (зловживання)'
+      + (B && B.op ? '\nСуперник: ' + B.op.f.name + ' · раунд ' + B.round + ' · сила ' + Math.round(B.me.force) + '/' + B.me.max + ' проти ' + Math.round(B.op.force) + '/' + B.op.max : '')
+      + (note ? '\nКоментар: ' + note : '');
+    var msg = (head + '\n\nЖурнал бою:\n' + (text || '(порожній)')).slice(0, 3900);
+    var send = (window.SK && SK.submitReport)
+      ? SK.submitReport({message:msg, page:'Арена (скарга)', url:location.href,
+          heroName:hero.name||'', heroId:battleHeroId(), screen:innerWidth+'×'+innerHeight, ua:navigator.userAgent})
+      : Promise.reject(new Error('немає звʼязку з базою'));
+    send.then(function(){ showToast('Скаргу надіслано', 'Адміністратор перегляне цей бій'); },
+              function(){ showToast('Не вдалося надіслати', 'Спробуй ще раз пізніше'); });
+  }
+
   function resolve(){
     if(!B || B.over || B.resolving) return;
     B.resolving = true; stopTimer();
@@ -1694,6 +1839,7 @@ body.scr-battle .wrap{max-width:1500px}
     var opHit = computeHit(B.op, B.me);   // суперник → гравець
     B.op.f.lastPlayerAtk = B.me.atk;
     addWear(meHit, opHit);
+    var broke = checkBreaks();
 
     // застосувати
     B.op.force -= meHit.dmg;
@@ -1711,7 +1857,9 @@ body.scr-battle .wrap{max-width:1500px}
     addStep(B.round,
       phrase('Ти → '+ZONE_UA[B.me.atk], meHit)
       + ' <span style="opacity:.5">·</span> '
-      + phrase(B.op.f.name+' → '+ZONE_UA[B.op.atk], opHit));
+      + phrase(B.op.f.name+' → '+ZONE_UA[B.op.atk], opHit)
+      + diceLine('Ти', meHit) + diceLine(B.op.f.name, opHit));
+    broke.forEach(function(b){ addBreak(b); });
 
     // анімації смужок
     updateForce('o', B.op); updateForce('p', B.me);
@@ -1745,10 +1893,31 @@ body.scr-battle .wrap{max-width:1500px}
     else if(opHit.kind==='block') ok='ти захистився (−'+opHit.dmg+')';
     else ok='−'+opHit.dmg+' тобі';
     rb.className = 'rbig ' + cls;
+    var h0 = (meHit.hits || [meHit])[0] || {};
     rb.innerHTML = '<span class="rnum">'+num+'</span><span class="rlbl">'+lbl+'</span>'
+      + (h0.hitRoll!=null ? '<span class="rdice" id="rdice"></span>' : '')
       + '<span class="ropp">Суперник → '+ZONE_UA[B.op.atk]+': '+ok+'</span>';
+    if(h0.hitRoll!=null) rollDice($('rdice'), meHit.hits || [meHit]);
     void rb.offsetWidth;              // перезапуск drop-анімації
     rb.classList.add('show');
+  }
+
+  /* кубик у панелі результату: ~0.5 с «крутиться» випадковими числами, потім
+     зупиняється на справжньому кидку: «🎲 37 — треба ≤ 49» */
+  var diceT = null;
+  function rollDice(el, hits){
+    if(!el) return; clearInterval(diceT);
+    hits = (hits||[]).filter(function(h){ return h.hitRoll!=null; });
+    var n = 0; el.classList.add('rolling');
+    diceT = setInterval(function(){
+      if(++n >= 12){ clearInterval(diceT); el.classList.remove('rolling');
+        // кілька ударів («Додаткова атака») — кидок кожного: 🎲 78 > 55% промах · 🎲 17 ≤ 55% влучив
+        el.textContent = hits.map(function(h){
+          var ok = h.hitRoll <= h.hitNeed;
+          return '🎲 ' + h.hitRoll + (ok ? ' ≤ ' : ' > ') + h.hitNeed + '% ' + (ok ? 'влучив' : 'промах');
+        }).join(' · '); return; }
+      el.textContent = hits.map(function(){ return '🎲 ' + (1 + Math.floor(Math.random()*100)); }).join(' · ');
+    }, 45);
   }
 
   /* спливаюча цифра над карткою бійця, який отримав удар */
@@ -1776,6 +1945,20 @@ body.scr-battle .wrap{max-width:1500px}
   function resetSteps(){
     var box = $('steps'); if(box) box.innerHTML = '<div class="steps-empty">Ходи бою зʼявляться тут…</div>';
     var rb = $('rbig'); if(rb){ rb.className='rbig plain'; rb.textContent='Обери ціль і тисни «Атака»'; }
+  }
+
+  /* рядок кидків одного бійця: 🎲 d100 на влучання (≤ шансу — влучив), 🎲 на крит,
+     і розрахунок урону — щоб дитина бачила, чому вийшло саме так */
+  function diceLine(who, hit){
+    var hs = hit.hits || [hit];
+    return '<span class="dice">'+who+': '+hs.map(function(h,i){
+      if(h.hitRoll==null) return '';
+      var t = (hs.length>1 ? (i+1)+') ' : '')
+        + '🎲 <b>'+h.hitRoll+'</b> '+(h.hitRoll<=h.hitNeed?'≤':'>')+' '+h.hitNeed+'% '+(h.kind==='dodge'?'— промах':'— влучив');
+      if(h.kind!=='dodge') t += ' · крит 🎲 <b>'+h.critRoll+'</b> '+(h.crit?'≤':'>')+' '+h.critNeed+'%'
+        + ' · '+h.calc+' = <b>'+h.dmg+'</b>';
+      return t;
+    }).join(' &nbsp;|&nbsp; ')+'</span>';
   }
 
   function phrase(prefix, hit){
@@ -1866,6 +2049,13 @@ body.scr-battle .wrap{max-width:1500px}
   function wire(){
     bindKnight(); bindGuard();
     $('strikeBtn').addEventListener('click', resolve);
+    $('logSimple').addEventListener('click', function(){ setLogMode('simple'); });
+    $('logFull').addEventListener('click', function(){ setLogMode('full'); });
+    $('logClear').addEventListener('click', clearLog);
+    $('logCopy').addEventListener('click', copyLog);
+    $('logSave').addEventListener('click', saveLog);
+    $('logReport').addEventListener('click', reportAbuse);
+    setLogMode(logMode());
     $('findBtn').addEventListener('click', function(){
       startBattle();
     });
