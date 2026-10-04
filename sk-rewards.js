@@ -6,12 +6,12 @@
      rewards[ {item, chance, coins} ]   — до 4 слотів «предмет / шанс / монетки»
 
    Тут ми це нарешті ВИДАЄМО — один раз на Героя й на запис:
+     монети   → heroes/{id}.coins                          (SK.addCoins)
      предмети → heroes/{id}.inventory                      (SK.addToInventory)
      стат     → heroes/{id}.{health|mana|agility|accuracy} (SK.saveHeroStats)
 
-   Монет тренажери НЕ дають (як і очок / XP): нагорода — лише встановлений
-   предмет (і характеристика, якщо задана). Поле coins у слоті ігнорується;
-   слот із самими монетами нічого не видає. Шанс — на весь слот.
+   Шанс — на весь слот: випав, і дитина отримує і предмет, і монети слота.
+   Слот без предмета (самі монети) видається завжди.
 
    Одноразовість тримає ключ sk_reward_<id> у localStorage. Він із простору
    sk_*, тож firebase-config синхронізує його в heroes/{id}.progress — і на
@@ -127,13 +127,17 @@
   /* Розіграти слоти нагород. Шанс — на весь слот; слот без предмета
      (самі монети) не розігрується, а видається завжди. */
   function rollSlots(rewards) {
-    var out = { coins: 0, itemIds: [] };      // coins лишається 0 — тренажери монет не дають
+    var out = { coins: 0, itemIds: [] };
     (Array.isArray(rewards) ? rewards : []).forEach(function (s) {
       if (!s) return;
       var item = String(s.item || '').trim();
-      if (!item) return;                       // слот без предмета (самі монети) — пропускаємо
+      var coins = Math.max(0, Math.floor(num(s.coins)));
+      if (!item && !coins) return;
       var chance = (s.chance == null) ? 100 : Math.max(0, Math.min(100, num(s.chance)));
-      if (Math.random() * 100 < chance) out.itemIds.push(item);
+      var hit = item ? (Math.random() * 100 < chance) : true;
+      if (!hit) return;
+      if (item) out.itemIds.push(item);
+      out.coins += coins;
     });
     return out;
   }
