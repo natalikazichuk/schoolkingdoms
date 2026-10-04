@@ -714,6 +714,16 @@ body.scr-battle .wrap{max-width:1500px}
 .ek-empty{grid-column:1/-1;text-align:center;color:#9fb2d6;padding:22px 8px;font-weight:700}
 #ek-ghost{position:fixed;z-index:200;width:78px;height:78px;pointer-events:none;display:flex;align-items:center;justify-content:center;font-size:2rem;background:linear-gradient(180deg,#2c4a7d,#1b3157);border:2px solid #ffd873;border-radius:14px;box-shadow:0 12px 26px rgba(0,0,0,.5);transform:translate(-50%,-50%) scale(1.05);opacity:.96}
 #ek-ghost[hidden]{display:none}
+/* підказка предмета: назва кольором бонусу, далі характеристики — кожна в своєму рядку */
+#ek-tip{position:fixed;z-index:210;max-width:260px;pointer-events:none;background:rgba(14,24,44,.96);border:1.5px solid rgba(255,214,115,.55);border-radius:10px;padding:8px 11px;box-shadow:0 8px 20px rgba(0,0,0,.5);font-size:.82rem;line-height:1.35;color:#dbe6f7}
+#ek-tip[hidden]{display:none}
+#ek-tip .tp-name{font-weight:900;font-size:.92rem;margin-bottom:4px}
+#ek-tip .tp-name.b20{color:#ffd93b}
+#ek-tip .tp-name.b10{color:#c9d3de}
+#ek-tip .tp-name.b0{color:#ffffff}
+#ek-tip .tp-name.bm10{color:#8a8f98}
+#ek-tip .tp-row{white-space:normal}
+#ek-tip .tp-hid{opacity:.75}
 .ek-hint2{margin-top:10px;font-size:.72rem;color:#9fb2d6;text-align:center}
 .ek-hint2 b{color:#ffd98a}
 .ek-lvltop{display:flex;align-items:center;gap:8px;margin-bottom:9px}
@@ -2047,12 +2057,29 @@ function totals(){var baseHero={health:HERO.health||0,mana:HERO.mana||0,agility:
  var t={health:0,mana:0,agility:0,accuracy:0,armor:0,magicResist:0,magicDamage:0,damage:0};
  if(window.SKIT&&SKIT.combine){var c=SKIT.combine(baseHero,bases,insts);for(var k in c.stats)t[k]=c.stats[k];t._pctOnly=c.pctOnly;}else{t.health=baseHero.health;t.mana=baseHero.mana;t.agility=baseHero.agility;t.accuracy=baseHero.accuracy;}
  return t;}
-function bonusTitle(x){var base=BYID[x.id];if(!base)return x.name||'';var eff=(window.SKIT&&SKIT.effective)?SKIT.effective(base,x._inst||{bonus:1}):null;var p=[];
- if(eff&&eff.stat&&eff.valueMax!=null){var vt=eff.valueMin===eff.valueMax?eff.valueMin:(eff.valueMin+'–'+eff.valueMax);p.push((STAT_UK[SKIT.canon(eff.stat)]||eff.stat)+' '+vt);}
- var see=(window.SKIT&&SKIT.canSeeAddStats)?SKIT.canSeeAddStats(x._inst||{},HERO):false;
- if(eff&&eff.addStats.length){if(see){eff.addStats.forEach(function(e){if(e.flag||SKIT.isFlagEntry(e))p.push(e.stat);else p.push((STAT_UK[SKIT.canon(e.stat)]||e.stat)+' +'+e.value+(e.pct?'%':''));});}else{p.push('🔒 '+eff.addStats.length+' прихованих навичок');}}
- var bl=x.bonus>1.15?' ✨+20%':(x.bonus>1?' ✨+10%':(x.bonus<1?' ⬇−10%':''));
- return x.name+bl+(p.length?' — '+p.join(', '):'');}
+function bonusClass(b){return b>1.15?'b20':(b>1?'b10':(b<1?'bm10':'b0'));}
+function tipHTML(x){var base=BYID[x.id];var bc=bonusClass(x.bonus!=null?x.bonus:1);
+ var h='<div class="tp-name '+bc+'">'+esc(x.name||'')+'</div>';if(!base)return h;
+ var eff=(window.SKIT&&SKIT.effective)?SKIT.effective(base,x._inst||{bonus:1}):null;if(!eff)return h;var p=[];
+ if(eff.stat&&eff.valueMax!=null){var vt=eff.valueMin===eff.valueMax?eff.valueMin:(eff.valueMin+'–'+eff.valueMax);p.push(cap(STAT_UK[SKIT.canon(eff.stat)]||eff.stat)+' '+vt);}
+ var see=SKIT.canSeeAddStats?SKIT.canSeeAddStats(x._inst||{},HERO):false;
+ if(eff.addStats.length){if(see){eff.addStats.forEach(function(e){if(e.flag||SKIT.isFlagEntry(e))p.push(e.stat);else p.push(cap(STAT_UK[SKIT.canon(e.stat)]||e.stat)+' +'+e.value+(e.pct?'%':''));});}
+  }
+ h+=p.map(function(t){return '<div class="tp-row">'+esc(t)+'</div>';}).join('');
+ if(eff.addStats.length&&!see)h+='<div class="tp-row tp-hid">🔒 '+eff.addStats.length+' прихованих навичок</div>';
+ if(eff.durMax!=null)h+='<div class="tp-row">Міцність '+eff.durCur+' / '+eff.durMax+'</div>';
+ return h;}
+function cap(t){t=String(t);return t.charAt(0).toUpperCase()+t.slice(1);}
+function entryOfChip(el){var src=el.getAttribute('data-src');
+ if(src==='inv')return findInv(el.getAttribute('data-uid'));
+ if(src==='belt')return BELT[parseInt(el.getAttribute('data-belt'),10)]||null;
+ if(src==='slot')return EQUIP[el.getAttribute('data-slot')]||null;return null;}
+var tip=null;function hideTip(){if(tip)tip.hidden=true;}
+function showTip(el,x,y){var e=entryOfChip(el);if(!e){hideTip();return;}
+ if(!tip){tip=document.createElement('div');tip.id='ek-tip';tip.hidden=true;document.body.appendChild(tip);}
+ tip.innerHTML=tipHTML(e);tip.hidden=false;placeTip(x,y);}
+function placeTip(x,y){if(!tip||tip.hidden)return;var w=tip.offsetWidth,h=tip.offsetHeight,vw=window.innerWidth,vh=window.innerHeight;
+ var l=x+14,t=y+16;if(l+w>vw-6)l=Math.max(6,x-w-14);if(t+h>vh-6)t=Math.max(6,y-h-12);tip.style.left=l+'px';tip.style.top=t+'px';}
 
 function paintAvatar(token){var img=q('ek-heroImg');if(!img)return;var S=window.SKAVA;
  if(S&&S.isHeroToken&&S.isHeroToken(token)&&S.has&&S.has(S.idOf(token))){var id=S.idOf(token);
@@ -2069,7 +2096,7 @@ function renderStats(){var t=totals();
  q('ek-statGrid').innerHTML=tiles.map(function(a){return '<div class="ek-stat '+a[0]+'"><div class="ek-si">'+a[1]+'</div><div class="ek-sl">'+a[2]+'</div><div class="ek-sv">'+a[3]+'</div></div>';}).join('');}
 
 function renderSlots(){q('ek-slots').innerHTML=SLOT_DEFS.map(function(d){var id=d[0],lab=d[1],ghost=d[2];var item=EQUIP[id];
- var inner=item?'<span class="ek-chip ek-drag" data-src="slot" data-slot="'+id+'" title="'+esc(bonusTitle(item))+'">'+iconHTML(item.icon)+'</span>'
+ var inner=item?'<span class="ek-chip ek-drag" data-src="slot" data-slot="'+id+'">'+iconHTML(item.icon)+'</span>'
   :'<span class="ek-gh">'+ghost+'</span>';
  return '<div class="ek-slot'+(item?' ek-filled':'')+'" data-slot="'+id+'">'+inner+'<span class="ek-lab">'+lab.split('|').join('<br>')+'</span></div>';}).join('');}
 
@@ -2081,14 +2108,14 @@ function renderInv(){var f=null;for(var i=0;i<TABS.length;i++)if(TABS[i][0]===cu
    else if(MISSING.length) why='У базі є '+MISSING.length+' предмет(ів), але їх немає в каталозі:<br><small>'+esc(MISSING.join(', '))+'</small>';
    g.innerHTML='<div class="ek-empty">'+why+'</div>';return;}
  g.innerHTML=list.map(function(x){return '<div class="ek-cell" data-uid="'+x.uid+'">'+
-  '<span class="ek-chip ek-drag" data-src="inv" data-uid="'+x.uid+'" title="'+esc(bonusTitle(x))+'">'+iconHTML(x.icon)+'</span>'+
+  '<span class="ek-chip ek-drag" data-src="inv" data-uid="'+x.uid+'">'+iconHTML(x.icon)+'</span>'+
   (x.qty>1?'<span class="ek-qty">'+x.qty+'</span>':'')+'</div>';}).join('');}
 
 function renderTabs(){q('ek-tabs').innerHTML=TABS.map(function(t){return '<span class="ek-tab'+(t[0]===curTab?' ek-on':'')+'" data-tab="'+t[0]+'">'+t[2]+' '+t[1]+'</span>';}).join('');}
 function renderBelt(){var host=q('ek-belt');if(!host)return;var bc=BELT.length;var cnt=q('ek-beltCount');if(cnt)cnt.textContent=bc?('('+BELT.filter(Boolean).length+'/'+bc+')'):'';
  if(!bc){host.innerHTML='<div class="ek-belt-empty">Вдягни пояс із комірками, щоб класти зілля та свитки.</div>';return;}
  var out='';for(var i=0;i<bc;i++){var e=BELT[i];
-  if(e)out+='<div class="ek-bslot ek-filled" data-belt="'+i+'"><span class="ek-chip ek-drag" data-src="belt" data-belt="'+i+'" title="'+esc(bonusTitle(e))+'">'+iconHTML(e.icon)+'</span></div>';
+  if(e)out+='<div class="ek-bslot ek-filled" data-belt="'+i+'"><span class="ek-chip ek-drag" data-src="belt" data-belt="'+i+'">'+iconHTML(e.icon)+'</span></div>';
   else out+='<div class="ek-bslot" data-belt="'+i+'"><span class="ek-gh">➕</span></div>';}
  host.innerHTML=out;}
 function renderAll(){renderTabs();renderSlots();renderInv();renderBelt();renderStats();}
@@ -2136,6 +2163,10 @@ document.addEventListener('pointermove',function(e){if(!down)return;if(!down.sta
  if(drag){moveGhost(e.clientX,e.clientY);highlightOver(targetAt(e.clientX,e.clientY));e.preventDefault();}},{passive:false});
 document.addEventListener('pointerup',function(e){if(down&&down.started)endDrag(e.clientX,e.clientY);else if(down)tap(down.el);down=null;});
 document.addEventListener('pointercancel',function(){cleanup();down=null;});
+document.addEventListener('pointerover',function(e){if(e.pointerType!=='mouse'||drag)return;var el=e.target.closest?e.target.closest('.ek-chip.ek-drag'):null;if(el)showTip(el,e.clientX,e.clientY);});
+document.addEventListener('pointerout',function(e){var el=e.target.closest?e.target.closest('.ek-chip.ek-drag'):null;if(el&&!(e.relatedTarget&&el.contains(e.relatedTarget)))hideTip();});
+document.addEventListener('pointermove',function(e){if(drag){hideTip();return;}if(tip&&!tip.hidden)placeTip(e.clientX,e.clientY);});
+document.addEventListener('pointerdown',hideTip);
 document.addEventListener('click',function(e){var t=e.target.closest?e.target.closest('#ek-tabs .ek-tab'):null;if(!t)return;curTab=t.getAttribute('data-tab');renderTabs();renderInv();});
 
 function loadData(){if(loaded||loading)return Promise.resolve();loading=true;LOAD_ERR=null;
