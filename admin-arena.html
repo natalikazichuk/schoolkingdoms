@@ -13,6 +13,7 @@
 <script src="sk-admin.js?v=1"></script>
 <script src="sk-curriculum.js?v=8"></script>
 <script src="sk-items.js?v=2"></script>
+<script src="sk-arena-rules.js?v=1"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -92,7 +93,7 @@
 var root=document.getElementById('root');
 var esc=SKADMIN.esc;
 var TAB='hero';
-try{ if(location.hash==='#items') TAB='items'; }catch(e){}
+try{ if(location.hash==='#items') TAB='items'; else if(location.hash==='#mech') TAB='mech'; }catch(e){}
 var ITEMS=[],TESTS=[],ITEMS_ERR=null,TESTS_ERR=null;
 
 /* Стартові значення — копія defaultHero() з firebase-config.js. */
@@ -253,7 +254,7 @@ function bestSet(items,key,pct,bonus){
 /* ══ малювання ══ */
 function tabsHTML(){
   function b(id,ttl){return '<button class="tab'+(TAB===id?' on':'')+'" data-tab="'+id+'">'+ttl+'</button>';}
-  return '<div class="tabs">'+b('hero','🦸 Базові характеристики Героя')+b('items','🎒 Характеристики речей')+'</div>';
+  return '<div class="tabs">'+b('hero','🦸 Базові характеристики Героя')+b('items','🎒 Характеристики речей')+b('mech','⚙️ Механіка')+'</div>';
 }
 
 /* Розгортаний список записів, від найщедрішого: видно, хто дає найбільше. */
@@ -335,12 +336,50 @@ function itemsHTML(){
     +'</section>';
 }
 
+/* ══ МЕХАНІКА: числа, за якими зараз іде бій (sk-arena-rules.js) ══ */
+function mechHTML(){
+  var R=window.SKARENA;
+  if(!R)return '<section class="sec"><h2>⚙️ Механіка</h2><div class="empty">Не вдалося завантажити sk-arena-rules.js.</div></section>';
+  var B=R.BATTLE,W=R.WEAR,U=R.SLOT_UK||{};
+  function row(name,val,how){return '<tr><td><span class="nm">'+esc(name)+'</span></td><td class="num max">'+esc(String(val))+'</td><td>'+how+'</td></tr>';}
+  var pct=function(x){return Math.round(x*1000)/10+'%';};
+  var battle=[
+    row('Час на хід',B.turnSeconds+' с','Не встиг — атака й захист добираються випадково.'),
+    row("Бойове здоров'я","= здоров'я",'Сила в бою дорівнює здоров\'ю Героя.'),
+    row('Урон',B.baseDmg+' + точність / '+B.dmgPerAcc,'Точність 50 → '+(B.baseDmg+Math.round(50/B.dmgPerAcc))+', точність 100 → '+(B.baseDmg+Math.round(100/B.dmgPerAcc))+'.'),
+    row('Шанс криту','точність / '+B.critChance,'Точність 50 → '+pct(50/B.critChance)+', 100 → '+pct(100/B.critChance)+'.'),
+    row('Множник криту','× '+B.critMult,'Критичний удар множить урон.'),
+    row('Шанс ухилитися','спритність / '+B.dodgeChance,'Спритність 50 → '+pct(50/B.dodgeChance)+', 100 → '+pct(100/B.dodgeChance)+'. Ухилився — урону й зносу немає.'),
+    row('Блок',pct(B.blockKeep)+' урону','Удар у заблоковану зону проходить на '+pct(B.blockKeep)+' (мінімум 1).'),
+    row('Досвід за перемогу','+'+B.xpWin,''),
+    row('Досвід за поразку / нічию','+'+B.xpLose,'Здався кнопкою «Вихід з гри» — 0.'),
+    row('Досвід на рівень','рівень × '+B.xpPerLvl,'')
+  ].join('');
+  var zones=R.ZONES.map(function(z){return '<tr><td><span class="nm">'+esc(z.label)+'</span><br><span class="key">'+esc(z.key)+'</span></td><td>'+z.slots.map(function(sl){return '<span class="tag">'+esc(U[sl]||sl)+'</span>';}).join('')+'</td></tr>';}).join('')
+    +'<tr><td><span class="nm">Руки (зброя / щит)</span></td><td>'+R.HAND_SLOTS.map(function(sl){return '<span class="tag">'+esc(U[sl]||sl)+'</span>';}).join('')+' <span class="key">за категорією речі: «Зброя» або «Щити»</span></td></tr>';
+  var wear=[
+    row('Пропущений удар у зону','−'+W.zoneHit,'Усі речі цієї зони, за кожен удар.'),
+    row('Пропущений критичний удар','−'+W.zoneCrit,'Усі речі цієї зони.'),
+    row('Зброя: мій влучний удар','−'+W.weaponHit,'Критичний — так само −'+W.weaponCrit+' (знос зброї не росте).'),
+    row('Щит: заблокований удар','−'+W.shieldBlock,'Щит приймає удар на себе; речі зони не зношуються.'),
+    row('Щит: заблокований критичний удар','−'+W.shieldCritBlock,''),
+    row('Ухилення','0','Удар не дійшов — нічого не зношується.')
+  ].join('');
+  function tbl(h,body){return '<div class="tblwrap"><table class="st"><thead><tr>'+h.map(function(x){return '<th>'+x+'</th>';}).join('')+'</tr></thead><tbody>'+body+'</tbody></table></div>';}
+  return '<section class="sec"><h2>⚔️ Бій</h2><p class="hint">Базові числа бою. Змінюються в <b>sk-arena-rules.js</b> (BATTLE) — і арена, і ця сторінка беруть їх звідти.</p>'
+    +tbl(['Що','Значення','Як працює'],battle)+'</section>'
+    +'<section class="sec"><h2>🎯 Зони удару → речі</h2><p class="hint">Які слоти екіпіровки закривають кожну зону. Удар у зону зношує всі речі цієї зони.</p>'
+    +tbl(['Зона','Слоти'],zones)+'</section>'
+    +'<section class="sec"><h2>🛠 Знос речей (міцність)</h2><p class="hint">Рахується по ходах, списується з речей Героя в кінці бою (і коли здався). Числа — WEAR у sk-arena-rules.js. Міцність не падає нижче 0.</p>'
+    +tbl(['Подія','Міцність','Деталі'],wear)+'</section>';
+}
+
 function render(){
   root.innerHTML='<h1>⚔️ Арена · характеристики</h1>'
     +'<p class="sub">Які характеристики є в Героя і що до них можна додати предметами.</p>'
-    +tabsHTML()+(TAB==='items'?itemsHTML():heroHTML());
+    +tabsHTML()+(TAB==='items'?itemsHTML():TAB==='mech'?mechHTML():heroHTML());
   root.querySelectorAll('.tab').forEach(function(b){b.onclick=function(){
-    TAB=b.getAttribute('data-tab');try{history.replaceState(null,'',TAB==='items'?'#items':'#hero');}catch(e){}render();};});
+    TAB=b.getAttribute('data-tab');try{history.replaceState(null,'','#'+TAB);}catch(e){}render();};});
 }
 
 function load(){

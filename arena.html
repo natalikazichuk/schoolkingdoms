@@ -469,6 +469,7 @@ body.scr-battle .wrap{max-width:1500px}
   -webkit-text-stroke:2px rgba(24,8,0,.55);
   text-shadow:0 3px 10px rgba(0,0,0,.8),0 0 24px rgba(0,0,0,.5);
   animation:floatup 2.8s cubic-bezier(.14,.9,.3,1) forwards}
+.result .wearline{margin:6px 0 2px;font-size:.82rem;font-weight:700;opacity:.85}
 .dmg-float.hit{color:#ff9a6b} .dmg-float.crit{color:#ff5a3a;font-size:3.7rem;-webkit-text-stroke:2.5px rgba(32,6,0,.6)}
 .dmg-float.blk{color:#7bd8ff} .dmg-float.miss{color:#eaf2ff;font-size:2rem}
 @keyframes floatup{
@@ -962,6 +963,7 @@ body.scr-battle .wrap{max-width:1500px}
     <div class="big" id="resBig">Перемога!</div>
     <p id="resTxt">Суперник здався.</p>
     <div class="xpwon" id="resXp">+25 досвіду</div>
+    <div class="wearline" id="resWear" style="display:none"></div>
     <button class="cta" id="againBtn">Ще бій</button>
     <button class="cta ghost" id="backTavernBtn" style="margin-top:8px">У таверну</button>
   </div>
@@ -1027,24 +1029,25 @@ body.scr-battle .wrap{max-width:1500px}
 <script type="module" src="firebase-config.js"></script>
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
+<script src="sk-arena-rules.js?v=1"></script>
 <script>
 (function(){
   'use strict';
   var $ = function(id){ return document.getElementById(id); };
   var ZONES = ['head','body','arms','legs'];
   var ZONE_UA = {head:'голову', body:'тіло', arms:'руки', legs:'ноги'};
-  var TURN_SECONDS = 30;
+  var RULES = window.SKARENA || {};
+  var TURN_SECONDS = (RULES.BATTLE && RULES.BATTLE.turnSeconds) || 30;
 
-  /* ── налаштування балансу (легко правити) ── */
-  var CFG = {
-    baseHP: 100,          // + характеристика «Здоровʼя»
-    baseDmg: 8,           // + точність/8
-    critChance: 280,      // менше = частіше (accuracy/CFG.critChance)
-    critMult: 1.7,
-    dodgeChance: 380,     // agility/CFG.dodgeChance
-    blockKeep: 0.30,      // скільки шкоди проходить крізь захист
-    xpWin: 25, xpLose: 8, xpPerLvl: 120
-  };
+  /* ── налаштування балансу: числа живуть у sk-arena-rules.js (SKARENA.BATTLE),
+        щоб адмінка («Арена» → «Механіка») показувала ті самі, за якими йде бій.
+        Тут — запасні значення, якщо файл не завантажився. ── */
+  var CFG = Object.assign({
+    baseHP: 100, baseDmg: 8, dmgPerAcc: 8, critChance: 280, critMult: 1.7,
+    dodgeChance: 380, blockKeep: 0.30, xpWin: 25, xpLose: 8, xpPerLvl: 120
+  }, RULES.BATTLE || {});
+  var WEAR = Object.assign({ zoneHit:1, zoneCrit:2, weaponHit:1, weaponCrit:1, shieldBlock:2, shieldCritBlock:5 }, RULES.WEAR || {});
+  function newWear(){ return {head:0, body:0, arms:0, legs:0, weapon:0, shield:0}; }
 
   /* ── вміння за рівні (заглушки під майбутні скіли) ── */
   var SKILLS = [
@@ -1096,7 +1099,7 @@ body.scr-battle .wrap{max-width:1500px}
 
   /* ── похідні бойові показники з характеристик ── */
   function maxForce(f){ return Math.round(f.health||50); }  // бойове HP = здоров'я Героя
-  function dmgOf(f){ return CFG.baseDmg + Math.round((f.accuracy||50)/8); }
+  function dmgOf(f){ return CFG.baseDmg + Math.round((f.accuracy||50)/CFG.dmgPerAcc); }
   function critRoll(f){ return Math.random() < (f.accuracy||50)/CFG.critChance; }
   function dodgeRoll(f){ return Math.random() < (f.agility||50)/CFG.dodgeChance; }
 
@@ -1441,7 +1444,7 @@ body.scr-battle .wrap{max-width:1500px}
         v:1, heroId:battleHeroId(), round:B.round,
         me:{force:B.me.force, max:B.me.max},
         op:{force:B.op.force, max:B.op.max, f:B.op.f},
-        steps:B.steps||''
+        steps:B.steps||'', wear:B.wear||newWear()
       }));
     }catch(e){}
   }
@@ -1461,7 +1464,7 @@ body.scr-battle .wrap{max-width:1500px}
       round: +o.round || 1, over:false, resolving:false,
       me: {f:hero,    force:o.me.force, max:o.me.max || maxForce(hero),  atk:null, block:null},
       op: {f:o.op.f,  force:o.op.force, max:o.op.max || maxForce(o.op.f), atk:null, block:null},
-      timer:null, left:TURN_SECONDS, steps:o.steps||''
+      timer:null, left:TURN_SECONDS, steps:o.steps||'', wear:Object.assign(newWear(), o.wear||{})
     };
   }
   function hasLiveBattle(){ return !!(B && !B.over); }
@@ -1500,7 +1503,7 @@ body.scr-battle .wrap{max-width:1500px}
       round:1, over:false, resolving:false,
       me:   {f:hero, force:maxForce(hero), max:maxForce(hero), atk:null, block:null},
       op:   {f:bot,  force:maxForce(bot),  max:maxForce(bot),  atk:null, block:null},
-      timer:null, left:TURN_SECONDS, steps:''
+      timer:null, left:TURN_SECONDS, steps:'', wear:newWear()
     };
     saveBattle();
     enterBattle();
@@ -1619,9 +1622,48 @@ body.scr-battle .wrap{max-width:1500px}
     if(crit) dmg = Math.round(dmg*CFG.critMult);
     if(attacker.atk === defender.block){
       dmg = Math.max(1, Math.round(dmg*CFG.blockKeep));
-      return {dmg:dmg, kind:'block'};
+      return {dmg:dmg, kind:'block', crit:crit};
     }
     return {dmg:dmg, kind:crit?'crit':'hit'};
+  }
+
+  /* знос речей Героя за хід (числа — WEAR із sk-arena-rules.js):
+     удар суперника пройшов → усі речі зони; заблокований → щит;
+     мій влучний удар → зброя. Списується з інвентаря наприкінці бою. */
+  function addWear(meHit, opHit){
+    var w = B.wear || (B.wear = newWear());
+    if(opHit.kind==='hit' || opHit.kind==='crit') w[B.op.atk] = (w[B.op.atk]||0) + (opHit.kind==='crit' ? WEAR.zoneCrit : WEAR.zoneHit);
+    else if(opHit.kind==='block') w.shield += opHit.crit ? WEAR.shieldCritBlock : WEAR.shieldBlock;
+    if(meHit.kind==='hit' || meHit.kind==='crit') w.weapon += meHit.kind==='crit' ? WEAR.weaponCrit : WEAR.weaponHit;
+  }
+
+  /* Наприкінці бою: зменшити durCur вдягнених речей і зберегти інвентар.
+     Зони → слоти з SKARENA.ZONES; у руках щит (категорія «Щити») бере
+     знос блоку, зброя — знос влучних ударів. */
+  function applyWear(wear){
+    var el = $('resWear'); if(el){ el.textContent=''; el.style.display='none'; }
+    if(!wear || !window.SK || !SK.getInventory || !SK.saveInventory) return;
+    if(SK.isHeroSession && !SK.isHeroSession()) return;
+    var total = 0; for(var k in wear) total += wear[k]||0; if(!total) return;
+    Promise.all([SK.getInventory(), SK.listItems ? SK.listItems() : Promise.resolve([])]).then(function(r){
+      var inv = r[0]||[], cat = {}; (r[1]||[]).forEach(function(it){ cat[it.id] = it.category; });
+      var lost = [];
+      inv.forEach(function(inst){
+        if(!inst || !inst.slot || inst.durMax == null) return;
+        var w = 0, z = RULES.zoneOfSlot ? RULES.zoneOfSlot(inst.slot) : null;
+        if(z) w = wear[z]||0;
+        else if((RULES.HAND_SLOTS||['weaponR','weaponL']).indexOf(inst.slot) >= 0) w = cat[inst.id]==='Щити' ? wear.shield : wear.weapon;
+        if(!w) return;
+        var before = Number(inst.durCur != null ? inst.durCur : inst.durMax) || 0;
+        inst.durCur = Math.max(0, before - w);
+        if(inst.durCur !== before) lost.push(((RULES.SLOT_UK||{})[inst.slot] || inst.slot) + ' −' + (before - inst.durCur) + (inst.durCur===0 ? ' (зламано)' : ''));
+      });
+      if(!lost.length) return;
+      return SK.saveInventory(inv).then(function(){
+        if(el){ el.textContent = '🛠 Знос: ' + lost.join(', '); el.style.display=''; }
+        try{ if(window.EKEQUIP && EKEQUIP.reload) EKEQUIP.reload(); }catch(e){}
+      });
+    }).catch(function(e){ try{ console.error('[арена] знос речей не збережено:', e); }catch(_){} });
   }
 
   function resolve(){
@@ -1633,6 +1675,7 @@ body.scr-battle .wrap{max-width:1500px}
     var meHit = computeHit(B.me, B.op);   // гравець → суперник
     var opHit = computeHit(B.op, B.me);   // суперник → гравець
     B.op.f.lastPlayerAtk = B.me.atk;
+    addWear(meHit, opHit);
 
     // застосувати
     B.op.force -= meHit.dmg;
@@ -1760,6 +1803,7 @@ body.scr-battle .wrap{max-width:1500px}
       leveled.push(arena.level);
     }
     saveArena();
+    applyWear(B && B.wear);
 
     var res = $('result');
     res.className = 'result ' + (win?'win':'lose');
