@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Арена: характеристики — School Kingdom</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<!-- Спільна дизайн-система адмінки (та сама, що в admin-items.html / admin-reports.html) -->
+<link rel="stylesheet" href="sk-styles.css">
+<link rel="stylesheet" href="sk-admin.css?v=2">
+<script src="sk-admin.js?v=1"></script>
+<script src="sk-curriculum.js?v=8"></script>
+<script src="sk-items.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{-webkit-tap-highlight-color:transparent}
+  body{line-height:1.5}
+  #wrap{padding:0 0 80px}
+  .wrap-in{max-width:1100px;margin:0 auto;padding:16px 16px 0}
+  #root>h1{color:var(--ink);font-size:1.5rem}
+  #root>.sub{color:var(--muted);font-weight:600;font-size:.92rem;margin:6px 0 18px}
+
+  .sec{background:var(--card);border:1px solid var(--border);border-radius:18px;
+    padding:16px 16px 12px;box-shadow:var(--shadow);margin:0 0 18px}
+  .sec h2{color:var(--ink);font-size:1.15rem;margin:0 0 4px}
+  .sec .hint{color:var(--muted);font-weight:600;font-size:.86rem;margin:0 0 12px}
+
+  .tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table.st{width:100%;border-collapse:collapse;font-size:.9rem;color:var(--ink)}
+  table.st th{text-align:left;font-size:.74rem;text-transform:uppercase;letter-spacing:.03em;
+    color:var(--muted);font-weight:800;padding:6px 8px;border-bottom:2px solid var(--border);white-space:nowrap}
+  table.st td{padding:8px;border-bottom:1px solid var(--border);vertical-align:top}
+  table.st tr.off td{opacity:.55}
+  td.num{font-weight:800;white-space:nowrap;min-width:150px}
+  td.num details.its ul{white-space:normal;font-weight:600;min-width:240px}
+  .nm{font-weight:800;white-space:nowrap}
+  .key{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.76rem;color:var(--muted)}
+
+  .tag{display:inline-block;font-size:.72rem;font-weight:800;padding:2px 8px;border-radius:999px;
+    border:1px solid var(--border);background:#f4f1e8;color:var(--muted);white-space:nowrap;margin:1px 2px 1px 0}
+  .tag.yes{background:#e8f6ee;color:#1f7a4d;border-color:#bde2ce}
+  .tag.no{background:#f4f1e8;color:var(--muted)}
+  .tag.item{background:#f3edfc;color:#6b3fa0;border-color:#d9c9ef}
+  .tag.warn{background:#fdecec;color:#a8322f;border-color:#efc2c0}
+  .tag.pct{background:#eaf1fb;color:#2f5ea8;border-color:#c2d4ef}
+
+  details.its summary{cursor:pointer;font-weight:700;color:var(--ink);font-size:.84rem}
+  details.its ul{margin:6px 0 2px;padding-left:18px;font-size:.82rem;color:var(--ink)}
+  details.its li{margin:1px 0}
+  details.its .iid{color:var(--muted);font-size:.74rem}
+
+  .legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.8rem;color:var(--muted);font-weight:600;margin:10px 0 0}
+  .flags{margin:12px 0 0;font-size:.86rem;color:var(--ink)}
+  td.cats{min-width:170px;max-width:260px}
+</style>
+</head>
+<body>
+<!-- Вміст малює SKADMIN.header() наприкінці файлу. -->
+<header class="topbar"></header>
+<div id="wrap">
+  <div class="wrap-in" id="root">
+    <div class="gate"><div class="spinner"></div><p class="sub" style="margin:0">Перевіряємо доступ…</p></div>
+  </div>
+</div>
+
+<script type="module" src="firebase-config.js"></script>
+<script>
+/* ============================================================
+   АРЕНА · ХАРАКТЕРИСТИКИ (admin-only, лише перегляд).
+   1) Базові характеристики Героя — що зберігається в heroes/{id}
+      і з якими значеннями Герой стартує (defaultHero у firebase-config.js).
+   2) Характеристики, які дають предмети — зведення по всьому каталогу
+      items: яка характеристика, скільки предметів її дає, діапазон
+      сталих значень і відсотків, з яких категорій.
+   Ключі зводимо через SKIT.canon(): «Маг. Резист» і «Магічний захист»
+   — це одне й те саме magicResist, як і на арені.
+   ============================================================ */
+(function(){
+'use strict';
+var root=document.getElementById('root');
+var esc=SKADMIN.esc;
+
+/* Стартові значення — копія defaultHero() з firebase-config.js. */
+var HERO_START={health:50,mana:20,agility:50,accuracy:50,
+  strength:2,defense:1,intelligence:1,wisdom:1,luck:1,memory:1,charisma:1};
+/* Прогрес Героя (не бойові характеристики, але теж у heroes/{id}). */
+var HERO_PROGRESS=[
+  {key:'level',label:'Рівень',emoji:'🏅',start:1,note:'Рівень Героя'},
+  {key:'xp',label:'Досвід (XP)',emoji:'⭐',start:0,note:'Досвід'},
+  {key:'coins',label:'Монети',emoji:'🪙',start:0,note:'Нагороди тренажерів'}
+];
+/* Що бій на арені зараз справді читає (arena.html: maxForce/dmgOf/critRoll/dodgeRoll). */
+var ARENA_USES={health:"бойове здоров'я",accuracy:'урон і шанс криту',agility:'шанс ухилитися'};
+
+/* Канонічний ключ → назва українською (як на арені, STAT_UK у arena.html). */
+var CANON_UK={armor:'Броня',magicResist:'Магічна стійкість',agility:'Спритність',magicDamage:'Магічний урон',
+  damage:'Фізичний урон',health:"Здоров'я",mana:'Мана',accuracy:'Точність',critDamage:'Шанс крит. урону',
+  block:'Шанс блоку',stun:'Оглушення',healthRegen:"Відновлення здоров'я",extraAttack:'Додаткова атака',
+  beltSlots:'Комірки пояса'};
+
+function heroStats(){
+  var list=(window.SKCUR&&SKCUR.STATS)?SKCUR.STATS:[];
+  return list.map(function(s){return {key:s.key,label:s.label,emoji:s.emoji,active:!!s.active,
+    note:s.note||'',start:HERO_START[s.key]};});
+}
+function heroKeySet(){var o={};heroStats().forEach(function(s){if(s.active)o[s.key]=1;});return o;}
+
+/* ── зведення характеристик із каталогу ── */
+function collect(items){
+  var map={},flags={};
+  function slot(key,raw){
+    if(!map[key])map[key]={key:key,names:{},items:[],asMain:0,asAdd:0,flatMin:null,flatMax:null,pctMin:null,pctMax:null,cats:{},active:0};
+    map[key].names[raw]=1;return map[key];
+  }
+  function range(r,lo,hi,pct){
+    if(pct){r.pctMin=r.pctMin==null?lo:Math.min(r.pctMin,lo);r.pctMax=r.pctMax==null?hi:Math.max(r.pctMax,hi);}
+    else{r.flatMin=r.flatMin==null?lo:Math.min(r.flatMin,lo);r.flatMax=r.flatMax==null?hi:Math.max(r.flatMax,hi);}
+  }
+  (items||[]).forEach(function(it){
+    var on=it.active!==false;
+    if(it.stat){
+      var r=slot(SKIT.canon(it.stat),it.stat);r.asMain++;r.cats[it.category||'—']=1;if(on)r.active++;
+      var lo=it.valueMin!=null?Number(it.valueMin):Number(it.valueMax),hi=it.valueMax!=null?Number(it.valueMax):lo;
+      if(!isNaN(lo))range(r,lo,isNaN(hi)?lo:hi,false);
+      r.items.push({id:it.id,name:it.name,how:'основна',val:fmtRange(it.valueMin,it.valueMax),on:on});
+    }
+    (it.addStats||[]).forEach(function(e){
+      if(SKIT.isFlagEntry(e)){(flags[e.stat]=flags[e.stat]||[]).push(it);return;}
+      var r2=slot(SKIT.canon(e.stat),e.stat);r2.asAdd++;r2.cats[it.category||'—']=1;if(on)r2.active++;
+      var v=e.value!=null?Number(e.value):null;
+      if(v!=null&&!isNaN(v))range(r2,v,v,!!e.pct);
+      r2.items.push({id:it.id,name:it.name,how:'додаткова',val:(v!=null?'+'+v+(e.pct?'%':''):'—'),on:on});
+    });
+  });
+  var out=Object.keys(map).map(function(k){return map[k];});
+  out.sort(function(a,b){return (b.asMain+b.asAdd)-(a.asMain+a.asAdd)||label(a.key).localeCompare(label(b.key),'uk');});
+  return {stats:out,flags:flags};
+}
+function fmtRange(a,b){if(a==null&&b==null)return '—';if(a==null||a===b)return String(b);if(b==null)return String(a);return a+'–'+b;}
+function label(key){return CANON_UK[key]||key;}
+function known(key){var m=SKIT.STAT_MAP;for(var k in m)if(m[k]===key)return true;return false;}
+
+/* ── малювання ── */
+function heroHTML(){
+  var rows=heroStats().map(function(s){
+    var arena=ARENA_USES[s.key];
+    return '<tr class="'+(s.active?'':'off')+'">'
+      +'<td><span class="nm">'+s.emoji+' '+esc(s.label)+'</span><br><span class="key">'+esc(s.key)+'</span></td>'
+      +'<td class="num">'+(s.start!=null?s.start:'—')+'</td>'
+      +'<td>'+(s.active?'<span class="tag yes">росте</span>':'<span class="tag no">у базі, не росте</span>')+'</td>'
+      +'<td>'+esc(s.note||'—')+'</td>'
+      +'<td>'+(arena?'<span class="tag yes">так</span> '+esc(arena):'<span class="tag no">ні</span>')+'</td>'
+      +'</tr>';
+  }).join('');
+  var prog=HERO_PROGRESS.map(function(p){
+    return '<tr><td><span class="nm">'+p.emoji+' '+esc(p.label)+'</span><br><span class="key">'+esc(p.key)+'</span></td>'
+      +'<td class="num">'+p.start+'</td><td><span class="tag">прогрес</span></td><td>'+esc(p.note)+'</td><td><span class="tag no">ні</span></td></tr>';
+  }).join('');
+  return '<section class="sec"><h2>🦸 Базові характеристики Героя</h2>'
+    +'<p class="hint">Те, що зберігається в самого Героя (heroes/{id}). «Росте» — збільшується за навчання; решта лежить у базі зі стартовим значенням і поки ні на що не впливає.</p>'
+    +'<div class="tblwrap"><table class="st"><thead><tr><th>Характеристика</th><th>Старт</th><th>Стан</th><th>Звідки росте</th><th>Діє в бою зараз</th></tr></thead>'
+    +'<tbody>'+rows+prog+'</tbody></table></div></section>';
+}
+
+function itemsHTML(data,total){
+  var hk=heroKeySet();
+  var rows=data.stats.map(function(r){
+    var cats=Object.keys(r.cats).map(function(c){return '<span class="tag">'+esc(c)+'</span>';}).join('');
+    var flat=r.flatMin!=null?'<span class="tag">'+fmtRange(r.flatMin,r.flatMax)+'</span>':'';
+    var pct=r.pctMin!=null?'<span class="tag pct">'+fmtRange(r.pctMin,r.pctMax)+'%</span>':'';
+    var raw=Object.keys(r.names).filter(function(n){return n!==label(r.key);});
+    var src=r.items.map(function(i){return '<li>'+esc(i.name||i.id)+' <span class="iid">'+esc(i.id)+' · '+i.how+' · '+esc(i.val)+(i.on?'':' · вимкнений')+'</span></li>';}).join('');
+    return '<tr>'
+      +'<td><span class="nm">'+esc(label(r.key))+'</span><br><span class="key">'+esc(r.key)+'</span>'
+      +(raw.length?'<br><span class="key">в адмінці: '+esc(raw.join(', '))+'</span>':'')
+      +(known(r.key)?'':'<br><span class="tag warn">арена не знає цієї характеристики</span>')+'</td>'
+      +'<td>'+(hk[r.key]?'<span class="tag yes">є в Героя</span>':'<span class="tag item">лише з предметів</span>')+'</td>'
+      +'<td class="num">'+(r.asMain+r.asAdd)+'<br><span class="key">осн. '+r.asMain+' · дод. '+r.asAdd+'</span>'
+      +'<details class="its"><summary>які саме</summary><ul>'+src+'</ul></details></td>'
+      +'<td>'+(flat||pct?flat+pct:'—')+'</td>'
+      +'<td class="cats">'+cats+'</td>'
+      +'</tr>';
+  }).join('');
+  var fl=Object.keys(data.flags).map(function(f){return '<span class="tag">'+esc(f)+' · '+data.flags[f].length+'</span>';}).join(' ');
+  return '<section class="sec"><h2>🎒 Характеристики, які дають предмети</h2>'
+    +'<p class="hint">Зведення по всьому каталогу ('+total+' предметів). Сталі числа й відсотки показано окремо. Значення — базові, без бонусу речі (+10% / +20% / −10%).</p>'
+    +(rows?'<div class="tblwrap"><table class="st"><thead><tr><th>Характеристика</th><th>Герой</th><th>Предметів</th><th>Значення</th><th>Категорії</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+          :'<div class="empty">У каталозі ще немає предметів.</div>')
+    +(fl?'<div class="flags"><b>Позначки (не характеристики):</b> '+fl+'</div>':'')
+    +'<div class="legend"><span><span class="tag yes">є в Героя</span> предмет підсилює те, що Герой уже має</span><span><span class="tag item">лише з предметів</span> Герой отримує це тільки через речі</span><span><span class="tag pct">%</span> відсоткова навичка</span></div>'
+    +'</section>';
+}
+
+function render(items,err){
+  var html='<h1>⚔️ Арена · характеристики</h1>'
+    +'<p class="sub">Які характеристики є в Героя і що до них можна додати предметами.</p>'
+    +heroHTML();
+  if(err)html+='<section class="sec"><h2>🎒 Характеристики, які дають предмети</h2><div class="empty">Не вдалося прочитати каталог: '+esc(err)+'</div></section>';
+  else html+=itemsHTML(collect(items),(items||[]).length);
+  root.innerHTML=html;
+}
+
+function load(){
+  root.innerHTML='<div class="empty">Завантаження…</div>';
+  window.SK.listItems().then(function(list){render(list||[]);})
+    .catch(function(e){render([],(e&&(e.code||e.message))||String(e));});
+}
+
+SKADMIN.header({
+  name:'Арена',
+  sub:'School Kingdom · характеристики',
+  nav:[ { href:'admin.html', label:'🏠 Головна (Адмінка)' },
+        { href:'admin-items.html', label:'🎒 Items' },
+        { id:'btnReload', label:'🔄 Оновити' } ]
+});
+SKADMIN.guard({
+  denyMsg:'Увійди адміністратором, щоб переглядати характеристики.',
+  onOk:function(){
+    var rl=document.getElementById('btnReload');if(rl)rl.onclick=load;
+    load();
+  }
+});
+})();
+</script>
+</body>
+</html>
