@@ -8,57 +8,185 @@
 <link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="manifest" href="../manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../sk-game.css">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
 <style>
+/* Світла «пісочна» тема — як у тренажерах (замість темної sk-game.css). */
+:root{
+  --ink:#2c2b3a;--soft:#6b6a7d;--paper:#fff9ef;--line:#ece3d2;--card:#fff;
+  --red:#ff6b6b;--orange:#ffa94d;--yellow:#ffd43b;--green:#51cf66;--teal:#22b8cf;
+  --blue:#4dabf7;--purple:#cc5de8;
+  --good:#37b26f;--good-bg:#e4f7ec;--bad:#e06666;--bad-bg:#fbe7e7;
+  --shadow:0 6px 0 rgba(44,43,58,.13);
+  --gold:#ffcf4d;--gold-deep:#e0a92e;
+}
+*{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+html,body{height:100%; overflow:hidden;}
+body{
+  font-family:'Nunito',system-ui,sans-serif; color:var(--ink);
+  user-select:none; -webkit-user-select:none; touch-action:manipulation; overscroll-behavior:none;
+  background:
+    radial-gradient(circle at 12% 8%,rgba(255,212,59,.28),transparent 42%),
+    radial-gradient(circle at 88% 14%,rgba(77,171,247,.26),transparent 44%),
+    radial-gradient(circle at 78% 92%,rgba(204,93,232,.22),transparent 46%),
+    radial-gradient(circle at 8% 86%,rgba(81,207,102,.24),transparent 44%),
+    var(--paper);
+}
+h1,.title,.cta,.piece,.pill .val,.linkbtn{font-family:'Fredoka',sans-serif;letter-spacing:.3px;}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
-  .pill.q .val{color:var(--gold);}
+/* ── увесь ігровий шар — над футером ── */
+#wrap{position:fixed; top:0; left:0; right:0;
+  bottom:calc(60px + env(safe-area-inset-bottom));
+  display:flex; flex-direction:column; max-width:640px; margin:0 auto;}
 
-  #stage{flex:1 1 auto; display:flex; flex-direction:column; align-items:center;
-    justify-content:center; gap:12px; padding:8px 12px; overflow-y:auto;}
+/* ── верхня панель ── */
+#top{display:flex; align-items:center; gap:8px;
+  padding:calc(env(safe-area-inset-top) + 12px) 14px 4px;}
+.iconbtn{width:44px; height:44px; border:2px solid var(--line); background:#fff; border-radius:14px;
+  font-family:inherit; font-weight:700; font-size:20px; color:var(--ink); cursor:pointer; flex:none;
+  display:grid; place-items:center; box-shadow:0 1px 3px rgba(44,43,58,.14);}
+.iconbtn:active{transform:translateY(2px);}
+.pill{background:#fff; border:2px solid var(--line); border-radius:14px;
+  padding:6px 12px; font-weight:800; font-size:14px; white-space:nowrap; box-shadow:var(--shadow);}
+.pill .lab{color:var(--soft); font-size:11px; display:block; line-height:1;}
+.pill .val{font-size:19px; line-height:1.15; color:var(--ink);}
+.pill.q .val{color:var(--orange);}
+#spacer{flex:1;}
+#menuBtn{cursor:pointer; font-family:'Fredoka'; font-weight:600; font-size:15px;
+  background:#fff; border:2px solid var(--line); color:var(--ink);
+  border-radius:14px; padding:9px 14px; box-shadow:var(--shadow); margin-right:52px;}
+#menuBtn:active{transform:translateY(2px); box-shadow:0 3px 0 rgba(44,43,58,.13);}
 
-  #story{max-width:520px; width:100%; border-radius:20px; padding:16px;
-    background:linear-gradient(180deg,rgba(38,48,107,.95),rgba(18,22,60,.95));
-    border:2px solid rgba(255,207,77,.3); box-shadow:0 5px 0 rgba(0,0,0,.28), 0 8px 18px rgba(0,0,0,.35);
-    font-size:clamp(16px,4.6vw,21px); line-height:1.45; text-align:center;}
-  #story .ico{font-size:30px; display:block; margin-bottom:6px;}
+/* ── прогрес ── */
+#barWrap{padding:10px 64px 2px 16px;}   /* праворуч — місце під «жучок» 🐞 */
+#bar{height:12px; border-radius:8px; background:#f0e7d6; overflow:hidden;}
+#barFill{height:100%; width:0%; border-radius:8px;
+  background:linear-gradient(90deg,var(--green),var(--teal)); transition:width .45s;}
 
-  /* ── табло дії ── */
-  #board{display:flex; align-items:center; justify-content:center; gap:clamp(6px,2.4vw,14px);
-    font-size:clamp(28px,9vw,44px); font-weight:700; color:var(--gold);
-    text-shadow:0 2px 8px rgba(0,0,0,.5);}
-  #opSlot{min-width:clamp(52px,15vw,72px); height:clamp(52px,15vw,72px);
-    border-radius:16px; border:3px dashed rgba(255,207,77,.65); background:rgba(255,207,77,.08);
-    display:flex; align-items:center; justify-content:center;
-    box-shadow:inset 0 0 18px rgba(255,207,77,.12);
-    transition:border-color .15s, background .2s, transform .2s;}
-  #opSlot.filled{border-style:solid; border-color:var(--green); background:rgba(123,224,164,.18);
-    color:var(--green); box-shadow:inset 0 0 20px rgba(123,224,164,.3);}
-  #opSlot.pop{animation:pop .34s;}
-  #opSlot.wrong{animation:shake .34s; border-color:var(--red);}
-  @keyframes pop{0%{transform:scale(.5)}60%{transform:scale(1.14)}100%{transform:scale(1)}}
-  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}
-    40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+/* ── задача ── */
+#stage{flex:1 1 auto; display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:14px; padding:8px 14px; overflow-y:auto;}
+#story{max-width:520px; width:100%; border-radius:20px; padding:16px;
+  background:#fff; border:3px solid var(--line); box-shadow:var(--shadow); color:var(--ink);
+  font-size:clamp(16px,4.6vw,21px); font-weight:700; line-height:1.45; text-align:center;}
+#story .ico{font-size:32px; display:block; margin-bottom:6px;}
 
-  #hint{font-weight:600; font-size:13px; opacity:.82; min-height:18px; text-align:center;
-    max-width:420px; line-height:1.4;}
+/* ── табло дії ── */
+#board{display:flex; align-items:center; justify-content:center; gap:clamp(6px,2.4vw,14px);
+  font-family:'Fredoka'; font-size:clamp(28px,9vw,44px); font-weight:700; color:var(--ink);}
+#opSlot{min-width:clamp(52px,15vw,72px); height:clamp(52px,15vw,72px);
+  border-radius:16px; border:3px dashed var(--orange); background:#fff6e6; color:var(--orange);
+  display:flex; align-items:center; justify-content:center;
+  transition:border-color .15s, background .2s, transform .2s;}
+#opSlot.filled{border-style:solid; border-color:var(--good); background:var(--good-bg); color:var(--good);
+  box-shadow:0 4px 0 rgba(55,178,111,.25);}
+#opSlot.pop{animation:pop .34s;}
+#opSlot.wrong{animation:shake .34s; border-color:var(--bad); background:var(--bad-bg);}
+#res{color:var(--blue);}
+@keyframes pop{0%{transform:scale(.5)}60%{transform:scale(1.14)}100%{transform:scale(1)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}
+  40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
 
-  #tray{display:flex; align-items:center; justify-content:center; gap:clamp(10px,4vw,20px);
-    flex-wrap:wrap; padding:8px 12px calc(env(safe-area-inset-bottom) + 14px);}
-  .piece{cursor:pointer; font-family:inherit; font-weight:700; color:#4a3300;
-    min-width:clamp(64px,20vw,96px); height:clamp(64px,20vw,96px); padding:0 12px;
-    font-size:clamp(30px,9vw,44px);
-    background:linear-gradient(180deg,#FFE7A0,var(--gold-deep));
-    border:none; border-radius:22px; display:flex; align-items:center; justify-content:center;
-    box-shadow:0 6px 0 #a9761a, 0 10px 20px rgba(0,0,0,.4); transition:transform .1s, opacity .2s;}
-  .piece:active{transform:translateY(3px); box-shadow:0 3px 0 #a9761a;}
-  .piece.wrong{animation:shake .34s;}
-  .piece.good{background:linear-gradient(180deg,#a8f0c6,var(--green-d)); color:#06371c;
-    box-shadow:0 6px 0 #1c6b38, 0 10px 20px rgba(0,0,0,.4);}
-  .piece.num{font-size:clamp(26px,8vw,38px); min-width:clamp(58px,18vw,84px); height:clamp(58px,18vw,84px);}
+#hint{font-weight:800; font-size:14px; color:var(--soft); min-height:18px; text-align:center;
+  max-width:420px; line-height:1.4;}
 
-  .title{font-size:26px; font-weight:700; color:var(--gold); line-height:1.12;}
-  .sub{font-size:15px; opacity:.86; max-width:360px; line-height:1.45;}
+#tray{display:flex; align-items:center; justify-content:center; gap:clamp(10px,4vw,20px);
+  flex-wrap:wrap; padding:8px 12px 18px;}
+.piece{cursor:pointer; font-family:'Fredoka'; font-weight:700; color:#4a3300;
+  min-width:clamp(64px,20vw,96px); height:clamp(64px,20vw,96px); padding:0 12px;
+  font-size:clamp(30px,9vw,44px);
+  background:linear-gradient(180deg,#FFE7A0,var(--gold-deep));
+  border:none; border-radius:22px; display:flex; align-items:center; justify-content:center;
+  box-shadow:0 6px 0 #c9922a, 0 8px 14px rgba(44,43,58,.18); transition:transform .1s, opacity .2s;}
+.piece:active{transform:translateY(3px); box-shadow:0 3px 0 #c9922a;}
+.piece.wrong{animation:shake .34s;}
+.piece.good{background:var(--green); color:#fff; box-shadow:0 6px 0 #37a052;}
+.piece.num{font-size:clamp(26px,8vw,38px); min-width:clamp(58px,18vw,84px); height:clamp(58px,18vw,84px);}
+
+/* ── оверлеї (старт / фінал) ── */
+.screen{position:absolute; inset:0; z-index:60; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; text-align:center; padding:22px; gap:12px;
+  background:linear-gradient(180deg,#fff9ef,#fdf3e2);}
+.screen.hidden{display:none;}
+.crown{font-size:52px;}
+.title{font-size:30px; font-weight:700; color:var(--ink); line-height:1.1;}
+.sub{font-size:15px; font-weight:800; color:var(--soft); max-width:340px; line-height:1.5;}
+.sub b{color:var(--blue);}
+.stars{font-size:42px; letter-spacing:6px;}
+.cta{margin-top:4px; border:none; cursor:pointer; font-weight:700;
+  background:var(--green); color:#fff; font-size:20px; padding:15px 42px; border-radius:18px;
+  box-shadow:0 6px 0 #37a052;}
+.cta:active{transform:translateY(3px); box-shadow:0 3px 0 #37a052;}
+.linkbtn{cursor:pointer; font-weight:600; font-size:15px; text-decoration:none;
+  background:#fff; border:2px solid var(--line); color:var(--soft);
+  border-radius:14px; padding:11px 22px;}
+.linkbtn:active{transform:translateY(2px);}
+.winrow{display:flex; gap:10px; flex-wrap:wrap; justify-content:center;}
+
+/* ══ стартовий екран — вигляд як у тренажері «Вчимо літери» ══ */
+#startScreen{justify-content:flex-start; gap:11px; overflow-y:auto;
+  padding:calc(env(safe-area-inset-top) + 16px) 20px 16px;}
+#startScreen > *:not(.start-hero){flex-shrink:0;}
+#startScreen .start-head{position:relative; width:100%; max-width:540px; margin:0 auto;
+  display:flex; flex-direction:column; align-items:center;}
+#startScreen .start-top{position:absolute; top:22px; left:0; z-index:5;}
+.num-blocks{display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin:6px 0 2px;}
+.nb{position:relative; width:58px; height:58px; border-radius:16px; display:grid; place-items:center;
+  font-family:'Fredoka'; font-weight:700; font-size:30px; color:#fff; transform:rotate(var(--r));
+  box-shadow:0 6px 0 rgba(0,0,0,.14), inset 0 -5px 0 rgba(0,0,0,.12), inset 0 3px 0 rgba(255,255,255,.28);}
+.nb::after{content:attr(data-o); position:absolute; right:-8px; bottom:-8px; font-size:20px;
+  filter:drop-shadow(0 1px 1px rgba(0,0,0,.25));}
+.nb:nth-child(1){background:var(--red);--r:-7deg}.nb:nth-child(2){background:var(--orange);--r:5deg}
+.nb:nth-child(3){background:var(--green);--r:-4deg}.nb:nth-child(4){background:var(--blue);--r:6deg}
+.nb:nth-child(5){background:var(--purple);--r:-5deg}
+#startScreen h1{font-family:'Comfortaa','Fredoka',sans-serif; font-weight:700; font-size:34px;
+  margin:8px 0 0; line-height:1.1; color:#1e3a6b;}
+.start-sub{color:var(--soft); font-weight:800; font-size:16px;}
+.rhyme{background:#fff; border:3px dashed #cdd8ea; border-radius:20px; padding:12px 18px;
+  font-style:italic; color:#3a5a8c; font-weight:800; max-width:400px; margin:0 auto;
+  box-shadow:0 1px 3px rgba(44,43,58,.14); line-height:1.4;}
+.start-hero{max-width:440px; width:100%; margin:0 auto; flex:1 1 auto; min-height:120px;
+  max-height:clamp(170px,40vh,380px); display:flex; align-items:center; justify-content:center; overflow:hidden;}
+.start-hero img{max-width:100%; max-height:100%; width:auto; height:auto; display:block;}
+.start-btns{display:flex; flex-direction:column; gap:10px; max-width:440px; margin:2px auto 0; width:100%;}
+.big-btn{border:none; border-radius:18px; padding:16px 20px; width:100%; cursor:pointer;
+  font-family:'Fredoka'; font-weight:700; font-size:20px; color:#fff;
+  background:var(--blue); box-shadow:0 6px 0 #2f8fd6;}
+.big-btn:active{transform:translateY(3px); box-shadow:0 3px 0 #2f8fd6;}
+/* «Нагороду отримано» — на старті замість віршика */
+.done-card{display:none; align-items:center; gap:12px; max-width:440px; width:100%; margin:0 auto; text-align:left;
+  background:linear-gradient(180deg,#fffdf4,#fff6df); border:3px solid #f4c842; border-radius:20px;
+  padding:10px 14px; box-shadow:0 0 0 3px #fff9e6;}
+.done-card.on{display:flex;}
+.done-card .dc-ic{font-size:30px; flex:none;}
+.done-card .dc-got{font-family:'Fredoka'; font-weight:700; font-size:15px; color:#8a5e16; line-height:1.2;}
+.done-card .dc-go{font-weight:800; font-size:12px; color:var(--soft); margin-top:3px; line-height:1.25;}
+@media (max-width:520px){
+  #startScreen .start-top{top:12px;}
+  .num-blocks{padding:0 48px; gap:6px;}
+  .nb{width:44px; height:44px; border-radius:12px; font-size:24px;}
+  .nb::after{font-size:16px; right:-6px; bottom:-6px;}
+}
+@media (max-width:380px){
+  .num-blocks{padding:0 46px; gap:5px;}
+  .nb{width:38px; height:38px; border-radius:11px; font-size:21px;}
+}
+@media (max-width:440px){
+  #startScreen{gap:8px; padding-left:16px; padding-right:16px;}
+  #startScreen h1{font-size:30px;}
+  .start-sub{font-size:14px;}
+  .rhyme{padding:9px 14px; font-size:14px; border-radius:16px;}
+  .big-btn{padding:13px 18px; font-size:18px;}
+}
+/* довга назва — не під «жучком» 🐞 справа */
+@media (max-width:440px){
+  #startScreen h1{font-size:27px; padding:0 40px;}
+}
+@media (max-height:640px){
+  #startScreen h1{font-size:28px;}
+  .start-hero{max-height:22vh;}
+}
 </style>
 </head>
 <body>
@@ -87,11 +215,30 @@
   <div id="tray"></div>
 
   <div class="screen" id="startScreen">
-    <div class="crown">➕</div>
-    <div class="title">Вибери правильну дію</div>
-    <div class="sub">Прочитай задачу й подумай: стало більше чи менше? Постав <b>+</b> або <b>−</b>, а тоді полічи. 12 задач.</div>
-    <button class="cta" id="playBtn">Грати ▶</button>
-    <a class="linkbtn" href="../igry.html">← До ігор</a>
+    <div class="start-head">
+      <div class="start-top">
+        <button class="iconbtn backbtn" type="button" title="Назад" aria-label="Назад">←</button>
+      </div>
+      <div class="num-blocks">
+        <div class="nb" data-o="🍎">3</div><div class="nb" data-o="✨">+</div><div class="nb" data-o="🍐">2</div><div class="nb" data-o="🐝">−</div><div class="nb" data-o="⭐">1</div>
+      </div>
+      <h1>Вибери правильну дію</h1>
+    </div>
+    <p class="start-sub">Стало більше чи менше? · 12 задач</p>
+    <p class="rhyme" id="startRhyme">Прибуло — то додаємо,<br>а пішло — то віднімаєм!</p>
+    <div class="done-card" id="startDone">
+      <span class="dc-ic">🏆</span>
+      <div><div class="dc-got" id="doneGot">Тренажер пройдено!</div>
+        <div class="dc-go" id="doneGo">Вирушай за новими досягненнями!</div></div>
+    </div>
+
+    <div class="start-hero">
+      <img src="../img/tr/mat-dodavannya-vidnimannya-10.webp" alt="" onerror="this.closest('.start-hero').style.display='none'">
+    </div>
+
+    <div class="start-btns">
+      <button class="big-btn" id="playBtn">Грати ▶</button>
+    </div>
   </div>
 
   <div class="screen hidden" id="winScreen">
@@ -100,9 +247,14 @@
     <div class="stars" id="winStars">⭐⭐⭐</div>
     <div class="sub" id="winSub">Чудова робота!</div>
     <div class="winrow"><button class="cta" id="againBtn">↻ Ще раз</button></div>
-    <div class="winrow"><a class="linkbtn" href="../igry.html">← До ігор</a></div>
+    <div class="winrow">
+      <button class="linkbtn" id="toMenuBtn" type="button">☰ У меню</button>
+      <button class="linkbtn backbtn" type="button">← Назад</button>
+    </div>
   </div>
 </div>
+
+<script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
 
 <script src="../sk-zadachi.js"></script>
 <script>
@@ -121,6 +273,37 @@
   var scoreEl = document.getElementById("score");
   var qNumEl  = document.getElementById("qNum");
   var fillEl  = document.getElementById("barFill");
+
+  /* ── «Назад» — туди, звідки прийшли (?skback= / попередня сторінка сайту), інакше «Ігри» ── */
+  function goBack(){
+    if(window.skGoBackSmart){ skGoBackSmart("igry.html"); return; }
+    location.href="../igry.html";
+  }
+  function openMenu(){
+    refreshStart();
+    document.getElementById("winScreen").classList.add("hidden");
+    document.getElementById("startScreen").classList.remove("hidden");
+  }
+  document.querySelectorAll(".backbtn").forEach(function(b){ b.addEventListener("click", goBack); });
+  /* футер «Назад»: у грі → меню, у меню → вихід */
+  var hb = document.getElementById("heroBackBtn");
+  if(hb) hb.addEventListener("click", function(){
+    if(document.getElementById("startScreen").classList.contains("hidden")) openMenu();
+    else goBack();
+  });
+
+  /* ── нагорода з адмінки (sk-prize.js) — один раз, за перше повне проходження ── */
+  var PRIZE_KEY = "sk_zadachi_diya_prize_v1";   // нагороду отримано (і що саме)
+  var TR_HREF = "zadachi-diya.html";            // за цим іменем sk-rewards шукає нагороду з адмінки
+  function refreshStart(){
+    var p = window.SKPRIZE ? SKPRIZE.summary(PRIZE_KEY) : null;
+    document.getElementById("startDone").classList.toggle("on", !!p);
+    document.getElementById("startRhyme").style.display = p ? "none" : "";   // замість віршика — нагорода
+    if(!p) return;
+    var t = SKPRIZE.doneText(p, "Вибери правильну дію пройдено — нагороду отримано!");
+    document.getElementById("doneGot").textContent = t.got;
+    document.getElementById("doneGo").textContent = t.go;
+  }
 
   var score = 0, qIndex = 0, mistakes = 0;
   var task = null, phase = "op", locked = false;
@@ -213,11 +396,16 @@
   function win(){
     fillEl.style.width = "100%";
     var stars = mistakes === 0 ? 3 : (mistakes <= 3 ? 2 : 1);
-    document.getElementById("winStars").textContent = "⭐⭐⭐".slice(0, stars * 2);
+    document.getElementById("winStars").textContent = "⭐".repeat(stars);
+    document.getElementById("winTitle").textContent =
+      mistakes === 0 ? "Усі дії правильні!" : "Усі задачі розв’язано!";
     document.getElementById("winSub").textContent =
       mistakes === 0 ? "Жодної помилки — ти чудово бачиш, яка потрібна дія!" :
       "Помилок: " + mistakes + ". Очки: " + score + ".";
     document.getElementById("winScreen").classList.remove("hidden");
+    // перше повне проходження → нагорода з адмінки (поп-ап + предмет в інвентар), один раз
+    if(window.SKPRIZE && !SKPRIZE.summary(PRIZE_KEY))
+      SKPRIZE.claim({ key: PRIZE_KEY, href: TR_HREF, title: "Усі задачі розв’язано!", onClose: refreshStart });
   }
 
   function start(){
@@ -234,11 +422,18 @@
   });
   document.getElementById("playBtn").addEventListener("click", start);
   document.getElementById("againBtn").addEventListener("click", start);
-  document.getElementById("menuBtn").addEventListener("click", function(){
-    document.getElementById("startScreen").classList.remove("hidden");
-  });
+  document.getElementById("menuBtn").addEventListener("click", openMenu);
+  document.getElementById("toMenuBtn").addEventListener("click", openMenu);
+
+  refreshStart();
+  window.addEventListener("load", refreshStart);   // sk-prize.js підключено нижче
 })();
 </script>
-<script src="../sk-finish.js?v=4"></script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=2"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=3"></script>
+<script src="../sk-prize.js?v=1"></script>
+<script src="../sk-finish.js?v=5"></script>
 </body>
 </html>
