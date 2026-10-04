@@ -347,6 +347,15 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 @keyframes sndpulse{0%{transform:scale(1)}30%{transform:scale(1.08)}100%{transform:scale(1)}}
 .mem.name{font-size:15px!important;padding:4px}
 @media(max-width:380px){.lc-emoji{font-size:100px}.lc-emoji img{height:150px}.opt.emoji{font-size:46px}.opt.emoji img{width:54px;height:54px}}
+
+/* «Нагороду отримано» — на старті замість віршика (sk-prize.js) */
+.done-card{display:none;align-items:center;gap:12px;max-width:440px;width:100%;margin:2px auto 0;text-align:left;
+  background:linear-gradient(180deg,#fffdf4,#fff6df);border:3px solid #f4c842;border-radius:20px;
+  padding:10px 14px;box-shadow:0 0 0 3px #fff9e6}
+.done-card.on{display:flex}
+.done-card .dc-ic{font-size:30px;flex:none}
+.done-card .dc-got{font-family:'Fredoka',sans-serif;font-weight:700;font-size:15px;color:#8a5e16;line-height:1.2}
+.done-card .dc-go{font-family:'Nunito',sans-serif;font-weight:800;font-size:12px;color:#6b6a7d;margin-top:3px;line-height:1.25}
 </style>
 <body>
 <div class="wrap">
@@ -361,7 +370,12 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
     </div>
     <h1>Дикі тварини!</h1>
     <p class="sub">Хто живе в лісі та саванні · 10 тварин</p>
-    <p class="rhyme">У лісі й у савані<br>живуть звірята гарні! 🐾</p>
+    <p class="rhyme" id="startRhyme">У лісі й у савані<br>живуть звірята гарні! 🐾</p>
+    <div class="done-card" id="startDone">
+      <span class="dc-ic">🏆</span>
+      <div><div class="dc-got" id="doneGot">Тренажер пройдено!</div>
+        <div class="dc-go" id="doneGo">Вирушай за новими досягненнями!</div></div>
+    </div>
 
     <div class="start-hero" id="startHero">
       <img src="../img/tr/dyki-tvaryny.webp?v=1" alt="" onerror="this.closest('.start-hero').style.display='none'">
@@ -572,7 +586,8 @@ function openGrid(){
 }
 function closeGrid(){ document.getElementById('gridOv').classList.remove('on'); }
 function jumpTo(i){ idx=i; userGesture=true; closeGrid(); renderCard(); }
-function openWin(){ try{ if(window.skFinishRecord) skFinishRecord(); }catch(e){} document.getElementById('winOv').classList.add('on'); }
+function openWin(){ try{ if(window.skFinishRecord) skFinishRecord(); }catch(e){} document.getElementById('winOv').classList.add('on');
+  if(window.skpClaim) skpClaim('Тренажер пройдено!'); }   // перше проходження → нагорода (один раз)
 function closeWin(){ document.getElementById('winOv').classList.remove('on'); }
 function winPlay(){ closeWin(); goGames(); }
 
@@ -810,6 +825,30 @@ refreshStart();
 <!-- Firebase лише для кнопки «Вийти» у спільному футері -->
 <script type="module" src="../firebase-config.js"></script>
 
+<script>
+/* ── Нагорода з адмінки (sk-prize.js) — один раз, за перше повне проходження:
+   поп-ап + предмет в інвентар героя; на старті потім картка замість віршика. ── */
+var SKP_KEY="sk_dyki_prize_v1", SKP_HREF="dyki-tvaryny.html";
+function skpRefresh(){
+  var p = window.SKPRIZE ? SKPRIZE.summary(SKP_KEY) : null;
+  var card=document.getElementById("startDone"), rhyme=document.getElementById("startRhyme");
+  if(card) card.classList.toggle("on", !!p);
+  if(rhyme) rhyme.style.display = p ? "none" : "";
+  if(!p || !card) return;
+  var t=SKPRIZE.doneText(p, "Дикі тварини пройдено — нагороду отримано!");
+  document.getElementById("doneGot").textContent=t.got;
+  document.getElementById("doneGo").textContent=t.go;
+}
+function skpClaim(title){
+  if(!window.SKPRIZE || SKPRIZE.summary(SKP_KEY)) return;
+  SKPRIZE.claim({key:SKP_KEY, href:SKP_HREF, title:title, onClose:skpRefresh});
+}
+window.addEventListener("load", skpRefresh);
+</script>
+<script src="../sk-items.js?v=2"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=3"></script>
+<script src="../sk-prize.js?v=1"></script>
 <script src="../sk-finish.js?v=4"></script>
 <!-- однакове гортання й розмір карток у всіх тренажерах -->
 <script src="../sk-cards.js?v=2"></script>

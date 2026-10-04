@@ -8,59 +8,193 @@
 <link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="manifest" href="../manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../sk-game.css">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
 <style>
-  :root{ --cyan:#7fe0ff; }
+/* Світла «пісочна» тема — як у тренажерах (замість темної sk-game.css). */
+:root{
+  --ink:#2c2b3a;--soft:#6b6a7d;--paper:#fff9ef;--line:#ece3d2;--card:#fff;
+  --red:#ff6b6b;--orange:#ffa94d;--yellow:#ffd43b;--green:#51cf66;--teal:#22b8cf;
+  --blue:#4dabf7;--purple:#cc5de8;
+  --good:#37b26f;--good-bg:#e4f7ec;--bad:#e06666;--bad-bg:#fbe7e7;
+  --shadow:0 6px 0 rgba(44,43,58,.13);
+  --gold:#ffcf4d;--gold-deep:#e0a92e;
+}
+*{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+html,body{height:100%; overflow:hidden;}
+body{
+  font-family:'Nunito',system-ui,sans-serif; color:var(--ink);
+  user-select:none; -webkit-user-select:none; touch-action:manipulation; overscroll-behavior:none;
+  background:
+    radial-gradient(circle at 12% 8%,rgba(255,212,59,.28),transparent 42%),
+    radial-gradient(circle at 88% 14%,rgba(77,171,247,.26),transparent 44%),
+    radial-gradient(circle at 78% 92%,rgba(204,93,232,.22),transparent 46%),
+    radial-gradient(circle at 8% 86%,rgba(81,207,102,.24),transparent 44%),
+    var(--paper);
+}
+h1,.title,.cta,.piece,.pill .val,.linkbtn{font-family:'Fredoka',sans-serif;letter-spacing:.3px;}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
-  /* ── top bar ── */
+/* ── увесь ігровий шар — над футером ── */
+#wrap{position:fixed; top:0; left:0; right:0;
+  bottom:calc(60px + env(safe-area-inset-bottom));
+  display:flex; flex-direction:column; max-width:640px; margin:0 auto;}
 
-  .pill.lvl .val{color:var(--gold);}
+/* ── верхня панель ── */
+#top{display:flex; align-items:center; gap:8px;
+  padding:calc(env(safe-area-inset-top) + 12px) 14px 4px;}
+.iconbtn{width:44px; height:44px; border:2px solid var(--line); background:#fff; border-radius:14px;
+  font-family:inherit; font-weight:700; font-size:20px; color:var(--ink); cursor:pointer; flex:none;
+  display:grid; place-items:center; box-shadow:0 1px 3px rgba(44,43,58,.14);}
+.iconbtn:active{transform:translateY(2px);}
+.pill{background:#fff; border:2px solid var(--line); border-radius:14px;
+  padding:6px 12px; font-weight:800; font-size:14px; white-space:nowrap; box-shadow:var(--shadow);}
+.pill .lab{color:var(--soft); font-size:11px; display:block; line-height:1;}
+.pill .val{font-size:19px; line-height:1.15; color:var(--ink);}
+.pill.q .val{color:var(--orange);}
+#spacer{flex:1;}
+#menuBtn{cursor:pointer; font-family:'Fredoka'; font-weight:600; font-size:15px;
+  background:#fff; border:2px solid var(--line); color:var(--ink);
+  border-radius:14px; padding:9px 14px; box-shadow:var(--shadow); margin-right:52px;}
+#menuBtn:active{transform:translateY(2px); box-shadow:0 3px 0 rgba(44,43,58,.13);}
 
-  /* ── equation ── */
-  #eqBar{text-align:center; padding:8px 12px 2px;}
-  #eq{font-weight:700; font-size:clamp(26px,8vw,40px); line-height:1;
-    text-shadow:0 2px 8px rgba(0,0,0,.4);}
-  #eq b{color:var(--gold);}
-  #hint{font-weight:600; font-size:13px; opacity:.8; min-height:18px; margin-top:4px;}
+/* ── прогрес ── */
+#barWrap{padding:10px 64px 2px 16px;}   /* праворуч — місце під «жучок» 🐞 */
+#bar{height:12px; border-radius:8px; background:#f0e7d6; overflow:hidden;}
+#barFill{height:100%; width:0%; border-radius:8px;
+  background:linear-gradient(90deg,var(--green),var(--teal)); transition:width .45s;}
 
-  /* ── maze board ── */
-  #boardWrap{flex:1 1 auto; display:flex; align-items:center; justify-content:center; padding:6px 12px 2px;}
-  #board{position:relative; display:grid; background:rgba(10,14,38,.35);
-    border-radius:18px; padding:6px; gap:5px;
-    box-shadow:inset 0 0 24px rgba(0,0,0,.4), 0 10px 26px rgba(0,0,0,.4);}
-  .cell{position:relative; display:flex; align-items:center; justify-content:center;
-    font-weight:700; color:#d6def5; border-radius:12px;
-    background:linear-gradient(180deg,#20264f,#151a3b);
-    border:2px solid rgba(255,255,255,.05);
-    transition:background .2s, border-color .2s, transform .1s, box-shadow .2s;}
-  .cell.reach{cursor:pointer; border-color:rgba(127,224,255,.65); color:#fff;
-    background:linear-gradient(180deg,#26356f,#182150);
-    box-shadow:0 0 14px rgba(127,224,255,.28); animation:pulse 1.2s ease-in-out infinite;}
-  .cell.trail{background:linear-gradient(180deg,#3a2f12,#2a2208);
-    border-color:rgba(255,207,77,.45); color:rgba(255,207,77,.5);}
-  .cell.exitc{border-color:var(--gold);
-    box-shadow:0 0 16px rgba(255,207,77,.4); color:var(--gold);}
-  .cell.exitc::after{content:"🏰"; position:absolute; top:-2px; right:0px; font-size:.62em; filter:drop-shadow(0 1px 2px #000);}
-  .cell.wrong{animation:shake .34s;}
-  @keyframes pulse{0%,100%{box-shadow:0 0 10px rgba(127,224,255,.22)}50%{box-shadow:0 0 20px rgba(127,224,255,.5)}}
-  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}
-    40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+.pill.lvl .val{color:var(--orange);}
 
-  #hero{position:absolute; z-index:5; display:flex; align-items:center; justify-content:center;
-    pointer-events:none; transform:translate(-50%,-50%);
-    transition:left .18s ease, top .18s ease; filter:drop-shadow(0 3px 6px rgba(0,0,0,.5));}
+/* ── приклад ── */
+#eqBar{text-align:center; padding:8px 12px 2px;}
+#eq{font-family:'Fredoka'; font-weight:700; font-size:clamp(26px,8vw,40px); line-height:1; color:var(--ink);}
+#eq b{color:var(--blue);}
+#hint{font-weight:800; font-size:13px; color:var(--soft); min-height:18px; margin-top:6px;}
 
-  /* ── overlays ── */
+/* ── лабіринт ── */
+#boardWrap{flex:1 1 auto; display:flex; align-items:center; justify-content:center; padding:6px 12px 10px; min-height:0;}
+#board{position:relative; display:grid; background:#efe4cf;
+  border-radius:18px; padding:6px; gap:5px; box-shadow:var(--shadow);}
+.cell{position:relative; display:flex; align-items:center; justify-content:center;
+  font-family:'Fredoka'; font-weight:700; color:#b3a88f; border-radius:12px;
+  background:#fff; border:2px solid var(--line);
+  transition:background .2s, border-color .2s, transform .1s, box-shadow .2s;}
+.cell.reach{cursor:pointer; border-color:var(--blue); color:var(--ink); background:#eef6ff;
+  animation:pulse 1.2s ease-in-out infinite;}
+.cell.trail{background:#fff3d6; border-color:#f4c842; color:#c9922a;}
+.cell.exitc{border-color:var(--orange); background:#fff6e6; color:var(--orange);
+  box-shadow:0 0 0 3px rgba(255,169,77,.25);}
+.cell.exitc::after{content:"🏰"; position:absolute; top:-2px; right:0px; font-size:.62em;}
+.cell.wrong{animation:shake .34s; border-color:var(--bad); background:var(--bad-bg);}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 2px rgba(77,171,247,.15)}50%{box-shadow:0 0 0 5px rgba(77,171,247,.35)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}
+  40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
 
-  .group{display:flex; flex-direction:column; gap:8px; width:min(330px,88vw);}
-  .glabel{font-size:13px; opacity:.72; margin-top:2px;}
-  .seg{display:flex; gap:8px;}
-  .opt{flex:1; cursor:pointer; font-family:inherit; font-weight:600; font-size:14px;
-    background:rgba(20,26,68,.7); border:2px solid rgba(255,207,77,.3); color:var(--text);
-    border-radius:14px; padding:12px 6px;}
-  .opt.sel{border-color:var(--gold); background:linear-gradient(180deg,#241c52,#12102e);
-    box-shadow:0 0 14px rgba(255,207,77,.3);}
+#hero{position:absolute; z-index:5; display:flex; align-items:center; justify-content:center;
+  pointer-events:none; transform:translate(-50%,-50%);
+  transition:left .18s ease, top .18s ease; filter:drop-shadow(0 3px 4px rgba(44,43,58,.3));}
+
+/* вибір складності на старті */
+.group{display:flex; flex-direction:column; gap:7px; align-items:center; width:100%; max-width:440px; margin:0 auto;}
+.glabel{font-size:13px; font-weight:800; color:var(--soft);}
+.seg{display:flex; gap:8px; width:100%;}
+.opt{flex:1; position:relative; cursor:pointer; font-family:'Fredoka'; font-weight:600; font-size:15px;
+  background:#fff; border:3px solid var(--line); color:var(--ink);
+  border-radius:14px; padding:10px 6px; box-shadow:0 4px 0 rgba(44,43,58,.12);}
+.opt:active{transform:translateY(3px); box-shadow:none;}
+.opt.sel{background:var(--orange); border-color:var(--orange); color:#fff; box-shadow:0 4px 0 #d9822f;}
+@media (max-width:380px){ .opt{font-size:13px; padding:9px 2px; white-space:nowrap;} }
+/* рівень уже пройдено */
+.opt.done::after{content:"✓"; position:absolute; top:-8px; right:-6px; width:20px; height:20px;
+  border-radius:50%; background:var(--good); color:#fff; font-size:12px; display:grid; place-items:center;
+  box-shadow:0 2px 0 rgba(0,0,0,.12);}
+.prog{font-weight:800; font-size:14px; color:var(--soft);}
+.prog b{color:var(--good); font-family:'Fredoka';}
+
+/* ── оверлеї (старт / фінал) ── */
+.screen{position:absolute; inset:0; z-index:60; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; text-align:center; padding:22px; gap:12px;
+  background:linear-gradient(180deg,#fff9ef,#fdf3e2);}
+.screen.hidden{display:none;}
+.crown{font-size:52px;}
+.title{font-size:30px; font-weight:700; color:var(--ink); line-height:1.1;}
+.sub{font-size:15px; font-weight:800; color:var(--soft); max-width:340px; line-height:1.5;}
+.sub b{color:var(--blue);}
+.stars{font-size:42px; letter-spacing:6px;}
+.cta{margin-top:4px; border:none; cursor:pointer; font-weight:700;
+  background:var(--green); color:#fff; font-size:20px; padding:15px 42px; border-radius:18px;
+  box-shadow:0 6px 0 #37a052;}
+.cta:active{transform:translateY(3px); box-shadow:0 3px 0 #37a052;}
+.linkbtn{cursor:pointer; font-weight:600; font-size:15px; text-decoration:none;
+  background:#fff; border:2px solid var(--line); color:var(--soft);
+  border-radius:14px; padding:11px 22px;}
+.linkbtn:active{transform:translateY(2px);}
+.winrow{display:flex; gap:10px; flex-wrap:wrap; justify-content:center;}
+
+/* ══ стартовий екран — вигляд як у тренажері «Вчимо літери» ══ */
+#startScreen{justify-content:flex-start; gap:11px; overflow-y:auto;
+  padding:calc(env(safe-area-inset-top) + 16px) 20px 16px;}
+#startScreen > *:not(.start-hero){flex-shrink:0;}
+#startScreen .start-head{position:relative; width:100%; max-width:540px; margin:0 auto;
+  display:flex; flex-direction:column; align-items:center;}
+#startScreen .start-top{position:absolute; top:22px; left:0; z-index:5;}
+.num-blocks{display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin:6px 0 2px;}
+.nb{position:relative; width:58px; height:58px; border-radius:16px; display:grid; place-items:center;
+  font-family:'Fredoka'; font-weight:700; font-size:30px; color:#fff; transform:rotate(var(--r));
+  box-shadow:0 6px 0 rgba(0,0,0,.14), inset 0 -5px 0 rgba(0,0,0,.12), inset 0 3px 0 rgba(255,255,255,.28);}
+.nb::after{content:attr(data-o); position:absolute; right:-8px; bottom:-8px; font-size:20px;
+  filter:drop-shadow(0 1px 1px rgba(0,0,0,.25));}
+.nb:nth-child(1){background:var(--red);--r:-7deg}.nb:nth-child(2){background:var(--orange);--r:5deg}
+.nb:nth-child(3){background:var(--green);--r:-4deg}.nb:nth-child(4){background:var(--blue);--r:6deg}
+.nb:nth-child(5){background:var(--purple);--r:-5deg}
+#startScreen h1{font-family:'Comfortaa','Fredoka',sans-serif; font-weight:700; font-size:34px;
+  margin:8px 0 0; line-height:1.1; color:#1e3a6b;}
+.start-sub{color:var(--soft); font-weight:800; font-size:16px;}
+.rhyme{background:#fff; border:3px dashed #cdd8ea; border-radius:20px; padding:12px 18px;
+  font-style:italic; color:#3a5a8c; font-weight:800; max-width:400px; margin:0 auto;
+  box-shadow:0 1px 3px rgba(44,43,58,.14); line-height:1.4;}
+.start-hero{max-width:440px; width:100%; margin:0 auto; flex:1 1 auto; min-height:120px;
+  max-height:clamp(170px,40vh,380px); display:flex; align-items:center; justify-content:center; overflow:hidden;}
+.start-hero img{max-width:100%; max-height:100%; width:auto; height:auto; display:block;}
+.start-btns{display:flex; flex-direction:column; gap:10px; max-width:440px; margin:2px auto 0; width:100%;}
+.big-btn{border:none; border-radius:18px; padding:16px 20px; width:100%; cursor:pointer;
+  font-family:'Fredoka'; font-weight:700; font-size:20px; color:#fff;
+  background:var(--blue); box-shadow:0 6px 0 #2f8fd6;}
+.big-btn:active{transform:translateY(3px); box-shadow:0 3px 0 #2f8fd6;}
+/* «Нагороду отримано» — на старті замість віршика */
+.done-card{display:none; align-items:center; gap:12px; max-width:440px; width:100%; margin:0 auto; text-align:left;
+  background:linear-gradient(180deg,#fffdf4,#fff6df); border:3px solid #f4c842; border-radius:20px;
+  padding:10px 14px; box-shadow:0 0 0 3px #fff9e6;}
+.done-card.on{display:flex;}
+.done-card .dc-ic{font-size:30px; flex:none;}
+.done-card .dc-got{font-family:'Fredoka'; font-weight:700; font-size:15px; color:#8a5e16; line-height:1.2;}
+.done-card .dc-go{font-weight:800; font-size:12px; color:var(--soft); margin-top:3px; line-height:1.25;}
+@media (max-width:520px){
+  #startScreen .start-top{top:12px;}
+  .num-blocks{padding:0 48px; gap:6px;}
+  .nb{width:44px; height:44px; border-radius:12px; font-size:24px;}
+  .nb::after{font-size:16px; right:-6px; bottom:-6px;}
+}
+@media (max-width:380px){
+  .num-blocks{padding:0 46px; gap:5px;}
+  .nb{width:38px; height:38px; border-radius:11px; font-size:21px;}
+}
+@media (max-width:440px){
+  #startScreen{gap:8px; padding-left:16px; padding-right:16px;}
+  #startScreen h1{font-size:30px;}
+  .start-sub{font-size:14px;}
+  .rhyme{padding:9px 14px; font-size:14px; border-radius:16px;}
+  .big-btn{padding:13px 18px; font-size:18px;}
+}
+@media (max-height:640px){
+  #startScreen h1{font-size:28px;}
+  .start-hero{max-height:22vh;}
+}
+/* довга назва — не під «жучком» 🐞 справа */
+@media (max-width:440px){
+  #startScreen h1{font-size:27px; padding:0 40px;}
+}
 </style>
 </head>
 <body>
@@ -83,8 +217,27 @@
 
   <!-- start / menu -->
   <div class="screen" id="startScreen">
-    <div class="crown">🌀</div>
-    <div class="title">Математичний лабіринт</div>
+    <div class="start-head">
+      <div class="start-top">
+        <button class="iconbtn backbtn" type="button" title="Назад" aria-label="Назад">←</button>
+      </div>
+      <div class="num-blocks">
+        <div class="nb" data-o="🦉">2</div><div class="nb" data-o="➕">+</div><div class="nb" data-o="🌀">3</div><div class="nb" data-o="⭐">=</div><div class="nb" data-o="🏰">5</div>
+      </div>
+      <h1>Математичний лабіринт</h1>
+    </div>
+    <p class="start-sub">Розв’яжи приклад — крокни до замку</p>
+    <p class="rhyme" id="startRhyme">Приклад розв’язуй сміливо —<br>і до замку йди щасливо!</p>
+    <div class="done-card" id="startDone">
+      <span class="dc-ic">🏆</span>
+      <div><div class="dc-got" id="doneGot">Тренажер пройдено!</div>
+        <div class="dc-go" id="doneGo">Вирушай за новими досягненнями!</div></div>
+    </div>
+
+    <div class="start-hero">
+      <img src="../img/tr/mat-labiryint.webp" alt="" onerror="this.closest('.start-hero').style.display='none'">
+    </div>
+
     <div class="group">
       <div class="glabel">Обери складність</div>
       <div class="seg" id="diffSeg">
@@ -93,9 +246,10 @@
         <button class="opt" data-diff="hard">🔥 Складно</button>
       </div>
     </div>
-    <button class="cta" id="playBtn">Грати ▶</button>
-    <div class="sub">Розв'яжи приклад угорі, знайди сусідню клітинку з правильною відповіддю і крокни на неї. Прокладай шлях до замку 🏰!</div>
-    <a class="linkbtn" href="../igry.html">← До ігор</a>
+    <div class="prog" id="startProg">Пройдено <b>0</b> з 3 рівнів — і нагорода твоя!</div>
+    <div class="start-btns">
+      <button class="big-btn" id="playBtn">Грати ▶</button>
+    </div>
   </div>
 
   <!-- win -->
@@ -108,9 +262,12 @@
     <div class="winrow">
       <button class="linkbtn" id="againBtn">↻ Ще раз</button>
       <button class="linkbtn" id="toMenuBtn">☰ Меню</button>
+      <button class="linkbtn backbtn" type="button">← Назад</button>
     </div>
   </div>
 </div>
+
+<script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
 
 <script>
 (function(){
@@ -215,7 +372,7 @@
   // ── rendering ──
   function layout(){
     var wrap=boardEl.parentElement.getBoundingClientRect();
-    var maxS=Math.min(wrap.width, wrap.height);
+    var maxS=Math.min(wrap.width-24, wrap.height-16);   // мінус відступи #boardWrap — не впритул до країв
     var s=Math.floor(maxS);
     cellPx=Math.floor((s-12-5*(N-1))/N);
     if(cellPx<32) cellPx=32;
@@ -343,6 +500,7 @@
     document.getElementById("winSub").textContent=sub;
     document.getElementById("nextBtn").textContent=nextLabel;
     document.getElementById("winScreen").classList.remove("hidden");
+    onRoundWon();
   }
 
   function startRound(keepScore){
@@ -354,6 +512,59 @@
     buildLevel(); renderBoard(); positionHero(false); showEq();
   }
 
+  /* ── «Назад» — туди, звідки прийшли (?skback= / попередня сторінка сайту), інакше «Тести» ── */
+  function goBack(){
+    if(window.skGoBackSmart){ skGoBackSmart("tests.html"); return; }
+    location.href="../tests.html";
+  }
+  function openMenu(){
+    refreshStart();
+    document.getElementById("winScreen").classList.add("hidden");
+    document.getElementById("startScreen").classList.remove("hidden");
+  }
+  document.querySelectorAll(".backbtn").forEach(function(b){ b.addEventListener("click", goBack); });
+  /* футер «Назад»: у грі → меню, у меню → вихід */
+  var hb=document.getElementById("heroBackBtn");
+  if(hb) hb.addEventListener("click", function(){
+    if(document.getElementById("startScreen").classList.contains("hidden")) openMenu();
+    else goBack();
+  });
+
+  /* ── пройдені рівні + нагорода з адмінки (sk-prize.js) ──
+     Тренажер пройдено, коли пройдено всі три рівні (у будь-якому порядку).
+     Перше таке проходження → поп-ап нагороди й предмет в інвентар, один раз. */
+  var DONE_KEY="sk_labirynt_done_v1";      // які рівні вже пройдено
+  var PRIZE_KEY="sk_labirynt_prize_v1";    // нагороду отримано (і що саме)
+  var TR_HREF="labirynt.html";              // за цим іменем sk-rewards шукає нагороду з адмінки
+  function doneLevels(){
+    try{ var d=JSON.parse(localStorage.getItem(DONE_KEY)||"[]"); return Array.isArray(d)?d:[]; }catch(e){ return []; }
+  }
+  function markDone(d){
+    var list=doneLevels(); if(list.indexOf(d)<0) list.push(d);
+    try{ localStorage.setItem(DONE_KEY, JSON.stringify(list)); }catch(e){}
+  }
+  function refreshStart(){
+    var list=doneLevels(), n=DIFFS.filter(function(d){ return list.indexOf(d)>=0; }).length;
+    document.querySelectorAll("#diffSeg .opt").forEach(function(o){ o.classList.toggle("done", list.indexOf(o.dataset.diff)>=0); });
+    var p = window.SKPRIZE ? SKPRIZE.summary(PRIZE_KEY) : null;
+    document.getElementById("startProg").innerHTML = n>=DIFFS.length
+      ? "🎉 Усі <b>3</b> рівні пройдено!"
+      : "Пройдено <b>"+n+"</b> з 3 рівнів"+(p?"":" — і нагорода твоя!");
+    document.getElementById("startDone").classList.toggle("on", !!p);
+    document.getElementById("startRhyme").style.display = p ? "none" : "";   // замість віршика — нагорода
+    if(!p) return;
+    var t=SKPRIZE.doneText(p, "Математичний лабіринт пройдено — нагороду отримано!");
+    document.getElementById("doneGot").textContent=t.got;
+    document.getElementById("doneGo").textContent=t.go;
+  }
+  function onRoundWon(){
+    markDone(diff);
+    var list=doneLevels();
+    var all=DIFFS.every(function(d){ return list.indexOf(d)>=0; });
+    if(all && window.SKPRIZE && !SKPRIZE.summary(PRIZE_KEY))
+      SKPRIZE.claim({key:PRIZE_KEY, href:TR_HREF, title:"Усі рівні пройдено!", onClose:refreshStart});
+  }
+
   // ── menu wiring ──
   document.querySelectorAll("#diffSeg .opt").forEach(function(o){
     o.addEventListener("click", function(){
@@ -362,14 +573,9 @@
     });
   });
   document.getElementById("playBtn").addEventListener("click", function(){ startRound(false); });
-  document.getElementById("menuBtn").addEventListener("click", function(){
-    document.getElementById("startScreen").classList.remove("hidden");
-  });
+  document.getElementById("menuBtn").addEventListener("click", openMenu);
   document.getElementById("againBtn").addEventListener("click", function(){ startRound(false); });
-  document.getElementById("toMenuBtn").addEventListener("click", function(){
-    document.getElementById("winScreen").classList.add("hidden");
-    document.getElementById("startScreen").classList.remove("hidden");
-  });
+  document.getElementById("toMenuBtn").addEventListener("click", openMenu);
   document.getElementById("nextBtn").addEventListener("click", function(){
     var idx=DIFFS.indexOf(diff);
     if(idx<DIFFS.length-1) diff=DIFFS[idx+1];
@@ -380,8 +586,15 @@
   });
 
   window.addEventListener("resize", function(){ if(cells.length) layout(); });
+  refreshStart();
+  window.addEventListener("load", refreshStart);   // sk-prize.js підключено нижче
 })();
 </script>
-<script src="../sk-finish.js?v=4"></script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=2"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=3"></script>
+<script src="../sk-prize.js?v=1"></script>
+<script src="../sk-finish.js?v=5"></script>
 </body>
 </html>

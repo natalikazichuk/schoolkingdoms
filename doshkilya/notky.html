@@ -145,6 +145,15 @@
   #startScreen .opt:active{transform:translateY(3px); box-shadow:0 2px 0 rgba(44,43,58,.13);}
   @media (max-width:440px){ #startScreen .opt{font-size:14px; padding:10px 2px; white-space:nowrap;} }
   #startScreen .opt.sel{background:#51cf66; border-color:#51cf66; color:#fff; box-shadow:0 5px 0 #37a052;}
+
+/* «Нагороду отримано» — на старті замість віршика (sk-prize.js) */
+.done-card{display:none;align-items:center;gap:12px;max-width:440px;width:100%;margin:2px auto 0;text-align:left;
+  background:linear-gradient(180deg,#fffdf4,#fff6df);border:3px solid #f4c842;border-radius:20px;
+  padding:10px 14px;box-shadow:0 0 0 3px #fff9e6}
+.done-card.on{display:flex}
+.done-card .dc-ic{font-size:30px;flex:none}
+.done-card .dc-got{font-family:'Fredoka',sans-serif;font-weight:700;font-size:15px;color:#8a5e16;line-height:1.2}
+.done-card .dc-go{font-family:'Nunito',sans-serif;font-weight:800;font-size:12px;color:#6b6a7d;margin-top:3px;line-height:1.25}
 </style>
 </head>
 <body>
@@ -181,6 +190,11 @@
     </div>
     <p class="start-sub">Приклади на ксилофоні · до 8</p>
     <p class="rhyme" id="startRhyme">Розв'яжи — і нотку зіграй,<br>мелодію разом складай!</p>
+    <div class="done-card" id="startDone">
+      <span class="dc-ic">🏆</span>
+      <div><div class="dc-got" id="doneGot">Тренажер пройдено!</div>
+        <div class="dc-go" id="doneGo">Вирушай за новими досягненнями!</div></div>
+    </div>
 
     <div class="start-hero">
       <img src="../img/tr/notky.webp?v=1" alt="" onerror="this.style.display='none';var e=this.parentNode.querySelector('.hero-emoji');if(e)e.style.display='block'">
@@ -383,6 +397,10 @@
     document.getElementById("winSub").textContent='🎼 «'+tune.name+'» — помилок: '+mistakes;
     document.getElementById("winScreen").classList.remove("hidden");
     playMelody();
+    // усі три рівні зіграно (у будь-якому порядку) → тренажер пройдено, нагорода (один раз)
+    var done=[]; try{ done=JSON.parse(localStorage.getItem("sk_notky_done_v1")||"[]")||[]; }catch(e){}
+    if(done.indexOf(diff)<0){ done.push(diff); try{ localStorage.setItem("sk_notky_done_v1", JSON.stringify(done)); }catch(e){} }
+    if(DIFFS.every(function(d){ return done.indexOf(d)>=0; }) && window.skpClaim) skpClaim("Усі рівні пройдено!");
   }
 
   function startRound(keepScore){
@@ -426,6 +444,31 @@
 })();
 </script>
 <script src="../sk-footer.js?v=5" data-base="../" data-back="tests.html"></script>
+<script>
+/* ── Нагорода з адмінки (sk-prize.js) — один раз, за перше повне проходження:
+   поп-ап + предмет в інвентар героя; на старті потім картка замість віршика. ── */
+var SKP_KEY="sk_notky_prize_v1", SKP_HREF="notky.html";
+function skpRefresh(){
+  var p = window.SKPRIZE ? SKPRIZE.summary(SKP_KEY) : null;
+  var card=document.getElementById("startDone"), rhyme=document.getElementById("startRhyme");
+  if(card) card.classList.toggle("on", !!p);
+  if(rhyme) rhyme.style.display = p ? "none" : "";
+  if(!p || !card) return;
+  var t=SKPRIZE.doneText(p, "Нотна математика пройдено — нагороду отримано!");
+  document.getElementById("doneGot").textContent=t.got;
+  document.getElementById("doneGo").textContent=t.go;
+}
+function skpClaim(title){
+  if(!window.SKPRIZE || SKPRIZE.summary(SKP_KEY)) return;
+  SKPRIZE.claim({key:SKP_KEY, href:SKP_HREF, title:title, onClose:skpRefresh});
+}
+window.addEventListener("load", skpRefresh);
+</script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=2"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=3"></script>
+<script src="../sk-prize.js?v=1"></script>
 <script src="../sk-finish.js?v=4"></script>
 </body>
 </html>
