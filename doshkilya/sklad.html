@@ -273,7 +273,6 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
 <div id="wrap">
   <div id="top">
     <div class="pill h"><span class="lab">Будиночок</span><span class="val" id="hNum">10</span></div>
-    <div class="pill"><span class="lab">Очки</span><span class="val" id="score">0</span></div>
     <div id="spacer"></div>
     <button id="menuBtn">☰ Меню</button>
   </div>
@@ -359,7 +358,6 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
   var floorsEl = document.getElementById("floors");
   var trayEl   = document.getElementById("tray");
   var hintEl   = document.getElementById("hint");
-  var scoreEl  = document.getElementById("score");
   var hNumEl   = document.getElementById("hNum");
   var roofEl   = document.getElementById("roofNum");
   var fillEl   = document.getElementById("barFill");
@@ -468,7 +466,7 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
         stat:res.stat?{label:res.stat.label,value:res.stat.value}:null})); }catch(e){}
     });
   }
-  var score=0, streak=0, mistakes=0;
+  var streak=0, mistakes=0;
   var sockets=[], total=0, done=0, locked=false;
 
   function rnd(min,max){ return min + Math.floor(Math.random()*(max-min+1)); }
@@ -610,8 +608,7 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
       target.classList.add("good","pop");
       target.textContent = target.dataset.answer;
       returnPiece(p);                               // цифра повертається у лоток
-      streak++; var gain=10+Math.min(streak-1,5)*2; score+=gain;
-      scoreEl.textContent=score;
+      streak++;
       done++; updateBar();
       buzz(20); chime();
       markActive();
@@ -663,7 +660,7 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
     document.getElementById("winTitle").textContent =
       mistakes===0 ? "Бездоганно!" : "Будиночок заселено!";
     document.getElementById("winSub").textContent =
-      "Будиночок "+N+" • Поверхів: "+total+" • Помилок: "+mistakes+" • Очки: "+score;
+      "Будиночок "+N+" • Поверхів: "+total+" • Помилок: "+mistakes;
     var idx=HOUSES.indexOf(N);
     document.getElementById("nextBtn").textContent =
       (idx<HOUSES.length-1) ? ("Будиночок "+HOUSES[idx+1]+" ▶") : "Ще один будиночок ▶";
@@ -691,10 +688,8 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
     });
   }
 
-  function startHouse(keepScore){
-    if(!keepScore) score=0;
+  function startHouse(){
     streak=0; mistakes=0;
-    scoreEl.textContent=score;
     document.getElementById("startScreen").classList.add("hidden");
     document.getElementById("winScreen").classList.add("hidden");
     buildHouse();
