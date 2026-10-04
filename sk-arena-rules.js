@@ -216,8 +216,13 @@
     var mag = Math.max(0, magRaw - num(def.magicResist)) * (1 + num(att.magPct) / 100);
     // 6) крит
     var crit = critCheck();
-    var dmg = Math.max(BATTLE.minDmg, Math.round((phys + mag) * (crit ? BATTLE.critMult : 1)));
+    var mult = crit ? BATTLE.critMult : 1;
+    var dmg = Math.max(BATTLE.minDmg, Math.round((phys + mag) * mult));
     out.raw = physRaw + magRaw; out.armor = num(def.armor) + (magRaw ? num(def.magicResist) : 0);
+    // частини для показу (журнал фарбує магічну фіолетовим): скільки з dmg — магічний урон
+    out.magDmg = Math.min(dmg, Math.round(mag * mult)); out.physDmg = dmg - out.magDmg;
+    out.parts = { physRaw: physRaw, armor: num(def.armor), dmgPct: num(att.dmgPct),
+                  magRaw: magRaw, mres: num(def.magicResist), magPct: num(att.magPct), mult: mult };
     var calc = '(' + physRaw + ' − броня ' + num(def.armor) + ')' + (att.dmgPct ? ' × ' + (100 + num(att.dmgPct)) + '%' : '')
       + (magRaw ? ' + (маг. ' + magRaw + ' − захист ' + num(def.magicResist) + ')' + (att.magPct ? ' × ' + (100 + num(att.magPct)) + '%' : '') : '')
       + (crit ? ' × ' + BATTLE.critMult + ' крит' : '');
