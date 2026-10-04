@@ -12,7 +12,8 @@
        10% → 1.2 (+20%)
        10% → 0.9 (−10%)
      Зберігається на екземплярі → застосовується завжди однаково.
-   • Значення = floor(базове × bonus). (20 спритності × 1.2 = 24)
+   • Значення = round(базове × bonus), але щонайменше ±1 від бази
+     (20 спритності × 1.2 = 24; броня 2 × 1.1 = 3). Так само для %.
    • Ціна й міцність теж множаться на bonus.
    • Ціна падає з міцністю: кожні 10% міцності = 10% ціни →
        priceNow = floor(priceWithBonus × durCur/durMax)
@@ -58,6 +59,20 @@
   function canon(name) { return STAT_MAP[name] || name; }
   function floor(n) { return Math.floor(n); }
 
+  /* ---- значення характеристики з бонусом ----
+     Округлюємо до найближчого (а не вниз), і бонус завжди змінює
+     ненульове значення щонайменше на 1 у свій бік: інакше на малих
+     числах +10%/+20% «з'їдались» (броня 2 × 1.1 = 2), а −10% ні (2 × 0.9 = 1).
+     Однаково для сталих чисел і для відсотків (5% × 1.2 = 6%). */
+  function scaleStat(v, f) {
+    if (v == null) return null;
+    if (!f || f === 1 || v === 0) return v;
+    var r = Math.round(v * f);
+    if (f > 1 && r <= v) r = v + 1;
+    if (f < 1 && r >= v) r = Math.max(v > 0 ? 1 : 0, v - 1); // не до нуля: річ лишається річчю
+    return r;
+  }
+
   /* ---- кидок бонусу (один раз при отриманні) ---- */
   function rollBonus(rnd) {
     var r = (typeof rnd === 'number' ? rnd : Math.random()) * 100;
@@ -102,7 +117,7 @@
     var f = inst.bonus;
     var addStats = (base.addStats || []).map(function (e) {
       if (isFlagEntry(e)) return { stat: e.stat, flag: true };
-      return { stat: e.stat, value: (e.value != null ? floor(e.value * f) : null), pct: !!e.pct };
+      return { stat: e.stat, value: scaleStat(e.value, f), pct: !!e.pct };
     });
     return {
       id: base.id,
@@ -110,8 +125,8 @@
       category: base.category,
       grade: base.grade,
       stat: base.stat,
-      valueMin: (base.valueMin != null ? floor(base.valueMin * f) : null),
-      valueMax: (base.valueMax != null ? floor(base.valueMax * f) : null),
+      valueMin: scaleStat(base.valueMin, f),
+      valueMax: scaleStat(base.valueMax, f),
       consumable: !!base.consumable,
       bonus: f,
       durMax: inst.durMax,
@@ -186,6 +201,7 @@
     effective: effective,
     canSeeAddStats: canSeeAddStats,
     combine: combine,
+    scaleStat: scaleStat,
     newUid: newUid
   };
 
