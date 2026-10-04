@@ -13,17 +13,18 @@
   'use strict';
 
   /* ── бій ──
-     УРОН одного удару (рахується для КОЖНОГО удару окремо):
-       1) фізичний = baseDmg + урон зброї (випадково з її діапазону) + сталий «Урон» речей
-          магічний  = магічний урон зброї (діапазон) + сталий «Маг. урон» речей
-       2) фізичний − броня захисника, магічний − магічний захист (не нижче 0)
-       3) × відсоткові підвищення з речей (+N% урону / +N% маг. урону)
-       4) крит: шанс = critBase% + «Шанс крит. урону» речей (і вмінь) → × critMult
+     Кожен УДАР рахується окремо, по черзі:
+       1) влучив? шанс = hitBase × точність / спритність захисника, в межах [hitMin; hitMax]
+          (кидок 🎲 d100: випало ≤ шансу у % — влучив). Промах → 0, далі не рахуємо.
+       2) заблокував? удар у зону, яку захищає суперник, — блок (щит приймає удар):
+          проходить blockKeep (0 — нічого). Кидок на крит робиться лише для зносу щита.
+       3) урон: фізичний = baseDmg + урон зброї (випадково з її діапазону) + сталий «Урон» речей;
+          магічний = магічний урон зброї (діапазон) + сталий «Маг. урон» речей
+       4) фізичний − броня захисника, магічний − магічний захист (не нижче 0)
+       5) × відсоткові підвищення з речей (+N% урону / +N% маг. урону)
+       6) крит: шанс = critBase% + «Шанс крит. урону» речей (і вмінь) → × critMult
           (кидок 🎲 d100: випало ≤ шансу у % — крит)
-       5) влучив? шанс = hitBase × точність / спритність захисника, в межах [hitMin; hitMax]
-          (кидок 🎲 d100: випало ≤ шансу у % — влучив; мінімум 20% → 🎲 1..20 влучає завжди)
-       6) удар у заблоковану зону повністю поглинається (blockKeep = 0)
-       Влучний удар завдає щонайменше minDmg.
+       Влучний (не заблокований) удар завдає щонайменше minDmg.
      Ударів за хід = 1 + «Додаткова атака» з речей. */
   var BATTLE = {
     turnSeconds: 30,   // секунд на хід
@@ -40,8 +41,8 @@
     xpDraw: 25,        // досвід за нічию (× той самий коефіцієнт)
     xpLose: 8,         // досвід за поразку (без коефіцієнта)
     xpAdv: 0.5,        // ±50%: суперник удвічі сильніший → ×1.5, удвічі слабший → ×0.5
-    xpLevels: [1000, 2000, 4000, 8000],   // досвіду до рівня 2, 3, 4, 5
-    xpFlat: 8000       // далі — стала кількість на кожен рівень
+    xpStep: 500,       // досвіду до рівня 2 — 500, далі кожен рівень +500 (500, 1000, 1500 …)
+    xpFlat: 8000       // … доки не сягне 8000; далі — стало 8000 на кожен рівень
   };
 
   /* ── бойові характеристики Героя, яких немає в базі Героя ──
@@ -166,7 +167,8 @@
        витривалість + точність + спритність + броня + маг. захист + середній урон удару.
      xpCoef — множник досвіду за різницю сил: 1 + xpAdv × log2(сила суперника / сила Героя),
        у межах [1 − xpAdv; 1 + xpAdv]. Удвічі сильніший суперник → ×1.5, рівний → ×1, удвічі слабший → ×0.5.
-     xpNeed(level) — скільки досвіду потрібно з рівня level до наступного. */
+     xpNeed(level) — скільки досвіду потрібно з рівня level до наступного:
+       min(level × xpStep, xpFlat) → 500, 1000, 1500 … 8000, далі 8000. */
   function power(p) {
     p = p || {};
     var avgPhys = BATTLE.baseDmg + (num(p.wMin) + num(p.wMax)) / 2 + num(p.dmgFlat);
@@ -178,8 +180,8 @@
     return Math.max(1 - BATTLE.xpAdv, Math.min(1 + BATTLE.xpAdv, c));
   }
   function xpNeed(level) {
-    var L = BATTLE.xpLevels || [], i = Math.max(1, Math.floor(num(level) || 1)) - 1;
-    return i < L.length ? L[i] : (BATTLE.xpFlat || L[L.length - 1] || 1000);
+    var lv = Math.max(1, Math.floor(num(level) || 1));
+    return Math.min(lv * BATTLE.xpStep, BATTLE.xpFlat);
   }
 
   /* Кидок кубика d100: 1..100. Подія спрацьовує, якщо випало ≤ шансу у відсотках
@@ -187,29 +189,41 @@
   function d100(rnd) { return 1 + Math.floor(rnd() * 100); }
   function pctOf(x) { return Math.max(0, Math.min(100, Math.round(x * 100))); }
 
-  /* Один удар. Порядок як у формулі: урон → броня → % → крит → влучання → блок.
+  /* Один удар. Порядок: влучання → блок → урон → броня → % → крит.
      Повертає {dmg, kind:'hit'|'crit'|'block'|'dodge', crit,
                hitRoll, hitNeed, critRoll, critNeed, armor, raw, calc} */
   function strike(att, def, blocked, rnd) {
     rnd = rnd || Math.random;
+    var out = { critRoll: null, critNeed: null, raw: 0, armor: 0 };
+    function ret(o) { for (var k in o) out[k] = o[k]; return out; }
+    // 1) влучив?
+    out.hitNeed = pctOf(hitChance(att, def)); out.hitRoll = d100(rnd);
+    if (out.hitRoll > out.hitNeed) return ret({ dmg: 0, kind: 'dodge', crit: false, calc: 'промах: 🎲 ' + out.hitRoll + ' > ' + out.hitNeed + '%' });
+    function critCheck() { out.critNeed = pctOf(critChance(att)); out.critRoll = d100(rnd); return out.critRoll <= out.critNeed; }
+    // 2) заблокував? щит приймає удар; ПІСЛЯ блоку — перевірка, чи удар був критичним
+    //    (від цього залежить знос щита: shieldCritBlock замість shieldBlock)
+    if (blocked && !BATTLE.blockKeep) {
+      var bc = critCheck();
+      return ret({ dmg: 0, kind: 'block', crit: bc,
+        calc: 'блок — удар не пройшов · крит? 🎲 ' + out.critRoll + (bc ? ' ≤ ' : ' > ') + out.critNeed + '% — '
+          + (bc ? 'критичний → щит −' + WEAR.shieldCritBlock : 'звичайний → щит −' + WEAR.shieldBlock) });
+    }
+    // 3) урон
     var w = rollRange(att.wMin, att.wMax, rnd), m = rollRange(att.magMin, att.magMax, rnd);
     var physRaw = BATTLE.baseDmg + w + num(att.dmgFlat), magRaw = m + num(att.magFlat);
+    // 4) мінус захист, 5) відсотки
     var phys = Math.max(0, physRaw - num(def.armor)) * (1 + num(att.dmgPct) / 100);
     var mag = Math.max(0, magRaw - num(def.magicResist)) * (1 + num(att.magPct) / 100);
-    var critNeed = pctOf(critChance(att)), critRoll = d100(rnd), crit = critRoll <= critNeed;
-    var hitNeed = pctOf(hitChance(att, def)), hitRoll = d100(rnd);
-    var dmg = (phys + mag) * (crit ? BATTLE.critMult : 1);
+    // 6) крит
+    var crit = critCheck();
+    var dmg = Math.max(BATTLE.minDmg, Math.round((phys + mag) * (crit ? BATTLE.critMult : 1)));
+    out.raw = physRaw + magRaw; out.armor = num(def.armor) + (magRaw ? num(def.magicResist) : 0);
     var calc = '(' + physRaw + ' − броня ' + num(def.armor) + ')' + (att.dmgPct ? ' × ' + (100 + num(att.dmgPct)) + '%' : '')
       + (magRaw ? ' + (маг. ' + magRaw + ' − захист ' + num(def.magicResist) + ')' + (att.magPct ? ' × ' + (100 + num(att.magPct)) + '%' : '') : '')
       + (crit ? ' × ' + BATTLE.critMult + ' крит' : '');
-    var out = { hitRoll: hitRoll, hitNeed: hitNeed, critRoll: critRoll, critNeed: critNeed,
-                raw: physRaw + magRaw, armor: num(def.armor) + (magRaw ? num(def.magicResist) : 0) };
-    function ret(o) { for (var k in o) out[k] = o[k]; return out; }
-    if (hitRoll > hitNeed) return ret({ dmg: 0, kind: 'dodge', crit: false, calc: 'промах: 🎲 ' + hitRoll + ' > ' + hitNeed });
-    dmg = Math.max(BATTLE.minDmg, Math.round(dmg));
-    if (blocked) {
+    if (blocked) {   // частковий блок (лише якщо blockKeep > 0)
       var kept = Math.round(dmg * BATTLE.blockKeep);
-      return ret({ dmg: kept, kind: 'block', crit: crit, calc: calc + (kept ? ' → блок, проходить ' + Math.round(BATTLE.blockKeep * 100) + '%' : ' = ' + dmg + ' → блок поглинув усе') });
+      return ret({ dmg: kept, kind: 'block', crit: crit, calc: 'блок: ' + calc + ' = ' + dmg + ' → проходить ' + Math.round(BATTLE.blockKeep * 100) + '%' });
     }
     return ret({ dmg: dmg, kind: crit ? 'crit' : 'hit', crit: crit, calc: calc });
   }
