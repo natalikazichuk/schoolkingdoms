@@ -1537,7 +1537,7 @@ body.scr-battle .wrap{max-width:1500px}
     $('roundNum').textContent = B.round;
     clearSel();
     resetSteps();
-    if(B.steps){ var box=$('steps'); if(box){ box.innerHTML=B.steps; box.scrollTop=box.scrollHeight; } }
+    if(B.steps){ var box=$('steps'); if(box){ box.innerHTML=B.steps; box.scrollTop=0; } }
   }
   function enterBattle(){
     paintBattle();
@@ -1763,8 +1763,20 @@ body.scr-battle .wrap{max-width:1500px}
     row.className = 'step brk ' + (b.owner==='me' ? 'lost' : 'won');
     row.innerHTML = '<span class="no">💥</span><span class="txt">'
       + (b.owner==='me' ? 'Твоя річ вийшла з ладу: ' : 'Ти вивів з ладу річ суперника: ') + b.name + '</span>';
-    box.appendChild(row); box.scrollTop = box.scrollHeight;
+    // одразу під ходом, у якому зламалось (хід щойно став першим рядком)
+    var cur = box.querySelector('.step:not(.brk)');
+    box.insertBefore(row, cur ? cur.nextSibling : box.firstChild); box.scrollTop = 0;
     if(B) B.steps = box.innerHTML;
+  }
+  /* рядки журналу в хронологічному порядку (для копіювання й файлів):
+     на екрані новіші зверху, а хід разом зі своїми поломками — одна група */
+  function stepsChrono(box){
+    var groups = [], cur = null;
+    Array.prototype.forEach.call(box.querySelectorAll('.step'), function(r){
+      if(!r.classList.contains('brk') || !cur){ cur = [r]; groups.push(cur); } else cur.push(r);
+    });
+    var out = []; groups.reverse().forEach(function(g){ out = out.concat(g); });
+    return out;
   }
 
   /* ── журнал: простий / детальний, скинути, поскаржитись ── */
@@ -1786,7 +1798,7 @@ body.scr-battle .wrap{max-width:1500px}
     if(B && B.op) lines.push((hero.name||'Ти')+' проти '+B.op.f.name+' · раунд '+B.round
       +' · витривалість '+Math.max(0,Math.round(B.me.force))+'/'+B.me.max+' проти '+Math.max(0,Math.round(B.op.force))+'/'+B.op.max);
     lines.push('Режим: '+(full ? 'детальний' : 'простий'), '');
-    Array.prototype.forEach.call(box.querySelectorAll('.step'), function(r){
+    stepsChrono(box).forEach(function(r){
       var no = r.querySelector('.no'), txt = r.querySelector('.txt'); if(!txt) return;
       var c = txt.cloneNode(true), dice = [];
       Array.prototype.forEach.call(c.querySelectorAll('.dice'), function(x){ dice.push(x.textContent.replace(/\s+/g,' ').trim()); x.remove(); });
@@ -1816,7 +1828,9 @@ body.scr-battle .wrap{max-width:1500px}
      (крит — червоним, магічний урон — фіолетовим, поломки — червоним/жовтим) */
   function logHtml(full){
     var box = $('steps'); if(!box) return '';
-    var c = box.cloneNode(true);
+    var c = document.createElement('div');
+    stepsChrono(box).forEach(function(r){ c.appendChild(r.cloneNode(true)); });   // у файлі — від першого ходу
+    if(!c.firstChild) c.innerHTML = '<div class="steps-empty">(журнал порожній)</div>';
     if(!full) Array.prototype.forEach.call(c.querySelectorAll('.dice'), function(x){ x.remove(); });
     Array.prototype.forEach.call(c.querySelectorAll('[title]'), function(x){ x.removeAttribute('title'); });
     var head = logText(full).split('\n').slice(0,4).map(function(l){ return l ? '<div>'+l.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</div>' : ''; }).join('');
@@ -1849,7 +1863,7 @@ body.scr-battle .wrap{max-width:1500px}
   }
   function reportAbuse(){
     var box = $('steps');
-    var text = box ? Array.prototype.map.call(box.querySelectorAll('.step'), function(r){ return r.textContent.replace(/\s+/g,' ').trim(); }).join('\n') : '';
+    var text = box ? stepsChrono(box).map(function(r){ return r.textContent.replace(/\s+/g,' ').trim(); }).join('\n') : '';
     var note = prompt('Що сталося в цьому бою? (можна не писати)', '');
     if(note === null) return;                         // скасували
     var head = '🚩 Скарга з арени (зловживання)'
@@ -1973,8 +1987,8 @@ body.scr-battle .wrap{max-width:1500px}
     var empty = box.querySelector('.steps-empty'); if(empty) empty.remove();
     var row = document.createElement('div'); row.className='step';
     row.innerHTML = '<span class="no">Хід '+n+'</span><span class="txt">'+html+'</span>';
-    box.appendChild(row);
-    box.scrollTop = box.scrollHeight;
+    box.insertBefore(row, box.firstChild);   // новий хід — зверху (журнал знизу вверх)
+    box.scrollTop = 0;
     if(B) B.steps = box.innerHTML;   // журнал належить бою, а не екрану
   }
   function resetSteps(){
