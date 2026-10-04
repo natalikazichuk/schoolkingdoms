@@ -45,8 +45,7 @@ const FIREBASE_SDK = [
 const GAMES = [
   'games/zabig.html', 'games/zmiyka.html',
   'games/hrestyky.html', 'games/shashky.html', 'games/shakhy.html',
-  'games/kartynka.html', 'games/pamyat.html',
-  'games/labirynt.html', 'games/pazly.html'
+  'games/kartynka.html', 'games/pamyat.html'
 ];
 
 const ROOT = new URL('./', self.location).href;          // …/schoolkingdoms/
