@@ -462,6 +462,10 @@ body.scr-battle .wrap{max-width:1500px}
 .step .no{flex:none;font-family:'Fredoka';font-weight:700;font-size:.64rem;color:#0c2247;background:var(--gold);border-radius:20px;padding:1px 7px;margin-top:1px}
 .step .txt{color:#eaf2ff}
 .step .g{color:var(--ok)} .step .b{color:#ffcf4d} .step .r{color:#ff9a6b}
+.step .dice{display:block;margin-top:2px;font-size:.64rem;font-weight:700;color:#a9c1e4;line-height:1.3}
+.step .dice b{color:#eaf2ff}
+.rbig .rdice{display:block;margin-top:3px;font-size:.74rem;font-weight:800;color:#ffe08a;font-variant-numeric:tabular-nums}
+.rbig .rdice.rolling{opacity:.7}
 
 /* спливаючі цифри шкоди на банерах бійців — великі, повільно зникають */
 .dmg-float{position:absolute;top:34%;left:50%;z-index:50;pointer-events:none;
@@ -1029,7 +1033,7 @@ body.scr-battle .wrap{max-width:1500px}
 <script type="module" src="firebase-config.js"></script>
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
-<script src="sk-arena-rules.js?v=2"></script>
+<script src="sk-arena-rules.js?v=3"></script>
 <script>
 (function(){
   'use strict';
@@ -1711,7 +1715,8 @@ body.scr-battle .wrap{max-width:1500px}
     addStep(B.round,
       phrase('Ти → '+ZONE_UA[B.me.atk], meHit)
       + ' <span style="opacity:.5">·</span> '
-      + phrase(B.op.f.name+' → '+ZONE_UA[B.op.atk], opHit));
+      + phrase(B.op.f.name+' → '+ZONE_UA[B.op.atk], opHit)
+      + diceLine('Ти', meHit) + diceLine(B.op.f.name, opHit));
 
     // анімації смужок
     updateForce('o', B.op); updateForce('p', B.me);
@@ -1745,10 +1750,26 @@ body.scr-battle .wrap{max-width:1500px}
     else if(opHit.kind==='block') ok='ти захистився (−'+opHit.dmg+')';
     else ok='−'+opHit.dmg+' тобі';
     rb.className = 'rbig ' + cls;
+    var h0 = (meHit.hits || [meHit])[0] || {};
     rb.innerHTML = '<span class="rnum">'+num+'</span><span class="rlbl">'+lbl+'</span>'
+      + (h0.hitRoll!=null ? '<span class="rdice" id="rdice"></span>' : '')
       + '<span class="ropp">Суперник → '+ZONE_UA[B.op.atk]+': '+ok+'</span>';
+    if(h0.hitRoll!=null) rollDice($('rdice'), h0.hitRoll, h0.hitNeed);
     void rb.offsetWidth;              // перезапуск drop-анімації
     rb.classList.add('show');
+  }
+
+  /* кубик у панелі результату: ~0.5 с «крутиться» випадковими числами, потім
+     зупиняється на справжньому кидку: «🎲 37 — треба ≤ 49» */
+  var diceT = null;
+  function rollDice(el, roll, need){
+    if(!el) return; clearInterval(diceT);
+    var n = 0; el.classList.add('rolling');
+    diceT = setInterval(function(){
+      if(++n >= 12){ clearInterval(diceT); el.classList.remove('rolling');
+        el.textContent = '🎲 ' + roll + (roll<=need ? ' ≤ ' : ' > ') + need + '% — ' + (roll<=need ? 'влучив' : 'промах'); return; }
+      el.textContent = '🎲 ' + (1 + Math.floor(Math.random()*100));
+    }, 45);
   }
 
   /* спливаюча цифра над карткою бійця, який отримав удар */
@@ -1776,6 +1797,20 @@ body.scr-battle .wrap{max-width:1500px}
   function resetSteps(){
     var box = $('steps'); if(box) box.innerHTML = '<div class="steps-empty">Ходи бою зʼявляться тут…</div>';
     var rb = $('rbig'); if(rb){ rb.className='rbig plain'; rb.textContent='Обери ціль і тисни «Атака»'; }
+  }
+
+  /* рядок кидків одного бійця: 🎲 d100 на влучання (≤ шансу — влучив), 🎲 на крит,
+     і розрахунок урону — щоб дитина бачила, чому вийшло саме так */
+  function diceLine(who, hit){
+    var hs = hit.hits || [hit];
+    return '<span class="dice">'+who+': '+hs.map(function(h,i){
+      if(h.hitRoll==null) return '';
+      var t = (hs.length>1 ? (i+1)+') ' : '')
+        + '🎲 <b>'+h.hitRoll+'</b> '+(h.hitRoll<=h.hitNeed?'≤':'>')+' '+h.hitNeed+'% '+(h.kind==='dodge'?'— промах':'— влучив');
+      if(h.kind!=='dodge') t += ' · крит 🎲 <b>'+h.critRoll+'</b> '+(h.crit?'≤':'>')+' '+h.critNeed+'%'
+        + ' · '+h.calc+' = <b>'+h.dmg+'</b>';
+      return t;
+    }).join(' &nbsp;|&nbsp; ')+'</span>';
   }
 
   function phrase(prefix, hit){
