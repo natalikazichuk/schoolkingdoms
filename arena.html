@@ -1029,7 +1029,7 @@ body.scr-battle .wrap{max-width:1500px}
 <script type="module" src="firebase-config.js"></script>
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
-<script src="sk-arena-rules.js?v=1"></script>
+<script src="sk-arena-rules.js?v=2"></script>
 <script>
 (function(){
   'use strict';
@@ -1043,8 +1043,8 @@ body.scr-battle .wrap{max-width:1500px}
         щоб адмінка («Арена» → «Механіка») показувала ті самі, за якими йде бій.
         Тут — запасні значення, якщо файл не завантажився. ── */
   var CFG = Object.assign({
-    baseHP: 100, baseDmg: 8, dmgPerAcc: 8, critChance: 280, critMult: 1.7,
-    dodgeChance: 380, blockKeep: 0.30, xpWin: 25, xpLose: 8, xpPerLvl: 120
+    baseDmg: 10, minDmg: 1, critChance: 280, critMult: 2, hitBase: 0.5, hitMin: 0.2, hitMax: 0.95,
+    blockKeep: 0.30, botVary: 0.2, xpWin: 25, xpLose: 8, xpPerLvl: 120
   }, RULES.BATTLE || {});
   var WEAR = Object.assign({ zoneHit:1, zoneCrit:2, weaponHit:1, weaponCrit:1, shieldBlock:2, shieldCritBlock:5 }, RULES.WEAR || {});
   function newWear(){ return {head:0, body:0, arms:0, legs:0, weapon:0, shield:0}; }
@@ -1099,9 +1099,6 @@ body.scr-battle .wrap{max-width:1500px}
 
   /* ── похідні бойові показники з характеристик ── */
   function maxForce(f){ return Math.round(f.health||50); }  // бойове HP = здоров'я Героя
-  function dmgOf(f){ return CFG.baseDmg + Math.round((f.accuracy||50)/CFG.dmgPerAcc); }
-  function critRoll(f){ return Math.random() < (f.accuracy||50)/CFG.critChance; }
-  function dodgeRoll(f){ return Math.random() < (f.agility||50)/CFG.dodgeChance; }
 
   /* ── рендер аватара у щит + peek ── */
   function paintAvatar(token, imgId, emojiId, peekId){
@@ -1420,6 +1417,24 @@ body.scr-battle .wrap{max-width:1500px}
     };
   }
 
+  /* ── бойовий профіль Героя: характеристики + вдягнені речі ──
+     (SKARENA.fighter: броня, зброя, відсотки, додаткові атаки; зламані речі не діють).
+     Без сесії / без бази — профіль лише з характеристик Героя. */
+  function plainFighter(f){
+    return RULES.fighter ? RULES.fighter(f, [], window.SKIT)
+      : {hp:Math.round(f.health||50), accuracy:f.accuracy||50, agility:f.agility||50, armor:0, magicResist:0, wMin:0, wMax:0, magMin:0, magMax:0, dmgFlat:0, magFlat:0, dmgPct:0, magPct:0, critPct:0, extra:0};
+  }
+  function loadHeroFighter(){
+    var stats = {health:hero.health, accuracy:hero.accuracy, agility:hero.agility, mana:hero.mana};
+    if(!RULES.fighter || !window.SKIT || !window.SK || !SK.getInventory || !SK.listItems) return Promise.resolve(plainFighter(stats));
+    return Promise.all([SK.getInventory(), SK.listItems()]).then(function(r){
+      var by = {}; (r[1]||[]).forEach(function(it){ by[it.id] = it; });
+      var eq = (r[0]||[]).filter(function(i){ return i && i.slot && !/^belt\d/.test(i.slot) && by[i.id]; })
+                         .map(function(i){ return {base:by[i.id], inst:i}; });
+      return RULES.fighter(stats, eq, window.SKIT);
+    }).catch(function(e){ try{ console.error('[арена] екіпіровку не прочитано:', e); }catch(_){} return plainFighter(stats); });
+  }
+
   /* ── ПАУЗА БОЮ ───────────────────────────────────────────────────
      Бій жив тільки в пам'яті сторінки. Досить було вийти на екран
      таверни («← Назад») чи перезавантажити сторінку — і бій зникав
@@ -1442,7 +1457,7 @@ body.scr-battle .wrap{max-width:1500px}
     try{
       localStorage.setItem(BATTLE_KEY, JSON.stringify({
         v:1, heroId:battleHeroId(), round:B.round,
-        me:{force:B.me.force, max:B.me.max},
+        me:{force:B.me.force, max:B.me.max, p:B.me.p},
         op:{force:B.op.force, max:B.op.max, f:B.op.f},
         steps:B.steps||'', wear:B.wear||newWear()
       }));
@@ -1462,8 +1477,8 @@ body.scr-battle .wrap{max-width:1500px}
   function restoreBattle(o){
     B = {
       round: +o.round || 1, over:false, resolving:false,
-      me: {f:hero,    force:o.me.force, max:o.me.max || maxForce(hero),  atk:null, block:null},
-      op: {f:o.op.f,  force:o.op.force, max:o.op.max || maxForce(o.op.f), atk:null, block:null},
+      me: {f:hero,    p:o.me.p || plainFighter(hero),             force:o.me.force, max:o.me.max || maxForce(hero),  atk:null, block:null},
+      op: {f:o.op.f,  p:o.op.f.p || plainFighter(o.op.f),         force:o.op.force, max:o.op.max || maxForce(o.op.f), atk:null, block:null},
       timer:null, left:TURN_SECONDS, steps:o.steps||'', wear:Object.assign(newWear(), o.wear||{})
     };
   }
@@ -1498,15 +1513,22 @@ body.scr-battle .wrap{max-width:1500px}
     // Незавершений бій не перезапускаємо: інакше «почати ще раз» було б
     // безкоштовним лікуванням і втечею від поразки.
     if(hasLiveBattle()){ enterBattle(); return; }
-    var bot = pickBot();
-    B = {
-      round:1, over:false, resolving:false,
-      me:   {f:hero, force:maxForce(hero), max:maxForce(hero), atk:null, block:null},
-      op:   {f:bot,  force:maxForce(bot),  max:maxForce(bot),  atk:null, block:null},
-      timer:null, left:TURN_SECONDS, steps:'', wear:newWear()
-    };
-    saveBattle();
-    enterBattle();
+    if(startBattle.busy) return; startBattle.busy = true;
+    loadHeroFighter().then(function(mp){
+      startBattle.busy = false;
+      if(hasLiveBattle()){ enterBattle(); return; }
+      var bot = pickBot();
+      // суперник — той самий профіль ±botVary (зброя, броня, точність…)
+      bot.p = RULES.varyFighter ? RULES.varyFighter(mp, CFG.botVary) : plainFighter(bot);
+      B = {
+        round:1, over:false, resolving:false,
+        me:   {f:hero, p:mp,    force:mp.hp,    max:mp.hp,    atk:null, block:null},
+        op:   {f:bot,  p:bot.p, force:bot.p.hp, max:bot.p.hp, atk:null, block:null},
+        timer:null, left:TURN_SECONDS, steps:'', wear:newWear()
+      };
+      saveBattle();
+      enterBattle();
+    });
   }
 
   /* статус здоровʼя — змінюється кожні 10% */
@@ -1613,18 +1635,10 @@ body.scr-battle .wrap{max-width:1500px}
     else B.op.block = ZONES[Math.floor(Math.random()*4)];
   }
 
-  /* один обмін ударами */
+  /* одна атака: SKARENA.attack — по удару на кожну атаку (1 + «Додаткова атака»),
+     кожен окремо: (урон − броня) × % → крит → влучив? → блок. */
   function computeHit(attacker, defender){
-    // повертає {dmg, kind}
-    if(dodgeRoll(defender.f)) return {dmg:0, kind:'dodge'};
-    var dmg = dmgOf(attacker.f);
-    var crit = critRoll(attacker.f);
-    if(crit) dmg = Math.round(dmg*CFG.critMult);
-    if(attacker.atk === defender.block){
-      dmg = Math.max(1, Math.round(dmg*CFG.blockKeep));
-      return {dmg:dmg, kind:'block', crit:crit};
-    }
-    return {dmg:dmg, kind:crit?'crit':'hit'};
+    return RULES.attack(attacker.p, defender.p, attacker.atk === defender.block);
   }
 
   /* знос речей Героя за хід (числа — WEAR із sk-arena-rules.js):
@@ -1632,9 +1646,13 @@ body.scr-battle .wrap{max-width:1500px}
      мій влучний удар → зброя. Списується з інвентаря наприкінці бою. */
   function addWear(meHit, opHit){
     var w = B.wear || (B.wear = newWear());
-    if(opHit.kind==='hit' || opHit.kind==='crit') w[B.op.atk] = (w[B.op.atk]||0) + (opHit.kind==='crit' ? WEAR.zoneCrit : WEAR.zoneHit);
-    else if(opHit.kind==='block') w.shield += opHit.crit ? WEAR.shieldCritBlock : WEAR.shieldBlock;
-    if(meHit.kind==='hit' || meHit.kind==='crit') w.weapon += meHit.kind==='crit' ? WEAR.weaponCrit : WEAR.weaponHit;
+    (opHit.hits || [opHit]).forEach(function(h){            // кожен удар суперника окремо
+      if(h.kind==='hit' || h.kind==='crit') w[B.op.atk] = (w[B.op.atk]||0) + (h.kind==='crit' ? WEAR.zoneCrit : WEAR.zoneHit);
+      else if(h.kind==='block') w.shield += h.crit ? WEAR.shieldCritBlock : WEAR.shieldBlock;
+    });
+    (meHit.hits || [meHit]).forEach(function(h){            // кожен мій влучний удар
+      if(h.kind==='hit' || h.kind==='crit') w.weapon += h.kind==='crit' ? WEAR.weaponCrit : WEAR.weaponHit;
+    });
   }
 
   /* Наприкінці бою: зменшити durCur вдягнених речей і зберегти інвентар.
@@ -1717,13 +1735,13 @@ body.scr-battle .wrap{max-width:1500px}
   function setResult(meHit, opHit){
     var rb = $('rbig'); if(!rb) return;
     var cls, num, lbl;
-    if(meHit.kind==='dodge'){ cls='miss'; num='0'; lbl='Суперник ухилився'; }
+    if(meHit.kind==='dodge'){ cls='miss'; num='0'; lbl='Промах'; }
     else if(meHit.kind==='block'){ cls='blk'; num='−'+meHit.dmg; lbl='Захист суперника 🛡️'; }
     else if(meHit.kind==='crit'){ cls='crit'; num='−'+meHit.dmg; lbl='Влучний удар!'; }
     else { cls='hit'; num='−'+meHit.dmg; lbl='Влучив!'; }
     // короткий підсумок відповіді суперника
     var ok;
-    if(opHit.kind==='dodge') ok='ти ухилився';
+    if(opHit.kind==='dodge') ok='промах';
     else if(opHit.kind==='block') ok='ти захистився (−'+opHit.dmg+')';
     else ok='−'+opHit.dmg+' тобі';
     rb.className = 'rbig ' + cls;
@@ -1737,7 +1755,7 @@ body.scr-battle .wrap{max-width:1500px}
   function floatDmg(side, hit){
     var card = $(side==='p' ? 'pScene' : 'oScene'); if(!card) return;
     var el = document.createElement('div');
-    if(hit.kind==='dodge'){ el.className='dmg-float miss'; el.textContent='ухил'; }
+    if(hit.kind==='dodge'){ el.className='dmg-float miss'; el.textContent='промах'; }
     else if(hit.kind==='block'){ el.className='dmg-float blk'; el.textContent='−'+hit.dmg; }
     else if(hit.kind==='crit'){ el.className='dmg-float crit'; el.textContent='−'+hit.dmg+'!'; }
     else { el.className='dmg-float hit'; el.textContent='−'+hit.dmg; }
@@ -1761,10 +1779,14 @@ body.scr-battle .wrap{max-width:1500px}
   }
 
   function phrase(prefix, hit){
-    if(hit.kind==='dodge') return prefix+': <span class="b">ухилився!</span>';
-    if(hit.kind==='block') return prefix+': <span class="b">захист спрацював</span> (−'+hit.dmg+')';
-    if(hit.kind==='crit')  return prefix+': <span class="r">влучний удар!</span> (−'+hit.dmg+')';
-    return prefix+': <span class="g">влучив</span> (−'+hit.dmg+')';
+    var hs = hit.hits || [hit];
+    // розрахунок кожного удару — у підказці (навести мишу на рядок журналу)
+    var t = ' title="'+hs.map(function(h,i){ return (hs.length>1?(i+1)+') ':'')+(h.calc||'')+' = '+h.dmg; }).join('&#10;').replace(/"/g,'&quot;')+'"';
+    var x = hs.length>1 ? ' ×'+hs.length : '';
+    if(hit.kind==='dodge') return '<span'+t+'>'+prefix+': <span class="b">промах!</span>'+x+'</span>';
+    if(hit.kind==='block') return '<span'+t+'>'+prefix+': <span class="b">захист спрацював</span> (−'+hit.dmg+')'+x+'</span>';
+    if(hit.kind==='crit')  return '<span'+t+'>'+prefix+': <span class="r">влучний удар!</span> (−'+hit.dmg+')'+x+'</span>';
+    return '<span'+t+'>'+prefix+': <span class="g">влучив</span> (−'+hit.dmg+')'+x+'</span>';
   }
 
   function flashZone(zone, cls){

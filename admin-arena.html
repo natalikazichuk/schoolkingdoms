@@ -13,7 +13,7 @@
 <script src="sk-admin.js?v=1"></script>
 <script src="sk-curriculum.js?v=8"></script>
 <script src="sk-items.js?v=2"></script>
-<script src="sk-arena-rules.js?v=1"></script>
+<script src="sk-arena-rules.js?v=2"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -64,6 +64,8 @@
   .tab.on{background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:var(--gold-ink);border-color:var(--gold-deep)}
   .max{font-weight:900;font-size:1.02rem;color:#1f7a4d}
   .max.pctc{color:#2f5ea8}
+  pre.fx{white-space:pre-wrap;background:#f7f4ea;border:1px solid var(--border);border-radius:12px;padding:12px 14px;font-size:.84rem;color:var(--ink);margin:0;font-family:ui-monospace,Menlo,Consolas,monospace}
+  ul.exl{margin:4px 0 0;padding-left:20px;font-size:.88rem;color:var(--ink)}
   td.cats{min-width:140px;max-width:220px}
 </style>
 </head>
@@ -343,14 +345,20 @@ function mechHTML(){
   var B=R.BATTLE,W=R.WEAR,U=R.SLOT_UK||{};
   function row(name,val,how){return '<tr><td><span class="nm">'+esc(name)+'</span></td><td class="num max">'+esc(String(val))+'</td><td>'+how+'</td></tr>';}
   var pct=function(x){return Math.round(x*1000)/10+'%';};
+  var hc=function(a,d){return pct(R.hitChance({accuracy:a},{agility:d}));};
   var battle=[
     row('Час на хід',B.turnSeconds+' с','Не встиг — атака й захист добираються випадково.'),
-    row("Бойове здоров'я","= здоров'я",'Сила в бою дорівнює здоров\'ю Героя.'),
-    row('Урон',B.baseDmg+' + точність / '+B.dmgPerAcc,'Точність 50 → '+(B.baseDmg+Math.round(50/B.dmgPerAcc))+', точність 100 → '+(B.baseDmg+Math.round(100/B.dmgPerAcc))+'.'),
-    row('Шанс криту','точність / '+B.critChance,'Точність 50 → '+pct(50/B.critChance)+', 100 → '+pct(100/B.critChance)+'.'),
-    row('Множник криту','× '+B.critMult,'Критичний удар множить урон.'),
-    row('Шанс ухилитися','спритність / '+B.dodgeChance,'Спритність 50 → '+pct(50/B.dodgeChance)+', 100 → '+pct(100/B.dodgeChance)+'. Ухилився — урону й зносу немає.'),
-    row('Блок',pct(B.blockKeep)+' урону','Удар у заблоковану зону проходить на '+pct(B.blockKeep)+' (мінімум 1).'),
+    row("Бойове здоров'я","здоров'я + речі",'Здоров\'я Героя + «Здоров\'я» з речей, × відсотки з речей.'),
+    row('1. Фізичний урон удару',B.baseDmg+' + зброя + «Урон» речей','База '+B.baseDmg+' + випадкове число з діапазону зброї в руках + сталий «Фіз. урон» з інших речей.'),
+    row('   Магічний урон удару','маг. зброя + «Маг. урон» речей','Діапазон магічної зброї (посох, паличка) + сталий «Маг. урон» речей.'),
+    row('2. Мінус захист','− броня / − маг. захист','Фізичний мінус броня суперника, магічний мінус його магічний захист (не нижче 0).'),
+    row('3. Відсотки','× (100% + N%)','«+N% урону» з речей множить фізичну частину, «+N% маг. урону» — магічну.'),
+    row('4. Крит','× '+B.critMult,'Шанс = точність / '+B.critChance+' + «Шанс крит. урону» речей. Точність 50 → '+pct(50/B.critChance)+', 100 → '+pct(100/B.critChance)+'.'),
+    row('5. Влучання',pct(B.hitBase)+' × точність / спритність','Від '+pct(B.hitMin)+' до '+pct(B.hitMax)+'. 100/100 → '+hc(100,100)+', 150/100 → '+hc(150,100)+', 50/200 → '+hc(50,200)+'. Промах — урону й зносу немає.'),
+    row('6. Блок',pct(B.blockKeep)+' урону','Удар у заблоковану зону проходить на '+pct(B.blockKeep)+' (мінімум 1).'),
+    row('Мінімум урону',B.minDmg,'Влучний удар завдає щонайменше '+B.minDmg+', навіть крізь велику броню.'),
+    row('Ударів за хід','1 + «Додаткова атака»','Кожен удар рахується окремо (кроки 1–6).'),
+    row('Суперник','±'+pct(B.botVary),'Той самий профіль, що в Героя (зброя, броня, точність…), кожне число ±'+pct(B.botVary)+'.'),
     row('Досвід за перемогу','+'+B.xpWin,''),
     row('Досвід за поразку / нічию','+'+B.xpLose,'Здався кнопкою «Вихід з гри» — 0.'),
     row('Досвід на рівень','рівень × '+B.xpPerLvl,'')
@@ -363,10 +371,47 @@ function mechHTML(){
     row('Зброя: мій влучний удар','−'+W.weaponHit,'Критичний — так само −'+W.weaponCrit+' (знос зброї не росте).'),
     row('Щит: заблокований удар','−'+W.shieldBlock,'Щит приймає удар на себе; речі зони не зношуються.'),
     row('Щит: заблокований критичний удар','−'+W.shieldCritBlock,''),
-    row('Ухилення','0','Удар не дійшов — нічого не зношується.')
+    row('Промах','0','Удар не влучив — нічого не зношується.')
   ].join('');
   function tbl(h,body){return '<div class="tblwrap"><table class="st"><thead><tr>'+h.map(function(x){return '<th>'+x+'</th>';}).join('')+'</tr></thead><tbody>'+body+'</tbody></table></div>';}
-  return '<section class="sec"><h2>⚔️ Бій</h2><p class="hint">Базові числа бою. Змінюються в <b>sk-arena-rules.js</b> (BATTLE) — і арена, і ця сторінка беруть їх звідти.</p>'
+  /* приклад розрахунку живими числами з правил: меч 5–20 (випало 15), +10% урону,
+     суперник з бронею 3; звичайний удар і критичний */
+  var ex=(function(){
+    var att={accuracy:100,agility:50,wMin:15,wMax:15,magMin:0,magMax:0,dmgFlat:0,magFlat:0,dmgPct:10,magPct:0,critPct:0,extra:0};
+    var def={agility:50,armor:3,magicResist:0};
+    var seq=function(a){var i=0;return function(){return a[i++%a.length];};};
+    return {hit:R.strike(att,def,false,seq([0.99,0])),crit:R.strike(att,def,false,seq([0,0])),blk:R.strike(att,def,true,seq([0.99,0]))};
+  })();
+  var formula='<section class="sec"><h2>🧮 Формула урону</h2>'
+    +'<p class="hint">Для <b>кожного</b> удару окремо (ударів за хід = 1 + «Додаткова атака»):</p>'
+    +'<pre class="fx">урон = ( (база '+B.baseDmg+' + зброя + «Урон» речей − броня суперника) × (100% + «% урону»)\n'
+    +'       + (маг. зброя + «Маг. урон» речей − маг. захист суперника) × (100% + «% маг. урону») )\n'
+    +'       × '+B.critMult+', якщо крит\n'
+    +'       → промах (0), якщо не влучив;  × '+Math.round(B.blockKeep*100)+'%, якщо зона заблокована;  мінімум '+B.minDmg+'\n\n'
+    +'шанс влучити = '+B.hitBase+' × точність / спритність суперника  (від '+Math.round(B.hitMin*100)+'% до '+Math.round(B.hitMax*100)+'%)\n'
+    +'шанс криту   = точність / '+B.critChance+' + «Шанс крит. урону» речей</pre>'
+    +'<p class="hint" style="margin-top:10px"><b>Приклад</b> (меч 5–20, випало 15; «+10% урону»; у суперника броня 3):</p>'
+    +'<ul class="exl"><li>звичайний: '+esc(ex.hit.calc)+' = <b>'+ex.hit.dmg+'</b></li>'
+    +'<li>критичний: '+esc(ex.crit.calc)+' = <b>'+ex.crit.dmg+'</b></li>'
+    +'<li>у блок: '+esc(ex.blk.calc)+' = <b>'+ex.blk.dmg+'</b></li></ul>'
+    +'<p class="hint" style="margin-top:12px"><b>Як впливати на урон</b></p>'
+    +'<div class="tblwrap"><table class="st"><thead><tr><th>Що змінити</th><th>Ефект</th><th>Де</th></tr></thead><tbody>'
+    +[['Базовий урон удару','більше урону всім, навіть без зброї','sk-arena-rules.js → BATTLE.baseDmg ('+B.baseDmg+')'],
+      ['Урон зброї','діапазон «Урон» / «Магічний урон» зброї в руках','Адмінка → Items: зброя, головна характеристика від–до'],
+      ['Сталий урон','«Фіз. Урон» / «Маг. Урон» без % у додаткових навичках','Адмінка → Items: додаткові навички'],
+      ['Відсоток урону','«Фіз. Урон %» / «Маг. Урон %» множить урон після броні','Адмінка → Items: навичка з галочкою %'],
+      ['Броня / маг. захист','віднімається від кожного удару суперника','Адмінка → Items: «Броня», «Магічний захист»'],
+      ['Множник криту','у скільки разів б\'є крит','sk-arena-rules.js → BATTLE.critMult ('+B.critMult+')'],
+      ['Частота критів','менше число = частіше; + «Шанс крит. урону» речей','sk-arena-rules.js → BATTLE.critChance ('+B.critChance+')'],
+      ['Влучання','точність проти спритності; межі шансу','BATTLE.hitBase / hitMin / hitMax ('+B.hitBase+' / '+B.hitMin+' / '+B.hitMax+')'],
+      ['Сила блоку','скільки урону проходить у заблоковану зону','BATTLE.blockKeep ('+B.blockKeep+')'],
+      ['Мінімальний урон','влучний удар крізь велику броню','BATTLE.minDmg ('+B.minDmg+')'],
+      ['Кількість ударів','+1 удар за кожну «Додаткову атаку»','Адмінка → Items: «Додаткова атака»'],
+      ['Сила суперника','розкид профілю бота від Героя','BATTLE.botVary ('+B.botVary+')']
+     ].map(function(r){return '<tr><td><span class="nm">'+esc(r[0])+'</span></td><td>'+esc(r[1])+'</td><td><span class="key">'+esc(r[2])+'</span></td></tr>';}).join('')
+    +'</tbody></table></div>'
+    +'<p class="hint" style="margin-top:8px">Після зміни sk-arena-rules.js підніми ?v= у підключенні файлу на arena.html і admin-arena.html, щоб браузери взяли нову версію.</p></section>';
+  return formula+'<section class="sec"><h2>⚔️ Бій</h2><p class="hint">Урон рахується для <b>кожного удару окремо</b>, кроки 1–6 по черзі. Числа змінюються в <b>sk-arena-rules.js</b> (BATTLE) — і арена, і ця сторінка беруть їх звідти. У журналі бою наведи мишу на рядок — побачиш розрахунок кожного удару.</p>'
     +tbl(['Що','Значення','Як працює'],battle)+'</section>'
     +'<section class="sec"><h2>🎯 Зони удару → речі</h2><p class="hint">Які слоти екіпіровки закривають кожну зону. Удар у зону зношує всі речі цієї зони.</p>'
     +tbl(['Зона','Слоти'],zones)+'</section>'
