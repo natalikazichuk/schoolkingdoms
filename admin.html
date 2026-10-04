@@ -3365,10 +3365,29 @@ function countQ(t){
 }
 /* Скільки одиниць характеристики дає тест (для підсумку).
    Без характеристики тест не дає нічого — хоч би що стояло в statValue. */
+/* Скільки питань дитина реально бачить за прохід (як levelCount/startQuiz
+   у test.html): рівень із count < пулу показує count, рівень без пулу
+   (генератор) — count або 5, плаский генераторний тест — count або 10.
+   countQ() рахує весь пул — для «за кожну правильну» це завищувало суму. */
+function playedQ(t){
+  const isLv = t.format === 'levels' || (Array.isArray(t.levels) && t.levels.length);
+  if(isLv) return (t.levels || []).reduce((s, L) => {
+    const pool = (L && Array.isArray(L.questions)) ? L.questions.length : 0;
+    const c = parseInt(L && L.count, 10);
+    return s + (pool ? ((c > 0 && c < pool) ? c : pool) : (isNaN(c) ? 5 : c));
+  }, 0);
+  const gen = t.generator && (t.generator.type || t.generator.op);
+  if(gen) return (+t.count || 0) || (t.questions || []).length || 10;
+  return (t.questions || []).length;
+}
 function testStatTotal(t){
   if(!t.stat) return 0;
   const v = +t.statValue || 0;
-  return t.statMode === 'perCorrect' ? v * countQ(t) : v;
+  const q = playedQ(t);
+  const lv = (t.format === 'levels' || (Array.isArray(t.levels) && t.levels.length)) ? (t.levels || []).length : 0;
+  if(!q) return v;                                   // тренажер — раз
+  if(t.statMode === 'perCorrect') return v * q;      // за кожну правильну
+  return lv ? v * lv : v;                            // фіксовано: за тест або за кожен рівень
 }
 /* Бейджі «сума характеристик» для набору тестів, згруповані за статом */
 function statSumsHtml(list){
