@@ -41,6 +41,23 @@
     xpPerLvl: 120      // досвіду на рівень = рівень × xpPerLvl
   };
 
+  /* ── бойові характеристики Героя, яких немає в базі Героя ──
+     Стартове значення в усіх 0: Герой отримує їх лише з речей
+     (fighter() читає stats[key] — відсутнє = 0). arena — що вони роблять
+     у бою зараз (null — поки не діє). */
+  var COMBAT_STATS = [
+    { key: 'armor',       label: 'Броня',                 emoji: '🛡️', base: 0, arena: 'віднімається від фізичного урону суперника' },
+    { key: 'magicResist', label: 'Магічний захист',       emoji: '🔮', base: 0, arena: 'віднімається від магічного урону суперника' },
+    { key: 'damage',      label: 'Фізичний урон',         emoji: '⚔️', base: 0, arena: 'зброя в руках — діапазон удару; інші речі — + до удару, % — множник' },
+    { key: 'magicDamage', label: 'Магічний урон',         emoji: '✨', base: 0, arena: 'магічна частина удару; % — множник' },
+    { key: 'critDamage',  label: 'Шанс крит. урону',      emoji: '💥', base: 0, arena: '+ до шансу криту (у %)' },
+    { key: 'extraAttack', label: 'Додаткова атака',       emoji: '⚡', base: 0, arena: '+1 удар за хід за кожну одиницю' },
+    { key: 'block',       label: 'Шанс блоку',            emoji: '🧱', base: 0, arena: null },
+    { key: 'stun',        label: 'Оглушення',             emoji: '💫', base: 0, arena: null },
+    { key: 'healthRegen', label: "Відновлення здоров'я",  emoji: '💚', base: 0, arena: null },
+    { key: 'beltSlots',   label: 'Комірки пояса',         emoji: '🧵', base: 0, arena: null }
+  ];
+
   /* ── зони удару → слоти екіпіровки, які її закривають ──
      Ключі слотів — як у EQUIP в arena.html (inst.slot у інвентарі). */
   var ZONES = [
@@ -180,7 +197,7 @@
   }
 
   root.SKARENA = {
-    BATTLE: BATTLE, ZONES: ZONES, HAND_SLOTS: HAND_SLOTS, WEAR: WEAR,
+    BATTLE: BATTLE, ZONES: ZONES, HAND_SLOTS: HAND_SLOTS, WEAR: WEAR, COMBAT_STATS: COMBAT_STATS,
     SLOT_UK: SLOT_UK, zoneOfSlot: zoneOfSlot,
     fighter: fighter, varyFighter: varyFighter, hitChance: hitChance, critChance: critChance,
     strike: strike, attack: attack, d100: d100

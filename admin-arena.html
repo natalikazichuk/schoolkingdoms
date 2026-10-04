@@ -13,7 +13,7 @@
 <script src="sk-admin.js?v=1"></script>
 <script src="sk-curriculum.js?v=8"></script>
 <script src="sk-items.js?v=2"></script>
-<script src="sk-arena-rules.js?v=3"></script>
+<script src="sk-arena-rules.js?v=4"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -66,6 +66,7 @@
   .max.pctc{color:#2f5ea8}
   pre.fx{white-space:pre-wrap;background:#f7f4ea;border:1px solid var(--border);border-radius:12px;padding:12px 14px;font-size:.84rem;color:var(--ink);margin:0;font-family:ui-monospace,Menlo,Consolas,monospace}
   ul.exl{margin:4px 0 0;padding-left:20px;font-size:.88rem;color:var(--ink)}
+  tr.grp td{background:#f7f4ea;font-weight:800;color:var(--ink);font-size:.86rem}
   td.cats{min-width:140px;max-width:220px}
 </style>
 </head>
@@ -283,12 +284,25 @@ function heroHTML(){
     return '<tr><td><span class="nm">'+p.emoji+' '+esc(p.label)+'</span><br><span class="key">'+esc(p.key)+'</span></td>'
       +'<td class="num">'+p.start+'</td><td class="num">—</td><td><span class="tag">прогрес</span></td><td>'+esc(p.note)+'</td><td><span class="tag no">ні</span></td></tr>';
   }).join('');
+  /* бойові характеристики: у Героя база 0, максимум — лише з речей (12 слотів) */
+  var CS=(window.SKARENA&&SKARENA.COMBAT_STATS)||[];
+  var combat=CS.length?'<tr class="grp"><td colspan="6">⚔️ Бойові характеристики — у Героя база <b>0</b>, ростуть лише з речей</td></tr>'
+    +CS.map(function(c){
+      var mf=bestSet(ITEMS,c.key,false,1),mp=bestSet(ITEMS,c.key,true,1);
+      var mx=[];if(mf.total)mx.push('+'+mf.total);if(mp.total)mx.push('+'+mp.total+'%');
+      return '<tr><td><span class="nm">'+c.emoji+' '+esc(c.label)+'</span><br><span class="key">'+esc(c.key)+'</span></td>'
+        +'<td class="num">'+c.base+'</td>'
+        +'<td class="num max">'+(mx.length?mx.join(' · '):'0')+(mx.length?'<br><span class="key">з речей, 12 слотів</span>':'<br><span class="key">вдягнені речі не дають</span>')+'</td>'
+        +'<td><span class="tag item">лише з речей</span></td>'
+        +'<td>Предмети</td>'
+        +'<td>'+(c.arena?'<span class="tag yes">так</span> '+esc(c.arena):'<span class="tag no">ні</span> поки не діє')+'</td></tr>';
+    }).join(''):'';
   var nAct=(TESTS||[]).filter(function(t){return t&&t.active!==false;}).length;
   return '<section class="sec"><h2>🦸 Базові характеристики Героя</h2>'
     +'<p class="hint">Те, що зберігається в самого Героя (heroes/{id}). <b>Максимум зараз</b> = старт + усе, що дають активні тести й тренажери ('+nAct+' записів): «за кожну правильну» — значення × кількість питань, тест із рівнями — за кожен рівень. Без предметів.</p>'
     +(TESTS_ERR?'<p class="hint" style="color:#a8322f">Не вдалося прочитати тести: '+esc(TESTS_ERR)+' — максимум показано без них.</p>':'')
     +'<div class="tblwrap"><table class="st"><thead><tr><th>Характеристика</th><th>Старт</th><th>Максимум зараз</th><th>Стан</th><th>Звідки росте</th><th>Діє в бою зараз</th></tr></thead>'
-    +'<tbody>'+rows+prog+'</tbody></table></div></section>';
+    +'<tbody>'+rows+combat+prog+'</tbody></table></div></section>';
 }
 
 function setHTML(set){
