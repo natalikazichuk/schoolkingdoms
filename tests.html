@@ -46,6 +46,32 @@
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
   @media(max-width:560px){.grid{grid-template-columns:1fr 1fr;gap:12px}}
 
+  /* ── теми предмета в боковому меню ── */
+  body.has-side .wrap{max-width:1200px}
+  .tlayout{display:grid;grid-template-columns:230px minmax(0,1fr);gap:18px;align-items:start}
+  .tside{position:sticky;top:12px;display:flex;flex-direction:column;gap:6px;
+    padding:10px;border-radius:16px;border:1.5px solid rgba(242,199,92,.35);
+    background:linear-gradient(180deg,rgba(30,52,92,.82),rgba(12,28,54,.86));
+    box-shadow:0 8px 22px rgba(0,0,0,.25);max-height:calc(100vh - 120px);overflow:auto}
+  .tside button{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 8px;
+    width:100%;text-align:left;border:1.5px solid transparent;border-radius:12px;
+    background:rgba(255,255,255,.06);color:#fff;font-family:inherit;font-weight:800;
+    font-size:.92rem;padding:9px 12px;cursor:pointer;transition:background .15s,border-color .15s}
+  .tside button:hover{background:rgba(255,255,255,.14)}
+  .tside button.on{border-color:var(--gold);background:rgba(242,199,92,.22);color:#ffe9a8}
+  .tside .ts-cnt{flex:0 0 auto;font-size:.75rem;color:#cfe0ff;opacity:.85;
+    background:rgba(255,255,255,.10);border-radius:999px;padding:2px 8px}
+  .tside .ts-cnt.done{color:#9ff0b4}
+  .tside .ts-bar{flex:1 0 100%;height:6px;border-radius:999px;background:rgba(255,255,255,.14);overflow:hidden}
+  .tside .ts-bar i{display:block;height:100%;border-radius:inherit;
+    background:linear-gradient(90deg,#f2c75c,#ffdf8a);transition:width .3s}
+  .tside .ts-bar.done i{background:linear-gradient(90deg,#3fbf6f,#7be39b)}
+  @media(max-width:760px){
+    .tlayout{grid-template-columns:1fr;gap:10px}
+    .tside{position:static;flex-direction:row;overflow-x:auto;max-height:none;padding:8px}
+    .tside button{width:auto;flex:0 0 auto;white-space:nowrap;min-width:150px}
+  }
+
   /* базова картка-квадрат (клас / предмет) */
 
   /* картка тесту (емодзі/обкладинка → назва → прогрес унизу) */
@@ -173,7 +199,7 @@
      LOAD.shown — скільки лишилось після фільтра hidden. */
   var LOAD = { err:'', raw:null, shown:null };
 
-  var view = 'classes', selGrade = null, selSubj = null;
+  var view = 'classes', selGrade = null, selSubj = null, selTopic = null;
   /* Ступінь, у якому зараз дитина. Сторінка показує класи ЛИШЕ цього
      ступеня: дошкільний вміст живе у «Дошкільнятку» (doshkillya.html) і
      не має стояти поруч із «1 клас». null — ступінь ще невідомий. */
@@ -274,6 +300,12 @@
     if(isPassed(t)) return 1;
     if(t.isLink){ var lp=linkProg(t.id); if(lp) return lp[0]/lp[1]; }
     return 0;
+  }
+  /* Прогрес теми: середнє часткових прогресів тестів (рівні, кроки), а не лише пройдені. */
+  function topicFrac(list){
+    if(!list.length) return 0;
+    var sum=0; list.forEach(function(t){ sum+=Math.max(0,Math.min(1,testFrac(t))); });
+    return sum/list.length;
   }
   function subjProg(s){ var passed=0; s.tests.forEach(function(t){ if(isPassed(t)) passed++; }); return {total:s.tests.length, passed:passed}; }
   function gradeProg(gr){ var total=0,passed=0; if(gr) gr.order.forEach(function(sid){ gr.subs[sid].tests.forEach(function(t){ total++; if(isPassed(t)) passed++; }); }); return {total:total,passed:passed}; }
@@ -680,6 +712,37 @@
     var groups = (s.groups && s.groups.length) ? s.groups.filter(function(g){ return g.tests.length; })
                                                : (rest.length ? [{ name:'', tests:rest }] : []);
     var titled = groups.filter(function(g){ return g.name; }).length;
+    /* Кілька розділів → теми йдуть у бокове меню, праворуч — тести обраної
+       теми (або всі, якщо обрано «Усі теми»). */
+    var side = [];
+    groups.forEach(function(g){ side.push({ name: g.name || 'Інші', tests: g.tests }); });
+    if(std.length) side.push({ name:'Словник', tests: std });
+    var useSide = titled > 0 && side.length > 1;
+    document.body.classList.toggle('has-side', useSide);
+    if(useSide){
+      if(selTopic != null && !side.some(function(x){ return x.name === selTopic; })) selTopic = null;
+      var all = s.tests;
+      var sideBtn = function(key, name, list){
+        var pct = Math.round(topicFrac(list)*100), full = pct>=100 ? ' done' : '';
+        return '<button type="button" data-topic="'+esc(key)+'"'+((selTopic||'') === key ? ' class="on"' : '')
+          + ' title="Пройдено '+list.filter(isPassed).length+' з '+list.length+'">'
+          + '<span>'+esc(name)+'</span>'
+          + '<span class="ts-cnt'+full+'">'+pct+'%</span>'
+          + '<span class="ts-bar'+full+'"><i style="width:'+pct+'%"></i></span></button>';
+      };
+      var nav = '<nav class="tside" aria-label="Теми">' + sideBtn('', 'Усі теми', all)
+        + side.map(function(x){ return sideBtn(x.name, x.name, x.tests); }).join('') + '</nav>';
+      var body = '';
+      side.forEach(function(x){
+        if(selTopic != null && x.name !== selTopic) return;
+        body += '<div class="tgroup"><span class="tg-name">'+esc(x.name)+'</span>'
+              + '<span class="tg-cnt">'+x.tests.filter(isPassed).length+' / '+x.tests.length
+              + ' · '+Math.round(topicFrac(x.tests)*100)+'%</span></div>'
+              + '<div class="grid">'+x.tests.map(cardHtml).join('')+'</div>';
+      });
+      q('screen').innerHTML = '<div class="tlayout">'+nav+'<div class="tmain">'+body+'</div></div>';
+      return;
+    }
     groups.forEach(function(g){
       var done = g.tests.filter(isPassed).length;
       if(titled && g.name){
@@ -699,6 +762,7 @@
     q('screen').innerHTML=html;
   }
   function render(){
+    if(view!=='tests') document.body.classList.remove('has-side');
     if(view==='subjects' && IDX && IDX.grades[selGrade]) renderSubjects();
     else if(view==='tests' && IDX && IDX.grades[selGrade] && IDX.grades[selGrade].subs[selSubj]) renderTests();
     else { view='classes'; renderClasses(); }
@@ -721,6 +785,7 @@
     if(selTier) p.push('open='+encodeURIComponent(selTier));
     if(view!=='classes' && selGrade!=null && GRADE_NUM2ID[selGrade]) p.push('grade='+encodeURIComponent(GRADE_NUM2ID[selGrade]));
     if(view==='tests' && selSubj) p.push('subj='+encodeURIComponent(selSubj));
+    if(view==='tests' && selSubj && selTopic) p.push('topic='+encodeURIComponent(selTopic));
     var h = p.length ? '#'+p.join('&') : '';
     if(h === (location.hash||'')) return;
     try{ history.replaceState(null,'', location.pathname+location.search+h); }catch(e){}
@@ -729,9 +794,11 @@
   /* ── навігація картками + збереження позиції для повернення ── */
   q('screen').addEventListener('click',function(e){
     var g=e.target.closest('[data-grade]');
-    if(g){ selGrade=g.getAttribute('data-grade'); selSubj=null; view='subjects'; render(); window.scrollTo(0,0); return; }
+    if(g){ selGrade=g.getAttribute('data-grade'); selSubj=null; selTopic=null; view='subjects'; render(); window.scrollTo(0,0); return; }
     var s=e.target.closest('[data-subj]');
-    if(s){ selSubj=s.getAttribute('data-subj'); view='tests'; render(); window.scrollTo(0,0); return; }
+    if(s){ selSubj=s.getAttribute('data-subj'); selTopic=null; view='tests'; render(); window.scrollTo(0,0); return; }
+    var tp=e.target.closest('[data-topic]');
+    if(tp){ selTopic=tp.getAttribute('data-topic')||null; render(); return; }
     var b=e.target.closest('[data-back]');
     if(b){ view=b.getAttribute('data-back'); render(); window.scrollTo(0,0); return; }
   });
@@ -745,7 +812,7 @@
      сторінці тренажера (sk-finish.js), а не на вході. */
   q('screen').addEventListener('click',function(e){
     var a=e.target.closest('a.tcard'); if(!a) return;
-    try{ sessionStorage.setItem('sk_tests_view', JSON.stringify({g:selGrade,s:selSubj})); }catch(_){}
+    try{ sessionStorage.setItem('sk_tests_view', JSON.stringify({g:selGrade,s:selSubj,t:selTopic})); }catch(_){}
     /* Нова вкладка (rel="noopener") не отримує sessionStorage — тоді «Назад»
        відкривав тести з типовим ступенем (молодша школа замість дошкілля).
        Передаємо поточний розділ прямо в ?skback=tests.html#open=…&grade=…&subj=… */
@@ -762,7 +829,7 @@
     if(!v || v.g==null) return false;
     var gr=IDX.grades[v.g]; if(!gr) return false;
     selGrade=v.g;
-    if(v.s && gr.subs[v.s]){ selSubj=v.s; view='tests'; } else { view='subjects'; }
+    if(v.s && gr.subs[v.s]){ selSubj=v.s; selTopic=v.t||null; view='tests'; } else { view='subjects'; }
     return true;
   }
 
@@ -790,8 +857,8 @@
     if(!key && (tv.indexOf('preschool')>=0 || tv.indexOf('дошкіл')>=0) && IDX.grades['p']) key='p';
     if(key && IDX.grades[key]){
       selGrade=key;
-      if(p.subj && IDX.grades[key].subs[p.subj]){ selSubj=p.subj; view='tests'; }
-      else { selSubj=null; view='subjects'; }
+      if(p.subj && IDX.grades[key].subs[p.subj]){ selSubj=p.subj; selTopic=p.topic||null; view='tests'; }
+      else { selSubj=null; selTopic=null; view='subjects'; }
       render(); window.scrollTo(0,0); landGlow(); return true;
     }
     // лише ступінь → показуємо перелік класів
