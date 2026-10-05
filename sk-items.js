@@ -92,7 +92,7 @@
     opts = opts || {};
     var bonus = (opts.bonus != null) ? opts.bonus : rollBonus(opts.rnd);
     var durMax = (base && base.durability != null) ? floor(base.durability * bonus) : null;
-    return {
+    var inst = {
       uid: opts.uid || newUid(),
       id: base.id,
       qty: opts.qty || 1,
@@ -101,6 +101,8 @@
       durCur: (opts.durCur != null ? opts.durCur : durMax),
       identified: !!opts.identified
     };
+    if (base && base.consumable) inst.cons = true;   // зілля / сувій: однакові складаються в одну комірку сумки
+    return inst;
   }
 
   /* ---- скільки коштує зараз (з урахуванням бонусу й зносу) ---- */
@@ -188,6 +190,168 @@
     return { stats: stats, pctOnly: pctOnly, _flat: flat, _pct: pct };
   }
 
+  /* ════════════════ СХОВИЩЕ ГЕРОЯ: сумка, скриня, смітник, магазин ════════════════
+     Чисті функції над станом героя { inventory, chest, trash, shopSold, coins }.
+     firebase-config.js викликає їх усередині транзакції (SK.storeTx), тож
+     монети й речі змінюються разом і не затирають одне одного.
+
+     • Сумка — речі без slot (вдягнене й пояс не рахуються), не більше BAG_LIMIT.
+       Однакові зілля/сувої (cons, той самий id і бонус) — одна комірка ×qty.
+     • Скриня — куди падають нагороди, коли сумка повна: CHEST_LIMIT місць,
+       кожна річ лежить CHEST_DAYS доби, потім зникає; що не влізло — зникає одразу.
+     • Смітник — викинуті речі; їх можна повернути до півночі (Київ), потім зникають.
+     • Магазин — купівля без бонусу, продаж за 1/10 ціни × міцність (не менше 1 сріб),
+       викуп проданого за тією самою ціною до півночі.
+     • Монети — у сріблі: 100 сріб = 1 зол. */
+  var BAG_LIMIT = 100, CHEST_LIMIT = 30, CHEST_DAYS = 3, SHOP_GEAR = 20, SHOP_CONS = 5;
+  var DAY_MS = 86400000;
+
+  function kyivDay(ts) {
+    var d = new Date(ts == null ? Date.now() : ts);
+    try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Kyiv', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d); }
+    catch (e) { return d.toISOString().slice(0, 10); }
+  }
+  function isBag(i) { return i && !i.slot; }
+  function bagCount(inv) { return (inv || []).filter(isBag).length; }
+  function sameStack(a, b) { return !!(a && b && a.cons && b.cons && a.id === b.id && Number(a.bonus || 1) === Number(b.bonus || 1)); }
+  function cloneInst(i) { return JSON.parse(JSON.stringify(i)); }
+
+  /* ціна продажу магазину: 1/10 ціни з бонусом × частка міцності, не менше 1 сріб (за штуку) */
+  function sellPrice(base, inst) {
+    if (!base) return 1;
+    var p = priceWithBonus(base, inst && inst.bonus != null ? inst.bonus : 1);
+    var r = 1;
+    if (inst && inst.durMax) r = Math.max(0, Math.min(1, Number(inst.durCur != null ? inst.durCur : inst.durMax) / inst.durMax));
+    return Math.max(1, floor(p * r / 10));
+  }
+  function sellTotal(base, inst) { return sellPrice(base, inst) * Math.max(1, Number(inst && inst.qty) || 1); }
+
+  function normState(st) {
+    st = st || {};
+    return {
+      inventory: Array.isArray(st.inventory) ? st.inventory.slice() : [],
+      chest: Array.isArray(st.chest) ? st.chest.slice() : [],
+      trash: Array.isArray(st.trash) ? st.trash.slice() : [],
+      shopSold: Array.isArray(st.shopSold) ? st.shopSold.slice() : [],
+      coins: Math.max(0, Math.round(Number(st.coins) || 0))
+    };
+  }
+  /* прибирання за часом: скриня — після CHEST_DAYS діб; смітник і викуп — після півночі */
+  function tidy(st, now) {
+    st = normState(st); now = now == null ? Date.now() : now;
+    var today = kyivDay(now);
+    st.chest = st.chest.filter(function (c) { return c && c.inst && (c.until || 0) > now; });
+    st.trash = st.trash.filter(function (t) { return t && t.inst && t.day === today; });
+    st.shopSold = st.shopSold.filter(function (t) { return t && t.inst && t.day === today; });
+    return st;
+  }
+  /* покласти одну річ у сумку (стопкою, якщо можна); false — нема місця */
+  function putBag(st, inst) {
+    var i = cloneInst(inst); i.slot = null;
+    if (i.cons) {
+      for (var k = 0; k < st.inventory.length; k++) {
+        var x = st.inventory[k];
+        if (isBag(x) && sameStack(x, i)) { x.qty = (Number(x.qty) || 1) + (Number(i.qty) || 1); return true; }
+      }
+    }
+    if (bagCount(st.inventory) >= BAG_LIMIT) return false;
+    st.inventory.push(i); return true;
+  }
+  /* нагороди: у сумку → у скриню → зникає */
+  function addItems(st, list, now) {
+    st = tidy(st, now); now = now == null ? Date.now() : now;
+    var res = { bag: 0, chest: 0, lost: 0 };
+    (Array.isArray(list) ? list : [list]).forEach(function (inst) {
+      if (!inst || !inst.id) return;
+      if (putBag(st, inst)) { res.bag++; return; }
+      if (st.chest.length < CHEST_LIMIT) { var c = cloneInst(inst); c.slot = null; st.chest.push({ inst: c, until: now + CHEST_DAYS * DAY_MS }); res.chest++; return; }
+      res.lost++;
+    });
+    return { state: st, result: res };
+  }
+  function fail(code, msg) { var e = new Error(msg || code); e.code = code; throw e; }
+  function takeFrom(arr, uid, get) {
+    for (var k = 0; k < arr.length; k++) { var it = get(arr[k]); if (it && it.uid === uid) return arr.splice(k, 1)[0]; }
+    return null;
+  }
+  function claimChest(st, uid, now) {
+    st = tidy(st, now);
+    var c = takeFrom(st.chest, uid, function (x) { return x.inst; });
+    if (!c) fail('gone', 'Річ уже зникла зі скрині');
+    if (!putBag(st, c.inst)) fail('full', 'Сумка повна (' + BAG_LIMIT + ')');
+    return { state: st };
+  }
+  function trashItem(st, uid, now) {
+    st = tidy(st, now); now = now == null ? Date.now() : now;
+    var i = takeFrom(st.inventory, uid, function (x) { return x; });
+    if (!i) fail('gone', 'Речі немає в сумці');
+    if (i.slot) fail('worn', 'Спершу зніми річ');
+    st.trash.push({ inst: i, day: kyivDay(now) });
+    return { state: st };
+  }
+  function restoreTrash(st, uid, now) {
+    st = tidy(st, now);
+    var t = takeFrom(st.trash, uid, function (x) { return x.inst; });
+    if (!t) fail('gone', 'Річ уже зникла зі смітника');
+    if (!putBag(st, t.inst)) fail('full', 'Сумка повна (' + BAG_LIMIT + ')');
+    return { state: st };
+  }
+  /* угода магазину: order = { sell:[uid], buy:[base], buyback:[uid] }, byId — каталог.
+     Спершу продаж, далі купівля й викуп; не вистачає грошей або місця — угода не відбувається. */
+  function deal(st, order, byId, now) {
+    st = tidy(st, now); now = now == null ? Date.now() : now;
+    order = order || {}; byId = byId || {};
+    var today = kyivDay(now), got = 0, spent = 0, bought = [];
+    (order.sell || []).forEach(function (uid) {
+      var i = takeFrom(st.inventory, uid, function (x) { return x; });
+      if (!i) fail('gone', 'Річ для продажу вже не в сумці');
+      if (i.slot) fail('worn', 'Продавати можна лише речі із сумки');
+      var price = sellTotal(byId[i.id], i);
+      got += price; st.coins += price;
+      st.shopSold.push({ inst: i, price: price, day: today });
+    });
+    (order.buyback || []).forEach(function (uid) {
+      var t = takeFrom(st.shopSold, uid, function (x) { return x.inst; });
+      if (!t) fail('gone', 'Викуп уже недоступний');
+      spent += t.price; st.coins -= t.price;
+      if (!putBag(st, t.inst)) fail('full', 'Сумка повна (' + BAG_LIMIT + ')');
+    });
+    (order.buy || []).forEach(function (base) {
+      if (!base || !base.id) fail('gone', 'Товару вже немає');
+      var price = Math.max(0, Math.round(Number(base.price) || 0));
+      spent += price; st.coins -= price;
+      var inst = makeInstance(base, { bonus: 1, identified: true });
+      if (!putBag(st, inst)) fail('full', 'Сумка повна (' + BAG_LIMIT + ')');
+      bought.push(inst);
+    });
+    if (st.coins < 0) fail('money', 'Не вистачає грошей');
+    return { state: st, result: { got: got, spent: spent, bought: bought } };
+  }
+
+  /* асортимент магазину на день: випадково з дозволених (active, не noShop),
+     той самий для героя протягом доби за Києвом. 20 речей + 5 зілль/сувоїв,
+     серед яких завжди є зілля здоров'я. */
+  function hashStr(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+  function seeded(seed) { var a = seed >>> 0; return function () { a = (a + 0x6D2B79F5) >>> 0; var t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  function shuffled(arr, rnd) { var a = arr.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(rnd() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+  function isHealthPotion(b) { return !!(b && b.consumable && (b.addStats || []).some(function (e) { return e && canon(e.stat) === 'healthRegen'; })); }
+  function shopStock(catalog, heroId, now) {
+    var day = kyivDay(now), rnd = seeded(hashStr(String(heroId || '') + '|' + day));
+    var ok = (catalog || []).filter(function (b) { return b && b.id && b.active !== false && !b.noShop && Number(b.price) > 0; });
+    var gear = shuffled(ok.filter(function (b) { return !b.consumable; }), rnd).slice(0, SHOP_GEAR);
+    var cons = ok.filter(function (b) { return b.consumable; });
+    var hp = shuffled(cons.filter(isHealthPotion), rnd).slice(0, 1);
+    var rest = shuffled(cons.filter(function (b) { return hp.indexOf(b) < 0; }), rnd).slice(0, SHOP_CONS - hp.length);
+    return { day: day, gear: gear, cons: hp.concat(rest) };
+  }
+
+  var STORE = {
+    BAG_LIMIT: BAG_LIMIT, CHEST_LIMIT: CHEST_LIMIT, CHEST_DAYS: CHEST_DAYS, SHOP_GEAR: SHOP_GEAR, SHOP_CONS: SHOP_CONS,
+    kyivDay: kyivDay, bagCount: bagCount, sameStack: sameStack, sellPrice: sellPrice, sellTotal: sellTotal,
+    normState: normState, tidy: tidy, addItems: addItems, claimChest: claimChest, trashItem: trashItem,
+    restoreTrash: restoreTrash, deal: deal, shopStock: shopStock, isHealthPotion: isHealthPotion
+  };
+
   var SKIT = {
     BONUS_TABLE: BONUS_TABLE,
     STAT_MAP: STAT_MAP,
@@ -202,7 +366,8 @@
     canSeeAddStats: canSeeAddStats,
     combine: combine,
     scaleStat: scaleStat,
-    newUid: newUid
+    newUid: newUid,
+    store: STORE
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = SKIT;

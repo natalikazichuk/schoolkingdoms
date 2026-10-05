@@ -969,6 +969,14 @@ const SK = {
     await deleteDoc(doc(db, 'items', String(id)));
   },
 
+  // «Недоступна в магазині» — річ не потрапляє в щоденний асортимент магазину
+  async setItemNoShop(id, noShop) {
+    if (!id) return;
+    await updateDoc(doc(db, 'items', String(id)), {
+      noShop: !!noShop,
+      updatedAt: serverTimestamp()
+    });
+  },
   async setItemActive(id, active) {
     if (!id) return;
     await updateDoc(doc(db, 'items', String(id)), {
@@ -1355,12 +1363,55 @@ const SK = {
       { merge: true });
     return true;
   },
-  // Додати екземпляри до наявного інвентаря (не перезаписує решту).
-  async addToInventory(instances) {
-    const cur = await SK.getInventory();
-    const next = cur.concat(Array.isArray(instances) ? instances : [instances]);
-    return SK.saveInventory(next);
+  /* ===== СХОВИЩЕ ГЕРОЯ: сумка (ліміт), скриня, смітник, магазин ==========
+     Логіка — чисті функції SKIT.store (sk-items.js); тут лише транзакція:
+     читаємо heroes/{id}, прибираємо прострочене, застосовуємо зміну й пишемо
+     inventory + chest + trash + shopSold + coins разом. Монети й речі в одному
+     записі — угода в магазині не загубиться, навіть якщо в цю ж мить батьки
+     схвалять завдання з монетами (транзакція повториться з новими даними). */
+  async storeTx(fn) {
+    const heroId = SK._heroUid();
+    if (!heroId) throw new Error('no-hero');
+    const ST = window.SKIT && window.SKIT.store;
+    if (!ST) throw new Error('no-skit');
+    const ref = doc(db, 'heroes', heroId);
+    let out = null;
+    await runTransaction(db, async (tx) => {
+      const s = await tx.get(ref);
+      const d = s.exists() ? s.data() : {};
+      const r = fn(ST.tidy(d, Date.now()));
+      const st = r.state;
+      out = { state: st, result: r.result };
+      tx.set(ref, { inventory: st.inventory, chest: st.chest, trash: st.trash, shopSold: st.shopSold,
+                    coins: st.coins, updatedAt: serverTimestamp() }, { merge: true });
+    });
+    return out;
   },
+  // стан сховища без запису (з прибраним простроченим)
+  async getStore() {
+    const heroId = SK._heroUid();
+    if (!heroId) return null;
+    const s = await getDoc(doc(db, 'heroes', heroId));
+    const d = s.exists() ? s.data() : {};
+    const ST = window.SKIT && window.SKIT.store;
+    return ST ? ST.tidy(d, Date.now()) : { inventory: d.inventory || [], chest: [], trash: [], shopSold: [], coins: Number(d.coins) || 0 };
+  },
+  // Додати екземпляри (нагороди): у сумку → у скриню (якщо сумка повна) → зникає.
+  // Повертає {bag, chest, lost}. Без sk-items.js — як раніше, просто дописує.
+  async addToInventory(instances) {
+    const list = Array.isArray(instances) ? instances : [instances];
+    if (!(window.SKIT && window.SKIT.store)) {
+      const cur = await SK.getInventory();
+      return SK.saveInventory(cur.concat(list));
+    }
+    const r = await SK.storeTx(st => window.SKIT.store.addItems(st, list, Date.now()));
+    return r ? r.result : false;
+  },
+  async claimChest(uid)   { return SK.storeTx(st => window.SKIT.store.claimChest(st, uid, Date.now())); },
+  async trashItem(uid)    { return SK.storeTx(st => window.SKIT.store.trashItem(st, uid, Date.now())); },
+  async restoreTrash(uid) { return SK.storeTx(st => window.SKIT.store.restoreTrash(st, uid, Date.now())); },
+  // угода магазину: {sell:[uid], buy:[base], buyback:[uid]}, byId — каталог {id: base}
+  async shopDeal(order, byId) { return SK.storeTx(st => window.SKIT.store.deal(st, order, byId, Date.now())); },
   // Долити монет героєві. coins — надійний лічильник (sk-progress його не чіпає),
   // тож просто читаємо поточне значення й пишемо суму через merge.
   async addCoins(delta) {
