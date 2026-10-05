@@ -137,6 +137,8 @@
         +'border:1px solid rgba(242,199,92,.42);border-radius:999px;padding:4px 11px;'
         +'font-weight:800;font-size:.82rem;color:#eaf1ff;white-space:nowrap}'
       +'.sk-hd__stat b{color:#F2C75C}'
+      /* стат, підсилений вдягненими речами */
+      +'.sk-hd__stat b.up{color:#7CE38B}'
       /* гість */
       +'.sk-hd__guest{display:none;font-weight:700;font-size:.82rem;color:#dce6f7}'
       +'.sk-hd__guest.on{display:inline-block}'
@@ -394,40 +396,89 @@
     }
   });
 
+  /* ── стати Героя в хедері ──
+     Показуємо підсумок «база + вдягнені речі» — так само, як вікно
+     екіпіровки на арені (SKIT.combine). Спершу малюємо базу (миттєво),
+     потім, коли прочитано інвентар і каталог, — з урахуванням речей. */
+  var STAT_KEYS = [['❤️','health'],['🔮','mana'],['🏃','agility'],['🎯','accuracy']];
+  function renderStats(h, gear){
+    var box = document.getElementById('skHdStats');
+    if(!box) return;
+    var chips = STAT_KEYS.map(function(s){
+      var base = Number(h[s[1]]) || 0;
+      var v = (gear && gear[s[1]] != null) ? gear[s[1]] : base;
+      var diff = v - base;
+      var tip = diff ? ' title="'+base+(diff > 0 ? ' + ' : ' − ')+Math.abs(diff)+' від речей"' : '';
+      return '<span class="sk-hd__stat"'+tip+'>'+s[0]+' <b'+(diff > 0 ? ' class="up"' : '')+'>'+v+'</b></span>';
+    });
+    /* Були зірочки (XP) — дитині незрозуміло, та й XP тепер
+       росте лише з батьківських завдань. Показуємо монети: їх
+       видно де завгодно — у нагородах, крамниці, інвентарі. */
+    chips.push('<span class="sk-hd__stat">🪙 <b>'+(h.coins != null ? h.coins : 0)+'</b></span>');
+    box.innerHTML = chips.join('');
+  }
+
+  /* sk-items.js (window.SKIT) є не на кожній сторінці — довантажуємо */
+  var skitP = null;
+  function needSKIT(){
+    if(window.SKIT) return Promise.resolve(window.SKIT);
+    if(!skitP) skitP = new Promise(function(res){
+      var s = document.createElement('script');
+      s.src = BASE + 'sk-items.js?v=2';
+      s.onload = function(){ res(window.SKIT || null); };
+      s.onerror = function(){ res(null); };
+      document.head.appendChild(s);
+    });
+    return skitP;
+  }
+
+  /* Підсумкові стати з вдягненими речами або null (речей немає / помилка).
+     Вдягнене = має slot, крім комірок пояса (там зілля, вони не діють постійно). */
+  function gearTotals(h){
+    if(!SK.getInventory || !SK.listItems) return Promise.resolve(null);
+    return SK.getInventory().then(function(inv){
+      var worn = (inv || []).filter(function(i){ return i && i.id && i.slot && !/^belt\d/.test(i.slot); });
+      if(!worn.length) return null;
+      return Promise.all([SK.listItems(), needSKIT()]).then(function(r){
+        var SKIT = r[1]; if(!SKIT || !SKIT.combine) return null;
+        var by = {}; (r[0] || []).forEach(function(it){ by[it.id] = it; });
+        var bases = [], insts = [];
+        worn.forEach(function(i){ if(by[i.id]){ bases.push(by[i.id]); insts.push(i); } });
+        if(!bases.length) return null;
+        var baseHero = {};
+        STAT_KEYS.forEach(function(s){ baseHero[s[1]] = Number(h[s[1]]) || 0; });
+        return SKIT.combine(baseHero, bases, insts).stats;
+      });
+    }).catch(function(e){ try{ console.warn('[хедер] речі не враховано:', e); }catch(_){} return null; });
+  }
+
   /* ── заповнити шкалу з Firebase + дізнатися клас Героя ── */
+  function loadHero(){
+    SK.getHero().then(function(h){
+      if(!h){ showGuest(); return; }
+      /* клас Героя → підсвітити відповідний ступінь */
+      if(h.grade != null && Number(h.grade) !== activeGrade){
+        activeGrade = Number(h.grade);
+        if(navMap){ try{ buildNav(navMap); }catch(e){} }
+      }
+      renderStats(h, null);
+      var strip = document.getElementById('skHdStrip');
+      if(strip) strip.classList.add('on');
+      gearTotals(h).then(function(g){ if(g) renderStats(h, g); });
+    }).catch(showGuest);
+  }
+  /* Сторінки, де Герой перевдягається (арена), кличуть це після збереження */
+  window.SKHeaderRefresh = function(){
+    try{ if(window.SK && SK.isHeroSession && SK.isHeroSession() && SK.getHero) loadHero(); }catch(e){}
+  };
+
   var tries = 0;
   (function whenSK(){
     if(window.SK && SK.ready){
       SK.ready.then(function(){
         try{
-          if(SK.isHeroSession && SK.isHeroSession() && SK.getHero){
-            SK.getHero().then(function(h){
-              if(!h){ showGuest(); return; }
-              /* клас Героя → підсвітити відповідний ступінь */
-              if(h.grade != null){
-                activeGrade = Number(h.grade);
-                if(navMap){ try{ buildNav(navMap); }catch(e){} }
-              }
-              var stats = [
-                {k:'❤️', v:h.health},
-                {k:'🔮', v:h.mana},
-                {k:'🏃', v:h.agility},
-                {k:'🎯', v:h.accuracy},
-                /* Були зірочки (XP) — дитині незрозуміло, та й XP тепер
-                   росте лише з батьківських завдань. Показуємо монети: їх
-                   видно де завгодно — у нагородах, крамниці, інвентарі. */
-                {k:'🪙', v:h.coins}
-              ];
-              var box = document.getElementById('skHdStats');
-              if(box) box.innerHTML = stats.map(function(s){
-                return '<span class="sk-hd__stat">'+s.k+' <b>'+(s.v!=null?s.v:0)+'</b></span>';
-              }).join('');
-              var strip = document.getElementById('skHdStrip');
-              if(strip) strip.classList.add('on');
-            }).catch(showGuest);
-          } else {
-            showGuest();
-          }
+          if(SK.isHeroSession && SK.isHeroSession() && SK.getHero) loadHero();
+          else showGuest();
         }catch(e){ showGuest(); }
       });
       return;

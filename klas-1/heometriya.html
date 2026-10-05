@@ -9,108 +9,218 @@
 <link rel="manifest" href="../manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../sk-game.css">
+<link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
 <style>
+/* Світла «пісочна» тема — як у тренажерах (замість темної sk-game.css). */
+:root{
+  --ink:#2c2b3a;--soft:#6b6a7d;--paper:#fff9ef;--line:#ece3d2;--card:#fff;
+  --red:#ff6b6b;--orange:#ffa94d;--yellow:#ffd43b;--green:#51cf66;--teal:#22b8cf;
+  --blue:#4dabf7;--purple:#cc5de8;
+  --good:#37b26f;--good-bg:#e4f7ec;--bad:#e06666;--bad-bg:#fbe7e7;
+  --shadow:0 6px 0 rgba(44,43,58,.13);
+  --gold:#ffcf4d;--gold-deep:#e0a92e;
+  /* «крейда» на світлій дошці — синя; зафарбоване — блакитне */
+  --chalk:#3d7fd9;--chalk-fill:rgba(77,171,247,.32);
+}
+*{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+html,body{height:100%; overflow:hidden;}
+body{
+  font-family:'Nunito',system-ui,sans-serif; color:var(--ink);
+  user-select:none; -webkit-user-select:none; touch-action:manipulation; overscroll-behavior:none;
+  background:
+    radial-gradient(circle at 12% 8%,rgba(255,212,59,.28),transparent 42%),
+    radial-gradient(circle at 88% 14%,rgba(77,171,247,.26),transparent 44%),
+    radial-gradient(circle at 78% 92%,rgba(204,93,232,.22),transparent 46%),
+    radial-gradient(circle at 8% 86%,rgba(81,207,102,.24),transparent 44%),
+    var(--paper);
+}
+h1,.title,.cta,.ans,.pill .val,.linkbtn{font-family:'Fredoka',sans-serif;letter-spacing:.3px;}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
-  /* ── top bar ── */
+/* ── увесь ігровий шар — над футером ── */
+#wrap{position:fixed; top:0; left:0; right:0;
+  bottom:calc(60px + env(safe-area-inset-bottom));
+  display:flex; flex-direction:column; max-width:640px; margin:0 auto;}
 
-  .pill.q .val{color:var(--gold);}
+/* ── верхня панель ── */
+#top{display:flex; align-items:center; gap:8px;
+  padding:calc(env(safe-area-inset-top) + 12px) 14px 4px;}
+.iconbtn{width:44px; height:44px; border:2px solid var(--line); background:#fff; border-radius:14px;
+  font-family:inherit; font-weight:700; font-size:20px; color:var(--ink); cursor:pointer; flex:none;
+  display:grid; place-items:center; box-shadow:0 1px 3px rgba(44,43,58,.14);}
+.iconbtn:active{transform:translateY(2px);}
+.pill{background:#fff; border:2px solid var(--line); border-radius:14px;
+  padding:6px 12px; font-weight:800; font-size:14px; white-space:nowrap; box-shadow:var(--shadow);}
+.pill .lab{color:var(--soft); font-size:11px; display:block; line-height:1;}
+.pill .val{font-size:19px; line-height:1.15; color:var(--ink);}
+.pill.q .val{color:var(--orange);}
+#spacer{flex:1;}
+#menuBtn{cursor:pointer; font-family:'Fredoka'; font-weight:600; font-size:15px;
+  background:#fff; border:2px solid var(--line); color:var(--ink);
+  border-radius:14px; padding:9px 14px; box-shadow:var(--shadow); margin-right:52px;}
+#menuBtn:active{transform:translateY(2px); box-shadow:0 3px 0 rgba(44,43,58,.13);}
 
-  /* ── сцена ── */
-  #main{flex:1 1 auto; display:flex; flex-direction:column; align-items:center;
-    justify-content:center; gap:10px; padding:6px 12px; min-height:0;}
-  #hint{font-weight:600; font-size:15px; opacity:.92; min-height:22px; text-align:center; line-height:1.35;}
+/* ── прогрес ── */
+#barWrap{padding:10px 64px 2px 16px;}   /* праворуч — місце під «жучок» 🐞 */
+#bar{height:12px; border-radius:8px; background:#f0e7d6; overflow:hidden;}
+#barFill{height:100%; width:0%; border-radius:8px;
+  background:linear-gradient(90deg,var(--green),var(--teal)); transition:width .45s;}
 
-  #hint.bad{color:var(--red);}
-  #hint.good{color:var(--green);}
+/* ── сцена ── */
+#main{flex:1 1 auto; display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:10px; padding:6px 14px; min-height:0;}
+#hint{font-weight:800; font-size:15px; color:var(--soft); min-height:22px; text-align:center; line-height:1.35; max-width:460px;}
+#hint b{color:var(--ink);}
+#hint.bad{color:var(--bad);}
+#hint.good{color:var(--good);}
 
-  #stage{position:relative; width:100%; max-width:460px; flex:1 1 auto; min-height:0;
-    display:flex; align-items:center; justify-content:center;}
+#stage{position:relative; width:100%; max-width:460px; flex:1 1 auto; min-height:0;
+  display:flex; align-items:center; justify-content:center;}
 
-  /* дошка, на якій «малює» королівська крейда */
-  .board{position:relative; width:100%; height:100%; max-height:100%;
-    border-radius:22px; border:2px solid rgba(255,207,77,.32);
-    background:
-      linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px) 0 0/28px 28px,
-      linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px) 0 0/28px 28px,
-      linear-gradient(180deg, rgba(38,48,107,.7), rgba(14,18,52,.85));
-    box-shadow:inset 0 0 40px rgba(0,0,0,.45), 0 10px 26px rgba(0,0,0,.4);
-    overflow:hidden;}
-  .board svg{display:block; width:100%; height:100%;}
+/* дошка в клітинку, на якій «малює» королівська крейда */
+.board{position:relative; width:100%; height:100%; max-height:100%;
+  border-radius:20px; border:3px solid var(--line);
+  background:
+    linear-gradient(#eef2f8 1px, transparent 1px) 0 0/28px 28px,
+    linear-gradient(90deg, #eef2f8 1px, transparent 1px) 0 0/28px 28px,
+    #fff;
+  box-shadow:var(--shadow); overflow:hidden;}
+.board svg{display:block; width:100%; height:100%;}
 
-  .ink{fill:none; stroke:var(--gold); stroke-width:5; stroke-linecap:round; stroke-linejoin:round;
-    filter:drop-shadow(0 0 6px rgba(255,207,77,.55));}
-  .ink.draw{transition:stroke-dashoffset .9s cubic-bezier(.35,.85,.35,1);}
-  .ink.solid{fill:rgba(255,207,77,.42);}
-  .dot{fill:var(--gold); stroke:none; filter:drop-shadow(0 0 8px rgba(255,207,77,.8));}
-  .tip{fill:#fff; filter:drop-shadow(0 0 7px rgba(255,255,255,.9));}
-  .popin{animation:popin .5s cubic-bezier(.3,1.4,.4,1);}
-  @keyframes popin{0%{transform:scale(0); opacity:0}70%{transform:scale(1.25)}100%{transform:scale(1); opacity:1}}
+.ink{fill:none; stroke:var(--chalk); stroke-width:5; stroke-linecap:round; stroke-linejoin:round;}
+.ink.draw{transition:stroke-dashoffset .9s cubic-bezier(.35,.85,.35,1);}
+.ink.solid{fill:var(--chalk-fill);}
+.dot{fill:var(--chalk); stroke:none;}
+.tip{fill:var(--orange); filter:drop-shadow(0 0 5px rgba(255,169,77,.9));}
+.popin{animation:popin .5s cubic-bezier(.3,1.4,.4,1);}
+@keyframes popin{0%{transform:scale(0); opacity:0}70%{transform:scale(1.25)}100%{transform:scale(1); opacity:1}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}
+  40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
 
-  /* ── сітка «Знайди фігуру» ── */
-  #stage.find{align-items:stretch;}
-  .find-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; width:100%; height:100%;}
-  .tile{position:relative; cursor:pointer; border-radius:18px; border:2px solid rgba(255,207,77,.3);
-    background:linear-gradient(180deg, rgba(38,48,107,.72), rgba(14,18,52,.85));
-    box-shadow:inset 0 0 26px rgba(0,0,0,.4), 0 6px 16px rgba(0,0,0,.35);
-    overflow:hidden; transition:transform .12s, border-color .12s, box-shadow .12s;}
-  .tile svg{display:block; width:100%; height:100%;}
-  .tile:active{transform:scale(.97);}
-  .tile.good{border-color:var(--green); box-shadow:inset 0 0 26px rgba(123,224,164,.3), 0 0 20px rgba(123,224,164,.45);}
-  .tile.good .ink{stroke:var(--green); filter:drop-shadow(0 0 8px rgba(123,224,164,.7));}
-  .tile.good .ink.solid{fill:rgba(123,224,164,.4);}
-  .tile.good .dot{fill:var(--green);}
-  .tile.bad{border-color:var(--red); animation:shake .34s;}
+/* ── сітка «Знайди фігуру» ── */
+#stage.find{align-items:stretch;}
+.find-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; width:100%; height:100%;}
+.tile{position:relative; cursor:pointer; border-radius:18px; border:3px solid var(--line);
+  background:#fff; box-shadow:0 4px 0 rgba(44,43,58,.12);
+  overflow:hidden; transition:transform .12s, border-color .12s, background .12s;}
+.tile svg{display:block; width:100%; height:100%;}
+.tile:active{transform:scale(.97);}
+.tile.good{border-color:var(--good); background:var(--good-bg);}
+.tile.good .ink{stroke:var(--good);}
+.tile.good .ink.solid{fill:rgba(55,178,111,.3);}
+.tile.good .dot{fill:var(--good);}
+.tile.bad{border-color:var(--bad); background:var(--bad-bg); animation:shake .34s;}
 
-  /* ── відповіді (назви фігур) ── */
-  #answers{display:flex; gap:8px; flex-wrap:wrap; justify-content:center;
-    padding:2px 8px calc(env(safe-area-inset-bottom) + 12px);}
-  #answers:empty{padding:0;}
-  .ans{cursor:pointer; font-family:inherit; font-weight:700; font-size:clamp(15px,4.2vw,18px);
-    color:#4a3300; background:linear-gradient(180deg,#FFE7A0,var(--gold-deep));
-    border:none; border-radius:16px; padding:13px 20px; min-width:104px;
-    box-shadow:0 5px 0 #a9761a, 0 9px 18px rgba(0,0,0,.38);
-    transition:transform .1s, box-shadow .1s, filter .15s;}
-  .ans:active{transform:translateY(3px); box-shadow:0 2px 0 #a9761a, 0 5px 12px rgba(0,0,0,.38);}
-  .ans.good{background:linear-gradient(180deg,#B6F3CE,var(--green-d)); box-shadow:0 5px 0 #1c6d38, 0 9px 18px rgba(0,0,0,.38);}
-  .ans.bad{background:linear-gradient(180deg,#FFC9C9,#c94b4b); box-shadow:0 5px 0 #8a2b2b; animation:shake .34s;}
-  .ans.dim{filter:grayscale(.7); opacity:.5;}
+/* ── відповіді (назви фігур) ── */
+#answers{display:flex; gap:10px; flex-wrap:wrap; justify-content:center; padding:4px 10px 16px;}
+#answers:empty{padding:0;}
+.ans{cursor:pointer; font-weight:700; font-size:clamp(16px,4.4vw,19px); color:#4a3300;
+  background:linear-gradient(180deg,#FFE7A0,var(--gold-deep));
+  border:none; border-radius:18px; padding:13px 20px; min-width:104px;
+  box-shadow:0 6px 0 #c9922a, 0 8px 14px rgba(44,43,58,.18); transition:transform .1s, opacity .2s;}
+.ans:active{transform:translateY(3px); box-shadow:0 3px 0 #c9922a;}
+.ans.good{background:var(--green); color:#fff; box-shadow:0 6px 0 #37a052;}
+.ans.bad{background:var(--bad); color:#fff; box-shadow:0 6px 0 #b84848; animation:shake .34s;}
+.ans.dim{opacity:.4;}
+@media (max-width:380px){ .ans{min-width:92px; padding:11px 14px;} }
 
-  /* ── точки для побудови ── */
-  .node{cursor:pointer; fill:rgba(255,255,255,.22); stroke:rgba(255,255,255,.5); stroke-width:2;
-    transition:fill .15s, stroke .15s, r .15s;}
-  .node.start{fill:rgba(255,207,77,.35); stroke:var(--gold); animation:pulse 1.3s infinite;}
-  .node.used{fill:var(--gold); stroke:var(--gold); filter:drop-shadow(0 0 7px rgba(255,207,77,.8));}
-  .node.bad{fill:rgba(255,139,139,.6); stroke:var(--red);}
-  @keyframes pulse{0%,100%{stroke-opacity:1}50%{stroke-opacity:.25}}
+/* ── точки для побудови ── */
+.node{cursor:pointer; fill:#fff; stroke:#b9c3d3; stroke-width:3; transition:fill .15s, stroke .15s;}
+.node.start{fill:#fff1dc; stroke:var(--orange); animation:pulse 1.3s infinite;}
+.node.used{fill:var(--chalk); stroke:var(--chalk);}
+.node.bad{fill:var(--bad-bg); stroke:var(--bad);}
+@keyframes pulse{0%,100%{stroke-opacity:1}50%{stroke-opacity:.3}}
+@media (prefers-reduced-motion: reduce){ .ink.draw{transition:none!important;} }
 
-  /* ── overlays ── */
-  .screen{position:absolute; inset:0; z-index:60; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; text-align:center; padding:24px; gap:14px; overflow-y:auto;
-    background:var(--sky-veil); backdrop-filter:blur(2px);}
+/* ── оверлеї (старт / фінал) ── */
+.screen{position:absolute; inset:0; z-index:60; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; text-align:center; padding:22px; gap:12px;
+  background:linear-gradient(180deg,#fff9ef,#fdf3e2);}
+.screen.hidden{display:none;}
+.crown{font-size:52px;}
+.title{font-size:30px; font-weight:700; color:var(--ink); line-height:1.1;}
+.sub{font-size:15px; font-weight:800; color:var(--soft); max-width:340px; line-height:1.5;}
+.sub b{color:var(--blue);}
+.stars{font-size:42px; letter-spacing:6px;}
+.cta{margin-top:4px; border:none; cursor:pointer; font-weight:700;
+  background:var(--green); color:#fff; font-size:20px; padding:15px 42px; border-radius:18px;
+  box-shadow:0 6px 0 #37a052;}
+.cta:active{transform:translateY(3px); box-shadow:0 3px 0 #37a052;}
+.linkbtn{cursor:pointer; font-weight:600; font-size:15px; text-decoration:none;
+  background:#fff; border:2px solid var(--line); color:var(--soft);
+  border-radius:14px; padding:11px 22px;}
+.linkbtn:active{transform:translateY(2px);}
+.winrow{display:flex; gap:10px; flex-wrap:wrap; justify-content:center;}
 
-  .sub{font-size:15px; opacity:.86; max-width:360px; line-height:1.45;}
-
-  .legend{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; max-width:360px;}
-  .legend span{font-size:12px; font-weight:600; background:rgba(255,207,77,.12);
-    border:1px solid rgba(255,207,77,.3); border-radius:999px; padding:5px 10px;}
-
-  :focus-visible{outline:3px solid #fff; outline-offset:2px;}
-
-  @media (max-width:380px){ .ans{min-width:92px; padding:11px 14px;} }
-  @media (prefers-reduced-motion: reduce){
-    .ink.draw{transition:none !important;}
-    .node.start{animation:none;}
-    .popin{animation:none;}
-  }
+/* ══ стартовий екран — вигляд як у тренажері «Вчимо літери» ══ */
+#startScreen{justify-content:flex-start; gap:11px; overflow-y:auto;
+  padding:calc(env(safe-area-inset-top) + 16px) 20px 16px;}
+#startScreen > *:not(.start-hero){flex-shrink:0;}
+#startScreen .start-head{position:relative; width:100%; max-width:540px; margin:0 auto;
+  display:flex; flex-direction:column; align-items:center;}
+#startScreen .start-top{position:absolute; top:22px; left:0; z-index:5;}
+.num-blocks{display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin:6px 0 2px;}
+.nb{position:relative; width:58px; height:58px; border-radius:16px; display:grid; place-items:center;
+  font-family:'Fredoka'; font-weight:700; font-size:30px; color:#fff; transform:rotate(var(--r));
+  box-shadow:0 6px 0 rgba(0,0,0,.14), inset 0 -5px 0 rgba(0,0,0,.12), inset 0 3px 0 rgba(255,255,255,.28);}
+.nb::after{content:attr(data-o); position:absolute; right:-8px; bottom:-8px; font-size:20px;
+  filter:drop-shadow(0 1px 1px rgba(0,0,0,.25));}
+.nb:nth-child(1){background:var(--red);--r:-7deg}.nb:nth-child(2){background:var(--orange);--r:5deg}
+.nb:nth-child(3){background:var(--green);--r:-4deg}.nb:nth-child(4){background:var(--blue);--r:6deg}
+.nb:nth-child(5){background:var(--purple);--r:-5deg}
+#startScreen h1{font-family:'Comfortaa','Fredoka',sans-serif; font-weight:700; font-size:34px;
+  margin:8px 0 0; line-height:1.1; color:#1e3a6b;}
+.start-sub{color:var(--soft); font-weight:800; font-size:16px;}
+.rhyme{background:#fff; border:3px dashed #cdd8ea; border-radius:20px; padding:12px 18px;
+  font-style:italic; color:#3a5a8c; font-weight:800; max-width:400px; margin:0 auto;
+  box-shadow:0 1px 3px rgba(44,43,58,.14); line-height:1.4;}
+.start-hero{max-width:440px; width:100%; margin:0 auto; flex:1 1 auto; min-height:120px;
+  max-height:clamp(170px,40vh,380px); display:flex; align-items:center; justify-content:center; overflow:hidden;}
+.start-hero img{max-width:100%; max-height:100%; width:auto; height:auto; display:block;}
+.start-btns{display:flex; flex-direction:column; gap:10px; max-width:440px; margin:2px auto 0; width:100%;}
+.big-btn{border:none; border-radius:18px; padding:16px 20px; width:100%; cursor:pointer;
+  font-family:'Fredoka'; font-weight:700; font-size:20px; color:#fff;
+  background:var(--blue); box-shadow:0 6px 0 #2f8fd6;}
+.big-btn:active{transform:translateY(3px); box-shadow:0 3px 0 #2f8fd6;}
+/* «Нагороду отримано» — на старті замість віршика */
+.done-card{display:none; align-items:center; gap:12px; max-width:440px; width:100%; margin:0 auto; text-align:left;
+  background:linear-gradient(180deg,#fffdf4,#fff6df); border:3px solid #f4c842; border-radius:20px;
+  padding:10px 14px; box-shadow:0 0 0 3px #fff9e6;}
+.done-card.on{display:flex;}
+.done-card .dc-ic{font-size:30px; flex:none;}
+.done-card .dc-got{font-family:'Fredoka'; font-weight:700; font-size:15px; color:#8a5e16; line-height:1.2;}
+.done-card .dc-go{font-weight:800; font-size:12px; color:var(--soft); margin-top:3px; line-height:1.25;}
+@media (max-width:520px){
+  #startScreen .start-top{top:12px;}
+  .num-blocks{padding:0 48px; gap:6px;}
+  .nb{width:44px; height:44px; border-radius:12px; font-size:24px;}
+  .nb::after{font-size:16px; right:-6px; bottom:-6px;}
+}
+@media (max-width:380px){
+  .num-blocks{padding:0 46px; gap:5px;}
+  .nb{width:38px; height:38px; border-radius:11px; font-size:21px;}
+}
+@media (max-width:440px){
+  #startScreen{gap:8px; padding-left:16px; padding-right:16px;}
+  #startScreen h1{font-size:30px;}
+  .start-sub{font-size:14px;}
+  .rhyme{padding:9px 14px; font-size:14px; border-radius:16px;}
+  .big-btn{padding:13px 18px; font-size:18px;}
+}
+/* довга назва — не під «жучком» 🐞 справа */
+@media (max-width:440px){
+  #startScreen h1{font-size:27px; padding:0 40px;}
+}
+@media (max-height:640px){
+  #startScreen h1{font-size:28px;}
+  .start-hero{max-height:22vh;}
+}
 </style>
 </head>
 <body>
 <div id="wrap">
   <div id="top">
     <div class="pill q"><span class="lab">Завдання</span><span class="val" id="qNum">1/15</span></div>
-    <div class="pill"><span class="lab">Очки</span><span class="val" id="score">0</span></div>
     <div id="spacer"></div>
     <button id="menuBtn">☰ Меню</button>
   </div>
@@ -124,33 +234,47 @@
 
   <div id="answers"></div>
 
-  <!-- start / menu -->
   <div class="screen" id="startScreen">
-    <div class="crown">📐</div>
-    <div class="title">Королівська геометрія</div>
-    <div class="sub">Королівська крейда малює фігури просто в тебе на очах. Впізнавай їх, знаходь серед інших і будуй сам — зʼєднуй точки лініями. 15 завдань.</div>
-    <div class="legend">
-      <span>Точка</span><span>Відрізок</span><span>Ламана</span><span>Коло</span>
-      <span>Круг</span><span>Трикутник</span><span>Квадрат</span><span>Прямокутник</span>
+    <div class="start-head">
+      <div class="start-top">
+        <button class="iconbtn backbtn" type="button" title="Назад" aria-label="Назад">←</button>
+      </div>
+      <div class="num-blocks">
+        <div class="nb" data-o="📐">▲</div><div class="nb" data-o="✏️">■</div><div class="nb" data-o="✨">●</div><div class="nb" data-o="📏">◯</div><div class="nb" data-o="⭐">╱</div>
+      </div>
+      <h1>Королівська геометрія</h1>
     </div>
-    <button class="cta" id="playBtn">Грати ▶</button>
-    <a class="linkbtn" href="../igry.html">← До ігор</a>
+    <p class="start-sub">Впізнай · знайди · побудуй · 15 завдань</p>
+    <p class="rhyme" id="startRhyme">Точка, коло і квадрат —<br>креслить крейда все підряд!</p>
+    <div class="done-card" id="startDone">
+      <span class="dc-ic">🏆</span>
+      <div><div class="dc-got" id="doneGot">Тренажер пройдено!</div>
+        <div class="dc-go" id="doneGo">Вирушай за новими досягненнями!</div></div>
+    </div>
+
+    <div class="start-hero">
+      <img src="../img/tr/mat-heometriya.webp" alt="" onerror="this.closest('.start-hero').style.display='none'">
+    </div>
+
+    <div class="start-btns">
+      <button class="big-btn" id="playBtn">Грати ▶</button>
+    </div>
   </div>
 
-  <!-- win -->
   <div class="screen hidden" id="winScreen">
     <div class="crown">👑</div>
     <div class="title" id="winTitle">Креслення готове!</div>
     <div class="stars" id="winStars">⭐⭐⭐</div>
     <div class="sub" id="winSub">Чудова робота!</div>
+    <div class="winrow"><button class="cta" id="againBtn">↻ Ще раз</button></div>
     <div class="winrow">
-      <button class="cta" id="againBtn">↻ Ще раз</button>
-    </div>
-    <div class="winrow">
-      <a class="linkbtn" href="../igry.html">← До ігор</a>
+      <button class="linkbtn" id="toMenuBtn" type="button">☰ У меню</button>
+      <button class="linkbtn backbtn" type="button">← Назад</button>
     </div>
   </div>
 </div>
+
+<script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
 
 <script>
 (function(){
@@ -195,11 +319,42 @@
   var stageEl  = document.getElementById("stage");
   var ansEl    = document.getElementById("answers");
   var hintEl   = document.getElementById("hint");
-  var scoreEl  = document.getElementById("score");
   var qNumEl   = document.getElementById("qNum");
   var fillEl   = document.getElementById("barFill");
 
-  var score=0, streak=0, qIndex=0, mistakes=0, locked=true, current=null;
+  var qIndex=0, mistakes=0, locked=true, current=null;
+
+  /* ── «Назад» — туди, звідки прийшли (?skback= / попередня сторінка сайту), інакше «Тести» ── */
+  function goBack(){
+    if(window.skGoBackSmart){ skGoBackSmart("tests.html"); return; }
+    location.href="../tests.html";
+  }
+  function openMenu(){
+    locked = true;
+    refreshStart();
+    document.getElementById("winScreen").classList.add("hidden");
+    document.getElementById("startScreen").classList.remove("hidden");
+  }
+  document.querySelectorAll(".backbtn").forEach(function(b){ b.addEventListener("click", goBack); });
+  /* футер «Назад»: у грі → меню, у меню → вихід */
+  var hb = document.getElementById("heroBackBtn");
+  if(hb) hb.addEventListener("click", function(){
+    if(document.getElementById("startScreen").classList.contains("hidden")) openMenu();
+    else goBack();
+  });
+
+  /* ── нагорода з адмінки (sk-prize.js) — один раз, за перше повне проходження ── */
+  var PRIZE_KEY = "sk_heometriya_prize_v1";   // нагороду отримано (і що саме)
+  var TR_HREF = "heometriya.html";            // за цим іменем sk-rewards шукає нагороду з адмінки
+  function refreshStart(){
+    var p = window.SKPRIZE ? SKPRIZE.summary(PRIZE_KEY) : null;
+    document.getElementById("startDone").classList.toggle("on", !!p);
+    document.getElementById("startRhyme").style.display = p ? "none" : "";   // замість віршика — нагорода
+    if(!p) return;
+    var t = SKPRIZE.doneText(p, "Королівську геометрію пройдено — нагороду отримано!");
+    document.getElementById("doneGot").textContent = t.got;
+    document.getElementById("doneGo").textContent = t.go;
+  }
 
   function rnd(min,max){ return min + Math.floor(Math.random()*(max-min+1)); }
   function pick(a){ return a[rnd(0,a.length-1)]; }
@@ -611,15 +766,10 @@
     }
   }
 
-  /* ═════════ очки / хід гри ═════════ */
-  function gain(){
-    streak++;
-    score += 10 + Math.min(streak-1,5)*2;
-    scoreEl.textContent = score;
-    buzz(20); chime();
-  }
+  /* ═════════ хід гри ═════════ */
+  function gain(){ buzz(20); chime(); }
   function miss(){
-    streak = 0; mistakes++;
+    mistakes++;
     buzz([30,40,30]); thud();
   }
   function tick(){ buzz(12); tone(760,0.05); }
@@ -629,6 +779,7 @@
   function nextRound(){
     qIndex++;
     fillEl.style.width = Math.round(qIndex/TOTAL*100)+"%";
+    if(window.skReportProgress) skReportProgress(qIndex, TOTAL);   // найдалі за гру — для картки в «Навчанні»
     if(qIndex >= TOTAL){ finish(); return; }
     renderRound();
   }
@@ -668,14 +819,17 @@
     var stars = mistakes===0 ? "⭐⭐⭐" : (mistakes<=3 ? "⭐⭐" : "⭐");
     document.getElementById("winStars").textContent = stars;
     document.getElementById("winTitle").textContent = mistakes===0 ? "Бездоганне креслення!" : "Креслення готове!";
-    document.getElementById("winSub").textContent =
-      "Пройдено "+TOTAL+" з "+TOTAL+" • Помилок: "+mistakes+" • Очки: "+score;
+    document.getElementById("winSub").textContent = mistakes===0
+      ? "Жодної помилки — ти справжній королівський кресляр!"
+      : "Пройдено "+TOTAL+" з "+TOTAL+" · Помилок: "+mistakes+".";
     document.getElementById("winScreen").classList.remove("hidden");
+    // перше повне проходження → нагорода з адмінки (поп-ап + предмет в інвентар), один раз
+    if(window.SKPRIZE && !SKPRIZE.summary(PRIZE_KEY))
+      SKPRIZE.claim({ key: PRIZE_KEY, href: TR_HREF, title: "Креслення готове!", onClose: refreshStart });
   }
 
   function startGame(){
-    score=0; streak=0; qIndex=0; mistakes=0; lastMode=0;
-    scoreEl.textContent = score;
+    qIndex=0; mistakes=0; lastMode=0;
     document.getElementById("startScreen").classList.add("hidden");
     document.getElementById("winScreen").classList.add("hidden");
     renderRound();
@@ -683,13 +837,18 @@
 
   document.getElementById("playBtn").addEventListener("click", startGame);
   document.getElementById("againBtn").addEventListener("click", startGame);
-  document.getElementById("menuBtn").addEventListener("click", function(){
-    document.getElementById("startScreen").classList.remove("hidden");
-  });
+  document.getElementById("menuBtn").addEventListener("click", openMenu);
+  document.getElementById("toMenuBtn").addEventListener("click", openMenu);
 
-  renderRound();   // фонове креслення під стартовим екраном
+  refreshStart();
+  window.addEventListener("load", refreshStart);   // sk-prize.js підключено нижче
 })();
 </script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=2"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=3"></script>
+<script src="../sk-prize.js?v=1"></script>
 <script src="../sk-finish.js?v=6"></script>
 </body>
 </html>
