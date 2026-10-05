@@ -414,6 +414,8 @@ function renderChips(){
       html+='<button class="chip'+(FILTER===c?' on':'')+'" data-cat="'+esc(c)+'">'+esc(c)+'<span class="n">'+counts[c]+'</span></button>';
     }
   });
+  var ns=ITEMS.filter(function(it){ return it.noShop; }).length;
+  html+='<button class="chip'+(FILTER==='__noshop'?' on':'')+'" data-cat="__noshop" title="Недоступні в магазині">🚫 Не в магазині<span class="n">'+ns+'</span></button>';
   host.innerHTML=html;
 }
 
@@ -446,7 +448,8 @@ function renderView(){
 /* ---- рендер списку ---- */
 function passFilter(it){
   if(GRADE!=null && Number(it.grade||1)!==GRADE) return false;
-  if(FILTER!=='__all' && (it.category||'')!==FILTER) return false;
+  if(FILTER==='__noshop'){ if(!it.noShop) return false; }
+  else if(FILTER!=='__all' && (it.category||'')!==FILTER) return false;
   if(SEARCH){
     var q=SEARCH.toLowerCase();
     var hay=((it.name||'')+' '+(it.id||'')+' '+(it.category||'')+' '+(it.stat||'')).toLowerCase();
@@ -476,6 +479,7 @@ function renderList(){
         +'<div class="meta">'+metaPills(it)+'</div>'
       +'</div>'
       +'<div class="acts">'
+        +'<button class="mini shop '+(it.noShop?'off':'on')+'" data-act="shop" data-id="'+esc(it.id)+'" title="'+(it.noShop?'Недоступна в магазині — натисни, щоб дозволити':'Може зʼявитись у магазині — натисни, щоб заборонити')+'">'+(it.noShop?'🚫':'🛒')+'</button>'
         +'<button class="mini '+(on?'on':'off')+'" data-act="toggle" data-id="'+esc(it.id)+'">'+(on?'✓':'○')+'</button>'
         +'<button class="mini" data-act="edit" data-id="'+esc(it.id)+'">✏️</button>'
         +'<button class="mini danger" data-act="del" data-id="'+esc(it.id)+'">🗑</button>'
@@ -593,7 +597,8 @@ function renderEditor(){
       +'<button class="btn ghost" type="button" data-act="addstat" style="margin-top:8px;align-self:flex-start">＋ навичка</button>'
       +'<div class="inline-note">Перша навичка зазвичай в одиницях, друга — у %. «Дворучний» — прапорець (зброя на дві руки, без числа).</div>'
     +'</div>'
-    +'<label class="chk" style="margin-bottom:14px"><input type="checkbox" id="m_active"'+(M.active!==false?' checked':'')+'> Предмет активний (доступний)</label>'
+    +'<label class="chk" style="margin-bottom:6px"><input type="checkbox" id="m_active"'+(M.active!==false?' checked':'')+'> Предмет активний (доступний)</label>'
+    +'<label class="chk" style="margin-bottom:14px"><input type="checkbox" id="m_noShop"'+(M.noShop?' checked':'')+'> 🚫 Недоступна в магазині (лише нагорода в тестах / випробуваннях / пригодах)</label>'
     +'<div class="savebar">'
     +'  <button class="btn" data-act="save">💾 Зберегти</button>'
     +'  <button class="btn ghost" data-act="new">＋ Новий предмет</button>'
@@ -626,6 +631,7 @@ function collectForm(){
   if(el('#m_dur')) M.durability=toNum(el('#m_dur').value);
   M.consumable=(M.addStats||[]).some(function(e){return e.flag&&e.stat==='Разовий предмет';});
   M.active=el('#m_active').checked;
+  M.noShop=!!(el('#m_noShop') && el('#m_noShop').checked);
 }
 
 /* ---- чистий об'єкт для збереження ---- */
@@ -649,6 +655,7 @@ function buildClean(){
     price: (M.price!=null?Number(M.price)||0:0),
     addStats: Array.isArray(M.addStats)?M.addStats:[],
     active: !!M.active,
+    noShop: !!M.noShop,
     order: Number(M.order)||nextOrder()
   };
   return out;
@@ -734,6 +741,11 @@ function listClick(e){
     if(!it) return;
     loadIntoEditor(it);
     window.scrollTo(0, el('#editor').offsetTop-10);
+  } else if(act==='shop'){
+    if(!it) return;
+    var ns=!it.noShop;
+    SK.setItemNoShop(id, ns).then(function(){ it.noShop=ns; renderChips(); renderList(); })
+      .catch(function(err){ alert('Помилка: '+(err&&err.message||err)); });
   } else if(act==='toggle'){
     if(!it) return;
     var next=(it.active===false);
