@@ -210,9 +210,9 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 /* ============================================================
    ПЛЕЄР ТЕСТІВ З БАЗИ. Читає heroes/{id} через SK, тест — через
    SK.getTest(id). Нагороду (XP + характеристика) нараховує сам:
-     statMode: 'fixed'      -> плаский тест: раз, коли тест пройдено (≥55%);
+     statMode: 'fixed'      -> плаский тест: раз, коли тест пройдено на 100%;
                                тест із рівнями: за кожен уперше пройдений рівень
-               'perCorrect' -> за кожну правильну відповідь (перша спроба / рівень)
+               'perCorrect' -> за кожну правильну (плаский тест — лише при 100%)
    Характеристики, що реально зберігаються (saveHeroStats):
      health, mana, agility, accuracy. Заблоковані стати поки не
      персистяться — XP усе одно нараховується.
@@ -466,8 +466,8 @@ function rewardText(){
   /* Тест може не розвивати жодної характеристики — тоді про неї не пишемо. */
   if(sv>0 && TEST.stat){
     var lbl=statLabel(TEST.stat);
-    var per = IS_LEVELS?'кожен пройдений рівень':'пройдений тест';
-    st = TEST.statMode==='perCorrect' ? ('+'+sv+' до «'+lbl+'» за кожну правильну') : ('+'+sv+' до «'+lbl+'» за '+per);
+    var per = IS_LEVELS?'кожен пройдений рівень':'тест, пройдений без помилок';
+    st = TEST.statMode==='perCorrect' ? ('+'+sv+' до «'+lbl+'» за кожну правильну відповідь'+(IS_LEVELS?'':' — якщо тест пройдено без помилок')) : ('+'+sv+' до «'+lbl+'» за '+per);
     /* у тесті з рівнями — ще й підсумок: як у адмінці («Базові характеристики Героя») */
     var nLv=IS_LEVELS?levelsArr().length:0;
     if(nLv>1 && TEST.statMode!=='perCorrect') st+=' · разом до +'+(sv*nLv)+' за '+nLv+' '+rivnivWord(nLv);
@@ -770,21 +770,24 @@ function finish(){
   var correct=ST.correct;
   var id=TEST.id;
   var pctScore = total? Math.round(correct/total*100) : 0;
-  var passed = pctScore>=55;   // ≥55% правильних → тест пройдено
+  var passed = pctScore>=55;   // ≥55% правильних → тест пройдено (відкриває наступний)
+  var perfect = total>0 && correct===total;   // 100% правильних → нагорода
 
   /* Нагорода-характеристика — один раз. Маркер «нагороду вже видано» —
      sk_dbtestrw_<id> ('1' — видано, '0' — спроба без нагороди). Раніше
      ознакою був sk_dbtest_<id> («була спроба»), і «Фіксовано» видавалось
      за першу ж завершену спробу, навіть з 0% правильних, а справжнє
-     проходження потім уже нічого не давало. Тепер «Фіксовано» — лише за
-     пройдений тест; «За кожну правильну» — як і раніше, за першу спробу.
+     проходження потім уже нічого не давало. Тепер нагорода — лише за
+     проходження на 100% (усі відповіді правильні), один раз; так само,
+     як у тесті з рівнями, де рівень з помилкою починається спочатку.
+     «За кожну правильну» при 100% = значення × кількість питань.
      Старі спроби (є sk_dbtest_, немає sk_dbtestrw_) нагороду вже отримали
      за старим правилом — не видаємо вдруге. */
   var rw=null, attempted=false;
   try{ rw = localStorage.getItem('sk_dbtestrw_'+id); attempted = localStorage.getItem('sk_dbtest_'+id)==='1'; }catch(e){}
   var rewarded = rw==='1' || (rw===null && attempted);
   var fixedMode = TEST.statMode!=='perCorrect';
-  var earns = fixedMode ? passed : true;
+  var earns = perfect;
   var statGain = (rewarded || !earns) ? 0
     : (fixedMode ? num(TEST.statValue) : num(TEST.statValue)*correct);
   if(HERO_SESSION && !rewarded){ try{ localStorage.setItem('sk_dbtestrw_'+id, statGain>0 ? '1' : '0'); }catch(e){} }
@@ -797,9 +800,9 @@ function finish(){
     var tracked=ACTIVE_STATS[TEST.stat];
     statLine='<div class="reward-line">✨ +'+fmt(statGain)+' до «'+esc(lbl)+'»'
       +(tracked?'':' <span class="muted">(поки не зберігається)</span>')+'</div>';
-  } else if(fixedMode && !passed && !rewarded && num(TEST.statValue)>0 && TEST.stat){
-    statLine='<div class="muted" style="margin:6px 0 0">Пройди тест (55% правильних і більше) — і отримаєш +'
-      +fmt(num(TEST.statValue))+' до «'+esc(statLabel(TEST.stat))+'»</div>';
+  } else if(!perfect && !rewarded && num(TEST.statValue)>0 && TEST.stat){
+    statLine='<div class="muted" style="margin:6px 0 0">Пройди тест без жодної помилки — і отримаєш +'
+      +fmt(fixedMode ? num(TEST.statValue) : num(TEST.statValue)*total)+' до «'+esc(statLabel(TEST.stat))+'»</div>';
   }
   root.innerHTML='<div class="card center">'
     +'<div class="result-emoji">'+emoji+'</div>'
