@@ -2414,7 +2414,8 @@ function unequipBelt(idx){var e=BELT[idx];if(!e||!e._inst)return;e._inst.slot=nu
 function moveBelt(a,b){if(a===b)return;var ea=BELT[a];if(!ea)return;var eb=BELT[b];if(ea._inst)ea._inst.slot='belt'+b;if(eb&&eb._inst)eb._inst.slot='belt'+a;rebuild();renderAll();persist();}
 /* Пишемо інвентар лише якщо справді його прочитали: інакше невдале
    завантаження (обрив, правила) затерло б у базі все, що там лежало. */
-function persist(){try{if(loaded&&window.SK&&SK.saveInventory)SK.saveInventory(ALL_INST);}catch(e){}}
+/* Після збереження оновлюємо стати в хедері: вони враховують вдягнені речі. */
+function persist(){try{if(loaded&&window.SK&&SK.saveInventory)Promise.resolve(SK.saveInventory(ALL_INST)).then(function(){if(window.SKHeaderRefresh)SKHeaderRefresh();});}catch(e){}}
 var EQUIP={helmet:null,armor:null,gloves:null,bracers:null,belt:null,pants:null,boots:null,weaponR:null,weaponL:null,ring1:null,ring2:null,amulet:null};
 var TABS=[
  ['all','Усі','🎒',function(){return true;}],
