@@ -29,7 +29,17 @@
        6) крит: шанс = critBase% + «Шанс крит. урону» речей (і вмінь) → × critMult
           (кидок 🎲 d100: випало ≤ шансу у % — крит)
        Влучний (не заблокований) удар завдає щонайменше minDmg.
-     Ударів за хід = 1 + «Додаткова атака» з речей. */
+     Ударів за хід = 1 + «Додаткова атака» з речей.
+
+     Спецвміння ходу: за хід можна виконати swapsPerTurn спецвмінь. Зараз єдине —
+     ПЕРЕВДЯГАННЯ: замінити або зняти одну річ (крім пояса та його комірок).
+     Діє одразу в цьому ході; базові атака й захист і пасивні ефекти лишаються.
+     Річ на здоров'я / ману міняє лише МАКСИМУМ, поточне здоров'я не додається
+     (знята річ обрізає поточне до нового максимуму).
+
+     Бот отримує ВИПАДКОВІ речі: на кожен слот, де в Героя є річ, — річ тієї ж
+     категорії з каталогу, сума характеристик якої в межах ±botItemVary від речі
+     Героя (немає такої — найближча за силою). Його базові показники — Героя ±botVary. */
   var BATTLE = {
     turnSeconds: 30,   // секунд на хід
     baseDmg: 10,       // базовий фізичний урон удару
@@ -42,6 +52,8 @@
     hitMax: 0.95,      // і не вище
     blockKeep: 0,      // скільки урону проходить крізь блок (0 — блок поглинає повністю)
     botVary: 0.20,     // суперник: ±20% від показників Героя
+    botItemVary: 0.20, // речі суперника: сума характеристик ±20% від речі Героя в тому ж слоті
+    swapsPerTurn: 1,   // спецвмінь (перевдягань) за хід
     xpWin: 50,         // досвід за перемогу (× коефіцієнт сили суперника)
     xpDraw: 25,        // досвід за нічию (× той самий коефіцієнт)
     xpLose: 8,         // досвід за поразку (без коефіцієнта)
@@ -135,6 +147,7 @@
     p.hp = Math.max(1, tot('health'));
     p.accuracy = Math.max(1, tot('accuracy'));
     p.agility = Math.max(1, tot('agility'));
+    p.mana = Math.max(0, tot('mana'));
     p.armor = Math.max(0, tot('armor'));
     p.magicResist = Math.max(0, tot('magicResist'));
     p.dmgFlat = flat.damage || 0;
@@ -191,6 +204,38 @@
   function xpNeed(level) {
     var lv = Math.max(1, Math.floor(num(level) || 1));
     return Math.min(lv * BATTLE.xpStep, BATTLE.xpFlat);
+  }
+
+  /* ── речі суперника ──
+     itemPower — «сила» речі: головна характеристика + додаткові (числа й %), без бонусу.
+     botItems(catalog, heroEq) → [{slot, base, inst}] — випадкові речі тих самих категорій,
+     сила кожної в межах ±botItemVary від речі Героя в цьому слоті (або найближча). */
+  function itemPower(base) {
+    if (!base) return 0;
+    var s = Math.abs(num(base.valueMax));
+    (base.addStats || []).forEach(function (a) { if (a && !a.flag && a.value != null) s += Math.abs(num(a.value)); });
+    return s;
+  }
+  function botItems(catalog, heroEq, skit, rnd) {
+    rnd = rnd || Math.random;
+    var v = BATTLE.botItemVary, out = [];
+    (heroEq || []).forEach(function (e) {
+      if (!e || !e.base || !e.inst || !e.inst.slot) return;
+      var pool = (catalog || []).filter(function (b) { return b && b.category === e.base.category && !b.consumable; });
+      if (!pool.length) return;
+      var hp = itemPower(e.base);
+      var near = pool.filter(function (b) { var p = itemPower(b); return p >= hp * (1 - v) && p <= hp * (1 + v); });
+      if (!near.length) {
+        var best = Infinity;
+        pool.forEach(function (b) { best = Math.min(best, Math.abs(itemPower(b) - hp)); });
+        near = pool.filter(function (b) { return Math.abs(itemPower(b) - hp) === best; });
+      }
+      var base = near[Math.floor(rnd() * near.length)];
+      var inst = skit && skit.makeInstance ? skit.makeInstance(base, { bonus: 1 }) : { id: base.id, bonus: 1 };
+      inst.slot = e.inst.slot;
+      out.push({ slot: e.inst.slot, base: base, inst: inst });
+    });
+    return out;
   }
 
   /* Кидок кубика d100: 1..100. Подія спрацьовує, якщо випало ≤ шансу у відсотках
@@ -259,6 +304,6 @@
     SLOT_UK: SLOT_UK, zoneOfSlot: zoneOfSlot,
     fighter: fighter, varyFighter: varyFighter, hitChance: hitChance, critChance: critChance, isMagic: isMagic,
     strike: strike, attack: attack, d100: d100,
-    power: power, xpCoef: xpCoef, xpNeed: xpNeed
+    power: power, xpCoef: xpCoef, xpNeed: xpNeed, itemPower: itemPower, botItems: botItems
   };
 })(typeof window !== 'undefined' ? window : this);
