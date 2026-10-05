@@ -2012,11 +2012,12 @@ function cardFormatSel(cur){
 function cardRewardsHtml(o, fmt){
   /* Нагороди однакові для всіх форматів: характеристика + до 4 слотів
      «предмет/шанс/монетки». Видачу предметів робимо окремим етапом. */
-  /* «Фіксовано» означає різне: у тесті з рівнями — за кожен рівень (так дає
-     test.html і так рахує «Базові характеристики Героя»), у плаского тесту —
-     раз за тест, у тренажера чи гри — раз за проходження. */
+  /* «Фіксовано» означає різне: у тесті з рівнями — за кожен уперше пройдений
+     рівень (так дає test.html і так рахує «Базові характеристики Героя»),
+     у плаского тесту — раз, коли тест пройдено (≥55%), у тренажера чи гри —
+     раз за проходження. */
   const fixedLbl = fmt !== 'test' ? 'Фіксовано за проходження'
-                 : (o.format === 'levels' ? 'Фіксовано за кожен рівень' : 'Фіксовано за тест');
+                 : (o.format === 'levels' ? 'Фіксовано за кожен пройдений рівень' : 'Фіксовано за весь пройдений тест');
   const modeSel = '<select data-cf="statMode">'
     + '<option value="fixed"'      + (o.statMode !== 'perCorrect' ? ' selected' : '') + '>' + fixedLbl + '</option>'
     + '<option value="perCorrect"' + (o.statMode === 'perCorrect' ? ' selected' : '') + '>За кожну правильну</option>'
@@ -2050,7 +2051,8 @@ function statTotalHint(o){
   const tot = testStatTotal(o);
   if(!tot) return '';
   const lv = (o.format === 'levels' && Array.isArray(o.levels)) ? o.levels.length : 0;
-  return '∑ Разом за ' + (lv ? 'всі ' + lv + ' рівнів' : 'запис') + ': <b>+' + tot + '</b> до «' + esc(statLabel(o.stat)) + '»';
+  const w = lv % 10 === 1 && lv % 100 !== 11 ? 'рівень' : (lv % 10 >= 2 && lv % 10 <= 4 && (lv % 100 < 12 || lv % 100 > 14) ? 'рівні' : 'рівнів');
+  return '∑ Разом за ' + (lv ? (lv === 1 ? '1 рівень' : 'всі ' + lv + ' ' + w) : (o.format === 'levels' || cardFormat() !== 'test' ? 'проходження' : 'пройдений тест')) + ': <b>+' + tot + '</b> до «' + esc(statLabel(o.stat)) + '»';
 }
 function cfld(span, label, inner, title){
   return '<div class="field ' + span + '"' + (title ? ' title="' + esc(title) + '"' : '') + '>' + lbl(label) + inner + '</div>';
