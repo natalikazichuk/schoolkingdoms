@@ -1926,8 +1926,13 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
     if(!RULES.fighter || !window.SKIT || !window.SK || !SK.getInventory || !SK.listItems) return Promise.resolve({p:plainFighter(stats), eq:[]});
     return Promise.all([SK.getInventory(), SK.listItems()]).then(function(r){
       var by = {}; (r[1]||[]).forEach(function(it){ by[it.id] = it; });
-      var eq = (r[0]||[]).filter(function(i){ return i && i.slot && !/^belt\d/.test(i.slot) && by[i.id]; })
-                         .map(function(i){ return {base:by[i.id], inst:i}; });
+      // одна річ на слот і лише відповідної категорії — так само, як показує інвентар
+      var seen = {};
+      var eq = (r[0]||[]).filter(function(i){
+        if(!i || !i.slot || /^belt\d/.test(i.slot) || !by[i.id] || seen[i.slot]) return false;
+        if(slotDef(i.slot) && !fitsSlot(by[i.id], i.slot)) return false;
+        seen[i.slot] = true; return true;
+      }).map(function(i){ return {base:by[i.id], inst:i}; });
       return {p:RULES.fighter(stats, eq, window.SKIT), eq:eq, catalog:r[1]||[]};
     }).catch(function(e){ try{ console.error('[арена] екіпіровку не прочитано:', e); }catch(_){} return {p:plainFighter(stats), eq:[]}; });
   }
@@ -1978,6 +1983,16 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
       op: {f:o.op.f,  p:o.op.f.p || plainFighter(o.op.f),         force:o.op.force, max:o.op.max || maxForce(o.op.f), atk:null, block:null},
       timer:null, left:TURN_SECONDS, steps:o.steps||'', wear:Object.assign(newWear(), o.wear||{}), swapRound:+o.swapRound||0
     };
+    // бій, почату до виправлення, міг рахувати дві речі в одному слоті — лишаємо першу
+    var seen = {}, dup = false;
+    (B.me.eq||[]).forEach(function(e){
+      if(e.off) return;
+      if(seen[e.slot]){ e.off = true; e.w0 = 0; e.w1 = 0; dup = true; }
+      else seen[e.slot] = true;
+    });
+    if(dup && RULES.fighter && window.SKIT){
+      var np = heroProfile(); B.me.p = np; B.me.max = np.hp; B.me.force = Math.min(B.me.force, np.hp);
+    }
   }
   function hasLiveBattle(){ return !!(B && !B.over); }
   // магазин питає: чи йде бій (тоді він закритий)
@@ -3142,7 +3157,10 @@ document.addEventListener('click',function(e){var t=e.target.closest?e.target.cl
 
 function loadData(){if(loaded||loading)return Promise.resolve();loading=true;LOAD_ERR=null;
  return (window.SK&&SK.ready?SK.ready:Promise.resolve()).then(function(){var pC=(window.SK&&SK.listItems)?SK.listItems():Promise.resolve([]);var pI=(window.SK&&SK.getInventory)?SK.getInventory():Promise.resolve([]);var pS=(window.SK&&SK.getStore)?SK.getStore().catch(function(){return null;}):Promise.resolve(null);return Promise.all([pC,pI,pS]);}).then(function(res){CATALOG=res[0]||[];
-   var stv=res[2];if(stv){STORE={chest:stv.chest||[],trash:stv.trash||[]};if(stv.coins!=null)HERO.coins=stv.coins;}BYID={};CATALOG.forEach(function(b){BYID[b.id]=b;});ALL_INST=(res[1]||[]).filter(function(x){return x&&x.id;});loaded=true;loading=false;rebuild();renderAll();}).catch(function(e){loading=false;
+   var stv=res[2];if(stv){STORE={chest:stv.chest||[],trash:stv.trash||[]};if(stv.coins!=null)HERO.coins=stv.coins;}BYID={};CATALOG.forEach(function(b){BYID[b.id]=b;});ALL_INST=(res[1]||[]).filter(function(x){return x&&x.id;});loaded=true;loading=false;
+   var before=ALL_INST.map(function(x){return x.slot||'';}).join('|');rebuild();renderAll();
+   // rebuild() прибрав дублікати / невідповідні слоти — записуємо виправлення в базу
+   if(ALL_INST.map(function(x){return x.slot||'';}).join('|')!==before)persist();}).catch(function(e){loading=false;
    LOAD_ERR=(e&&(e.code||e.message))||e;                       // причина замість мовчазного «Порожньо»
    try{console.error('[гардероб] не вдалось прочитати предмети:',e);}catch(_){}
    renderAll();});}

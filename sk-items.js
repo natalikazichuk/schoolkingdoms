@@ -226,10 +226,21 @@
   }
   function sellTotal(base, inst) { return sellPrice(base, inst) * Math.max(1, Number(inst && inst.qty) || 1); }
 
+  /* Один слот — одна річ. Старі дані могли мати дві речі з тим самим slot
+     (напр. два шоломи): інвентар показував першу, а бій рахував обидві.
+     Лишаємо першу, решту повертаємо в сумку. */
+  function normSlots(inv) {
+    var seen = {};
+    return (inv || []).map(function (i) {
+      if (!i || !i.slot) return i;
+      if (seen[i.slot]) { var c = cloneInst(i); c.slot = null; return c; }
+      seen[i.slot] = true; return i;
+    });
+  }
   function normState(st) {
     st = st || {};
     return {
-      inventory: Array.isArray(st.inventory) ? st.inventory.slice() : [],
+      inventory: normSlots(Array.isArray(st.inventory) ? st.inventory : []),
       chest: Array.isArray(st.chest) ? st.chest.slice() : [],
       trash: Array.isArray(st.trash) ? st.trash.slice() : [],
       shopSold: Array.isArray(st.shopSold) ? st.shopSold.slice() : [],
@@ -348,7 +359,7 @@
   var STORE = {
     BAG_LIMIT: BAG_LIMIT, CHEST_LIMIT: CHEST_LIMIT, CHEST_DAYS: CHEST_DAYS, SHOP_GEAR: SHOP_GEAR, SHOP_CONS: SHOP_CONS,
     kyivDay: kyivDay, bagCount: bagCount, sameStack: sameStack, sellPrice: sellPrice, sellTotal: sellTotal,
-    normState: normState, tidy: tidy, addItems: addItems, claimChest: claimChest, trashItem: trashItem,
+    normState: normState, normSlots: normSlots, tidy: tidy, addItems: addItems, claimChest: claimChest, trashItem: trashItem,
     restoreTrash: restoreTrash, deal: deal, shopStock: shopStock, isHealthPotion: isHealthPotion
   };
 
