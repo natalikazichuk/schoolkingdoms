@@ -2012,15 +2012,21 @@ function cardFormatSel(cur){
 function cardRewardsHtml(o, fmt){
   /* Нагороди однакові для всіх форматів: характеристика + до 4 слотів
      «предмет/шанс/монетки». Видачу предметів робимо окремим етапом. */
+  /* «Фіксовано» означає різне: у тесті з рівнями — за кожен рівень (так дає
+     test.html і так рахує «Базові характеристики Героя»), у плаского тесту —
+     раз за тест, у тренажера чи гри — раз за проходження. */
+  const fixedLbl = fmt !== 'test' ? 'Фіксовано за проходження'
+                 : (o.format === 'levels' ? 'Фіксовано за кожен рівень' : 'Фіксовано за тест');
   const modeSel = '<select data-cf="statMode">'
-    + '<option value="fixed"'      + (o.statMode !== 'perCorrect' ? ' selected' : '') + '>Фіксовано за запис</option>'
+    + '<option value="fixed"'      + (o.statMode !== 'perCorrect' ? ' selected' : '') + '>' + fixedLbl + '</option>'
     + '<option value="perCorrect"' + (o.statMode === 'perCorrect' ? ' selected' : '') + '>За кожну правильну</option>'
     + '</select>';
 
   let h = '<div class="cc-sec">🏆 Нагороди</div>'
     + cfld('s3', 'Розвиває характеристику', '<select data-cf="stat">' + statMapOpts(o.stat || '') + '</select>')
     + cfld('s2', 'Одиниці', modeSel)
-    + cfld('s1', 'Скільки', '<input type="number" min="0" data-cf="statValue" value="' + esc(String(o.statValue == null ? 1 : o.statValue)) + '">');
+    + cfld('s1', 'Скільки', '<input type="number" min="0" data-cf="statValue" value="' + esc(String(o.statValue == null ? 1 : o.statValue)) + '">')
+    + '<div class="field s6"><span class="hint" id="statTotal">' + statTotalHint(o) + '</span></div>';
 
   const rw = Array.isArray(o.rewards) ? o.rewards : [];
   let rows = '';
@@ -2036,6 +2042,16 @@ function cardRewardsHtml(o, fmt){
   return h + '<div class="cc-rw" title="Предмети й монетки поки лише зберігаються — видачу налаштуємо окремо">' + rows + '</div>';
 }
 /* Поле щільної сітки картки: s1/s2/s3/s6 — скільки колонок із 6 займає. */
+/* Підсумок під нагородою: скільки характеристики дає весь запис — та сама
+   формула (testStatTotal), що й бейджі сум і «Базові характеристики Героя». */
+function updStatTotal(o){ const e = document.getElementById('statTotal'); if(e) e.innerHTML = statTotalHint(o); }
+function statTotalHint(o){
+  if(!o.stat) return '';
+  const tot = testStatTotal(o);
+  if(!tot) return '';
+  const lv = (o.format === 'levels' && Array.isArray(o.levels)) ? o.levels.length : 0;
+  return '∑ Разом за ' + (lv ? 'всі ' + lv + ' рівнів' : 'запис') + ': <b>+' + tot + '</b> до «' + esc(statLabel(o.stat)) + '»';
+}
 function cfld(span, label, inner, title){
   return '<div class="field ' + span + '"' + (title ? ' title="' + esc(title) + '"' : '') + '>' + lbl(label) + inner + '</div>';
 }
@@ -2151,9 +2167,9 @@ function onCardInput(e){
         renderCard(); return;
       }
       o.topic = v; break;
-    case 'stat':      o.stat = v; break;
-    case 'statMode':  o.statMode = v; break;
-    case 'statValue': o.statValue = Math.max(0, Math.floor(Number(v) || 0)); break;
+    case 'stat':      o.stat = v; updStatTotal(o); break;
+    case 'statMode':  o.statMode = v; updStatTotal(o); break;
+    case 'statValue': o.statValue = Math.max(0, Math.floor(Number(v) || 0)); updStatTotal(o); break;
     case 'active':    o.active = !!v; break;
     case 'imgCard':   o.imgCard = v.trim(); break;
     case 'icon':      o.icon = v; break;
