@@ -48,28 +48,40 @@
 
   /* ── теми предмета в боковому меню ── */
   body.has-side .wrap{max-width:1200px}
-  .tlayout{display:grid;grid-template-columns:230px minmax(0,1fr);gap:18px;align-items:start}
+  .tlayout{display:grid;grid-template-columns:270px minmax(0,1fr);gap:18px;align-items:start}
   .tside{position:sticky;top:12px;display:flex;flex-direction:column;gap:6px;
-    padding:10px;border-radius:16px;border:1.5px solid rgba(242,199,92,.35);
-    background:linear-gradient(180deg,rgba(30,52,92,.82),rgba(12,28,54,.86));
-    box-shadow:0 8px 22px rgba(0,0,0,.25);max-height:calc(100vh - 120px);overflow:auto}
-  .tside button{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 8px;
+    padding:0 10px 12px;border-radius:18px;border:2px solid rgba(242,199,92,.7);
+    background:linear-gradient(180deg,rgba(24,44,84,.94),rgba(10,24,50,.96));
+    box-shadow:0 10px 26px rgba(0,0,0,.3);max-height:calc(100vh - 120px);overflow:auto}
+  .tside .ts-head{position:sticky;top:0;z-index:1;margin:0 -10px 4px;padding:10px 12px;
+    text-align:center;font-family:'Playfair Display',Georgia,serif;font-weight:900;font-size:1.15rem;
+    color:#fff;background:linear-gradient(180deg,#2f5fb8,#1d3f86);border-bottom:2px solid rgba(242,199,92,.7);
+    text-shadow:0 2px 4px rgba(0,0,0,.35)}
+  .tside button{display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:4px 10px;
     width:100%;text-align:left;border:1.5px solid transparent;border-radius:12px;
-    background:rgba(255,255,255,.06);color:#fff;font-family:inherit;font-weight:800;
-    font-size:.92rem;padding:9px 12px;cursor:pointer;transition:background .15s,border-color .15s}
-  .tside button:hover{background:rgba(255,255,255,.14)}
-  .tside button.on{border-color:var(--gold);background:rgba(242,199,92,.22);color:#ffe9a8}
-  .tside .ts-cnt{flex:0 0 auto;font-size:.75rem;color:#cfe0ff;opacity:.85;
-    background:rgba(255,255,255,.10);border-radius:999px;padding:2px 8px}
+    background:rgba(255,255,255,.05);color:#fff;font-family:inherit;font-weight:800;
+    font-size:.88rem;padding:7px 10px;cursor:pointer;transition:background .15s,border-color .15s}
+  .tside button:hover{background:rgba(255,255,255,.13)}
+  .tside button.on{border-color:#ffe08a;background:linear-gradient(180deg,#ffd75e,#f2b632);color:#2a1d05}
+  .tside .ts-ic{grid-row:1 / span 2;width:34px;height:34px;border-radius:9px;display:flex;
+    align-items:center;justify-content:center;font-size:1.3rem;overflow:hidden}
+  .tside .ts-ic img{width:100%;height:100%;object-fit:cover}
+  .tside .ts-nm{line-height:1.15}
+  .tside .ts-cnt{font-size:.74rem;color:#cfe0ff}
+  .tside button.on .ts-cnt{color:#2a1d05}
   .tside .ts-cnt.done{color:#9ff0b4}
-  .tside .ts-bar{flex:1 0 100%;height:6px;border-radius:999px;background:rgba(255,255,255,.14);overflow:hidden}
+  .tside .ts-bar{grid-column:2 / span 2;height:6px;border-radius:999px;background:rgba(255,255,255,.14);overflow:hidden}
+  .tside button.on .ts-bar{background:rgba(0,0,0,.18)}
   .tside .ts-bar i{display:block;height:100%;border-radius:inherit;
     background:linear-gradient(90deg,#f2c75c,#ffdf8a);transition:width .3s}
+  .tside button.on .ts-bar i{background:#fff}
   .tside .ts-bar.done i{background:linear-gradient(90deg,#3fbf6f,#7be39b)}
+  .tmain .tgroup{scroll-margin-top:20px}
   @media(max-width:760px){
     .tlayout{grid-template-columns:1fr;gap:10px}
-    .tside{position:static;flex-direction:row;overflow-x:auto;max-height:none;padding:8px}
-    .tside button{width:auto;flex:0 0 auto;white-space:nowrap;min-width:150px}
+    .tside{top:0;z-index:5;flex-direction:row;overflow-x:auto;max-height:none;padding:8px}
+    .tside .ts-head{display:none}
+    .tside button{width:auto;flex:0 0 auto;white-space:nowrap;min-width:170px}
   }
 
   /* базова картка-квадрат (клас / предмет) */
@@ -199,7 +211,7 @@
      LOAD.shown — скільки лишилось після фільтра hidden. */
   var LOAD = { err:'', raw:null, shown:null };
 
-  var view = 'classes', selGrade = null, selSubj = null, selTopic = null;
+  var view = 'classes', selGrade = null, selSubj = null, selTopic = null, jumpTopic = null;
   /* Ступінь, у якому зараз дитина. Сторінка показує класи ЛИШЕ цього
      ступеня: дошкільний вміст живе у «Дошкільнятку» (doshkillya.html) і
      не має стояти поруч із «1 клас». null — ступінь ще невідомий. */
@@ -721,26 +733,35 @@
     document.body.classList.toggle('has-side', useSide);
     if(useSide){
       if(selTopic != null && !side.some(function(x){ return x.name === selTopic; })) selTopic = null;
-      var all = s.tests;
-      var sideBtn = function(key, name, list){
+      /* Значок теми — обкладинка її першого тесту; нема — значок предмета. */
+      var topicIcon = function(list){
+        var t = list.filter(function(x){ return x.imgCard; })[0];
+        return t ? '<img src="'+esc(t.imgCard)+'" alt="" loading="lazy" onerror="this.replaceWith(document.createTextNode(\''+esc(s.icon)+'\'))">'
+                 : esc(s.icon);
+      };
+      var sideBtn = function(key, name, list, ic){
         var pct = Math.round(topicFrac(list)*100), full = pct>=100 ? ' done' : '';
-        return '<button type="button" data-topic="'+esc(key)+'"'+((selTopic||'') === key ? ' class="on"' : '')
+        return '<button type="button" data-topic="'+esc(key)+'"'
           + ' title="Пройдено '+list.filter(isPassed).length+' з '+list.length+'">'
-          + '<span>'+esc(name)+'</span>'
+          + '<span class="ts-ic">'+ic+'</span>'
+          + '<span class="ts-nm">'+esc(name)+'</span>'
           + '<span class="ts-cnt'+full+'">'+pct+'%</span>'
           + '<span class="ts-bar'+full+'"><i style="width:'+pct+'%"></i></span></button>';
       };
-      var nav = '<nav class="tside" aria-label="Теми">' + sideBtn('', 'Усі теми', all)
-        + side.map(function(x){ return sideBtn(x.name, x.name, x.tests); }).join('') + '</nav>';
+      var nav = '<nav class="tside" aria-label="Теми"><div class="ts-head">'+esc(secTitle(selGrade))+'</div>'
+        + sideBtn('', 'Усі теми', s.tests, '▦')
+        + side.map(function(x){ return sideBtn(x.name, x.name, x.tests, topicIcon(x.tests)); }).join('') + '</nav>';
+      /* Показуємо всі теми підряд; меню лише гортає до потрібної й підсвічує ту, що на екрані. */
       var body = '';
       side.forEach(function(x){
-        if(selTopic != null && x.name !== selTopic) return;
-        body += '<div class="tgroup"><span class="tg-name">'+esc(x.name)+'</span>'
+        body += '<div class="tgroup" data-tsec="'+esc(x.name)+'"><span class="tg-name">'+esc(x.name)+'</span>'
               + '<span class="tg-cnt">'+x.tests.filter(isPassed).length+' / '+x.tests.length
               + ' · '+Math.round(topicFrac(x.tests)*100)+'%</span></div>'
               + '<div class="grid">'+x.tests.map(cardHtml).join('')+'</div>';
       });
       q('screen').innerHTML = '<div class="tlayout">'+nav+'<div class="tmain">'+body+'</div></div>';
+      if(jumpTopic){ var jt = jumpTopic; jumpTopic = null; requestAnimationFrame(function(){ goTopic(jt, false); }); }
+      spyTopic();
       return;
     }
     groups.forEach(function(g){
@@ -798,10 +819,47 @@
     var s=e.target.closest('[data-subj]');
     if(s){ selSubj=s.getAttribute('data-subj'); selTopic=null; view='tests'; render(); window.scrollTo(0,0); return; }
     var tp=e.target.closest('[data-topic]');
-    if(tp){ selTopic=tp.getAttribute('data-topic')||null; render(); return; }
+    if(tp){ goTopic(tp.getAttribute('data-topic')||null, true); return; }
     var b=e.target.closest('[data-back]');
     if(b){ view=b.getAttribute('data-back'); render(); window.scrollTo(0,0); return; }
   });
+  /* ── бокове меню тем: перехід до теми й підсвітка теми, що зараз на екрані ── */
+  function sectionOf(name){
+    var all = q('screen').querySelectorAll('[data-tsec]');
+    for(var i=0;i<all.length;i++) if(all[i].getAttribute('data-tsec')===name) return all[i];
+    return null;
+  }
+  function markTopic(name){
+    var btns = q('screen').querySelectorAll('.tside [data-topic]');
+    for(var i=0;i<btns.length;i++){
+      var on = btns[i].getAttribute('data-topic') === (name||'');
+      btns[i].classList.toggle('on', on);
+      if(on && window.innerWidth<=760){ var nav=btns[i].parentNode;
+        nav.scrollLeft = btns[i].offsetLeft - (nav.clientWidth-btns[i].offsetWidth)/2; }
+    }
+  }
+  var spyLock = 0;
+  function goTopic(name, smooth){
+    selTopic = name || null;
+    markTopic(selTopic); syncHash();
+    spyLock = Date.now() + (smooth ? 900 : 100);
+    var el = selTopic ? sectionOf(selTopic) : null;
+    if(el) el.scrollIntoView({behavior: smooth ? 'smooth' : 'auto', block:'start'});
+    else window.scrollTo({top:0, behavior: smooth ? 'smooth' : 'auto'});
+  }
+  function spyTopic(){
+    if(view!=='tests' || Date.now() < spyLock) return;
+    var secs = q('screen').querySelectorAll('[data-tsec]'); if(!secs.length) return;
+    var cur = null, line = 140;
+    if(window.innerWidth<=760){ var nv=q('screen').querySelector('.tside'); if(nv) line += nv.offsetHeight; }
+    for(var i=0;i<secs.length;i++){ if(secs[i].getBoundingClientRect().top <= line) cur = secs[i].getAttribute('data-tsec'); }
+    if(i && window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) cur = secs[secs.length-1].getAttribute('data-tsec');
+    if(cur === null && window.scrollY > 40) cur = secs[0].getAttribute('data-tsec');
+    if(cur !== selTopic){ selTopic = cur; syncHash(); }
+    markTopic(selTopic);
+  }
+  window.addEventListener('scroll', function(){ requestAnimationFrame(spyTopic); }, {passive:true});
+
   /* Стрілочка тепер у шапці, а не всередині #screen. */
   if(q('pgBack')) q('pgBack').addEventListener('click',function(){
     var to=this.getAttribute('data-back'); if(!to) return;
@@ -829,7 +887,7 @@
     if(!v || v.g==null) return false;
     var gr=IDX.grades[v.g]; if(!gr) return false;
     selGrade=v.g;
-    if(v.s && gr.subs[v.s]){ selSubj=v.s; selTopic=v.t||null; view='tests'; } else { view='subjects'; }
+    if(v.s && gr.subs[v.s]){ selSubj=v.s; selTopic=null; jumpTopic=v.t||null; view='tests'; } else { view='subjects'; }
     return true;
   }
 
@@ -857,7 +915,7 @@
     if(!key && (tv.indexOf('preschool')>=0 || tv.indexOf('дошкіл')>=0) && IDX.grades['p']) key='p';
     if(key && IDX.grades[key]){
       selGrade=key;
-      if(p.subj && IDX.grades[key].subs[p.subj]){ selSubj=p.subj; selTopic=p.topic||null; view='tests'; }
+      if(p.subj && IDX.grades[key].subs[p.subj]){ selSubj=p.subj; selTopic=null; jumpTopic=p.topic||null; view='tests'; }
       else { selSubj=null; selTopic=null; view='subjects'; }
       render(); window.scrollTo(0,0); landGlow(); return true;
     }
