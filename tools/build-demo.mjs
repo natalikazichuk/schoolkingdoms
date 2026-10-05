@@ -24,6 +24,15 @@ const OUT = path.join(ROOT, 'dist-demo');
 /* Що потрапляє в демо (шляхи від кореня репозиторію). */
 const PAGE_DIRS = ['klas-1', 'games', 'learn'];
 const ROOT_PAGES = ['test.html', 'igry.html', 'prezentaciya.html'];
+/* Сторінки з PAGE_DIRS, яких у демо НЕ має бути (лише приклади на головній).
+   На їхньому місці — редірект на демо-головну. */
+const EXCLUDE_PAGES = [
+  'klas-1/dodavannya.html', 'klas-1/komponenty.html', 'klas-1/rozriady.html',
+  'klas-1/zadachi-zapys.html', 'klas-1/chas.html', 'klas-1/hroshi.html', 'klas-1/heometriya.html',
+  'klas-1/labirynt.html', 'klas-1/pazly.html', 'klas-1/lohika.html',
+  'klas-1/litery-druk-pysm.html', 'klas-1/pyshy-po-punktyru.html', 'klas-1/spysuvannya.html',
+  'klas-1/teksty.html', 'klas-1/vyznach-chastynu-movy.html'
+];
 const SHARED = [
   'sk-curriculum.js', 'sk-finish.js', 'sk-items.js', 'sk-prize.js', 'sk-cards.js', 'sk-covers.js',
   'sk-voice.js', 'sk-zadachi.js', 'sk-slovnykovi.js', 'sk-phonics.js', 'sk-avatar.js',
@@ -82,7 +91,8 @@ const MEDIA = [...walk('img'), ...walk('audio')];
 if (!CHECK) fs.rmSync(OUT, { recursive: true, force: true });
 
 /* ── 2. Сторінки та спільні файли ──────────────────────────── */
-const pages = [...ROOT_PAGES, ...PAGE_DIRS.flatMap(d => walk(d).filter(f => f.endsWith('.html')))];
+const pages = [...ROOT_PAGES, ...PAGE_DIRS.flatMap(d => walk(d).filter(f => f.endsWith('.html')))]
+  .filter(f => !EXCLUDE_PAGES.includes(f));
 /* Власні меню окремих сторінок: прибираємо Арену й Бібліотеку, «Тести» → розділ тестів демо. */
 function demoPage(src) {
   return src
@@ -136,6 +146,11 @@ copied.add('index.html');
 const redirect = '<!DOCTYPE html><meta charset="utf-8"><title>SchoolKingdoms demo</title>'
   + '<meta http-equiv="refresh" content="0;url=index.html"><script>location.replace("index.html")</script>';
 REDIRECTS.forEach(r => { write(r, redirect); copied.add(r); });
+EXCLUDE_PAGES.forEach(r => {
+  const up = '../'.repeat(r.split('/').length - 1);
+  write(r, redirect.split('index.html').join(up + 'index.html'));
+  copied.add(r);
+});
 
 /* ── 4. Тести 1 класу → data/tests.json ────────────────────── */
 function readTests(file) {
