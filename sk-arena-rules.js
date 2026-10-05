@@ -14,8 +14,10 @@
 
   /* ── бій ──
      Кожен УДАР рахується окремо, по черзі:
-       1) влучив? шанс = 1 − hitStep × спритність захисника / точність нападника, в межах [hitMin; hitMax]
-          (рівні → 75%, спритність удвічі більша → 50%, утричі → 25%; точність удвічі більша → 87,5%)
+       1) влучив? r = точність нападника / спритність захисника, рівні → 1 − hitStep (75%).
+          • спритність більша (r < 1): шанс = 1 − hitStep / r   (×2 → 50%, ×3 → 25%, ×3.6+ → hitMin)
+          • точність більша (r ≥ 1):  шанс = 75% + hitAccStep × (r − 1)   (×1.5 → 80%, ×2 → 85%, ×3+ → hitMax)
+          Підсумок — у межах [hitMin; hitMax]
           (кидок 🎲 d100: випало ≤ шансу у % — влучив). Промах → 0, далі не рахуємо.
        2) заблокував? удар у зону, яку захищає суперник, — блок (щит приймає удар):
           проходить blockKeep (0 — нічого). Кидок на крит робиться лише для зносу щита.
@@ -35,6 +37,7 @@
     critBase: 1,       // базовий шанс криту, % (далі — речі й уміння Героя)
     critMult: 2,       // крит множить урон
     hitStep: 0.25,     // −25% шансу за кожну одиницю «спритність / точність» (рівні → 75%)
+    hitAccStep: 0.10,  // +10% шансу за кожен «раз» переваги точності над спритністю
     hitMin: 0.10,      // шанс влучити не нижче
     hitMax: 0.95,      // і не вище
     blockKeep: 0,      // скільки урону проходить крізь блок (0 — блок поглинає повністю)
@@ -159,7 +162,9 @@
 
   function rollRange(lo, hi, rnd) { lo = num(lo); hi = num(hi); if (hi <= lo) return lo; return lo + Math.floor(rnd() * (hi - lo + 1)); }
   function hitChance(att, def) {
-    var c = 1 - BATTLE.hitStep * num(def.agility) / Math.max(1, num(att.accuracy));
+    var r = Math.max(1, num(att.accuracy)) / Math.max(1, num(def.agility)), c;
+    if (r < 1) c = 1 - BATTLE.hitStep / r;
+    else c = 1 - BATTLE.hitStep + BATTLE.hitAccStep * (r - 1);
     return Math.max(BATTLE.hitMin, Math.min(BATTLE.hitMax, c));
   }
   function critChance(att) { return num(BATTLE.critBase) / 100 + num(att.critPct) / 100; }
