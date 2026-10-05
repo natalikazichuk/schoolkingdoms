@@ -1069,7 +1069,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script type="module" src="firebase-config.js"></script>
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
-<script src="sk-arena-rules.js?v=9"></script>
+<script src="sk-arena-rules.js?v=10"></script>
 <script>
 (function(){
   'use strict';
@@ -1083,7 +1083,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
         щоб адмінка («Арена» → «Механіка») показувала ті самі, за якими йде бій.
         Тут — запасні значення, якщо файл не завантажився. ── */
   var CFG = Object.assign({
-    baseDmg: 10, minDmg: 1, critBase: 1, critMult: 2, hitBase: 0.5, hitMin: 0.2, hitMax: 0.95,
+    baseDmg: 10, minDmg: 1, critBase: 1, critMult: 2, hitStep: 0.25, hitMin: 0.1, hitMax: 0.95,
     blockKeep: 0, botVary: 0.2, xpWin: 50, xpDraw: 25, xpLose: 8, xpAdv: 0.5, xpStep: 500, xpFlat: 8000
   }, RULES.BATTLE || {});
   var WEAR = Object.assign({ zoneHit:1, zoneCrit:2, weaponHit:1, weaponCrit:1, shieldBlock:2, shieldCritBlock:5 }, RULES.WEAR || {});
@@ -1808,6 +1808,33 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
   }
   /* журнал як текст: шапка + кожен хід окремим рядком; у детальному режимі
      під ходом — кидки й розрахунки (як на екрані) */
+  /* Характеристики обох бійців і шанс влучити — щоб із журналу було видно,
+     чому удари влучають чи ні (шанс = 1 − hitStep × спритність суперника / точність). */
+  function fighterLines(){
+    if(!B || !B.me || !B.op) return [];
+    var pc = function(a, d){ return RULES.hitChance ? Math.round(RULES.hitChance(a, d)*100)+'%' : '—'; };
+    var row = function(name, p){
+      return name+': точність '+p.accuracy+' · спритність '+p.agility+' · броня '+(p.armor||0)
+        +' · маг. захист '+(p.magicResist||0)+' · зброя '+(RULES.isMagic && RULES.isMagic(p) ? (p.magMin+'–'+p.magMax+' маг.') : ((p.wMin||0)+'–'+(p.wMax||0)))
+        +' · крит +'+(p.critPct||0)+'%';
+    };
+    return ['Характеристики:',
+      '  '+row(hero.name||'Ти', B.me.p),
+      '  '+row(B.op.f.name, B.op.p),
+      '  Шанс влучити: '+(hero.name||'Ти')+' → '+pc(B.me.p, B.op.p)+' · '+B.op.f.name+' → '+pc(B.op.p, B.me.p)
+        +'  (межі '+Math.round(CFG.hitMin*100)+'–'+Math.round(CFG.hitMax*100)+'%)'];
+  }
+  /* Для збереження/копіювання: спершу простий журнал, далі — детальний (з кидками). */
+  function logTextBoth(){
+    var simple = logText(false).split('\n'), full = logText(true).split('\n');
+    var cut = function(ls){ for(var i=0;i<ls.length;i++) if(ls[i].indexOf('Режим:')===0) return i; return -1; };
+    var iS = cut(simple), iF = cut(full);
+    var head = simple.slice(0, iS);
+    var bodyS = simple.slice(iS+2), bodyF = full.slice(iF+2);
+    return head.concat(fighterLines(), ['',
+      '══════ Частина 1 — простий журнал ══════', ''], bodyS,
+      ['', '══════ Частина 2 — детальний журнал (кидки й розрахунки) ══════', ''], bodyF).join('\n');
+  }
   function logText(full){
     var box = $('steps'); if(!box) return '';
     var d = new Date(), pad = function(n){ return (n<10?'0':'')+n; };
@@ -1828,7 +1855,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
     return lines.join('\n');
   }
   function copyLog(){
-    var t = logText(logMode()==='full');
+    var t = logTextBoth();
     function ok(){ showToast('Журнал скопійовано', 'Встав його будь-де: Ctrl+V'); }
     function fallback(){
       var ta = document.createElement('textarea'); ta.value = t; ta.setAttribute('readonly','');
@@ -1840,22 +1867,31 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
     else fallback();
   }
   /* .txt: без кольорів, але крит позначено «Критичний урон !!!», магічний урон — ✨ (BOM — щоб Блокнот показав кирилицю) */
-  function saveLog(){ download(logName('txt'), logText(logMode()==='full'), 'text/plain;charset=utf-8'); }
+  function saveLog(){ download(logName('txt'), logTextBoth(), 'text/plain;charset=utf-8'); }
 
   /* журнал як кольоровий HTML-файл: ті самі рядки й кольори, що на екрані
      (крит — червоним, магічний урон — фіолетовим, поломки — червоним/жовтим) */
-  function logHtml(full){
+  function logHtml(){
     var box = $('steps'); if(!box) return '';
-    var c = document.createElement('div');
-    stepsChrono(box).forEach(function(r){ c.appendChild(r.cloneNode(true)); });   // у файлі — від першого ходу
-    if(!c.firstChild) c.innerHTML = '<div class="steps-empty">(журнал порожній)</div>';
-    if(!full) Array.prototype.forEach.call(c.querySelectorAll('.dice'), function(x){ x.remove(); });
-    Array.prototype.forEach.call(c.querySelectorAll('[title]'), function(x){ x.removeAttribute('title'); });
-    var head = logText(full).split('\n').slice(0,4).map(function(l){ return l ? '<div>'+l.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</div>' : ''; }).join('');
+    function part(full){
+      var c = document.createElement('div');
+      stepsChrono(box).forEach(function(r){ c.appendChild(r.cloneNode(true)); });   // у файлі — від першого ходу
+      if(!c.firstChild) c.innerHTML = '<div class="steps-empty">(журнал порожній)</div>';
+      if(!full) Array.prototype.forEach.call(c.querySelectorAll('.dice'), function(x){ x.remove(); });
+      Array.prototype.forEach.call(c.querySelectorAll('[title]'), function(x){ x.removeAttribute('title'); });
+      return c.innerHTML;
+    }
+    var escH = function(l){ return l.replace(/&/g,'&amp;').replace(/</g,'&lt;'); };
+    var hl = logText(false).split('\n'); hl = hl.slice(0, Math.max(0, hl.findIndex(function(l){ return l.indexOf('Режим:')===0; })));
+    var head = hl.concat(fighterLines())
+      .map(function(l){ return l ? '<div>'+escH(l)+'</div>' : ''; }).join('');
+    var c = { innerHTML: '<h2>Частина 1 — простий журнал</h2>' + part(false)
+                       + '<h2>Частина 2 — детальний журнал (кидки й розрахунки)</h2>' + part(true) };
     return '<!doctype html><html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
       + '<title>Журнал бою — SchoolKingdoms</title><style>'
       + 'body{margin:0;padding:18px;background:#0f1e3a;color:#eaf2ff;font:600 14px/1.45 system-ui,Segoe UI,Arial,sans-serif}'
-      + '.hd{color:#c3d5f0;margin-bottom:12px}.hd div:first-child{font-size:18px;font-weight:900;color:#ffd54a}'
+      + 'h2{margin:22px 0 8px;font-size:16px;color:#ffd54a;border-bottom:1px solid #2c4675;padding-bottom:4px}'
+      + '.hd div{white-space:pre-wrap}.hd{color:#c3d5f0;margin-bottom:12px}.hd div:first-child{font-size:18px;font-weight:900;color:#ffd54a}'
       + '.step{display:flex;gap:8px;align-items:flex-start;margin:6px 0}.no{flex:none;background:#ffd54a;color:#0c2247;border-radius:20px;padding:1px 8px;font-size:12px;font-weight:900}'
       + '.dice{display:block;margin-top:2px;font-size:12px;color:#a9c1e4}.dice b{color:#eaf2ff}'
       + '.g{color:#5fdc8f}.b{color:#ffcf4d}.r{color:#ff9a6b}.crit{color:#ff3b3b;font-weight:900}.mag{color:#d06bff;font-weight:900}'
@@ -1872,7 +1908,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
     var d = new Date(), pad = function(n){ return (n<10?'0':'')+n; };
     return 'arena-log-'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'-'+pad(d.getHours())+pad(d.getMinutes())+'.'+ext;
   }
-  function saveLogHtml(){ download(logName('html'), logHtml(logMode()==='full'), 'text/html;charset=utf-8'); }
+  function saveLogHtml(){ download(logName('html'), logHtml(), 'text/html;charset=utf-8'); }
 
   function clearLog(){
     var box = $('steps'); if(!box) return;
