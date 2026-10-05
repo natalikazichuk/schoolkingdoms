@@ -29,7 +29,9 @@ const ROOT_PAGES = ['test.html', 'igry.html', 'prezentaciya.html'];
 const EXCLUDE_PAGES = [
   'klas-1/dodavannya.html', 'klas-1/komponenty.html', 'klas-1/rozriady.html',
   'klas-1/zadachi-zapys.html', 'klas-1/chas.html', 'klas-1/hroshi.html', 'klas-1/heometriya.html',
-  'klas-1/labirynt.html', 'klas-1/pazly.html', 'klas-1/lohika.html'
+  'klas-1/labirynt.html', 'klas-1/pazly.html', 'klas-1/lohika.html',
+  'klas-1/litery-druk-pysm.html', 'klas-1/pyshy-po-punktyru.html', 'klas-1/spysuvannya.html',
+  'klas-1/teksty.html', 'klas-1/vyznach-chastynu-movy.html'
 ];
 const SHARED = [
   'sk-curriculum.js', 'sk-finish.js', 'sk-items.js', 'sk-prize.js', 'sk-cards.js', 'sk-covers.js',
