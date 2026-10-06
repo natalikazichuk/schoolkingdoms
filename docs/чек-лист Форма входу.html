@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Чек-лист — Форма входу (шаблон)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<style>
+:root{
+  --ink:#20232e;--soft:#6b6f80;--paper:#f4f6fb;--card:#fff;--line:#e4e8f0;
+  --blue:#3b6fd4;--blue-d:#2b56a8;--good:#2fa96a;--good-bg:#e5f7ee;--bad:#e0554f;--bad-bg:#fceceb;
+  --na:#8a90a6;--na-bg:#eef0f5;--amber:#e0a42a;--p1:#e0554f;--p2:#e0a42a;--p3:#7a86a8;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{font-family:'Nunito',system-ui,sans-serif;color:var(--ink);background:var(--paper);
+  padding:16px;padding-bottom:60px;display:flex;flex-direction:column;align-items:center}
+.wrap{width:100%;max-width:820px}
+h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;margin:0}
+
+/* header */
+.head{background:linear-gradient(135deg,#1e3a6b,#16294f);color:#fff;border-radius:20px;padding:20px;
+  box-shadow:0 8px 24px rgba(22,41,79,.25);border-top:4px solid var(--amber)}
+.head h1{font-size:24px;line-height:1.15}
+.head p{margin:4px 0 0;color:#c7d6ee;font-weight:800;font-size:13px}
+.summary{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.stat{background:rgba(255,255,255,.1);border-radius:14px;padding:10px 14px;flex:1;min-width:90px}
+.stat b{font-family:'Fredoka';font-size:26px;display:block;line-height:1}
+.stat span{font-size:11px;font-weight:800;color:#c7d6ee;text-transform:uppercase;letter-spacing:.4px}
+.stat.pass b{color:#7ee6ac}.stat.fail b{color:#ff9d97}.stat.todo b{color:#ffe08a}.stat.na b{color:#c9cfdf}
+.pbar{height:12px;background:rgba(255,255,255,.15);border-radius:8px;overflow:hidden;margin-top:14px;display:flex}
+.pbar .pg{height:100%;transition:width .4s}
+.pbar .pg.p{background:linear-gradient(90deg,#2fa96a,#7ee6ac)}
+.pbar .pg.f{background:linear-gradient(90deg,#e0554f,#ff9d97)}
+.pbar .pg.n{background:#8a90a6}
+.pct{font-weight:800;font-size:12px;color:#c7d6ee;margin-top:6px}
+
+/* дані прогону */
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:16px}
+.meta label{display:flex;flex-direction:column;gap:3px;font-size:10.5px;font-weight:800;color:#c7d6ee;text-transform:uppercase;letter-spacing:.4px}
+.meta input{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;border-radius:9px;
+  padding:7px 9px;font:700 13px 'Nunito';text-transform:none;letter-spacing:0}
+.meta input::placeholder{color:#8fa3c7}
+
+/* toolbar */
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:16px 0}
+.filters{display:flex;gap:6px;background:#fff;border:2px solid var(--line);border-radius:12px;padding:4px;flex-wrap:wrap}
+.filters button{border:none;background:none;font:800 13px 'Nunito';color:var(--soft);padding:7px 11px;border-radius:9px;cursor:pointer}
+.filters button.on{background:var(--blue);color:#fff}
+.spacer{flex:1}
+.tbtn{border:2px solid var(--line);background:#fff;border-radius:12px;padding:8px 12px;font:800 13px 'Nunito';
+  color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.tbtn:active{transform:translateY(1px)}
+.tbtn.danger{color:var(--bad);border-color:#f3cfcd}
+
+/* sections */
+.section{background:var(--card);border:1px solid var(--line);border-radius:16px;margin-bottom:14px;overflow:hidden;
+  box-shadow:0 2px 8px rgba(30,40,70,.05)}
+.shead{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;user-select:none}
+.shead h3{font-size:17px;flex:1}
+.schip{font-family:'Fredoka';font-size:13px;color:var(--soft);background:var(--paper);border-radius:20px;padding:3px 10px}
+.smini{width:70px;height:8px;background:var(--paper);border-radius:6px;overflow:hidden;flex:none}
+.smini span{display:block;height:100%;background:var(--good);transition:width .4s}
+.caret{color:var(--soft);font-size:14px;transition:transform .2s}
+.section.closed .caret{transform:rotate(-90deg)}
+.section.closed .rows{display:none}
+.rows{border-top:1px solid var(--line)}
+
+.row{display:flex;gap:10px;align-items:flex-start;padding:12px 16px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:none}
+.row.pass{background:var(--good-bg)}
+.row.fail{background:var(--bad-bg)}
+.row.na{background:var(--na-bg)}.row.na .rtext{color:var(--na);text-decoration:line-through}
+.rid{font-family:'Fredoka';font-size:12px;color:var(--blue-d);background:#eaf1fc;border-radius:8px;padding:3px 7px;flex:none;margin-top:2px}
+.prio{font-size:10px;font-weight:800;color:#fff;border-radius:6px;padding:2px 6px;flex:none;margin-top:3px}
+.prio.P1{background:var(--p1)}.prio.P2{background:var(--p2)}.prio.P3{background:var(--p3)}
+.rbody{flex:1;min-width:0}
+.rtext{font-weight:700;font-size:14.5px;line-height:1.35}
+.rdata{margin-top:4px;font:600 12.5px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--soft);word-break:break-word}
+.note{margin-top:6px;width:100%;border:1px dashed var(--line);border-radius:8px;padding:6px 9px;
+  font:600 13px 'Nunito';color:var(--ink);background:#fff;display:none}
+.row.noteon .note{display:block}
+.acts{display:flex;gap:6px;flex:none}
+.mark{width:38px;height:38px;border-radius:11px;border:2px solid var(--line);background:#fff;font-size:17px;
+  cursor:pointer;display:grid;place-items:center;color:var(--soft)}
+.mark.p.on{background:var(--good);border-color:var(--good);color:#fff}
+.mark.f.on{background:var(--bad);border-color:var(--bad);color:#fff}
+.mark.x{font-size:11px;font-weight:800}
+.mark.x.on{background:var(--na);border-color:var(--na);color:#fff}
+.mark.n{font-size:15px}
+.mark.n.on{background:var(--amber);border-color:var(--amber);color:#fff}
+
+.mark.s{font-size:15px}
+.mark.s.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.row.drop{outline:3px dashed var(--blue);outline-offset:-3px}
+.row.active .rid{background:var(--blue);color:#fff}
+
+/* скріни */
+.shots{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.shot{position:relative}
+.shot img{display:block;width:84px;height:60px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:zoom-in;background:#fff}
+.shot button{position:absolute;top:-7px;right:-7px;width:22px;height:22px;border-radius:50%;border:none;
+  background:var(--bad);color:#fff;font:800 12px 'Nunito';cursor:pointer;display:grid;place-items:center}
+.lightbox{position:fixed;inset:0;background:rgba(15,20,35,.88);display:none;align-items:center;justify-content:center;z-index:60;padding:20px;cursor:zoom-out}
+.lightbox.on{display:flex}
+.lightbox img{max-width:100%;max-height:100%;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.lightbox span{position:absolute;top:14px;left:50%;transform:translateX(-50%);color:#fff;font-weight:800;font-size:13px}
+
+.foot{text-align:center;color:var(--soft);font-size:12px;font-weight:700;margin-top:10px;line-height:1.6}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#20232e;color:#fff;
+  padding:11px 18px;border-radius:12px;font-weight:800;font-size:14px;opacity:0;pointer-events:none;transition:.25s;z-index:50}
+.toast.on{opacity:1}
+/* ── Друк на A4: без кнопок, з квадратиками для відміток ручкою ── */
+@media print{
+  @page{size:A4;margin:11mm 11mm 12mm}
+  html,body{background:#fff}
+  body{padding:0;display:block;font-size:12px}
+  .wrap{max-width:none}
+  .head,.row.pass,.row.fail,.row.na,.prio,.rid{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .head{box-shadow:none;border-radius:12px;padding:14px 16px}
+  .head h1{font-size:20px}
+  .meta input{border-color:rgba(255,255,255,.4)}
+  .summary,.pbar,.pct,.toolbar,.toast,.lightbox,.acts,.note,.caret,.smini,.schip,.mark,.foot{display:none!important}
+  .section{box-shadow:none;border-radius:10px;margin:10px 0 0;break-inside:auto}
+  .section.closed .rows{display:block}
+  .shead{padding:9px 12px;break-after:avoid;background:#f4f6fb;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .shead h3{font-size:14px}
+  .row{padding:7px 12px;gap:8px;break-inside:avoid;align-items:center}
+  .rtext{font-size:12px;font-weight:700}
+  .rdata{font-size:10.5px;margin-top:2px}
+  .rid{font-size:10px}
+  .row::after{content:"☐ ✔   ☐ ✖   ☐ N/A";white-space:pre;flex:none;font:700 11px 'Nunito',sans-serif;color:#6b6f80}
+  .shots img{width:120px;height:auto}
+  .shot button{display:none}
+}
+@media(max-width:520px){.rid{display:none}.head h1{font-size:20px}.row{flex-wrap:wrap}.rbody{flex-basis:calc(100% - 40px)}.acts{width:100%;justify-content:flex-end}.mark{width:40px;height:40px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="head">
+    <h1>🔐 Чек-лист: форма входу</h1>
+    <p>Шаблон · Email · Пароль · Підтвердження пароля · «Забули пароль?» · «Немає акаунта?» · «Потрібна допомога?»</p>
+    <div class="meta">
+      <label>Продукт<input data-meta="product" placeholder="назва / URL"></label>
+      <label>Збірка / версія<input data-meta="build" placeholder="напр. 1.10"></label>
+      <label>Середовище<input data-meta="env" placeholder="Windows 11 · Chrome 130"></label>
+      <label>Тестувальник<input data-meta="tester" placeholder="ім'я"></label>
+    </div>
+    <div class="summary">
+      <div class="stat pass"><b id="cPass">0</b><span>Пройдено</span></div>
+      <div class="stat fail"><b id="cFail">0</b><span>Впало</span></div>
+      <div class="stat na"><b id="cNa">0</b><span>N/A</span></div>
+      <div class="stat todo"><b id="cTodo">0</b><span>Лишилось</span></div>
+      <div class="stat"><b id="cAll">0</b><span>Усього</span></div>
+    </div>
+    <div class="pbar"><span class="pg p" id="pgP" style="width:0"></span><span class="pg f" id="pgF" style="width:0"></span><span class="pg n" id="pgN" style="width:0"></span></div>
+    <div class="pct" id="pctTxt">0% перевірено</div>
+  </div>
+
+  <div class="toolbar">
+    <div class="filters">
+      <button data-f="all" class="on" onclick="setFilter('all')">Усі</button>
+      <button data-f="todo" onclick="setFilter('todo')">Лишились</button>
+      <button data-f="fail" onclick="setFilter('fail')">Впали</button>
+      <button data-f="pass" onclick="setFilter('pass')">Пройдені</button>
+      <button data-f="P1" onclick="setFilter('P1')">Лише P1</button>
+    </div>
+    <div class="spacer"></div>
+    <button class="tbtn" onclick="copySummary()">📋 Підсумок</button>
+    <button class="tbtn" onclick="exportReport()">⬇ Звіт</button>
+    <button class="tbtn" onclick="expandAll(true)">▾ Розгорнути</button>
+    <button class="tbtn danger" onclick="resetAll()">↺ Скинути</button>
+  </div>
+
+  <div id="sections"></div>
+
+  <div class="foot">
+    ✔ — пройдено · ✖ — впало · N/A — не стосується продукту · ✎ — нотатка / номер дефекту.<br>
+    📷 — додати скрін: вибрати файл, перетягнути на рядок або клікнути рядок і натиснути Ctrl+V. «⬇ Звіт» — HTML-звіт з дефектами і скрінами.<br>
+    P1 — блокер · P2 — важливо · P3 — крайній випадок. Прогрес зберігається на цьому пристрої (localStorage).<br>
+    Як адаптувати шаблон: змініть масив <code>DATA</code> у кінці файлу (мінімальна довжина пароля, тексти помилок, адреси сторінок).
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<div class="lightbox" id="lightbox" onclick="this.classList.remove('on')"><span id="lbCap"></span><img id="lbImg" alt=""></div>
+<input type="file" id="shotInput" accept="image/*" multiple hidden>
+
+<script>
+/* ── ДАНІ: перевірки (t — що перевірити й очікуваний результат, d — тестові дані) ──
+   Значення в [дужках] — підставте з вимог свого продукту. */
+const DATA=[
+ {id:"A",title:"Вигляд і поведінка форми",items:[
+   {id:"UI-01",p:"P2",t:"Усі поля мають підпис (label), а не лише placeholder; обов'язкові позначені *"},
+   {id:"UI-02",p:"P1",t:"Форма відкривається без помилок у консолі; поля, кнопка й 3 посилання видимі"},
+   {id:"UI-03",p:"P3",t:"Tab іде по порядку: Email → Пароль → Підтвердження → кнопка → посилання; фокус видно"},
+   {id:"UI-04",p:"P2",t:"Enter у будь-якому полі відправляє форму"},
+   {id:"UI-05",p:"P2",t:"Порожня форма + клік кнопки → помилки біля кожного обов'язкового поля, запит не йде"},
+   {id:"UI-06",p:"P3",t:"Помилка зникає, щойно поле виправлено (або при наступній відправці — за вимогами)"},
+   {id:"UI-07",p:"P3",t:"Мобільна ширина 360 px: нічого не обрізано, немає горизонтальної прокрутки, кнопка ≥ 44 px"},
+ ]},
+ {id:"B",title:"Поле Email",items:[
+   {id:"EM-01",p:"P1",t:"Валідний email приймається",d:"user@example.com"},
+   {id:"EM-02",p:"P1",t:"Порожнє поле → «Введіть email»"},
+   {id:"EM-03",p:"P1",t:"Без @ → помилка формату",d:"userexample.com"},
+   {id:"EM-04",p:"P2",t:"Без домену / без імені → помилка формату",d:"user@ · @example.com"},
+   {id:"EM-05",p:"P2",t:"Домен без крапки → помилка (або задокументувати поведінку)",d:"user@example"},
+   {id:"EM-06",p:"P2",t:"Подвійна @, дві крапки поспіль, крапка на початку → помилка",d:"a@@b.com · a..b@c.com · .a@b.com"},
+   {id:"EM-07",p:"P2",t:"Пробіли на початку/в кінці обрізаються (trim), вхід успішний",d:"␣user@example.com␣"},
+   {id:"EM-08",p:"P2",t:"Пробіл усередині → помилка",d:"us er@example.com"},
+   {id:"EM-09",p:"P2",t:"Регістр не важливий: той самий акаунт, що й у нижньому регістрі",d:"User@Example.COM"},
+   {id:"EM-10",p:"P3",t:"Допустимі символи приймаються: крапка, дефіс, _, +, піддомени",d:"first.last+qa@mail.co.uk"},
+   {id:"EM-11",p:"P3",t:"Кирилиця / CJK / емодзі → помилка або коректна обробка (за вимогами)",d:"тест@пошта.укр · 用户@例子.中国"},
+   {id:"EM-12",p:"P3",t:"Довжина: 254 символи приймається, 255+ відхиляється без падіння"},
+   {id:"EM-13",p:"P3",t:"Вставка (Ctrl+V) і автозаповнення працюють; type=\"email\", autocomplete=\"email\""},
+ ]},
+ {id:"C",title:"Поле Пароль",items:[
+   {id:"PW-01",p:"P1",t:"Валідний пароль приймається",d:"[мін. довжина], напр. Qa12345!"},
+   {id:"PW-02",p:"P1",t:"Порожнє поле → «Введіть пароль»"},
+   {id:"PW-03",p:"P1",t:"Межі довжини: [мін]−1 → помилка; [мін] і [макс] → ок; [макс]+1 → помилка"},
+   {id:"PW-04",p:"P2",t:"Вимоги до пароля показані до введення і перевіряються (цифра, літера, спецсимвол — за вимогами)"},
+   {id:"PW-05",p:"P1",t:"Символи маскуються (•••), type=\"password\""},
+   {id:"PW-06",p:"P2",t:"Кнопка «показати/сховати» (👁) працює і не змінює значення"},
+   {id:"PW-07",p:"P2",t:"Регістр має значення: інший регістр → невдалий вхід",d:"Qa12345! ≠ qa12345!"},
+   {id:"PW-08",p:"P2",t:"Пробіли на початку/в кінці/всередині — поведінка за вимогами (не обрізати мовчки)"},
+   {id:"PW-09",p:"P2",t:"Слабкі паролі відхиляються (якщо є політика)",d:"123456 · password · пароль = email"},
+   {id:"PW-10",p:"P3",t:"Кирилиця, спецсимволи, емодзі → поведінка за вимогами, без падіння",d:"Пароль1! · p@ss😀word"},
+   {id:"PW-11",p:"P2",t:"Пароль не потрапляє в URL, консоль, тексти помилок"},
+   {id:"PW-12",p:"P3",t:"Попередження про Caps Lock (якщо передбачено)"},
+ ]},
+ {id:"D",title:"Поле Підтвердження пароля",items:[
+   {id:"CF-01",p:"P1",t:"Збігається з паролем → форма відправляється"},
+   {id:"CF-02",p:"P1",t:"Не збігається → «Паролі не збігаються», акаунт не створюється / вхід не виконується"},
+   {id:"CF-03",p:"P1",t:"Порожнє при заповненому паролі → помилка"},
+   {id:"CF-04",p:"P2",t:"Відрізняється лише регістром → помилка",d:"Qa12345! / qa12345!"},
+   {id:"CF-05",p:"P2",t:"Відрізняється пробілом у кінці → помилка (обидва поля обробляються однаково)"},
+   {id:"CF-06",p:"P2",t:"Змінити пароль після заповнення підтвердження → перевірка збігу оновлюється"},
+   {id:"CF-07",p:"P3",t:"Маскування і кнопка «показати» працюють так само, як у полі Пароль"},
+   {id:"CF-08",p:"P3",t:"Вставка в поле підтвердження — поведінка за вимогами (дозволена / заборонена)"},
+ ]},
+ {id:"E",title:"Відправка форми",items:[
+   {id:"SUB-01",p:"P1",t:"Валідні дані → успіх і перехід на [сторінку після входу]"},
+   {id:"SUB-02",p:"P1",t:"Невірний пароль і неіснуючий email → однакове загальне повідомлення (не розкривати, чи є акаунт)"},
+   {id:"SUB-03",p:"P1",t:"Вже зареєстрований email (якщо форма створює акаунт) → зрозуміла помилка"},
+   {id:"SUB-04",p:"P2",t:"Подвійний клік → один запит; кнопка неактивна, поки йде запит"},
+   {id:"SUB-05",p:"P2",t:"Немає мережі / сервер 500 → зрозуміле повідомлення, кнопка знову активна"},
+   {id:"SUB-06",p:"P2",t:"Після помилки email лишається у полі, паролі очищаються"},
+   {id:"SUB-07",p:"P2",t:"DevTools → Network: запит POST по HTTPS, пароля немає в URL"},
+   {id:"SUB-08",p:"P2",t:"Багато невдалих спроб → обмеження / капча / блокування (за вимогами)"},
+   {id:"SUB-09",p:"P3",t:"«Назад» у браузері після входу не повертає форму з даними"},
+ ]},
+ {id:"F",title:"Посилання «Забули пароль?»",items:[
+   {id:"FP-01",p:"P1",t:"Посилання видиме, клікабельне і веде на сторінку відновлення"},
+   {id:"FP-02",p:"P1",t:"Існуючий email → лист зі скиданням пароля приходить"},
+   {id:"FP-03",p:"P2",t:"Неіснуючий email → те саме нейтральне повідомлення (не розкривати)"},
+   {id:"FP-04",p:"P2",t:"Посилання з листа одноразове і має термін дії"},
+   {id:"FP-05",p:"P3",t:"Email із форми входу підставляється на сторінці відновлення (якщо передбачено)"},
+   {id:"FP-06",p:"P3",t:"Зі сторінки відновлення можна повернутися до входу"},
+ ]},
+ {id:"G",title:"Посилання «Немає акаунта?»",items:[
+   {id:"NA-01",p:"P1",t:"Веде на сторінку реєстрації"},
+   {id:"NA-02",p:"P3",t:"Текст зрозумілий («Зареєструватися»), виглядає як посилання"},
+   {id:"NA-03",p:"P3",t:"Зі сторінки реєстрації є шлях назад до входу"},
+ ]},
+ {id:"H",title:"Посилання «Потрібна допомога?»",items:[
+   {id:"HLP-01",p:"P2",t:"Веде на підтримку / FAQ / контакти або відкриває чат"},
+   {id:"HLP-02",p:"P3",t:"Зовнішня сторінка відкривається в новій вкладці (rel=\"noopener\")"},
+   {id:"HLP-03",p:"P3",t:"mailto / телефон / месенджер коректні (якщо використовуються)"},
+   {id:"HLP-04",p:"P3",t:"Перехід у тій самій вкладці не губить введені дані без попередження"},
+ ]},
+ {id:"I",title:"Безпека, доступність, браузери",items:[
+   {id:"SEC-01",p:"P2",t:"HTML/скрипт у полях не виконується",d:"<script>alert(1)<\/script>"},
+   {id:"SEC-02",p:"P2",t:"SQL-ін'єкція → звичайна помилка, без помилок БД",d:"' OR '1'='1' --"},
+   {id:"SEC-03",p:"P2",t:"Помилки не показують технічних деталей (стек, SQL, ім'я користувача БД)"},
+   {id:"A11Y-01",p:"P3",t:"Скрінрідер читає підписи і помилки (aria-describedby / aria-live)"},
+   {id:"A11Y-02",p:"P3",t:"Контраст тексту, помилок і посилань достатній"},
+   {id:"CB-01",p:"P3",t:"Chrome, Firefox, Safari, Edge; Android і iOS"},
+   {id:"CB-02",p:"P3",t:"Менеджер паролів пропонує зберегти / заповнити (autocomplete=\"current-password\" / \"new-password\")"},
+ ]},
+];
+
+const KEY='login-form-checklist-v1';
+const LABEL={pass:'✔',fail:'✖',na:'N/A'};
+let store={st:{},notes:{},open:{},meta:{}}; // st: id->'pass'|'fail'|'na'
+let filter='all';
+
+function load(){ try{const s=JSON.parse(localStorage.getItem(KEY)); if(s){store.st=s.st||{};store.notes=s.notes||{};store.open=s.open||{};store.meta=s.meta||{};}}catch(e){} }
+function save(){ try{localStorage.setItem(KEY,JSON.stringify(store));}catch(e){} }
+load();
+
+const ALL=DATA.reduce((n,s)=>n+s.items.length,0);
+function counts(){
+  let p=0,f=0,na=0; for(const k in store.st){ const v=store.st[k]; if(v==='pass')p++; else if(v==='fail')f++; else if(v==='na')na++; }
+  return {p,f,na,todo:ALL-p-f-na};
+}
+function secCounts(sec){ let p=0,d=0; sec.items.forEach(it=>{const s=store.st[it.id]; if(s)d++; if(s==='pass')p++;}); return {p,d,n:sec.items.length}; }
+function visible(it){
+  const st=store.st[it.id]||'';
+  if(filter==='todo') return st==='';
+  if(filter==='fail') return st==='fail';
+  if(filter==='pass') return st==='pass';
+  if(filter==='P1') return it.p==='P1';
+  return true;
+}
+
+function render(){
+  const root=document.getElementById('sections'); root.innerHTML='';
+  DATA.forEach(sec=>{
+    const sc=secCounts(sec);
+    const closed = store.open[sec.id]===false;
+    const el=document.createElement('div'); el.className='section'+(closed?' closed':'');
+    el.innerHTML=
+      '<div class="shead" onclick="toggleSec(\''+sec.id+'\')">'+
+        '<span class="caret">▾</span><h3></h3>'+
+        '<span class="schip">'+sc.d+'/'+sc.n+'</span>'+
+        '<div class="smini"><span style="width:'+Math.round(sc.p/sc.n*100)+'%"></span></div>'+
+      '</div><div class="rows"></div>';
+    el.querySelector('h3').textContent=sec.id+'. '+sec.title;
+    const rows=el.querySelector('.rows');
+    sec.items.filter(visible).forEach(it=>{
+      const st=store.st[it.id]||'';
+      const hasNote=!!(store.notes[it.id]);
+      const row=document.createElement('div');
+      row.className='row'+(st?' '+st:'')+(hasNote?' noteon':'');
+      row.innerHTML=
+        '<span class="rid">'+it.id+'</span>'+
+        '<span class="prio '+it.p+'">'+it.p+'</span>'+
+        '<div class="rbody"><div class="rtext"></div>'+(it.d?'<div class="rdata"></div>':'')+
+          '<input class="note" placeholder="нотатка / номер дефекту…">'+
+        '</div>'+
+        '<div class="acts">'+
+          '<button class="mark p'+(st==='pass'?' on':'')+'" title="Пройдено" onclick="mark(\''+it.id+'\',\'pass\')">✔</button>'+
+          '<button class="mark f'+(st==='fail'?' on':'')+'" title="Впало" onclick="mark(\''+it.id+'\',\'fail\')">✖</button>'+
+          '<button class="mark x'+(st==='na'?' on':'')+'" title="Не стосується" onclick="mark(\''+it.id+'\',\'na\')">N/A</button>'+
+          '<button class="mark n'+(hasNote?' on':'')+'" title="Нотатка" onclick="toggleNote(this)">✎</button>'+
+          '<button class="mark s'+(shotsOf(it.id).length?' on':'')+'" title="Додати скрін" onclick="pickShots(\''+it.id+'\')">📷</button>'+
+        '</div>';
+      row.querySelector('.rtext').textContent=it.t;
+      if(it.d) row.querySelector('.rdata').textContent='Дані: '+it.d;
+      const note=row.querySelector('.note');
+      note.value=store.notes[it.id]||'';
+      note.addEventListener('input',()=>{ store.notes[it.id]=note.value; save(); });
+      renderShots(row.querySelector('.rbody'),it.id);
+      if(activeId===it.id) row.classList.add('active');
+      row.addEventListener('click',e=>{ if(e.target.closest('button'))return; setActive(it.id); });
+      row.addEventListener('dragover',e=>{ e.preventDefault(); row.classList.add('drop'); });
+      row.addEventListener('dragleave',()=>row.classList.remove('drop'));
+      row.addEventListener('drop',e=>{ e.preventDefault(); row.classList.remove('drop'); addShots(it.id,[...e.dataTransfer.files]); });
+      rows.appendChild(row);
+    });
+    root.appendChild(el);
+  });
+  updateSummary();
+}
+function updateSummary(){
+  const c=counts();
+  document.getElementById('cPass').textContent=c.p;
+  document.getElementById('cFail').textContent=c.f;
+  document.getElementById('cNa').textContent=c.na;
+  document.getElementById('cTodo').textContent=c.todo;
+  document.getElementById('cAll').textContent=ALL;
+  document.getElementById('pgP').style.width=(c.p/ALL*100)+'%';
+  document.getElementById('pgF').style.width=(c.f/ALL*100)+'%';
+  document.getElementById('pgN').style.width=(c.na/ALL*100)+'%';
+  document.getElementById('pctTxt').textContent=Math.round((ALL-c.todo)/ALL*100)+'% перевірено · '+c.p+' ✔ / '+c.f+' ✖ / '+c.na+' N/A';
+}
+function mark(id,val){ if(store.st[id]===val) delete store.st[id]; else store.st[id]=val; save(); render(); }
+function toggleNote(btn){ const row=btn.closest('.row'); row.classList.toggle('noteon'); const n=row.querySelector('.note'); if(row.classList.contains('noteon'))n.focus(); }
+function toggleSec(id){ store.open[id]=store.open[id]===false; save(); render(); }
+function expandAll(open){ DATA.forEach(s=>store.open[s.id]=open); save(); render(); }
+function setFilter(f){ filter=f; document.querySelectorAll('.filters button').forEach(b=>b.classList.toggle('on',b.dataset.f===f)); render(); }
+function resetAll(){ if(!confirm('Скинути всі статуси, нотатки й скріни? (Дані прогону лишаться.)'))return; store.st={};store.notes={};store.open={}; save(); clearShots(); render(); toast('Скинуто'); }
+
+/* ── СКРІНИ: зберігаються в IndexedDB (localStorage замалий для картинок) ── */
+let db=null, shots=[], activeId=null; // shots: [{id, item, blob, name}]
+const urls=new Map();
+function openDB(){ return new Promise(res=>{ try{
+  const rq=indexedDB.open('login-form-checklist',1);
+  rq.onupgradeneeded=()=>rq.result.createObjectStore('shots',{keyPath:'id',autoIncrement:true});
+  rq.onsuccess=()=>res(rq.result); rq.onerror=()=>res(null);
+}catch(e){ res(null); } }); }
+function tx(mode){ return db.transaction('shots',mode).objectStore('shots'); }
+async function loadShots(){
+  db=await openDB(); if(!db) return;
+  await new Promise(res=>{ const rq=tx('readonly').getAll(); rq.onsuccess=()=>{ shots=rq.result||[]; res(); }; rq.onerror=()=>res(); });
+}
+function shotsOf(item){ return shots.filter(s=>s.item===item); }
+function urlOf(s){ if(!urls.has(s.id)) urls.set(s.id,URL.createObjectURL(s.blob)); return urls.get(s.id); }
+function renderShots(body,item){
+  const list=shotsOf(item); if(!list.length) return;
+  const box=document.createElement('div'); box.className='shots';
+  list.forEach((s,i)=>{
+    const w=document.createElement('div'); w.className='shot';
+    const img=document.createElement('img'); img.src=urlOf(s); img.alt=item+' скрін '+(i+1); img.title=s.name||'';
+    img.onclick=()=>openShot(s,item+' · скрін '+(i+1)+' з '+list.length);
+    const del=document.createElement('button'); del.textContent='✕'; del.title='Видалити скрін';
+    del.onclick=()=>removeShot(s.id);
+    w.append(img,del); box.appendChild(w);
+  });
+  body.appendChild(box);
+}
+async function addShots(item,files){
+  const imgs=files.filter(f=>f&&f.type&&f.type.startsWith('image/'));
+  if(!imgs.length){ toast('Це не картинка'); return; }
+  for(const f of imgs){
+    const rec={item,blob:f,name:f.name||'screenshot.png',added:Date.now()};
+    if(db){ rec.id=await new Promise(res=>{ const rq=tx('readwrite').add(rec); rq.onsuccess=()=>res(rq.result); rq.onerror=()=>res('m'+Date.now()+Math.random()); }); }
+    else rec.id='m'+Date.now()+Math.random(); // без IndexedDB — лише до перезавантаження
+    shots.push(rec);
+  }
+  render(); toast('Скрін додано до '+item+(imgs.length>1?' ('+imgs.length+')':''));
+}
+function removeShot(id){
+  if(!confirm('Видалити скрін?'))return;
+  shots=shots.filter(s=>s.id!==id);
+  if(urls.has(id)){ URL.revokeObjectURL(urls.get(id)); urls.delete(id); }
+  if(db&&typeof id==='number') tx('readwrite').delete(id);
+  render();
+}
+function clearShots(){ shots=[]; urls.forEach(u=>URL.revokeObjectURL(u)); urls.clear(); if(db) tx('readwrite').clear(); }
+function openShot(s,cap){ document.getElementById('lbImg').src=urlOf(s); document.getElementById('lbCap').textContent=cap; document.getElementById('lightbox').classList.add('on'); }
+let pickFor=null;
+function pickShots(item){ pickFor=item; setActive(item); const inp=document.getElementById('shotInput'); inp.value=''; inp.click(); }
+document.getElementById('shotInput').addEventListener('change',e=>{ if(pickFor) addShots(pickFor,[...e.target.files]); });
+function setActive(item){
+  activeId=item;
+  document.querySelectorAll('.row.active').forEach(r=>r.classList.remove('active'));
+  const r=[...document.querySelectorAll('.row')].find(r=>r.querySelector('.rid').textContent===item); if(r) r.classList.add('active');
+}
+/* Ctrl+V: вставити скрін у вибраний (клікнутий) рядок */
+document.addEventListener('paste',e=>{
+  const files=[...(e.clipboardData?.items||[])].filter(i=>i.kind==='file'&&i.type.startsWith('image/')).map(i=>i.getAsFile());
+  if(!files.length) return;
+  e.preventDefault();
+  if(!activeId){ toast('Спочатку клікніть рядок перевірки'); return; }
+  addShots(activeId,files);
+});
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') document.getElementById('lightbox').classList.remove('on'); });
+
+/* ── HTML-звіт з дефектами, нотатками і вбудованими скрінами ── */
+const toDataURL=blob=>new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=()=>res(''); r.readAsDataURL(blob); });
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function exportReport(){
+  const c=counts(), m=store.meta, date=new Date();
+  const items=[]; DATA.forEach(s=>s.items.forEach(it=>{ if(store.st[it.id]==='fail'||store.notes[it.id]||shotsOf(it.id).length) items.push(it); }));
+  const STATUS={pass:['✔ Пройдено','#2fa96a'],fail:['✖ Впало','#e0554f'],na:['N/A','#8a90a6'],'':['— не перевірено','#6b6f80']};
+  let body='';
+  for(const it of items){
+    const st=STATUS[store.st[it.id]||''];
+    let imgs=''; for(const s of shotsOf(it.id)) imgs+='<img src="'+await toDataURL(s.blob)+'" alt="'+esc(it.id)+'">';
+    body+='<section><h3><span class="id">'+esc(it.id)+'</span> <span class="p">'+it.p+'</span> '+esc(it.t)+'</h3>'+
+      '<p class="st" style="color:'+st[1]+'">'+st[0]+'</p>'+
+      (it.d?'<p class="d">Дані: '+esc(it.d)+'</p>':'')+
+      (store.notes[it.id]?'<p class="n">'+esc(store.notes[it.id])+'</p>':'')+
+      (imgs?'<div class="imgs">'+imgs+'</div>':'')+'</section>';
+  }
+  const meta=[['Продукт',m.product],['Збірка',m.build],['Середовище',m.env],['Тестувальник',m.tester],['Дата',date.toLocaleString('uk-UA')]]
+    .filter(x=>x[1]).map(x=>'<b>'+x[0]+':</b> '+esc(x[1])).join(' · ');
+  const html='<!DOCTYPE html><html lang="uk"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'+
+    '<title>Звіт — Форма входу</title><style>body{font:15px/1.5 system-ui,sans-serif;color:#20232e;max-width:900px;margin:24px auto;padding:0 16px}'+
+    'h1{margin:0 0 6px}.meta{color:#6b6f80}.sum{margin:14px 0 22px;padding:12px 14px;background:#f4f6fb;border-radius:10px;font-weight:700}'+
+    'section{border:1px solid #e4e8f0;border-radius:12px;padding:14px 16px;margin-bottom:14px;break-inside:avoid}h3{margin:0;font-size:16px}'+
+    '.id{color:#2b56a8}.p{font-size:11px;background:#eef0f5;border-radius:6px;padding:1px 6px}.st{margin:6px 0 0;font-weight:800}'+
+    '.d{margin:4px 0 0;font-family:ui-monospace,monospace;color:#6b6f80;font-size:13px}.n{margin:6px 0 0;padding:6px 10px;background:#fff8e6;border-radius:8px}'+
+    '.imgs{display:flex;flex-direction:column;gap:10px;margin-top:10px}.imgs img{max-width:100%;border:1px solid #e4e8f0;border-radius:8px}</style></head><body>'+
+    '<h1>Звіт: форма входу</h1><div class="meta">'+meta+'</div>'+
+    '<div class="sum">Пройдено '+c.p+' · Впало '+c.f+' · N/A '+c.na+' · Лишилось '+c.todo+' · Усього '+ALL+' ('+Math.round((ALL-c.todo)/ALL*100)+'% перевірено)</div>'+
+    (body||'<p>Дефектів, нотаток і скрінів немає.</p>')+'</body></html>';
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([html],{type:'text/html'}));
+  a.download='login-form-report-'+date.toISOString().slice(0,10)+'.html';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  toast('Звіт завантажено');
+}
+
+/* дані прогону */
+document.querySelectorAll('[data-meta]').forEach(inp=>{
+  inp.value=store.meta[inp.dataset.meta]||'';
+  inp.addEventListener('input',()=>{ store.meta[inp.dataset.meta]=inp.value; save(); });
+});
+
+function copySummary(){
+  const c=counts(), m=store.meta;
+  let out='ЧЕК-ЛИСТ: Форма входу'+(m.product?' — '+m.product:'')+'\n';
+  if(m.build) out+='Збірка: '+m.build+'\n';
+  if(m.env) out+='Середовище: '+m.env+'\n';
+  if(m.tester) out+='Тестувальник: '+m.tester+'\n';
+  out+='Дата: '+new Date().toLocaleString('uk-UA')+'\n';
+  out+='Пройдено '+c.p+' · Впало '+c.f+' · N/A '+c.na+' · Лишилось '+c.todo+' · Усього '+ALL+' ('+Math.round((ALL-c.todo)/ALL*100)+'% перевірено)\n';
+  const shotTag=id=>{ const n=shotsOf(id).length; return n?' | 📷 '+n:''; };
+  const fails=[]; DATA.forEach(s=>s.items.forEach(it=>{ if(store.st[it.id]==='fail') fails.push('  ✖ '+it.id+' ['+it.p+'] — '+it.t+(store.notes[it.id]?(' | '+store.notes[it.id]):'')+shotTag(it.id)); }));
+  if(fails.length) out+='\nДЕФЕКТИ ('+fails.length+'):\n'+fails.join('\n')+'\n';
+  const notes=[]; DATA.forEach(s=>s.items.forEach(it=>{ if(store.notes[it.id]&&store.st[it.id]!=='fail') notes.push('  • '+it.id+(store.st[it.id]?' ('+LABEL[store.st[it.id]]+')':'')+': '+store.notes[it.id]); }));
+  if(notes.length) out+='\nНОТАТКИ:\n'+notes.join('\n')+'\n';
+  if(shots.length) out+='\nСкрінів: '+shots.length+' (повний звіт зі скрінами — кнопка «⬇ Звіт»)\n';
+  const done=()=>toast('Підсумок скопійовано');
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(out).then(done).catch(()=>fallbackCopy(out,done)); }
+  else fallbackCopy(out,done);
+}
+function fallbackCopy(text,cb){ const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select();
+  try{document.execCommand('copy');cb();}catch(e){alert(text);} document.body.removeChild(ta); }
+
+let toastT=null;
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'),1600); }
+
+render();
+loadShots().then(render);
+</script>
+</body>
+</html>
