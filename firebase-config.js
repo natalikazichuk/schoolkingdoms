@@ -101,6 +101,8 @@ const PROGRESS_SKIP = [
   // не видаляє ключів, тож pullLocal при кожному завантаженні повертав старий
   // бій (напр. 1-й раунд, з яким вийшли) — і магазин лишався закритим.
   'sk_arena_battle',
+  'sk_arena_battle2',  // копія поточного бою на пристрої (головна — heroes/{id}/battles)
+  'sk_battle_seen',    // який підсумок бою дитина вже бачила (на цьому пристрої)
   'sk_shop_open'
 ];
 
@@ -1375,7 +1377,9 @@ const SK = {
      inventory + chest + trash + shopSold + coins разом. Монети й речі в одному
      записі — угода в магазині не загубиться, навіть якщо в цю ж мить батьки
      схвалять завдання з монетами (транзакція повториться з новими даними). */
-  async storeTx(fn) {
+  /* opts.noBattle — дія недоступна, поки Герой у бою (продаж, викидання):
+     речі бою не можна продати чи викинути, навіть з іншого пристрою. */
+  async storeTx(fn, opts) {
     const heroId = SK._heroUid();
     if (!heroId) throw new Error('no-hero');
     const ST = window.SKIT && window.SKIT.store;
@@ -1385,6 +1389,9 @@ const SK = {
     await runTransaction(db, async (tx) => {
       const s = await tx.get(ref);
       const d = s.exists() ? s.data() : {};
+      if (opts && opts.noBattle && window.SKBATTLE && window.SKBATTLE.lockLive(d, Date.now())) {
+        const e = new Error('Герой у бою — спершу заверши бій'); e.code = 'battle'; throw e;
+      }
       const r = fn(ST.tidy(d, Date.now()));
       const st = r.state;
       out = { state: st, result: r.result };
@@ -1414,10 +1421,93 @@ const SK = {
     return r ? r.result : false;
   },
   async claimChest(uid)   { return SK.storeTx(st => window.SKIT.store.claimChest(st, uid, Date.now())); },
-  async trashItem(uid)    { return SK.storeTx(st => window.SKIT.store.trashItem(st, uid, Date.now())); },
+  async trashItem(uid)    { return SK.storeTx(st => window.SKIT.store.trashItem(st, uid, Date.now()), { noBattle: true }); },
   async restoreTrash(uid) { return SK.storeTx(st => window.SKIT.store.restoreTrash(st, uid, Date.now())); },
   // угода магазину: {sell:[uid], buy:[base], buyback:[uid]}, byId — каталог {id: base}
-  async shopDeal(order, byId) { return SK.storeTx(st => window.SKIT.store.deal(st, order, byId, Date.now())); },
+  async shopDeal(order, byId) { return SK.storeTx(st => window.SKIT.store.deal(st, order, byId, Date.now()), { noBattle: true }); },
+
+  /* ===== БІЙ В ОКРЕМОМУ ПРОСТОРІ =====================================
+     Стан бою — heroes/{id}/battles/{bid} (логіка — чисті функції SKBATTLE,
+     sk-battle.js). У документі Героя лише мітка activeBattle {bid, deadline,
+     round}: за нею будь-яка сторінка й будь-який пристрій знають, що бій іде,
+     а магазин і викидання речей закриті. Під час бою інвентар Героя НЕ
+     змінюється; наприкінці finishBattle однією транзакцією вносить лише
+     зміни (знос, зникнення зламаних, досвід) і знімає мітку. */
+  _battleRef(bid) {
+    const heroId = SK._heroUid();
+    return (heroId && bid) ? doc(db, 'heroes', heroId, 'battles', String(bid)) : null;
+  },
+  _battleData(st) {
+    return Object.assign(JSON.parse(JSON.stringify(st)), { updatedAt: serverTimestamp() });
+  },
+  // Почати бій: мітка в документі Героя (транзакція — другий бій не почнеться,
+  // поки йде перший, навіть з іншого пристрою) + сам бій окремим документом.
+  async startBattle(st) {
+    const heroId = SK._heroUid();
+    if (!heroId || !st || !st.bid) throw new Error('no-hero');
+    const ref = doc(db, 'heroes', heroId);
+    await runTransaction(db, async (tx) => {
+      const s = await tx.get(ref);
+      const d = s.exists() ? s.data() : {};
+      if (window.SKBATTLE && window.SKBATTLE.lockLive(d, Date.now()) && d.activeBattle.bid !== st.bid) {
+        const e = new Error('Бій уже триває'); e.code = 'busy'; e.bid = d.activeBattle.bid; throw e;
+      }
+      tx.set(ref, { activeBattle: { bid: st.bid, deadline: st.deadline, round: st.round }, updatedAt: serverTimestamp() }, { merge: true });
+    });
+    try { await setDoc(SK._battleRef(st.bid), SK._battleData(st)); }
+    catch (e) { try { console.warn('[бій] документ бою не записано (правила?):', e); } catch (_) {} }
+    return true;
+  },
+  // Зберегти хід. Пишемо без очікування мережі: без звʼязку Firestore
+  // поставить запис у чергу й відправить пізніше.
+  async saveBattle(st) {
+    if (!st || !st.bid || st.status !== 'live') return false;
+    const heroId = SK._heroUid();
+    if (!heroId) return false;
+    const a = setDoc(SK._battleRef(st.bid), SK._battleData(st))
+      .catch(e => { try { console.warn('[бій] хід не записано:', e); } catch (_) {} });
+    const b = setDoc(doc(db, 'heroes', heroId),
+      { activeBattle: { bid: st.bid, deadline: st.deadline, round: st.round } }, { merge: true })
+      .catch(e => { try { console.warn('[бій] мітку бою не оновлено:', e); } catch (_) {} });
+    await Promise.all([a, b]);
+    return true;
+  },
+  async loadBattle(bid) {
+    const ref = SK._battleRef(bid);
+    if (!ref) return null;
+    try { const s = await getDoc(ref); return s.exists() ? s.data() : null; }
+    catch (e) { return null; }
+  },
+  // Мітка бою й підсумок останнього бою з документа Героя
+  async getBattleMark() {
+    const h = await SK.getHero();
+    if (!h) return null;
+    return { activeBattle: h.activeBattle || null, lastBattleId: h.lastBattleId || null, lastBattle: h.lastBattle || null,
+             live: !!(window.SKBATTLE && window.SKBATTLE.lockLive(h, Date.now())) };
+  },
+  /* Завершити бій: ОДНА транзакція по документу Героя. Повторний виклик
+     (дві вкладки, обрив звʼязку) нічого не подвоює — SKBATTLE.applyToHero
+     звіряє lastBattleId. Повертає {already?, leveled, lost, lastBattle, arena}. */
+  async finishBattle(st, fallbackArena) {
+    const heroId = SK._heroUid();
+    const SB = window.SKBATTLE;
+    if (!heroId || !SB || !st || !st.summary) throw new Error('no-battle');
+    const ctx = { R: window.SKARENA || {}, K: window.SKIT };
+    const ref = doc(db, 'heroes', heroId);
+    let out = null;
+    await runTransaction(db, async (tx) => {
+      const s = await tx.get(ref);
+      const d = s.exists() ? s.data() : {};
+      const r = SB.applyToHero(ctx, d, st.summary, fallbackArena);
+      if (!r || r.already) { out = { already: true, lastBattle: r && r.lastBattle, arena: d.arena || null }; return; }
+      tx.set(ref, Object.assign({}, r.fields, { updatedAt: serverTimestamp() }), { merge: true });
+      out = { leveled: r.leveled, lost: r.lost, lastBattle: r.lastBattle, arena: r.fields.arena, drop: r.drop };
+    });
+    // історія: сам бій позначаємо завершеним, найстаріші (понад 20) — прибираємо
+    try { await setDoc(SK._battleRef(st.bid), SK._battleData(st)); } catch (e) {}
+    (out && out.drop || []).forEach(b => { try { deleteDoc(SK._battleRef(b)).catch(() => {}); } catch (e) {} });
+    return out;
+  },
   // Долити монет героєві. coins — надійний лічильник (sk-progress його не чіпає),
   // тож просто читаємо поточне значення й пишемо суму через merge.
   async addCoins(delta) {

@@ -1169,6 +1169,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
     <div class="big" id="resBig">Перемога!</div>
     <p id="resTxt">Суперник здався.</p>
     <div class="xpwon" id="resXp">+25 досвіду</div>
+    <div class="wearline" id="resNote" style="display:none"></div>
     <div class="wearline" id="resWear" style="display:none"></div>
     <div class="logsave">
       <button type="button" id="resSaveLog" title="Зберегти журнал бою (кольоровий, відкривається в браузері)">💾 Зберегти журнал</button>
@@ -1256,6 +1257,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
 <script src="sk-arena-rules.js?v=15"></script>
+<script src="sk-battle.js?v=1"></script>
 <script>
 (function(){
   'use strict';
@@ -1264,6 +1266,12 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
   var ZONE_UA = {head:'голову', body:'тіло', arms:'руки', legs:'ноги'};
   var RULES = window.SKARENA || {};
   var TURN_SECONDS = (RULES.BATTLE && RULES.BATTLE.turnSeconds) || 30;
+  /* Бій рахує рушій sk-battle.js (SKBATTLE) в окремому просторі: тут — лише показ.
+     B — стан бою (його ж пишемо в базу), UI — те, що живе лише на цьому екрані. */
+  var SB = window.SKBATTLE;
+  function ctx(){ return { R: RULES, K: window.SKIT }; }
+  var UI = { timer:null, left:TURN_SECONDS, resolving:false, logFrom:0, ticker:null };
+  window.SK_BATTLE_PAGE = true;   // доігруванням на цій сторінці керує арена, а не хедер
 
   /* ── налаштування балансу: числа живуть у sk-arena-rules.js (SKARENA.BATTLE),
         щоб адмінка («Арена» → «Механіка») показувала ті самі, за якими йде бій.
@@ -1272,8 +1280,6 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
     baseDmg: 10, minDmg: 1, critBase: 1, critMult: 2, hitStep: 0.25, hitAccStep: 0.1, hitMin: 0.1, hitMax: 0.95,
     blockKeep: 0, botVary: 0.2, xpWin: 50, xpDraw: 25, xpLose: 8, xpAdv: 0.5, xpStep: 500, xpFlat: 8000
   }, RULES.BATTLE || {});
-  var WEAR = Object.assign({ zoneHit:1, zoneCrit:2, weaponHit:1, weaponCrit:1, shieldBlock:2, shieldCritBlock:5 }, RULES.WEAR || {});
-  function newWear(){ return {head:0, body:0, arms:0, legs:0, weapon:0, shield:0}; }
   /* досвіду до наступного рівня: 500, 1000, 1500 … 8000, далі стало 8000 (SKARENA.xpNeed) */
   function xpNeed(lv){ if(RULES.xpNeed) return RULES.xpNeed(lv); return Math.min(Math.max(1,lv)*CFG.xpStep, CFG.xpFlat); }
 
@@ -1315,14 +1321,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
       localStorage.setItem('sk_arena_losses', arena.losses);
       localStorage.setItem('sk_arena_draws',  arena.draws);
     }catch(e){}
-    try{ if(window.SK && SK.pushLocal) SK.pushLocal().catch(function(){}); }catch(e){}
-    // явний запис бойової статистики в heroes/{id}.arena (окреме поле в базі)
-    try{
-      if(window.SK && SK.saveArenaStats && SK.isHeroSession && SK.isHeroSession()){
-        SK.saveArenaStats({ level:arena.level, xp:arena.xp, wins:arena.wins,
-                            losses:arena.losses, draws:arena.draws }).catch(function(){});
-      }
-    }catch(e){}
+    // у базу (heroes/{id}.arena) статистику пише транзакція кінця бою (SK.finishBattle)
   }
 
   /* ── похідні бойові показники з характеристик ── */
@@ -1398,9 +1397,10 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
   function itemIcon(id, fallback){
     return '<img src="img/items/'+encodeURIComponent(id)+'.webp" alt="" onerror="this.replaceWith(document.createTextNode(\''+fallback+'\'))">';
   }
-  function swapsLeft(){ return (B && !B.over && !B.resolving && B.swapRound !== B.round) ? 1 : 0; }
-  function activeIn(slot){ return (B.me.eq||[]).filter(function(e){ return !e.off && e.slot===slot; })[0] || null; }
-  function leftDur(e){ return e.dur==null ? null : Math.max(0, e.dur - itemWear(e)); }
+  function swapsLeft(){ return (live() && !UI.resolving && B.swapRound !== B.round) ? 1 : 0; }
+  function activeIn(slot){ return SB.activeIn(B, slot); }
+  function leftDur(e){ return SB.leftDur(ctx(), B, e); }
+  function itemWear(e){ return SB.itemWear(ctx(), e, B.wear); }
   /* річ із сумки: скільки міцності лишилось з урахуванням зносу в цьому бою (якщо її вже знімали) */
   function bagDur(inst){
     if(inst.durMax == null) return null;
@@ -1442,8 +1442,11 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
   function bagItems(){
     return (BI.inv||[]).filter(function(inst){
       var b = BI.byId[inst.id];
-      return b && !inst.slot && !b.consumable && LOCKED_SLOTS.every(function(s){ return !fitsSlot(b, s); })
-        && BSLOTS.some(function(d){ return d[3].indexOf(b.category)>=0; });
+      // у бою своя екіпіровка: в «сумці» — усе, чого зараз немає на герої в бою
+      // (і зняте в бою, хоч в основному записі воно ще вдягнене)
+      return b && !b.consumable && !/^belt\d/.test(inst.slot||'') && LOCKED_SLOTS.every(function(s){ return !fitsSlot(b, s); })
+        && BSLOTS.some(function(d){ return d[3].indexOf(b.category)>=0; })
+        && !(B.me.eq||[]).some(function(e){ return !e.off && e.uid===inst.uid; });
     });
   }
   /* куди вдягти річ: обраний слот (якщо підходить) → порожній слот її типу → перший слот її типу */
@@ -1458,7 +1461,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
   function profileWith(slot, inst, base){
     var list = (B.me.eq||[]).filter(function(e){ return !e.off && e.slot!==slot; }).map(function(e){ return {base:e.base, inst:e.inst}; });
     if(inst) list.push({base:base, inst:{uid:inst.uid, id:inst.id, slot:slot, bonus:inst.bonus, durMax:inst.durMax, durCur:inst.durCur}});
-    return RULES.fighter({health:hero.health, accuracy:hero.accuracy, agility:hero.agility, mana:hero.mana}, list, window.SKIT);
+    return RULES.fighter(B.me.stats, list, window.SKIT);
   }
   function diffHtml(a, b){
     var rows = [['❤️ макс. здоров\'я','hp'],['🔮 мана','mana'],['🎯 точність','accuracy'],['🏃 спритність','agility'],
@@ -1479,7 +1482,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
     var isP = BI.side==='p', f = isP ? hero : B.op.f;
     var html = '<button class="bix" id="biX" aria-label="Закрити">✕</button>'
       + '<div class="bih"><b>'+biEsc(isP ? (hero.name||'Ти') : f.name)+'</b><span class="lv">рів. '+(isP ? arena.level : (f.level||1))+'</span>'
-      + '<span class="tm" id="biTimer">⏱ '+Math.max(0,B.left)+' с</span></div>';
+      + '<span class="tm" id="biTimer">⏱ '+Math.max(0,UI.left)+' с</span></div>';
     if(isP){
       var p = B.me.p;
       html += '<div class="bist">'
@@ -1496,7 +1499,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
         + '</div>';
       var can = swapsLeft();
       html += '<div class="bimsg'+(can?'':' no')+'">'
-        + (B.over ? 'Бій завершено.' : B.resolving ? 'Хід розраховується… Перевдягнутись можна в наступному ході.'
+        + (!live() ? 'Бій завершено.' : UI.resolving ? 'Хід розраховується… Перевдягнутись можна в наступному ході.'
           : can ? '🔄 Спецвміння ходу: можна замінити або зняти одну річ (крім пояса). Атака й захист лишаються.'
           : '🔄 Цього ходу ти вже перевдягнувся. Наступна заміна — у наступному ході.')
         + '</div>';
@@ -1569,62 +1572,45 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
     return '';
   }
 
-  /* сама заміна: одна за хід; змінюється лише МАКСИМУМ здоров'я, поточне не додається */
+  /* сама заміна: одна за хід; змінюється лише МАКСИМУМ здоров'я, поточне не додається.
+     Перевдягання живе лише в бою: основний запис Героя не змінюється, після бою
+     на ньому те саме, що й до бою. Перед вдяганням перевіряємо в базі, що річ
+     ще є (могли викинути з іншого пристрою) — інакше хід перевдягання не витрачається. */
   function doSwap(slot, inst){
-    if(!swapsLeft() || !slot || LOCKED_SLOTS.indexOf(slot)>=0) return;
+    if(!swapsLeft() || !slot || LOCKED_SLOTS.indexOf(slot)>=0 || UI.swapping) return;
     var base = inst ? BI.byId[inst.id] : null;
     if(inst && (!base || !fitsSlot(base, slot) || bagDur(inst)===0)) return;
-    var cur = activeIn(slot);
-    if(!cur && !inst) return;
-    var w = B.wear || (B.wear = newWear());
-    if(cur){ cur.w1 = wearOf(cur, w); cur.off = true; }
-    // руки: дворучна знімає щит; щит знімає дворучну (те саме перевдягання, без окремого ходу)
-    var also = null, two = RULES.isTwoHanded || function(){ return false; };
-    if(inst && slot==='weaponR' && two(base)) also = activeIn('weaponL');
-    else if(inst && slot==='weaponL'){ var rr = activeIn('weaponR'); if(rr && two(rr.base)) also = rr; }
-    if(also){ also.w1 = wearOf(also, w); also.off = true; }
-    if(inst){
-      var old = (B.me.eq||[]).filter(function(e){ return e.uid===inst.uid; })[0];
-      if(old){
-        var used = Math.max(0, (old.w1||0) - (old.w0||0));
-        old.slot = slot; old.inst.slot = slot; old.off = false; delete old.w1;
-        old.w0 = wearOf(old, w) - used;
-      }else{
-        var e = {uid:inst.uid, slot:slot, base:base, broken:false,
-                 dur:(inst.durMax==null ? null : Number(inst.durCur!=null ? inst.durCur : inst.durMax)),
-                 inst:{uid:inst.uid, id:inst.id, slot:slot, bonus:inst.bonus, durMax:inst.durMax, durCur:inst.durCur}};
-        e.w0 = wearOf(e, w);
-        (B.me.eq = B.me.eq || []).push(e);
+    var bid = B.bid;
+    var check = (inst && remote()) ? SK.getInventory().then(function(inv){
+      return (inv||[]).filter(function(x){ return x && x.uid===inst.uid; })[0] || null;
+    }) : Promise.resolve(inst);
+    UI.swapping = true;
+    check.then(function(fresh){
+      UI.swapping = false;
+      if(!B || B.bid!==bid || !swapsLeft()) return;
+      if(inst && !fresh){
+        BI.inv = (BI.inv||[]).filter(function(x){ return x.uid!==inst.uid; }); BI.sel = null; renderInv();
+        showToast('Цієї речі вже немає', 'Її продали чи викинули — обери іншу'); return;
       }
-    }
-    var np = heroProfile();
-    B.me.p = np; B.me.max = np.hp; B.me.force = Math.min(B.me.force, np.hp);
-    B.swapRound = B.round;
-    updateForce('p', B.me);
-    addSwap((cur ? (inst ? '«'+(cur.base && cur.base.name || '')+'» → «'+base.name+'»' : 'зняв «'+(cur.base && cur.base.name || '')+'»')
-                 : 'вдягнув «'+base.name+'»') + (also ? ' (знято «'+(also.base && also.base.name || '')+'»)' : ''));
-    // інвентар: нова річ у слоті, стара — у сумку
-    (BI.inv||[]).forEach(function(x){
-      if(cur && x.uid===cur.uid) x.slot = null;
-      if(also && x.uid===also.uid) x.slot = null;
-      if(inst && x.uid===inst.uid) x.slot = slot;
+      var text = SB.swap(ctx(), B, slot, inst ? fresh : null, base);
+      if(!text) return;
+      updateForce('p', B.me);
+      addSwap(B.round, text);
+      BI.sel = null;
+      saveBattle();
+      renderInv();
+    }, function(e){
+      UI.swapping = false;
+      try{ console.error('[арена] перевірка речі:', e); }catch(_){}
+      showToast('Немає звʼязку', 'Не вдалося перевірити річ — спробуй ще раз');
     });
-    // сумку не прочитано (помилка / не Герой) — не перезаписуємо інвентар у базі порожнім списком
-    if(window.SK && SK.saveInventory && BI.inv && !BI.err) Promise.resolve(SK.saveInventory(BI.inv)).then(function(){
-      try{ if(window.EKEQUIP && EKEQUIP.reload) EKEQUIP.reload(); }catch(e){}
-      try{ if(window.SKHeaderRefresh) SKHeaderRefresh(); }catch(e){}
-    }).catch(function(e){ try{ console.error('[арена] заміну речі не збережено:', e); }catch(_){} });
-    BI.sel = null;
-    saveBattle();
-    renderInv();
   }
-  function addSwap(text){
+  function addSwap(round, text){
     var box = $('steps'); if(!box) return;
     var empty = box.querySelector('.steps-empty'); if(empty) empty.remove();
     var row = document.createElement('div'); row.className = 'step swap';
-    row.innerHTML = '<span class="no">🔄</span><span class="txt">Хід '+B.round+': перевдягання — '+biEsc(text)+'</span>';
+    row.innerHTML = '<span class="no">🔄</span><span class="txt">Хід '+round+': перевдягання — '+biEsc(text)+'</span>';
     box.insertBefore(row, box.firstChild); box.scrollTop = 0;
-    B.steps = box.innerHTML;
   }
   function bindInv(){
     var m = $('binv'); if(!m) return;
@@ -1852,7 +1838,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
   function chooseLook(token){
     hero.avatar = token;
     paintHeroFull(token); paintWardHero(token); renderTavern();
-    if(B && !B.over){ paintFull(token,'pPeek','pSceneEmoji'); }
+    if(live()){ paintFull(token,'pPeek','pSceneEmoji'); }
     // спільний кеш аватара — щоб головна (hero.html) одразу показала той самий
     try{ localStorage.setItem('sk_hero_avatar_token', token); }catch(e){}
     try{ if(window.SK && SK.saveHeroAvatar && SK.isHeroSession && SK.isHeroSession()) SK.saveHeroAvatar(token); }catch(e){}
@@ -1950,114 +1936,120 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
     }).catch(function(e){ try{ console.error('[арена] екіпіровку не прочитано:', e); }catch(_){} return {p:plainFighter(stats), eq:[]}; });
   }
 
-  /* ── ПАУЗА БОЮ ───────────────────────────────────────────────────
-     Бій жив тільки в пам'яті сторінки. Досить було вийти на екран
-     таверни («← Назад») чи перезавантажити сторінку — і бій зникав
-     разом з усією втраченою силою, а наступний починався з повним
-     здоров'ям. Дитина бачила це як «здоров'я відновлюється, і весь
-     прогрес бою втрачається» (і так само можна було втекти від
-     програшу без поразки).
-
-     Тепер бій переживає і вихід у таверну, і перезавантаження: він
-     чекає й продовжується з того самого раунда та тієї самої сили.
-     Остаточно вийти з нього можна лише кнопкою «Вихід з гри» — і це
-     чесна поразка. ── */
-  var BATTLE_KEY = 'sk_arena_battle';
+  /* ── БІЙ В ОКРЕМОМУ ПРОСТОРІ ─────────────────────────────────────
+     Бій більше не стоїть на паузі й не живе лише в цьому браузері:
+       • стан бою — heroes/{id}/battles/{bid} (+ копія тут, у localStorage,
+         щоб бій пережив обрив звʼязку); з будь-якого пристрою його видно;
+       • кожен хід має термін (deadline). Немає гравця — хід робиться сам:
+         герой б'є й захищає ті самі зони, що востаннє (SKBATTLE.autoChoice).
+         Тому вихід у таверну, перезавантаження чи втрата звʼязку бій не
+         зупиняють — він догравається (тут, на будь-якій сторінці через
+         хедер, а згодом — на сервері);
+       • під час бою основний запис Героя не змінюється; наприкінці одна
+         транзакція (SK.finishBattle) вносить лише знос, зникнення зламаних
+         речей і досвід. ── */
+  var BATTLE_KEY = 'sk_arena_battle2', OLD_BATTLE_KEY = 'sk_arena_battle';
   function battleHeroId(){
     try{ return (window.SK && SK.activeHeroId) || localStorage.getItem('sk_active_child') || ''; }
     catch(e){ return ''; }
   }
-  /* Бій лежить у localStorage, спільному для всіх вкладок. Вкладка, що стоїть
-     на екрані бою, далі розігрує ходи таймером і зберігає їх — і «воскрешала»
-     бій, який уже завершили в іншій вкладці. Тому в кожного бою є bid: якщо
-     збережений бій зник (завершено деінде) або це вже інший бій — не
-     перезаписуємо, а відходимо в таверну. */
-  function savedRaw(){ try{ return JSON.parse(localStorage.getItem(BATTLE_KEY)||'null'); }catch(e){ return null; } }
-  function dropBattle(other){
-    var onBattle = !$('screen-battle').classList.contains('hidden');
-    stopTimer(); try{ closeInv(); }catch(e){}
-    B = null;
-    if(other) restoreBattle(other);
-    if(onBattle) show('tavern'); else renderTavern();
-    showToast(other ? 'Бій триває в іншій вкладці' : 'Бій завершено в іншій вкладці',
-              other ? 'Тисни «Продовжити бій», щоб грати тут' : 'Можна відкрити магазин або почати новий бій');
-  }
-  function saveBattle(){
-    if(!B || B.over){ clearBattle(); return; }
-    if(!B.bid) B.bid = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-    var cur = savedRaw();
-    if(B._saved && (!cur || (cur.bid && cur.bid !== B.bid))){ dropBattle(cur && loadSavedBattle()); return; }
+  function remote(){ return !!(window.SK && SK.startBattle && SK.isHeroSession && SK.isHeroSession()); }
+  function live(){ return !!(B && B.status==='live'); }
+  function hasLiveBattle(){ return live(); }
+  /* копія бою на пристрої: живий бій або завершений, але ще не записаний у базу */
+  function localGet(){
     try{
-      localStorage.setItem(BATTLE_KEY, JSON.stringify({
-        v:1, bid:B.bid, heroId:battleHeroId(), round:B.round,
-        me:{force:B.me.force, max:B.me.max, p:B.me.p, eq:B.me.eq||[], atk:B.me.atk||null, block:B.me.block||null},
-        op:{force:B.op.force, max:B.op.max, f:B.op.f},
-        steps:B.steps||'', wear:B.wear||newWear(), swapRound:B.swapRound||0
-      }));
-      B._saved = true;
-    }catch(e){}
-  }
-  function clearBattle(){ try{ localStorage.removeItem(BATTLE_KEY); }catch(e){} }
-  function loadSavedBattle(){
-    try{
-      var o=JSON.parse(localStorage.getItem(BATTLE_KEY)||'null');
-      if(!o || o.v!==1 || !o.me || !o.op || !o.op.f) return null;
-      var me=battleHeroId();
+      var o = JSON.parse(localStorage.getItem(BATTLE_KEY)||'null');
+      if(!o || o.v!==2 || !o.bid || !o.me || !o.op) return null;
+      var me = battleHeroId();
       if(o.heroId && me && o.heroId!==me) return null;      // бій іншої дитини на спільному пристрої
-      if(!(o.me.force>0) || !(o.op.force>0)) return null;    // бій уже фактично закінчений
       return o;
     }catch(e){ return null; }
   }
-  function restoreBattle(o){
-    B = {
-      round: +o.round || 1, over:false, resolving:false,
-      me: {f:hero,    p:o.me.p || plainFighter(hero), eq:o.me.eq || [],             force:o.me.force, max:o.me.max || maxForce(hero),  atk:o.me.atk||null, block:o.me.block||null},
-      op: {f:o.op.f,  p:o.op.f.p || plainFighter(o.op.f),         force:o.op.force, max:o.op.max || maxForce(o.op.f), atk:null, block:null},
-      timer:null, left:TURN_SECONDS, steps:o.steps||'', wear:Object.assign(newWear(), o.wear||{}), swapRound:+o.swapRound||0,
-      bid:o.bid||null, _saved:true
-    };
-    // бій, почату до виправлення, міг рахувати дві речі в одному слоті — лишаємо першу
-    var seen = {}, dup = false;
-    (B.me.eq||[]).forEach(function(e){
-      if(e.off) return;
-      if(seen[e.slot]){ e.off = true; e.w0 = 0; e.w1 = 0; dup = true; }
-      else seen[e.slot] = true;
-    });
-    if(dup && RULES.fighter && window.SKIT){
-      var np = heroProfile(); B.me.p = np; B.me.max = np.hp; B.me.force = Math.min(B.me.force, np.hp);
-    }
+  function localPut(st){ try{ localStorage.setItem(BATTLE_KEY, JSON.stringify(st)); }catch(e){} }
+  function localDrop(bid){ try{ var o = localGet(); if(!o || !bid || o.bid===bid) localStorage.removeItem(BATTLE_KEY); }catch(e){} }
+  function saveBattle(){
+    if(!B) return;
+    localPut(B);
+    if(live() && remote()) SK.saveBattle(B).catch(function(){});
   }
-  function hasLiveBattle(){ return !!(B && !B.over); }
-  // інша вкладка змінила / завершила бій — синхронізуємось
+  /* знайти бій: мітка в документі Героя → документ бою; копія на пристрої — запас
+     (і для бою, підсумок якого ще не записано в базу) */
+  function loadBattle(){
+    var loc = localGet();
+    if(!remote()) return Promise.resolve(loc);
+    return SK.getBattleMark().then(function(m){
+      var a = m && m.activeBattle;
+      if(loc && m && m.lastBattleId===loc.bid){ localDrop(loc.bid); loc = null; }   // уже записано (інша вкладка / пристрій)
+      if(!a || !a.bid || (m && m.lastBattleId===a.bid)) return loc;
+      return SK.loadBattle(a.bid).then(function(r){
+        if(r && r.v===2){ if(loc && loc.bid===r.bid && (loc.rev||0) >= (r.rev||0)) return loc; return r; }
+        return loc;
+      });
+    }).catch(function(){ return loc; });
+  }
+  /* прийняти знайдений бій: дограти пропущені ходи; завершений — записати й показати */
+  function adopt(st){
+    if(!st) return;
+    if(B && B.bid===st.bid && (B.rev||0) > (st.rev||0)) st = B;
+    B = st;
+    if(live()){ var n = SB.catchUp(ctx(), B, Date.now()); if(n) saveBattle(); }
+    if(!live()){ finishBattle(); return; }
+    if(!$('screen-battle').classList.contains('hidden')) paintBattle();
+    renderTavern(); startTicker();
+  }
+  function resync(){
+    if(UI.resolving) return Promise.resolve();
+    return loadBattle().then(function(st){
+      if(st && !(B && B.bid===st.bid && (B.rev||0) >= (st.rev||0) && live())) adopt(st);
+    });
+  }
+  // інша вкладка зробила хід / завершила бій — підхоплюємо
   window.addEventListener('storage', function(e){
-    if(e.key !== BATTLE_KEY) return;
-    var onBattle = !$('screen-battle').classList.contains('hidden');
-    if(!e.newValue){ if(B && !B.over && !B.resolving) dropBattle(null); return; }
-    var o = loadSavedBattle(); if(!o) return;
-    if(onBattle){ if(B && !B.over && !B.resolving) dropBattle(o); }   // грають в іншій вкладці — тут відходимо
-    else if(!(B && B.over)){ B = null; restoreBattle(o); renderTavern(); }
+    if(e.key !== BATTLE_KEY || UI.resolving) return;
+    var o = localGet();
+    if(!o){
+      if(live()){                        // бій завершено й записано в іншій вкладці
+        var onBattle = !$('screen-battle').classList.contains('hidden');
+        stopTimer(); try{ closeInv(); }catch(_){}
+        B = null; stopTicker();
+        if(onBattle) show('tavern'); else renderTavern();
+        showToast('Бій завершено в іншій вкладці', 'Можна відкрити магазин або почати новий бій');
+        pullHeroStats();
+      }
+      return;
+    }
+    if(B && B.bid===o.bid && (B.rev||0) >= (o.rev||0)) return;
+    B = o;
+    if(!live()) return;                  // завершений: запише та вкладка, що його закінчила
+    if(!$('screen-battle').classList.contains('hidden')){ paintBattle(); startTimer(); refreshStrike(); }
+    else renderTavern();
+    startTicker();
   });
   // магазин питає: чи йде бій (тоді він закритий)
-  /* Збережений бій міг не підтягнутись при завантаженні сторінки (герой ще не
-     визначився, або бій збережено в іншій вкладці). Тоді таверна казала «Почати бій»,
-     а магазин — «Спершу заверши бій». Тепер підтягуємо його тут, і кнопка
-     показує «Продовжити бій». */
-  function adoptSavedBattle(){
-    if(hasLiveBattle()) return true;
-    var saved = loadSavedBattle();
-    if(!saved) return false;
-    restoreBattle(saved); renderTavern();
-    return true;
+  window.SKARENA_LIVE = function(){ return live(); };
+
+  /* Поки бій іде, а гравець у таверні (чи вкладка у фоні) — ходи робляться
+     самі, коли минає їх час. На екрані бою цим керує таймер ходу. */
+  function startTicker(){
+    if(UI.ticker) return;
+    UI.ticker = setInterval(function(){
+      if(!live()){ stopTicker(); return; }
+      if(UI.resolving || !$('screen-battle').classList.contains('hidden')) return;
+      if(Date.now() >= B.deadline){
+        SB.catchUp(ctx(), B, Date.now()); saveBattle();
+        if(!live()) finishBattle(); else renderTavern();
+      }
+    }, 1000);
   }
-  // магазин питає: чи йде бій (тоді він закритий)
-  window.SKARENA_LIVE = function(){ return adoptSavedBattle(); };
+  function stopTicker(){ if(UI.ticker){ clearInterval(UI.ticker); UI.ticker = null; } }
 
   /* намалювати сцену бою за поточним станом B */
   function paintBattle(){
     // ліва картка — гравець
     paintFull(hero.avatar,'pPeek','pSceneEmoji');
-    $('pName').textContent = hero.name;
-    $('pLvl').textContent  = arena.level;
+    $('pName').textContent = B.me.name || hero.name;
+    $('pLvl').textContent  = B.me.level || arena.level;
     // права картка + картки-цілі — суперник
     paintFull(B.op.f.avatar,'oPeek','oSceneEmoji');
     paintAtkCards(B.op.f.avatar);
@@ -2066,50 +2058,94 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 
     updateForce('p', B.me); updateForce('o', B.op);
     $('roundNum').textContent = B.round;
-    var keepA = B.me.atk, keepB = B.me.block;
-    clearSel();
-    B.me.atk = keepA || null; B.me.block = keepB || null; applySel();   // вибір переживає вихід / перезавантаження
+    applySel();                          // вибір лишається з попереднього ходу
+    renderLog();
+  }
+  /* журнал — із записів бою (і доіграних без гравця ходів теж) */
+  function renderLog(){
     resetSteps();
-    if(B.steps){ var box=$('steps'); if(box){ box.innerHTML=B.steps; box.scrollTop=0; } }
+    (B.log||[]).slice(UI.logFrom||0).forEach(function(e){
+      if(e.t==='turn') renderTurn(e);
+      else if(e.t==='swap') addSwap(e.r, e.text);
+    });
+  }
+  function renderTurn(e){
+    addStep(e.r,
+      (e.auto ? '<span class="b" title="Хід без тебе: ті самі зони, що минулого разу">⏳ авто</span> ' : '')
+      + phrase('Ти → '+ZONE_UA[e.me.atk], e.meHit)
+      + ' <span style="opacity:.5">·</span> '
+      + phrase(B.op.f.name+' → '+ZONE_UA[e.op.atk], e.opHit)
+      + diceLine('Ти', e.meHit) + diceLine(B.op.f.name, e.opHit));
+    (e.broke||[]).forEach(function(b){ addBreak(b); });
   }
   function enterBattle(){
+    if(live() && Date.now() >= B.deadline + TURN_SECONDS*1000){   // поки не дивились — минуло кілька ходів
+      SB.catchUp(ctx(), B, Date.now()); saveBattle();
+      if(!live()){ finishBattle(); return; }
+    }
     paintBattle();
     show('battle');
     startTimer();
     refreshStrike();
   }
 
+  /* речі, що от-от зламаються: зламана в бою річ після бою зникає */
+  function weakItems(eq){
+    return (eq||[]).filter(function(e){
+      var i = e.inst; if(!i || i.durMax==null) return false;
+      var cur = Number(i.durCur!=null ? i.durCur : i.durMax) || 0;
+      return cur > 0 && cur/i.durMax <= 0.2;
+    }).map(function(e){ return (e.base && e.base.name) || e.inst.id; });
+  }
+
   function startBattle(){
-    // Незавершений бій не перезапускаємо: інакше «почати ще раз» було б
-    // безкоштовним лікуванням і втечею від поразки.
-    if(adoptSavedBattle()){ enterBattle(); return; }   // незавершений бій (і з іншої вкладки) — продовжуємо його
+    if(live()){ enterBattle(); return; }   // незавершений бій не перезапускаємо — продовжуємо
     // поки герой у магазині (у цій чи іншій вкладці) — новий бій не почати
     if(window.SKSHOP && SKSHOP.isOpen()){ showToast('Спершу вийди з магазину', 'Магазин відкритий — можливо, в іншій вкладці. Закрий його там (✕) і спробуй ще раз'); return; }
     if(startBattle.busy) return; startBattle.busy = true;
-    loadHeroFighter().then(function(r){
-      var mp = r.p;
+    // бій міг початись на іншому пристрої — спершу перевіряємо базу
+    loadBattle().then(function(found){
+      if(found && found.status==='live'){ startBattle.busy = false; adopt(found); if(live()) enterBattle(); return; }
+      if(found){ startBattle.busy = false; adopt(found); return; }      // завершений, але не записаний — спершу запишемо
+      return loadHeroFighter().then(function(r){
+        var weak = weakItems(r.eq);
+        if(weak.length && !confirm('Ці речі майже зламані: ' + weak.join(', ') + '.\n\nЯкщо річ зламається в бою — після бою вона зникне. Почати бій?')){ startBattle.busy = false; return; }
+        var bot = pickBot();
+        /* суперник: базові показники Героя ±botVary + ВИПАДКОВІ речі тих самих категорій
+           (сила кожної ±botItemVary від речі Героя, SKARENA.botItems). Без каталогу —
+           як раніше: копія профілю Героя ±botVary. */
+        var bits = (RULES.botItems && r.catalog && r.catalog.length && r.eq.length) ? RULES.botItems(r.catalog, r.eq, window.SKIT) : null;
+        var bp;
+        if(bits && bits.length && RULES.fighter){
+          bp = RULES.fighter({health:bot.health, accuracy:bot.accuracy, agility:bot.agility, mana:bot.mana}, bits, window.SKIT);
+          bot.eq = bits.map(function(e){ return {slot:e.slot, id:e.base.id, cat:e.base.category}; });
+        }else{
+          bp = RULES.varyFighter ? RULES.varyFighter(r.p, CFG.botVary) : plainFighter(bot);
+          bot.eq = (r.eq||[]).map(function(e){ return {slot:e.inst.slot, id:e.base.id, cat:e.base.category}; });
+        }
+        var st = SB.create(ctx(), {
+          heroId: battleHeroId(), kind: 'arena',
+          me: { name: hero.name, avatar: hero.avatar, level: arena.level,
+                stats: {health:hero.health, accuracy:hero.accuracy, agility:hero.agility, mana:hero.mana}, eq: r.eq },
+          op: { f: bot, p: bp }
+        });
+        var go = function(){ startBattle.busy = false; B = st; UI.logFrom = 0; localPut(B); startTicker(); enterBattle(); };
+        if(!remote()){ go(); return; }
+        return SK.startBattle(st).then(go, function(e){
+          if(e && e.code==='busy'){                      // бій уже йде (інший пристрій) — до нього
+            startBattle.busy = false;
+            showToast('Бій уже триває', 'Продовжуємо його');
+            return loadBattle().then(function(f){ adopt(f); if(live()) enterBattle(); });
+          }
+          // немає звʼязку — граємо, бій запишеться, щойно звʼязок повернеться
+          try{ console.warn('[арена] бій почато без звʼязку з базою:', e); }catch(_){}
+          go();
+        });
+      });
+    }).catch(function(e){
       startBattle.busy = false;
-      if(hasLiveBattle()){ enterBattle(); return; }
-      var bot = pickBot();
-      /* суперник: базові показники Героя ±botVary + ВИПАДКОВІ речі тих самих категорій
-         (сила кожної ±botItemVary від речі Героя, SKARENA.botItems). Без каталогу —
-         як раніше: копія профілю Героя ±botVary. */
-      var bits = (RULES.botItems && r.catalog && r.catalog.length && r.eq.length) ? RULES.botItems(r.catalog, r.eq, window.SKIT) : null;
-      if(bits && bits.length && RULES.fighter){
-        bot.p = RULES.fighter({health:bot.health, accuracy:bot.accuracy, agility:bot.agility, mana:bot.mana}, bits, window.SKIT);
-        bot.eq = bits.map(function(e){ return {slot:e.slot, id:e.base.id, cat:e.base.category}; });
-      }else{
-        bot.p = RULES.varyFighter ? RULES.varyFighter(mp, CFG.botVary) : plainFighter(bot);
-        bot.eq = (r.eq||[]).map(function(e){ return {slot:e.inst.slot, id:e.base.id, cat:e.base.category}; });
-      }
-      B = {
-        round:1, over:false, resolving:false,
-        me:   {f:hero, p:mp, eq:eqLite(r.eq), force:mp.hp, max:mp.hp, atk:null, block:null},
-        op:   {f:bot,  p:bot.p, force:bot.p.hp, max:bot.p.hp, atk:null, block:null},
-        timer:null, left:TURN_SECONDS, steps:'', wear:newWear(), swapRound:0
-      };
-      saveBattle();
-      enterBattle();
+      try{ console.error('[арена] бій не почато:', e); }catch(_){}
+      showToast('Не вдалося почати бій', 'Перевір звʼязок і спробуй ще раз');
     });
   }
 
@@ -2145,32 +2181,43 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
   }
 
   /* таймер ходу */
+  /* таймер ходу: рахує до терміну ходу з бою (B.deadline), а не «з нуля» —
+     вихід, перезавантаження чи інший пристрій час ходу не скидають */
   function startTimer(){
-    stopTimer(); B.left = TURN_SECONDS; drawTimer();
-    B.timer = setInterval(function(){
-      B.left--; drawTimer();
-      if(B.left<=0){ stopTimer(); autoResolve(); }
-    },1000);
+    stopTimer(); if(!live()) return;
+    var tick = function(){
+      if(!live()){ stopTimer(); return; }
+      var now = Date.now();
+      UI.left = Math.min(TURN_SECONDS, Math.max(0, Math.ceil((B.deadline - now)/1000)));
+      drawTimer();
+      if(UI.resolving || now < B.deadline) return;
+      stopTimer();
+      if(now >= B.deadline + TURN_SECONDS*1000){ catchUpNow(); return; }   // вкладка спала кілька ходів
+      autoResolve();
+    };
+    tick(); UI.timer = setInterval(tick, 250);
   }
-  function stopTimer(){ if(B && B.timer){ clearInterval(B.timer); B.timer=null; } }
+  function stopTimer(){ if(UI.timer){ clearInterval(UI.timer); UI.timer=null; } }
   function drawTimer(){
-    $('timerNum').textContent = Math.max(0,B.left);
-    var bt = $('biTimer'); if(bt) bt.textContent = '⏱ '+Math.max(0,B.left)+' с';
+    $('timerNum').textContent = Math.max(0,UI.left);
+    var bt = $('biTimer'); if(bt) bt.textContent = '⏱ '+Math.max(0,UI.left)+' с';
     var arc = $('timerArc'), full=201;
-    arc.style.strokeDashoffset = full*(1 - B.left/TURN_SECONDS);
+    arc.style.strokeDashoffset = full*(1 - UI.left/TURN_SECONDS);
   }
-  function autoResolve(){
-    // час вийшов — доберемо випадково те, чого бракує (щоб дитину не карати)
-    if(!B.me.atk)   B.me.atk   = ZONES[Math.floor(Math.random()*4)];
-    if(!B.me.block) B.me.block = ZONES[Math.floor(Math.random()*4)];
-    resolve();
+  /* час ходу вийшов — хід без гравця: обрані зараз зони, а якщо не обрано —
+     ті самі, що минулого ходу (SKBATTLE.autoChoice). Рахується як пропущений. */
+  function autoResolve(){ resolve(true); }
+  function catchUpNow(){
+    SB.catchUp(ctx(), B, Date.now()); saveBattle();
+    if(!live()){ finishBattle(); return; }
+    paintBattle(); startTimer();
   }
 
   /* вибір цілі удару (по фігурі) */
   function bindKnight(){
     document.querySelectorAll('#atkRow .tcard').forEach(function(c){
       c.addEventListener('click', function(){
-        if(!B || B.over || B.resolving) return;
+        if(!live() || UI.resolving) return;
         document.querySelectorAll('#atkRow .tcard').forEach(function(z){ z.classList.remove('sel'); });
         c.classList.add('sel');
         B.me.atk = c.getAttribute('data-zone');
@@ -2183,7 +2230,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
   function bindGuard(){
     $('guardRow').querySelectorAll('.gbtn').forEach(function(btn){
       btn.addEventListener('click', function(){
-        if(!B || B.over || B.resolving) return;
+        if(!live() || UI.resolving) return;
         $('guardRow').querySelectorAll('.gbtn').forEach(function(b){ b.classList.remove('sel'); });
         btn.classList.add('sel');
         B.me.block = btn.getAttribute('data-zone');
@@ -2218,124 +2265,18 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
     refreshStrike();
   }
   function refreshStrike(){
-    $('strikeBtn').disabled = !(B && !B.over && !B.resolving && B.me.atk && B.me.block);
+    $('strikeBtn').disabled = !(live() && !UI.resolving && B.me.atk && B.me.block);
   }
 
-  /* бот обирає хід */
-  function botChoose(){
-    B.op.atk = ZONES[Math.floor(Math.random()*4)];
-    // 40% — намагається вгадати останній удар гравця
-    if(B.op.f.lastPlayerAtk && Math.random()<0.4) B.op.block = B.op.f.lastPlayerAtk;
-    else B.op.block = ZONES[Math.floor(Math.random()*4)];
-  }
-
-  /* одна атака: SKARENA.attack — по удару на кожну атаку (1 + «Додаткова атака»),
-     кожен окремо: (урон − броня) × % → крит → влучив? → блок. */
-  function computeHit(attacker, defender){
-    return RULES.attack(attacker.p, defender.p, attacker.atk === defender.block);
-  }
-
-  /* знос речей Героя за хід (числа — WEAR із sk-arena-rules.js):
-     удар суперника пройшов → усі речі зони; заблокований → щит;
-     мій влучний удар → зброя. Списується з інвентаря наприкінці бою. */
-  function addWear(meHit, opHit){
-    var w = B.wear || (B.wear = newWear());
-    (opHit.hits || [opHit]).forEach(function(h){            // кожен удар суперника окремо
-      if(h.kind==='hit' || h.kind==='crit') w[B.op.atk] = (w[B.op.atk]||0) + (h.kind==='crit' ? WEAR.zoneCrit : WEAR.zoneHit);
-      else if(h.kind==='block') w.shield += h.crit ? WEAR.shieldCritBlock : WEAR.shieldBlock;
-    });
-    (meHit.hits || [meHit]).forEach(function(h){            // кожен мій влучний удар
-      if(h.kind==='hit' || h.kind==='crit') w.weapon += h.kind==='crit' ? WEAR.weaponCrit : WEAR.weaponHit;
-    });
-  }
-
-  /* Наприкінці бою: зменшити durCur речей, які були на Герої в цьому бою, і зберегти
-     інвентар. Знос кожної речі — лише за той час, поки вона була вдягнена
-     (itemWear: від вдягання до зняття), тож перевдягання посеред бою чесне. */
-  function applyWear(bst){
-    var el = $('resWear'); if(el){ el.textContent=''; el.style.display='none'; }
-    if(!bst || !bst.me || !window.SK || !SK.getInventory || !SK.saveInventory) return;
-    if(SK.isHeroSession && !SK.isHeroSession()) return;
-    var byUid = {}, any = false;
-    (bst.me.eq||[]).forEach(function(e){
-      if(e.dur == null) return;
-      var w = itemWear(e, bst.wear);
-      if(w > 0){ byUid[e.uid] = (byUid[e.uid]||0) + w; any = true; }
-    });
-    if(!any) return;
-    SK.getInventory().then(function(inv){
-      inv = inv||[];
-      var lost = [];
-      inv.forEach(function(inst){
-        if(!inst || inst.durMax == null || !byUid[inst.uid]) return;
-        var before = Number(inst.durCur != null ? inst.durCur : inst.durMax) || 0;
-        inst.durCur = Math.max(0, before - byUid[inst.uid]);
-        if(inst.durCur !== before) lost.push(((RULES.SLOT_UK||{})[inst.slot] || itemName(inst.id)) + ' −' + (before - inst.durCur) + (inst.durCur===0 ? ' (зламано)' : ''));
-      });
-      if(!lost.length) return;
-      return SK.saveInventory(inv).then(function(){
-        if(el){ el.textContent = '🛠 Знос: ' + lost.join(', '); el.style.display=''; }
-        try{ if(window.EKEQUIP && EKEQUIP.reload) EKEQUIP.reload(); }catch(e){}
-      });
-    }).catch(function(e){ try{ console.error('[арена] знос речей не збережено:', e); }catch(_){} });
-  }
-  function itemName(id){
-    var e = (B && B.me && B.me.eq || []).filter(function(x){ return x.inst && x.inst.id===id; })[0];
-    return (e && e.base && e.base.name) || id;
-  }
-
-  /* ── поломки речей під час бою ──
-     eq — вдягнені речі Героя на старті бою (з міцністю на той момент).
-     Річ виходить з ладу, коли накопичений за бій знос її зони / зброї / щита
-     сягає її міцності. Тоді вона одразу перестає діяти (профіль перераховується),
-     а в журналі з'являється рядок: червоним — якщо зламали твою річ,
-     яскраво жовтим — якщо ти зламав річ суперника. */
-  function eqLite(eq){
-    return (eq||[]).map(function(e){
-      return {uid:e.inst.uid, slot:e.inst.slot, w0:0, dur:(e.inst.durMax==null ? null : Number(e.inst.durCur!=null ? e.inst.durCur : e.inst.durMax)),
-              base:e.base, inst:{uid:e.inst.uid, id:e.inst.id, slot:e.inst.slot, bonus:e.inst.bonus, durMax:e.inst.durMax, durCur:e.inst.durCur}};
-    });
-  }
-  function wearOf(e, w){
-    var z = RULES.zoneOfSlot ? RULES.zoneOfSlot(e.slot) : null;
-    if(z) return w[z]||0;
-    if((RULES.HAND_SLOTS||[]).indexOf(e.slot) >= 0) return (e.base && e.base.category==='Щити') ? w.shield : w.weapon;
-    return 0;
-  }
-  function checkBreaks(){
-    var out = [], eq = B.me.eq || [], w = B.wear || newWear();
-    eq.forEach(function(e){
-      if(e.off || e.broken || e.dur == null || e.dur <= 0) return;
-      if(itemWear(e, w) >= e.dur){
-        e.broken = true; e.inst.durCur = 0;
-        out.push({owner:'me', name:(e.base && e.base.name) || (RULES.SLOT_UK||{})[e.slot] || e.slot});
-      }
-    });
-    if(out.length && RULES.fighter && window.SKIT){
-      // зламане більше не діє: перерахувати бойові показники (сила/HP не змінюються)
-      var np = heroProfile(); np.hp = B.me.p.hp; B.me.p = np;
-    }
-    return out;
-  }
-  /* знос однієї речі за бій: приріст зносу її зони / зброї / щита від моменту,
-     коли її вдягнули (w0), і до зняття (w1) — інакше річ, вдягнута посеред бою,
-     одразу отримала б увесь знос, накопичений до неї */
-  function itemWear(e, w){ return Math.max(0, (e.off ? (e.w1||0) : wearOf(e, w || B.wear || newWear())) - (e.w0||0)); }
-  /* бойовий профіль Героя з речей, що зараз на ньому (не зняті й не зламані) */
-  function heroProfile(){
-    return RULES.fighter({health:hero.health, accuracy:hero.accuracy, agility:hero.agility, mana:hero.mana},
-      (B.me.eq||[]).filter(function(e){ return !e.off; }).map(function(e){ return {base:e.base, inst:e.inst}; }), window.SKIT);
-  }
   function addBreak(b){
     var box = $('steps'); if(!box) return;
     var row = document.createElement('div');
     row.className = 'step brk ' + (b.owner==='me' ? 'lost' : 'won');
     row.innerHTML = '<span class="no">💥</span><span class="txt">'
-      + (b.owner==='me' ? 'Твоя річ вийшла з ладу: ' : 'Ти вивів з ладу річ суперника: ') + b.name + '</span>';
+      + (b.owner==='me' ? 'Твоя річ зламалась (після бою вона зникне): ' : 'Ти вивів з ладу річ суперника: ') + biEsc(b.name) + '</span>';
     // одразу під ходом, у якому зламалось (хід щойно став першим рядком)
     var cur = box.querySelector('.step:not(.brk)');
     box.insertBefore(row, cur ? cur.nextSibling : box.firstChild); box.scrollTop = 0;
-    if(B) B.steps = box.innerHTML;
   }
   /* рядки журналу в хронологічному порядку (для копіювання й файлів):
      на екрані новіші зверху, а хід разом зі своїми поломками — одна група */
@@ -2464,7 +2405,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
   function clearLog(){
     var box = $('steps'); if(!box) return;
     box.innerHTML = '<div class="steps-empty">Журнал очищено. Нові ходи зʼявляться тут…</div>';
-    if(B){ B.steps = ''; saveBattle(); }
+    if(B) UI.logFrom = (B.log||[]).length;   // лише екран: записи бою лишаються
   }
   function reportAbuse(){
     var box = $('steps');
@@ -2483,38 +2424,27 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
               function(){ showToast('Не вдалося надіслати', 'Спробуй ще раз пізніше'); });
   }
 
-  function resolve(){
-    if(!B || B.over || B.resolving) return;
-    B.resolving = true; stopTimer();
+  /* хід: auto — час вийшов без натискання «Атака» (пропущений хід) */
+  function resolve(auto){
+    if(!live() || UI.resolving) return;
+    UI.resolving = true; stopTimer();
     $('strikeBtn').disabled = true;
     if(invOpen()){ BI.sel = null; renderInv(); }
-    if(!B.op.atk) botChoose();
-
-    var meHit = computeHit(B.me, B.op);   // гравець → суперник
-    var opHit = computeHit(B.op, B.me);   // суперник → гравець
-    B.op.f.lastPlayerAtk = B.me.atk;
-    addWear(meHit, opHit);
-    var broke = checkBreaks();
-
-    // застосувати
-    B.op.force -= meHit.dmg;
-    B.me.force -= opHit.dmg;
+    var choice = (B.me.atk && B.me.block) ? {atk:B.me.atk, block:B.me.block} : null;
+    var e = SB.turn(ctx(), B, choice, {auto: auto===true}, Date.now());
+    if(!e){ UI.resolving = false; return; }
+    var meHit = e.meHit, opHit = e.opHit, bid = B.bid;
+    saveBattle();            // хід записано — бій переживе вихід, перезавантаження й обрив звʼязку
 
     // підсвітка зон на фігурі (де влучив гравець)
-    flashZone(B.me.atk, meHit.kind==='block'?'blockflash':'hitflash');
+    flashZone(e.me.atk, meHit.kind==='block'?'blockflash':'hitflash');
 
     // РЕЗУЛЬТАТ атаки → у панель праворуч (лишається), + спливаючі цифри на картках
     setResult(meHit, opHit);
     floatDmg('o', meHit);   // скільки втратив суперник від тебе
     floatDmg('p', opHit);   // скільки втратив ти від суперника
 
-    // журнал: Хід N
-    addStep(B.round,
-      phrase('Ти → '+ZONE_UA[B.me.atk], meHit)
-      + ' <span style="opacity:.5">·</span> '
-      + phrase(B.op.f.name+' → '+ZONE_UA[B.op.atk], opHit)
-      + diceLine('Ти', meHit) + diceLine(B.op.f.name, opHit));
-    broke.forEach(function(b){ addBreak(b); });
+    renderTurn(e);          // журнал: Хід N (+ поломки)
 
     // анімації смужок
     updateForce('o', B.op); updateForce('p', B.me);
@@ -2522,19 +2452,16 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
     if(opHit.dmg>0) shakeCard('pScene');
 
     setTimeout(function(){
-      // кінець бою?
-      var meDown = B.me.force<=0, opDown = B.op.force<=0;
-      if(meDown || opDown){ endBattle(meDown, opDown); return; }
-      // наступний раунд
-      B.round++; $('roundNum').textContent = B.round;
-      // вибір атаки й захисту ЛИШАЄТЬСЯ — можна одразу тиснути «Атака» ще раз
-      // або змінити лише одну зону; знімаємо тільки підсвітку попереднього удару
-      clearFlash(); B.op.atk=null; B.op.block=null;
-      B.resolving = false; refreshStrike();
+      if(!B || B.bid!==bid) return;
+      if(!live()){ finishBattle(); return; }       // кінець бою
+      // наступний раунд; вибір атаки й захисту ЛИШАЄТЬСЯ — можна одразу тиснути
+      // «Атака» ще раз або змінити лише одну зону
+      $('roundNum').textContent = B.round;
+      clearFlash(); applySel();
+      UI.resolving = false; refreshStrike();
       if(invOpen()) renderInv();
-      saveBattle();          // раунд завершено — стан бою переживе вихід і перезавантаження
       startTimer();
-    }, 2600);
+    }, SB.PAUSE_MS);
   }
 
   /* результат ТВОЄЇ атаки → у панель праворуч; випадає й лишається до наступного ходу */
@@ -2598,7 +2525,6 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
     row.innerHTML = '<span class="no">Хід '+n+'</span><span class="txt">'+html+'</span>';
     box.insertBefore(row, box.firstChild);   // новий хід — зверху (журнал знизу вверх)
     box.scrollTop = 0;
-    if(B) B.steps = box.innerHTML;   // журнал належить бою, а не екрану
   }
   function resetSteps(){
     var box = $('steps'); if(box) box.innerHTML = '<div class="steps-empty">Ходи бою зʼявляться тут…</div>';
@@ -2657,55 +2583,70 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
   }
   function shakeCard(id){ var c=$(id); c.classList.add('shake'); setTimeout(function(){ c.classList.remove('shake'); },400); }
 
-  function endBattle(meDown, opDown){
-    B.over = true; B.resolving = true; stopTimer();
-    closeInv();
-    clearBattle();
-    var res = $('result');
-    // досвід за перемогу / нічию × коефіцієнт різниці сил (SKARENA.xpCoef, ±50%)
-    var coef = (RULES.xpCoef && B.me.p && B.op.p) ? RULES.xpCoef(B.me.p, B.op.p) : 1;
-    B.xpCoef = coef;
-    if(meDown && opDown){
-      arena.draws++;
-      finishResult(false, '🤝', 'Нічия!', 'Обидва бійці видихлись — гідний бій!', Math.round(CFG.xpDraw*coef), coef);
-    }else if(opDown){
-      arena.wins++;
-      finishResult(true, '🏆', 'Перемога!', B.op.f.name + ' здається. Ти виграв бій!', Math.round(CFG.xpWin*coef), coef);
-    }else{
-      arena.losses++;
-      finishResult(false, '🛡️', 'Не цього разу', 'Витривалість скінчилась. Наступного разу вийде!', CFG.xpLose);
-    }
-  }
-
-  function finishResult(win, em, big, txt, xp, coef){
-    var before = arena.level;
-    arena.xp += xp;
-    // рівні
-    var leveled = [];
-    while(arena.xp >= xpNeed(arena.level)){
-      arena.xp -= xpNeed(arena.level);
-      arena.level++;
-      leveled.push(arena.level);
-    }
+  /* ── КІНЕЦЬ БОЮ ──
+     Підсумок (B.summary) уже порахував рушій. Тут — одна транзакція в базу
+     (SK.finishBattle: знос, зникнення зламаних речей, досвід, статистика) і
+     екран результату. Немає звʼязку — копія бою лишається на пристрої й
+     запишеться при наступному відкритті (повтор нічого не подвоює). */
+  var SEEN_KEY = 'sk_battle_seen';
+  function markSeen(bid){ try{ localStorage.setItem(SEEN_KEY, bid); }catch(e){} }
+  function setArena(A){
+    if(!A) return;
+    arena.level = +A.level || 1; arena.xp = +A.xp || 0;
+    arena.wins = +A.wins || 0; arena.losses = +A.losses || 0; arena.draws = +A.draws || 0;
     saveArena();
-    applyWear(B);
-
-    var res = $('result');
-    res.className = 'result ' + (win?'win':'lose');
-    $('resEm').textContent = em;
-    $('resBig').textContent = big;
-    $('resTxt').textContent = txt;
-    if(xp>0){
-      var cn = (coef && Math.abs(coef-1) >= 0.01) ? ' (×' + coef.toFixed(2).replace('.', ',') + (coef > 1 ? ' — суперник сильніший' : ' — суперник слабший') + ')' : '';
-      $('resXp').textContent = '+' + xp + ' досвіду' + cn; $('resXp').style.display='';
+  }
+  function finishBattle(){
+    if(!B || live() || !B.summary || UI.finishing === B.bid) return;
+    var st = B, s = st.summary;
+    UI.finishing = st.bid; UI.resolving = true;
+    stopTimer(); stopTicker(); closeInv();
+    try{ renderLog(); }catch(e){}                    // журнал (і доіграні без гравця ходи) — для збереження
+    localPut(st);                                    // поки не записано — копія на пристрої
+    var done;
+    if(remote()) done = SK.finishBattle(st, {level:arena.level, xp:arena.xp, wins:arena.wins, losses:arena.losses, draws:arena.draws});
+    else{
+      // без сесії Героя (демо) — лише статистика на цьому пристрої
+      var r = SB.applyToHero(ctx(), {arena: arena}, s);
+      done = Promise.resolve(r && r.fields ? {leveled:r.leveled, arena:r.fields.arena} : null);
     }
-    else { $('resXp').style.display='none'; }
+    done.then(function(r){
+      if(r && r.arena) setArena(r.arena);
+      localDrop(st.bid); markSeen(st.bid);
+      showResult(st, r, false);
+      pullHeroStats(); try{ if(window.EKEQUIP && EKEQUIP.reload) EKEQUIP.reload(); }catch(e){}
+      try{ if(window.SKHeaderRefresh) SKHeaderRefresh(); }catch(e){}
+    }, function(e){
+      try{ console.error('[арена] підсумок бою не записано:', e); }catch(_){}
+      showResult(st, null, true);
+    }).then(function(){ UI.finishing = null; UI.resolving = false; });
+  }
+  function showResult(st, r, pending){
+    var s = st.summary || {};
+    var res = $('result');
+    var V = s.surrender ? ['🏳️', 'Ти здався', 'Ти вийшов із бою — зараховано поразку.']
+      : s.result==='win'  ? ['🏆', 'Перемога!', st.op.f.name + ' здається. Ти виграв бій!']
+      : s.result==='draw' ? ['🤝', 'Нічия!', 'Обидва бійці видихлись — гідний бій!']
+      : ['🛡️', 'Не цього разу', 'Витривалість скінчилась. Наступного разу вийде!'];
+    res.className = 'result ' + (s.result==='win' && !s.afk ? 'win' : 'lose');
+    $('resEm').textContent = V[0]; $('resBig').textContent = V[1]; $('resTxt').textContent = V[2];
+    if(s.xp > 0){
+      var coef = s.coef, cn = (s.result!=='lose' && coef && Math.abs(coef-1) >= 0.01) ? ' (×' + coef.toFixed(2).replace('.', ',') + (coef > 1 ? ' — суперник сильніший' : ' — суперник слабший') + ')' : '';
+      $('resXp').textContent = '+' + s.xp + ' досвіду' + cn; $('resXp').style.display='';
+    }else $('resXp').style.display='none';
+    var note = SB.noticeText(s) + (pending ? ' Підсумок запишеться, щойно зʼявиться звʼязок.' : '');
+    var nt = $('resNote'); if(nt){ nt.textContent = note; nt.style.display = note ? '' : 'none'; }
+    var el = $('resWear');
+    if(el){
+      var lines = (s.items||[]).map(function(i){ return i.name + ' −' + i.lost + (i.gone ? ' (зламано — зникла)' : ''); });
+      el.textContent = lines.length ? '🛠 Знос: ' + lines.join(', ') : ''; el.style.display = lines.length ? '' : 'none';
+    }
     res.hidden = false;
-
+    var leveled = (r && r.leveled) || [];
     if(leveled.length){
       var top = leveled[leveled.length-1];
-      var newSkill = SKILLS.filter(function(s){ return leveled.indexOf(s.lv)>=0; });
-      var sub = newSkill.length ? ('Відкрито: '+newSkill.map(function(s){return s.nm;}).join(', ')) : ('Тепер ти '+rankName(top).toLowerCase());
+      var newSkill = SKILLS.filter(function(k){ return leveled.indexOf(k.lv)>=0; });
+      var sub = newSkill.length ? ('Відкрито: '+newSkill.map(function(k){return k.nm;}).join(', ')) : ('Тепер ти '+rankName(top).toLowerCase());
       showToast('Рівень ' + top + '! 🎉', sub);
     }
   }
@@ -2757,13 +2698,14 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
     $('fleeBtn').addEventListener('click', function(){
       // вихід під час активного бою = здача → гравцю зараховується програш.
       // Питаємо, бо кнопка стоїть одразу під «Атака»: випадковий дотик не
-      // повинен коштувати поразки (вийти на паузу можна кнопкою «Назад»).
+      // повинен коштувати поразки.
       if(hasLiveBattle()){
-        if(!confirm('Здатися і вийти з бою? Буде зараховано поразку.\n\nЩоб просто вийти в таверну й продовжити бій пізніше — тисни «← Назад».')) return;
-        B.over = true; B.resolving = true; stopTimer();
-        clearBattle();
-        arena.losses++;
-        finishResult(false, '🏳️', 'Ти здався', 'Ти вийшов із бою — зараховано поразку.', 0);
+        if(UI.resolving) return;
+        if(!confirm('Здатися і вийти з бою? Буде зараховано поразку, досвіду не буде, знос речей запишеться.\n\n«← Назад» виводить у таверну, але бій НЕ стає на паузу: поки тебе немає, герой б\'є й захищає ті самі зони, що востаннє.')) return;
+        stopTimer();
+        SB.surrender(ctx(), B, Date.now());
+        saveBattle();
+        finishBattle();
       }else{
         show('tavern');
       }
@@ -2804,8 +2746,8 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 
     var back=$('heroBackBtn');
     if(back) back.addEventListener('click', function(){
-      // під час бою «Назад» = пауза: бій чекає в таверні, а не зникає
-      if(!$('screen-battle').classList.contains('hidden')){ saveBattle(); show('tavern'); return; }
+      // під час бою «Назад» — у таверну; бій іде далі (ходи без гравця робляться самі)
+      if(!$('screen-battle').classList.contains('hidden')){ saveBattle(); show('tavern'); startTicker(); return; }
       location.href='igry.html';
     });
   }
@@ -2910,6 +2852,16 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
       if(guest) guest.classList.remove('on');
     }catch(e){}
   }
+  /* підсумок бою, якого дитина ще не бачила (бій доіграно без неї) */
+  function showLastNotice(h){
+    var L = h && h.lastBattle; if(!L || !L.bid) return;
+    var seen = null; try{ seen = localStorage.getItem(SEEN_KEY); }catch(e){}
+    if(seen === L.bid || UI.finishing) return;
+    markSeen(L.bid);
+    var t = SB.noticeText(L);
+    var head = L.result==='win' ? (L.afk ? 'Бій завершено без тебе' : 'Бій завершено: перемога!') : L.result==='draw' ? 'Бій завершено: нічия' : 'Бій завершено: поразка';
+    if(t || L.xp) showToast(head, (L.xp ? '+' + L.xp + ' досвіду. ' : '') + t);
+  }
   async function pullHeroStats(){
     var isHero = !!(window.SK && SK.isHeroSession && SK.isHeroSession());
     if(isHero){
@@ -2920,19 +2872,23 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
       applyLiveStats(h);
       cacheStats();                       // зберегти справжні стати для наступних відкриттів
     }
-    if(!(B && !B.over)) renderTavern();    // не перемальовувати під час активного бою
+    if(!live()) renderTavern();            // не перемальовувати під час активного бою
+    showLastNotice(h);
     fillHeaderFallback();                  // коли не сесія Героя — заповнити смужку кешем/демо
   }
 
   function boot(){
     loadArena(); loadCachedStats(); loadEquip(); wire();
-    var saved = loadSavedBattle();
-    if(saved) restoreBattle(saved);   // бій чекає — таверна запропонує «Продовжити бій»
+    // бій старого формату (до окремого простору бою) — скасовуємо, не зараховуючи
+    var old = null; try{ old = localStorage.getItem(OLD_BATTLE_KEY); if(old) localStorage.removeItem(OLD_BATTLE_KEY); }catch(e){}
+    if(old) setTimeout(function(){ showToast('Незавершений бій скасовано', 'Арену оновлено: той бій не зараховано і речі не зношено'); }, 600);
+    var loc = localGet(); if(loc && loc.status==='live'){ B = loc; startTicker(); }   // поки база не відповіла — копія (і ходи без гравця йдуть)
     renderTavern(); show('tavern');
-    // підтягнути справжнього героя з бази (той самий шлях, що й у хедері)
+    // підтягнути справжнього героя з бази (той самий шлях, що й у хедері) і бій
     whenSK(function(){
-      try{ window.SK.ready.then(function(){ pullHeroStats(); }); }catch(e){}
+      try{ window.SK.ready.then(function(){ pullHeroStats(); return loadBattle().then(adopt); }); }catch(e){}
     });
+    if(!window.SK) setTimeout(function(){ if(!window.SK) adopt(localGet()); }, 6000);
     // хедер показує «увійди» лише коли немає сесії Героя; кількома спробами
     // гарантовано перекриваємо його кешованими/демо статами (обганяємо showGuest)
     setTimeout(fillHeaderFallback, 250);
@@ -2940,7 +2896,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
     setTimeout(fillHeaderFallback, 1500);
     // повертаємось на арену після гри в іншій вкладці — тягнемо свіжі стати
     document.addEventListener('visibilitychange', function(){
-      if(document.visibilityState==='visible') pullHeroStats();
+      if(document.visibilityState==='visible'){ pullHeroStats(); resync(); }
     });
     window.addEventListener('focus', pullHeroStats);
     window.addEventListener('pageshow', function(e){ if(e.persisted) pullHeroStats(); });
@@ -3014,16 +2970,19 @@ function backToBag(inst){
  for(var i=0;i<ALL_INST.length;i++){var x=ALL_INST[i];if(x!==inst&&!x.slot&&ST()&&ST().sameStack(x,inst)){x.qty=(Number(x.qty)||1)+(Number(inst.qty)||1);ALL_INST.splice(ALL_INST.indexOf(inst),1);return true;}}
  if(bagFull()){bagFullMsg();return false;}
  inst.slot=null;return true;}
-function equipToBelt(u,idx){var inst=findInst(u);if(!inst)return;var e=entryOf(inst);if(!e||!e.usable)return;if(idx<0||idx>=BELT.length)return;
+function equipToBelt(u,idx){if(inBattle())return;var inst=findInst(u);if(!inst)return;var e=entryOf(inst);if(!e||!e.usable)return;if(idx<0||idx>=BELT.length)return;
  var cur=BELT[idx];if(cur&&cur._inst&&!backToBag(cur._inst))return;
  if((Number(inst.qty)||1)>1){inst.qty=(Number(inst.qty)||1)-1;var one=JSON.parse(JSON.stringify(inst));one.qty=1;one.uid=(window.SKIT&&SKIT.newUid)?SKIT.newUid():('inv_'+Date.now().toString(36));one.slot='belt'+idx;ALL_INST.push(one);}
  else inst.slot='belt'+idx;
  rebuild();renderAll();persist();}
-function unequipBelt(idx){var e=BELT[idx];if(!e||!e._inst)return;if(!backToBag(e._inst))return;rebuild();renderAll();persist();}
-function moveBelt(a,b){if(a===b)return;var ea=BELT[a];if(!ea)return;var eb=BELT[b];if(ea._inst)ea._inst.slot='belt'+b;if(eb&&eb._inst)eb._inst.slot='belt'+a;rebuild();renderAll();persist();}
+function unequipBelt(idx){if(inBattle())return;var e=BELT[idx];if(!e||!e._inst)return;if(!backToBag(e._inst))return;rebuild();renderAll();persist();}
+function moveBelt(a,b){if(inBattle())return;if(a===b)return;var ea=BELT[a];if(!ea)return;var eb=BELT[b];if(ea._inst)ea._inst.slot='belt'+b;if(eb&&eb._inst)eb._inst.slot='belt'+a;rebuild();renderAll();persist();}
 /* Пишемо інвентар лише якщо справді його прочитали: інакше невдале
    завантаження (обрив, правила) затерло б у базі все, що там лежало. */
 /* Після збереження оновлюємо стати в хедері: вони враховують вдягнені речі. */
+/* Поки Герой у бою, спорядження лише для перегляду: бій іде з копією речей,
+   а основний запис змінюється тільки після бою (SK.finishBattle). */
+function inBattle(){if(window.SKARENA_LIVE&&SKARENA_LIVE()){if(window.showToast)showToast('⚔ Герой у бою','Спорядження можна змінити після бою');return true;}return false;}
 function persist(){try{if(loaded&&window.SK&&SK.saveInventory)Promise.resolve(SK.saveInventory(ALL_INST)).then(function(){if(window.SKHeaderRefresh)SKHeaderRefresh();});}catch(e){}}
 var EQUIP={helmet:null,armor:null,gloves:null,bracers:null,belt:null,pants:null,boots:null,weaponR:null,weaponL:null,ring1:null,ring2:null,amulet:null};
 var TABS=[
@@ -3063,7 +3022,7 @@ function showCard(el){var x=entryOfChip(el);if(!x)return;hideTip();
  if(!card){card=document.createElement('div');card.id='ek-card';card.hidden=true;document.body.appendChild(card);
   card.addEventListener('click',function(e){if(e.target===card||(e.target.closest&&e.target.closest('.ic-x')))hideCard();
    var tb=e.target.closest&&e.target.closest('[data-trash]');
-   if(tb&&confirm('Викинути річ у смітник? До півночі її ще можна повернути.')){hideCard();storeAct('trashItem',tb.getAttribute('data-trash'));}});
+   if(tb&&!inBattle()&&confirm('Викинути річ у смітник? До півночі її ще можна повернути.')){hideCard();storeAct('trashItem',tb.getAttribute('data-trash'));}});
   card.addEventListener('contextmenu',function(e){e.preventDefault();});}
  var base=BYID[x.id],eff=(base&&window.SKIT&&SKIT.effective)?SKIT.effective(base,x._inst||{bonus:1}):null;
  var bc=bonusClass(x.bonus!=null?x.bonus:1);
@@ -3166,7 +3125,7 @@ function renderStore(){var host=q('ek-store');if(!host)return;var ch=STORE.chest
   +'<div class="ek-shint">Викинуте зникне опівночі. Натисни, щоб повернути в сумку.</div><div class="ek-belt">'
   +tr.map(function(t){return storeChip(t.inst,'restore','повернути');}).join('')+'</div></div>';
  host.innerHTML=h;host.hidden=false;}
-function storeAct(fn){if(!(window.SK&&SK[fn]))return;var args=[].slice.call(arguments,1);
+function storeAct(fn){if(!(window.SK&&SK[fn]))return;if(inBattle())return;var args=[].slice.call(arguments,1);
  return SK[fn].apply(SK,args).then(function(){loaded=false;return loadData();}).then(function(){try{if(window.SKHeaderRefresh)SKHeaderRefresh();}catch(e){}})
   .catch(function(e){var m=(e&&e.message)||String(e);if(window.showToast)showToast('Не вийшло',m);else alert(m);});}
 document.addEventListener('click',function(e){var b=e.target.closest?e.target.closest('[data-sact]'):null;if(!b)return;
@@ -3181,14 +3140,14 @@ function R0(){return window.SKARENA||{};}
 function twoHanded(e){return !!(e&&R0().isTwoHanded&&R0().isTwoHanded(BYID[e.id]));}
 function handMsg(t){if(window.showToast)showToast('Дворучна зброя',t);}
 function firstFree(cat){var s;for(s in SLOT_CAT)if(SLOT_CAT[s]===cat&&!EQUIP[s])return s;for(s in SLOT_CAT)if(SLOT_CAT[s]===cat)return s;return null;}
-function equipFromInv(u,slotId){var inst=findInst(u);if(!inst)return;var e=entryOf(inst);if(!e||!compat(e.cat,slotId))return;var cur=EQUIP[slotId];
+function equipFromInv(u,slotId){if(inBattle())return;var inst=findInst(u);if(!inst)return;var e=entryOf(inst);if(!e||!compat(e.cat,slotId))return;var cur=EQUIP[slotId];
  // руки: дворучна знімає річ з лівої руки; щит знімає дворучну
  var also=null;if(slotId==='weaponR'&&twoHanded(e))also=EQUIP.weaponL;else if(slotId==='weaponL'&&twoHanded(EQUIP.weaponR))also=EQUIP.weaponR;
  if(also&&cur&&ST()&&ST().bagCount(ALL_INST)+1>ST().BAG_LIMIT){bagFullMsg();return;}
  if(cur&&cur._inst)cur._inst.slot=null;if(also&&also._inst)also._inst.slot=null;inst.slot=slotId;rebuild();renderAll();persist();
  if(also)handMsg(slotId==='weaponR'?'Займає обидві руки — «'+also.name+'» знято в сумку':'«'+also.name+'» займає обидві руки — знято в сумку');}
-function unequip(slotId){var e=EQUIP[slotId];if(!e||!e._inst)return;if(bagFull()){bagFullMsg();return;}e._inst.slot=null;rebuild();renderAll();persist();}
-function moveSlot(a,b){if(a===b)return;var ea=EQUIP[a];if(!ea)return;if(!compat(ea.cat,b))return;var eb=EQUIP[b];if(ea._inst)ea._inst.slot=b;if(eb&&eb._inst)eb._inst.slot=a;rebuild();renderAll();persist();}
+function unequip(slotId){if(inBattle())return;var e=EQUIP[slotId];if(!e||!e._inst)return;if(bagFull()){bagFullMsg();return;}e._inst.slot=null;rebuild();renderAll();persist();}
+function moveSlot(a,b){if(inBattle())return;if(a===b)return;var ea=EQUIP[a];if(!ea)return;if(!compat(ea.cat,b))return;var eb=EQUIP[b];if(ea._inst)ea._inst.slot=b;if(eb&&eb._inst)eb._inst.slot=a;rebuild();renderAll();persist();}
 
 var ghost=null;function mkGhost(){if(ghost)return;ghost=document.createElement('div');ghost.id='ek-ghost';ghost.hidden=true;document.body.appendChild(ghost);}
 var drag=null,down=null;
