@@ -447,6 +447,11 @@
   .cc-rw .tr-reward input[list],.cc-rw .tr-reward .rw-coins,.cc-rw .tr-reward .rw-chance{height:30px;padding:2px 8px;font-size:.85rem}
   .cc-rw .tr-reward .rw-coins{width:84px}
   .cc-rw .tr-reward .rw-chance{width:84px}
+  .cc-rw.rw-off{opacity:.45}
+  .cc-rw .rw-range{flex:0 0 auto;font-size:.72rem;font-weight:800;color:var(--muted);min-width:58px;white-space:nowrap}
+  .cc-rw .rw-on{flex:0 0 auto;width:18px;height:18px;margin:0;accent-color:var(--ok);cursor:pointer}
+  .cc-rw .rw-del{flex:0 0 auto;height:30px;padding:0 9px}
+  .tr-reward.x-off > :not(.rw-on):not(.rw-del){opacity:.45}
   .cc-flags{grid-column:1 / -1;display:flex;flex-wrap:wrap;align-items:center;gap:8px 22px}
   .cc-flags .hint{margin:0}
   .field label.switch,label.switch{display:inline-flex}
@@ -771,6 +776,8 @@
 
 <!-- Спільна карта королівства (звичайний скрипт — до інлайну нижче) -->
 <script src="sk-curriculum.js?v=8"></script>
+<!-- Нагороди: нормалізація й шанси колеса — спільні з видачею (test.html, тренажери) -->
+<script src="sk-rewards.js?v=4"></script>
 
 <!-- Firebase / SK API (модуль, deferred) -->
 <script type="module" src="firebase-config.js"></script>
@@ -2005,13 +2012,10 @@ function cardFormatSel(cur){
 }
 
 /* ── НАГОРОДИ ──
-   Один блок для всіх форматів. Склад залежить від того, що сутність
-   реально зберігає сьогодні: у тесту це характеристика з одиницями,
-   у випробування — предмети з шансами й монетки. Розширити обидва
-   набори на обидва типи — це нові поля в базі, тож окремим кроком. */
+   Один блок для всіх форматів: характеристика (завжди лише раз) +
+   колесо фортуни + додаткові нагороди. Видають test.html і тренажери
+   через sk-rewards.js. */
 function cardRewardsHtml(o, fmt){
-  /* Нагороди однакові для всіх форматів: характеристика + до 4 слотів
-     «предмет/шанс/монетки». Видачу предметів робимо окремим етапом. */
   /* «Фіксовано» означає різне: у тесті з рівнями — за кожен уперше пройдений
      рівень (так дає test.html і так рахує «Базові характеристики Героя»),
      у плаского тесту — раз, коли тест пройдено на 100%, у тренажера чи гри —
@@ -2029,18 +2033,55 @@ function cardRewardsHtml(o, fmt){
     + cfld('s1', 'Скільки', '<input type="number" min="0" data-cf="statValue" value="' + esc(String(o.statValue == null ? 1 : o.statValue)) + '">')
     + '<div class="field s6"><span class="hint" id="statTotal">' + statTotalHint(o) + '</span></div>';
 
-  const rw = Array.isArray(o.rewards) ? o.rewards : [];
-  let rows = '';
-  for(let r = 0; r < 4; r++){
-    const x = rw[r] || {};
-    rows += '<div class="tr-reward">'
-      + '<span class="rw-badge">🎁 ' + (r + 1) + '</span>'
-      + '<input type="text" list="trItems" data-cf="rItem" data-r="' + r + '" placeholder="ID предмета (IT-001)" value="' + esc(x.item || '') + '">'
-      + '<select class="rw-chance" data-cf="rChance" data-r="' + r + '" title="Шанс випадіння (крок 10%)">' + trChanceOpts(x.chance) + '</select>'
-      + '<input type="number" class="rw-coins" min="0" step="1" data-cf="rCoins" data-r="' + r + '" placeholder="🪙" title="Монетки" value="' + (x.coins ? esc(String(x.coins)) : '') + '">'
+  /* Колесо фортуни (шанси 40/30/20/10 — сталі) + додаткові нагороди зі
+     своїм шансом. Монети кожного виграшу — «кубик» ±50% від суми. */
+  const rw = cardRw(o);
+  h += '<div class="cc-flags">'
+    + cswitch('wheelOn', rw.wheel.on, '🎡 Колесо фортуни',
+        'Випадає рівно один із 4 пунктів: 40% / 30% / 20% / 10%. Порожні пункти не крутяться.')
+    + cswitch('rwRepeat', rw.repeat, '🔁 Нагорода при кожному проходженні',
+        'Вимкнено — нагорода один раз. Увімкнено — щоразу; у тесті з рівнями прогрес після нагороди обнуляється. Характеристика — завжди лише раз.')
     + '</div>';
-  }
-  return h + '<div class="cc-rw" title="Предмети й монетки поки лише зберігаються — видачу налаштуємо окремо">' + rows + '</div>';
+
+  let rows = '';
+  rw.wheel.slots.forEach((x, r) => {
+    rows += '<div class="tr-reward">'
+      + '<span class="rw-badge" title="Шанс пункту колеса">🎡 ' + window.SKREWARD.WHEEL[r] + '%</span>'
+      + '<input type="text" list="trItems" data-cf="wItem" data-r="' + r + '" placeholder="ID предмета (IT-001)" value="' + esc(x.item || '') + '">'
+      + '<input type="number" class="rw-coins" min="0" step="1" data-cf="wCoins" data-r="' + r + '" placeholder="🪙" title="Монетки (±50%)" value="' + (x.coins ? esc(String(x.coins)) : '') + '">'
+      + '<span class="rw-range">' + coinRange(x.coins) + '</span>'
+    + '</div>';
+  });
+  h += '<div class="cc-rw' + (rw.wheel.on ? '' : ' rw-off') + '">' + rows + '</div>';
+
+  let xs = '';
+  rw.extras.forEach((x, r) => {
+    xs += '<div class="tr-reward' + (x.on ? '' : ' x-off') + '">'
+      + '<input type="checkbox" class="rw-on" data-cf="xOn" data-r="' + r + '"' + (x.on ? ' checked' : '') + ' title="Використовувати цю нагороду">'
+      + '<input type="text" list="trItems" data-cf="xItem" data-r="' + r + '" placeholder="ID предмета (IT-001)" value="' + esc(x.item || '') + '">'
+      + '<select class="rw-chance" data-cf="xChance" data-r="' + r + '" title="Шанс випадіння (крок 10%)">' + trChanceOpts(x.chance) + '</select>'
+      + '<input type="number" class="rw-coins" min="0" step="1" data-cf="xCoins" data-r="' + r + '" placeholder="🪙" title="Монетки (±50%)" value="' + (x.coins ? esc(String(x.coins)) : '') + '">'
+      + '<span class="rw-range">' + coinRange(x.coins) + '</span>'
+      + '<button class="btn xs rw-del" type="button" data-xdel="' + r + '" title="Прибрати">✕</button>'
+    + '</div>';
+  });
+  h += '<div class="cc-sec">➕ Додаткові нагороди <span class="hint">кожна випадає за своїм шансом; монети з колесом складаються</span></div>'
+    + (xs ? '<div class="cc-rw">' + xs + '</div>' : '')
+    + '<div class="cc-q"><button class="btn xs" id="cardXAdd" type="button">＋ Додати нагороду</button></div>';
+  return h;
+}
+/* rewards запису в новому вигляді {wheel, extras, repeat}: старий масив
+   слотів перетворюється тут же (колесо увімкнене, якщо щось виставлено). */
+function cardRw(o){
+  const rw = o.rewards;
+  if(!rw || Array.isArray(rw) || !rw.wheel || !Array.isArray(rw.extras)) o.rewards = window.SKREWARD.norm(rw);
+  return o.rewards;
+}
+/* Вилка монет після «кубика» ±50% — щоб адмін бачив реальний розкид. */
+function coinRange(c){
+  c = Math.max(0, Math.floor(Number(c) || 0));
+  if(!c) return '';
+  return '🎲 ' + Math.max(1, Math.round(c * 0.5)) + '–' + Math.round(c * 1.5);
 }
 /* Поле щільної сітки картки: s1/s2/s3/s6 — скільки колонок із 6 займає. */
 /* Підсумок під нагородою: скільки характеристики дає весь запис — та сама
@@ -2180,19 +2221,43 @@ function onCardInput(e){
     case 'resetOnWrong': o.resetOnWrong = !!v; break;
     case 'linkHref':  o.linkHref = v.trim(); break;
     case 'tform':     o.format = v; renderCard(); return;
-    case 'rItem':
-    case 'rChance':
-    case 'rCoins': {
-      const r = Number(el.dataset.r) || 0;
-      if(!Array.isArray(o.rewards)) o.rewards = [];
-      while(o.rewards.length <= r) o.rewards.push({});
-      const slot = o.rewards[r];
-      if(f === 'rItem')       slot.item = v.trim();
-      else if(f === 'rCoins') slot.coins = Math.max(0, Math.floor(Number(v) || 0));
-      else                    slot.chance = Math.max(0, Math.min(100, Math.round((Number(v) || 0) / 10) * 10));
+    case 'wheelOn':  cardRw(o).wheel.on = !!v; if(e.type === 'change') renderCard(); break;
+    case 'rwRepeat': cardRw(o).repeat = !!v; break;
+    case 'wItem':
+    case 'wCoins': {
+      const slot = cardRw(o).wheel.slots[Number(el.dataset.r) || 0]; if(!slot) break;
+      if(f === 'wItem') slot.item = v.trim();
+      else { slot.coins = Math.max(0, Math.floor(Number(v) || 0)); rwRangeUpd(el, slot.coins); }
+      break;
+    }
+    case 'xOn':
+    case 'xItem':
+    case 'xChance':
+    case 'xCoins': {
+      const x = cardRw(o).extras[Number(el.dataset.r) || 0]; if(!x) break;
+      if(f === 'xOn'){ x.on = !!v; const row = el.closest('.tr-reward'); if(row) row.classList.toggle('x-off', !x.on); }
+      else if(f === 'xItem')  x.item = v.trim();
+      else if(f === 'xCoins'){ x.coins = Math.max(0, Math.floor(Number(v) || 0)); rwRangeUpd(el, x.coins); }
+      else                    x.chance = Math.max(0, Math.min(100, Math.round((Number(v) || 0) / 10) * 10));
       break;
     }
   }
+}
+
+function rwRangeUpd(el, c){
+  const sp = el.parentNode && el.parentNode.querySelector('.rw-range');
+  if(sp) sp.textContent = coinRange(c);
+}
+/* Додаткові нагороди: додати рядок (галка за замовчуванням вимкнена) / прибрати. */
+function cardXAdd(){
+  const o = cardObj(); if(!o) return;
+  cardRw(o).extras.push({ on:false, item:'', chance:100, coins:0 });
+  renderCard();
+}
+function cardXDel(r){
+  const o = cardObj(); if(!o) return;
+  cardRw(o).extras.splice(r, 1);
+  renderCard();
 }
 
 /* Старий тест-посилання → випробування. Окремо від cardSetFormat, бо
@@ -3880,7 +3945,10 @@ function bindEvents(){
     $('mapCardBody').addEventListener('change', onCardInput);
     $('mapCardBody').addEventListener('click', e => {
       if(e.target.closest('#cardEditQ')){ const o = cardObj(); if(o){ EDIT_RETURN = 'card'; openEditor(o); } return; }
-      if(e.target.closest('#cardUnhide')){ cardUnhide(); }
+      if(e.target.closest('#cardUnhide')){ cardUnhide(); return; }
+      if(e.target.closest('#cardXAdd')){ cardXAdd(); return; }
+      const xd = e.target.closest('[data-xdel]');
+      if(xd){ cardXDel(Number(xd.getAttribute('data-xdel')) || 0); }
     });
   }
   if($('mapCardSave')) $('mapCardSave').onclick = cardSave;

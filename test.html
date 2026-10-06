@@ -57,6 +57,14 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .chip{background:#eaf4ff;border:1px solid var(--line);color:var(--ink-2);border-radius:999px;padding:6px 12px;font-weight:800;font-size:.82rem}
 .chip.gold{color:var(--gold-ink);border-color:rgba(242,169,0,.5);background:#fff3d0}
 .reward-line{text-align:center;font-weight:700;color:var(--ink-2);font-size:.92rem;margin:6px 0 4px}
+/* нагорода з адмінки: предмет(и) + монети */
+.loot{display:flex;flex-direction:column;align-items:center;gap:8px;margin:8px 0 2px}
+.loot-coins{display:inline-flex;align-items:center;gap:6px;background:#fff3d0;border:2px solid rgba(242,169,0,.6);color:var(--gold-ink);border-radius:999px;padding:5px 14px;font-weight:900;font-size:1rem}
+.loot-item{display:flex;align-items:center;gap:10px;width:100%;max-width:320px;background:#fff;border:2px solid var(--line);border-radius:16px;padding:8px 10px;text-align:left}
+.loot-pic{width:52px;height:52px;flex:none;border-radius:12px;display:grid;place-items:center;font-size:28px;background:linear-gradient(160deg,#efe4ff,#d3bcff)}
+.loot-pic img{width:100%;height:100%;object-fit:contain;padding:4px}
+.loot-name{font-weight:900;color:var(--ink);line-height:1.2}
+.loot-meta{font-size:.75rem;font-weight:700;color:var(--muted)}
 .warn{background:var(--red-soft);border:1px solid rgba(214,66,88,.45);color:var(--red-ink);border-radius:14px;padding:10px 12px;font-size:.85rem;font-weight:700;text-align:center;margin-top:12px}
 .warn a{color:var(--red-ink);text-decoration:underline;font-weight:900}
 
@@ -181,6 +189,9 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 <script src="sk-curriculum.js?v=8"></script>
 <script src="sk-covers.js?v=16"></script>
 <script type="module" src="firebase-config.js"></script>
+<!-- Нагорода з адмінки (колесо фортуни, додаткові нагороди, монети) -->
+<script src="sk-items.js?v=3"></script>
+<script src="sk-rewards.js?v=4"></script>
 
 <script>
 /* ── Запобіжник: sk-curriculum.js має бути завантажений і не старіший за потрібний.
@@ -216,8 +227,13 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
    Характеристики, що реально зберігаються (saveHeroStats):
      health, mana, agility, accuracy. Заблоковані стати поки не
      персистяться — XP усе одно нараховується.
-   Захист від «фарму»: нагорода — один раз (плаский тест — маркер
-   sk_dbtestrw_<id>, рівні — мапа пройдених рівнів); повтор дає 0 до стата.
+   Захист від «фарму»: характеристика — один раз (плаский тест — маркер
+   sk_dbtestrw_<id>, рівні — мапа sk_lvtest_<id>_ever, рівні, за які стат
+   уже видано); повтор дає 0 до стата.
+   Предмети й монети (колесо фортуни + додаткові нагороди) видає
+   sk-rewards.js: за повне проходження (усі рівні / тест на 100%) — раз,
+   або щоразу, якщо в адмінці увімкнено «Нагорода при кожному проходженні».
+   Тоді в тесті з рівнями прогрес рівнів після нагороди обнуляється.
    ============================================================ */
 
 /* нічне небо */
@@ -431,6 +447,15 @@ function genQuestions(count, levelNum){
 function lvKey(kind){ return 'sk_lvtest_'+TEST.id+'_'+kind; }
 function loadDone(){ try{ var o=JSON.parse(localStorage.getItem(lvKey('done'))||'{}'); return (o&&typeof o==='object'&&!Array.isArray(o))?o:{}; }catch(e){ return {}; } }
 function loadStars(){ try{ var o=JSON.parse(localStorage.getItem(lvKey('stars'))||'{}'); return (o&&typeof o==='object'&&!Array.isArray(o))?o:{}; }catch(e){ return {}; } }
+/* Рівні, за які характеристику вже видано (за весь час). Спершу — копія done:
+   до появи цієї мапи стат давали саме за пройдені рівні. */
+function loadEver(){
+  try{
+    var raw=localStorage.getItem(lvKey('ever'));
+    var o=raw ? JSON.parse(raw) : loadDone();
+    return (o&&typeof o==='object'&&!Array.isArray(o))?o:{};
+  }catch(e){ return {}; }
+}
 function saveJSON(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 function isUnlocked(i){ if(i<=0) return true; return !!loadDone()[levelId(i-1)]; }
 
@@ -472,7 +497,15 @@ function rewardText(){
     var nLv=IS_LEVELS?levelsArr().length:0;
     if(nLv>1 && TEST.statMode!=='perCorrect') st+=' · разом до +'+(sv*nLv)+' за '+nLv+' '+rivnivWord(nLv);
   }
-  return {st:st};
+  return {st:st, loot:lootText()};
+}
+/* Підказка про нагороду з адмінки. Як працює колесо — не пояснюємо. */
+function lootText(){
+  if(!(window.SKREWARD && SKREWARD.hasLoot(TEST.rewards))) return '';
+  var repeat=SKREWARD.norm(TEST.rewards).repeat;
+  if(!repeat && SKREWARD.wasClaimed(TEST)) return '';
+  return '🎁 '+(IS_LEVELS?'Пройди всі рівні':'Пройди тест без жодної помилки')+' — отримаєш нагороду!'
+    +(repeat?' Можна проходити знову й знову!':'');
 }
 
 function intro(){
@@ -494,6 +527,7 @@ function intro(){
     +'<div class="t-title">'+esc(TEST.title||'Тест')+'</div>'
     +'<div class="chips">'+chips+'</div>'
     +(r.st?'<div class="reward-line">✨ '+r.st+'</div>':'')
+    +(r.loot?'<div class="reward-line">'+r.loot+'</div>':'')
     +warn
     +'<button class="btn" id="startBtn">'+(IS_LEVELS?'▶ Обрати рівень':'▶ Почати')+'</button>'
     +'</div>';
@@ -809,6 +843,7 @@ function finish(){
     +'<div class="result-title">'+head+'</div>'
     +'<div class="result-score">'+correct+' з '+total+' правильно</div>'
     +statLine
+    +'<div id="lootBox"></div>'
     +'<div id="saveNote" class="muted" style="margin:8px 0 2px">'+(HERO_SESSION?'💾 Зберігаємо…':'ℹ️ Увійди Героєм, щоб зберегти нагороду')+'</div>'
     +'<button class="btn" onclick="location.reload()">↻ Пройти ще раз</button>'
     +'<a class="btn ghost" href="hero.html">🦁 До Героя</a>'
@@ -821,6 +856,7 @@ function finish(){
   try{ localStorage.setItem('sk_testscore_'+id, JSON.stringify({pct:pctScore, correct:correct, total:total, passed:(pctScore>=55), at:Date.now()})); }catch(e){}
   var crossed = markPassed(passed);
   if(HERO_SESSION) saveReward(statGain);
+  if(HERO_SESSION && perfect) claimLoot(null);
   if(crossed) setTimeout(showUnlockPopup, 500);
 }
 
@@ -832,8 +868,12 @@ function finishLevel(){
   var id=levelId(i);
   var replay=ST.isReplay;
 
+  /* Стат — лише раз за рівень. Мапа «ever» тримає рівні, за які його вже
+     видано: прогрес (done) може обнулитись після нагороди за проходження,
+     а характеристика повторно не дається ніколи. */
+  var ever=loadEver();
   var statGain = TEST.statMode==='perCorrect' ? num(TEST.statValue)*correct : num(TEST.statValue);
-  if(replay){ statGain = 0; }   // повтор рівня: без стата
+  if(replay || ever[id]){ statGain = 0; }   // повтор рівня: без стата
 
   var pctScore = total? Math.round(correct/total*100) : 0;
   var stars = pctScore>=90?3 : pctScore>=70?2 : 1;
@@ -843,13 +883,17 @@ function finishLevel(){
   // зберігаємо зірки/пройдено/розблокування
   var starsMap=loadStars(); if((parseInt(starsMap[id],10)||0)<stars){ starsMap[id]=stars; saveJSON(lvKey('stars'),starsMap); }
   var doneMap=loadDone(); doneMap[id]=true; saveJSON(lvKey('done'),doneMap);
-  // тест вважається пройденим, коли завершено ≥55% його рівнів
+  ever[id]=true; saveJSON(lvKey('ever'),ever);
+  // тест вважається пройденим, коли завершено ≥55% його рівнів (за весь час — обнулення прогресу цього не забирає)
   var totalLevels=levelsArr().length;
-  var crossed = markPassed(totalLevels>0 && (Object.keys(doneMap).length/totalLevels)>=PASS_RATIO);
-  try{ if(totalLevels>0 && Object.keys(doneMap).length>=totalLevels) localStorage.setItem('sk_test100_'+TEST.id,'1'); }catch(e){}   // усі рівні → у Досягнення
+  var everCnt=Object.keys(ever).length;
+  var crossed = markPassed(totalLevels>0 && (everCnt/totalLevels)>=PASS_RATIO);
+  try{ if(totalLevels>0 && everCnt>=totalLevels) localStorage.setItem('sk_test100_'+TEST.id,'1'); }catch(e){}   // усі рівні → у Досягнення
+  // Пройдено всі рівні в цьому колі → нагорода з адмінки
+  var runDone = totalLevels>0 && levelsArr().every(function(L,k){ return !!doneMap[levelId(k)]; });
   // Результат (по рівнях) для перевірки батьком
   try{
-    var _lvDone=Object.keys(doneMap).length, _lvPct= totalLevels? Math.round(_lvDone/totalLevels*100):0;
+    var _lvDone=everCnt, _lvPct= totalLevels? Math.round(_lvDone/totalLevels*100):0;
     localStorage.setItem('sk_testscore_'+TEST.id, JSON.stringify({pct:_lvPct, correct:_lvDone, total:totalLevels, levels:true, passed:(_lvPct>=55), at:Date.now()}));
   }catch(e){}
 
@@ -874,6 +918,7 @@ function finishLevel(){
     +'<div class="result-title">'+head+'</div>'
     +'<div class="result-score">'+correct+' з '+total+' правильно · '+'⭐'.repeat(stars)+'</div>'
     +statLine
+    +'<div id="lootBox"></div>'
     +'<div id="saveNote" class="muted" style="margin:8px 0 2px">'+(HERO_SESSION?'💾 Зберігаємо…':'ℹ️ Увійди Героєм, щоб зберегти нагороду')+'</div>'
     +nextBtn
     +'</div>';
@@ -882,7 +927,43 @@ function finishLevel(){
   var mb=document.getElementById('menuBtn'); if(mb) mb.onclick=levelMenu;
 
   if(HERO_SESSION) saveReward(statGain);
+  if(HERO_SESSION && runDone) claimLoot(function(){ saveJSON(lvKey('done'),{}); });
   if(crossed) setTimeout(showUnlockPopup, 500);
+}
+
+/* Нагорода з адмінки: колесо фортуни + додаткові нагороди (sk-rewards.js).
+   Стат тут не видаємо — він уже нарахований вище й лише раз.
+   onRepeat() — нагороду видано в режимі «при кожному проходженні»
+   (тест із рівнями обнуляє прогрес, щоб коло можна було пройти знову). */
+function claimLoot(onRepeat){
+  if(!(window.SKREWARD && SKREWARD.hasLoot(TEST.rewards))) return;
+  var box=document.getElementById('lootBox');
+  if(box) box.innerHTML='<div class="muted">Відкриваємо нагороду… 🎁</div>';
+  SKREWARD.claim({rec:TEST, skipStat:true}).then(function(res){
+    box=document.getElementById('lootBox'); if(!box) return;
+    res=res||{skipped:true};
+    if(res.skipped || (res.already && !res.restored)){ box.innerHTML=''; return; }
+    if(res.failed){
+      box.innerHTML='<div class="warn">Нагорода не збереглась — заберемо її, щойно буде звʼязок 🎁</div>';
+      return;
+    }
+    var items=res.items||[];
+    var html='<div class="reward-line">'+(res.already?'🎁 Ось твоя нагорода!':'🎁 Твоя нагорода:')+'</div>';
+    if(res.coins>0) html+='<span class="loot-coins">+'+res.coins+' 🪙</span>';
+    html+=items.map(function(it){
+      return '<div class="loot-item"><div class="loot-pic"><img src="'+esc(it.img)+'" alt="" '
+        +'onerror="this.onerror=null;this.parentNode.textContent=\'🎁\'"></div>'
+        +'<div><div class="loot-name">'+esc(it.name)+'</div><div class="loot-meta">Додано в інвентар героя</div></div></div>';
+    }).join('');
+    if(res.repeat && onRepeat){
+      onRepeat();
+      html+='<div class="reward-line">🔁 Прогрес скинуто — пройди тест ще раз і отримай нову нагороду!</div>';
+      try{ if(SK.pushLocal) SK.pushLocal().catch(function(){}); }catch(e){}
+    } else if(res.repeat && !IS_LEVELS){
+      html+='<div class="reward-line">🔁 Пройди тест ще раз без помилок — і отримаєш нову нагороду!</div>';
+    }
+    box.innerHTML='<div class="loot">'+html+'</div>';
+  });
 }
 
 function saveReward(statGain){
