@@ -1996,7 +1996,19 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
   }
   function hasLiveBattle(){ return !!(B && !B.over); }
   // магазин питає: чи йде бій (тоді він закритий)
-  window.SKARENA_LIVE = function(){ return hasLiveBattle() || !!loadSavedBattle(); };
+  /* Збережений бій міг не підтягнутись при завантаженні сторінки (герой ще не
+     визначився, або бій збережено в іншій вкладці). Тоді таверна казала «Почати бій»,
+     а магазин — «Спершу заверши бій». Тепер підтягуємо його тут, і кнопка
+     показує «Продовжити бій». */
+  function adoptSavedBattle(){
+    if(hasLiveBattle()) return true;
+    var saved = loadSavedBattle();
+    if(!saved) return false;
+    restoreBattle(saved); renderTavern();
+    return true;
+  }
+  // магазин питає: чи йде бій (тоді він закритий)
+  window.SKARENA_LIVE = function(){ return adoptSavedBattle(); };
 
   /* намалювати сцену бою за поточним станом B */
   function paintBattle(){
@@ -2028,9 +2040,9 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
   function startBattle(){
     // Незавершений бій не перезапускаємо: інакше «почати ще раз» було б
     // безкоштовним лікуванням і втечею від поразки.
-    if(hasLiveBattle()){ enterBattle(); return; }
+    if(adoptSavedBattle()){ enterBattle(); return; }   // незавершений бій (і з іншої вкладки) — продовжуємо його
     // поки герой у магазині (у цій чи іншій вкладці) — новий бій не почати
-    if(window.SKSHOP && SKSHOP.isOpen()){ showToast('Спершу вийди з магазину', 'Бій можна почати, коли герой не в магазині'); return; }
+    if(window.SKSHOP && SKSHOP.isOpen()){ showToast('Спершу вийди з магазину', 'Магазин відкритий — можливо, в іншій вкладці. Закрий його там (✕) і спробуй ще раз'); return; }
     if(startBattle.busy) return; startBattle.busy = true;
     loadHeroFighter().then(function(r){
       var mp = r.p;
