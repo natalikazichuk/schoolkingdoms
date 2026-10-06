@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Чек-лист тестування — Магазин</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<style>
+:root{
+  --ink:#20232e;--soft:#6b6f80;--paper:#f4f6fb;--card:#fff;--line:#e4e8f0;
+  --blue:#3b6fd4;--blue-d:#2b56a8;--good:#2fa96a;--good-bg:#e5f7ee;--bad:#e0554f;--bad-bg:#fceceb;
+  --amber:#e0a42a;--p1:#e0554f;--p2:#e0a42a;--p3:#7a86a8;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{font-family:'Nunito',system-ui,sans-serif;color:var(--ink);background:var(--paper);
+  padding:16px;padding-bottom:60px;display:flex;flex-direction:column;align-items:center}
+.wrap{width:100%;max-width:820px}
+h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;margin:0}
+
+/* header */
+.head{background:linear-gradient(135deg,#1e3a6b,#16294f);color:#fff;border-radius:20px;padding:20px;
+  box-shadow:0 8px 24px rgba(22,41,79,.25);border-top:4px solid var(--amber)}
+.head h1{font-size:24px;line-height:1.15}
+.head p{margin:4px 0 0;color:#c7d6ee;font-weight:800;font-size:13px}
+.summary{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.stat{background:rgba(255,255,255,.1);border-radius:14px;padding:10px 14px;flex:1;min-width:90px}
+.stat b{font-family:'Fredoka';font-size:26px;display:block;line-height:1}
+.stat span{font-size:11px;font-weight:800;color:#c7d6ee;text-transform:uppercase;letter-spacing:.4px}
+.stat.pass b{color:#7ee6ac}.stat.fail b{color:#ff9d97}.stat.todo b{color:#ffe08a}
+.pbar{height:12px;background:rgba(255,255,255,.15);border-radius:8px;overflow:hidden;margin-top:14px;display:flex}
+.pbar .pg{height:100%;transition:width .4s}
+.pbar .pg.p{background:linear-gradient(90deg,#2fa96a,#7ee6ac)}
+.pbar .pg.f{background:linear-gradient(90deg,#e0554f,#ff9d97)}
+.pct{font-weight:800;font-size:12px;color:#c7d6ee;margin-top:6px}
+
+/* intro */
+.intro{background:#eaf1fc;border:1px solid #cfe0fa;border-radius:14px;padding:12px 15px;margin:14px 0;
+  font-weight:700;font-size:13.5px;line-height:1.5;color:var(--blue-d)}
+.intro b{color:var(--ink)}
+.intro .tag{display:inline-block;background:#fff;border:1px solid #cfe0fa;border-radius:8px;padding:1px 8px;font-family:'Fredoka';font-size:12px;color:var(--blue-d)}
+
+/* toolbar */
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:16px 0}
+.filters{display:flex;gap:6px;background:#fff;border:2px solid var(--line);border-radius:12px;padding:4px}
+.filters button{border:none;background:none;font:800 13px 'Nunito';color:var(--soft);padding:7px 11px;border-radius:9px;cursor:pointer}
+.filters button.on{background:var(--blue);color:#fff}
+.spacer{flex:1}
+.tbtn{border:2px solid var(--line);background:#fff;border-radius:12px;padding:8px 12px;font:800 13px 'Nunito';
+  color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.tbtn:active{transform:translateY(1px)}
+.tbtn.danger{color:var(--bad);border-color:#f3cfcd}
+
+/* sections */
+.section{background:var(--card);border:1px solid var(--line);border-radius:16px;margin-bottom:14px;overflow:hidden;
+  box-shadow:0 2px 8px rgba(30,40,70,.05)}
+.shead{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;user-select:none}
+.shead h3{font-size:17px;flex:1}
+.schip{font-family:'Fredoka';font-size:13px;color:var(--soft);background:var(--paper);border-radius:20px;padding:3px 10px}
+.smini{width:70px;height:8px;background:var(--paper);border-radius:6px;overflow:hidden;flex:none}
+.smini span{display:block;height:100%;background:var(--good);transition:width .4s}
+.caret{color:var(--soft);font-size:14px;transition:transform .2s}
+.section.closed .caret{transform:rotate(-90deg)}
+.section.closed .rows{display:none}
+.rows{border-top:1px solid var(--line)}
+
+.row{display:flex;gap:10px;align-items:flex-start;padding:12px 16px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:none}
+.row.pass{background:var(--good-bg)}
+.row.fail{background:var(--bad-bg)}
+.row.hide{display:none}
+.rid{font-family:'Fredoka';font-size:12px;color:var(--blue-d);background:#eaf1fc;border-radius:8px;padding:3px 7px;flex:none;margin-top:2px}
+.prio{font-size:10px;font-weight:800;color:#fff;border-radius:6px;padding:2px 6px;flex:none;margin-top:3px}
+.prio.P1{background:var(--p1)}.prio.P2{background:var(--p2)}.prio.P3{background:var(--p3)}
+.rbody{flex:1;min-width:0}
+.rtext{font-weight:700;font-size:14.5px;line-height:1.35}
+.rtext .warn{display:inline-block;background:#fff3d6;color:#8a6300;border:1px solid #ecd28a;border-radius:6px;padding:0 6px;font-size:12px;font-weight:800;margin-right:5px}
+.note{margin-top:6px;width:100%;border:1px dashed var(--line);border-radius:8px;padding:6px 9px;
+  font:600 13px 'Nunito';color:var(--ink);background:#fff;display:none}
+.row.noteon .note{display:block}
+.acts{display:flex;gap:6px;flex:none}
+.mark{width:38px;height:38px;border-radius:11px;border:2px solid var(--line);background:#fff;font-size:17px;
+  cursor:pointer;display:grid;place-items:center;color:var(--soft)}
+.mark.p.on{background:var(--good);border-color:var(--good);color:#fff}
+.mark.f.on{background:var(--bad);border-color:var(--bad);color:#fff}
+.mark.n{font-size:15px}
+.mark.n.on{background:var(--amber);border-color:var(--amber);color:#fff}
+
+.foot{text-align:center;color:var(--soft);font-size:12px;font-weight:700;margin-top:10px;line-height:1.6}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#20232e;color:#fff;
+  padding:11px 18px;border-radius:12px;font-weight:800;font-size:14px;opacity:0;pointer-events:none;transition:.25s;z-index:50}
+.toast.on{opacity:1}
+@media(max-width:520px){.rid{display:none}.head h1{font-size:20px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="head">
+    <h1>🛒 Чек-лист тестування · Магазин</h1>
+    <p>Магазин · Прилавок · Викуп · Сумка · Скриня · Смітник · Адмінка · SchoolKingdoms</p>
+    <div class="summary">
+      <div class="stat pass"><b id="cPass">0</b><span>Працює</span></div>
+      <div class="stat fail"><b id="cFail">0</b><span>Проблема</span></div>
+      <div class="stat todo"><b id="cTodo">0</b><span>Лишилось</span></div>
+      <div class="stat"><b id="cAll">0</b><span>Усього</span></div>
+    </div>
+    <div class="pbar"><span class="pg p" id="pgP" style="width:0"></span><span class="pg f" id="pgF" style="width:0"></span></div>
+    <div class="pct" id="pctTxt">0% перевірено</div>
+  </div>
+
+  <div class="intro">
+    <b>Підготовка:</b> увійти як Герой (<span class="tag">Вова</span>), додати гроші в Console: <span class="tag">SK.addCoins(1000000)</span>.
+    У сумці мати: цілу річ без бонусу, річ із бонусом +10/+20%, зношену (~50%) і зламану (0%) речі, стопку зілля ×3; вдягнути пояс з 1–2 комірками.
+    Тести — в <b>одній</b> вкладці арени, крім пунктів, де потрібні дві. Ціни в сріблі: <b>100 сріб = 1 зол</b>.
+  </div>
+
+  <div class="toolbar">
+    <div class="filters">
+      <button data-f="all" class="on" onclick="setFilter('all')">Усі</button>
+      <button data-f="todo" onclick="setFilter('todo')">Не перевірені</button>
+      <button data-f="fail" onclick="setFilter('fail')">Проблеми</button>
+      <button data-f="pass" onclick="setFilter('pass')">Працюють</button>
+    </div>
+    <div class="spacer"></div>
+    <button class="tbtn" onclick="copySummary()">📋 Підсумок</button>
+    <button class="tbtn" onclick="expandAll(true)">▾ Розгорнути</button>
+    <button class="tbtn danger" onclick="resetAll()">↺ Скинути</button>
+  </div>
+
+  <div id="sections"></div>
+
+  <div class="foot">
+    Прогрес зберігається на цьому пристрої (localStorage). Пріоритет: P1 — критично · P2 — важливо · P3 — додатково.<br>
+    ⚠️ = поточний стан незавершеної функції — читай текст пункта уважно (це не завжди баг).
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── ДАНІ: тест-кейси (з plan-testuvannya-08-09.md) ── */
+const DATA=[
+ {id:"0",title:"Опис функціоналу (що має бути)",items:[
+   {id:"M-01",p:"P1",t:"Доступ: плитка «Магазин» у таверні арени; працює лише для Героя"},
+   {id:"M-02",p:"P1",t:"Магазин закритий, поки є незавершений бій (також з іншої вкладки)"},
+   {id:"M-03",p:"P1",t:"Поки магазин відкритий — бій не почати в жодній вкладці (замок оновлюється кожні 30 с, старший за 2 хв не діє)"},
+   {id:"M-04",p:"P2",t:"Розмітка: 🎒 Сумка → 🧾 Прилавок ← 🏪 Товари; на телефоні — згори вниз"},
+   {id:"M-05",p:"P1",t:"Асортимент: 20 речей + 5 зілль/сувоїв, серед них завжди є зілля здоровʼя"},
+   {id:"M-06",p:"P1",t:"У продаж потрапляють лише активні речі з ціною > 0 і без 🚫 «Недоступна в магазині»"},
+   {id:"M-07",p:"P2",t:"Асортимент свій для кожного Героя, однаковий протягом доби, оновлюється опівночі (Київ)"},
+   {id:"M-08",p:"P1",t:"Прилавок: річ у сумці → «Продаю»; товар → «Купую» (можна кілька разів); рядок на прилавку → повернути"},
+   {id:"M-09",p:"P1",t:"Підсумок «Маєш / Продаж / Купівля / Буде»; нічого не змінюється до «🤝 Укласти угоду»"},
+   {id:"M-10",p:"P1",t:"Угода з підтвердженням; одна транзакція (монети + сумка + продане разом)"},
+   {id:"M-11",p:"P1",t:"Не вистачає грошей або місця — угода неактивна / не відбувається"},
+   {id:"M-12",p:"P1",t:"Купівля: без бонусу (1.0), повна міцність, опізнана; однакові зілля — у стопку"},
+   {id:"M-13",p:"P1",t:"Продаж лише із сумки (вдягнене — спершу зняти); стопка продається уся"},
+   {id:"M-14",p:"P1",t:"Ціна продажу = ціна × бонус × міцність ÷ 10, не менше 1 сріб за штуку"},
+   {id:"M-15",p:"P1",t:"Викуп: продане сьогодні — за тією самою ціною, до півночі (Київ); повертається та сама річ"},
+   {id:"M-16",p:"P1",t:"Сумка: до 100 речей (вдягнене й пояс не рахуються); у пояс — одна фляжка зі стопки"},
+   {id:"M-17",p:"P2",t:"🎁 Скриня для нагород, що не влізли: 30 місць, зберігаються 3 доби"},
+   {id:"M-18",p:"P2",t:"🗑 Смітник: викинуте можна повернути до півночі"},
+   {id:"M-19",p:"P2",t:"Адмінка «Предмети»: 🛒/🚫 «Недоступна в магазині» — у рядку, картці та фільтрі"}
+ ]},
+ {id:"A",title:"Доступ і блокування",items:[
+   {id:"M-A01",p:"P1",t:"Без входу Героя → «Відкрити» магазин: магазин не працює, видно повідомлення про вхід (не вічне «Завантаження…»)"},
+   {id:"M-A02",p:"P1",t:"Почати бій → «← Назад» → «Відкрити»: «Спершу заверши бій», кнопка бою — «Продовжити бій»"},
+   {id:"M-A03",p:"P1",t:"Завершити бій (перемога / поразка / здача) → «Відкрити»: магазин відкривається"},
+   {id:"M-A04",p:"P1",t:"Вийти з бою на 1-му раунді (здатися) → Ctrl+F5: «Продовжити бій» НЕ зʼявляється, магазин відкривається"},
+   {id:"M-A05",p:"P1",t:"Магазин відкритий у вкладці 1 → у вкладці 2 «Почати бій»: «Спершу вийди з магазину… можливо, в іншій вкладці»"},
+   {id:"M-A06",p:"P2",t:"Закрити магазин (✕) у вкладці 1 → у вкладці 2 «Почати бій»: бій починається"},
+   {id:"M-A07",p:"P3",t:"Відкрити магазин і закрити вкладку → через 2+ хв в іншій вкладці «Почати бій»: бій починається (замок прострочився)"},
+   {id:"M-A08",p:"P2",t:"Бій у вкладці 2 → у вкладці 1 (таверна) «Відкрити»: «Спершу заверши бій»; після завершення бою у вкладці 2 — вкладка 1 повертає «Почати бій»"},
+   {id:"M-A09",p:"P2",t:"Закрити магазин кнопкою ✕, клавішею Esc і кліком повз вікно: усі три способи закривають, прилавок очищено"},
+ ]},
+ {id:"B",title:"Асортимент",items:[
+   {id:"M-B01",p:"P1",t:"Вкладки: «Речі (20)», «Зілля (5)», «Викуп (0)»; серед зілль є зілля здоровʼя"},
+   {id:"M-B02",p:"P1",t:"Закрити/відкрити магазин і F5: той самий набір товарів"},
+   {id:"M-B03",p:"P2",t:"Інший Герой: інший набір"},
+   {id:"M-B04",p:"P2",t:"Після 00:00 за Києвом: новий набір"},
+   {id:"M-B05",p:"P1",t:"Адмінка: позначити 🚫 річ із сьогоднішнього набору → відкрити магазин: цієї речі немає"},
+   {id:"M-B06",p:"P2",t:"Адмінка: зробити річ неактивною (○) → у магазині не зʼявляється"},
+   {id:"M-B07",p:"P2",t:"Картка товару: іконка, назва, до 3 характеристик, ціна в зол/сріб (150 → «1 зол 50 сріб»)"},
+ ]},
+ {id:"C",title:"Прилавок",items:[
+   {id:"M-C01",p:"P1",t:"Натиснути річ у сумці → лягає в «💰 Продаю» з ціною (+), у сумці стає блідою"},
+   {id:"M-C02",p:"P1",t:"Натиснути товар двічі → дві позиції в «🛍 Купую»"},
+   {id:"M-C03",p:"P1",t:"Натиснути рядок на прилавку → річ повертається назад"},
+   {id:"M-C04",p:"P2",t:"«Очистити» → прилавок порожній"},
+   {id:"M-C05",p:"P1",t:"Покупок більше, ніж грошей → «Буде: не вистачає X» червоним, «Укласти угоду» неактивна"},
+   {id:"M-C06",p:"P2",t:"Додати продаж, щоб вистачило → кнопка активна, «Буде» = маєш + продаж − купівля"},
+   {id:"M-C07",p:"P2",t:"Сумка 99/100 → купити 2 речі → «Сумка 101/100 — забагато речей», кнопка неактивна"},
+   {id:"M-C08",p:"P3",t:"Сумка 100/100 → купити зілля, яке вже є стопкою → дозволено (нова комірка не потрібна)"},
+   {id:"M-C09",p:"P2",t:"Закрити магазин з речами на прилавку → відкрити знову: прилавок порожній, гроші й сумка без змін"},
+ ]},
+ {id:"D",title:"Угода і ціни",items:[
+   {id:"M-D01",p:"P1",t:"Купити 1 річ → «Укласти угоду» → підтвердити: гроші −ціна, «Угоду укладено 🤝»"},
+   {id:"M-D02",p:"P1",t:"Куплена річ у сумці: без бонусу (біла назва), міцність 100%, характеристики видно (опізнана)"},
+   {id:"M-D03",p:"P2",t:"Скасувати вікно підтвердження → нічого не змінилось"},
+   {id:"M-D04",p:"P1",t:"Продати цілу річ без бонусу (ціна 150) → +15 сріб"},
+   {id:"M-D05",p:"P1",t:"Продати річ +20% (ціна 150), міцність 50% → +9 сріб (150 × 1,2 × 0,5 ÷ 10)"},
+   {id:"M-D06",p:"P1",t:"Продати зламану річ (0%) → +1 сріб"},
+   {id:"M-D07",p:"P2",t:"Продати стопку зілля ×3 (ціна 100) → +30 сріб, стопка зникає повністю"},
+   {id:"M-D08",p:"P1",t:"Купити 2 однакових зілля → одна стопка ×2 (або +2 до наявної стопки)"},
+   {id:"M-D09",p:"P1",t:"Змішана угода (продати 2, купити 3) → баланс = маєш + продаж − купівля"},
+   {id:"M-D10",p:"P2",t:"Після угоди гроші оновились у шапці й в інвентарі"},
+   {id:"M-D11",p:"P1",t:"F5 після угоди → усе збереглось (гроші, куплені речі, продане зникло)"},
+ ]},
+ {id:"E",title:"Викуп",items:[
+   {id:"M-E01",p:"P1",t:"Продати річ → вкладка «Викуп»: річ є, ціна ↩ = ціна продажу"},
+   {id:"M-E02",p:"P1",t:"Викупити → повернулась та сама річ: той самий бонус і міцність"},
+   {id:"M-E03",p:"P2",t:"Продати → викупити → знову продати: без виграшу й без втрат"},
+   {id:"M-E04",p:"P3",t:"Після 00:00 за Києвом: вкладка «Викуп» порожня"},
+ ]},
+ {id:"F",title:"Сумка, пояс, скриня, смітник",items:[
+   {id:"M-F01",p:"P2",t:"Інвентар: біля «Речі» лічильник «N/100»; вдягнене й пояс не рахуються"},
+   {id:"M-F02",p:"P1",t:"Вдягнена річ НЕ показується в сумці магазину (продаж лише із сумки)"},
+   {id:"M-F03",p:"P1",t:"Стопка зілля ×3 → натиснути (у пояс): у поясі 1 фляжка, у сумці ×2"},
+   {id:"M-F04",p:"P1",t:"Зняти фляжку з пояса → стопка знову ×3"},
+   {id:"M-F05",p:"P2",t:"Сумка 100/100 → зняти вдягнену річ: «Сумка повна», річ лишається вдягненою"},
+   {id:"M-F06",p:"P1",t:"Права кнопка / довге натискання на річ у сумці → «🗑 Викинути» → підтвердити: річ у 🗑 Смітнику, сумка −1"},
+   {id:"M-F07",p:"P1",t:"Натиснути річ у смітнику → повернулась у сумку"},
+   {id:"M-F08",p:"P3",t:"Після 00:00 за Києвом: смітник порожній"},
+   {id:"M-F09",p:"P2",t:"Сумка 100/100 → пройти тренажер з нагородою-річчю: річ у 🎁 Скрині з позначкою «ще 3 д»"},
+   {id:"M-F10",p:"P2",t:"Звільнити місце → натиснути річ у скрині: річ у сумці"},
+   {id:"M-F11",p:"P3",t:"Скриня 30/30 + повна сумка + нова нагорода: нагорода зникає, помилок немає"},
+ ]},
+ {id:"G",title:"Надійність",items:[
+   {id:"M-G01",p:"P1",t:"Вимкнути інтернет → укласти угоду: «Угода не відбулась», гроші й речі без змін"},
+   {id:"M-G02",p:"P2",t:"Покласти річ на прилавок, у вкладці 2 її продати / викинути → угода у вкладці 1: «Угода не відбулась — річ уже не в сумці», дані перезавантажились"},
+   {id:"M-G03",p:"P2",t:"Батьки схвалюють завдання з монетами під час угоди: обидві суми враховано"},
+   {id:"M-G04",p:"P2",t:"Швидкий подвійний клік «Укласти угоду»: угода відбувається один раз"},
+   {id:"M-G05",p:"P3",t:"Console без червоних помилок під час відкриття магазину й угоди"},
+ ]},
+ {id:"H",title:"Вигляд",items:[
+   {id:"M-H01",p:"P2",t:"Компʼютер ≥1300px: магазин у три колонки; плитка «Магазин» у лівому верхньому куті таверни"},
+   {id:"M-H02",p:"P2",t:"Екран 860–1299px: плитка під заголовком «Турнірна арена», не налазить на нього"},
+   {id:"M-H03",p:"P1",t:"Телефон (~390px): сумка → прилавок → товари згори вниз; плитка — компактний рядок; усе натискається"},
+   {id:"M-H04",p:"P3",t:"Довгі назви речей обрізаються на 2 рядки, сітка не ламається"},
+ ]},
+ {id:"I",title:"Адмінка «Предмети»",items:[
+   {id:"M-I01",p:"P1",t:"Кнопка 🛒 у рядку → 🚫; лічильник фільтра «🚫 Не в магазині» +1"},
+   {id:"M-I02",p:"P2",t:"Галочка «🚫 Недоступна в магазині» в картці речі → «Зберегти» → після перезавантаження збереглась"},
+   {id:"M-I03",p:"P2",t:"Фільтр «🚫 Не в магазині» показує лише позначені речі"},
+ ]},
+];
+
+const KEY='sk-test-checklist-magazyn-v2';
+let store={st:{},notes:{},open:{}}; // st: id->'pass'|'fail'; notes: id->text; open: sectionId->bool
+let filter='all';
+
+function load(){ try{const s=JSON.parse(localStorage.getItem(KEY)); if(s){store=Object.assign(store,s);store.st=s.st||{};store.notes=s.notes||{};store.open=s.open||{};}}catch(e){} }
+function save(){ try{localStorage.setItem(KEY,JSON.stringify(store));}catch(e){} }
+load();
+
+const ALL=DATA.reduce((n,s)=>n+s.items.length,0);
+function counts(){
+  let p=0,f=0; for(const k in store.st){ if(store.st[k]==='pass')p++; else if(store.st[k]==='fail')f++; }
+  return {p,f,todo:ALL-p-f};
+}
+function secCounts(sec){ let p=0,f=0; sec.items.forEach(it=>{const s=store.st[it.id]; if(s==='pass')p++; else if(s==='fail')f++;}); return {p,f,n:sec.items.length}; }
+
+function render(){
+  const root=document.getElementById('sections'); root.innerHTML='';
+  DATA.forEach(sec=>{
+    const sc=secCounts(sec);
+    const closed = store.open[sec.id]===false;
+    const el=document.createElement('div'); el.className='section'+(closed?' closed':'');
+    const done=sc.p+sc.f;
+    el.innerHTML=
+      '<div class="shead" onclick="toggleSec(\''+sec.id+'\')">'+
+        '<span class="caret">▾</span>'+
+        '<h3></h3>'+
+        '<span class="schip">'+done+'/'+sc.n+'</span>'+
+        '<div class="smini"><span style="width:'+Math.round(sc.p/sc.n*100)+'%"></span></div>'+
+      '</div><div class="rows"></div>';
+    el.querySelector('h3').textContent=sec.id+'. '+sec.title;
+    const rows=el.querySelector('.rows');
+    sec.items.forEach(it=>{
+      const st=store.st[it.id]||'';
+      if(filter==='todo'&&st!=='') return;
+      if(filter==='fail'&&st!=='fail') return;
+      if(filter==='pass'&&st!=='pass') return;
+      const hasNote=!!(store.notes[it.id]);
+      const row=document.createElement('div');
+      row.className='row'+(st?' '+st:'')+(hasNote?' noteon':'');
+      row.innerHTML=
+        '<span class="rid">'+it.id+'</span>'+
+        '<span class="prio '+it.p+'">'+it.p+'</span>'+
+        '<div class="rbody"><div class="rtext"></div>'+
+          '<input class="note" placeholder="нотатка / дефект…" value="">'+
+        '</div>'+
+        '<div class="acts">'+
+          '<button class="mark p'+(st==='pass'?' on':'')+'" title="Працює" onclick="mark(\''+it.id+'\',\'pass\')">✔</button>'+
+          '<button class="mark f'+(st==='fail'?' on':'')+'" title="Проблема" onclick="mark(\''+it.id+'\',\'fail\')">✖</button>'+
+          '<button class="mark n'+(hasNote?' on':'')+'" title="Нотатка" onclick="toggleNote(this)">✎</button>'+
+        '</div>';
+      row.querySelector('.rtext').textContent=it.t;
+      const note=row.querySelector('.note');
+      note.value=store.notes[it.id]||'';
+      note.addEventListener('input',()=>{ store.notes[it.id]=note.value; save(); });
+      rows.appendChild(row);
+    });
+    root.appendChild(el);
+  });
+  updateSummary();
+}
+function updateSummary(){
+  const c=counts();
+  document.getElementById('cPass').textContent=c.p;
+  document.getElementById('cFail').textContent=c.f;
+  document.getElementById('cTodo').textContent=c.todo;
+  document.getElementById('cAll').textContent=ALL;
+  document.getElementById('pgP').style.width=(c.p/ALL*100)+'%';
+  document.getElementById('pgF').style.width=(c.f/ALL*100)+'%';
+  document.getElementById('pctTxt').textContent=Math.round((c.p+c.f)/ALL*100)+'% перевірено · '+c.p+' ✔ / '+c.f+' ✖';
+}
+function mark(id,val){ store.st[id]=(store.st[id]===val)?'':val; if(store.st[id]==='')delete store.st[id]; save(); render(); }
+function toggleNote(btn){ const row=btn.closest('.row'); row.classList.toggle('noteon'); const n=row.querySelector('.note'); if(row.classList.contains('noteon'))n.focus(); }
+function toggleSec(id){ store.open[id]=store.open[id]===false?true:false; save(); render(); }
+function expandAll(open){ DATA.forEach(s=>store.open[s.id]=open); save(); render(); }
+function setFilter(f){ filter=f; document.querySelectorAll('.filters button').forEach(b=>b.classList.toggle('on',b.dataset.f===f)); render(); }
+function resetAll(){ if(!confirm('Скинути всі статуси й нотатки?'))return; store={st:{},notes:{},open:{}}; save(); render(); toast('Скинуто'); }
+
+function copySummary(){
+  const c=counts();
+  let out='ЧЕК-ЛИСТ ТЕСТУВАННЯ — МАГАЗИН — SchoolKingdoms\n';
+  out+='Дата прогону: '+new Date().toLocaleString('uk-UA')+'\n';
+  out+='Працює '+c.p+' · Проблеми '+c.f+' · Лишилось '+c.todo+' · Усього '+ALL+' ('+Math.round((c.p+c.f)/ALL*100)+'% перевірено)\n';
+  const fails=[]; DATA.forEach(s=>s.items.forEach(it=>{ if(store.st[it.id]==='fail') fails.push('  ✖ '+it.id+' — '+it.t+(store.notes[it.id]?(' | '+store.notes[it.id]):'')); }));
+  if(fails.length){ out+='\nПРОБЛЕМИ ('+fails.length+'):\n'+fails.join('\n')+'\n'; }
+  const notes=[]; DATA.forEach(s=>s.items.forEach(it=>{ if(store.notes[it.id]&&store.st[it.id]!=='fail') notes.push('  • '+it.id+': '+store.notes[it.id]); }));
+  if(notes.length){ out+='\nНОТАТКИ:\n'+notes.join('\n')+'\n'; }
+  const done=()=>toast('Підсумок скопійовано');
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(out).then(done).catch(()=>fallbackCopy(out,done)); }
+  else fallbackCopy(out,done);
+}
+function fallbackCopy(text,cb){ const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select();
+  try{document.execCommand('copy');cb();}catch(e){alert(text);} document.body.removeChild(ta); }
+
+let toastT=null;
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'),1600); }
+
+render();
+</script>
+</body>
+</html>
