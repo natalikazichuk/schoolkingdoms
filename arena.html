@@ -1954,15 +1954,34 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
     try{ return (window.SK && SK.activeHeroId) || localStorage.getItem('sk_active_child') || ''; }
     catch(e){ return ''; }
   }
+  /* Бій лежить у localStorage, спільному для всіх вкладок. Вкладка, що стоїть
+     на екрані бою, далі розігрує ходи таймером і зберігає їх — і «воскрешала»
+     бій, який уже завершили в іншій вкладці. Тому в кожного бою є bid: якщо
+     збережений бій зник (завершено деінде) або це вже інший бій — не
+     перезаписуємо, а відходимо в таверну. */
+  function savedRaw(){ try{ return JSON.parse(localStorage.getItem(BATTLE_KEY)||'null'); }catch(e){ return null; } }
+  function dropBattle(other){
+    var onBattle = !$('screen-battle').classList.contains('hidden');
+    stopTimer(); try{ closeInv(); }catch(e){}
+    B = null;
+    if(other) restoreBattle(other);
+    if(onBattle) show('tavern'); else renderTavern();
+    showToast(other ? 'Бій триває в іншій вкладці' : 'Бій завершено в іншій вкладці',
+              other ? 'Тисни «Продовжити бій», щоб грати тут' : 'Можна відкрити магазин або почати новий бій');
+  }
   function saveBattle(){
     if(!B || B.over){ clearBattle(); return; }
+    if(!B.bid) B.bid = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    var cur = savedRaw();
+    if(B._saved && (!cur || (cur.bid && cur.bid !== B.bid))){ dropBattle(cur && loadSavedBattle()); return; }
     try{
       localStorage.setItem(BATTLE_KEY, JSON.stringify({
-        v:1, heroId:battleHeroId(), round:B.round,
+        v:1, bid:B.bid, heroId:battleHeroId(), round:B.round,
         me:{force:B.me.force, max:B.me.max, p:B.me.p, eq:B.me.eq||[], atk:B.me.atk||null, block:B.me.block||null},
         op:{force:B.op.force, max:B.op.max, f:B.op.f},
         steps:B.steps||'', wear:B.wear||newWear(), swapRound:B.swapRound||0
       }));
+      B._saved = true;
     }catch(e){}
   }
   function clearBattle(){ try{ localStorage.removeItem(BATTLE_KEY); }catch(e){} }
@@ -1981,7 +2000,8 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
       round: +o.round || 1, over:false, resolving:false,
       me: {f:hero,    p:o.me.p || plainFighter(hero), eq:o.me.eq || [],             force:o.me.force, max:o.me.max || maxForce(hero),  atk:o.me.atk||null, block:o.me.block||null},
       op: {f:o.op.f,  p:o.op.f.p || plainFighter(o.op.f),         force:o.op.force, max:o.op.max || maxForce(o.op.f), atk:null, block:null},
-      timer:null, left:TURN_SECONDS, steps:o.steps||'', wear:Object.assign(newWear(), o.wear||{}), swapRound:+o.swapRound||0
+      timer:null, left:TURN_SECONDS, steps:o.steps||'', wear:Object.assign(newWear(), o.wear||{}), swapRound:+o.swapRound||0,
+      bid:o.bid||null, _saved:true
     };
     // бій, почату до виправлення, міг рахувати дві речі в одному слоті — лишаємо першу
     var seen = {}, dup = false;
@@ -1995,6 +2015,15 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
     }
   }
   function hasLiveBattle(){ return !!(B && !B.over); }
+  // інша вкладка змінила / завершила бій — синхронізуємось
+  window.addEventListener('storage', function(e){
+    if(e.key !== BATTLE_KEY) return;
+    var onBattle = !$('screen-battle').classList.contains('hidden');
+    if(!e.newValue){ if(B && !B.over && !B.resolving) dropBattle(null); return; }
+    var o = loadSavedBattle(); if(!o) return;
+    if(onBattle){ if(B && !B.over && !B.resolving) dropBattle(o); }   // грають в іншій вкладці — тут відходимо
+    else if(!(B && B.over)){ B = null; restoreBattle(o); renderTavern(); }
+  });
   // магазин питає: чи йде бій (тоді він закритий)
   /* Збережений бій міг не підтягнутись при завантаженні сторінки (герой ще не
      визначився, або бій збережено в іншій вкладці). Тоді таверна казала «Почати бій»,
