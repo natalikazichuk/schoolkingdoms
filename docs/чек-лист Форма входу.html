@@ -85,6 +85,24 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;margin:0}
 .sev{background:#fff;border:1.5px solid currentColor}
 .sev.Critical{color:var(--s1)}.sev.Major{color:var(--s2)}.sev.Minor{color:var(--s3)}.sev.Trivial{color:var(--s4)}
 .tags button.edited{box-shadow:0 0 0 2px #fff,0 0 0 3.5px var(--blue)}
+/* діалог зміни пріоритету / серйозності */
+.tagdlg{border:none;border-radius:18px;padding:0;width:min(420px,calc(100vw - 32px));box-shadow:0 20px 60px rgba(20,30,60,.35);color:var(--ink)}
+.tagdlg::backdrop{background:rgba(20,30,60,.45)}
+.tagdlg form{padding:20px}
+.tagdlg h3{font-size:18px;margin:0 0 4px}
+.tagdlg .tdcheck{margin:0 0 14px;color:var(--soft);font-weight:700;font-size:13px;line-height:1.4}
+.tdopts{display:grid;gap:8px}
+.tdopt{display:flex;align-items:center;gap:10px;border:2px solid var(--line);border-radius:12px;padding:9px 12px;cursor:pointer;font-weight:700;font-size:13px}
+.tdopt:has(input:checked){border-color:var(--blue);background:#eef3fd}
+.tdopt input{accent-color:var(--blue);width:16px;height:16px;margin:0}
+.tdopt b{font-size:11px;border-radius:6px;padding:2px 7px;min-width:64px;text-align:center}
+.tdopt small{color:var(--soft);font-weight:700;margin-left:auto;font-size:11px}
+.tdchange{margin:14px 0 0;padding:10px 12px;border-radius:10px;background:var(--paper);font-weight:800;font-size:13px;min-height:20px}
+.tdchange.same{color:var(--soft);font-weight:700}
+.tdbtns{display:flex;flex-direction:row-reverse;gap:8px;justify-content:flex-start;margin-top:16px}
+.tdbtns button{border:2px solid var(--line);background:#fff;border-radius:12px;padding:9px 16px;font:800 13px 'Nunito';cursor:pointer;color:var(--ink)}
+.tdbtns .ok{background:var(--blue);border-color:var(--blue);color:#fff}
+.tdbtns .ok:disabled{opacity:.45;cursor:not-allowed}
 .tags button:focus-visible,.shead:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
 .sfail{font-family:'Fredoka';font-size:12px;color:#fff;background:var(--bad);border-radius:20px;padding:2px 9px}
 .rbody{flex:1;min-width:0}
@@ -205,12 +223,25 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;margin:0}
       <span><b class="sev Critical">Critical</b> вхід неможливий / безпека</span><span><b class="sev Major">Major</b> основна функція працює неправильно</span>
       <span><b class="sev Minor">Minor</b> є обхідний шлях</span><span><b class="sev Trivial">Trivial</b> косметика</span>
     </div>
-    Клік по значку пріоритету чи серйозності змінює його під ваш продукт (змінені обведені синім). Клік по заголовку розділу (або Enter) згортає / розгортає його.<br>
+    Клік по значку пріоритету чи серйозності відкриває вибір; зміна застосовується лише після «Підтвердити» (змінені значки обведені синім). Клік по заголовку розділу (або Enter) згортає / розгортає його.<br>
     Прогрес зберігається на цьому пристрої (localStorage).<br>
     Як адаптувати шаблон: змініть масив <code>DATA</code> у кінці файлу (мінімальна довжина пароля, тексти помилок, адреси сторінок).
   </div>
 </div>
 <div class="toast" id="toast"></div>
+<dialog class="tagdlg" id="tagDlg" aria-labelledby="tdTitle">
+  <form method="dialog">
+    <h3 id="tdTitle"></h3>
+    <p class="tdcheck" id="tdCheck"></p>
+    <div class="tdopts" id="tdOpts" role="radiogroup"></div>
+    <p class="tdchange" id="tdChange" aria-live="polite"></p>
+    <div class="tdbtns">
+      <!-- «Підтвердити» першою в розмітці: Enter у формі натискає саме її; візуально вона праворуч -->
+      <button value="ok" class="ok" id="tdOk">Підтвердити</button>
+      <button value="cancel" formnovalidate>Скасувати</button>
+    </div>
+  </form>
+</dialog>
 <div class="lightbox" id="lightbox" onclick="this.classList.remove('on')"><span id="lbCap"></span><img id="lbImg" alt=""></div>
 <input type="file" id="shotInput" accept="image/*" multiple hidden>
 
@@ -332,12 +363,48 @@ const ITEM={}; DATA.forEach(s=>s.items.forEach(it=>ITEM[it.id]=it));
 const prioOf=it=>store.prio[it.id]||it.p;
 const sevOf=it=>store.sev[it.id]||it.s;
 const tagOf=it=>prioOf(it)+' · '+sevOf(it);
-function cycle(kind,id){
-  const it=ITEM[id], list=kind==='prio'?PRIOS:SEVS, def=kind==='prio'?it.p:it.s;
-  const cur=store[kind][id]||def, next=list[(list.indexOf(cur)+1)%list.length];
-  if(next===def) delete store[kind][id]; else store[kind][id]=next;
-  save(); render();
+const TAG_HINT={P1:'перевіряти першим',P2:'важливо',P3:'крайній випадок',
+  Critical:'вхід неможливий / безпека',Major:'основна функція працює неправильно',Minor:'є обхідний шлях',Trivial:'косметика'};
+let dlg=null; // {kind,id,cur,def}
+function openTagDlg(kind,id,btn){
+  const it=ITEM[id], list=kind==='prio'?PRIOS:SEVS, def=kind==='prio'?it.p:it.s, cur=store[kind][id]||def;
+  dlg={kind,id,cur,def,btn};
+  const name=kind==='prio'?'пріоритет':'серйозність';
+  document.getElementById('tdTitle').textContent=id+': змінити '+name;
+  document.getElementById('tdCheck').textContent=it.t;
+  const box=document.getElementById('tdOpts'); box.innerHTML='';
+  list.forEach(v=>{
+    const lab=document.createElement('label'); lab.className='tdopt';
+    lab.innerHTML='<input type="radio" name="tdv"><b class="'+(kind==='prio'?'prio ':'sev ')+v+'">'+v+'</b><span></span><small></small>';
+    const r=lab.querySelector('input'); r.value=v; r.checked=v===cur;
+    lab.querySelector('span').textContent=TAG_HINT[v];
+    lab.querySelector('small').textContent=v===def?'за замовчуванням':'';
+    r.addEventListener('change',updateTagChange);
+    box.appendChild(lab);
+  });
+  updateTagChange();
+  const d=document.getElementById('tagDlg'); d.returnValue=''; d.showModal();
+  const sel=box.querySelector('input:checked'); if(sel) sel.focus();
 }
+function pickedTag(){ const r=document.querySelector('#tdOpts input:checked'); return r?r.value:dlg.cur; }
+function updateTagChange(){
+  const v=pickedTag(), el=document.getElementById('tdChange'), ok=document.getElementById('tdOk');
+  if(v===dlg.cur){ el.textContent='Значення не змінено'; el.className='tdchange same'; ok.disabled=true; }
+  else { el.textContent=dlg.cur+' → '+v+(v===dlg.def?' (повернення до значення за замовчуванням)':''); el.className='tdchange'; ok.disabled=false; }
+}
+document.getElementById('tagDlg').addEventListener('close',()=>{
+  const d=document.getElementById('tagDlg'); if(!dlg) return;
+  const {kind,id,cur,def}=dlg, v=pickedTag();
+  dlg=null;
+  if(d.returnValue==='ok' && v!==cur){
+    if(v===def) delete store[kind][id]; else store[kind][id]=v;
+    save(); render();
+    toast(id+': '+(kind==='prio'?'пріоритет':'серйозність')+' '+cur+' → '+v);
+  }
+  // повернути фокус на значок, з якого відкрили діалог
+  const row=[...document.querySelectorAll('.row')].find(r=>r.querySelector('.rid').textContent===id);
+  const b=row&&row.querySelector('.tags .'+(kind==='prio'?'prio':'sev')); if(b) b.focus();
+});
 function counts(){
   let p=0,f=0,na=0; for(const k in store.st){ const v=store.st[k]; if(v==='pass')p++; else if(v==='fail')f++; else if(v==='na')na++; }
   return {p,f,na,todo:ALL-p-f-na};
@@ -379,8 +446,8 @@ function render(){
       row.innerHTML=
         '<span class="rid">'+it.id+'</span>'+
         '<div class="tags">'+
-          '<button class="prio '+prioOf(it)+(store.prio[it.id]?' edited':'')+'" title="Пріоритет'+(store.prio[it.id]?' (змінено, за замовчуванням '+it.p+')':'')+'. Клік — змінити" onclick="cycle(\'prio\',\''+it.id+'\')">'+prioOf(it)+'</button>'+
-          '<button class="sev '+sevOf(it)+(store.sev[it.id]?' edited':'')+'" title="Серйозність'+(store.sev[it.id]?' (змінено, за замовчуванням '+it.s+')':'')+'. Клік — змінити" onclick="cycle(\'sev\',\''+it.id+'\')">'+sevOf(it)+'</button>'+
+          '<button class="prio '+prioOf(it)+(store.prio[it.id]?' edited':'')+'" title="Пріоритет'+(store.prio[it.id]?' (змінено, за замовчуванням '+it.p+')':'')+'. Клік — змінити" aria-haspopup="dialog" onclick="openTagDlg(\'prio\',\''+it.id+'\')">'+prioOf(it)+'</button>'+
+          '<button class="sev '+sevOf(it)+(store.sev[it.id]?' edited':'')+'" title="Серйозність'+(store.sev[it.id]?' (змінено, за замовчуванням '+it.s+')':'')+'. Клік — змінити" aria-haspopup="dialog" onclick="openTagDlg(\'sev\',\''+it.id+'\')">'+sevOf(it)+'</button>'+
         '</div>'+
         '<div class="rbody"><div class="rtext"></div>'+(it.d?'<div class="rdata"></div>':'')+
           '<input class="note" placeholder="нотатка / номер дефекту…">'+
