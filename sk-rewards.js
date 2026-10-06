@@ -3,15 +3,24 @@
 
    Картка запису (колекція tests) зберігає з адмінки:
      stat / statMode / statValue        — характеристика й скільки одиниць
-     rewards[ {item, chance, coins} ]   — до 4 слотів «предмет / шанс / монетки»
+     rewards: {
+       wheel:  { on, slots:[{item, coins}×4] }  — колесо фортуни, шанси 40/30/20/10
+       extras: [{on, item, chance, coins}]      — додаткові нагороди зі своїм шансом
+       repeat: bool                             — нагорода при кожному проходженні
+     }
+   Старий формат rewards[ {item, chance, coins} ] читаємо як колесо (див. norm).
 
    Тут ми це нарешті ВИДАЄМО — один раз на Героя й на запис:
      монети   → heroes/{id}.coins                          (SK.addCoins)
      предмети → heroes/{id}.inventory                      (SK.addToInventory)
      стат     → heroes/{id}.{health|mana|agility|accuracy} (SK.saveHeroStats)
 
-   Шанс — на весь слот: випав, і дитина отримує і предмет, і монети слота.
-   Слот без предмета (самі монети) видається завжди.
+   Колесо завжди дає рівно один слот (предмет + його монети); порожні слоти
+   не крутяться, шанси решти перераховуються пропорційно. Додаткові нагороди
+   розігруються кожна окремо. Монети кожного виграшу — «кубик» ±50% від
+   указаної суми; усе складається й видається однією сумою.
+   Характеристика — завжди лише раз (окремий замок sk_rewardstat_<id>),
+   навіть коли нагорода за кожне проходження.
 
    Одноразовість тримає ключ sk_reward_<id> у localStorage. Він із простору
    sk_*, тож firebase-config синхронізує його в heroes/{id}.progress — і на
@@ -124,20 +133,80 @@
   }
   function unmarkClaimed(rec) { try { localStorage.removeItem(guardKey(rec)); } catch (e) {} }
 
-  /* Розіграти слоти нагород. Шанс — на весь слот; слот без предмета
-     (самі монети) не розігрується, а видається завжди. */
-  function rollSlots(rewards) {
+  /* Характеристику дають лише раз — навіть коли решта нагороди
+     повторюється. Хто вже забрав нагороду за старим правилом, стат теж має. */
+  function statKeyOf(rec) { return 'sk_rewardstat_' + String(rec.id || '').replace(/[^\w-]/g, ''); }
+  function statClaimed(rec) {
+    try { return !!localStorage.getItem(statKeyOf(rec)) || wasClaimed(rec); } catch (e) { return false; }
+  }
+  function markStat(rec) { try { localStorage.setItem(statKeyOf(rec), String(Date.now())); } catch (e) {} }
+
+  /* Шанси колеса фортуни — сталі, у базі не зберігаються. */
+  var WHEEL = [40, 30, 20, 10];
+
+  function normSlot(x) {
+    x = x || {};
+    return { item: String(x.item || '').trim(), coins: Math.max(0, Math.floor(num(x.coins))) };
+  }
+  /* rewards з бази → { wheel:{on, slots[4]}, extras[], repeat }.
+     Старий масив слотів стає колесом (увімкненим, якщо там щось виставлено). */
+  function norm(rw) {
+    var out = { wheel: { on: false, slots: [] }, extras: [], repeat: false };
+    if (Array.isArray(rw)) {
+      out.wheel.slots = rw.slice(0, 4).map(normSlot);
+      out.wheel.on = out.wheel.slots.some(function (s) { return s.item || s.coins; });
+    } else if (rw && typeof rw === 'object') {
+      var w = rw.wheel || {};
+      out.wheel.on = !!w.on;
+      out.wheel.slots = (Array.isArray(w.slots) ? w.slots : []).slice(0, 4).map(normSlot);
+      out.extras = (Array.isArray(rw.extras) ? rw.extras : []).map(function (x) {
+        var s = normSlot(x);
+        s.on = !!(x && x.on);
+        s.chance = (x && x.chance != null) ? Math.max(0, Math.min(100, num(x.chance))) : 100;
+        return s;
+      });
+      out.repeat = !!rw.repeat;
+    }
+    while (out.wheel.slots.length < 4) out.wheel.slots.push({ item: '', coins: 0 });
+    return out;
+  }
+  /* Чи є що розігрувати (для підказки дитині на старті). */
+  function hasLoot(rw) {
+    var n = norm(rw);
+    var wheel = n.wheel.on && n.wheel.slots.some(function (s) { return s.item || s.coins; });
+    var extra = n.extras.some(function (x) { return x.on && (x.item || x.coins) && x.chance > 0; });
+    return wheel || extra;
+  }
+
+  /* Кубик на 101 грань: −50%…+50% від суми. Хоч одна монетка лишається. */
+  function jitter(base) {
+    if (!(base > 0)) return 0;
+    var k = Math.floor(Math.random() * 101) - 50;
+    return Math.max(1, Math.round(base * (1 + k / 100)));
+  }
+
+  /* Розіграти нагороду: колесо (рівно один слот) + кожна додаткова окремо. */
+  function roll(rw) {
+    var n = norm(rw);
     var out = { coins: 0, itemIds: [] };
-    (Array.isArray(rewards) ? rewards : []).forEach(function (s) {
-      if (!s) return;
-      var item = String(s.item || '').trim();
-      var coins = Math.max(0, Math.floor(num(s.coins)));
-      if (!item && !coins) return;
-      var chance = (s.chance == null) ? 100 : Math.max(0, Math.min(100, num(s.chance)));
-      var hit = item ? (Math.random() * 100 < chance) : true;
-      if (!hit) return;
-      if (item) out.itemIds.push(item);
-      out.coins += coins;
+    function win(s) {
+      if (s.item) out.itemIds.push(s.item);
+      out.coins += jitter(s.coins);
+    }
+    if (n.wheel.on) {
+      var pool = [], sum = 0;
+      n.wheel.slots.forEach(function (s, i) {
+        if (s.item || s.coins) { pool.push({ s: s, w: WHEEL[i] }); sum += WHEEL[i]; }
+      });
+      if (pool.length) {
+        var r = Math.random() * sum, pick = pool[pool.length - 1].s;
+        for (var i = 0; i < pool.length; i++) { r -= pool[i].w; if (r < 0) { pick = pool[i].s; break; } }
+        win(pick);
+      }
+    }
+    n.extras.forEach(function (x) {
+      if (!x.on || !(x.item || x.coins)) return;
+      if (Math.random() * 100 < x.chance) win(x);
     });
     return out;
   }
@@ -235,28 +304,41 @@
     }).catch(function () { return { already: true, coins: 0, items: [] }; });
   }
 
+  var busy = false;   // нагорода за кожне проходження: подвійний клік не подвоїть
+
   var SKREWARD = {
-    /* Забрати нагороду за повне проходження. hrefFallback — ім'я сторінки,
-       якщо вона відкрита без ?skdone (напр. 'vchymo-litery.html'). */
-    claim: function (hrefFallback) {
+    /* Забрати нагороду за повне проходження.
+       opt — рядок (ім'я сторінки, якщо вона відкрита без ?skdone, напр.
+       'vchymo-litery.html') або обʼєкт:
+         { href, rec, recordId, skipStat }
+         rec       — запис уже на руках (test.html), не шукаємо його вдруге;
+         skipStat  — характеристику видає сама сторінка (test.html). */
+    claim: function (opt) {
+      if (typeof opt !== 'object' || !opt) opt = { href: opt };
+      if (busy) return Promise.resolve({ skipped: true, reason: 'busy' });
+      busy = true;
       return waitSK().then(function (ok) {
         if (!ok) return { skipped: true, reason: 'no-sk' };
         var isHero = false;
         try { isHero = !!(SK.isHeroSession && SK.isHeroSession()); } catch (e) {}
         if (!isHero) return { skipped: true, reason: 'not-hero' };
 
-        return findRecord(hrefFallback).then(function (rec) {
+        var found = opt.rec ? Promise.resolve(opt.rec)
+          : opt.recordId ? SK.getTest(opt.recordId).catch(function () { return null; })
+          : findRecord(opt.href);
+        return found.then(function (rec) {
           if (!rec) return { skipped: true, reason: 'no-record' };
-          if (wasClaimed(rec)) return restoreLost(rec);
+          var repeat = norm(rec.rewards).repeat;
+          if (!repeat && wasClaimed(rec)) return restoreLost(rec);
 
-          markClaimed(rec);                       // спершу замок, потім видача:
-          var roll = rollSlots(rec.rewards);      // подвійний клік не подвоїть нагороду
+          if (!repeat) markClaimed(rec);          // спершу замок, потім видача
+          var won = roll(rec.rewards);
 
-          return buildInstances(roll.itemIds).then(function (built) {
+          return buildInstances(won.itemIds).then(function (built) {
             var jobs = [];
             if (built.instances.length) jobs.push(job('inventory', SK.addToInventory(built.instances)));
-            if (roll.coins > 0) jobs.push(job('coins', SK.addCoins(roll.coins)));
-            jobs.push(grantStat(rec));
+            if (won.coins > 0) jobs.push(job('coins', SK.addCoins(won.coins)));
+            if (!opt.skipStat && !statClaimed(rec)) jobs.push(grantStat(rec));
             return Promise.all(jobs).then(function (results) {
               return verifyItems(built.instances).then(function (inInventory) {
                 var failed = results.filter(function (r) { return !r.ok; })
@@ -264,27 +346,32 @@
                 if (!inInventory) failed.push('inventory (предмет не зʼявився в базі)');
 
                 var stat = null;
-                results.forEach(function (r) { if (r.name === 'stat' && r.ok) stat = r.value; });
-                try { if (SK.pushLocal) SK.pushLocal().catch(function () {}); } catch (e) {}
+                results.forEach(function (r) {
+                  if (r.name !== 'stat' || !r.ok) return;
+                  stat = r.value;
+                  markStat(rec);                  // стат записано — більше його не даємо
+                });
 
                 if (!failed.length) {
-                  markClaimed(rec, { coins: roll.coins,
+                  markClaimed(rec, { coins: won.coins,
                     uids: built.instances.map(function (i) { return i.uid; }),
                     ids: built.items.map(function (i) { return i.id; }) });
                 }
+                try { if (SK.pushLocal) SK.pushLocal().catch(function () {}); } catch (e) {}
                 if (failed.length) {
                   /* Нічого (або не все) не записалось — знімаємо замок, щоб
                      нагорода не згоріла, і кажемо про це вголос. */
-                  unmarkClaimed(rec);
+                  if (!repeat) unmarkClaimed(rec);
                   try { console.error('[sk-rewards] нагорода не збереглась:', failed.join(', ')); } catch (e) {}
-                  return { failed: failed, coins: roll.coins, items: built.items, stat: stat, recordId: rec.id };
+                  return { failed: failed, coins: won.coins, items: built.items, stat: stat, recordId: rec.id, repeat: repeat };
                 }
-                return { coins: roll.coins, items: built.items, stat: stat, recordId: rec.id };
+                return { coins: won.coins, items: built.items, stat: stat, recordId: rec.id, repeat: repeat };
               });
             });
           });
         });
-      }).catch(function () { return { skipped: true, reason: 'error' }; });
+      }).catch(function () { return { skipped: true, reason: 'error' }; })
+        .then(function (res) { busy = false; return res; });
     },
 
     /* Чи вже забрано нагороду за цей запис (для UI, без видачі). */
@@ -293,7 +380,13 @@
         if (!ok) return false;
         return findRecord(hrefFallback).then(function (rec) { return rec ? wasClaimed(rec) : false; });
       }).catch(function () { return false; });
-    }
+    },
+
+    /* Для адмінки й сторінок: читання налаштувань без видачі. */
+    WHEEL: WHEEL,
+    norm: norm,
+    hasLoot: hasLoot,
+    wasClaimed: function (rec) { return !!(rec && rec.id) && wasClaimed(rec); }
   };
 
   window.SKREWARD = SKREWARD;
