@@ -38,12 +38,17 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;margin:0}
 .pct{font-weight:800;font-size:12px;color:#c7d6ee;margin-top:6px}
 
 /* дані прогону */
-.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:8px;margin-top:16px}
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:16px}
 .meta label{display:flex;flex-direction:column;gap:3px;font-size:10.5px;font-weight:800;color:#c7d6ee;text-transform:uppercase;letter-spacing:.4px}
 .meta input{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;border-radius:9px;
   padding:7px 9px;font:700 13px 'Nunito';text-transform:none;letter-spacing:0}
 .meta input::placeholder{color:#8fa3c7}
-.meta input[type=date]{color-scheme:dark;min-height:34px}
+.meta input[type=date]{color-scheme:dark;min-height:34px;min-width:0}
+.period{grid-column:span 2;display:flex;flex-direction:column;gap:3px;font-size:10.5px;font-weight:800;color:#c7d6ee;text-transform:uppercase;letter-spacing:.4px}
+.period-in{display:flex;align-items:center;gap:6px}
+.period-in input{flex:1;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;border-radius:9px;padding:7px 9px;font:700 13px 'Nunito'}
+.period-in span{color:#c7d6ee;font-size:14px}
+@media(max-width:520px){.period{grid-column:1/-1}}
 
 /* toolbar */
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:16px 0}
@@ -151,7 +156,7 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;margin:0}
   .head,.row.pass,.row.fail,.row.na,.prio,.sev,.rid{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .head{box-shadow:none;border-radius:12px;padding:14px 16px}
   .head h1{font-size:20px}
-  .meta input{border-color:rgba(255,255,255,.4)}
+  .meta input,.period-in input{border-color:rgba(255,255,255,.4)}
   .summary,.pbar,.pct,.toolbar,.toast,.lightbox,.acts,.note,.caret,.smini,.schip,.mark,.foot{display:none!important}
   .section{box-shadow:none;border-radius:10px;margin:10px 0 0;break-inside:auto}
   .section.closed .rows{display:block}
@@ -181,7 +186,14 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;margin:0}
       <label>Збірка / версія<input data-meta="build" placeholder="напр. 1.10"></label>
       <label>Середовище<input data-meta="env" placeholder="Windows 11 · Chrome 130"></label>
       <label>Тестувальник<input data-meta="tester" placeholder="ім'я"></label>
-      <label>Дата тестування<input type="date" data-meta="date" required></label>
+      <div class="period">
+        <span id="periodLbl">Термін проведення</span>
+        <div class="period-in" role="group" aria-labelledby="periodLbl">
+          <input type="date" data-meta="date" aria-label="Початок тестування" title="Початок" required>
+          <span aria-hidden="true">–</span>
+          <input type="date" data-meta="end" aria-label="Завершення тестування" title="Завершення (порожнє — триває)">
+        </div>
+      </div>
     </div>
     <div class="summary">
       <div class="stat pass"><b id="cPass">0</b><span>Пройдено</span></div>
@@ -498,7 +510,7 @@ function toggleSec(id){
 }
 function expandAll(open){ DATA.forEach(s=>store.open[s.id]=open); save(); render(); }
 function setFilter(f){ filter=f; document.querySelectorAll('.filters button').forEach(b=>b.classList.toggle('on',b.dataset.f===f)); render(); }
-function resetAll(){ if(!confirm('Скинути всі статуси, нотатки й скріни? (Дані прогону, пріоритети й серйозність лишаться; дата тестування стане сьогоднішньою.)'))return; store.st={};store.notes={};store.open={}; store.meta.date=today(); const di=document.querySelector('[data-meta=date]'); if(di) di.value=store.meta.date; save(); clearShots(); render(); toast('Скинуто'); }
+function resetAll(){ if(!confirm('Скинути всі статуси, нотатки й скріни? (Дані прогону, пріоритети й серйозність лишаться; термін проведення почнеться сьогодні.)'))return; store.st={};store.notes={};store.open={}; store.meta.date=today(); store.meta.end=''; document.querySelector('[data-meta=date]').value=store.meta.date; document.querySelector('[data-meta=end]').value=''; syncPeriod(); save(); clearShots(); render(); toast('Скинуто'); }
 
 /* ── СКРІНИ: зберігаються в IndexedDB (localStorage замалий для картинок) ── */
 let db=null, shots=[], activeId=null; // shots: [{id, item, blob, name}]
@@ -583,7 +595,7 @@ async function exportReport(){
       (store.notes[it.id]?'<p class="n">'+esc(store.notes[it.id])+'</p>':'')+
       (imgs?'<div class="imgs">'+imgs+'</div>':'')+'</section>';
   }
-  const meta=[['Продукт',m.product],['Збірка',m.build],['Середовище',m.env],['Тестувальник',m.tester],['Дата тестування',fmtDate(m.date)],['Звіт створено',date.toLocaleString('uk-UA')]]
+  const meta=[['Продукт',m.product],['Збірка',m.build],['Середовище',m.env],['Тестувальник',m.tester],['Термін проведення',periodText(m)],['Звіт створено',date.toLocaleString('uk-UA')]]
     .filter(x=>x[1]).map(x=>'<b>'+x[0]+':</b> '+esc(x[1])).join(' · ');
   const html='<!DOCTYPE html><html lang="uk"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'+
     '<title>Звіт — Форма входу</title><style>body{font:15px/1.5 system-ui,sans-serif;color:#20232e;max-width:900px;margin:24px auto;padding:0 16px}'+
@@ -607,11 +619,34 @@ async function exportReport(){
 function today(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function fmtDate(v){ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(v||''); return m?m[3]+'.'+m[2]+'.'+m[1]:''; }
 if(!store.meta.date){ store.meta.date=today(); save(); }
+/* Термін проведення: «05.10.2026 – 07.10.2026 (3 дні)» або «05.10.2026 – триває» */
+function plural(n){ const a=n%10,b=n%100; return n+' '+(a===1&&b!==11?'день':a>=2&&a<=4&&(b<12||b>14)?'дні':'днів'); }
+function periodText(m){
+  const a=fmtDate(m.date), b=fmtDate(m.end);
+  if(!a) return '—';
+  if(!b) return a+' – триває';
+  const days=Math.round((Date.parse(m.end)-Date.parse(m.date))/864e5)+1;
+  return (a===b?a:a+' – '+b)+' ('+plural(days)+')';
+}
+function syncPeriod(){
+  const s=document.querySelector('[data-meta=date]'), e=document.querySelector('[data-meta=end]');
+  if(s&&e) e.min=s.value||'';
+}
 document.querySelectorAll('[data-meta]').forEach(inp=>{
   inp.value=store.meta[inp.dataset.meta]||'';
   inp.addEventListener('input',()=>{ store.meta[inp.dataset.meta]=inp.value; save(); });
-  if(inp.dataset.meta==='date') inp.addEventListener('blur',()=>{ if(!inp.value){ inp.value=store.meta.date=today(); save(); } });
+  if(inp.dataset.meta==='date') inp.addEventListener('blur',()=>{ if(!inp.value){ inp.value=store.meta.date=today(); save(); } syncPeriod(); });
+  if(inp.dataset.meta==='date'||inp.dataset.meta==='end') inp.addEventListener('change',()=>{
+    const m=store.meta;
+    if(m.end&&m.date&&m.end<m.date){ // завершення не може бути раніше початку
+      m.end=m.date; document.querySelector('[data-meta=end]').value=m.end; save();
+      toast('Завершення не може бути раніше початку');
+    }
+    syncPeriod();
+  });
 });
+
+syncPeriod();
 
 function copySummary(){
   const c=counts(), m=store.meta;
@@ -619,7 +654,7 @@ function copySummary(){
   if(m.build) out+='Збірка: '+m.build+'\n';
   if(m.env) out+='Середовище: '+m.env+'\n';
   if(m.tester) out+='Тестувальник: '+m.tester+'\n';
-  out+='Дата тестування: '+(fmtDate(m.date)||'—')+'\n';
+  out+='Термін проведення: '+periodText(m)+'\n';
   if(c.f) out+='Дефекти за серйозністю: '+SEVS.map(v=>v+' '+DATA.reduce((n,s)=>n+s.items.filter(it=>store.st[it.id]==='fail'&&sevOf(it)===v).length,0)).join(' · ')+'\n';
   out+='Пройдено '+c.p+' · Впало '+c.f+' · N/A '+c.na+' · Лишилось '+c.todo+' · Усього '+ALL+' ('+Math.round((ALL-c.todo)/ALL*100)+'% перевірено)\n';
   const shotTag=id=>{ const n=shotsOf(id).length; return n?' | 📷 '+n:''; };
