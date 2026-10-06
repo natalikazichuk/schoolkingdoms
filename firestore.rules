@@ -100,6 +100,19 @@ service cloud.firestore {
         && (request.auth.uid == heroId || request.auth.uid == resource.data.parentUid);
 
       allow delete: if signedIn() && request.auth.uid == resource.data.parentUid;
+
+      /* БОЇ ГЕРОЯ: heroes/{heroId}/battles/{bid} — окремий простір бою
+         (стан, ходи, журнал; останні 20 боїв). Пише лише сам Герой
+         (sk-battle.js / SK.saveBattle). Батько може читати й прибирати.
+         Основні речі й досвід міняє не цей документ, а транзакція
+         finishBattle по heroes/{heroId}. */
+      match /battles/{bid} {
+        allow read: if signedIn() && (
+          request.auth.uid == heroId || request.auth.uid == heroParent(heroId));
+        allow create, update: if signedIn() && request.auth.uid == heroId;
+        allow delete: if signedIn() && (
+          request.auth.uid == heroId || request.auth.uid == heroParent(heroId));
+      }
     }
 
 

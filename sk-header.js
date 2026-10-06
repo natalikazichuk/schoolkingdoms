@@ -465,7 +465,110 @@
       var strip = document.getElementById('skHdStrip');
       if(strip) strip.classList.add('on');
       gearTotals(h).then(function(g){ if(g) renderStats(h, g); });
+      try{ battleCheck(h); }catch(e){}
     }).catch(showGuest);
+  }
+
+  /* ── БІЙ ДОГРАЄТЬСЯ НА БУДЬ-ЯКІЙ СТОРІНЦІ ──
+     Бій на арені не стоїть на паузі: коли час ходу минув, а гравця немає,
+     хід робиться сам (ті самі зони, що востаннє — SKBATTLE.autoChoice).
+     Якщо арена не відкрита, це робить будь-яка сторінка з хедером:
+     доігрує пропущені ходи, а завершений бій записує (SK.finishBattle —
+     знос, зникнення зламаних речей, досвід) і показує підсумок.
+     Арена (window.SK_BATTLE_PAGE) керує цим сама. */
+  var BATTLE_KEY = 'sk_arena_battle2', SEEN_KEY = 'sk_battle_seen', GRACE_MS = 5000;
+  var battleBusy = false, battleTimer = null;
+  function loadScript(src){
+    return new Promise(function(res){
+      var s = document.createElement('script');
+      s.src = BASE + src; s.onload = function(){ res(true); }; s.onerror = function(){ res(false); };
+      document.head.appendChild(s);
+    });
+  }
+  function battleDeps(){
+    return Promise.all([
+      window.SKARENA  ? true : loadScript('sk-arena-rules.js?v=15'),
+      window.SKBATTLE ? true : loadScript('sk-battle.js?v=1'),
+      needSKIT()
+    ]).then(function(){ return !!(window.SKARENA && window.SKBATTLE && window.SKIT); });
+  }
+  function localBattle(heroId){
+    try{
+      var o = JSON.parse(localStorage.getItem(BATTLE_KEY) || 'null');
+      if(o && o.v === 2 && o.bid && (!o.heroId || !heroId || o.heroId === heroId)) return o;
+    }catch(e){}
+    return null;
+  }
+  function localArena(){
+    var g = function(k){ try{ return +localStorage.getItem(k) || 0; }catch(e){ return 0; } };
+    return { level: g('sk_arena_level') || 1, xp: g('sk_arena_xp'), wins: g('sk_arena_wins'), losses: g('sk_arena_losses'), draws: g('sk_arena_draws') };
+  }
+  function scheduleBattle(deadline){
+    if(battleTimer) clearTimeout(battleTimer);
+    var wait = Math.max(GRACE_MS, Number(deadline || 0) - Date.now() + GRACE_MS);
+    battleTimer = setTimeout(function(){
+      battleTimer = null;
+      try{ SK.getHero().then(function(h){ battleCheck(h); }).catch(function(){}); }catch(e){}
+    }, Math.min(wait, 10 * 60 * 1000));
+  }
+  function battleCheck(h){
+    if(window.SK_BATTLE_PAGE || battleBusy || !h || !SK.finishBattle) return;
+    var heroId = SK._heroUid ? SK._heroUid() : '';
+    var a = h.activeBattle, loc = localBattle(heroId);
+    if(loc && h.lastBattleId === loc.bid){ try{ localStorage.removeItem(BATTLE_KEY); }catch(e){} loc = null; }
+    var pending = !!(loc && loc.status === 'over');                       // завершено, але не записано
+    var liveMark = !!(a && a.bid && h.lastBattleId !== a.bid);
+    if(!pending && !liveMark){ battleNotice(h.lastBattle); return; }
+    if(!pending && Date.now() < Number(a.deadline || 0) + GRACE_MS){ scheduleBattle(a.deadline); return; }
+    battleBusy = true;
+    battleDeps().then(function(ok){
+      if(!ok) return null;
+      var get = pending ? Promise.resolve(loc) : SK.loadBattle(a.bid).then(function(r){
+        if(loc && loc.bid === a.bid && (!r || (loc.rev || 0) >= (r.rev || 0))) return loc;
+        return r;
+      });
+      return get.then(function(st){
+        if(!st || st.v !== 2) return null;
+        var ctx = { R: window.SKARENA, K: window.SKIT };
+        if(st.status === 'live') SKBATTLE.catchUp(ctx, st, Date.now() - GRACE_MS);
+        try{ localStorage.setItem(BATTLE_KEY, JSON.stringify(st)); }catch(e){}
+        if(st.status === 'live'){ return SK.saveBattle(st).then(function(){ scheduleBattle(st.deadline); }); }
+        return SK.finishBattle(st, localArena()).then(function(r){
+          try{ localStorage.removeItem(BATTLE_KEY); }catch(e){}
+          if(r && r.arena){
+            try{ ['level','xp','wins','losses','draws'].forEach(function(k){ localStorage.setItem('sk_arena_' + k, r.arena[k]); }); }catch(e){}
+          }
+          battleNotice((r && r.lastBattle) || null);
+          if(window.SKHeaderRefresh) window.SKHeaderRefresh();
+        });
+      });
+    }).catch(function(e){ try{ console.warn('[хедер] бій не доіграно:', e); }catch(_){} })
+      .then(function(){ battleBusy = false; });
+  }
+  /* підсумок бою, якого дитина ще не бачила */
+  function battleNotice(L){
+    if(!L || !L.bid) return;
+    var seen = null; try{ seen = localStorage.getItem(SEEN_KEY); }catch(e){}
+    if(seen === L.bid) return;
+    try{ localStorage.setItem(SEEN_KEY, L.bid); }catch(e){}
+    var head = L.result === 'win' ? (L.afk ? '⚔ Бій завершено без тебе' : '⚔ Бій на арені: перемога!')
+      : L.result === 'draw' ? '⚔ Бій на арені: нічия' : '⚔ Бій на арені: поразка';
+    var txt = window.SKBATTLE ? SKBATTLE.noticeText(L) : '';
+    hdToast(head, (L.xp ? '+' + L.xp + ' досвіду. ' : '') + txt);
+  }
+  function hdToast(main, sub){
+    var t = document.getElementById('skHdToast');
+    if(!t){
+      t = document.createElement('div'); t.id = 'skHdToast';
+      t.style.cssText = 'position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:9999;max-width:min(92vw,460px);'
+        + 'background:#13315f;color:#fff;border:2px solid #e0a42a;border-radius:14px;padding:12px 16px;'
+        + 'box-shadow:0 8px 24px rgba(0,0,0,.35);font:600 14px/1.4 system-ui,Segoe UI,Arial,sans-serif;cursor:pointer';
+      t.addEventListener('click', function(){ t.style.display = 'none'; });
+      document.body.appendChild(t);
+    }
+    t.innerHTML = '<div style="font-weight:900;color:#ffd54a">' + esc(main) + '</div>' + (sub ? '<div style="margin-top:4px">' + esc(sub) + '</div>' : '');
+    t.style.display = '';
+    clearTimeout(hdToast.t); hdToast.t = setTimeout(function(){ t.style.display = 'none'; }, 9000);
   }
   /* Сторінки, де Герой перевдягається (арена), кличуть це після збереження */
   window.SKHeaderRefresh = function(){
