@@ -21,7 +21,8 @@
           (кидок 🎲 d100: випало ≤ шансу у % — влучив). Промах → 0, далі не рахуємо.
        2) заблокував? удар у зону, яку захищає суперник, — блок (щит приймає удар):
           проходить blockKeep (0 — нічого). Кидок на крит робиться лише для зносу щита.
-       3) урон: ТИП визначає зброя в руках.
+       3) урон: ТИП визначає зброя в руках. Без зброї — лише база baseDmg (10);
+          зі зброєю — база + кидок 🎲 у діапазоні зброї (база 10 + киянка 3–12 → 13–22).
           Магічна зброя → увесь удар магічний (і база теж): baseDmg + маг. зброя + «Маг. урон» речей.
           Без зброї / фізична → увесь удар фізичний: baseDmg + зброя + «Урон» речей.
        4) магічний − магічний захист захисника, фізичний − броня (не нижче 0)
@@ -54,6 +55,7 @@
     botVary: 0.20,     // суперник: ±20% від показників Героя
     botItemVary: 0.20, // речі суперника: сума характеристик ±20% від речі Героя в тому ж слоті
     swapsPerTurn: 1,   // спецвмінь (перевдягань) за хід
+    dualWield: false,  // дві зброї одночасно (поки ні: ліва рука — лише щит)
     xpWin: 50,         // досвід за перемогу (× коефіцієнт сили суперника)
     xpDraw: 25,        // досвід за нічию (× той самий коефіцієнт)
     xpLose: 8,         // досвід за поразку (без коефіцієнта)
@@ -88,6 +90,32 @@
     { key: 'legs', label: 'Ноги',   slots: ['pants', 'boots'] }
   ];
   var HAND_SLOTS = ['weaponR', 'weaponL'];   // зброя або щит — за категорією речі
+
+  /* ── руки ──
+     Права рука — зброя («Зброя»). Ліва — щит («Щити»); друга зброя в ліву руку
+     лише з BATTLE.dualWield. Дворучна зброя (прапорець «Дворучний») займає обидві
+     руки: вдягнув дворучну — щит (будь-яка річ у лівій руці) знімається; вдягнув
+     щит до дворучної — знімається дворучна. */
+  function handCats(slot) {
+    if (slot === 'weaponR') return ['Зброя'];
+    if (slot === 'weaponL') return BATTLE.dualWield ? ['Зброя', 'Щити'] : ['Щити'];
+    return null;
+  }
+  function isTwoHanded(base) {
+    return !!(base && (base.addStats || []).some(function (e) { return e && e.stat === 'Дворучний' && (e.flag || e.value == null); }));
+  }
+  function fitsHand(base, slot) { var c = handCats(slot); return !!(c && base && c.indexOf(base.category) >= 0); }
+  /* вдягнене [{base, inst}] → без того, що руками носити не можна (стара сумка могла мати
+     дві зброї або дворучну зі щитом): річ не своєї руки — геть, при дворучній лівої руки нема */
+  function handsFix(eq) {
+    var out = (eq || []).filter(function (e) {
+      var sl = e && e.inst && e.inst.slot;
+      return HAND_SLOTS.indexOf(sl) < 0 || fitsHand(e.base, sl);
+    });
+    var r = out.filter(function (e) { return e.inst.slot === 'weaponR'; })[0];
+    if (r && isTwoHanded(r.base)) out = out.filter(function (e) { return e.inst.slot !== 'weaponL'; });
+    return out;
+  }
 
   /* ── знос (міцність) речей за бій ──
      • пропущений удар у зону (не ухилився, не заблокував) — ВСІ речі
@@ -302,6 +330,7 @@
   root.SKARENA = {
     BATTLE: BATTLE, ZONES: ZONES, HAND_SLOTS: HAND_SLOTS, WEAR: WEAR, COMBAT_STATS: COMBAT_STATS,
     SLOT_UK: SLOT_UK, zoneOfSlot: zoneOfSlot,
+    handCats: handCats, isTwoHanded: isTwoHanded, fitsHand: fitsHand, handsFix: handsFix,
     fighter: fighter, varyFighter: varyFighter, hitChance: hitChance, critChance: critChance, isMagic: isMagic,
     strike: strike, attack: attack, d100: d100,
     power: power, xpCoef: xpCoef, xpNeed: xpNeed, itemPower: itemPower, botItems: botItems

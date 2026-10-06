@@ -1252,7 +1252,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script type="module" src="firebase-config.js"></script>
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
-<script src="sk-arena-rules.js?v=14"></script>
+<script src="sk-arena-rules.js?v=15"></script>
 <script>
 (function(){
   'use strict';
@@ -1382,14 +1382,16 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
   var BSLOTS = [
     ['helmet','Шолом','⛑️',['Шоломи']], ['armor','Обладунки','🥋',['Обладунки']], ['amulet','Амулет','📿',['Амулет']],
     ['gloves','Рукавиці','🧤',['Рукавиці']], ['bracers','Наручі','🦾',['Наручі']], ['belt','Пояс','🪢',['Пояси']],
-    ['weaponR','Права рука','⚔️',['Зброя','Щити']], ['weaponL','Ліва рука','🗡️',['Зброя','Щити']], ['pants','Штани','👖',['Штани']],
+    ['weaponR','Права рука','⚔️',['Зброя']], ['weaponL','Ліва рука','🛡️',['Щити']], ['pants','Штани','👖',['Штани']],
     ['ring1','Кільце 1','💍',['Кільце']], ['ring2','Кільце 2','💍',['Кільце']], ['boots','Взуття','👢',['Взуття']]
   ];
   var LOCKED_SLOTS = ['belt'];
   var BI = { side:'p', sel:null, inv:null, byId:{}, err:null };
   function biEsc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
   function slotDef(id){ for(var i=0;i<BSLOTS.length;i++) if(BSLOTS[i][0]===id) return BSLOTS[i]; return null; }
-  function fitsSlot(base, slot){ var d=slotDef(slot); return !!(d && base && d[3].indexOf(base.category)>=0); }
+  function fitsSlot(base, slot){
+    if(RULES.fitsHand && (RULES.HAND_SLOTS||[]).indexOf(slot)>=0) return RULES.fitsHand(base, slot);   // руки: правила з sk-arena-rules.js
+    var d=slotDef(slot); return !!(d && base && d[3].indexOf(base.category)>=0); }
   function itemIcon(id, fallback){
     return '<img src="img/items/'+encodeURIComponent(id)+'.webp" alt="" onerror="this.replaceWith(document.createTextNode(\''+fallback+'\'))">';
   }
@@ -1573,6 +1575,11 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
     if(!cur && !inst) return;
     var w = B.wear || (B.wear = newWear());
     if(cur){ cur.w1 = wearOf(cur, w); cur.off = true; }
+    // руки: дворучна знімає щит; щит знімає дворучну (те саме перевдягання, без окремого ходу)
+    var also = null, two = RULES.isTwoHanded || function(){ return false; };
+    if(inst && slot==='weaponR' && two(base)) also = activeIn('weaponL');
+    else if(inst && slot==='weaponL'){ var rr = activeIn('weaponR'); if(rr && two(rr.base)) also = rr; }
+    if(also){ also.w1 = wearOf(also, w); also.off = true; }
     if(inst){
       var old = (B.me.eq||[]).filter(function(e){ return e.uid===inst.uid; })[0];
       if(old){
@@ -1591,11 +1598,12 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
     B.me.p = np; B.me.max = np.hp; B.me.force = Math.min(B.me.force, np.hp);
     B.swapRound = B.round;
     updateForce('p', B.me);
-    addSwap(cur ? (inst ? '«'+(cur.base && cur.base.name || '')+'» → «'+base.name+'»' : 'зняв «'+(cur.base && cur.base.name || '')+'»')
-                : 'вдягнув «'+base.name+'»');
+    addSwap((cur ? (inst ? '«'+(cur.base && cur.base.name || '')+'» → «'+base.name+'»' : 'зняв «'+(cur.base && cur.base.name || '')+'»')
+                 : 'вдягнув «'+base.name+'»') + (also ? ' (знято «'+(also.base && also.base.name || '')+'»)' : ''));
     // інвентар: нова річ у слоті, стара — у сумку
     (BI.inv||[]).forEach(function(x){
       if(cur && x.uid===cur.uid) x.slot = null;
+      if(also && x.uid===also.uid) x.slot = null;
       if(inst && x.uid===inst.uid) x.slot = slot;
     });
     // сумку не прочитано (помилка / не Герой) — не перезаписуємо інвентар у базі порожнім списком
@@ -1934,6 +1942,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
         if(slotDef(i.slot) && !fitsSlot(by[i.id], i.slot)) return false;
         seen[i.slot] = true; return true;
       }).map(function(i){ return {base:by[i.id], inst:i}; });
+      if(RULES.handsFix) eq = RULES.handsFix(eq);   // дві зброї / дворучна зі щитом — лише те, що можна тримати
       return {p:RULES.fighter(stats, eq, window.SKIT), eq:eq, catalog:r[1]||[]};
     }).catch(function(e){ try{ console.error('[арена] екіпіровку не прочитано:', e); }catch(_){} return {p:plainFighter(stats), eq:[]}; });
   }
@@ -2957,19 +2966,19 @@ var q=function(id){return document.getElementById(id);};
 
 var HERO={health:50,mana:20,agility:50,accuracy:50,coins:0,baseHP:0}; /* база з даних Героя (хедер); заповнюється в render() */
 var LEVEL={level:12,xp:2450,xpMax:3000};
-var SLOT_CAT={helmet:'head',armor:'body',gloves:'gloves',bracers:'bracers',belt:'belt',pants:'pants',boots:'boots',weaponR:'weapon',weaponL:'weapon',ring1:'ring',ring2:'ring',amulet:'amulet'};
+var SLOT_CAT={helmet:'head',armor:'body',gloves:'gloves',bracers:'bracers',belt:'belt',pants:'pants',boots:'boots',weaponR:'weapon',weaponL:'shield',ring1:'ring',ring2:'ring',amulet:'amulet'};
 var SLOT_DEFS=[
  ['helmet','Шолом','⛑️'],['armor','Обладунки','🥋'],
  ['gloves','Рукавиці','🧤'],['bracers','Наручі','🦾'],
  ['belt','Пояс','🪢'],['pants','Штани','👖'],
  ['boots','Взуття','👢'],['amulet','Амулет','📿'],
- ['weaponR','Зброя|права рука','⚔️'],['weaponL','Зброя|ліва рука','🗡️'],
+ ['weaponR','Зброя|права рука','⚔️'],['weaponL','Щит|ліва рука','🛡️'],
  ['ring1','Кільце 1','💍'],['ring2','Кільце 2','💍']
 ];
 var STAT_UK={agility:'спритність',accuracy:'точність',damage:'урон',armor:'броня',health:"здоров'я",mana:'мана',magicDamage:'магічний урон',magicResist:'магічна стійкість',critDamage:'шанс крит. урону',block:'шанс блоку',stun:'оглушення',healthRegen:"відновлення здоров'я",extraAttack:'додаткова атака',beltSlots:'комірки пояса'};
 var CATALOG=[], BYID={}, ALL_INST=[], INV=[], loaded=false, loading=false;
 var LOAD_ERR=null, NO_HERO=false, MISSING=[];   /* чому інвентар порожній: помилка читання / предмет не з каталогу */
-var CATMAP={'Шоломи':'head','Обладунки':'body','Рукавиці':'gloves','Наручі':'bracers','Пояси':'belt','Штани':'pants','Взуття':'boots','Зброя':'weapon','Щити':'weapon','Кільце':'ring','Амулет':'amulet','Зелья':'other','Свиток':'other'};
+var CATMAP={'Шоломи':'head','Обладунки':'body','Рукавиці':'gloves','Наручі':'bracers','Пояси':'belt','Штани':'pants','Взуття':'boots','Зброя':'weapon','Щити':'shield','Кільце':'ring','Амулет':'amulet','Зелья':'other','Свиток':'other'};
 function mapCat(c){return CATMAP[c]||'other';}
 function entryOf(inst){var base=BYID[inst.id];if(!base)return null;return {uid:inst.uid,id:inst.id,qty:inst.qty||1,name:base.name,cat:mapCat(base.category),icon:'img/items/'+base.id+'.webp',_inst:inst,bonus:inst.bonus,identified:inst.identified,usable:!!base.consumable};}
 var BELT=[];
@@ -2983,6 +2992,8 @@ function rebuild(){
    if(inst.slot&&SLOT_CAT[inst.slot]!==undefined&&!EQUIP[inst.slot]&&compat(e.cat,inst.slot)){EQUIP[inst.slot]=e;}
    else{inst.slot=null;rest.push(e);}
  });
+ // дворучна зброя займає обидві руки: річ у лівій руці — у сумку
+ if(EQUIP.weaponR&&EQUIP.weaponL&&twoHanded(EQUIP.weaponR)){EQUIP.weaponL._inst.slot=null;rest.push(EQUIP.weaponL);EQUIP.weaponL=null;}
  var bc=beltCount();BELT=[];for(var i=0;i<bc;i++)BELT.push(null);
  beltInst.forEach(function(inst){var e=entryOf(inst);var idx=parseInt(inst.slot.slice(4),10);
    if(e&&e.usable&&idx>=0&&idx<bc&&!BELT[idx]){BELT[idx]=e;}else{inst.slot=null;rest.push(e);}});
@@ -3014,7 +3025,7 @@ function persist(){try{if(loaded&&window.SK&&SK.saveInventory)Promise.resolve(SK
 var EQUIP={helmet:null,armor:null,gloves:null,bracers:null,belt:null,pants:null,boots:null,weaponR:null,weaponL:null,ring1:null,ring2:null,amulet:null};
 var TABS=[
  ['all','Усі','🎒',function(){return true;}],
- ['weapon','Зброя','⚔️',function(c){return c==='weapon';}],
+ ['weapon','Зброя','⚔️',function(c){return c==='weapon'||c==='shield';}],
  ['armor','Броня','🛡️',function(c){return ['body','head','gloves','bracers','belt','pants','boots'].indexOf(c)>=0;}],
  ['other','Інше','🧪',function(c){return ['other','ring','amulet'].indexOf(c)>=0;}]
 ];
@@ -3091,14 +3102,25 @@ function paintAvatar(token){var img=q('ek-heroImg');if(!img)return;var S=window.
   img.onerror=function(){img.onerror=null;if(S.fullPng)img.src=S.fullPng(id);};img.src=S.fullSrc(id);}
  else{img.onerror=function(){img.onerror=null;img.src='https://raw.githubusercontent.com/natalikazichuk/schoolkingdoms/main/img/ava/knight-green-boy-full.webp';};img.src='img/ava/knight-green-boy-full.webp';}}
 
+/* Урон удару — як у бою (sk-arena-rules.js): база BATTLE.baseDmg + кидок у діапазоні зброї в руці
+   + сталий «Урон» речей. Магічна зброя → увесь удар магічний (база теж), фізичного тоді немає. */
+function dmgRange(){var R=R0(),b=(R.BATTLE&&R.BATTLE.baseDmg)||0;
+ if(!R.fighter||!window.SKIT)return {phys:b,mag:'—'};
+ var eq=[];for(var s in EQUIP){var e=EQUIP[s];if(e&&e._inst&&BYID[e.id])eq.push({base:BYID[e.id],inst:e._inst});}
+ if(R.handsFix)eq=R.handsFix(eq);
+ var p=R.fighter({health:HERO.health,mana:HERO.mana,agility:HERO.agility,accuracy:HERO.accuracy},eq,SKIT);
+ function rg(lo,hi){return lo===hi?String(lo):lo+'–'+hi;}
+ if(R.isMagic&&R.isMagic(p))return {phys:'—',mag:rg(b+(p.magMin||0)+(p.magFlat||0),b+(p.magMax||0)+(p.magFlat||0))};
+ return {phys:rg(b+(p.wMin||0)+(p.dmgFlat||0),b+(p.wMax||0)+(p.dmgFlat||0)),mag:'—'};}
 function renderStats(){var t=totals();
  q('ek-lvl').textContent=LEVEL.level;q('ek-xpTxt').textContent=LEVEL.xp+' / '+LEVEL.xpMax;
  q('ek-xpFill').style.width=Math.min(100,LEVEL.xp/LEVEL.xpMax*100)+'%';
  q('ek-hpVal').textContent=t.health+' / '+t.health;q('ek-mpVal').textContent=t.mana+' / '+t.mana;q('ek-coins').textContent=coinsTxt(HERO.coins!=null?HERO.coins:0);
  var bcn=q('ek-bagCount');if(bcn&&ST())bcn.textContent=ST().bagCount(ALL_INST)+'/'+ST().BAG_LIMIT;
  q('ek-hpFill').style.width='100%';q('ek-mpFill').style.width='100%';
- var tiles=[['dmg','⚔️','Урон',t.damage],['arm','🛡️','Броня',t.armor],['acc','🎯','Точність',t.accuracy],
-  ['mdmg','✨','Магічний урон',t.magicDamage],['mres','🔮','Магічна стійкість',t.magicResist],['agi','👟','Спритність',t.agility]];
+ var dm=dmgRange();
+ var tiles=[['dmg','⚔️','Урон',dm.phys],['arm','🛡️','Броня',t.armor],['acc','🎯','Точність',t.accuracy],
+  ['mdmg','✨','Магічний урон',dm.mag],['mres','🔮','Магічна стійкість',t.magicResist],['agi','👟','Спритність',t.agility]];
  q('ek-statGrid').innerHTML=tiles.map(function(a){return '<div class="ek-stat '+a[0]+'"><div class="ek-si">'+a[1]+'</div><div class="ek-sl">'+a[2]+'</div><div class="ek-sv">'+a[3]+'</div></div>';}).join('');}
 
 function renderSlots(){q('ek-slots').innerHTML=SLOT_DEFS.map(function(d){var id=d[0],lab=d[1],ghost=d[2];var item=EQUIP[id];
@@ -3151,9 +3173,17 @@ function renderAll(){renderTabs();renderSlots();renderInv();renderBelt();renderS
 
 function findInv(u){for(var i=0;i<INV.length;i++)if(INV[i].uid===u)return INV[i];return null;}
 function findInst(u){for(var i=0;i<ALL_INST.length;i++)if(ALL_INST[i].uid===u)return ALL_INST[i];return null;}
-function compat(cat,slotId){return SLOT_CAT[slotId]===cat;}
+function compat(cat,slotId){if(slotId==='weaponL'&&cat==='weapon')return !!(R0().BATTLE&&R0().BATTLE.dualWield);return SLOT_CAT[slotId]===cat;}
+function R0(){return window.SKARENA||{};}
+function twoHanded(e){return !!(e&&R0().isTwoHanded&&R0().isTwoHanded(BYID[e.id]));}
+function handMsg(t){if(window.showToast)showToast('Дворучна зброя',t);}
 function firstFree(cat){var s;for(s in SLOT_CAT)if(SLOT_CAT[s]===cat&&!EQUIP[s])return s;for(s in SLOT_CAT)if(SLOT_CAT[s]===cat)return s;return null;}
-function equipFromInv(u,slotId){var inst=findInst(u);if(!inst)return;var e=entryOf(inst);if(!e||!compat(e.cat,slotId))return;var cur=EQUIP[slotId];if(cur&&cur._inst)cur._inst.slot=null;inst.slot=slotId;rebuild();renderAll();persist();}
+function equipFromInv(u,slotId){var inst=findInst(u);if(!inst)return;var e=entryOf(inst);if(!e||!compat(e.cat,slotId))return;var cur=EQUIP[slotId];
+ // руки: дворучна знімає річ з лівої руки; щит знімає дворучну
+ var also=null;if(slotId==='weaponR'&&twoHanded(e))also=EQUIP.weaponL;else if(slotId==='weaponL'&&twoHanded(EQUIP.weaponR))also=EQUIP.weaponR;
+ if(also&&cur&&ST()&&ST().bagCount(ALL_INST)+1>ST().BAG_LIMIT){bagFullMsg();return;}
+ if(cur&&cur._inst)cur._inst.slot=null;if(also&&also._inst)also._inst.slot=null;inst.slot=slotId;rebuild();renderAll();persist();
+ if(also)handMsg(slotId==='weaponR'?'Займає обидві руки — «'+also.name+'» знято в сумку':'«'+also.name+'» займає обидві руки — знято в сумку');}
 function unequip(slotId){var e=EQUIP[slotId];if(!e||!e._inst)return;if(bagFull()){bagFullMsg();return;}e._inst.slot=null;rebuild();renderAll();persist();}
 function moveSlot(a,b){if(a===b)return;var ea=EQUIP[a];if(!ea)return;if(!compat(ea.cat,b))return;var eb=EQUIP[b];if(ea._inst)ea._inst.slot=b;if(eb&&eb._inst)eb._inst.slot=a;rebuild();renderAll();persist();}
 
