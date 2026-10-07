@@ -1321,7 +1321,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
       <section class="sh-col store"><h3>🏪 Товари</h3><div class="sh-tabs" id="shTabs"></div><div id="shStore"></div></section>
       <section class="sh-col counter"><h3>🧾 Прилавок</h3><div id="shCounter"></div></section>
       <section class="sh-col inv"><h3>🎒 Сумка <small id="shBagCnt"></small></h3><div id="shInv"></div>
-        <div class="sh-hint">Натисни річ, щоб покласти на прилавок для продажу. Продаємо лише речі із сумки — вдягнене спершу зніми.</div></section>
+        <div class="sh-hint">Натисни річ — вона одразу на прилавку для продажу; права кнопка (на телефоні — довге натискання) — роздивитись. Продаємо лише речі із сумки — вдягнене спершу зніми.</div></section>
     </div>
   </div>
 </div>
@@ -3662,7 +3662,7 @@ function totals(){
   return {got:got,spent:spent,have:have,after:have+got-spent,bagAfter:bagAfter};}
 function renderCounter(){
   var h='';
-  if(!S.ct.sell.length&&!S.ct.buy.length&&!S.ct.buyback.length)h+='<div class="sh-empty">Прилавок порожній. Поклади сюди речі із сумки (продаж) або з товарів (купівля). Натисни річ на прилавку, щоб забрати її назад.</div>';
+  if(!S.ct.sell.length&&!S.ct.buy.length&&!S.ct.buyback.length)h+='<div class="sh-empty">Прилавок порожній. Натисни річ у сумці (продаж) або в товарах (купівля) — вона одразу тут. Права кнопка — роздивитись річ. Натисни річ на прилавку, щоб забрати її назад.</div>';
   if(S.ct.sell.length){h+='<div class="sh-lbl">💰 Продаю</div><div class="sh-list">'+S.ct.sell.map(function(u){var i=bagItems().filter(function(x){return x.uid===u;})[0];if(!i)return '';var b=S.byId[i.id];
     return '<button type="button" class="sh-row" data-back="sell" data-key="'+esc(u)+'"><span class="ic">'+icon(b)+'</span><span class="nm">'+esc(b.name)+((Number(i.qty)||1)>1?' ×'+i.qty:'')+'</span><span class="pr plus">+'+coins(ST().sellTotal(b,i))+'</span></button>';}).join('')+'</div>';}
   var buys=S.ct.buy.map(function(e){return '<button type="button" class="sh-row" data-back="buy" data-key="'+esc(e.key)+'"><span class="ic">'+icon(e.base)+'</span><span class="nm">'+esc(e.base.name)+'</span><span class="pr minus">−'+coins(e.base.price)+'</span></button>';})
@@ -3733,21 +3733,30 @@ document.addEventListener('click',function(e){
   if(S.busy||!S.st)return;
   var el;
   if((el=e.target.closest('[data-tab]'))&&el.closest('#shTabs')){S.tab=el.getAttribute('data-tab');renderStore();return;}
-  /* натискання на річ — збільшена картка (та сама, що в гардеробі) з дією */
-  if((el=e.target.closest('[data-sell]'))&&!el.disabled){var su=el.getAttribute('data-sell'),si=bagItems().filter(function(x){return x.uid===su;})[0];
-    var sAdd=function(){if(S.ct.sell.indexOf(su)<0)S.ct.sell.push(su);render();};
-    if(si&&window.SKCARD)SKCARD.show(S.byId[si.id],si,[{label:'🧾 На прилавок — продати за +'+coins(ST().sellTotal(S.byId[si.id],si)),fn:sAdd}]);else sAdd();return;}
-  if((el=e.target.closest('[data-buy]'))&&!el.disabled){var b=S.byId[el.getAttribute('data-buy')];if(!b)return;
-    var bAdd=function(){if(stockLeft(b.id)>0)S.ct.buy.push({key:'k'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),base:b});render();};
-    if(window.SKCARD)SKCARD.show(b,{bonus:1,identified:true},[{label:'🛒 На прилавок — купити за '+coins(b.price),fn:bAdd}]);else bAdd();return;}
-  if((el=e.target.closest('[data-buyback]'))&&!el.disabled){var bu=el.getAttribute('data-buyback'),bt=(S.st.shopSold||[]).filter(function(x){return x.inst.uid===bu;})[0];
-    var bbAdd=function(){if(S.ct.buyback.indexOf(bu)<0)S.ct.buyback.push(bu);render();};
-    if(bt&&window.SKCARD)SKCARD.show(S.byId[bt.inst.id]||{id:bt.inst.id,name:bt.inst.id},bt.inst,[{label:'↩ На прилавок — викупити за '+coins(bt.price),fn:bbAdd}]);else bbAdd();return;}
+  /* ліва кнопка — річ одразу на прилавок; права (або довге натискання) — картка речі з дією */
+  if(itemAct(e.target,false))return;
   if((el=e.target.closest('[data-back]'))){var k=el.getAttribute('data-back'),key=el.getAttribute('data-key');
     if(k==='buy')S.ct.buy=S.ct.buy.filter(function(x){return x.key!==key;});else S.ct[k]=S.ct[k].filter(function(x){return x!==key;});render();return;}
   if(e.target.closest('#shClear')){S.ct={sell:[],buy:[],buyback:[]};render();return;}
   if(e.target.closest('#shDeal')){doDeal();return;}
 });
+/* річ у магазині: view=false — одразу на прилавок; view=true — збільшена картка (та сама, що в гардеробі) з дією */
+function itemAct(t,view){
+  var el,card=view&&window.SKCARD;
+  if((el=t.closest('[data-sell]'))&&!el.disabled){var su=el.getAttribute('data-sell'),si=bagItems().filter(function(x){return x.uid===su;})[0];
+    var sAdd=function(){if(S.ct.sell.indexOf(su)<0)S.ct.sell.push(su);render();};
+    if(si&&card)SKCARD.show(S.byId[si.id],si,[{label:'🧾 На прилавок — продати за +'+coins(ST().sellTotal(S.byId[si.id],si)),fn:sAdd}]);else sAdd();return true;}
+  if((el=t.closest('[data-buy]'))&&!el.disabled){var b=S.byId[el.getAttribute('data-buy')];if(!b)return true;
+    var bAdd=function(){if(stockLeft(b.id)>0)S.ct.buy.push({key:'k'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),base:b});render();};
+    if(card)SKCARD.show(b,{bonus:1,identified:true},[{label:'🛒 На прилавок — купити за '+coins(b.price),fn:bAdd}]);else bAdd();return true;}
+  if((el=t.closest('[data-buyback]'))&&!el.disabled){var bu=el.getAttribute('data-buyback'),bt=(S.st.shopSold||[]).filter(function(x){return x.inst.uid===bu;})[0];
+    var bbAdd=function(){if(S.ct.buyback.indexOf(bu)<0)S.ct.buyback.push(bu);render();};
+    if(bt&&card)SKCARD.show(S.byId[bt.inst.id]||{id:bt.inst.id,name:bt.inst.id},bt.inst,[{label:'↩ На прилавок — викупити за '+coins(bt.price),fn:bbAdd}]);else bbAdd();return true;}
+  return false;}
+document.addEventListener('contextmenu',function(e){
+  var m=q('shop');if(!m||m.hidden||S.busy||!S.st||!window.SKCARD)return;
+  if(!e.target.closest('#shop [data-sell],#shop [data-buy],#shop [data-buyback]'))return;
+  e.preventDefault();itemAct(e.target,true);});
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&q('shop')&&!q('shop').hidden)closeShop();});
 window.addEventListener('pagehide',function(){if(q('shop')&&!q('shop').hidden)lockOff();});
 })();
