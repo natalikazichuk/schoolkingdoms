@@ -754,6 +754,11 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
   .fxcol.o .fxi .fxtip{left:auto;right:0}
 }
 .step .use{display:block;color:#b8ffcf;font-weight:800}
+/* відскок спритністю — бірюзовим; магічний блок — фіолетовим (як магічний урон) */
+.ev{color:#5fe3c8;font-weight:900}
+.mblk{color:#c77dff;font-weight:900}
+.rbig .rlbl .ev,.rbig .ropp .ev{color:#5fe3c8}.rbig .rlbl .mblk,.rbig .ropp .mblk{color:#d29bff}
+.dmg-float.ev{color:#5fe3c8}.dmg-float.mblk{color:#d29bff}
 .step .use.op{color:#ffc6a8}
 
 /* оверлей результату */
@@ -1386,7 +1391,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script type="module" src="firebase-config.js"></script>
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
-<script src="sk-arena-rules.js?v=17"></script>
+<script src="sk-arena-rules.js?v=18"></script>
 <script src="sk-battle.js?v=3"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
@@ -1662,7 +1667,8 @@ window.SKHERO = (function(){
         + '<div><span>⚔️ Урон удару</span>'+dmgText(p)+'</div>'
         + '<div><span>💥 Шанс криту</span>'+Math.round((CFG.critBase||0)+(p.critPct||0))+'%</div>'
         + '<div><span>⚡ Ударів за хід</span>'+(1+(p.extra||0))+'</div>'
-        + ((p.blockPhys||p.blockMag) ? '<div><span>🧱 Шанс блоку</span>'+(p.blockPhys?p.blockPhys+'% фіз.':'')+(p.blockPhys&&p.blockMag?' · ':'')+(p.blockMag?p.blockMag+'% маг.':'')+'</div>' : '')
+        + (p.evade && p.blockPhys ? '<div><span>💨 Відскок</span>'+p.blockPhys+'% фіз. і маг.</div>'
+          : (p.blockPhys||p.blockMag) ? '<div><span>🧱 Шанс блоку</span>'+(p.blockPhys?p.blockPhys+'% фіз.':'')+(p.blockPhys&&p.blockMag?' · ':'')+(p.blockMag?p.blockMag+'% маг.':'')+'</div>' : '')
         + '<div class="wide"><span style="color:inherit">🎯 Ти влучаєш: <b>'+chance(p, B.op.p)+'</b></span><span style="color:inherit">'+biEsc(B.op.f.name)+' влучає: <b>'+chance(B.op.p, p)+'</b></span></div>'
         + '</div>';
       var can = swapsLeft();
@@ -1861,7 +1867,8 @@ window.SKHERO = (function(){
       if(r.type==='buff') return r.weaker ? 'вже діє сильніше (+'+r.has+'%) — без ефекту'
         : (FX_EMO[r.key]||'')+' '+(FX_UK[r.key]||r.key)+' +'+r.pct+'% на 🎲 '+r.turns+' ход.';
       if(r.type==='scroll'){ var h = r.hit||{};
-        if(h.kind==='block') return biEsc(tgt)+': заблоковано 🧱 ('+biEsc(h.calc||'')+')';
+        if(h.kind==='block') return (h.evade ? '<span class="ev">'+biEsc(tgt)+' спритно відскочив від свитка 💨</span>'
+          : '<span class="mblk">'+biEsc(tgt)+' заблокував магію свитка ✨</span>')+' <span class="dice">🎲 '+h.blockRoll+' ≤ '+h.blockNeed+'%</span>';
         if(h.kind==='barrier') return "бар'єр 🫧 поглинув "+h.absorbed;
         return biEsc(tgt)+' ✨<span class="mag">−'+h.dmg+'</span><span class="dice">'+biEsc(h.calc||'')+' = '+h.dmg+'</span>'; }
       if(r.type==='fear'){
@@ -2673,7 +2680,7 @@ window.SKHERO = (function(){
       + '.hd div{white-space:pre-wrap}.hd{color:#c3d5f0;margin-bottom:12px}.hd div:first-child{font-size:18px;font-weight:900;color:#ffd54a}'
       + '.step{display:flex;gap:8px;align-items:flex-start;margin:6px 0}.no{flex:none;background:#ffd54a;color:#0c2247;border-radius:20px;padding:1px 8px;font-size:12px;font-weight:900}'
       + '.dice{display:block;margin-top:2px;font-size:12px;color:#a9c1e4}.dice b{color:#eaf2ff}'
-      + '.g{color:#5fdc8f}.b{color:#ffcf4d}.r{color:#ff9a6b}.crit{color:#ff3b3b;font-weight:900}.mag{color:#d06bff;font-weight:900}'
+      + '.g{color:#5fdc8f}.b{color:#ffcf4d}.r{color:#ff9a6b}.crit{color:#ff3b3b;font-weight:900}.mag{color:#d06bff;font-weight:900}.ev{color:#5fe3c8;font-weight:900}.mblk{color:#c77dff;font-weight:900}'
       + '.brk.lost .txt{color:#ff5a5a;font-weight:900}.brk.won .txt{color:#ffe14d;font-weight:900}.steps-empty{color:#7d93b6}'
       + '</style></head><body><div class="hd">'+head+'</div>'+c.innerHTML+'</body></html>';
   }
@@ -2756,6 +2763,13 @@ window.SKHERO = (function(){
     }, SB.PAUSE_MS);
   }
 
+  /* як назвати блок: спритність — «спритно відскочив» (бірюзовим), магія — «заблокував магію» (фіолетовим), щит — як було */
+  function blkWord(hit, who){
+    var hs = hit.hits || [hit];
+    if(hs.some(function(h){ return h.evade; })) return '<span class="ev">'+who+' спритно відскочив 💨</span>';
+    if(hs.some(function(h){ return h.kind==='block' && h.magic; })) return '<span class="mblk">'+who+' заблокував магію ✨</span>';
+    return who+' заблокував 🛡️';
+  }
   /* результат ТВОЄЇ атаки → у панель праворуч; випадає й лишається до наступного ходу */
   function setResult(meHit, opHit){
     var rb = $('rbig'); if(!rb) return;
@@ -2764,7 +2778,7 @@ window.SKHERO = (function(){
     else if(meHit.kind==='skip'){ cls='hit'; num='✨'; lbl='Свиток вирішив бій'; }
     else if(meHit.kind==='barrier'){ cls='blk'; num='0'; lbl='Бар\'єр суперника 🫧'; }
     else if(meHit.kind==='dodge'){ cls='miss'; num='0'; lbl='Промах'; }
-    else if(meHit.kind==='block'){ cls='blk'; num=meHit.dmg ? '−'+meHit.dmg : '0'; lbl='Суперник заблокував 🛡️'; }
+    else if(meHit.kind==='block'){ cls='blk'; num=meHit.dmg ? '−'+meHit.dmg : '0'; lbl=blkWord(meHit, 'Суперник'); }
     else if(meHit.kind==='crit'){ cls='crit'; num='−'+meHit.dmg; lbl='Влучний удар!'; }
     else { cls='hit'; num='−'+meHit.dmg; lbl='Влучив!'; }
     // короткий підсумок відповіді суперника
@@ -2773,7 +2787,7 @@ window.SKHERO = (function(){
     else if(opHit.kind==='skip') ok='удару не було';
     else if(opHit.kind==='barrier') ok='бар\'єр поглинув 🫧';
     else if(opHit.kind==='dodge') ok='промах';
-    else if(opHit.kind==='block') ok='ти заблокував'+(opHit.dmg ? ' (−'+opHit.dmg+')' : '');
+    else if(opHit.kind==='block') ok=blkWord(opHit, 'ти')+(opHit.dmg ? ' (−'+opHit.dmg+')' : '');
     else ok='−'+opHit.dmg+' тобі';
     rb.className = 'rbig ' + cls;
     var h0 = (meHit.hits || [meHit])[0] || {};
@@ -2811,7 +2825,8 @@ window.SKHERO = (function(){
     else if(hit.kind==='skip'){ return; }
     else if(hit.kind==='barrier'){ el.className='dmg-float blk'; el.textContent='🫧'; }
     else if(hit.kind==='dodge'){ el.className='dmg-float miss'; el.textContent='промах'; }
-    else if(hit.kind==='block'){ el.className='dmg-float blk'; el.textContent= hit.dmg ? '−'+hit.dmg : 'блок'; }
+    else if(hit.kind==='block'){ var hb = hit.hits||[hit], ev = hb.some(function(h){ return h.evade; }), mg = !ev && hb.some(function(h){ return h.kind==='block' && h.magic; });
+      el.className='dmg-float blk'+(ev?' ev':mg?' mblk':''); el.textContent= hit.dmg ? '−'+hit.dmg : (ev ? 'відскочив 💨' : mg ? 'блок ✨' : 'блок'); }
     else if(hit.kind==='crit'){ el.className='dmg-float crit'; el.textContent='−'+hit.dmg+'!'; }
     else { el.className='dmg-float hit'; el.textContent='−'+hit.dmg; }
     card.appendChild(el);
@@ -2865,9 +2880,9 @@ window.SKHERO = (function(){
       if(h.hitRoll==null) return '';
       var t = (hs.length>1 ? (i+1)+') ' : '')
         + '🎲 <b>'+h.hitRoll+'</b> '+(h.hitRoll<=h.hitNeed?'≤':'>')+' '+h.hitNeed+'% '+(h.kind==='dodge'?'— промах':'— влучив');
-      if(h.kind==='block') t += ' · '+h.calc;                       // блок: крит перевіряється після блоку — для зносу щита
+      if(h.kind==='block') t += ' · '+(h.evade ? '<span class="ev">'+h.calc+'</span>' : h.magic ? '<span class="mblk">'+h.calc+'</span>' : h.calc);   // блок: крит — для зносу щита
       else if(h.kind==='barrier') t += ' · '+calcHtml(h)+' = '+h.absorbed+' → 🫧 бар\'єр поглинув';
-      else if(h.kind!=='dodge') t += (h.blockRoll!=null ? ' · блок шансом 🎲 <b>'+h.blockRoll+'</b> > '+h.blockNeed+'%' : '')
+      else if(h.kind!=='dodge') t += (h.blockRoll!=null ? (h.evadeTry ? ' · відскок 🎲 <b>' : ' · блок шансом 🎲 <b>')+h.blockRoll+'</b> > '+h.blockNeed+'%' : '')
         + ' · крит 🎲 <b>'+h.critRoll+'</b> '+(h.crit?'≤':'>')+' '+h.critNeed+'%'
         + ' · '+calcHtml(h)+' = <b>'+dmgHtml(h.dmg, h.magDmg)+'</b>';
       return t;
@@ -2883,6 +2898,8 @@ window.SKHERO = (function(){
     if(hit.kind==='skip') return '<span>'+prefix.split(' →')[0]+': <span class="b">удару не було</span></span>';
     if(hit.kind==='barrier') return '<span'+t+'>'+prefix+': <span class="b">🫧 бар\'єр поглинув удар</span>'+x+'</span>';
     if(hit.kind==='dodge') return '<span'+t+'>'+prefix+': <span class="b">промах!</span>'+x+'</span>';
+    if(hit.kind==='block' && hs.some(function(h){ return h.evade; })) return '<span'+t+'>'+prefix+': <span class="ev">💨 спритно відскочив — ухилився спритністю</span>'+x+'</span>';
+    if(hit.kind==='block' && hs.some(function(h){ return h.kind==='block' && h.magic; })) return '<span'+t+'>'+prefix+': <span class="mblk">✨ магію заблоковано</span>'+(hit.dmg ? ' (−'+hit.dmg+')' : '')+x+'</span>';
     if(hit.kind==='block') return '<span'+t+'>'+prefix+': <span class="b">заблоковано</span>'+(hit.dmg ? ' (−'+hit.dmg+')' : '')+x+'</span>';
     if(hit.kind==='crit')  return '<span'+t+'>'+prefix+': <span class="crit">Критичний урон !!!</span> (−'+dmgHtml(hit.dmg, sumMag(hit))+')'+x+'</span>';
     return '<span'+t+'>'+prefix+': <span class="g">влучив</span> (−'+dmgHtml(hit.dmg, sumMag(hit))+')'+x+'</span>';
