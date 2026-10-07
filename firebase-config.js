@@ -978,11 +978,18 @@ const SK = {
         out.sort((a, b) =>
           (Number(a.order) || 0) - (Number(b.order) || 0) ||
           String(a.id || '').localeCompare(String(b.id || ''), 'uk'));
-        itemsCachePut(out);
+        /* ⚠ Без звʼязку з сервером (немає мережі, вичерпана квота) getDocs
+           віддає те, що SDK уже мав у памʼяті, — лише кілька предметів, які
+           сторінка читала поштучно (SK.getItem). Такий неповний каталог НЕ
+           кладемо в кеш до півночі: інакше речі «зникали» з інвентаря
+           («У базі є N предметів, але їх немає в каталозі»). */
+        if (snap.metadata && snap.metadata.fromCache) { itemsCacheDrop(); out.partial = true; }
+        else itemsCachePut(out);
         return out;
       })().finally(() => { itemsLoading = null; });
     }
     const list = await itemsLoading;
+    if (list.partial) return list.slice();
     return fresh ? list : (itemsCacheGet() || list);
   },
 

@@ -3106,7 +3106,7 @@ function moveBelt(a,b){if(inBattle())return;if(a===b)return;var ea=BELT[a];if(!e
 function inBattle(){if(window.SKARENA_LIVE&&SKARENA_LIVE()){if(window.showToast)showToast('⚔ Герой у бою','Спорядження можна змінити після бою');return true;}return false;}
 /* запис змін спорядження: лише різниця з останнім станом бази (SKIT.store.diffInv),
    у транзакції поверх СВІЖОГО інвентаря — нагорода з іншої вкладки не загубиться */
-var BASE_INV=[];
+var BASE_INV=[],CAT_REFETCHED=false;
 function persist(){if(!loaded||!(window.SK&&SK.storeTx)||!ST())return;var d=ST().diffInv(BASE_INV,ALL_INST);if(d.empty)return;
  BASE_INV=JSON.parse(JSON.stringify(ALL_INST));
  SK.storeTx(function(st){return ST().applyDiff(st,d);},{noBattle:true}).then(function(r){if(window.SKHERO)SKHERO.apply(r);})
@@ -3359,6 +3359,11 @@ function applyState(st){if(!st)return;
  STORE={chest:st.chest||[],trash:st.trash||[]};if(st.coins!=null)HERO.coins=st.coins;
  BASE_INV=JSON.parse(JSON.stringify(ALL_INST));
  var fixed=rebuild();renderAll();
+ // у сумці є речі, яких немає в каталозі, — каталог міг бути неповним (кеш / без звʼязку):
+ // один раз перечитуємо його з бази, а нічого не «виправляємо», доки каталог неповний
+ if(MISSING.length){if(!CAT_REFETCHED&&window.SK&&SK.listItems){CAT_REFETCHED=true;
+   SK.listItems({fresh:true}).then(function(list){if(!list||!list.length)return;CATALOG=list;BYID={};CATALOG.forEach(function(b){BYID[b.id]=b;});applyState(window.SKHERO&&SKHERO.get()||st);}).catch(function(){});}
+   return;}
  // старі дані (дві речі в слоті, щит при дворучній…) — виправляємо в транзакції
  if(fixed&&!(window.SKARENA_LIVE&&SKARENA_LIVE())&&window.SK&&SK.storeTx&&ST())
    SK.storeTx(function(s2){return ST().applyView(s2,BYID,viewOpts());}).then(function(r){if(window.SKHERO)SKHERO.apply(r);}).catch(function(){});}
@@ -3434,6 +3439,10 @@ function closeShop(){q('shop').hidden=true;clearInterval(S.hb);S.hb=null;lockOff
 function load(force){var my=++S.seq;
   return Promise.all([SK.listItems(),window.SKHERO?SKHERO.load(force):SK.getStore()]).then(function(r){if(my!==S.seq)return;
     S.cat=r[0]||[];S.byId={};S.cat.forEach(function(b){S.byId[b.id]=b;});S.st=r[1]||ST().normState({});
+    // у сумці є речі поза каталогом — каталог неповний: перечитуємо його з бази один раз
+    if(!S.catFresh&&(S.st.inventory||[]).some(function(i){return i&&i.id&&!S.byId[i.id];})){S.catFresh=true;
+      SK.listItems({fresh:true}).then(function(list){if(my!==S.seq||!list||!list.length)return;S.cat=list;S.byId={};list.forEach(function(b){S.byId[b.id]=b;});
+        var hid=(SK._heroUid&&SK._heroUid())||SK.activeHeroId||'';S.stock=ST().shopStock(S.cat,hid,Date.now());render();}).catch(function(){});}
     var hid=(SK._heroUid&&SK._heroUid())||SK.activeHeroId||'';S.stock=ST().shopStock(S.cat,hid,Date.now());render();})
   .catch(function(e){if(my!==S.seq)return;try{console.error('[магазин]',e);}catch(_){}
     S.err=(e&&e.code==='permission-denied')?'Немає доступу до речей. Увійди як Герой.':'Не вдалося завантажити магазин: '+((e&&e.message)||String(e));
