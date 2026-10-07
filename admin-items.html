@@ -697,7 +697,7 @@ function doSave(){
   }
   setMsg('💾 Зберігаємо…', true);
   SK.saveItem(clean).then(function(){
-    return SK.listItems();
+    return SK.listItems({fresh:true});
   }).then(function(list){
     ITEMS=list||[];
     // лишаємось на збереженому предметі в режимі редагування
@@ -710,7 +710,7 @@ function doSave(){
 
 function doDelete(id){
   if(!confirm('Видалити предмет «'+id+'» назавжди?')) return;
-  SK.deleteItem(id).then(function(){ return SK.listItems(); })
+  SK.deleteItem(id).then(function(){ return SK.listItems({fresh:true}); })
     .then(function(list){
       ITEMS=list||[];
       M=blankItem(); renderEditor(); renderView();
@@ -808,7 +808,7 @@ function doSeed(mode){
     });
   }
   function finish(){
-    SK.listItems().then(function(list){
+    SK.listItems({fresh:true}).then(function(list){
       ITEMS=list||[]; renderView();
       el('#seedMsg').textContent='✅ Готово. '+(plan.added?('Додано: '+plan.added+'. '):'')+(plan.updated?('Оновлено: '+plan.updated+'.'):'');
       el('#seedMsg').className='msg ok';
@@ -955,7 +955,7 @@ function doTableImport(){
     });
   }
   function finish(){
-    SK.listItems().then(function(list){
+    SK.listItems({fresh:true}).then(function(list){
       ITEMS=list||[]; renderView();
       setTblMsg('✅ Готово. Додано: '+add+'. Оновлено: '+upd+'.'
         + (res.bad.length ? (' Пропущено: '+res.bad.length+'.') : ''), true);
@@ -978,7 +978,7 @@ SKADMIN.header({
 SKADMIN.guard({
   denyMsg:'Увійди адміністратором, щоб керувати предметами.',
   onOk:function(SK){
-    SK.listItems().then(function(list){ ITEMS=list||[]; renderAdminUI(); })
+    SK.listItems({fresh:true}).then(function(list){ ITEMS=list||[]; renderAdminUI(); })
       .catch(function(){ ITEMS=[]; renderAdminUI(); });
   }
 });
