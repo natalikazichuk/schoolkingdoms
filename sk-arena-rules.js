@@ -94,7 +94,7 @@
     { key: 'magicDamage', label: 'Магічний урон',         emoji: '✨', base: 0, arena: 'магічна зброя робить увесь удар магічним; інші речі — + до удару, % — множник магічного удару й свитків; на свитку — урон свитка' },
     { key: 'critDamage',  label: 'Шанс крит. урону',      emoji: '💥', base: 0, arena: '+ до шансу криту (у %)' },
     { key: 'extraAttack', label: 'Додаткова атака',       emoji: '⚡', base: 0, arena: '+1 удар за хід за кожну одиницю' },
-    { key: 'block',       label: 'Шанс блоку',            emoji: '🧱', base: 0, arena: 'шанс заблокувати удар у НЕзахищену зону. Річ із бронею (або іншою характеристикою) блокує фізичні удари, з магічним захистом чи магічним уроном — магічні удари й свитки' },
+    { key: 'block',       label: 'Шанс блоку',            emoji: '🧱', base: 0, arena: 'шанс заблокувати удар у НЕзахищену зону. Річ із бронею (або іншою характеристикою) блокує фізичні удари, з магічним захистом чи магічним уроном — магічні удари й свитки. Зі щитом, головна характеристика якого «Спритність», усі шанси з речей разом і навпіл діють проти будь-яких ударів — це відскок' },
     { key: 'beltSlots',   label: 'Комірки пояса',         emoji: '🧵', base: 0, arena: 'скільки зілль і свитків можна взяти в бій (пояс)' },
     { key: 'healthRegen', label: "Відновлення здоров'я",  emoji: '💚', base: 0, arena: "зілля з пояса: + N% від максимального здоров'я одразу, не вище максимуму" },
     { key: 'fear',        label: 'Страх',                 emoji: '😱', base: 0, arena: 'свиток: суперник у цьому ході не атакує й не робить спецдій. Перший спрацьовує з шансом 90%, далі — 50% (опір); після двох спрацювань — імунітет' },
@@ -235,6 +235,16 @@
     p.magPct = pct.magicDamage || 0;
     p.critPct = (pct.critDamage || 0) + (flat.critDamage || 0);
     p.extra = Math.max(0, Math.floor(flat.extraAttack || 0));
+    // щит зі спритністю (плащ матадора, кришка…): усі «Шанси блоку» з речей разом і навпіл —
+    // однаково проти фізичних і магічних ударів; це не блок, а відскок (evade)
+    var lh = (equipped || []).filter(function (e) {
+      return e && e.base && e.inst && e.inst.slot === 'weaponL' && e.base.category === 'Щити' && e.base.stat
+        && skit.canon(e.base.stat) === 'agility' && !(e.inst.durMax != null && e.inst.durCur != null && num(e.inst.durCur) <= 0);
+    })[0];
+    if (lh) {
+      var half = Math.round((p.blockPhys + p.blockMag) * 5) / 10;
+      p.blockPhys = half; p.blockMag = half; p.evade = true;
+    }
     return p;
   }
 
@@ -247,6 +257,7 @@
   }
   /* хто з речей блокує (для зносу): найбільший шанс потрібного типу */
   function blockBy(def, magic) {
+    if (def && def.evade) return 'weaponL';   // відскок — зношується щит зі спритністю
     var best = null;
     ((def && def.blockSrc) || []).forEach(function (b) { if (!!b.mag === !!magic && (!best || b.v > best.v)) best = b; });
     return best ? best.slot : null;
@@ -258,7 +269,7 @@
     var o = {};
     Object.keys(p).forEach(function (k) {
       var v = p[k];
-      if (k === 'extra' || k === 'blockPhys' || k === 'blockMag' || typeof v !== 'number') { o[k] = v; return; }
+      if (k === 'extra' || k === 'blockPhys' || k === 'blockMag' || typeof v !== 'number') { o[k] = v; return; }   // evade (boolean) теж як є
       o[k] = Math.max(k === 'hp' || k === 'accuracy' || k === 'agility' ? 1 : 0, Math.round(v * (1 - vary + rnd() * 2 * vary)));
     });
     if (o.wMax < o.wMin) o.wMax = o.wMin;
@@ -368,11 +379,11 @@
     // 2б) не вгадав зону — шанс блоку з речей захисника (фізичні / магічні удари окремо)
     var magic0 = isMagic(att), bch = num(magic0 ? def.blockMag : def.blockPhys);
     if (!blocked && bch > 0) {
-      out.blockNeed = Math.min(100, Math.round(bch)); out.blockRoll = d100(rnd);
+      out.blockNeed = Math.min(100, Math.round(bch)); out.blockRoll = d100(rnd); out.evadeTry = !!def.evade;
       if (out.blockRoll <= out.blockNeed) {
         var cb = critCheck();
-        return ret({ dmg: 0, kind: 'block', crit: cb, byChance: true, blockBy: blockBy(def, magic0),
-          calc: 'блок шансом 🎲 ' + out.blockRoll + ' ≤ ' + out.blockNeed + '%' + (magic0 ? ' (маг.)' : '') + ' · крит? 🎲 ' + out.critRoll + (cb ? ' ≤ ' : ' > ') + out.critNeed + '%' });
+        return ret({ dmg: 0, kind: 'block', crit: cb, byChance: true, evade: !!def.evade, blockBy: blockBy(def, magic0),
+          calc: (def.evade ? 'відскочив 💨 🎲 ' : 'блок шансом 🎲 ') + out.blockRoll + ' ≤ ' + out.blockNeed + '%' + (magic0 ? ' (маг.)' : '') + ' · крит? 🎲 ' + out.critRoll + (cb ? ' ≤ ' : ' > ') + out.critNeed + '%' });
       }
     }
     // 3) урон. ТИП удару визначає зброя в руках:
@@ -456,8 +467,8 @@
     if (bch > 0) {
       out.blockNeed = Math.min(100, Math.round(bch)); out.blockRoll = d100(rnd);
       if (out.blockRoll <= out.blockNeed) {
-        out.dmg = 0; out.kind = 'block'; out.byChance = true; out.blockBy = blockBy(def, true);
-        out.calc = 'свиток заблоковано шансом 🎲 ' + out.blockRoll + ' ≤ ' + out.blockNeed + '% (маг.)';
+        out.dmg = 0; out.kind = 'block'; out.byChance = true; out.evade = !!def.evade; out.blockBy = blockBy(def, true);
+        out.calc = (def.evade ? 'від свитка відскочив 💨 🎲 ' : 'свиток заблоковано шансом 🎲 ') + out.blockRoll + ' ≤ ' + out.blockNeed + '%' + (def.evade ? '' : ' (маг.)');
         return out;
       }
     }
