@@ -121,7 +121,7 @@
         else {
           var lo = B.buffMin || 5, hi = B.buffMax || 10;
           var t = lo + Math.floor(rnd() * (hi - lo + 1));
-          fa.buffs[ef.key] = { pct: ef.pct, turns: t, name: rec.name };
+          fa.buffs[ef.key] = { pct: ef.pct, turns: t, name: rec.name, id: item.id };
           r.turns = t;
         }
       } else if (ef.type === 'scroll') {

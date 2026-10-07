@@ -723,8 +723,35 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 .bbslot:disabled:not(.used){opacity:.6;cursor:not-allowed}
 .bbhint{flex-basis:100%;text-align:center;font-size:.68rem;font-weight:700;color:#a9c1e4}
 /* активні ефекти бійця (підсилення, бар'єр, опір страху) — значки внизу картинки */
-.fxrow{position:absolute;left:4px;right:4px;bottom:4px;z-index:3;display:flex;flex-wrap:wrap;gap:3px;justify-content:center;pointer-events:none}
-.fxrow span{background:rgba(8,16,34,.78);border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:1px 6px;font-size:.62rem;font-weight:900;color:#fff;white-space:nowrap}
+/* стовпчики ефектів біля панелей: зовнішній — негативні (червоний), внутрішній — позитивні (зелений);
+   у суперника — дзеркально. Наведи / натисни значок — опис і скільки ще діє. */
+.fxcol{flex:0 0 46px;align-self:stretch;display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px 0;
+  border-radius:12px;border:2px solid rgba(123,216,138,.45);background:rgba(8,16,36,.45)}
+.fxcol.neg{border-color:rgba(232,90,90,.5)}
+.fxi{position:relative;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.25rem;
+  background:linear-gradient(180deg,#1f5a3a,#123825);border:2px solid #7bd88a;cursor:help;outline:none}
+.fxcol.neg .fxi{background:linear-gradient(180deg,#6a2020,#3e1212);border-color:#e85a5a}
+.fxi img{width:28px;height:28px;object-fit:contain}
+.fxi .fxn{position:absolute;right:-5px;bottom:-5px;min-width:16px;height:16px;padding:0 3px;border-radius:8px;background:#0c2247;
+  border:1px solid #ffd54a;color:#ffd54a;font-size:.58rem;font-weight:900;line-height:14px;text-align:center}
+.fxi .fxtip{display:none;position:absolute;top:50%;left:calc(100% + 8px);transform:translateY(-50%);z-index:30;width:210px;
+  background:#0c1a36;border:2px solid var(--gold);border-radius:10px;padding:7px 9px;font-size:.72rem;font-weight:700;line-height:1.3;
+  color:#eaf2ff;text-align:left;box-shadow:0 8px 20px rgba(0,0,0,.6);pointer-events:none}
+.fxi .fxtip b{display:block;color:#ffe9b8;margin-bottom:2px}
+.fxi .fxtip i{display:block;font-style:normal;color:#ffd54a;margin-top:3px}
+.fxcol.o .fxi .fxtip{left:auto;right:calc(100% + 8px)}
+.fxi:hover .fxtip,.fxi:focus .fxtip{display:block}
+.fxbreak{display:none}
+@media(max-width:760px){
+  /* телефон: усі ефекти — одним рядком під бійцями (ліворуч — твої, праворуч — суперника) */
+  .fxbreak{display:block;order:4;flex-basis:100%;height:0}
+  .fxcol{order:5;position:relative;flex:1 1 0;flex-direction:row;flex-wrap:wrap;justify-content:center;align-self:auto;min-height:44px;padding:4px}
+  .fxcol:empty,.scene-row.nofx .fxcol{display:none}
+  .side-col{order:7}
+  .side-col.atk-col{order:6}
+  .fxi .fxtip{top:auto;bottom:calc(100% + 6px);transform:none;left:0;right:auto;width:200px}
+  .fxcol.o .fxi .fxtip{left:auto;right:0}
+}
 .step .use{display:block;color:#b8ffcf;font-weight:800}
 .step .use.op{color:#ffc6a8}
 
@@ -1141,6 +1168,10 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
     <!-- СЦЕНА: об'єднані картки бійців (ім'я + аватар + рівень + HP) -->
     <div class="arena-scene">
       <div class="scene-row">
+        <div class="fxbreak"></div>
+        <!-- ефекти Героя: негативні (зовні) · позитивні -->
+        <div class="fxcol neg p" id="pFxNeg" aria-label="Негативні ефекти"></div>
+        <div class="fxcol pos p" id="pFxPos" aria-label="Позитивні ефекти"></div>
         <!-- ЗАХИСТ (ліворуч, біля твого героя) -->
         <div class="side-col def-col">
           <div class="side-h def"><span class="sh-ic">🛡️</span><span class="sh-t">Захист</span></div>
@@ -1159,7 +1190,6 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
             <span class="zoom">🔍</span>
             <img id="pPeek" alt="">
             <span class="figemoji hidden" id="pSceneEmoji">🧒</span>
-            <div class="fxrow" id="pFx"></div>
           </div>
           <div class="hpwrap">
             <span class="flvl" id="pLvl">1</span>
@@ -1190,7 +1220,6 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
             <span class="zoom">🔍</span>
             <img id="oPeek" alt="">
             <span class="figemoji hidden" id="oSceneEmoji">🤖</span>
-            <div class="fxrow" id="oFx"></div>
           </div>
           <div class="hpwrap">
             <span class="flvl" id="oLvl">1</span>
@@ -1210,6 +1239,9 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
             <button class="tcard z-legs" data-zone="legs" type="button"><span class="zi"><svg viewBox="0 0 32 32" fill="currentColor"><path d="M12 5c-1.1 0-2 .9-2 2v11.4c0 .9-.3 1.7-1 2.4l-2.5 2.6c-1 1-.3 2.8 1.2 2.8H26c1.1 0 2-.9 2-2 0-2.6-1.6-5-4.1-6L19 18.7V7c0-1.1-.9-2-2-2h-5Z"/></svg></span><span class="zl">Ноги</span></button>
           </div>
         </div>
+        <!-- ефекти суперника: позитивні · негативні (зовні) -->
+        <div class="fxcol pos o" id="oFxPos" aria-label="Позитивні ефекти суперника"></div>
+        <div class="fxcol neg o" id="oFxNeg" aria-label="Негативні ефекти суперника"></div>
       </div>
     </div>
 
@@ -1354,7 +1386,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
 <script src="sk-arena-rules.js?v=17"></script>
-<script src="sk-battle.js?v=2"></script>
+<script src="sk-battle.js?v=3"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
    Інвентар, скриня, смітник, продане / куплене сьогодні й монети
@@ -1784,19 +1816,41 @@ window.SKHERO = (function(){
       saveBattle(); paintBelt(); if(invOpen()) renderInv();
     });
   }
-  /* значки ефектів на картках бійців */
+  /* ── значки ефектів: позитивні (зелений стовпчик) і негативні (червоний) ──
+     Кожен ефект: {neg, ic, n, title, text, left} — опис і скільки ще діє в підказці.
+     Негативних ефектів поки немає (страх діє лише в тому ході, коли спрацював);
+     підсилення з від'ємним % (майбутні прокляття, отрута) підуть у червоний. */
+  function fxList(u){
+    var f = (u && u.fx) || {}, out = [], imm = CFG.fearImmune || 2;
+    Object.keys(f.buffs||{}).forEach(function(k){
+      var b = f.buffs[k]; if(!b || !(b.turns>0)) return;
+      out.push({neg: b.pct<0, ic: b.id ? itemIcon(b.id, FX_EMO[k]||'🧪') : (FX_EMO[k]||'🧪'), n: b.turns,
+        title: b.name || 'Підсилення', text: (FX_UK[k]||k)+' '+(b.pct>0?'+':'')+b.pct+'%', left: 'Ще '+b.turns+' '+(b.turns===1?'хід':b.turns<5?'ходи':'ходів')});
+    });
+    if(f.barrier>0) out.push({neg:false, ic:'🫧', n: f.barrier>1 ? '×'+f.barrier : '',
+      title: "Бар'єр", text: "Поглине "+(f.barrier>1?f.barrier+' удари':'один удар')+", що забрав би здоров'я. Ухилився чи заблокував — бар'єр лишається.", left: 'До першого удару, що влучить'});
+    if(f.fear>=imm) out.push({neg:false, ic:'😱', n:'∞', title:'Імунітет до страху', text:'Свитки страху більше не діють.', left:'До кінця бою'});
+    else if(f.fear>0) out.push({neg:false, ic:'😱', n:Math.round((CFG.fearNext||0.5)*100)+'', title:'Опір страху',
+      text:'Наступний свиток страху спрацює лише з шансом '+Math.round((CFG.fearNext||0.5)*100)+'%. Ще одне спрацювання — імунітет.', left:'До кінця бою'});
+    return out;
+  }
+  function fxHtml(list){
+    return list.map(function(x){
+      return '<span class="fxi" tabindex="0" aria-label="'+biEsc(x.title+': '+x.text+'. '+x.left)+'">'+x.ic
+        + (x.n!=='' && x.n!=null ? '<span class="fxn">'+biEsc(String(x.n))+'</span>' : '')
+        + '<span class="fxtip"><b>'+biEsc(x.title)+'</b>'+biEsc(x.text)+'<i>⏳ '+biEsc(x.left)+'</i></span></span>';
+    }).join('');
+  }
   function paintFx(){
     if(!B) return;
+    var any = false;
     [['p', B.me], ['o', B.op]].forEach(function(x){
-      var el = $(x[0]+'Fx'); if(!el) return;
-      var f = x[1].fx || {}, out = [];
-      Object.keys(f.buffs||{}).forEach(function(k){ var b = f.buffs[k]; if(b && b.turns>0) out.push('<span title="'+biEsc((b.name||'')+': '+(FX_UK[k]||k)+' +'+b.pct+'%, ще '+b.turns+' ход.')+'">'+(FX_EMO[k]||'🧪')+'+'+b.pct+'% · '+b.turns+'</span>'); });
-      if(f.barrier>0) out.push('<span title="Бар\'єр поглине удар">🫧'+(f.barrier>1?'×'+f.barrier:'')+'</span>');
-      var imm = CFG.fearImmune || 2;
-      if(f.fear>=imm) out.push('<span title="Страх більше не діє">😱 імунітет</span>');
-      else if(f.fear>0) out.push('<span title="Опір страху: наступний свиток спрацює з шансом '+Math.round((CFG.fearNext||0.5)*100)+'%">😱 опір</span>');
-      el.innerHTML = out.join('');
+      var l = fxList(x[1]); if(l.length) any = true;
+      var pos = $(x[0]+'FxPos'), neg = $(x[0]+'FxNeg');
+      if(pos) pos.innerHTML = fxHtml(l.filter(function(e){ return !e.neg; }));
+      if(neg) neg.innerHTML = fxHtml(l.filter(function(e){ return e.neg; }));
     });
+    var row = document.querySelector('#screen-battle .scene-row'); if(row) row.classList.toggle('nofx', !any);
   }
   function useLine(u){
     var who = u.side==='me' ? 'Ти' : B.op.f.name, tgt = u.side==='me' ? B.op.f.name : 'тебе';
