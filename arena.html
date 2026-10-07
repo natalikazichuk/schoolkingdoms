@@ -931,6 +931,12 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 #ek-card .ic-act{margin-top:10px;width:100%;border:0;border-radius:10px;padding:9px;font-weight:900;cursor:pointer;font-size:.95rem;
   color:#fff;background:linear-gradient(180deg,#6ad36a,#2f9a3a);box-shadow:0 3px 0 #1f6a28}
 #ek-card .ic-act:disabled{opacity:.5;cursor:default}
+#ek-card .ic-confirm{margin-top:10px;padding:10px;border-radius:12px;background:rgba(255,90,90,.12);border:1px solid rgba(255,120,120,.5)}
+#ek-card .ic-confirm p{margin:0 0 8px;font-weight:800;color:#ffd7d7;font-size:.9rem}
+#ek-card .ic-cbtns{display:flex;gap:8px}
+#ek-card .ic-cbtns button{flex:1;border:0;border-radius:10px;padding:9px;font-weight:900;cursor:pointer}
+#ek-card .ic-yes{background:linear-gradient(180deg,#ff7a6b,#d8443a);color:#fff}
+#ek-card .ic-no{background:rgba(255,255,255,.14);color:#eaf2ff}
 #ek-card .ic-trash{margin-top:10px;width:100%;border:0;border-radius:10px;padding:8px;font-weight:900;cursor:pointer;
   background:rgba(255,107,107,.16);color:#ffb3b3;font-family:inherit}
 .ek-belt-empty{color:#9fb0d8;font-size:.85rem;padding:6px 2px}
@@ -1297,7 +1303,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
       </div>
       <section class="ek-beltbar"><div class="ek-belt-lbl">🪢 Пояс <span class="ek-belt-c" id="ek-beltCount"></span></div><div class="ek-belt" id="ek-belt"></div></section>
       <section class="ek-store" id="ek-store" hidden></section>
-      <div class="ek-hint2">Перетягни річ у слот або <b>тапни</b>, щоб одягнути. Тап по одягненій речі — зняти. <b>Права кнопка</b> або довге натискання — подивитись річ.</div>
+      <div class="ek-hint2"><b>Тапни</b> річ — відкриється картка з кнопками «Вдягнути» та «У смітник». Можна й <b>перетягнути</b> річ у слот — вдягнеться одразу.</div>
     </div>
 
     <!-- вкладка: образ (базовий лицар) -->
@@ -3156,14 +3162,23 @@ function showCard(el){var x=entryOfChip(el);if(!x)return;
  var acts=[],src=el.getAttribute('data-src');
  // та сама дія, що й тап по речі: вдягнути / на пояс / зняти
  acts.push({label:src==='inv'?(x.usable?'🪢 На пояс':'✅ Вдягнути'):(src==='belt'?'↩ Зняти з пояса':'↩ Зняти'),fn:function(){tap(el);}});
- if(src==='inv'&&window.SK&&SK.trashItem)acts.push({label:'🗑 Викинути'+((Number(x.qty)||1)>1?' (усі '+x.qty+')':''),cls:'ic-trash',fn:function(){
-   if(!inBattle()&&confirm('Викинути річ у смітник? До півночі її ще можна повернути.'))storeAct('trashItem',x.uid);}});
+ if(src==='inv'&&window.SK&&SK.trashItem)acts.push({label:'🗑 У смітник'+((Number(x.qty)||1)>1?' (усі '+x.qty+')':''),cls:'ic-trash',fn:function(){
+   if(!inBattle())storeAct('trashItem',x.uid);},
+   confirm:'Викинути «'+(x.name||'річ')+'»'+((Number(x.qty)||1)>1?' (усі '+x.qty+')':'')+' у смітник? До півночі її ще можна повернути.'});
  itemCard(x,acts);}
 function itemCard(x,acts){hideTip();
  if(!card){card=document.createElement('div');card.id='ek-card';card.hidden=true;document.body.appendChild(card);
   card.addEventListener('click',function(e){if(e.target===card||(e.target.closest&&e.target.closest('.ic-x'))){hideCard();return;}
    var ab=e.target.closest&&e.target.closest('[data-act]');
-   if(ab&&!ab.disabled){var a=CARD_ACTS[+ab.getAttribute('data-act')];hideCard();if(a&&a.fn)a.fn();}});
+   var no=e.target.closest&&e.target.closest('[data-no]');if(no){var cf=card.querySelector('.ic-confirm');if(cf)cf.remove();card.querySelectorAll('[data-act]').forEach(function(b){b.hidden=false;});return;}
+   var yes=e.target.closest&&e.target.closest('[data-yes]');if(yes){var ay=CARD_ACTS[+yes.getAttribute('data-yes')];hideCard();if(ay&&ay.fn)ay.fn();return;}
+   if(ab&&!ab.disabled){var a=CARD_ACTS[+ab.getAttribute('data-act')];if(!a)return;
+     // дія з підтвердженням (у смітник) — питаємо тут же, в картці
+     if(a.confirm){card.querySelectorAll('[data-act]').forEach(function(b){b.hidden=true;});
+       var box=document.createElement('div');box.className='ic-confirm';
+       box.innerHTML='<p>'+esc(a.confirm)+'</p><div class="ic-cbtns"><button type="button" class="ic-yes" data-yes="'+ab.getAttribute('data-act')+'">Так, викинути</button><button type="button" class="ic-no" data-no="1">Ні</button></div>';
+       card.querySelector('.ic-box').appendChild(box);return;}
+     hideCard();if(a.fn)a.fn();}});
   card.addEventListener('contextmenu',function(e){e.preventDefault();});}
  CARD_ACTS=acts||[];
  var base=BYID[x.id],eff=(base&&window.SKIT&&SKIT.effective)?SKIT.effective(base,x._inst||{bonus:1}):null;
@@ -3336,7 +3351,7 @@ function tap(el){var src=el.getAttribute('data-src');
 document.addEventListener('pointerdown',function(e){if(e.button!==0)return;var el=e.target.closest?e.target.closest('.ek-drag'):null;if(!el)return;down={el:el,x:e.clientX,y:e.clientY,started:false};});
 document.addEventListener('pointermove',function(e){if(!down)return;if(!down.started){if(Math.hypot(e.clientX-down.x,e.clientY-down.y)<7)return;down.started=true;startDrag(down.el,e.clientX,e.clientY);}
  if(drag){moveGhost(e.clientX,e.clientY);highlightOver(targetAt(e.clientX,e.clientY));e.preventDefault();}},{passive:false});
-document.addEventListener('pointerup',function(e){if(lp&&lp.fired){lp=null;down=null;return;}if(down&&down.started)endDrag(e.clientX,e.clientY);else if(down)tap(down.el);down=null;});
+document.addEventListener('pointerup',function(e){if(lp&&lp.fired){lp=null;down=null;return;}if(down&&down.started)endDrag(e.clientX,e.clientY);else if(down)showCard(down.el);down=null;});   // тап — збільшена картка з кнопками (перетягування вдягає одразу)
 document.addEventListener('pointercancel',function(){cleanup();down=null;});
 document.addEventListener('pointerover',function(e){if(e.pointerType!=='mouse'||drag)return;var el=e.target.closest?e.target.closest('.ek-chip.ek-drag'):null;if(el)showTip(el,e.clientX,e.clientY);});
 document.addEventListener('pointerout',function(e){var el=e.target.closest?e.target.closest('.ek-chip.ek-drag'):null;if(el&&!(e.relatedTarget&&el.contains(e.relatedTarget)))hideTip();});
