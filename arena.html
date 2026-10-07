@@ -221,7 +221,7 @@ button{font-family:inherit}
   box-shadow:0 24px 70px rgba(0,0,0,.6)}
 .shop-h{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}
 .shop-h b{font-family:'Fredoka';font-weight:700;font-size:1.2rem;color:#ffe9b8}
-.shop-h .sh-coins{font-weight:900;color:#3a2a08;background:linear-gradient(180deg,#ffe7a0,#e0a93a);border-radius:20px;padding:3px 12px}
+.shop-h .sh-coins{font-weight:900;color:#ffe9b8;background:rgba(0,0,0,.35);border:1.5px solid rgba(224,164,42,.7);border-radius:20px;padding:3px 12px}
 .shop-h .sh-note{font-size:.72rem;color:#a9c1e4;font-weight:800}
 .shop-h .ward-x{margin-left:auto}
 .shop-body{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(250px,300px) minmax(0,1fr);gap:12px;align-items:start}
@@ -1321,7 +1321,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
       <section class="sh-col store"><h3>🏪 Товари</h3><div class="sh-tabs" id="shTabs"></div><div id="shStore"></div></section>
       <section class="sh-col counter"><h3>🧾 Прилавок</h3><div id="shCounter"></div></section>
       <section class="sh-col inv"><h3>🎒 Сумка <small id="shBagCnt"></small></h3><div id="shInv"></div>
-        <div class="sh-hint">Натисни річ, щоб покласти на прилавок для продажу. Продаємо лише речі із сумки — вдягнене спершу зніми.</div></section>
+        <div class="sh-hint">Натисни річ — вона одразу на прилавку для продажу; права кнопка (на телефоні — довге натискання) — роздивитись. Продаємо лише речі із сумки — вдягнене спершу зніми.</div></section>
     </div>
   </div>
 </div>
@@ -1353,7 +1353,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
         </section>
         <section class="ek-slots" id="ek-slots"></section>
         <section class="ek-inv">
-          <div class="ek-inv-h"><b>Речі <small class="ek-bagc" id="ek-bagCount"></small></b><span class="ek-coins">🪙 <span id="ek-coins">540</span></span></div>
+          <div class="ek-inv-h"><b>Речі <small class="ek-bagc" id="ek-bagCount"></small></b><span class="ek-coins"><span id="ek-coins">540</span></span></div>
           <div class="ek-tabs" id="ek-tabs"></div>
           <div class="ek-grid" id="ek-invGrid"></div>
         </section>
@@ -3233,7 +3233,7 @@ window.SKHERO = (function(){
 })();
 </script>
 
-<script src="sk-items.js?v=5"></script>
+<script src="sk-items.js?v=6"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
    Дані ЗАРАЗ demo (локально). Крок 2: джерело речей → Firestore (адмінка).
@@ -3339,7 +3339,7 @@ function tipHTML(x){var base=BYID[x.id];var bc=bonusClass(x.bonus!=null?x.bonus:
 function cap(t){t=String(t);return t.charAt(0).toUpperCase()+t.slice(1);}
 /* ── картка предмета: права кнопка миші або довге натискання на телефоні ── */
 var card=null;
-function coinsTxt(silver){var v=Math.max(0,Math.round(Number(silver)||0)),g=Math.floor(v/100),r=v%100,o=[];if(g)o.push(g+' зол');if(r||!g)o.push(r+' сріб');return o.join(' ');}
+function coinsTxt(silver){return SKIT.coinsHtml(silver);}   // золоті — золотим, срібні — сріблом (sk-items.js)
 function hideCard(){if(card)card.hidden=true;}
 /* ЗБІЛЬШЕНА КАРТКА РЕЧІ — спільна для гардероба й магазину (window.SKCARD):
    велика картинка, назва з кольором бонусу, характеристики, міцність, ціна
@@ -3381,7 +3381,7 @@ function itemCard(x,acts){hideTip();
   +'<div class="tp-name '+bc+'">'+esc(x.name||'')+'</div>'
   +(meta.length?'<div class="ic-meta">'+esc(meta.join(' · '))+'</div>':'')
   +body+dur
-  +(eff?'<div class="ic-price">💰 '+coinsTxt(eff.priceNow)+'</div>':'')
+  +(eff?'<div class="ic-price">'+coinsTxt(eff.priceNow)+'</div>':'')
   +CARD_ACTS.map(function(a,i){return '<button type="button" class="'+(a.cls||'ic-act')+'" data-act="'+i+'"'+(a.disabled?' disabled':'')+'>'+esc(a.label)+'</button>';}).join('')
   +'</div>';
  card.hidden=false;}
@@ -3425,7 +3425,7 @@ function dmgRange(){var R=R0(),b=(R.BATTLE&&R.BATTLE.baseDmg)||0;
 function renderStats(){var t=totals();
  q('ek-lvl').textContent=LEVEL.level;q('ek-xpTxt').textContent=LEVEL.xp+' / '+LEVEL.xpMax;
  q('ek-xpFill').style.width=Math.min(100,LEVEL.xp/LEVEL.xpMax*100)+'%';
- q('ek-hpVal').textContent=t.health+' / '+t.health;q('ek-mpVal').textContent=t.mana+' / '+t.mana;q('ek-coins').textContent=coinsTxt(HERO.coins!=null?HERO.coins:0);
+ q('ek-hpVal').textContent=t.health+' / '+t.health;q('ek-mpVal').textContent=t.mana+' / '+t.mana;q('ek-coins').innerHTML=coinsTxt(HERO.coins!=null?HERO.coins:0);
  var bcn=q('ek-bagCount');if(bcn&&ST())bcn.textContent=ST().bagCount(ALL_INST)+'/'+ST().BAG_LIMIT;
  q('ek-hpFill').style.width='100%';q('ek-mpFill').style.width='100%';
  var dm=dmgRange();
@@ -3598,7 +3598,8 @@ var S={cat:[],byId:{},st:null,stock:null,tab:'gear',ct:{sell:[],buy:[],buyback:[
 var CAT_EMO={'Шоломи':'⛑️','Обладунки':'🥋','Рукавиці':'🧤','Наручі':'🦾','Пояси':'🪢','Штани':'👖','Взуття':'👢','Зброя':'⚔️','Щити':'🛡️','Кільце':'💍','Амулет':'📿','Зелья':'🧪','Свиток':'📜'};
 var STAT_UK={agility:'спритність',accuracy:'точність',damage:'урон',armor:'броня',health:"здоров'я",mana:'мана',magicDamage:'маг. урон',magicResist:'маг. захист',critDamage:'крит',block:'блок',healthRegen:"відн. здоров'я",extraAttack:'дод. атака',beltSlots:'комірки пояса'};
 function esc(x){return String(x==null?'':x).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
-function coins(v){v=Math.max(0,Math.round(Number(v)||0));var g=Math.floor(v/100),r=v%100,o=[];if(g)o.push(g+' зол');if(r||!g)o.push(r+' сріб');return o.join(' ');}
+function coins(v){return SKIT.coinsText(v);}        // текст (підтвердження, тости, кнопки картки)
+function coinsH(v){return SKIT.coinsHtml(v);}       // на екрані: золоті золотим, срібні сріблом
 function ST(){return window.SKIT&&SKIT.store;}
 function toast(a,b){if(window.showToast)showToast(a,b);else alert(a+(b?'\n'+b:''));}
 function icon(base){var em=CAT_EMO[base&&base.category]||'🎒';return '<img src="img/items/'+encodeURIComponent(base?base.id:'')+'.webp" alt="" onerror="this.replaceWith(document.createTextNode(\''+em+'\'))">';}
@@ -3662,18 +3663,18 @@ function totals(){
   return {got:got,spent:spent,have:have,after:have+got-spent,bagAfter:bagAfter};}
 function renderCounter(){
   var h='';
-  if(!S.ct.sell.length&&!S.ct.buy.length&&!S.ct.buyback.length)h+='<div class="sh-empty">Прилавок порожній. Поклади сюди речі із сумки (продаж) або з товарів (купівля). Натисни річ на прилавку, щоб забрати її назад.</div>';
+  if(!S.ct.sell.length&&!S.ct.buy.length&&!S.ct.buyback.length)h+='<div class="sh-empty">Прилавок порожній. Натисни річ у сумці (продаж) або в товарах (купівля) — вона одразу тут. Права кнопка — роздивитись річ. Натисни річ на прилавку, щоб забрати її назад.</div>';
   if(S.ct.sell.length){h+='<div class="sh-lbl">💰 Продаю</div><div class="sh-list">'+S.ct.sell.map(function(u){var i=bagItems().filter(function(x){return x.uid===u;})[0];if(!i)return '';var b=S.byId[i.id];
-    return '<button type="button" class="sh-row" data-back="sell" data-key="'+esc(u)+'"><span class="ic">'+icon(b)+'</span><span class="nm">'+esc(b.name)+((Number(i.qty)||1)>1?' ×'+i.qty:'')+'</span><span class="pr plus">+'+coins(ST().sellTotal(b,i))+'</span></button>';}).join('')+'</div>';}
-  var buys=S.ct.buy.map(function(e){return '<button type="button" class="sh-row" data-back="buy" data-key="'+esc(e.key)+'"><span class="ic">'+icon(e.base)+'</span><span class="nm">'+esc(e.base.name)+'</span><span class="pr minus">−'+coins(e.base.price)+'</span></button>';})
+    return '<button type="button" class="sh-row" data-back="sell" data-key="'+esc(u)+'"><span class="ic">'+icon(b)+'</span><span class="nm">'+esc(b.name)+((Number(i.qty)||1)>1?' ×'+i.qty:'')+'</span><span class="pr plus">+'+coinsH(ST().sellTotal(b,i))+'</span></button>';}).join('')+'</div>';}
+  var buys=S.ct.buy.map(function(e){return '<button type="button" class="sh-row" data-back="buy" data-key="'+esc(e.key)+'"><span class="ic">'+icon(e.base)+'</span><span class="nm">'+esc(e.base.name)+'</span><span class="pr minus">−'+coinsH(e.base.price)+'</span></button>';})
    .concat(S.ct.buyback.map(function(u){var t=(S.st.shopSold||[]).filter(function(x){return x.inst.uid===u;})[0];if(!t)return '';var b=S.byId[t.inst.id];
-    return '<button type="button" class="sh-row" data-back="buyback" data-key="'+esc(u)+'"><span class="ic">'+icon(b)+'</span><span class="nm">↩ '+esc(b?b.name:t.inst.id)+'</span><span class="pr minus">−'+coins(t.price)+'</span></button>';}));
+    return '<button type="button" class="sh-row" data-back="buyback" data-key="'+esc(u)+'"><span class="ic">'+icon(b)+'</span><span class="nm">↩ '+esc(b?b.name:t.inst.id)+'</span><span class="pr minus">−'+coinsH(t.price)+'</span></button>';}));
   if(buys.length)h+='<div class="sh-lbl">🛍 Купую</div><div class="sh-list">'+buys.join('')+'</div>';
   var t=totals(),lim=ST().BAG_LIMIT,poor=t.after<0,full=t.bagAfter>lim,empty=!S.ct.sell.length&&!S.ct.buy.length&&!S.ct.buyback.length;
-  h+='<div class="sh-sum"><div><span>Маєш</span><b>'+coins(t.have)+'</b></div>'
-    +(t.got?'<div><span>Продаж</span><b style="color:#9ff0b4">+'+coins(t.got)+'</b></div>':'')
-    +(t.spent?'<div><span>Купівля</span><b style="color:#ffb38f">−'+coins(t.spent)+'</b></div>':'')
-    +'<div class="tot'+(poor?' bad':'')+'"><span>Буде</span><b>'+(poor?'не вистачає '+coins(-t.after):coins(t.after))+'</b></div>'
+  h+='<div class="sh-sum"><div><span>Маєш</span><b>'+coinsH(t.have)+'</b></div>'
+    +(t.got?'<div><span>Продаж</span><b style="color:#9ff0b4">+'+coinsH(t.got)+'</b></div>':'')
+    +(t.spent?'<div><span>Купівля</span><b style="color:#ffb38f">−'+coinsH(t.spent)+'</b></div>':'')
+    +'<div class="tot'+(poor?' bad':'')+'"><span>Буде</span><b>'+(poor?'не вистачає '+coinsH(-t.after):coinsH(t.after))+'</b></div>'
     +(full?'<div class="bad"><span>Сумка</span><b>'+t.bagAfter+'/'+lim+' — забагато речей</b></div>':'')+'</div>'
     +'<div class="sh-btns"><button type="button" class="go" id="shDeal"'+((empty||poor||full||S.busy)?' disabled':'')+'>🤝 Укласти угоду</button>'
     +'<button type="button" class="cl" id="shClear"'+(empty?' disabled':'')+'>Очистити</button></div>';
@@ -3686,7 +3687,7 @@ function renderInv(){
     var t=SKIT.tile(b,i);
     return '<button type="button" class="sh-item '+t.cls+(used?' used':'')+'" data-sell="'+esc(i.uid)+'"'+(used?' disabled':'')+' title="'+esc(b.name+' — '+statLine(b,i))+'">'
      +'<span class="ic">'+t.html+'</span><span class="nm">'+esc(b.name)+'</span>'
-     +'<span class="pr sell">+'+coins(ST().sellTotal(b,i))+'</span></button>';}).join('')+'</div>';}
+     +'<span class="pr sell">+'+coinsH(ST().sellTotal(b,i))+'</span></button>';}).join('')+'</div>';}
 function renderStore(){
   var st=S.stock,sold=S.st?(S.st.shopSold||[]):[];
   var cnt={gear:st?st.gear.length:0,cons:st?st.cons.length:0,back:sold.length};
@@ -3698,7 +3699,7 @@ function renderStore(){
     q('shStore').innerHTML='<div class="sh-grid">'+sold.map(function(t){var b=S.byId[t.inst.id]||{id:t.inst.id,name:t.inst.id},used=onCounter('buyback',t.inst.uid);
       var tl=SKIT.tile(b,t.inst);
       return '<button type="button" class="sh-item '+tl.cls+(used?' used':'')+'" data-buyback="'+esc(t.inst.uid)+'"'+(used?' disabled':'')+'>'
-       +'<span class="ic">'+tl.html+'</span><span class="nm">'+esc(b.name)+'</span><span class="pr">↩ '+coins(t.price)+'</span></button>';}).join('')+'</div>';
+       +'<span class="ic">'+tl.html+'</span><span class="nm">'+esc(b.name)+'</span><span class="pr">↩ '+coinsH(t.price)+'</span></button>';}).join('')+'</div>';
     return;}
   var list=S.tab==='cons'?st.cons:st.gear;
   if(!list.length){q('shStore').innerHTML='<div class="sh-empty">Сьогодні тут порожньо.</div>';return;}
@@ -3708,12 +3709,12 @@ function renderStore(){
     var left=stockLeft(b.id),gone=left<=0,inCt=S.ct.buy.some(function(x){return x.base.id===b.id;});
     return '<button type="button" class="sh-item'+(gone?' used':'')+'" data-buy="'+esc(b.id)+'"'+(gone?' disabled':'')+' title="'+esc(b.name+' — '+statLine(b)+(gone?' (сьогодні вже розкуплено)':' · у наявності: '+left+' шт.'))+'"><span class="ic">'+SKIT.tile(b,{bonus:1}).html+'</span>'
      +(stockMax(b.id)>1?'<span class="sh-qty">×'+Math.max(0,left)+'</span>':'')+'<span class="nm">'+esc(b.name)+'</span>'
-     +'<span class="st">'+esc(statLine(b))+'</span><span class="pr">'+(gone?(inCt?'✔ на прилавку':'✔ розкуплено'):coins(b.price))+'</span></button>';}).join('')+'</div>';}
+     +'<span class="st">'+esc(statLine(b))+'</span><span class="pr">'+(gone?(inCt?'✔ на прилавку':'✔ розкуплено'):coinsH(b.price))+'</span></button>';}).join('')+'</div>';}
 function stockMax(id){return (S.stock&&S.stock.qty&&S.stock.qty[id])||1;}
 /* скільки ще можна покласти на прилавок: наявність − куплене сьогодні − уже на прилавку */
 function stockLeft(id){var bought=S.st&&ST().boughtCount?ST().boughtCount(S.st,id):0;
   return stockMax(id)-bought-S.ct.buy.filter(function(x){return x.base.id===id;}).length;}
-function render(){q('shCoins').textContent='🪙 '+(S.st?coins(S.st.coins):'…');renderInv();renderCounter();renderStore();}
+function render(){q('shCoins').innerHTML=S.st?coinsH(S.st.coins):'…';renderInv();renderCounter();renderStore();}
 
 function doDeal(){
   var t=totals();if(S.busy)return;
@@ -3733,21 +3734,30 @@ document.addEventListener('click',function(e){
   if(S.busy||!S.st)return;
   var el;
   if((el=e.target.closest('[data-tab]'))&&el.closest('#shTabs')){S.tab=el.getAttribute('data-tab');renderStore();return;}
-  /* натискання на річ — збільшена картка (та сама, що в гардеробі) з дією */
-  if((el=e.target.closest('[data-sell]'))&&!el.disabled){var su=el.getAttribute('data-sell'),si=bagItems().filter(function(x){return x.uid===su;})[0];
-    var sAdd=function(){if(S.ct.sell.indexOf(su)<0)S.ct.sell.push(su);render();};
-    if(si&&window.SKCARD)SKCARD.show(S.byId[si.id],si,[{label:'🧾 На прилавок — продати за +'+coins(ST().sellTotal(S.byId[si.id],si)),fn:sAdd}]);else sAdd();return;}
-  if((el=e.target.closest('[data-buy]'))&&!el.disabled){var b=S.byId[el.getAttribute('data-buy')];if(!b)return;
-    var bAdd=function(){if(stockLeft(b.id)>0)S.ct.buy.push({key:'k'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),base:b});render();};
-    if(window.SKCARD)SKCARD.show(b,{bonus:1,identified:true},[{label:'🛒 На прилавок — купити за '+coins(b.price),fn:bAdd}]);else bAdd();return;}
-  if((el=e.target.closest('[data-buyback]'))&&!el.disabled){var bu=el.getAttribute('data-buyback'),bt=(S.st.shopSold||[]).filter(function(x){return x.inst.uid===bu;})[0];
-    var bbAdd=function(){if(S.ct.buyback.indexOf(bu)<0)S.ct.buyback.push(bu);render();};
-    if(bt&&window.SKCARD)SKCARD.show(S.byId[bt.inst.id]||{id:bt.inst.id,name:bt.inst.id},bt.inst,[{label:'↩ На прилавок — викупити за '+coins(bt.price),fn:bbAdd}]);else bbAdd();return;}
+  /* ліва кнопка — річ одразу на прилавок; права (або довге натискання) — картка речі з дією */
+  if(itemAct(e.target,false))return;
   if((el=e.target.closest('[data-back]'))){var k=el.getAttribute('data-back'),key=el.getAttribute('data-key');
     if(k==='buy')S.ct.buy=S.ct.buy.filter(function(x){return x.key!==key;});else S.ct[k]=S.ct[k].filter(function(x){return x!==key;});render();return;}
   if(e.target.closest('#shClear')){S.ct={sell:[],buy:[],buyback:[]};render();return;}
   if(e.target.closest('#shDeal')){doDeal();return;}
 });
+/* річ у магазині: view=false — одразу на прилавок; view=true — збільшена картка (та сама, що в гардеробі) з дією */
+function itemAct(t,view){
+  var el,card=view&&window.SKCARD;
+  if((el=t.closest('[data-sell]'))&&!el.disabled){var su=el.getAttribute('data-sell'),si=bagItems().filter(function(x){return x.uid===su;})[0];
+    var sAdd=function(){if(S.ct.sell.indexOf(su)<0)S.ct.sell.push(su);render();};
+    if(si&&card)SKCARD.show(S.byId[si.id],si,[{label:'🧾 На прилавок — продати за +'+coins(ST().sellTotal(S.byId[si.id],si)),fn:sAdd}]);else sAdd();return true;}
+  if((el=t.closest('[data-buy]'))&&!el.disabled){var b=S.byId[el.getAttribute('data-buy')];if(!b)return true;
+    var bAdd=function(){if(stockLeft(b.id)>0)S.ct.buy.push({key:'k'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),base:b});render();};
+    if(card)SKCARD.show(b,{bonus:1,identified:true},[{label:'🛒 На прилавок — купити за '+coins(b.price),fn:bAdd}]);else bAdd();return true;}
+  if((el=t.closest('[data-buyback]'))&&!el.disabled){var bu=el.getAttribute('data-buyback'),bt=(S.st.shopSold||[]).filter(function(x){return x.inst.uid===bu;})[0];
+    var bbAdd=function(){if(S.ct.buyback.indexOf(bu)<0)S.ct.buyback.push(bu);render();};
+    if(bt&&card)SKCARD.show(S.byId[bt.inst.id]||{id:bt.inst.id,name:bt.inst.id},bt.inst,[{label:'↩ На прилавок — викупити за '+coins(bt.price),fn:bbAdd}]);else bbAdd();return true;}
+  return false;}
+document.addEventListener('contextmenu',function(e){
+  var m=q('shop');if(!m||m.hidden||S.busy||!S.st||!window.SKCARD)return;
+  if(!e.target.closest('#shop [data-sell],#shop [data-buy],#shop [data-buyback]'))return;
+  e.preventDefault();itemAct(e.target,true);});
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&q('shop')&&!q('shop').hidden)closeShop();});
 window.addEventListener('pagehide',function(){if(q('shop')&&!q('shop').hidden)lockOff();});
 })();
