@@ -18,12 +18,15 @@
    «Обкладинка» в адмінці (там лишились старі картинки, які треба
    замінити). Для цих тем поле в адмінці не діє:
      SKCovers.forced('Додавання до 10')  // → абакус, навіть якщо в адмінці інше
+     SKCovers.forced('Дні тижня', 'English')  // третій елемент — предмет, як у byTitle
 
    Порядок важливий: «Прості алгоритми» раніше за «Алгоритми»,
    «Безпечний Інтернет» — раніше за «Мережу Інтернет».
    ============================================================ */
 (function(){
   var TITLE_IMG = [
+    /* English */
+    [/дні тижня|days of (the )?week/,  'eng-days-of-week', /англ|english/],
     /* Інформатика 1 кл. */
     [/миш.*клавіатур/,                 'inf1-mysha-klaviatura'],
     [/пристрої навколо/,               'inf1-mysha-klaviatura-2'],
@@ -79,6 +82,7 @@
     [/чесн/,                           'yads-chesnist'],
     [/планування покуп|покупк/,        'yads-planuvannya-pokupok'],
     [/емоці/,                          'yads-emotsii'],
+    [/орган.*чутт/,                    'yads-orhany-chuttia'],
     [/^рослини/,                       'yads-roslyny'],
     [/^тварини/,                       'yads-tvaryny'],
     [/екологі|бережлив.*природ/,       'yads-ekolohiya'],
@@ -151,14 +155,20 @@
     return '';
   }
   var FORCED = [
+    [/дні тижня|days of (the )?week/,  'eng-days-of-week', /англ|english/],
     [/попереднє.*наступне|наступне.*попереднє/, 'mat-poperednie-nastupne'],
     [/^додавання до 10([^0-9]|$)/,     'mat-dodavannya-vidnimannya-10'],
     [/^віднімання до 10([^0-9]|$)/,    'mat-dodavannya-vidnimannya-10'],
     [/дні тижня/,                      'mat-dni-tyzhnya']
   ];
-  function forced(title){
+  function forced(title, subj){
     var s = String(title||'').toLowerCase().replace(/[’'`ʼ]/g,'').trim();
-    for(var i=0;i<FORCED.length;i++) if(FORCED[i][0].test(s)) return 'img/tr/'+FORCED[i][1]+'.webp';
+    var sj = String(subj||'').toLowerCase();
+    for(var i=0;i<FORCED.length;i++){
+      var r = FORCED[i];
+      if(r[2] && !r[2].test(sj)) continue;
+      if(r[0].test(s)) return 'img/tr/'+r[1]+'.webp';
+    }
     return '';
   }
   window.SKCovers = { byTitle: byTitle, bySubject: bySubject, forced: forced };
