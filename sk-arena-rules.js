@@ -362,7 +362,7 @@
                hitRoll, hitNeed, critRoll, critNeed, armor, raw, calc} */
   function strike(att, def, blocked, rnd) {
     rnd = rnd || Math.random;
-    var out = { critRoll: null, critNeed: null, raw: 0, armor: 0 };
+    var out = { critRoll: null, critNeed: null, raw: 0, armor: 0, magic: isMagic(att) };   // magic — і для блоку (журнал фарбує)
     function ret(o) { for (var k in o) out[k] = o[k]; return out; }
     // 1) влучив?
     out.hitNeed = pctOf(hitChance(att, def)); out.hitRoll = d100(rnd);
@@ -383,7 +383,7 @@
       if (out.blockRoll <= out.blockNeed) {
         var cb = critCheck();
         return ret({ dmg: 0, kind: 'block', crit: cb, byChance: true, evade: !!def.evade, blockBy: blockBy(def, magic0),
-          calc: (def.evade ? 'відскочив 💨 🎲 ' : 'блок шансом 🎲 ') + out.blockRoll + ' ≤ ' + out.blockNeed + '%' + (magic0 ? ' (маг.)' : '') + ' · крит? 🎲 ' + out.critRoll + (cb ? ' ≤ ' : ' > ') + out.critNeed + '%' });
+          calc: (def.evade ? 'спритно відскочив 💨 🎲 ' : 'блок шансом 🎲 ') + out.blockRoll + ' ≤ ' + out.blockNeed + '%' + (magic0 ? ' (маг.)' : '') + ' · крит? 🎲 ' + out.critRoll + (cb ? ' ≤ ' : ' > ') + out.critNeed + '%' });
       }
     }
     // 3) урон. ТИП удару визначає зброя в руках:
@@ -468,7 +468,7 @@
       out.blockNeed = Math.min(100, Math.round(bch)); out.blockRoll = d100(rnd);
       if (out.blockRoll <= out.blockNeed) {
         out.dmg = 0; out.kind = 'block'; out.byChance = true; out.evade = !!def.evade; out.blockBy = blockBy(def, true);
-        out.calc = (def.evade ? 'від свитка відскочив 💨 🎲 ' : 'свиток заблоковано шансом 🎲 ') + out.blockRoll + ' ≤ ' + out.blockNeed + '%' + (def.evade ? '' : ' (маг.)');
+        out.calc = (def.evade ? 'від свитка спритно відскочив 💨 🎲 ' : 'свиток заблоковано шансом 🎲 ') + out.blockRoll + ' ≤ ' + out.blockNeed + '%' + (def.evade ? '' : ' (маг.)');
         return out;
       }
     }
