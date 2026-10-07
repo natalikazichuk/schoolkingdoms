@@ -436,7 +436,9 @@
      Вдягнене = має slot, крім комірок пояса (там зілля, вони не діють постійно). */
   function gearTotals(h){
     if(!SK.getInventory || !SK.listItems) return Promise.resolve(null);
-    return SK.getInventory().then(function(inv){
+    // інвентар уже є в документі Героя — не читаємо той самий документ удруге
+    var invP = Array.isArray(h && h.inventory) ? Promise.resolve(h.inventory) : SK.getInventory();
+    return invP.then(function(inv){
       var worn = (inv || []).filter(function(i){ return i && i.id && i.slot && !/^belt\d/.test(i.slot); });
       if(!worn.length) return null;
       return Promise.all([SK.listItems(), needSKIT()]).then(function(r){

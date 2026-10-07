@@ -103,7 +103,8 @@ const PROGRESS_SKIP = [
   'sk_arena_battle',
   'sk_arena_battle2',  // копія поточного бою на пристрої (головна — heroes/{id}/battles)
   'sk_battle_seen',    // який підсумок бою дитина вже бачила (на цьому пристрої)
-  'sk_shop_open'
+  'sk_shop_open',
+  'sk_items_cache'     // кеш каталогу речей (SK.listItems) — не прогрес
 ];
 
 // Один запис прогресу не має бути більшим за це (захист від роздування).
@@ -120,6 +121,30 @@ function progressKeys() {
     if (isProgressKey(k)) keys.push(k);
   }
   return keys;
+}
+
+/* ── кеш каталогу речей (див. SK.listItems) ──
+   Віддаємо щоразу нову копію (JSON), щоб сторінка, яка змінює об'єкти
+   каталогу, не зіпсувала кеш для інших. */
+const ITEMS_CACHE_KEY = 'sk_items_cache';
+const ITEMS_TTL = 30 * 60 * 1000;          // 30 хв
+let itemsMem = null;                        // {at, json}
+let itemsLoading = null;
+function itemsCacheGet() {
+  let c = itemsMem;
+  if (!c) { try { c = JSON.parse(localStorage.getItem(ITEMS_CACHE_KEY) || 'null'); } catch (e) { c = null; } }
+  if (!c || !c.json || !(Date.now() - (c.at || 0) < ITEMS_TTL)) return null;
+  itemsMem = c;
+  try { return JSON.parse(c.json); } catch (e) { return null; }
+}
+function itemsCachePut(list) {
+  const json = JSON.stringify(list, (k, v) => (v && typeof v.toMillis === 'function') ? v.toMillis() : v);
+  itemsMem = { at: Date.now(), json };
+  try { localStorage.setItem(ITEMS_CACHE_KEY, JSON.stringify(itemsMem)); } catch (e) {}
+}
+function itemsCacheDrop() {
+  itemsMem = null;
+  try { localStorage.removeItem(ITEMS_CACHE_KEY); } catch (e) {}
 }
 
 // логін Героя → припустимі символи; синтетичний email для Firebase Auth
@@ -925,28 +950,41 @@ const SK = {
      обидва null, якщо значення немає (деякі зілля). consumable=true →
      разовий предмет (міцності немає, durability=null). */
 
-  // Усі предмети (для admin-items.html). -> [{ id, ...item }]
-  async listItems() {
-    const snap = await getDocs(collection(db, 'items'));
-    const out = [];
-    snap.forEach(d => out.push(Object.assign({ id: d.id }, d.data())));
-    out.sort((a, b) =>
-      (Number(a.order) || 0) - (Number(b.order) || 0) ||
-      String(a.id || '').localeCompare(String(b.id || ''), 'uk'));
-    return out;
+  /* Усі предмети. -> [{ id, ...item }]
+     ⚠ КЕШ. Каталог — ~150 документів, і кожне читання колекції коштує ~150
+     «reads» квоти Firestore (безкоштовно — 50 000 на добу). Його читали хедер
+     на КОЖНІЙ сторінці, арена, магазин, бій… — і квоту вибирало за день.
+     Тепер каталог живе в localStorage (ITEMS_TTL) і в пам'яті сторінки;
+     одночасні виклики ділять один запит. Свої зміни (saveItem / deleteItem /
+     setItem*) кеш скидають одразу; зміни з іншого пристрою підхопляться
+     після ITEMS_TTL. opts.fresh — завжди з бази (адмінка предметів). */
+  async listItems(opts) {
+    const fresh = !!(opts && opts.fresh);
+    if (!fresh) {
+      const c = itemsCacheGet();
+      if (c) return c;
+    }
+    if (!itemsLoading) {
+      itemsLoading = (async () => {
+        const snap = await getDocs(collection(db, 'items'));
+        const out = [];
+        snap.forEach(d => out.push(Object.assign({ id: d.id }, d.data())));
+        out.sort((a, b) =>
+          (Number(a.order) || 0) - (Number(b.order) || 0) ||
+          String(a.id || '').localeCompare(String(b.id || ''), 'uk'));
+        itemsCachePut(out);
+        return out;
+      })().finally(() => { itemsLoading = null; });
+    }
+    const list = await itemsLoading;
+    return fresh ? list : (itemsCacheGet() || list);
   },
 
   // Лише активні предмети (для майбутньої видачі в іграх/тренажерах).
   async listActiveItems() {
-    const snap = await getDocs(collection(db, 'items'));
-    const out = [];
-    snap.forEach(d => {
-      const it = d.data();
-      if (it.active === false) return;
-      out.push(Object.assign({ id: d.id }, it));
-    });
-    out.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
-    return out;
+    const all = await SK.listItems();
+    return all.filter(it => it.active !== false)
+      .sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
   },
 
   // Один предмет за id. -> { id, ...item } | null
@@ -963,6 +1001,7 @@ const SK = {
     if (!item || typeof item !== 'object') throw new Error('empty-item');
     const { id, ...data } = item;
     data.updatedAt = serverTimestamp();
+    itemsCacheDrop();
     if (id) {
       await setDoc(doc(db, 'items', String(id)), data, { merge: true });
       return String(id);
@@ -974,12 +1013,14 @@ const SK = {
 
   async deleteItem(id) {
     if (!id) return;
+    itemsCacheDrop();
     await deleteDoc(doc(db, 'items', String(id)));
   },
 
   // «Недоступна в магазині» — річ не потрапляє в щоденний асортимент магазину
   async setItemNoShop(id, noShop) {
     if (!id) return;
+    itemsCacheDrop();
     await updateDoc(doc(db, 'items', String(id)), {
       noShop: !!noShop,
       updatedAt: serverTimestamp()
@@ -987,6 +1028,7 @@ const SK = {
   },
   async setItemActive(id, active) {
     if (!id) return;
+    itemsCacheDrop();
     await updateDoc(doc(db, 'items', String(id)), {
       active: !!active,
       updatedAt: serverTimestamp()
