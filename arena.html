@@ -235,6 +235,7 @@ button{font-family:inherit}
 .sh-tab{border:1.5px solid rgba(255,255,255,.18);border-radius:999px;padding:4px 11px;font-size:.74rem;font-weight:900;cursor:pointer;
   background:rgba(255,255,255,.06);color:#eaf2ff;font-family:inherit}
 .sh-tab.on{background:linear-gradient(180deg,#ffe7a0,#e0a93a);color:#3a2a08;border-color:#e0a93a}
+.sh-qty{position:absolute;top:4px;right:5px;background:#0c2247;border:1px solid #ffd54a;color:#ffd54a;border-radius:9px;padding:0 6px;font-size:.66rem;font-weight:900;line-height:16px}
 .sh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(98px,1fr));gap:7px}
 .sh-item{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center;
   border:2px solid rgba(255,255,255,.14);border-radius:12px;background:rgba(10,22,46,.6);color:#eaf2ff;
@@ -1314,7 +1315,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <div class="shop" id="shop" hidden role="dialog" aria-modal="true" aria-label="Магазин">
   <div class="shop-card">
     <div class="shop-h"><b>🛒 Магазин</b><span class="sh-coins" id="shCoins">—</span>
-      <span class="sh-note">Товари оновлюються щодня опівночі (Київ) · кожного — 1 шт.</span>
+      <span class="sh-note">Товари оновлюються щодня опівночі (Київ) · речі — по 1 шт., зілля й свитки — кілька</span>
       <button class="ward-x" id="shopX" aria-label="Вийти з магазину">✕</button></div>
     <div class="shop-body">
       <section class="sh-col store"><h3>🏪 Товари</h3><div class="sh-tabs" id="shTabs"></div><div id="shStore"></div></section>
@@ -3232,7 +3233,7 @@ window.SKHERO = (function(){
 })();
 </script>
 
-<script src="sk-items.js?v=4"></script>
+<script src="sk-items.js?v=5"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
    Дані ЗАРАЗ demo (локально). Крок 2: джерело речей → Firestore (адмінка).
@@ -3584,7 +3585,8 @@ if(document.readyState!=='loading')init();else document.addEventListener('DOMCon
    SK.shopDeal (sk-items.js → SKIT.store.deal) пише і монети, і речі разом.
    • Купівля — без бонусу (1.0), повна міцність, кожна річ окремо; однакові зілля — стопкою.
    • Продаж — 1/10 ціни (з бонусом) × міцність, не менше 1 сріб.
-   • Асортимент — SKIT.store.shopStock: 20 речей + 5 зілль/сувоїв (завжди є зілля здоров'я),
+   • Асортимент — SKIT.store.shopStock: 20 речей + 5 зілль/сувоїв (завжди є зілля здоров'я і мани),
+     у наявності: речі — по 1 шт., зілля здоров'я й мани — 3–10, свитки — 1–5 (stock.qty),
      випадково з дозволених, той самий протягом доби за Києвом.
    • Магазин закритий під час незавершеного бою; поки магазин відкритий — бій не почати
      (позначка sk_shop_open у localStorage, оновлюється кожні 30 с, старша за 2 хв не діє). */
@@ -3654,7 +3656,9 @@ function totals(){
   S.ct.buyback.forEach(function(u){var t=(S.st.shopSold||[]).filter(function(x){return x.inst.uid===u;})[0];if(t)spent+=t.price;});
   var have=S.st?S.st.coins:0;
   var bagAfter=ST().bagCount(S.st?S.st.inventory:[])-S.ct.sell.length+S.ct.buyback.length
-    +S.ct.buy.filter(function(b){return !b.base.consumable||!bagItems().some(function(x){return x.cons&&x.id===b.base.id&&Number(x.bonus||1)===1;});}).length;
+    +S.ct.buy.filter(function(b,i){if(!b.base.consumable)return true;   // однакові зілля — одна комірка (стопкою)
+      if(bagItems().some(function(x){return x.cons&&x.id===b.base.id&&Number(x.bonus||1)===1;}))return false;
+      return !S.ct.buy.slice(0,i).some(function(y){return y.base.id===b.base.id;});}).length;
   return {got:got,spent:spent,have:have,after:have+got-spent,bagAfter:bagAfter};}
 function renderCounter(){
   var h='';
@@ -3698,11 +3702,17 @@ function renderStore(){
     return;}
   var list=S.tab==='cons'?st.cons:st.gear;
   if(!list.length){q('shStore').innerHTML='<div class="sh-empty">Сьогодні тут порожньо.</div>';return;}
-  /* кожного товару — 1 шт. на добу: куплене сьогодні й покладене на прилавок недоступне */
+  /* у наявності: речі — 1 шт., зілля й свитки — кілька (stock.qty). Куплене сьогодні
+     й покладене на прилавок віднімається; нічого не лишилось — товар недоступний */
   q('shStore').innerHTML='<div class="sh-grid">'+list.map(function(b){
-    var gone=!!(S.st&&ST().boughtToday&&ST().boughtToday(S.st,b.id)),used=S.ct.buy.some(function(x){return x.base.id===b.id;});
-    return '<button type="button" class="sh-item'+((gone||used)?' used':'')+'" data-buy="'+esc(b.id)+'"'+((gone||used)?' disabled':'')+' title="'+esc(b.name+' — '+statLine(b)+(gone?' (сьогодні вже куплено)':''))+'"><span class="ic">'+SKIT.tile(b,{bonus:1}).html+'</span><span class="nm">'+esc(b.name)+'</span>'
-     +'<span class="st">'+esc(statLine(b))+'</span><span class="pr">'+(gone?'✔ куплено':coins(b.price))+'</span></button>';}).join('')+'</div>';}
+    var left=stockLeft(b.id),gone=left<=0,inCt=S.ct.buy.some(function(x){return x.base.id===b.id;});
+    return '<button type="button" class="sh-item'+(gone?' used':'')+'" data-buy="'+esc(b.id)+'"'+(gone?' disabled':'')+' title="'+esc(b.name+' — '+statLine(b)+(gone?' (сьогодні вже розкуплено)':' · у наявності: '+left+' шт.'))+'"><span class="ic">'+SKIT.tile(b,{bonus:1}).html+'</span>'
+     +(stockMax(b.id)>1?'<span class="sh-qty">×'+Math.max(0,left)+'</span>':'')+'<span class="nm">'+esc(b.name)+'</span>'
+     +'<span class="st">'+esc(statLine(b))+'</span><span class="pr">'+(gone?(inCt?'✔ на прилавку':'✔ розкуплено'):coins(b.price))+'</span></button>';}).join('')+'</div>';}
+function stockMax(id){return (S.stock&&S.stock.qty&&S.stock.qty[id])||1;}
+/* скільки ще можна покласти на прилавок: наявність − куплене сьогодні − уже на прилавку */
+function stockLeft(id){var bought=S.st&&ST().boughtCount?ST().boughtCount(S.st,id):0;
+  return stockMax(id)-bought-S.ct.buy.filter(function(x){return x.base.id===id;}).length;}
 function render(){q('shCoins').textContent='🪙 '+(S.st?coins(S.st.coins):'…');renderInv();renderCounter();renderStore();}
 
 function doDeal(){
@@ -3711,7 +3721,7 @@ function doDeal(){
   if(S.ct.buy.length+S.ct.buyback.length)parts.push('купити '+(S.ct.buy.length+S.ct.buyback.length)+' за −'+coins(t.spent));
   if(!confirm('Укласти угоду: '+parts.join(', ')+'?\nПісля угоди буде '+coins(t.after)+'.'))return;
   S.busy=true;renderCounter();
-  SK.shopDeal({sell:S.ct.sell.slice(),buy:S.ct.buy.map(function(e){return e.base;}),buyback:S.ct.buyback.slice()},S.byId)
+  SK.shopDeal({sell:S.ct.sell.slice(),buy:S.ct.buy.map(function(e){return e.base;}),buyback:S.ct.buyback.slice(),limit:(S.stock&&S.stock.qty)||{}},S.byId)
    .then(function(r){S.ct={sell:[],buy:[],buyback:[]};if(r&&r.state)S.st=r.state;S.busy=false;render();
      if(window.SKHERO)SKHERO.apply(r);   // гардероб і хедер — з того самого стану, без читання
      toast('Угоду укладено 🤝','Тепер у тебе '+coins(S.st.coins));})
@@ -3728,7 +3738,7 @@ document.addEventListener('click',function(e){
     var sAdd=function(){if(S.ct.sell.indexOf(su)<0)S.ct.sell.push(su);render();};
     if(si&&window.SKCARD)SKCARD.show(S.byId[si.id],si,[{label:'🧾 На прилавок — продати за +'+coins(ST().sellTotal(S.byId[si.id],si)),fn:sAdd}]);else sAdd();return;}
   if((el=e.target.closest('[data-buy]'))&&!el.disabled){var b=S.byId[el.getAttribute('data-buy')];if(!b)return;
-    var bAdd=function(){if(!S.ct.buy.some(function(x){return x.base.id===b.id;}))S.ct.buy.push({key:'k'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),base:b});render();};
+    var bAdd=function(){if(stockLeft(b.id)>0)S.ct.buy.push({key:'k'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),base:b});render();};
     if(window.SKCARD)SKCARD.show(b,{bonus:1,identified:true},[{label:'🛒 На прилавок — купити за '+coins(b.price),fn:bAdd}]);else bAdd();return;}
   if((el=e.target.closest('[data-buyback]'))&&!el.disabled){var bu=el.getAttribute('data-buyback'),bt=(S.st.shopSold||[]).filter(function(x){return x.inst.uid===bu;})[0];
     var bbAdd=function(){if(S.ct.buyback.indexOf(bu)<0)S.ct.buyback.push(bu);render();};
