@@ -1185,7 +1185,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <div class="shop" id="shop" hidden role="dialog" aria-modal="true" aria-label="Магазин">
   <div class="shop-card">
     <div class="shop-h"><b>🛒 Магазин</b><span class="sh-coins" id="shCoins">—</span>
-      <span class="sh-note">Товари оновлюються щодня опівночі (Київ)</span>
+      <span class="sh-note">Товари оновлюються щодня опівночі (Київ) · кожного — 1 шт.</span>
       <button class="ward-x" id="shopX" aria-label="Вийти з магазину">✕</button></div>
     <div class="shop-body">
       <section class="sh-col inv"><h3>🎒 Сумка <small id="shBagCnt"></small></h3><div id="shInv"></div>
@@ -3323,9 +3323,11 @@ function renderStore(){
     return;}
   var list=S.tab==='cons'?st.cons:st.gear;
   if(!list.length){q('shStore').innerHTML='<div class="sh-empty">Сьогодні тут порожньо.</div>';return;}
+  /* кожного товару — 1 шт. на добу: куплене сьогодні й покладене на прилавок недоступне */
   q('shStore').innerHTML='<div class="sh-grid">'+list.map(function(b){
-    return '<button type="button" class="sh-item" data-buy="'+esc(b.id)+'" title="'+esc(b.name+' — '+statLine(b))+'"><span class="ic">'+icon(b)+'</span><span class="nm">'+esc(b.name)+'</span>'
-     +'<span class="st">'+esc(statLine(b))+'</span><span class="pr">'+coins(b.price)+'</span></button>';}).join('')+'</div>';}
+    var gone=!!(S.st&&ST().boughtToday&&ST().boughtToday(S.st,b.id)),used=S.ct.buy.some(function(x){return x.base.id===b.id;});
+    return '<button type="button" class="sh-item'+((gone||used)?' used':'')+'" data-buy="'+esc(b.id)+'"'+((gone||used)?' disabled':'')+' title="'+esc(b.name+' — '+statLine(b)+(gone?' (сьогодні вже куплено)':''))+'"><span class="ic">'+icon(b)+'</span><span class="nm">'+esc(b.name)+'</span>'
+     +'<span class="st">'+esc(statLine(b))+'</span><span class="pr">'+(gone?'✔ куплено':coins(b.price))+'</span></button>';}).join('')+'</div>';}
 function render(){q('shCoins').textContent='🪙 '+(S.st?coins(S.st.coins):'…');renderInv();renderCounter();renderStore();}
 
 function doDeal(){
@@ -3346,7 +3348,7 @@ document.addEventListener('click',function(e){
   var el;
   if((el=e.target.closest('[data-tab]'))&&el.closest('#shTabs')){S.tab=el.getAttribute('data-tab');renderStore();return;}
   if((el=e.target.closest('[data-sell]'))&&!el.disabled){S.ct.sell.push(el.getAttribute('data-sell'));render();return;}
-  if((el=e.target.closest('[data-buy]'))){var b=S.byId[el.getAttribute('data-buy')];if(b)S.ct.buy.push({key:'k'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),base:b});render();return;}
+  if((el=e.target.closest('[data-buy]'))&&!el.disabled){var b=S.byId[el.getAttribute('data-buy')];if(b&&!S.ct.buy.some(function(x){return x.base.id===b.id;}))S.ct.buy.push({key:'k'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),base:b});render();return;}
   if((el=e.target.closest('[data-buyback]'))&&!el.disabled){S.ct.buyback.push(el.getAttribute('data-buyback'));render();return;}
   if((el=e.target.closest('[data-back]'))){var k=el.getAttribute('data-back'),key=el.getAttribute('data-key');
     if(k==='buy')S.ct.buy=S.ct.buy.filter(function(x){return x.key!==key;});else S.ct[k]=S.ct[k].filter(function(x){return x!==key;});render();return;}

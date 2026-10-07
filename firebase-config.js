@@ -127,19 +127,24 @@ function progressKeys() {
    Віддаємо щоразу нову копію (JSON), щоб сторінка, яка змінює об'єкти
    каталогу, не зіпсувала кеш для інших. */
 const ITEMS_CACHE_KEY = 'sk_items_cache';
-const ITEMS_TTL = 30 * 60 * 1000;          // 30 хв
-let itemsMem = null;                        // {at, json}
+let itemsMem = null;                        // {at, day, json}
 let itemsLoading = null;
+// доба за Києвом (як у магазині, SKIT.store.kyivDay): кеш живе до 00:00
+function itemsDay(ts) {
+  try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Kyiv', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ts)); }
+  catch (e) { return new Date(ts).toISOString().slice(0, 10); }
+}
 function itemsCacheGet() {
   let c = itemsMem;
   if (!c) { try { c = JSON.parse(localStorage.getItem(ITEMS_CACHE_KEY) || 'null'); } catch (e) { c = null; } }
-  if (!c || !c.json || !(Date.now() - (c.at || 0) < ITEMS_TTL)) return null;
+  const now = Date.now();
+  if (!c || !c.json || c.day !== itemsDay(now) || (c.at || 0) > now) return null;
   itemsMem = c;
   try { return JSON.parse(c.json); } catch (e) { return null; }
 }
 function itemsCachePut(list) {
   const json = JSON.stringify(list, (k, v) => (v && typeof v.toMillis === 'function') ? v.toMillis() : v);
-  itemsMem = { at: Date.now(), json };
+  itemsMem = { at: Date.now(), day: itemsDay(Date.now()), json };
   try { localStorage.setItem(ITEMS_CACHE_KEY, JSON.stringify(itemsMem)); } catch (e) {}
 }
 function itemsCacheDrop() {
@@ -954,10 +959,11 @@ const SK = {
      ⚠ КЕШ. Каталог — ~150 документів, і кожне читання колекції коштує ~150
      «reads» квоти Firestore (безкоштовно — 50 000 на добу). Його читали хедер
      на КОЖНІЙ сторінці, арена, магазин, бій… — і квоту вибирало за день.
-     Тепер каталог живе в localStorage (ITEMS_TTL) і в пам'яті сторінки;
+     Тепер каталог живе в localStorage і в пам'яті сторінки ДО ПІВНОЧІ за
+     Києвом — разом з асортиментом магазину, який теж міняється о 00:00;
      одночасні виклики ділять один запит. Свої зміни (saveItem / deleteItem /
      setItem*) кеш скидають одразу; зміни з іншого пристрою підхопляться
-     після ITEMS_TTL. opts.fresh — завжди з бази (адмінка предметів). */
+     після півночі. opts.fresh — завжди з бази (адмінка предметів). */
   async listItems(opts) {
     const fresh = !!(opts && opts.fresh);
     if (!fresh) {
@@ -1437,7 +1443,7 @@ const SK = {
       const r = fn(ST.tidy(d, Date.now()));
       const st = r.state;
       out = { state: st, result: r.result };
-      tx.set(ref, { inventory: st.inventory, chest: st.chest, trash: st.trash, shopSold: st.shopSold,
+      tx.set(ref, { inventory: st.inventory, chest: st.chest, trash: st.trash, shopSold: st.shopSold, shopBought: st.shopBought,
                     coins: st.coins, updatedAt: serverTimestamp() }, { merge: true });
     });
     return out;
@@ -1449,7 +1455,7 @@ const SK = {
     const s = await getDoc(doc(db, 'heroes', heroId));
     const d = s.exists() ? s.data() : {};
     const ST = window.SKIT && window.SKIT.store;
-    return ST ? ST.tidy(d, Date.now()) : { inventory: d.inventory || [], chest: [], trash: [], shopSold: [], coins: Number(d.coins) || 0 };
+    return ST ? ST.tidy(d, Date.now()) : { inventory: d.inventory || [], chest: [], trash: [], shopSold: [], shopBought: [], coins: Number(d.coins) || 0 };
   },
   // Додати екземпляри (нагороди): у сумку → у скриню (якщо сумка повна) → зникає.
   // Повертає {bag, chest, lost}. Без sk-items.js — як раніше, просто дописує.

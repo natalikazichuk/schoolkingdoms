@@ -201,7 +201,8 @@
        кожна річ лежить CHEST_DAYS доби, потім зникає; що не влізло — зникає одразу.
      • Смітник — викинуті речі; їх можна повернути до півночі (Київ), потім зникають.
      • Магазин — купівля без бонусу, продаж за 1/10 ціни × міцність (не менше 1 сріб),
-       викуп проданого за тією самою ціною до півночі.
+       викуп проданого за тією самою ціною до півночі. Кожного товару — 1 шт.:
+       куплене сьогодні (shopBought, id речі) до півночі за Києвом більше не продається.
      • Монети — у сріблі: 100 сріб = 1 зол. */
   var BAG_LIMIT = 100, CHEST_LIMIT = 30, CHEST_DAYS = 3, SHOP_GEAR = 20, SHOP_CONS = 5;
   var DAY_MS = 86400000;
@@ -244,6 +245,7 @@
       chest: Array.isArray(st.chest) ? st.chest.slice() : [],
       trash: Array.isArray(st.trash) ? st.trash.slice() : [],
       shopSold: Array.isArray(st.shopSold) ? st.shopSold.slice() : [],
+      shopBought: Array.isArray(st.shopBought) ? st.shopBought.slice() : [],
       coins: Math.max(0, Math.round(Number(st.coins) || 0))
     };
   }
@@ -254,6 +256,7 @@
     st.chest = st.chest.filter(function (c) { return c && c.inst && (c.until || 0) > now; });
     st.trash = st.trash.filter(function (t) { return t && t.inst && t.day === today; });
     st.shopSold = st.shopSold.filter(function (t) { return t && t.inst && t.day === today; });
+    st.shopBought = st.shopBought.filter(function (t) { return t && t.id && t.day === today; });
     return st;
   }
   /* покласти одну річ у сумку (стопкою, якщо можна); false — нема місця */
@@ -307,6 +310,8 @@
     if (!putBag(st, t.inst)) fail('full', 'Сумка повна (' + BAG_LIMIT + ')');
     return { state: st };
   }
+  /* товар магазину вже куплено сьогодні (кожного — 1 шт. на добу) */
+  function boughtToday(st, id) { return (st.shopBought || []).some(function (t) { return t && t.id === id; }); }
   /* угода магазину: order = { sell:[uid], buy:[base], buyback:[uid] }, byId — каталог.
      Спершу продаж, далі купівля й викуп; не вистачає грошей або місця — угода не відбувається. */
   function deal(st, order, byId, now) {
@@ -329,6 +334,8 @@
     });
     (order.buy || []).forEach(function (base) {
       if (!base || !base.id) fail('gone', 'Товару вже немає');
+      if (boughtToday(st, base.id)) fail('sold', '«' + (base.name || base.id) + '» сьогодні вже куплено — новий товар з’явиться опівночі');
+      st.shopBought.push({ id: base.id, day: today });
       var price = Math.max(0, Math.round(Number(base.price) || 0));
       spent += price; st.coins -= price;
       var inst = makeInstance(base, { bonus: 1, identified: true });
@@ -360,7 +367,7 @@
     BAG_LIMIT: BAG_LIMIT, CHEST_LIMIT: CHEST_LIMIT, CHEST_DAYS: CHEST_DAYS, SHOP_GEAR: SHOP_GEAR, SHOP_CONS: SHOP_CONS,
     kyivDay: kyivDay, bagCount: bagCount, sameStack: sameStack, sellPrice: sellPrice, sellTotal: sellTotal,
     normState: normState, normSlots: normSlots, tidy: tidy, addItems: addItems, claimChest: claimChest, trashItem: trashItem,
-    restoreTrash: restoreTrash, deal: deal, shopStock: shopStock, isHealthPotion: isHealthPotion
+    restoreTrash: restoreTrash, deal: deal, boughtToday: boughtToday, shopStock: shopStock, isHealthPotion: isHealthPotion
   };
 
   var SKIT = {
