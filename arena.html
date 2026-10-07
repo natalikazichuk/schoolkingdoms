@@ -904,6 +904,18 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 .ek-bslot.ek-over{background:rgba(126,240,160,.22)}
 .ek-bagc{font-family:inherit;font-size:.72rem;color:#9fb0d8;font-weight:800;margin-left:4px}
 .ek-store{margin-top:10px;display:flex;flex-direction:column;gap:10px}
+/* ── спільна плитка речі (SKIT.tile): гардероб, скриня, смітник, магазин ── */
+.skt-ic{display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:1.6rem;line-height:1}
+.skt-ic img{width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35));pointer-events:none}
+.skt-q{position:absolute;right:3px;top:2px;z-index:2;font-size:.64rem;font-weight:900;color:#fff;background:rgba(9,18,38,.85);
+  border:1px solid rgba(224,164,42,.6);border-radius:8px;padding:0 5px;line-height:1.4}
+.skt-dur{position:absolute;left:6px;right:6px;bottom:3px;height:4px;border-radius:3px;background:rgba(0,0,0,.45);overflow:hidden;z-index:2}
+.skt-dur i{display:block;height:100%;background:#5fdc8f}
+.skt-dur.low i{background:#ffcf4d}.skt-dur.zero{background:#ff6b6b}
+.skt.b20{border-color:#ffd23b!important;box-shadow:0 0 8px rgba(255,210,59,.55)}
+.skt.b10{border-color:#cfdbec!important;box-shadow:0 0 6px rgba(207,219,236,.45)}
+.skt.bm10{border-color:#6b7079!important;filter:saturate(.75)}
+.sh-item .ic{position:relative;display:block;width:48px;height:48px}
 .tv-flash{animation:tvflash 1.4s ease-out}
 @keyframes tvflash{0%,40%{box-shadow:0 0 0 3px var(--gold),0 0 22px rgba(242,199,92,.8)}100%{box-shadow:none}}
 .ek-store[hidden]{display:none}
@@ -1310,6 +1322,43 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script src="sk-progress.js"></script>
 <script src="sk-arena-rules.js?v=16"></script>
 <script src="sk-battle.js?v=1"></script>
+<script>
+/* ═══ SKHERO — один стан героя на сторінці ═══
+   Інвентар, скриня, смітник, продане / куплене сьогодні й монети
+   (SKIT.store.tidy від документа heroes/{id}). Читаємо документ один раз
+   (або беремо з уже прочитаного getHero), а гардероб, магазин і хедер
+   беруть дані звідси. Кожна транзакція (угода, викидання, перевдягання)
+   повертає новий стан → set() → усі підписники оновлюються без читання. */
+window.SKHERO = (function(){
+  var st = null, subs = [], loading = null;
+  function ST(){ return window.SKIT && SKIT.store; }
+  function set(s){
+    if(!s) return st;
+    st = s;
+    subs.slice().forEach(function(f){ try{ f(st); }catch(e){ try{ console.error('[SKHERO]', e); }catch(_){} } });
+    try{ if(window.SKHeaderPatch) SKHeaderPatch({ coins: st.coins, inventory: st.inventory }); }catch(e){}
+    return st;
+  }
+  return {
+    get: function(){ return st; },
+    set: set,
+    // уже прочитаний документ Героя (getHero) — без нового запиту
+    fromDoc: function(d){ if(d && ST()) set(ST().tidy(d, Date.now())); },
+    // force — перечитати з бази (напр. після бою, який змінив інвентар у своїй транзакції)
+    load: function(force){
+      if(st && !force) return Promise.resolve(st);
+      if(!loading){
+        loading = (window.SK && SK.getStore ? SK.getStore() : Promise.resolve(null))
+          .then(function(s){ loading = null; if(s) set(s); return st; }, function(e){ loading = null; throw e; });
+      }
+      return loading;
+    },
+    // результат SK.storeTx / shopDeal / claimChest… → новий стан
+    apply: function(r){ if(r && r.state) set(r.state); return r; },
+    on: function(fn){ subs.push(fn); }
+  };
+})();
+</script>
 <script>
 (function(){
   'use strict';
@@ -2682,8 +2731,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
       if(r && r.arena) setArena(r.arena);
       localDrop(st.bid); markSeen(st.bid);
       showResult(st, r, false);
-      pullHeroStats(); try{ if(window.EKEQUIP && EKEQUIP.reload) EKEQUIP.reload(); }catch(e){}
-      try{ if(window.SKHeaderRefresh) SKHeaderRefresh(); }catch(e){}
+      pullHeroStats();               // читає документ Героя → SKHERO, гардероб і хедер оновляться самі
     }, function(e){
       try{ console.error('[арена] підсумок бою не записано:', e); }catch(_){}
       showResult(st, null, true);
@@ -2943,7 +2991,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
       try{ if(SK.pullLocal) await SK.pullLocal(); }catch(e){}
       loadArena();
       var h = null;
-      try{ if(SK.getHero){ h = await SK.getHero(); applyHeroDoc(h); } }catch(e){}
+      try{ if(SK.getHero){ h = await SK.getHero(); applyHeroDoc(h); if(window.SKHERO) SKHERO.fromDoc(h); } }catch(e){}
       applyLiveStats(h);
       cacheStats();                       // зберегти справжні стати для наступних відкриттів
     }
@@ -3016,24 +3064,19 @@ var CATMAP={'Шоломи':'head','Обладунки':'body','Рукавиці'
 function mapCat(c){return CATMAP[c]||'other';}
 function entryOf(inst){var base=BYID[inst.id];if(!base)return null;return {uid:inst.uid,id:inst.id,qty:inst.qty||1,name:base.name,cat:mapCat(base.category),icon:'img/items/'+base.id+'.webp',_inst:inst,bonus:inst.bonus,identified:inst.identified,usable:!!base.consumable};}
 var BELT=[];
+/* розкладка інвентаря — те саме правило, що й у магазині (SKIT.store.bagView) */
+function viewOpts(){var R=R0();return {dualWield:!!(R.BATTLE&&R.BATTLE.dualWield),isTwoHanded:R.isTwoHanded};}
 function rebuild(){
  for(var s in EQUIP)EQUIP[s]=null;
- var beltInst=[],rest=[];
- MISSING=[];
- ALL_INST.forEach(function(inst){var e=entryOf(inst);
-   if(!e){ if(MISSING.indexOf(inst.id)<0) MISSING.push(inst.id); return; }
-   if(inst.slot&&/^belt\d+$/.test(inst.slot)){beltInst.push(inst);return;}
-   if(inst.slot&&SLOT_CAT[inst.slot]!==undefined&&!EQUIP[inst.slot]&&compat(e.cat,inst.slot)){EQUIP[inst.slot]=e;}
-   else{inst.slot=null;rest.push(e);}
- });
- // дворучна зброя займає обидві руки: річ у лівій руці — у сумку
- if(EQUIP.weaponR&&EQUIP.weaponL&&twoHanded(EQUIP.weaponR)){EQUIP.weaponL._inst.slot=null;rest.push(EQUIP.weaponL);EQUIP.weaponL=null;}
- var bc=beltCount();BELT=[];for(var i=0;i<bc;i++)BELT.push(null);
- beltInst.forEach(function(inst){var e=entryOf(inst);var idx=parseInt(inst.slot.slice(4),10);
-   if(e&&e.usable&&idx>=0&&idx<bc&&!BELT[idx]){BELT[idx]=e;}else{inst.slot=null;rest.push(e);}});
- INV=rest;
+ MISSING=[];BELT=[];INV=[];
+ if(!ST()){return;}
+ var v=ST().bagView({inventory:ALL_INST},BYID,viewOpts());
+ ALL_INST=v.inventory;MISSING=v.missing;
+ for(var k in v.equip){var e=entryOf(v.equip[k]);if(e)EQUIP[k]=e;}
+ BELT=v.belt.map(function(i){return i?entryOf(i):null;});
+ INV=v.bag.map(entryOf).filter(Boolean);
+ return v.fixed;
 }
-function beltCount(){var b=EQUIP.belt;if(!b||!b._inst||!BYID[b.id])return 0;if(!(window.SKIT&&SKIT.effective))return 0;var eff=SKIT.effective(BYID[b.id],b._inst);var n=0;(eff.addStats||[]).forEach(function(e){if(!e.flag&&SKIT.canon(e.stat)==='beltSlots')n+=(e.value||0);});return n;}
 function firstFreeBelt(){for(var i=0;i<BELT.length;i++)if(!BELT[i])return i;return -1;}
 /* У комірку пояса кладемо ОДНУ фляжку/сувій: від стопки ×N відділяємо одну штуку.
    Знята з пояса — повертається в стопку того ж зілля (той самий id і бонус).
@@ -3058,7 +3101,13 @@ function moveBelt(a,b){if(inBattle())return;if(a===b)return;var ea=BELT[a];if(!e
 /* Поки Герой у бою, спорядження лише для перегляду: бій іде з копією речей,
    а основний запис змінюється тільки після бою (SK.finishBattle). */
 function inBattle(){if(window.SKARENA_LIVE&&SKARENA_LIVE()){if(window.showToast)showToast('⚔ Герой у бою','Спорядження можна змінити після бою');return true;}return false;}
-function persist(){try{if(loaded&&window.SK&&SK.saveInventory)Promise.resolve(SK.saveInventory(ALL_INST)).then(function(){if(window.SKHeaderRefresh)SKHeaderRefresh();});}catch(e){}}
+/* запис змін спорядження: лише різниця з останнім станом бази (SKIT.store.diffInv),
+   у транзакції поверх СВІЖОГО інвентаря — нагорода з іншої вкладки не загубиться */
+var BASE_INV=[];
+function persist(){if(!loaded||!(window.SK&&SK.storeTx)||!ST())return;var d=ST().diffInv(BASE_INV,ALL_INST);if(d.empty)return;
+ BASE_INV=JSON.parse(JSON.stringify(ALL_INST));
+ SK.storeTx(function(st){return ST().applyDiff(st,d);},{noBattle:true}).then(function(r){if(window.SKHERO)SKHERO.apply(r);})
+ .catch(function(e){var m=(e&&e.message)||String(e);if(window.showToast)showToast('Не збережено',m);if(window.SKHERO)SKHERO.load(true).catch(function(){});});}
 var EQUIP={helmet:null,armor:null,gloves:null,bracers:null,belt:null,pants:null,boots:null,weaponR:null,weaponL:null,ring1:null,ring2:null,amulet:null};
 var TABS=[
  ['all','Усі','🎒',function(){return true;}],
@@ -3069,6 +3118,9 @@ var TABS=[
 var curTab='all';
 
 function isImg(ic){return typeof ic==='string'&&/\.(webp|png|jpe?g|svg|gif)$/i.test(ic);}
+/* спільна плитка речі (SKIT.tile): іконка, колір бонусу, міцність, ×N — як у магазині */
+function chip(e,attrs){var t=(window.SKIT&&SKIT.tile)?SKIT.tile(BYID[e.id],e._inst||e):{cls:'',html:iconHTML(e.icon)};
+ return '<span class="ek-chip '+t.cls+'"'+(attrs||'')+'>'+t.html+'</span>';}
 function iconHTML(ic){if(isImg(ic))return '<img class="ek-img" src="'+ic+'" alt="" onerror="this.onerror=null;this.style.display=\'none\'">';return ic;}
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function totals(){var baseHero={health:HERO.health||0,mana:HERO.mana||0,agility:HERO.agility||0,accuracy:HERO.accuracy||0};
@@ -3161,7 +3213,7 @@ function renderStats(){var t=totals();
  q('ek-statGrid').innerHTML=tiles.map(function(a){return '<div class="ek-stat '+a[0]+'"><div class="ek-si">'+a[1]+'</div><div class="ek-sl">'+a[2]+'</div><div class="ek-sv">'+a[3]+'</div></div>';}).join('');}
 
 function renderSlots(){q('ek-slots').innerHTML=SLOT_DEFS.map(function(d){var id=d[0],lab=d[1],ghost=d[2];var item=EQUIP[id];
- var inner=item?'<span class="ek-chip ek-drag" data-src="slot" data-slot="'+id+'">'+iconHTML(item.icon)+'</span>'
+ var inner=item?chip(item,' data-src="slot" data-slot="'+id+'"').replace('class="ek-chip ','class="ek-chip ek-drag ')
   :'<span class="ek-gh">'+ghost+'</span>';
  return '<div class="ek-slot'+(item?' ek-filled':'')+'" data-slot="'+id+'">'+inner+'<span class="ek-lab">'+lab.split('|').join('<br>')+'</span></div>';}).join('');}
 
@@ -3174,21 +3226,20 @@ function renderInv(){var f=null;for(var i=0;i<TABS.length;i++)if(TABS[i][0]===cu
    else if(MISSING.length) why='У базі є '+MISSING.length+' предмет(ів), але їх немає в каталозі:<br><small>'+esc(MISSING.join(', '))+'</small>';
    g.innerHTML='<div class="ek-empty">'+why+'</div>';return;}
  g.innerHTML=list.map(function(x){return '<div class="ek-cell" data-uid="'+x.uid+'">'+
-  '<span class="ek-chip ek-drag" data-src="inv" data-uid="'+x.uid+'">'+iconHTML(x.icon)+'</span>'+
-  (x.qty>1?'<span class="ek-qty">'+x.qty+'</span>':'')+'</div>';}).join('');}
+  chip(x,' data-src="inv" data-uid="'+x.uid+'"').replace('class="ek-chip ','class="ek-chip ek-drag ')+'</div>';}).join('');}
 
 function renderTabs(){q('ek-tabs').innerHTML=TABS.map(function(t){return '<span class="ek-tab'+(t[0]===curTab?' ek-on':'')+'" data-tab="'+t[0]+'">'+t[2]+' '+t[1]+'</span>';}).join('');}
 function renderBelt(){var host=q('ek-belt');if(!host)return;var bc=BELT.length;var cnt=q('ek-beltCount');if(cnt)cnt.textContent=bc?('('+BELT.filter(Boolean).length+'/'+bc+')'):'';
  if(!bc){host.innerHTML='<div class="ek-belt-empty">Вдягни пояс із комірками, щоб класти зілля та свитки.</div>';return;}
  var out='';for(var i=0;i<bc;i++){var e=BELT[i];
-  if(e)out+='<div class="ek-bslot ek-filled" data-belt="'+i+'"><span class="ek-chip ek-drag" data-src="belt" data-belt="'+i+'">'+iconHTML(e.icon)+'</span></div>';
+  if(e)out+='<div class="ek-bslot ek-filled" data-belt="'+i+'">'+chip(e,' data-src="belt" data-belt="'+i+'"').replace('class="ek-chip ','class="ek-chip ek-drag ')+'</div>';
   else out+='<div class="ek-bslot" data-belt="'+i+'"><span class="ek-gh">➕</span></div>';}
  host.innerHTML=out;}
 /* Скриня (нагороди, що не влізли в сумку) і смітник (викинуте) — з SK.getStore() */
 var STORE={chest:[],trash:[]};
 function storeChip(inst,act,sub){var e=entryOf(inst)||{icon:'🎒',name:inst.id};
  return '<button type="button" class="ek-schip" data-sact="'+act+'" data-suid="'+esc(inst.uid)+'" title="'+esc(e.name||'')+'">'
-  +'<span class="ek-chip">'+iconHTML(e.icon)+'</span>'+((Number(inst.qty)||1)>1?'<span class="ek-qty">'+inst.qty+'</span>':'')
+  +(e._inst?chip(e):'<span class="ek-chip">'+iconHTML(e.icon)+'</span>')
   +'<span class="ek-ssub">'+esc(sub)+'</span></button>';}
 /* Скриня й смітник — завжди видно (і порожні), щоб дитина знала, де вони */
 function renderStore(){var host=q('ek-store');if(!host)return;var ch=STORE.chest||[],tr=STORE.trash||[];
@@ -3210,7 +3261,7 @@ function tvCounts(){var set=function(id,t){var el=document.getElementById(id);if
  set('tvChest',(STORE.chest||[]).length?(STORE.chest.length+' — забери!'):'порожня');
  set('tvTrash',(STORE.trash||[]).length?(STORE.trash.length+' до півночі'):'порожній');}
 function storeAct(fn){if(!(window.SK&&SK[fn]))return;if(inBattle())return;var args=[].slice.call(arguments,1);
- return SK[fn].apply(SK,args).then(function(){loaded=false;return loadData();}).then(function(){try{if(window.SKHeaderRefresh)SKHeaderRefresh();}catch(e){}})
+ return SK[fn].apply(SK,args).then(function(r){if(window.SKHERO)SKHERO.apply(r);})
   .catch(function(e){var m=(e&&e.message)||String(e);if(window.showToast)showToast('Не вийшло',m);else alert(m);});}
 document.addEventListener('click',function(e){var b=e.target.closest?e.target.closest('[data-sact]'):null;if(!b)return;
  var u=b.getAttribute('data-suid'),a=b.getAttribute('data-sact');
@@ -3274,16 +3325,26 @@ document.addEventListener('pointermove',function(e){if(drag){hideTip();return;}i
 document.addEventListener('pointerdown',hideTip);
 document.addEventListener('click',function(e){var t=e.target.closest?e.target.closest('#ek-tabs .ek-tab'):null;if(!t)return;curTab=t.getAttribute('data-tab');renderTabs();renderInv();});
 
-function loadData(){if(loaded||loading)return Promise.resolve();loading=true;LOAD_ERR=null;
- return (window.SK&&SK.ready?SK.ready:Promise.resolve()).then(function(){NO_HERO=!!(window.SK&&SK._heroUid&&!SK._heroUid());var pC=(window.SK&&SK.listItems)?SK.listItems():Promise.resolve([]);var pI=(window.SK&&SK.getInventory)?SK.getInventory():Promise.resolve([]);var pS=(window.SK&&SK.getStore)?SK.getStore().catch(function(){return null;}):Promise.resolve(null);return Promise.all([pC,pI,pS]);}).then(function(res){CATALOG=res[0]||[];
-   var stv=res[2];if(stv){STORE={chest:stv.chest||[],trash:stv.trash||[]};if(stv.coins!=null)HERO.coins=stv.coins;}BYID={};CATALOG.forEach(function(b){BYID[b.id]=b;});ALL_INST=(res[1]||[]).filter(function(x){return x&&x.id;});loaded=true;loading=false;
-   var before=ALL_INST.map(function(x){return x.slot||'';}).join('|');rebuild();renderAll();
-   // rebuild() прибрав дублікати / невідповідні слоти — записуємо виправлення в базу
-   if(ALL_INST.map(function(x){return x.slot||'';}).join('|')!==before)persist();}).catch(function(e){loading=false;
+/* дані — зі спільного стану героя (SKHERO): каталог (кеш) + інвентар / скриня / смітник / монети */
+function applyState(st){if(!st)return;
+ ALL_INST=JSON.parse(JSON.stringify((st.inventory||[]).filter(function(x){return x&&x.id;})));
+ STORE={chest:st.chest||[],trash:st.trash||[]};if(st.coins!=null)HERO.coins=st.coins;
+ BASE_INV=JSON.parse(JSON.stringify(ALL_INST));
+ var fixed=rebuild();renderAll();
+ // старі дані (дві речі в слоті, щит при дворучній…) — виправляємо в транзакції
+ if(fixed&&!(window.SKARENA_LIVE&&SKARENA_LIVE())&&window.SK&&SK.storeTx&&ST())
+   SK.storeTx(function(s2){return ST().applyView(s2,BYID,viewOpts());}).then(function(r){if(window.SKHERO)SKHERO.apply(r);}).catch(function(){});}
+function loadData(force){if((loaded&&!force)||loading)return Promise.resolve();loading=true;LOAD_ERR=null;
+ return (window.SK&&SK.ready?SK.ready:Promise.resolve()).then(function(){NO_HERO=!!(window.SK&&SK._heroUid&&!SK._heroUid());
+   var pC=(window.SK&&SK.listItems)?SK.listItems():Promise.resolve([]);
+   var pS=(!NO_HERO&&window.SKHERO&&window.SK&&SK.getStore)?SKHERO.load(force):Promise.resolve(null);
+   return Promise.all([pC,pS]);}).then(function(res){CATALOG=res[0]||[];BYID={};CATALOG.forEach(function(b){BYID[b.id]=b;});
+   loaded=true;loading=false;applyState(res[1]||{inventory:[]});}).catch(function(e){loading=false;
    LOAD_ERR=(e&&(e.code||e.message))||e;                       // причина замість мовчазного «Порожньо»
    try{console.error('[гардероб] не вдалось прочитати предмети:',e);}catch(_){}
    renderAll();});}
-window.EKEQUIP={render:function(token,hd){if(hd){['health','mana','agility','accuracy','coins','baseHP'].forEach(function(k){if(hd[k]!=null)HERO[k]=hd[k];});if(hd.level!=null)LEVEL.level=hd.level;if(hd.xp!=null)LEVEL.xp=hd.xp;if(hd.xpMax!=null&&hd.xpMax>0)LEVEL.xpMax=hd.xpMax;if(hd.name!=null){var nn=document.getElementById('ek-heroName');if(nn)nn.textContent=hd.name;}if(hd.grade!=null){var gg=document.getElementById('ek-heroGrade');if(gg)gg.textContent=hd.grade;}}paintAvatar(token);renderAll();loaded=false;loadData();},reload:function(){loaded=false;return loadData();}};
+if(window.SKHERO)SKHERO.on(function(st){if(loaded)applyState(st);});
+window.EKEQUIP={render:function(token,hd){if(hd){['health','mana','agility','accuracy','coins','baseHP'].forEach(function(k){if(hd[k]!=null)HERO[k]=hd[k];});if(hd.level!=null)LEVEL.level=hd.level;if(hd.xp!=null)LEVEL.xp=hd.xp;if(hd.xpMax!=null&&hd.xpMax>0)LEVEL.xpMax=hd.xpMax;if(hd.name!=null){var nn=document.getElementById('ek-heroName');if(nn)nn.textContent=hd.name;}if(hd.grade!=null){var gg=document.getElementById('ek-heroGrade');if(gg)gg.textContent=hd.grade;}}paintAvatar(token);renderAll();loadData();},reload:function(){return loadData(true);}};
 function init(){renderAll();paintAvatar(null);loadData();}
 if(document.readyState!=='loading')init();else document.addEventListener('DOMContentLoaded',init);
 })();
@@ -3341,11 +3402,9 @@ function showShop(tab){
   S.ct={sell:[],buy:[],buyback:[]};S.tab=(tab&&SH_TABS.some(function(t){return t[0]===tab;}))?tab:'gear';S.st=null;S.stock=null;S.err=null;
   q('shop').hidden=false;lockOn();clearInterval(S.hb);S.hb=setInterval(lockOn,30000);
   render();load();}
-function closeShop(){q('shop').hidden=true;clearInterval(S.hb);S.hb=null;lockOff();
-  try{if(window.EKEQUIP&&EKEQUIP.reload)EKEQUIP.reload();}catch(e){}
-  try{if(window.SKHeaderRefresh)SKHeaderRefresh();}catch(e){}}
-function load(){var my=++S.seq;
-  return Promise.all([SK.listItems(),SK.getStore()]).then(function(r){if(my!==S.seq)return;
+function closeShop(){q('shop').hidden=true;clearInterval(S.hb);S.hb=null;lockOff();}   // гардероб і хедер уже мають новий стан (SKHERO)
+function load(force){var my=++S.seq;
+  return Promise.all([SK.listItems(),window.SKHERO?SKHERO.load(force):SK.getStore()]).then(function(r){if(my!==S.seq)return;
     S.cat=r[0]||[];S.byId={};S.cat.forEach(function(b){S.byId[b.id]=b;});S.st=r[1]||ST().normState({});
     var hid=(SK._heroUid&&SK._heroUid())||SK.activeHeroId||'';S.stock=ST().shopStock(S.cat,hid,Date.now());render();})
   .catch(function(e){if(my!==S.seq)return;try{console.error('[магазин]',e);}catch(_){}
@@ -3353,7 +3412,11 @@ function load(){var my=++S.seq;
     render();});}
 
 /* ── прилавок ── */
-function bagItems(){return S.st?S.st.inventory.filter(function(i){return i&&!i.slot&&S.byId[i.id];}):[];}
+/* сумка — те саме правило, що й у гардеробі (SKIT.store.bagView) */
+function bagItems(){if(!S.st)return [];var R=window.SKARENA||{};
+  return ST().bagView(S.st,S.byId,{dualWield:!!(R.BATTLE&&R.BATTLE.dualWield),isTwoHanded:R.isTwoHanded}).bag;}
+// стан змінився деінде (гардероб, скриня, інша вкладка) — відкритий магазин підхоплює
+if(window.SKHERO)SKHERO.on(function(st){if(q('shop')&&!q('shop').hidden&&!S.busy&&S.cat.length){S.st=st;render();}});
 function onCounter(kind,key){return S.ct[kind].indexOf(key)>=0;}
 function totals(){
   var got=0,spent=0;
@@ -3387,9 +3450,9 @@ function renderInv(){
   if(!S.st){q('shInv').innerHTML='<div class="sh-empty">'+(S.err?esc(S.err):'Завантаження…')+'</div>';return;}
   if(!bag.length){q('shInv').innerHTML='<div class="sh-empty">Сумка порожня.</div>';return;}
   q('shInv').innerHTML='<div class="sh-grid">'+bag.map(function(i){var b=S.byId[i.id],used=onCounter('sell',i.uid);
-    var dur='';if(i.durMax){var r=(Number(i.durCur!=null?i.durCur:i.durMax)||0)/i.durMax;dur='<span class="dur'+(r<=0?' zero':(r<=.3?' low':''))+'">'+Math.round(r*100)+'%</span>';}
-    return '<button type="button" class="sh-item '+bonusCls(i.bonus)+(used?' used':'')+'" data-sell="'+esc(i.uid)+'"'+(used?' disabled':'')+' title="'+esc(b.name+' — '+statLine(b,i))+'">'
-     +((Number(i.qty)||1)>1?'<span class="q">×'+i.qty+'</span>':'')+'<span class="ic">'+icon(b)+'</span><span class="nm">'+esc(b.name)+'</span>'+dur
+    var t=SKIT.tile(b,i);
+    return '<button type="button" class="sh-item '+t.cls+(used?' used':'')+'" data-sell="'+esc(i.uid)+'"'+(used?' disabled':'')+' title="'+esc(b.name+' — '+statLine(b,i))+'">'
+     +'<span class="ic">'+t.html+'</span><span class="nm">'+esc(b.name)+'</span>'
      +'<span class="pr sell">+'+coins(ST().sellTotal(b,i))+'</span></button>';}).join('')+'</div>';}
 function renderStore(){
   var st=S.stock,sold=S.st?(S.st.shopSold||[]):[];
@@ -3400,15 +3463,16 @@ function renderStore(){
   if(S.tab==='back'){
     if(!sold.length){q('shStore').innerHTML='<div class="sh-empty">Сьогодні ти ще нічого не продав. Продане можна викупити за ту саму ціну до півночі.</div>';return;}
     q('shStore').innerHTML='<div class="sh-grid">'+sold.map(function(t){var b=S.byId[t.inst.id]||{id:t.inst.id,name:t.inst.id},used=onCounter('buyback',t.inst.uid);
-      return '<button type="button" class="sh-item '+bonusCls(t.inst.bonus)+(used?' used':'')+'" data-buyback="'+esc(t.inst.uid)+'"'+(used?' disabled':'')+'>'
-       +((Number(t.inst.qty)||1)>1?'<span class="q">×'+t.inst.qty+'</span>':'')+'<span class="ic">'+icon(b)+'</span><span class="nm">'+esc(b.name)+'</span><span class="pr">↩ '+coins(t.price)+'</span></button>';}).join('')+'</div>';
+      var tl=SKIT.tile(b,t.inst);
+      return '<button type="button" class="sh-item '+tl.cls+(used?' used':'')+'" data-buyback="'+esc(t.inst.uid)+'"'+(used?' disabled':'')+'>'
+       +'<span class="ic">'+tl.html+'</span><span class="nm">'+esc(b.name)+'</span><span class="pr">↩ '+coins(t.price)+'</span></button>';}).join('')+'</div>';
     return;}
   var list=S.tab==='cons'?st.cons:st.gear;
   if(!list.length){q('shStore').innerHTML='<div class="sh-empty">Сьогодні тут порожньо.</div>';return;}
   /* кожного товару — 1 шт. на добу: куплене сьогодні й покладене на прилавок недоступне */
   q('shStore').innerHTML='<div class="sh-grid">'+list.map(function(b){
     var gone=!!(S.st&&ST().boughtToday&&ST().boughtToday(S.st,b.id)),used=S.ct.buy.some(function(x){return x.base.id===b.id;});
-    return '<button type="button" class="sh-item'+((gone||used)?' used':'')+'" data-buy="'+esc(b.id)+'"'+((gone||used)?' disabled':'')+' title="'+esc(b.name+' — '+statLine(b)+(gone?' (сьогодні вже куплено)':''))+'"><span class="ic">'+icon(b)+'</span><span class="nm">'+esc(b.name)+'</span>'
+    return '<button type="button" class="sh-item'+((gone||used)?' used':'')+'" data-buy="'+esc(b.id)+'"'+((gone||used)?' disabled':'')+' title="'+esc(b.name+' — '+statLine(b)+(gone?' (сьогодні вже куплено)':''))+'"><span class="ic">'+SKIT.tile(b,{bonus:1}).html+'</span><span class="nm">'+esc(b.name)+'</span>'
      +'<span class="st">'+esc(statLine(b))+'</span><span class="pr">'+(gone?'✔ куплено':coins(b.price))+'</span></button>';}).join('')+'</div>';}
 function render(){q('shCoins').textContent='🪙 '+(S.st?coins(S.st.coins):'…');renderInv();renderCounter();renderStore();}
 
@@ -3420,8 +3484,9 @@ function doDeal(){
   S.busy=true;renderCounter();
   SK.shopDeal({sell:S.ct.sell.slice(),buy:S.ct.buy.map(function(e){return e.base;}),buyback:S.ct.buyback.slice()},S.byId)
    .then(function(r){S.ct={sell:[],buy:[],buyback:[]};if(r&&r.state)S.st=r.state;S.busy=false;render();
-     toast('Угоду укладено 🤝','Тепер у тебе '+coins(S.st.coins));try{if(window.SKHeaderRefresh)SKHeaderRefresh();}catch(e){}})
-   .catch(function(e){S.busy=false;toast('Угода не відбулась',(e&&e.message)||String(e));load();});}
+     if(window.SKHERO)SKHERO.apply(r);   // гардероб і хедер — з того самого стану, без читання
+     toast('Угоду укладено 🤝','Тепер у тебе '+coins(S.st.coins));})
+   .catch(function(e){S.busy=false;toast('Угода не відбулась',(e&&e.message)||String(e));load(true);});}
 
 document.addEventListener('click',function(e){
   var m=q('shop');if(!m||m.hidden)return;
