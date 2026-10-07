@@ -363,11 +363,126 @@
     return { day: day, gear: gear, cons: hp.concat(rest) };
   }
 
+  /* ── СУМКА: одне правило для спорядження й магазину ──
+     bagView(state, byId, opts) розкладає інвентар так само, як його бачить
+     гардероб: одна річ на слот і лише своєї категорії; дворучна зброя
+     знімає річ з лівої руки; у комірках пояса — лише разові речі (зілля,
+     сувої) і не більше комірок, ніж дає вдягнений пояс. Решта — у сумці.
+     Речі, яких немає в каталозі, — у missing (їх не чіпаємо).
+     opts: { dualWield, isTwoHanded(base) } — з правил арени (SKARENA).
+     Повертає { equip:{slot:inst}, belt:[inst|null], bag:[inst], missing:[id],
+                inventory: виправлений список (копія), fixed: чи щось виправлено }. */
+  var SLOT_CATS = {
+    helmet: ['Шоломи'], armor: ['Обладунки'], gloves: ['Рукавиці'], bracers: ['Наручі'], belt: ['Пояси'],
+    pants: ['Штани'], boots: ['Взуття'], weaponR: ['Зброя'], weaponL: ['Щити'],
+    ring1: ['Кільце'], ring2: ['Кільце'], amulet: ['Амулет']
+  };
+  function slotFits(base, slot, opts) {
+    var cats = SLOT_CATS[slot]; if (!cats || !base) return false;
+    if (slot === 'weaponL' && opts && opts.dualWield) cats = cats.concat(['Зброя']);
+    return cats.indexOf(base.category) >= 0;
+  }
+  function beltSlotsOf(base, inst) {
+    if (!base) return 0;
+    var n = 0;
+    (effective(base, inst).addStats || []).forEach(function (e) { if (!e.flag && canon(e.stat) === 'beltSlots') n += (Number(e.value) || 0); });
+    return Math.max(0, Math.floor(n));
+  }
+  function bagView(st, byId, opts) {
+    opts = opts || {}; byId = byId || {};
+    var two = opts.isTwoHanded || function () { return false; };
+    var inv = ((st && st.inventory) || []).map(function (i) { return i ? cloneInst(i) : i; });
+    var before = inv.map(function (i) { return i ? (i.slot || '') : ''; }).join('|');
+    var equip = {}, beltReq = [], bag = [], missing = [];
+    inv.forEach(function (i) {
+      if (!i || !i.id) return;
+      var b = byId[i.id];
+      if (!b) { if (missing.indexOf(i.id) < 0) missing.push(i.id); return; }
+      if (i.slot && /^belt\d+$/.test(i.slot)) { beltReq.push(i); return; }
+      if (i.slot && SLOT_CATS[i.slot] && !equip[i.slot] && slotFits(b, i.slot, opts)) { equip[i.slot] = i; return; }
+      i.slot = null; bag.push(i);
+    });
+    if (equip.weaponR && equip.weaponL && two(byId[equip.weaponR.id])) { equip.weaponL.slot = null; bag.push(equip.weaponL); delete equip.weaponL; }
+    var bc = equip.belt ? beltSlotsOf(byId[equip.belt.id], equip.belt) : 0, belt = [];
+    for (var k = 0; k < bc; k++) belt.push(null);
+    beltReq.forEach(function (i) {
+      var idx = parseInt(i.slot.slice(4), 10), b = byId[i.id];
+      if (b && b.consumable && idx >= 0 && idx < bc && !belt[idx]) belt[idx] = i;
+      else { i.slot = null; bag.push(i); }
+    });
+    var after = inv.map(function (i) { return i ? (i.slot || '') : ''; }).join('|');
+    return { equip: equip, belt: belt, bag: bag, missing: missing, inventory: inv, fixed: before !== after };
+  }
+  /* виправити старі дані в транзакції (SK.storeTx), а не перезаписом інвентаря */
+  function applyView(st, byId, opts) {
+    st = normState(st);
+    var v = bagView(st, byId, opts);
+    st.inventory = v.inventory;
+    return { state: st, result: { fixed: v.fixed } };
+  }
+
+  /* ── зміни спорядження (вдягнути / зняти / пояс) як «різниця» ──
+     Гардероб змінює свою копію інвентаря, а в базу йде лише різниця:
+     нові слоти, нова кількість, нові (відділені від стопки) й прибрані речі.
+     applyDiff накладає її на СВІЖИЙ інвентар у транзакції — нагорода, що
+     прийшла тим часом з іншої вкладки, не губиться. */
+  function diffInv(base, next) {
+    var b = {}, n = {}, d = { slots: {}, qty: {}, add: [], remove: [] };
+    (base || []).forEach(function (i) { if (i && i.uid) b[i.uid] = i; });
+    (next || []).forEach(function (i) { if (i && i.uid) n[i.uid] = i; });
+    Object.keys(n).forEach(function (u) {
+      var x = n[u], o = b[u];
+      if (!o) { d.add.push(cloneInst(x)); return; }
+      if ((o.slot || null) !== (x.slot || null)) d.slots[u] = x.slot || null;
+      if ((Number(o.qty) || 1) !== (Number(x.qty) || 1)) d.qty[u] = Number(x.qty) || 1;
+    });
+    Object.keys(b).forEach(function (u) { if (!n[u]) d.remove.push(u); });
+    d.empty = !d.add.length && !d.remove.length && !Object.keys(d.slots).length && !Object.keys(d.qty).length;
+    return d;
+  }
+  function applyDiff(st, diff) {
+    st = normState(st);
+    if (!diff || diff.empty) return { state: st, result: { applied: 0 } };
+    var have = {};
+    st.inventory = st.inventory.filter(function (i) { return !(i && i.uid && diff.remove.indexOf(i.uid) >= 0); });
+    st.inventory.forEach(function (i) {
+      if (!i || !i.uid) return;
+      have[i.uid] = 1;
+      if (Object.prototype.hasOwnProperty.call(diff.slots, i.uid)) i.slot = diff.slots[i.uid];
+      if (Object.prototype.hasOwnProperty.call(diff.qty, i.uid)) i.qty = diff.qty[i.uid];
+    });
+    (diff.add || []).forEach(function (i) { if (i && i.uid && !have[i.uid]) st.inventory.push(cloneInst(i)); });
+    st.inventory = normSlots(st.inventory);
+    return { state: st, result: { applied: 1 } };
+  }
+
+  /* ── ПЛИТКА РЕЧІ: однаковий вигляд у гардеробі, магазині, скрині ──
+     tile(base, inst, opts) → { cls, html }: картинка (без неї — емодзі
+     категорії), «×N» для стопки, смужка міцності; cls — колір бонусу
+     (b20 золото, b10 срібло, bm10 сіре). opts.root — шлях до кореня сайту. */
+  var CAT_EMO = { 'Шоломи': '⛑️', 'Обладунки': '🥋', 'Рукавиці': '🧤', 'Наручі': '🦾', 'Пояси': '🪢', 'Штани': '👖', 'Взуття': '👢',
+    'Зброя': '⚔️', 'Щити': '🛡️', 'Кільце': '💍', 'Амулет': '📿', 'Зелья': '🧪', 'Свиток': '📜' };
+  function bonusCls(b) { b = Number(b == null ? 1 : b); return b > 1.15 ? 'b20' : (b > 1 ? 'b10' : (b < 1 ? 'bm10' : '')); }
+  function tile(base, inst, opts) {
+    opts = opts || {}; inst = inst || {};
+    var id = (base && base.id) || inst.id || '', em = CAT_EMO[base && base.category] || '🎒';
+    var h = '<span class="skt-ic"><img src="' + (opts.root || '') + 'img/items/' + encodeURIComponent(id) + '.webp" alt="" draggable="false"'
+      + ' onerror="this.replaceWith(document.createTextNode(\'' + em + '\'))"></span>';
+    var q = Number(inst.qty) || 1;
+    if (q > 1) h += '<span class="skt-q">×' + q + '</span>';
+    if (inst.durMax) {
+      var r = Math.max(0, Math.min(1, Number(inst.durCur != null ? inst.durCur : inst.durMax) / inst.durMax));
+      h += '<span class="skt-dur' + (r <= 0 ? ' zero' : (r <= 0.2 ? ' low' : '')) + '" title="Міцність ' + Math.round(r * 100) + '%"><i style="width:' + Math.round(r * 100) + '%"></i></span>';
+    }
+    return { cls: 'skt ' + bonusCls(inst.bonus), html: h };
+  }
+
   var STORE = {
     BAG_LIMIT: BAG_LIMIT, CHEST_LIMIT: CHEST_LIMIT, CHEST_DAYS: CHEST_DAYS, SHOP_GEAR: SHOP_GEAR, SHOP_CONS: SHOP_CONS,
     kyivDay: kyivDay, bagCount: bagCount, sameStack: sameStack, sellPrice: sellPrice, sellTotal: sellTotal,
     normState: normState, normSlots: normSlots, tidy: tidy, addItems: addItems, claimChest: claimChest, trashItem: trashItem,
-    restoreTrash: restoreTrash, deal: deal, boughtToday: boughtToday, shopStock: shopStock, isHealthPotion: isHealthPotion
+    restoreTrash: restoreTrash, deal: deal, boughtToday: boughtToday,
+    SLOT_CATS: SLOT_CATS, slotFits: slotFits, bagView: bagView, applyView: applyView, diffInv: diffInv, applyDiff: applyDiff, shopStock: shopStock, isHealthPotion: isHealthPotion
   };
 
   var SKIT = {
@@ -385,6 +500,9 @@
     combine: combine,
     scaleStat: scaleStat,
     newUid: newUid,
+    CAT_EMO: CAT_EMO,
+    bonusCls: bonusCls,
+    tile: tile,
     store: STORE
   };
 

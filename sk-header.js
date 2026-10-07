@@ -455,9 +455,11 @@
   }
 
   /* ── заповнити шкалу з Firebase + дізнатися клас Героя ── */
+  var lastHero = null;
   function loadHero(){
     SK.getHero().then(function(h){
       if(!h){ showGuest(); return; }
+      lastHero = h;
       /* клас Героя → підсвітити відповідний ступінь */
       if(h.grade != null && Number(h.grade) !== activeGrade){
         activeGrade = Number(h.grade);
@@ -572,6 +574,14 @@
     t.style.display = '';
     clearTimeout(hdToast.t); hdToast.t = setTimeout(function(){ t.style.display = 'none'; }, 9000);
   }
+  /* Сторінка вже має свіжі монети / інвентар (транзакція повернула стан) —
+     оновлюємо шкалу без повторного читання документа Героя. */
+  window.SKHeaderPatch = function(patch){
+    if(!lastHero || !patch) return;
+    var h = Object.assign({}, lastHero, patch); lastHero = h;
+    renderStats(h, null);
+    gearTotals(h).then(function(g){ if(g) renderStats(h, g); });
+  };
   /* Сторінки, де Герой перевдягається (арена), кличуть це після збереження */
   window.SKHeaderRefresh = function(){
     try{ if(window.SK && SK.isHeroSession && SK.isHeroSession() && SK.getHero) loadHero(); }catch(e){}
