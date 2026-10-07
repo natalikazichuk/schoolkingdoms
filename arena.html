@@ -709,6 +709,24 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 .binv .binote{font-size:.72rem;color:#a9c1e4;font-weight:700;margin-top:8px}
 .step.swap .no{background:#8fd3ff}
 .step.swap .txt{color:#bfe6ff;font-weight:800}
+/* пояс у бою: комірки із зіллями й свитками над кнопкою «Атака» */
+.beltbar{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px;width:100%}
+.beltbar[hidden]{display:none}
+.beltbar .bl{font-family:'Fredoka';font-weight:700;font-size:.8rem;color:#ffe9b8;margin-right:2px}
+.bbslot{position:relative;display:flex;align-items:center;gap:5px;cursor:pointer;font:inherit;font-size:.72rem;font-weight:800;color:#eaf2ff;
+  background:linear-gradient(180deg,rgba(28,51,87,.95),rgba(17,31,60,.95));border:2px solid rgba(224,164,42,.55);border-radius:12px;padding:3px 9px 3px 4px}
+.bbslot .ic{width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:1.2rem}
+.bbslot .ic img{width:100%;height:100%;object-fit:contain}
+.bbslot:hover:not(:disabled){border-color:var(--gold)}
+.bbslot.on{border-color:#7dff9a;box-shadow:0 0 0 2px rgba(125,255,154,.35);background:linear-gradient(180deg,#22603a,#16432a)}
+.bbslot.used{opacity:.4;cursor:default;text-decoration:line-through}
+.bbslot:disabled:not(.used){opacity:.6;cursor:not-allowed}
+.bbhint{flex-basis:100%;text-align:center;font-size:.68rem;font-weight:700;color:#a9c1e4}
+/* активні ефекти бійця (підсилення, бар'єр, опір страху) — значки внизу картинки */
+.fxrow{position:absolute;left:4px;right:4px;bottom:4px;z-index:3;display:flex;flex-wrap:wrap;gap:3px;justify-content:center;pointer-events:none}
+.fxrow span{background:rgba(8,16,34,.78);border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:1px 6px;font-size:.62rem;font-weight:900;color:#fff;white-space:nowrap}
+.step .use{display:block;color:#b8ffcf;font-weight:800}
+.step .use.op{color:#ffc6a8}
 
 /* оверлей результату */
 .result{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:20px;
@@ -1141,6 +1159,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
             <span class="zoom">🔍</span>
             <img id="pPeek" alt="">
             <span class="figemoji hidden" id="pSceneEmoji">🧒</span>
+            <div class="fxrow" id="pFx"></div>
           </div>
           <div class="hpwrap">
             <span class="flvl" id="pLvl">1</span>
@@ -1171,6 +1190,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
             <span class="zoom">🔍</span>
             <img id="oPeek" alt="">
             <span class="figemoji hidden" id="oSceneEmoji">🤖</span>
+            <div class="fxrow" id="oFx"></div>
           </div>
           <div class="hpwrap">
             <span class="flvl" id="oLvl">1</span>
@@ -1195,6 +1215,8 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 
     <!-- кнопка атаки — одразу під бійцями -->
     <div class="act-row">
+      <!-- пояс: зілля й свитки (спецвміння ходу — замість перевдягання) -->
+      <div class="beltbar" id="beltBar" hidden></div>
       <button class="strike" id="strikeBtn" disabled>⚔️ Атака&nbsp;✓</button>
     </div>
 
@@ -1331,8 +1353,8 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script type="module" src="firebase-config.js"></script>
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
-<script src="sk-arena-rules.js?v=16"></script>
-<script src="sk-battle.js?v=1"></script>
+<script src="sk-arena-rules.js?v=17"></script>
+<script src="sk-battle.js?v=2"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
    Інвентар, скриня, смітник, продане / куплене сьогодні й монети
@@ -1596,7 +1618,7 @@ window.SKHERO = (function(){
       + '<div class="bih"><b>'+biEsc(isP ? (hero.name||'Ти') : f.name)+'</b><span class="lv">рів. '+(isP ? arena.level : (f.level||1))+'</span>'
       + '<span class="tm" id="biTimer">⏱ '+Math.max(0,UI.left)+' с</span></div>';
     if(isP){
-      var p = B.me.p;
+      var p = RULES.buffed ? RULES.buffed(B.me.p, (B.me.fx||{}).buffs) : B.me.p;   // з підсиленнями зілль
       html += '<div class="bist">'
         + '<div><span>❤️ Здоров\'я</span>'+Math.max(0,Math.round(B.me.force))+' / '+B.me.max+'</div>'
         + '<div><span>🔮 Мана</span>'+Math.round(p.mana||0)+'</div>'
@@ -1607,12 +1629,14 @@ window.SKHERO = (function(){
         + '<div><span>⚔️ Урон удару</span>'+dmgText(p)+'</div>'
         + '<div><span>💥 Шанс криту</span>'+Math.round((CFG.critBase||0)+(p.critPct||0))+'%</div>'
         + '<div><span>⚡ Ударів за хід</span>'+(1+(p.extra||0))+'</div>'
+        + ((p.blockPhys||p.blockMag) ? '<div><span>🧱 Шанс блоку</span>'+(p.blockPhys?p.blockPhys+'% фіз.':'')+(p.blockPhys&&p.blockMag?' · ':'')+(p.blockMag?p.blockMag+'% маг.':'')+'</div>' : '')
         + '<div class="wide"><span style="color:inherit">🎯 Ти влучаєш: <b>'+chance(p, B.op.p)+'</b></span><span style="color:inherit">'+biEsc(B.op.f.name)+' влучає: <b>'+chance(B.op.p, p)+'</b></span></div>'
         + '</div>';
       var can = swapsLeft();
       html += '<div class="bimsg'+(can?'':' no')+'">'
         + (!live() ? 'Бій завершено.' : UI.resolving ? 'Хід розраховується… Перевдягнутись можна в наступному ході.'
           : can ? '🔄 Спецвміння ходу: можна замінити або зняти одну річ (крім пояса). Атака й захист лишаються.'
+          : B.me.use ? '🪢 Цього ходу ти вже обрав річ із пояса. Перевдягнутись можна в наступному ході (або скасуй вибір на поясі).'
           : '🔄 Цього ходу ти вже перевдягнувся. Наступна заміна — у наступному ході.')
         + '</div>';
     }else{
@@ -1708,6 +1732,7 @@ window.SKHERO = (function(){
       if(!text) return;
       updateForce('p', B.me);
       addSwap(B.round, text);
+      paintBelt();
       BI.sel = null;
       saveBattle();
       renderInv();
@@ -1717,6 +1742,82 @@ window.SKHERO = (function(){
       showToast('Немає звʼязку', 'Не вдалося перевірити річ — спробуй ще раз');
     });
   }
+  /* ── ПОЯС У БОЮ ──
+     Комірки пояса над «Атакою». Натиснув — річ спрацює в цьому ході, коли
+     розіграється хід (до ударів). Це спецвміння ходу: або пояс, або перевдягання.
+     Натиснув ще раз — передумав. Використане після бою зникає, решта лишається. */
+  var FX_EMO = {armor:'🛡️', magicResist:'🧿', accuracy:'🎯', agility:'🏃', critDamage:'💥', damage:'⚔️', magicDamage:'✨'};
+  var FX_UK = {armor:'броня', magicResist:'маг. захист', accuracy:'точність', agility:'спритність', critDamage:'шанс криту', damage:'урон', magicDamage:'маг. урон'};
+  function useText(base){
+    var ef = RULES.useEffects ? RULES.useEffects(base, {bonus:1}, window.SKIT) : [];
+    return ef.map(function(f){
+      if(f.type==='heal') return "+"+f.pct+"% здоров'я";
+      if(f.type==='buff') return (FX_UK[f.key]||f.key)+' +'+f.pct+'% на '+(CFG.buffMin||5)+'–'+(CFG.buffMax||10)+' ходів';
+      if(f.type==='scroll') return 'магічний удар '+f.min+'–'+f.max;
+      if(f.type==='fear') return 'страх: суперник не атакує';
+      if(f.type==='barrier') return "бар'єр на "+f.n+' удар';
+      return 'поки не діє на арені';
+    }).join(', ');
+  }
+  function paintBelt(){
+    var bar = $('beltBar'); if(!bar) return;
+    var belt = (B && B.me && B.me.belt) || [];
+    if(!B || !belt.length){ bar.hidden = true; bar.innerHTML = ''; return; }
+    var can = live() && !UI.resolving, chosen = B.me.use, free = swapsLeft();
+    bar.hidden = false;
+    bar.innerHTML = '<span class="bl">🪢 Пояс</span>' + belt.slice().sort(function(a,b){ return a.idx-b.idx; }).map(function(b){
+      var on = chosen===b.uid, dis = b.used || !can || (!on && !free);
+      var em = (b.base && b.base.category==='Свиток') ? '📜' : '🧪';
+      return '<button type="button" class="bbslot'+(on?' on':'')+(b.used?' used':'')+'" data-belt-uid="'+biEsc(b.uid)+'"'+(dis?' disabled':'')
+        + ' title="'+biEsc(((b.base&&b.base.name)||b.id)+' — '+useText(b.base)+(b.used?' (використано)':''))+'">'
+        + '<span class="ic">'+itemIcon(b.id, em)+'</span>'+biEsc((b.base&&b.base.name)||b.id)+(on?' ✓':'')+'</button>';
+    }).join('')
+      + '<div class="bbhint">'+(belt.every(function(b){ return b.used; }) ? 'Усе з пояса вже використано в цьому бою.' : chosen ? 'Спрацює в цьому ході, перед ударами. Натисни ще раз — скасувати.'
+          : free ? 'Спецвміння ходу: використай одну річ із пояса (або перевдягнись).' : (live() ? 'Спецвміння цього ходу вже використано.' : ''))+'</div>';
+  }
+  function bindBelt(){
+    var bar = $('beltBar'); if(!bar) return;
+    bar.addEventListener('click', function(e){
+      var b = e.target.closest('[data-belt-uid]'); if(!b || b.disabled || !B || !live() || UI.resolving) return;
+      var uid = b.getAttribute('data-belt-uid');
+      if(!SB.useBelt(ctx(), B, B.me.use===uid ? null : uid)) return;
+      saveBattle(); paintBelt(); if(invOpen()) renderInv();
+    });
+  }
+  /* значки ефектів на картках бійців */
+  function paintFx(){
+    if(!B) return;
+    [['p', B.me], ['o', B.op]].forEach(function(x){
+      var el = $(x[0]+'Fx'); if(!el) return;
+      var f = x[1].fx || {}, out = [];
+      Object.keys(f.buffs||{}).forEach(function(k){ var b = f.buffs[k]; if(b && b.turns>0) out.push('<span title="'+biEsc((b.name||'')+': '+(FX_UK[k]||k)+' +'+b.pct+'%, ще '+b.turns+' ход.')+'">'+(FX_EMO[k]||'🧪')+'+'+b.pct+'% · '+b.turns+'</span>'); });
+      if(f.barrier>0) out.push('<span title="Бар\'єр поглине удар">🫧'+(f.barrier>1?'×'+f.barrier:'')+'</span>');
+      var imm = CFG.fearImmune || 2;
+      if(f.fear>=imm) out.push('<span title="Страх більше не діє">😱 імунітет</span>');
+      else if(f.fear>0) out.push('<span title="Опір страху: наступний свиток спрацює з шансом '+Math.round((CFG.fearNext||0.5)*100)+'%">😱 опір</span>');
+      el.innerHTML = out.join('');
+    });
+  }
+  function useLine(u){
+    var who = u.side==='me' ? 'Ти' : B.op.f.name, tgt = u.side==='me' ? B.op.f.name : 'тебе';
+    if(u.lost) return '<span class="use'+(u.side==='op'?' op':'')+'">😱 '+biEsc(who)+' під страхом — «'+biEsc(u.name)+'» втрачено без ефекту</span>';
+    var parts = (u.fx||[]).map(function(r){
+      if(r.type==='heal') return r.hp>0 ? "+"+r.hp+" ❤️" : "здоров'я вже повне (+0)";
+      if(r.type==='buff') return r.weaker ? 'вже діє сильніше (+'+r.has+'%) — без ефекту'
+        : (FX_EMO[r.key]||'')+' '+(FX_UK[r.key]||r.key)+' +'+r.pct+'% на 🎲 '+r.turns+' ход.';
+      if(r.type==='scroll'){ var h = r.hit||{};
+        if(h.kind==='block') return biEsc(tgt)+': заблоковано 🧱 ('+biEsc(h.calc||'')+')';
+        if(h.kind==='barrier') return "бар'єр 🫧 поглинув "+h.absorbed;
+        return biEsc(tgt)+' ✨<span class="mag">−'+h.dmg+'</span><span class="dice">'+biEsc(h.calc||'')+' = '+h.dmg+'</span>'; }
+      if(r.type==='fear'){
+        if(r.immune) return 'у '+biEsc(tgt)+' імунітет до страху — без ефекту';
+        return '🎲 '+r.roll+(r.ok?' ≤ ':' > ')+r.need+'% — '+(r.ok ? biEsc(u.side==='me'?B.op.f.name+' злякався й не атакує цей хід':'ти злякався й не атакуєш цей хід')+(r.immuneNow?' (далі — імунітет)':'') : 'не подіяв'); }
+      if(r.type==='barrier') return "🫧 бар'єр поглине "+r.n+' удар';
+      return 'поки не діє на арені';
+    });
+    return '<span class="use'+(u.side==='op'?' op':'')+'">🪢 '+biEsc(who)+': «'+biEsc(u.name)+'» — '+parts.join(', ')+'</span>';
+  }
+
   function addSwap(round, text){
     var box = $('steps'); if(!box) return;
     var empty = box.querySelector('.steps-empty'); if(empty) empty.remove();
@@ -2054,7 +2155,13 @@ window.SKHERO = (function(){
         seen[i.slot] = true; return true;
       }).map(function(i){ return {base:by[i.id], inst:i}; });
       if(RULES.handsFix) eq = RULES.handsFix(eq);   // дві зброї / дворучна зі щитом — лише те, що можна тримати
-      return {p:RULES.fighter(stats, eq, window.SKIT), eq:eq, catalog:r[1]||[]};
+      // пояс: лише ті комірки, які дає вдягнений пояс, і лише разові речі (те саме правило, що в гардеробі)
+      var belt = [];
+      try{
+        var bv = SKIT.store.bagView({inventory:r[0]||[]}, by, {dualWield:!!CFG.dualWield, isTwoHanded:RULES.isTwoHanded});
+        belt = (bv.belt||[]).filter(Boolean).map(function(i){ return {base:by[i.id], inst:i}; });
+      }catch(e){ belt = []; }
+      return {p:RULES.fighter(stats, eq, window.SKIT), eq:eq, belt:belt, catalog:r[1]||[]};
     }).catch(function(e){ try{ console.error('[арена] екіпіровку не прочитано:', e); }catch(_){} return {p:plainFighter(stats), eq:[]}; });
   }
 
@@ -2182,6 +2289,7 @@ window.SKHERO = (function(){
     $('roundNum').textContent = B.round;
     applySel();                          // вибір лишається з попереднього ходу
     renderLog();
+    paintBelt(); paintFx();
   }
   /* журнал — із записів бою (і доіграних без гравця ходів теж) */
   function renderLog(){
@@ -2193,7 +2301,9 @@ window.SKHERO = (function(){
   }
   function renderTurn(e){
     addStep(e.r,
-      (e.auto ? '<span class="b" title="Хід без тебе: ті самі зони, що минулого разу">⏳ авто</span> ' : '')
+      (e.first ? '<span class="use">🎲 Хто перший з поясом: ти '+e.first.me+' · '+biEsc(B.op.f.name)+' '+e.first.op+'</span>' : '')
+      + (e.uses||[]).map(useLine).join('')
+      + (e.auto ? '<span class="b" title="Хід без тебе: ті самі зони, що минулого разу">⏳ авто</span> ' : '')
       + phrase('Ти → '+ZONE_UA[e.me.atk], e.meHit)
       + ' <span style="opacity:.5">·</span> '
       + phrase(B.op.f.name+' → '+ZONE_UA[e.op.atk], e.opHit)
@@ -2248,7 +2358,7 @@ window.SKHERO = (function(){
         var st = SB.create(ctx(), {
           heroId: battleHeroId(), kind: 'arena',
           me: { name: hero.name, avatar: hero.avatar, level: arena.level,
-                stats: {health:hero.health, accuracy:hero.accuracy, agility:hero.agility, mana:hero.mana}, eq: r.eq },
+                stats: {health:hero.health, accuracy:hero.accuracy, agility:hero.agility, mana:hero.mana}, eq: r.eq, belt: r.belt||[] },
           op: { f: bot, p: bp }
         });
         var go = function(){ startBattle.busy = false; B = st; UI.logFrom = 0; localPut(B); startTicker(); enterBattle(); };
@@ -2567,6 +2677,11 @@ window.SKHERO = (function(){
     floatDmg('p', opHit);   // скільки втратив ти від суперника
 
     renderTurn(e);          // журнал: Хід N (+ поломки)
+    (e.uses||[]).forEach(function(u){ (u.fx||[]).forEach(function(r){
+      if(r.type==='scroll' && r.hit) floatDmg(u.side==='me'?'o':'p', r.hit);
+      if(r.type==='heal' && r.hp>0){ var c=$(u.side==='me'?'pScene':'oScene'); if(c){ var el=document.createElement('div'); el.className='dmg-float hit'; el.style.color='#7dff9a'; el.textContent='+'+r.hp; c.appendChild(el); setTimeout(function(){ el.remove(); }, 2900); } }
+    }); });
+    paintBelt(); paintFx();
 
     // анімації смужок
     updateForce('o', B.op); updateForce('p', B.me);
@@ -2580,7 +2695,7 @@ window.SKHERO = (function(){
       // «Атака» ще раз або змінити лише одну зону
       $('roundNum').textContent = B.round;
       clearFlash(); applySel();
-      UI.resolving = false; refreshStrike();
+      UI.resolving = false; refreshStrike(); paintBelt();
       if(invOpen()) renderInv();
       startTimer();
     }, SB.PAUSE_MS);
@@ -2590,20 +2705,26 @@ window.SKHERO = (function(){
   function setResult(meHit, opHit){
     var rb = $('rbig'); if(!rb) return;
     var cls, num, lbl;
-    if(meHit.kind==='dodge'){ cls='miss'; num='0'; lbl='Промах'; }
+    if(meHit.kind==='fear'){ cls='miss'; num='—'; lbl='Ти під страхом 😱'; }
+    else if(meHit.kind==='skip'){ cls='hit'; num='✨'; lbl='Свиток вирішив бій'; }
+    else if(meHit.kind==='barrier'){ cls='blk'; num='0'; lbl='Бар\'єр суперника 🫧'; }
+    else if(meHit.kind==='dodge'){ cls='miss'; num='0'; lbl='Промах'; }
     else if(meHit.kind==='block'){ cls='blk'; num=meHit.dmg ? '−'+meHit.dmg : '0'; lbl='Суперник заблокував 🛡️'; }
     else if(meHit.kind==='crit'){ cls='crit'; num='−'+meHit.dmg; lbl='Влучний удар!'; }
     else { cls='hit'; num='−'+meHit.dmg; lbl='Влучив!'; }
     // короткий підсумок відповіді суперника
     var ok;
-    if(opHit.kind==='dodge') ok='промах';
+    if(opHit.kind==='fear') ok='не атакує (страх 😱)';
+    else if(opHit.kind==='skip') ok='удару не було';
+    else if(opHit.kind==='barrier') ok='бар\'єр поглинув 🫧';
+    else if(opHit.kind==='dodge') ok='промах';
     else if(opHit.kind==='block') ok='ти заблокував'+(opHit.dmg ? ' (−'+opHit.dmg+')' : '');
     else ok='−'+opHit.dmg+' тобі';
     rb.className = 'rbig ' + cls;
     var h0 = (meHit.hits || [meHit])[0] || {};
     rb.innerHTML = '<span class="rnum">'+num+'</span><span class="rlbl">'+lbl+'</span>'
       + (h0.hitRoll!=null ? '<span class="rdice" id="rdice"></span>' : '')
-      + '<span class="ropp">Суперник → '+ZONE_UA[B.op.atk]+': '+ok+'</span>';
+      + '<span class="ropp">Суперник'+(opHit.kind==='fear'||opHit.kind==='skip' ? '' : ' → '+ZONE_UA[B.op.atk])+': '+ok+'</span>';
     if(h0.hitRoll!=null) rollDice($('rdice'), meHit.hits || [meHit]);
     void rb.offsetWidth;              // перезапуск drop-анімації
     rb.classList.add('show');
@@ -2631,7 +2752,10 @@ window.SKHERO = (function(){
   function floatDmg(side, hit){
     var card = $(side==='p' ? 'pScene' : 'oScene'); if(!card) return;
     var el = document.createElement('div');
-    if(hit.kind==='dodge'){ el.className='dmg-float miss'; el.textContent='промах'; }
+    if(hit.kind==='fear'){ el.className='dmg-float miss'; el.textContent='😱'; }
+    else if(hit.kind==='skip'){ return; }
+    else if(hit.kind==='barrier'){ el.className='dmg-float blk'; el.textContent='🫧'; }
+    else if(hit.kind==='dodge'){ el.className='dmg-float miss'; el.textContent='промах'; }
     else if(hit.kind==='block'){ el.className='dmg-float blk'; el.textContent= hit.dmg ? '−'+hit.dmg : 'блок'; }
     else if(hit.kind==='crit'){ el.className='dmg-float crit'; el.textContent='−'+hit.dmg+'!'; }
     else { el.className='dmg-float hit'; el.textContent='−'+hit.dmg; }
@@ -2681,12 +2805,15 @@ window.SKHERO = (function(){
 
   function diceLine(who, hit){
     var hs = hit.hits || [hit];
+    if(!hs.some(function(h){ return h.hitRoll!=null; })) return '';   // не атакував (страх) — кидків немає
     return '<span class="dice">'+who+': '+hs.map(function(h,i){
       if(h.hitRoll==null) return '';
       var t = (hs.length>1 ? (i+1)+') ' : '')
         + '🎲 <b>'+h.hitRoll+'</b> '+(h.hitRoll<=h.hitNeed?'≤':'>')+' '+h.hitNeed+'% '+(h.kind==='dodge'?'— промах':'— влучив');
       if(h.kind==='block') t += ' · '+h.calc;                       // блок: крит перевіряється після блоку — для зносу щита
-      else if(h.kind!=='dodge') t += ' · крит 🎲 <b>'+h.critRoll+'</b> '+(h.crit?'≤':'>')+' '+h.critNeed+'%'
+      else if(h.kind==='barrier') t += ' · '+calcHtml(h)+' = '+h.absorbed+' → 🫧 бар\'єр поглинув';
+      else if(h.kind!=='dodge') t += (h.blockRoll!=null ? ' · блок шансом 🎲 <b>'+h.blockRoll+'</b> > '+h.blockNeed+'%' : '')
+        + ' · крит 🎲 <b>'+h.critRoll+'</b> '+(h.crit?'≤':'>')+' '+h.critNeed+'%'
         + ' · '+calcHtml(h)+' = <b>'+dmgHtml(h.dmg, h.magDmg)+'</b>';
       return t;
     }).join(' &nbsp;|&nbsp; ')+'</span>';
@@ -2697,6 +2824,9 @@ window.SKHERO = (function(){
     // розрахунок кожного удару — у підказці (навести мишу на рядок журналу)
     var t = ' title="'+hs.map(function(h,i){ return (hs.length>1?(i+1)+') ':'')+(h.calc||'')+' = '+h.dmg; }).join('&#10;').replace(/"/g,'&quot;')+'"';
     var x = hs.length>1 ? ' ×'+hs.length : '';
+    if(hit.kind==='fear') return '<span>'+prefix.split(' →')[0]+': <span class="b">😱 не атакує (страх)</span></span>';
+    if(hit.kind==='skip') return '<span>'+prefix.split(' →')[0]+': <span class="b">удару не було</span></span>';
+    if(hit.kind==='barrier') return '<span'+t+'>'+prefix+': <span class="b">🫧 бар\'єр поглинув удар</span>'+x+'</span>';
     if(hit.kind==='dodge') return '<span'+t+'>'+prefix+': <span class="b">промах!</span>'+x+'</span>';
     if(hit.kind==='block') return '<span'+t+'>'+prefix+': <span class="b">заблоковано</span>'+(hit.dmg ? ' (−'+hit.dmg+')' : '')+x+'</span>';
     if(hit.kind==='crit')  return '<span'+t+'>'+prefix+': <span class="crit">Критичний урон !!!</span> (−'+dmgHtml(hit.dmg, sumMag(hit))+')'+x+'</span>';
@@ -2799,7 +2929,7 @@ window.SKHERO = (function(){
 
   /* ── прив'язки ── */
   function wire(){
-    bindKnight(); bindGuard();
+    bindKnight(); bindGuard(); bindBelt();
     $('strikeBtn').addEventListener('click', resolve);
     $('logSimple').addEventListener('click', function(){ setLogMode('simple'); });
     $('logFull').addEventListener('click', function(){ setLogMode('full'); });
@@ -3048,7 +3178,7 @@ window.SKHERO = (function(){
 })();
 </script>
 
-<script src="sk-items.js?v=3"></script>
+<script src="sk-items.js?v=4"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
    Дані ЗАРАЗ demo (локально). Крок 2: джерело речей → Firestore (адмінка).
