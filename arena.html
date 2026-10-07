@@ -1256,7 +1256,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script type="module" src="firebase-config.js"></script>
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
-<script src="sk-arena-rules.js?v=15"></script>
+<script src="sk-arena-rules.js?v=16"></script>
 <script src="sk-battle.js?v=1"></script>
 <script>
 (function(){
@@ -1277,7 +1277,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
         щоб адмінка («Арена» → «Механіка») показувала ті самі, за якими йде бій.
         Тут — запасні значення, якщо файл не завантажився. ── */
   var CFG = Object.assign({
-    baseDmg: 10, minDmg: 1, critBase: 1, critMult: 2, hitStep: 0.25, hitAccStep: 0.1, hitMin: 0.1, hitMax: 0.95,
+    baseDmg: 8, minDmg: 1, critBase: 1, critMult: 2, hitStep: 0.25, hitAccStep: 0.1, hitMin: 0.1, hitMax: 0.95,
     blockKeep: 0, botVary: 0.2, xpWin: 50, xpDraw: 25, xpLose: 8, xpAdv: 0.5, xpStep: 500, xpFlat: 8000
   }, RULES.BATTLE || {});
   /* досвіду до наступного рівня: 500, 1000, 1500 … 8000, далі стало 8000 (SKARENA.xpNeed) */
@@ -2542,11 +2542,17 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
   }
   function sumMag(hit){ return (hit.hits || [hit]).reduce(function(a,h){ return a + (h.magDmg||0); }, 0); }
   /* розрахунок удару: магічна частина фіолетовим, крит — червоним */
+  /* захист — частка, що пройшла: «20 × 60% (броня 10)» */
+  function defPart(q, word){
+    if(!(q.def > 0)) return String(q.raw);
+    var pass = q.pass != null ? q.pass : (RULES.armorPass ? RULES.armorPass(q.raw, q.def) : 1);
+    return q.raw + ' × ' + Math.round(pass*100) + '% (' + word + ' ' + q.def + ')';
+  }
   function calcHtml(h){
     var q = h.parts; if(!q) return h.calc || '';
     var t = q.magic
-      ? '<span class="mag">✨маг. (' + q.raw + ' − маг. захист ' + q.def + ')' + (q.pct ? ' × ' + (100+q.pct) + '%' : '') + '</span>'
-      : '(' + q.raw + ' − броня ' + q.def + ')' + (q.pct ? ' × ' + (100+q.pct) + '%' : '');
+      ? '<span class="mag">✨маг. ' + defPart(q, 'маг. захист') + (q.pct ? ' × ' + (100+q.pct) + '%' : '') + '</span>'
+      : defPart(q, 'броня') + (q.pct ? ' × ' + (100+q.pct) + '%' : '');
     if(h.crit) t += ' <span class="crit">× ' + q.mult + ' — Критичний урон !!!</span>';
     return t;
   }
