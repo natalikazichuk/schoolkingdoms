@@ -2,237 +2,279 @@
 <html lang="uk">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Таблиця множення — 10 рівнів</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Manrope:wght@400;600;800&family=JetBrains+Mono:wght@400;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
 <style>
+/* Світла «пісочна» тема — як у тренажерах (шаблон «Вчимо літери»). */
 :root{
-  --ink:#0F2038;
-  --ink-deep:#0A1526;
-  --grid:#1E3A5C;
-  --line:#4C7FB8;
-  --chalk:#E8F1FF;
-  --dim:#8FA9C7;
-  --amber:#FFC145;
-  --mint:#4FD6A4;
-  --coral:#FF6B6B;
-  --r:14px;
-  --paper:#FFFFFF;         /* біле «зошитне» табло */
-  --cell:#CFE0F2;          /* колір клітинки */
-  --penink:#16305C;        /* «синя ручка» — цифри */
-  --penedge:#9BBEE8;       /* намальована рамка */
-  --pengreen:#1F9E63;      /* правильно */
-  --penred:#E0492E;        /* помилка */
+  --ink:#2c2b3a;--soft:#6b6a7d;--paper:#fff9ef;--line:#ece3d2;--card:#fff;
+  --red:#ff6b6b;--orange:#ffa94d;--yellow:#ffd43b;--green:#51cf66;--teal:#22b8cf;
+  --blue:#4dabf7;--purple:#cc5de8;
+  --good:#37b26f;--good-bg:#e4f7ec;--bad:#e06666;--bad-bg:#fbe7e7;
+  --shadow:0 6px 0 rgba(44,43,58,.13);
+  /* таймер і «?» у прикладі — помаранчеві */
+  --aim:#ff9f43;--aim-d:#e07b17;--aim-bg:#fff4e4;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
 body{
-  background:radial-gradient(120% 80% at 50% 0%,#9ad6f5 0%,#5aa3e6 45%,#2f74c8 100%) fixed;
-  color:var(--chalk);
-  font-family:"Manrope",system-ui,sans-serif;
-  min-height:100vh;
-  padding:18px 16px calc(28px + env(safe-area-inset-bottom));
+  font-family:'Nunito',system-ui,sans-serif;color:var(--ink);
+  background:
+    radial-gradient(circle at 12% 8%,rgba(255,212,59,.28),transparent 42%),
+    radial-gradient(circle at 88% 14%,rgba(77,171,247,.26),transparent 44%),
+    radial-gradient(circle at 78% 92%,rgba(204,93,232,.22),transparent 46%),
+    radial-gradient(circle at 8% 86%,rgba(81,207,102,.24),transparent 44%),
+    var(--paper);
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  padding:14px;padding-bottom:calc(84px + env(safe-area-inset-bottom));
 }
-.wrap{max-width:520px;margin:0 auto}
-.eyebrow{
-  font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.14em;
-  text-transform:uppercase;color:var(--line)
+h1,h2,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px;margin:0}
+.wrap{width:100%;max-width:540px;flex:1;display:flex;flex-direction:column}
+.screen{display:none;flex-direction:column;flex:1}
+.screen.on{display:flex;animation:pop .3s ease}
+@keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.iconbtn{width:44px;height:44px;border:2px solid var(--line);background:#fff;border-radius:14px;
+  font-size:20px;cursor:pointer;display:grid;place-items:center;flex:none;color:var(--ink);
+  box-shadow:0 1px 3px rgba(44,43,58,.14)}
+.iconbtn:active{transform:translateY(2px)}
+.big-btn{border:none;border-radius:18px;padding:15px 20px;width:100%;cursor:pointer;
+  font-family:'Fredoka';font-weight:700;font-size:19px;color:#fff;background:var(--blue);box-shadow:0 6px 0 #2f8fd6}
+.big-btn:active{transform:translateY(3px);box-shadow:0 3px 0 #2f8fd6}
+.big-btn.green{background:var(--green);box-shadow:0 6px 0 #37a052}
+.big-btn.green:active{box-shadow:0 3px 0 #37a052}
+.big-btn.ghost{background:#fff;color:var(--ink);border:2px solid var(--line);box-shadow:var(--shadow)}
+.hide{display:none!important}
+
+/* ══ СТАРТ (шаблон «Вчимо літери») ══ */
+#start{justify-content:flex-start;text-align:center;gap:11px;padding-top:6px;position:relative}
+#start.screen{min-height:0}
+#start.screen.on{flex:0 0 auto;height:calc(100dvh - 98px - env(safe-area-inset-bottom));overflow-y:auto}
+#start > *:not(.start-hero){flex-shrink:0}
+.start-top{position:absolute;top:22px;left:0;z-index:5}
+.abc-blocks{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:6px 0 2px}
+.ab{position:relative;width:58px;height:58px;border-radius:16px;display:grid;place-items:center;
+  font-family:'Fredoka';font-weight:700;font-size:30px;color:#fff;transform:rotate(var(--r));
+  box-shadow:0 6px 0 rgba(0,0,0,.14),inset 0 -5px 0 rgba(0,0,0,.12),inset 0 3px 0 rgba(255,255,255,.28)}
+.ab::after{content:attr(data-o);position:absolute;right:-8px;bottom:-8px;font-size:20px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.25))}
+.ab:nth-child(1){background:var(--red);--r:-7deg}.ab:nth-child(2){background:var(--orange);--r:5deg}
+.ab:nth-child(3){background:var(--green);--r:-4deg}.ab:nth-child(4){background:var(--blue);--r:6deg}
+.ab:nth-child(5){background:var(--purple);--r:-5deg}
+#start h1{font-family:'Comfortaa','Fredoka',sans-serif;font-size:34px;margin:8px 0 0;line-height:1.1;color:#1e3a6b}
+.start-sub{color:var(--soft);font-weight:800;margin:0;font-size:16px}
+.rhyme{background:#fff;border:3px dashed #cdd8ea;border-radius:20px;padding:12px 18px;
+  font-style:italic;color:#3a5a8c;font-weight:800;max-width:400px;margin:0 auto;box-shadow:0 1px 3px rgba(44,43,58,.14);line-height:1.4}
+.start-hero{max-width:440px;width:100%;margin:0 auto;flex:1 1 auto;min-height:110px;
+  max-height:clamp(150px,32vh,340px);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.start-hero img{max-width:100%;max-height:100%;width:auto;height:auto;display:block}
+.start-btns{display:flex;flex-direction:column;gap:10px;max-width:440px;margin:2px auto 0;width:100%}
+.prog-card{display:flex;align-items:center;gap:12px;background:#fff;border:3px solid var(--line);
+  border-radius:20px;padding:11px 16px;max-width:440px;margin:2px auto 0;width:100%;box-shadow:0 5px 16px rgba(44,43,58,.10)}
+.prog-card .pc-ic{font-size:26px;flex:none}
+.prog-card .pc-body{flex:1;min-width:0;text-align:left}
+.prog-card .pc-txt{font-family:'Fredoka';font-weight:700;font-size:16px;margin-bottom:6px}
+.pc-bar{height:12px;background:#efe6d3;border-radius:999px;overflow:hidden}
+.pc-bar>span{display:block;height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,var(--green),var(--teal));transition:width .5s}
+.done-card{display:none;align-items:center;gap:12px;max-width:440px;width:100%;margin:0 auto;text-align:left;
+  background:linear-gradient(180deg,#fffdf4,#fff6df);border:3px solid #f4c842;border-radius:20px;
+  padding:10px 14px;box-shadow:0 0 0 3px #fff9e6}
+.done-card.on{display:flex}
+.done-card .dc-ic{font-size:30px;flex:none}
+.done-card .dc-got{font-family:'Fredoka';font-weight:700;font-size:15px;color:#8a5e16;line-height:1.2}
+.done-card .dc-go{font-weight:800;font-size:12px;color:var(--soft);margin-top:3px;line-height:1.25}
+@media (max-width:520px){
+  .start-top{top:12px}
+  .abc-blocks{padding:0 48px;gap:6px}
+  .ab{width:44px;height:44px;border-radius:12px;font-size:24px}
+  .ab::after{font-size:16px;right:-6px;bottom:-6px}
 }
-.sync{color:var(--dim)}
-.sync.ok{color:var(--mint)}
-.sync.no{color:var(--coral)}
-h1{font-family:"Caveat",cursive;font-weight:700;font-size:34px;line-height:1.05;margin:4px 0 14px}
-.rule{height:1px;background:var(--line);opacity:.45;margin:14px 0}
+@media (max-width:440px){
+  #start{gap:8px}
+  #start h1{font-size:29px;padding:0 36px}
+  .start-sub{font-size:14px}
+  .rhyme{padding:8px 14px;font-size:14px;border-radius:16px}
+  .big-btn{padding:13px 18px;font-size:18px}
+}
 
-.hud{display:flex;gap:10px;margin-bottom:16px}
-.stat{flex:1;border:1px solid var(--grid);background:rgba(15,32,56,.75);border-radius:var(--r);padding:9px 11px}
-.stat b{display:block;font-family:"Caveat",cursive;font-weight:700;font-size:26px;line-height:1;margin-top:1px}
-.stat .k{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase}
+/* ══ ВЕРХНЯ ПАНЕЛЬ (карта / гра) ══ */
+.topbar{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-right:52px}
+/* стіл — нижче «жучка» 🐞 у правому верхньому куті */
+#screen-play .topbar{margin-bottom:34px}
+.topbar .ttl{flex:1;min-width:0}
+.topbar .ttl b{display:block;font-family:'Fredoka';font-size:20px;line-height:1.1}
+.topbar .ttl span{font-size:12px;font-weight:800;color:var(--soft)}
 
-.cover{display:block;width:100%;max-width:300px;aspect-ratio:1;margin:0 auto 14px;border-radius:16px;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+/* ══ КАРТА РІВНІВ ══ */
 .map{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
-.lvl{
-  text-align:left;border:2px solid #E0A42A;
-  background:linear-gradient(160deg,#FFD764 0%,#F4B12B 100%);
-  color:#15294D;border-radius:var(--r);padding:12px;cursor:pointer;
-  font-family:"Manrope",sans-serif;font-size:13px;font-weight:700;line-height:1.3;
-  box-shadow:0 4px 12px rgba(10,21,38,.22);
-  transition:transform .12s ease, filter .12s ease;
-}
-.lvl:hover{transform:translateY(-2px);filter:brightness(1.05)}
-.lvl .n{display:block;margin-bottom:4px;font-family:"JetBrains Mono",monospace;font-size:10px;color:#8A5A00;letter-spacing:.1em}
-.lvl.done{border-color:#1F9E63}
-.lvl.done .n{color:#1F7A50}
-.lvl.lock{
-  border-color:#6E86AE;color:#9FB4D4;cursor:not-allowed;box-shadow:none;
-  background:linear-gradient(160deg,rgba(20,40,70,.55),rgba(15,32,56,.55))
-}
-.lvl.lock .n{color:#7E95BC}
-.lvl.lock:hover{transform:none;filter:none}
-.lvl .tag{display:block;margin-top:7px;font-family:"JetBrains Mono",monospace;font-size:10px;color:#7A5A1E}
-.lvl.lock .tag{color:#8AA0C4}
-.lvl .st{display:block;margin-top:6px;font-size:13px;letter-spacing:2px;line-height:1;color:#15294D}
-.lvl .st .off{color:rgba(21,41,77,.24)}
+.lvl{text-align:left;border:3px solid var(--line);background:#fff;color:var(--ink);border-radius:18px;
+  padding:11px 12px;cursor:pointer;font-family:'Fredoka';font-weight:600;font-size:15px;line-height:1.2;box-shadow:var(--shadow)}
+.lvl:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(44,43,58,.13)}
+.lvl .n{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--blue);margin-bottom:3px}
+.lvl .tag{display:block;margin-top:5px;font-family:'Nunito';font-weight:800;font-size:11.5px;color:var(--soft)}
+.lvl .st{display:block;margin-top:5px;font-size:15px;letter-spacing:2px;line-height:1;color:#f2b705}
+.lvl .st .off{color:#e3dac8}
+.lvl.done{border-color:var(--good);background:var(--good-bg)}
+.lvl.done .n{color:var(--good)}
+.lvl.lock{opacity:.5;cursor:not-allowed;box-shadow:none}
+.map-note{text-align:center;font-weight:800;font-size:13px;color:var(--soft);margin-top:14px}
 
-.backlink{display:inline-block;margin-top:14px;color:var(--line);text-decoration:none;
-  font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.06em}
-.backlink:hover{color:var(--chalk)}
+/* ══ СПРИНТ ══ */
+.pbar{display:flex;align-items:center;gap:10px;margin:0 0 8px;padding-right:56px}  /* праворуч — «жучок» 🐞 */
+.pbar .lab{font-weight:800;font-size:13px;color:var(--soft)}
+.pbar .score{margin-left:auto;font-family:'Fredoka';font-weight:700;font-size:30px;line-height:1;color:var(--ink)}
+.pbar .score small{font-family:'Nunito';font-weight:800;font-size:13px;color:var(--soft)}
+.timer{height:14px;border-radius:999px;background:#efe6d3;overflow:hidden;margin-bottom:12px}
+.timer > i{display:block;height:100%;width:100%;border-radius:999px;
+  background:linear-gradient(90deg,var(--green),var(--teal));transition:width .15s linear}
+.timer.low > i{background:linear-gradient(90deg,var(--red),var(--orange))}
 
-/* --- гра --- */
-.pbar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-.pbar .lab{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.1em;color:var(--dim);text-transform:uppercase}
-.pbar .score{margin-left:auto;font-family:"Caveat",cursive;font-weight:700;font-size:30px;line-height:1}
-.pbar .score small{font-family:"JetBrains Mono",monospace;font-weight:400;font-size:10px;color:var(--dim);letter-spacing:.08em}
-
-.timer{height:10px;border-radius:6px;background:rgba(10,21,38,.7);border:1px solid var(--grid);overflow:hidden;margin-bottom:14px}
-.timer > i{display:block;height:100%;width:100%;border-radius:6px;
-  background:linear-gradient(90deg,var(--mint),var(--amber));transition:width .15s linear}
-.timer.low > i{background:linear-gradient(90deg,var(--coral),var(--amber))}
-
-.board{
-  border:2px solid var(--penedge);border-radius:var(--r);
-  background:
-    linear-gradient(var(--cell) 1px, transparent 1px) 0 0 / 22px 22px,
-    linear-gradient(90deg, var(--cell) 1px, transparent 1px) 0 0 / 22px 22px,
-    var(--paper);
-  padding:26px 12px;margin:0 0 4px;text-align:center;
-  font-family:"Caveat",cursive;font-weight:700;font-size:58px;letter-spacing:1px;color:var(--penink);
-  min-height:118px;display:flex;align-items:center;justify-content:center;
-  box-shadow:0 6px 18px rgba(10,21,38,.28)
-}
+.board{border:3px solid var(--line);border-radius:20px;background:#fff;box-shadow:var(--shadow);
+  padding:26px 12px;margin:4px 0 6px;text-align:center;
+  font-family:'Fredoka';font-weight:700;font-size:clamp(44px,13vw,60px);line-height:1;color:var(--ink);
+  min-height:118px;display:flex;align-items:center;justify-content:center}
 .board .eqq{white-space:nowrap}
-.board .hole{color:var(--penred)}
+.board .hole{color:var(--aim-d)}
 
-.opts{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px}
-.opt{
-  border:2px solid var(--penedge);color:var(--penink);
-  background:
-    linear-gradient(var(--cell) 1px, transparent 1px) 0 0 / 22px 22px,
-    linear-gradient(90deg, var(--cell) 1px, transparent 1px) 0 0 / 22px 22px,
-    var(--paper);
-  border-radius:12px;padding:16px 8px;font-family:"Caveat",cursive;font-weight:700;font-size:40px;line-height:1;cursor:pointer;
-  box-shadow:0 4px 12px rgba(10,21,38,.22);
-  transition:transform .08s ease,border-color .1s ease
-}
-.opt:hover{border-color:var(--line)}
-.opt:active{transform:scale(.97)}
-.opt.ok{border-color:var(--pengreen);color:var(--pengreen);background:#EAF7F0}
-.opt.no{border-color:var(--penred);color:var(--penred);background:#FCEDE9}
+.opts{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px}
+.opt{border:3px solid var(--line);background:#fff;color:var(--ink);border-radius:18px;padding:16px 8px;
+  font-family:'Fredoka';font-weight:700;font-size:34px;line-height:1;cursor:pointer;box-shadow:0 4px 0 rgba(44,43,58,.12)}
+.opt:active{transform:translateY(3px);box-shadow:none}
+.opt.ok{border-color:var(--good);background:var(--good-bg);color:var(--good)}
+.opt.no{border-color:var(--bad);background:var(--bad-bg);color:var(--bad)}
 .opt:disabled{cursor:default}
 
-.msg{text-align:center;font-size:13px;font-weight:600;margin-top:12px;min-height:18px}
-.msg.no{color:var(--coral)}
-.msg.ok{color:var(--mint)}
-.msg.hint{color:var(--amber)}
+.msg{text-align:center;font-size:15px;font-weight:800;margin-top:12px;min-height:22px}
+.msg.no{color:var(--bad)}.msg.ok{color:var(--good)}
 
 /* зворотний відлік перед стартом */
-.count{
-  position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
-  background:rgba(10,21,38,.82)
-}
+.count{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;background:rgba(255,249,239,.92)}
 .count.on{display:flex}
-.count b{font-family:"Caveat",cursive;font-weight:700;font-size:120px;color:var(--amber);
-  animation:pop .55s ease}
-.count b.go{font-size:56px;color:var(--mint)}
-@keyframes pop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+.count b{font-family:'Fredoka';font-weight:700;font-size:120px;color:var(--orange);animation:cpop .55s ease}
+.count b.go{font-size:56px;color:var(--good)}
+@keyframes cpop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
 
-/* екран результату */
-.result{border:2px solid var(--penedge);border-radius:var(--r);
-  background:
-    linear-gradient(var(--cell) 1px, transparent 1px) 0 0 / 22px 22px,
-    linear-gradient(90deg, var(--cell) 1px, transparent 1px) 0 0 / 22px 22px,
-    var(--paper);
-  padding:22px 14px;margin:0 0 14px;text-align:center;box-shadow:0 6px 18px rgba(10,21,38,.28)}
-.result .big{font-family:"Caveat",cursive;font-weight:700;font-size:82px;line-height:.9;color:var(--penink)}
-.result .cap{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.1em;color:#6E7E97;text-transform:uppercase;margin-top:4px}
-.result .stars{font-size:36px;letter-spacing:6px;margin:12px 0 6px;line-height:1;color:#F2B705}
-.result .stars .off{color:#C9D3E0}
-.result .super{display:inline-block;margin-top:8px;padding:7px 16px;border-radius:20px;
-  border:2px solid var(--pengreen);color:var(--pengreen);font-family:"Caveat",cursive;font-weight:700;font-size:22px;
-  animation:pop .5s ease}
-.result .xp{margin-top:12px;font-size:13px;color:var(--ink2,#2B3B57)}
-
-.btn{
-  display:block;width:100%;margin-top:12px;padding:14px;border-radius:12px;
-  border:1px solid var(--line);background:var(--amber);color:var(--ink-deep);
-  font-family:"Unbounded",sans-serif;font-weight:600;font-size:14px;cursor:pointer
-}
-.btn.ghost{background:transparent;color:var(--chalk);border-color:var(--grid)}
-.hide{display:none}
-@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+/* результат спринту */
+.done-box{background:#fff;border:3px solid var(--line);border-radius:20px;padding:20px 16px;text-align:center;box-shadow:var(--shadow);margin:6px 0 14px}
+.done-box .big{font-family:'Fredoka';font-weight:700;font-size:80px;line-height:.95;color:var(--ink)}
+.done-box .cap{font-weight:800;font-size:13px;color:var(--soft);margin-top:4px}
+.done-box .stars{font-size:36px;letter-spacing:6px;margin:12px 0 4px;line-height:1;color:#f2b705}
+.done-box .stars .off{color:#e3dac8}
+.done-box .super{display:inline-block;margin-top:8px;padding:7px 16px;border-radius:999px;
+  border:3px solid var(--good);background:var(--good-bg);color:var(--good);font-family:'Fredoka';font-weight:700;font-size:17px}
+.done-box p{font-weight:800;color:var(--soft);margin:10px 0 0}
+#done .big-btn+.big-btn{margin-top:10px}
 </style>
 </head>
 <body>
 <div class="wrap">
 
-  <div id="screen-map">
-    <div class="eyebrow">Математика · 10 рівнів · <span id="sync" class="sync">…</span></div>
+  <!-- ══════ СТАРТ ══════ -->
+  <section id="start" class="screen on">
+    <div class="start-top">
+      <button class="iconbtn" type="button" onclick="exitPage()" title="Назад" aria-label="Назад">←</button>
+    </div>
+    <div class="abc-blocks">
+      <div class="ab" data-o="⚡">3</div><div class="ab" data-o="✖️">×</div><div class="ab" data-o="✨">4</div><div class="ab" data-o="⏱️">=</div><div class="ab" data-o="⭐">12</div>
+    </div>
     <h1>Таблиця множення</h1>
-    <img class="cover" src="../img/tr/mnozhennya.webp?v=2" alt="" onerror="this.remove()">
-    <div class="hud">
-      <div class="stat"><span class="k">XP</span><b id="hud-xp">0</b></div>
-      <div class="stat"><span class="k">Рекорд/хв</span><b id="hud-rec">—</b></div>
-      <div class="stat"><span class="k">Рівні</span><b id="hud-lv">0/10</b></div>
+    <p class="start-sub">10 рівнів · спринт на 60 секунд</p>
+    <p class="rhyme" id="startRhyme">Хвилинка на годиннику біжить —<br>множ швиденько, не барись!</p>
+    <div class="done-card" id="startDone">
+      <span class="dc-ic">🏆</span>
+      <div><div class="dc-got" id="doneGot">Тренажер пройдено!</div>
+        <div class="dc-go" id="doneGo">Вирушай за новими досягненнями!</div></div>
+    </div>
+    <div class="start-hero">
+      <img src="../img/tr/mnozhennya.webp?v=2" alt="" onerror="this.closest('.start-hero').style.display='none'">
+    </div>
+    <div class="start-btns">
+      <button class="big-btn" type="button" onclick="goMap()">Грати ▶</button>
+    </div>
+    <div class="prog-card">
+      <span class="pc-ic">⚡</span>
+      <div class="pc-body">
+        <div class="pc-txt" id="startProgTxt">Пройдено 0 з 10 рівнів</div>
+        <div class="pc-bar"><span id="startProgFill"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════ КАРТА РІВНІВ ══════ -->
+  <section id="screen-map" class="screen">
+    <div class="topbar">
+      <button class="iconbtn" type="button" onclick="goStart()" title="Назад" aria-label="Назад">←</button>
+      <div class="ttl"><b>Таблиця множення</b><span id="hud-lv">Пройдено 0 з 10</span></div>
     </div>
     <div class="map" id="map"></div>
-    <div class="rule"></div>
-    <div class="eyebrow">Супер-результат — 30 правильних за хвилину</div>
-    <a class="backlink" href="../igry.html">← До ігор</a>
-  </div>
+    <div class="map-note">12 правильних за хвилину — рівень пройдено · 30 — супер-результат!</div>
+  </section>
 
-  <div id="screen-play" class="hide">
+  <!-- ══════ ГРА ══════ -->
+  <section id="screen-play" class="screen">
+    <div class="topbar">
+      <button class="iconbtn" type="button" onclick="goMap()" title="Зупинити · до карти рівнів" aria-label="До карти рівнів">←</button>
+      <div class="ttl"><b id="p-title"></b><span id="p-eyebrow"></span></div>
+    </div>
     <div class="pbar">
-      <span class="lab" id="p-lab"></span>
+      <span class="lab">Правильно</span>
       <span class="score" id="p-score">0<small> / 30</small></span>
     </div>
     <div class="timer" id="p-timer"><i id="p-bar"></i></div>
     <div class="board"><div class="eqq" id="p-eq"></div></div>
     <div class="opts" id="p-opts"></div>
     <div class="msg" id="p-msg"></div>
-    <button class="btn ghost" id="p-back">Зупинити · до карти</button>
-  </div>
+  </section>
 
-  <div id="screen-done" class="hide">
-    <div class="eyebrow">Рівень завершено</div>
-    <h1 id="d-title"></h1>
-    <div class="result">
+  <!-- ══════ РЕЗУЛЬТАТ ══════ -->
+  <section id="done" class="screen">
+    <div class="topbar">
+      <button class="iconbtn" type="button" onclick="goMap()" title="До карти рівнів" aria-label="До карти рівнів">←</button>
+      <div class="ttl"><b id="d-title"></b><span id="d-sub"></span></div>
+    </div>
+    <div class="done-box">
       <div class="big" id="d-num">0</div>
       <div class="cap">правильних за 60 секунд</div>
       <div class="stars" id="d-stars"></div>
       <div id="d-super"></div>
-      <div class="xp" id="d-xp"></div>
+      <p id="d-text"></p>
     </div>
-    <button class="btn" id="d-again">Спробувати ще раз</button>
-    <button class="btn" id="d-next">Наступний рівень</button>
-    <button class="btn ghost" id="d-map">До карти рівнів</button>
-  </div>
+    <button class="big-btn green" id="d-next" type="button">Наступний рівень ▶</button>
+    <button class="big-btn" id="d-again" type="button">↻ Спробувати ще раз</button>
+    <button class="big-btn ghost" id="d-map" type="button">До карти рівнів</button>
+  </section>
 
 </div>
 
 <div class="count" id="count"><b id="count-n">3</b></div>
 
-<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
+
 <script>
 /* ============================================================
    ТАБЛИЦЯ МНОЖЕННЯ — 10 рівнів, спринт на 60 секунд.
-   Супер-результат: 30 правильних за хвилину.
-   Прогрес: localStorage 'sk_game_mnozhennya' + heroes/{id}.progress через SK.
-   best[i] — рекорд правильних за рівень; XP і зірки рахуються з best[].
+   Рівень пройдено — 12 правильних; супер-результат — 30 за хвилину.
+   Прогрес: localStorage 'sk_game_mnozhennya' (простір sk_*, синхронізується
+   в heroes/{id}.progress). Очок / XP немає: нагорода — лише з адмінки.
    ============================================================ */
 
 const LEVELS = [
-  {t:"Таблиця числа 2", s:"×2", n:2},
-  {t:"Таблиця числа 3", s:"×3", n:3},
-  {t:"Таблиця числа 4", s:"×4", n:4},
-  {t:"Таблиця числа 5", s:"×5", n:5},
-  {t:"Таблиця числа 6", s:"×6", n:6},
-  {t:"Таблиця числа 7", s:"×7", n:7},
-  {t:"Таблиця числа 8", s:"×8", n:8},
-  {t:"Таблиця числа 9", s:"×9", n:9},
-  {t:"Змішана таблиця", s:"2–9", n:0},
-  {t:"Чемпіон множення", s:"з ×", n:-1},
+  {t:"Таблиця числа 2",  s:"×2",  n:2},
+  {t:"Таблиця числа 3",  s:"×3",  n:3},
+  {t:"Таблиця числа 4",  s:"×4",  n:4},
+  {t:"Таблиця числа 5",  s:"×5",  n:5},
+  {t:"Таблиця числа 6",  s:"×6",  n:6},
+  {t:"Таблиця числа 7",  s:"×7",  n:7},
+  {t:"Таблиця числа 8",  s:"×8",  n:8},
+  {t:"Таблиця числа 9",  s:"×9",  n:9},
+  {t:"Змішана таблиця",  s:"2–9", n:0},
+  {t:"Чемпіон множення", s:"чемпіон", n:-1},
 ];
 
 const ROUND_SEC = 60;   // тривалість спринту
@@ -240,7 +282,24 @@ const SUPER     = 30;   // супер-результат за хвилину
 const PASS      = 12;   // мінімум, щоб відчинити наступний рівень (= 1 зірка)
 
 /* стан гравця (дзеркалиться у localStorage) */
-const S = { unlocked:0, done:Array(10).fill(false), best:Array(10).fill(0), xp:0 };
+const S = { unlocked:0, done:Array(10).fill(false), best:Array(10).fill(0) };
+const LS_KEY = "sk_game_mnozhennya";
+const PRIZE_KEY = "sk_mnozhennya_prize_v1";
+function readLS(){
+  try{
+    const o = JSON.parse(localStorage.getItem(LS_KEY) || "null");
+    if(o && typeof o === "object"){
+      S.unlocked = Math.min(9, Math.max(0, o.unlocked|0));
+      S.done = Array.isArray(o.done) && o.done.length===10 ? o.done.map(Boolean) : Array(10).fill(false);
+      S.best = Array.isArray(o.best) && o.best.length===10 ? o.best.map(v=>v|0) : Array(10).fill(0);
+    }
+  }catch(e){}
+}
+function save(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){}
+  try{ if(window.SK && SK.pushLocal) SK.pushLocal().catch(()=>{}); }catch(e){}
+}
+function doneCount(){ return S.done.filter(Boolean).length; }
 
 let L = 0, correct = 0, curr = null, busy = false;
 let roundEndAt = 0, ticker = null;
@@ -249,18 +308,15 @@ const $ = id => document.getElementById(id);
 const rnd = (a,b) => a + Math.floor(Math.random()*(b-a+1));
 const shuffle = a => a.map(v=>[Math.random(),v]).sort((x,y)=>x[0]-y[0]).map(p=>p[1]);
 
-/* ---------- зірки та XP ---------- */
+/* ---------- зірки ---------- */
 function starCount(best){ if(best>=SUPER) return 3; if(best>=20) return 2; if(best>=PASS) return 1; return 0; }
-function levelXp(best){ if(best<=0) return 0; let xp = Math.min(best, SUPER); if(best>=SUPER) xp += 20; return xp; }
-function totalXp(){ return S.best.reduce((a,b)=>a+levelXp(b), 0); }
-function recordPerMin(){ return Math.max(0, ...S.best); }
 function starStr(k){ let s=""; for(let i=0;i<3;i++) s += `<span class="${i<k?"":"off"}">★</span>`; return s; }
 
 /* ---------- генерація питань ----------
    Колода фактів на рівень: усі приклади перемішуються й роздаються без
-   повторів. Коли колода вичерпалась — перемішуємо знову, стежачи, щоб на
-   «шві» не повторився той самий приклад чи та сама відповідь. */
-let deck = [], dpos = 0, lastPair = null, lastAns = null;
+   повторів. Коли колода вичерпалась — тасуємо знову, стежачи, щоб на «шві»
+   не повторився той самий приклад чи та сама відповідь (добуток). */
+let deck = [], dpos = 0, lastPair = null, lastAns = null, lastShown = null;
 
 function basePairs(lvl){
   const n = LEVELS[lvl].n, out = [];
@@ -271,16 +327,17 @@ function basePairs(lvl){
   }
   return out;
 }
-function resetDeck(){ deck = []; dpos = 0; lastPair = null; lastAns = null; }
+
+function resetDeck(){ deck = []; dpos = 0; lastPair = null; lastAns = null; lastShown = null; }   // викликається у beginRound
 function reshuffle(){
   deck = shuffle(basePairs(L)); dpos = 0;
-  if(lastPair && deck.length>1 &&              // не починати з того самого прикладу
+  if(lastPair && deck.length>1 &&                       // не починати з того самого прикладу
      deck[0][0]===lastPair[0] && deck[0][1]===lastPair[1]){
     const j = 1 + Math.floor(Math.random()*(deck.length-1));
     [deck[0],deck[j]] = [deck[j],deck[0]];
   }
 }
-function swapAwayFrom(from){                // прибрати з позиції from карту з добутком lastAns
+function swapAwayFrom(from){                             // прибрати з позиції from приклад із добутком lastAns
   for(let k=from+1;k<deck.length;k++){
     if(deck[k][0]*deck[k][1] !== lastAns){ [deck[from],deck[k]]=[deck[k],deck[from]]; return true; }
   }
@@ -288,8 +345,8 @@ function swapAwayFrom(from){                // прибрати з позиці�
 }
 function drawPair(){
   if(dpos >= deck.length) reshuffle();
-  if(lastAns !== null && deck[dpos][0]*deck[dpos][1] === lastAns){  // не давати ту саму відповідь підряд
-    if(!swapAwayFrom(dpos)){                // край колоди — беремо свіжу й повторюємо захист
+  if(lastAns !== null && deck[dpos][0]*deck[dpos][1] === lastAns){   // не давати ту саму відповідь підряд
+    if(!swapAwayFrom(dpos)){
       reshuffle();
       if(deck[0][0]*deck[0][1] === lastAns) swapAwayFrom(0);
     }
@@ -297,71 +354,96 @@ function drawPair(){
   const p = deck[dpos]; dpos++; lastPair = p;
   return p;
 }
-function optsProduct(c,a,b){
+
+function optsProduct(c,a,b){                             // схожі добутки: сусідні рядки таблиці, ±1, ±2
   const set = new Set([c]);
-  const cand = [a*(b+1), a*(b-1), (a+1)*b, (a-1)*b, c+a, c-a, c+b, c-b, c+1, c-1, c+2, c-2];
-  cand.forEach(v => { if(v>0 && v!==c) set.add(v); });
-  let arr = [...set].filter(v => v!==c);
-  let guard = 0;
-  while(arr.length < 3 && guard++ < 60){ const v = c + rnd(-9,9); if(v>0 && v!==c && !arr.includes(v)) arr.push(v); }
+  [a*(b+1), a*(b-1), (a+1)*b, (a-1)*b, c+a, c-a, c+b, c-b, c+1, c-1, c+2, c-2].forEach(v=>{ if(v>0 && v!==c) set.add(v); });
+  let arr = [...set].filter(v=>v!==c), g=0;
+  while(arr.length<3 && g++<60){ const v=c+rnd(-9,9); if(v>0 && v!==c && !arr.includes(v)) arr.push(v); }
   return shuffle([c, ...shuffle(arr).slice(0,3)]);
 }
-function optsFactor(ans){
+function optsFactor(ans){                                // пропущений множник — числа 2…9
   const set = new Set([ans]);
-  let guard = 0;
-  while(set.size < 4 && guard++ < 60) set.add(rnd(2,9));
+  let g = 0;
+  while(set.size<4 && g++<60) set.add(rnd(2,9));
   return shuffle([...set]);
 }
+
 function make(lvl){
   const champ = LEVELS[lvl].n === -1;
   const reverse = champ && Math.random() < 0.35;
   let [a,b] = drawPair();
-  if(Math.random() < 0.5) [a,b] = [b,a];  // випадковий порядок множників (a×b або b×a)
+  if(Math.random()<0.5){ const t=a; a=b; b=t; }         // випадковий порядок множників
   const c = a*b;
-  if(reverse){                            // знайди множник: □ × b = c
-    const hideA = Math.random() < 0.5;
-    const ans = hideA ? a : b;
+  if(reverse){                                          // знайди множник: □ × b = c
+    let hideA = Math.random() < 0.5;
+    let miss = hideA ? a : b;
+    if(miss === lastShown && (hideA ? b : a) !== lastShown){ hideA = !hideA; miss = hideA ? a : b; }
     const eq = hideA
       ? `<span class="hole">?</span> × ${b} = ${c}`
       : `${a} × <span class="hole">?</span> = ${c}`;
-    lastAns = c;                          // «шов» стежить за добутком (головне джерело повторів)
-    return { eq, ans, opts: optsFactor(ans) };
+    lastAns = c; lastShown = miss;                       // «шов» стежить за добутком; окремо — за показаною відповіддю
+    return { eq, ans: miss, opts: optsFactor(miss) };
   }
-  lastAns = c;
+  lastAns = c; lastShown = c;
   return { eq: `${a} × ${b} = <span class="hole">?</span>`, ans: c, opts: optsProduct(c,a,b) };
+}
+
+/* ---------- екрани ---------- */
+function show(id){ document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on", s.id===id)); window.scrollTo(0,0); }
+function curScreen(){ const s=document.querySelector(".screen.on"); return s?s.id:"start"; }
+function exitPage(){
+  if(window.skGoBackSmart) skGoBackSmart("tests.html"); else location.href="../tests.html";
+}
+function stopRound(){ if(ticker){ clearInterval(ticker); ticker=null; } busy = true; }
+function goStart(){ refreshStart(); show("start"); }
+function goMap(){ stopRound(); drawMap(); show("screen-map"); }
+/* «Назад» у футері — на крок: гра/результат → карта → старт → вихід */
+function stepBack(){ const c=curScreen(); if(c==="screen-play"||c==="done") goMap(); else if(c==="screen-map") goStart(); else exitPage(); }
+
+function refreshStart(){
+  const n=doneCount();
+  $("startProgTxt").textContent = n>=10 ? "🎉 Усі 10 рівнів пройдено!" : ("Пройдено "+n+" з 10 рівнів");
+  $("startProgFill").style.width = (n*10)+"%";
+  if(window.skReportProgress) skReportProgress(n, 10);   // прогрес для картки в «Навчанні»
+  const p = window.SKPRIZE ? SKPRIZE.summary(PRIZE_KEY) : null;
+  $("startDone").classList.toggle("on", !!p);
+  $("startRhyme").style.display = p ? "none" : "";       // замість віршика — нагорода
+  if(!p) return;
+  const t=SKPRIZE.doneText(p, "Таблицю множення пройдено — нагороду отримано!");
+  $("doneGot").textContent=t.got; $("doneGo").textContent=t.go;
 }
 
 /* ---------- карта рівнів ---------- */
 function drawMap(){
-  $("hud-xp").textContent  = S.xp;
-  $("hud-rec").textContent = recordPerMin() > 0 ? recordPerMin() : "—";
-  $("hud-lv").textContent  = S.done.filter(Boolean).length + "/10";
+  $("hud-lv").textContent = "Пройдено "+doneCount()+" з 10";
   $("map").innerHTML = "";
   LEVELS.forEach((lv,i) => {
     const b = document.createElement("button");
     const locked = i > S.unlocked;
     const best = S.best[i]|0, k = starCount(best);
     b.className = "lvl" + (S.done[i] ? " done" : "") + (locked ? " lock" : "");
-    const tag = locked ? "зачинено"
-              : (best > 0 ? `рекорд ${best}` : `спринт 60 с`);
+    const tag = locked ? "🔒 зачинено" : (best > 0 ? `рекорд ${best} за хвилину` : "спринт 60 с");
     b.innerHTML =
-      `<span class="n">РІВЕНЬ ${String(i+1).padStart(2,"0")} · ${lv.s}</span>${lv.t}` +
-      `<span class="st">${locked ? "" : starStr(k)}</span>` +
+      `<span class="n">${S.done[i]?"✓ ":""}РІВЕНЬ ${i+1} · ${lv.s}</span>${lv.t}` +
+      (locked ? "" : `<span class="st">${starStr(k)}</span>`) +
       `<span class="tag">${tag}</span>`;
     b.disabled = locked;
     b.onclick = () => startLevel(i);
     $("map").appendChild(b);
   });
 }
-function show(id){ ["screen-map","screen-play","screen-done"].forEach(s => $(s).classList.toggle("hide", s !== id)); }
 
 /* ---------- запуск рівня ---------- */
 function startLevel(i){
   L = i; show("screen-play");
-  $("p-lab").textContent = `Рівень ${String(i+1).padStart(2,"0")} · ${LEVELS[i].t}`;
+  $("p-title").textContent = LEVELS[i].t;
+  $("p-eyebrow").textContent = `Рівень ${i+1} з 10 · 60 секунд`;
   $("p-msg").textContent = ""; $("p-msg").className = "msg";
   $("p-opts").innerHTML = ""; $("p-eq").innerHTML = "";
-  preCount(() => beginRound());
+  $("p-bar").style.width = "100%"; $("p-timer").classList.remove("low");
+  correct = 0; updateScore();
+  preCount(() => { if(curScreen()==="screen-play") beginRound(); });
 }
 function preCount(done){
   const box = $("count"), n = $("count-n");
@@ -424,7 +506,7 @@ function tapOpt(btn, val){
     lockOpts();
     [...$("p-opts").children].forEach(b => { if(Number(b.textContent) === curr.ans) b.classList.add("ok"); });
     $("p-msg").className = "msg no";
-    $("p-msg").textContent = `${curr.eq.replace(/<[^>]+>/g,"?")} → ${curr.ans}`;
+    $("p-msg").textContent = curr.eq.replace(/<span class="hole">\?<\/span>/, curr.ans);   // правильний приклад, напр. 7 × 8 = 56
     setTimeout(() => { $("p-msg").textContent = ""; $("p-msg").className = "msg"; if(Date.now() < roundEndAt) nextQ(); }, 700);
   }
 }
@@ -435,106 +517,74 @@ function endRound(){
   busy = true; lockOpts();
   $("p-bar").style.width = "0%";
 
-  const before = totalXp();
   const isBest = correct > (S.best[L]|0);
   if(isBest) S.best[L] = correct;
-  if(correct >= PASS && !S.done[L]){
+  if(correct >= PASS){
     S.done[L] = true;
     if(L === S.unlocked && L < 9) S.unlocked = L + 1;
-  }else if(correct >= PASS && L === S.unlocked && L < 9){
-    S.unlocked = L + 1;
   }
-  S.xp = totalXp();
-  const gained = Math.max(0, S.xp - before);
-  saveProgress();
+  save();
+  const n = doneCount();
+  if(window.skReportProgress) skReportProgress(n, 10);
 
   const k = starCount(correct);
   $("d-title").textContent = LEVELS[L].t;
+  $("d-sub").textContent   = "Пройдено "+n+" з 10 рівнів";
   $("d-num").textContent   = correct;
   $("d-stars").innerHTML   = starStr(k);
-  $("d-super").innerHTML   = correct >= SUPER ? `<span class="super">🏆 СУПЕР · 30+ за хвилину</span>` : "";
+  $("d-super").innerHTML   = correct >= SUPER ? `<span class="super">🏆 Супер · 30+ за хвилину</span>` : "";
 
   let line;
   if(correct >= SUPER)      line = "Неймовірно! Ти справжній чемпіон таблиці множення.";
   else if(correct >= 20)    line = "Чудово! До супер-результату лишилось зовсім трохи.";
   else if(correct >= PASS)  line = "Рівень пройдено! Спробуй побити свій рекорд.";
   else                      line = `Треба ${PASS}, щоб відчинити наступний рівень. Ще один спринт!`;
-  const xpLine = gained > 0 ? ` +${gained} XP` : (isBest ? "" : " (рекорд не побито)");
-  $("d-xp").textContent = line + xpLine + `  ·  Усього ${S.xp} XP`;
+  if(isBest && correct > 0 && correct < SUPER) line += " Новий рекорд! 🎉";
+  $("d-text").textContent = line;
 
   $("d-next").classList.toggle("hide", !(S.done[L] && L < 9));
-  show("screen-done");
-  drawMap();
+  show("done");
+  // усі 10 рівнів пройдено → нагорода з адмінки (поп-ап + предмет в інвентар), один раз
+  if(n >= 10){
+    if(window.SKPRIZE && !SKPRIZE.summary(PRIZE_KEY))
+      SKPRIZE.claim({key:PRIZE_KEY, href:"mnozhennya.html", title:"Усі рівні пройдено!", onClose:refreshStart});
+    else if(window.skFinishRecord) skFinishRecord();      // зарахувати запис у «Тестах»
+  }
 }
 
 /* ---------- кнопки ---------- */
-$("p-back").onclick  = () => { if(ticker){ clearInterval(ticker); ticker=null; } drawMap(); show("screen-map"); };
-$("d-map").onclick   = () => { drawMap(); show("screen-map"); };
+$("d-map").onclick   = goMap;
 $("d-again").onclick = () => startLevel(L);
 $("d-next").onclick  = () => startLevel(Math.min(L+1, 9));
+const hb=$("heroBackBtn"); if(hb) hb.addEventListener("click", stepBack);
+window.addEventListener("pagehide", save);
 
-/* ---------- прогрес: localStorage (ключі sk_*) + heroes/{id}.progress через SK ---------- */
-const LS_KEY = "sk_game_mnozhennya";
-const setSync = (t,c) => { const e=$("sync"); if(e){ e.textContent=t; e.className="sync "+(c||""); } };
-
-function readLS(){
-  try{
-    const o = JSON.parse(localStorage.getItem(LS_KEY) || "null");
-    if(o && typeof o === "object"){
-      S.unlocked = o.unlocked|0;
-      S.done = Array.isArray(o.done) && o.done.length===10 ? o.done.map(Boolean) : Array(10).fill(false);
-      S.best = Array.isArray(o.best) && o.best.length===10 ? o.best.map(v=>v|0) : Array(10).fill(0);
-      S.xp = totalXp();
-    }
-  }catch(e){}
-}
-function saveProgress(){
-  try{ localStorage.setItem(LS_KEY, JSON.stringify({unlocked:S.unlocked, done:S.done, best:S.best, xp:S.xp})); }catch(e){}
-  reportProg();
-  if(window.SK && SK.pushLocal){
-    SK.pushLocal().then(ok=>setSync(ok?"збережено":"локально",ok?"ok":"no")).catch(()=>setSync("локально","no"));
-  }
-}
-window.addEventListener("pagehide", saveProgress);
-
-/* Прогрес для картки в «Навчанні» (tests.html): sk_testprog_<id> = [пройдено рівнів, 10].
-   id запису — з ?skdone=t:<id>, з яким картка відкриває гру. Усі 10 рівнів —
-   запис зараховано (skFinishRecord із sk-finish.js). Без ?skdone — нічого. */
-function reportProg(){
-  let id = null;
-  try{ const raw = new URLSearchParams(location.search).get("skdone") || "";
-    const ci = raw.indexOf(":"); id = ci > 0 ? raw.slice(ci+1) : raw; }catch(e){}
-  if(!id) return;
-  const n = S.done.filter(Boolean).length;
-  try{ localStorage.setItem("sk_testprog_"+id, JSON.stringify([n, 10])); }catch(e){}
-  if(n >= 10){ try{ if(window.skFinishRecord) skFinishRecord(); }catch(e){} }
-}
-
-function waitSK(cb){
+/* прогрес Героя з хмари: якщо Герой грав на іншому пристрої — підтягуємо */
+function boot(){
+  readLS(); refreshStart();
   let n = 0;
   (function poll(){
-    if(window.SK && window.SK.ready) return cb(true);
-    if(++n > 60) return cb(null);           // ~6 с — firebase-config.js не піднявся
-    setTimeout(poll, 100);
+    if(window.SK && window.SK.ready){
+      SK.ready.then(async () => {
+        try{
+          if(!SK.isHeroSession || !SK.isHeroSession()) return;
+          await SK.pullLocal();
+          readLS(); refreshStart(); if(curScreen()==="screen-map") drawMap();
+        }catch(e){}
+      });
+      return;
+    }
+    if(++n <= 60) setTimeout(poll, 100);
   })();
 }
-function boot(){
-  readLS(); drawMap(); reportProg(); setSync("з'єднання…");
-  waitSK(ok => {
-    if(!ok){ setSync("локально — без хмари","no"); return; }
-    SK.ready.then(async () => {
-      try{
-        if(!SK.isHeroSession || !SK.isHeroSession()){ setSync("увійди як Герой","no"); return; }
-        await SK.pullLocal();               // хмара → localStorage
-        readLS(); drawMap(); reportProg();
-        const hero = await SK.getActiveChild();
-        setSync(hero && hero.name ? hero.name : "прогрес у хмарі", "ok");
-      }catch(e){ setSync("локально","no"); }
-    });
-  });
-}
 boot();
+window.addEventListener("load", refreshStart);   // sk-prize.js / sk-finish.js підключено нижче
 </script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=3"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=4"></script>
+<script src="../sk-prize.js?v=1"></script>
 <script src="../sk-finish.js?v=6"></script>
 </body>
 </html>
