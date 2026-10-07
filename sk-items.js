@@ -315,9 +315,12 @@
     if (!putBag(st, t.inst)) fail('full', 'Сумка повна (' + BAG_LIMIT + ')');
     return { state: st };
   }
-  /* товар магазину вже куплено сьогодні (кожного — 1 шт. на добу) */
-  function boughtToday(st, id) { return (st.shopBought || []).some(function (t) { return t && t.id === id; }); }
-  /* угода магазину: order = { sell:[uid], buy:[base], buyback:[uid] }, byId — каталог.
+  /* скільки штук товару куплено сьогодні (кожна куплена штука — окремий запис) */
+  function boughtCount(st, id) { return (st.shopBought || []).filter(function (t) { return t && t.id === id; }).length; }
+  /* товар магазину вже куплено сьогодні повністю (limit — скільки штук було в наявності, типово 1) */
+  function boughtToday(st, id, limit) { return boughtCount(st, id) >= Math.max(1, limit || 1); }
+  /* угода магазину: order = { sell:[uid], buy:[base], buyback:[uid], limit:{id: штук у наявності} }, byId — каталог.
+     Один товар можна купити кілька разів, доки є в наявності (limit; немає — 1 шт.).
      Спершу продаж, далі купівля й викуп; не вистачає грошей або місця — угода не відбувається. */
   function deal(st, order, byId, now) {
     st = tidy(st, now); now = now == null ? Date.now() : now;
@@ -339,7 +342,8 @@
     });
     (order.buy || []).forEach(function (base) {
       if (!base || !base.id) fail('gone', 'Товару вже немає');
-      if (boughtToday(st, base.id)) fail('sold', '«' + (base.name || base.id) + '» сьогодні вже куплено — новий товар з’явиться опівночі');
+      var lim = (order.limit && order.limit[base.id]) || 1;
+      if (boughtToday(st, base.id, lim)) fail('sold', '«' + (base.name || base.id) + '» сьогодні вже розкуплено — новий товар з’явиться опівночі');
       st.shopBought.push({ id: base.id, day: today });
       var price = Math.max(0, Math.round(Number(base.price) || 0));
       spent += price; st.coins -= price;
@@ -358,14 +362,31 @@
   function seeded(seed) { var a = seed >>> 0; return function () { a = (a + 0x6D2B79F5) >>> 0; var t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
   function shuffled(arr, rnd) { var a = arr.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(rnd() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
   function isHealthPotion(b) { return !!(b && b.consumable && (b.addStats || []).some(function (e) { return e && canon(e.stat) === 'healthRegen'; })); }
+  function isManaPotion(b) {
+    return !!(b && b.consumable && ((b.stat && canon(b.stat) === 'mana') ||
+      (b.addStats || []).some(function (e) { return e && canon(e.stat) === 'mana'; })));
+  }
+  /* скільки штук разового товару в наявності за день:
+     зілля здоров'я й мани — 3–10, свитки — 1–5, решта — 1 */
+  var SHOP_QTY = { potion: [3, 10], scroll: [1, 5] };
+  function consQty(b, rnd) {
+    var r = (isHealthPotion(b) || isManaPotion(b)) ? SHOP_QTY.potion : (b && b.category === 'Свиток') ? SHOP_QTY.scroll : null;
+    return r ? r[0] + Math.floor(rnd() * (r[1] - r[0] + 1)) : 1;
+  }
   function shopStock(catalog, heroId, now) {
     var day = kyivDay(now), rnd = seeded(hashStr(String(heroId || '') + '|' + day));
     var ok = (catalog || []).filter(function (b) { return b && b.id && b.active !== false && !b.noShop && Number(b.price) > 0; });
     var gear = shuffled(ok.filter(function (b) { return !b.consumable; }), rnd).slice(0, SHOP_GEAR);
     var cons = ok.filter(function (b) { return b.consumable; });
+    // завжди є зілля здоров'я і (якщо є в каталозі) зілля мани
     var hp = shuffled(cons.filter(isHealthPotion), rnd).slice(0, 1);
-    var rest = shuffled(cons.filter(function (b) { return hp.indexOf(b) < 0; }), rnd).slice(0, SHOP_CONS - hp.length);
-    return { day: day, gear: gear, cons: hp.concat(rest) };
+    var mp = shuffled(cons.filter(function (b) { return isManaPotion(b) && hp.indexOf(b) < 0; }), rnd).slice(0, 1);
+    var must = hp.concat(mp);
+    var rest = shuffled(cons.filter(function (b) { return must.indexOf(b) < 0; }), rnd).slice(0, Math.max(0, SHOP_CONS - must.length));
+    var list = must.concat(rest), qty = {};
+    list.forEach(function (b) { qty[b.id] = consQty(b, rnd); });
+    gear.forEach(function (b) { qty[b.id] = 1; });
+    return { day: day, gear: gear, cons: list, qty: qty };
   }
 
   /* ── СУМКА: одне правило для спорядження й магазину ──
@@ -486,7 +507,7 @@
     BAG_LIMIT: BAG_LIMIT, CHEST_LIMIT: CHEST_LIMIT, CHEST_DAYS: CHEST_DAYS, SHOP_GEAR: SHOP_GEAR, SHOP_CONS: SHOP_CONS,
     kyivDay: kyivDay, bagCount: bagCount, sameStack: sameStack, sellPrice: sellPrice, sellTotal: sellTotal,
     normState: normState, normSlots: normSlots, tidy: tidy, addItems: addItems, claimChest: claimChest, trashItem: trashItem,
-    restoreTrash: restoreTrash, deal: deal, boughtToday: boughtToday,
+    restoreTrash: restoreTrash, deal: deal, boughtToday: boughtToday, boughtCount: boughtCount, SHOP_QTY: SHOP_QTY, isManaPotion: isManaPotion,
     SLOT_CATS: SLOT_CATS, slotFits: slotFits, bagView: bagView, applyView: applyView, diffInv: diffInv, applyDiff: applyDiff, shopStock: shopStock, isHealthPotion: isHealthPotion
   };
 
