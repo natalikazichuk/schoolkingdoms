@@ -532,6 +532,29 @@
     store: STORE
   };
 
+  /* ── монети: 100 сріб = 1 зол. coinsHtml — золоті золотим, срібні сріблом, між ними відступ.
+     opts.words === false — без «зол/сріб» (тісне місце, напр. хедер). Стилі (.skc) додаються самі. */
+  function coinParts(v) { v = Math.max(0, Math.round(Number(v) || 0)); return { g: Math.floor(v / 100), s: v % 100 }; }
+  function coinsText(v) { var c = coinParts(v), o = []; if (c.g) o.push(c.g + ' зол'); if (c.s || !c.g) o.push(c.s + ' сріб'); return o.join(' '); }
+  function coinCss() {
+    if (typeof document === 'undefined' || document.getElementById('skc-css')) return;
+    var st = document.createElement('style'); st.id = 'skc-css';
+    st.textContent = '.skc{display:inline-flex;align-items:center;gap:.28em;white-space:nowrap;font-weight:900}'
+      + '.skc+.skc{margin-left:.6em}'
+      + '.skc i{display:inline-block;flex:none;width:.95em;height:.95em;border-radius:50%;box-shadow:inset 0 -1px 0 rgba(0,0,0,.35),0 0 0 1px rgba(0,0,0,.3)}'
+      + '.skc.g{color:#ffd54a}.skc.g i{background:radial-gradient(circle at 35% 30%,#fff6c2 0,#f2c230 45%,#a8770a 100%)}'
+      + '.skc.s{color:#dde3ec}.skc.s i{background:radial-gradient(circle at 35% 30%,#ffffff 0,#c9d1dc 45%,#7c8696 100%)}';
+    (document.head || document.documentElement).appendChild(st);
+  }
+  function coinsHtml(v, opts) {
+    coinCss();
+    var c = coinParts(v), w = !(opts && opts.words === false), o = [];
+    if (c.g) o.push('<span class="skc g"><i></i>' + c.g + (w ? ' зол' : '') + '</span>');
+    if (c.s || !c.g) o.push('<span class="skc s"><i></i>' + c.s + (w ? ' сріб' : '') + '</span>');
+    return o.join('');
+  }
+  SKIT.coinsText = coinsText; SKIT.coinsHtml = coinsHtml; SKIT.coinCss = coinCss;
+
   if (typeof module !== 'undefined' && module.exports) module.exports = SKIT;
   root.SKIT = SKIT;
 })(typeof window !== 'undefined' ? window : this);

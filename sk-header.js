@@ -414,7 +414,10 @@
     /* Були зірочки (XP) — дитині незрозуміло, та й XP тепер
        росте лише з батьківських завдань. Показуємо монети: їх
        видно де завгодно — у нагородах, крамниці, інвентарі. */
-    chips.push('<span class="sk-hd__stat">🪙 <b>'+(h.coins != null ? h.coins : 0)+'</b></span>');
+    var cv = Math.max(0, Math.round(Number(h.coins) || 0));
+    var coinHtml = window.SKIT && SKIT.coinsHtml ? SKIT.coinsHtml(cv, {words:false})
+      : '🪙 <b>'+Math.floor(cv/100)+'</b> · <b>'+(cv%100)+'</b>';
+    chips.push('<span class="sk-hd__stat" title="'+(window.SKIT && SKIT.coinsText ? SKIT.coinsText(cv) : cv+' сріб')+'">'+coinHtml+'</span>');
     box.innerHTML = chips.join('');
   }
 
@@ -424,7 +427,7 @@
     if(window.SKIT) return Promise.resolve(window.SKIT);
     if(!skitP) skitP = new Promise(function(res){
       var s = document.createElement('script');
-      s.src = BASE + 'sk-items.js?v=5';
+      s.src = BASE + 'sk-items.js?v=6';
       s.onload = function(){ res(window.SKIT || null); };
       s.onerror = function(){ res(null); };
       document.head.appendChild(s);
