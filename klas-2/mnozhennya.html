@@ -169,7 +169,13 @@ h1,h2,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px
 .done-box .super{display:inline-block;margin-top:8px;padding:7px 16px;border-radius:999px;
   border:3px solid var(--good);background:var(--good-bg);color:var(--good);font-family:'Fredoka';font-weight:700;font-size:17px}
 .done-box p{font-weight:800;color:var(--soft);margin:10px 0 0}
+.done-box .head{font-family:'Fredoka';font-weight:700;font-size:24px;line-height:1.15;margin:0 0 10px;color:#1e3a6b}
+.done-box .head .cel{display:block;font-size:52px;line-height:1;margin-bottom:6px;animation:cheer 1.2s ease-in-out 2}
+@keyframes cheer{0%,100%{transform:none}30%{transform:scale(1.18) rotate(-8deg)}60%{transform:scale(1.05) rotate(6deg)}}
 #done .big-btn+.big-btn{margin-top:10px}
+#done .big-btn:disabled{opacity:.55;cursor:default}
+/* «Час вийшов!» — пауза між кінцем спринту й результатом */
+.count b.up{font-size:44px;color:var(--aim-d);text-align:center;line-height:1.2}
 </style>
 </head>
 <body>
@@ -239,6 +245,7 @@ h1,h2,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px
       <div class="ttl"><b id="d-title"></b><span id="d-sub"></span></div>
     </div>
     <div class="done-box">
+      <div class="head" id="d-head"></div>
       <div class="big" id="d-num">0</div>
       <div class="cap">правильних за 60 секунд</div>
       <div class="stars" id="d-stars"></div>
@@ -542,8 +549,29 @@ function endRound(){
   if(isBest && correct > 0 && correct < SUPER) line += " Новий рекорд! 🎉";
   $("d-text").textContent = line;
 
+  let head;
+  if(correct >= SUPER)      head = `<span class="cel">🏆</span>Супер! Рівень ${L+1} пройдено!`;
+  else if(correct >= PASS)  head = `<span class="cel">🎉</span>Вітаємо! Рівень ${L+1} пройдено!`;
+  else                      head = `<span class="cel">⏰</span>Час вийшов!`;
+  $("d-head").innerHTML = head;
+
   $("d-next").classList.toggle("hide", !(S.done[L] && L < 9));
-  show("done");
+  // пауза: «Час вийшов!» → результат; кнопки ненадовго неактивні,
+  // щоб швидкий тап по відповіді не запустив одразу наступний рівень
+  const btns = ["d-next","d-again","d-map"].map($);
+  btns.forEach(b => b.disabled = true);
+  const box = $("count"), cn = $("count-n");
+  cn.innerHTML = "⏰<br>Час вийшов!"; cn.className = "up"; box.classList.add("on");
+  setTimeout(() => {
+    if(cn.className === "up") box.classList.remove("on"); // не зачепити відлік нового рівня
+    if(curScreen() === "screen-play"){                  // не пішли на карту під час паузи
+      show("done");
+      setTimeout(() => btns.forEach(b => b.disabled = false), 900);
+    }
+    afterDone(n);
+  }, 1300);
+}
+function afterDone(n){
   // усі 10 рівнів пройдено → нагорода з адмінки (поп-ап + предмет в інвентар), один раз
   if(n >= 10){
     if(window.SKPRIZE && !SKPRIZE.summary(PRIZE_KEY))
