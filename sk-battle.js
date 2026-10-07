@@ -8,6 +8,10 @@
    вносить у документ Героя ЛИШЕ зміни: знос речей, зникнення зламаних,
    використані зілля/сувої, досвід і статистику.
 
+   ПОЯС: зілля й свитки з комірок пояса — спецвміння ходу (замість
+   перевдягання). Діють лише в цьому бою (здоров'я, підсилення на кілька
+   ходів, бар'єр, страх); після бою з інвентаря зникає лише використане.
+
    Тут немає ні сторінки, ні бази: ті самі функції запускаються в
    браузері (arena.html, доігрування з sk-header.js), а згодом — на
    сервері, без переписування.
@@ -47,10 +51,10 @@
      wearOf: накопичений знос її зони / зброї / щита; itemWear: лише за час,
      поки річ була вдягнена (w0 — при вдяганні, w1 — при знятті). */
   function wearOf(ctx, e, w) {
-    var R = ctx.R, z = R.zoneOfSlot ? R.zoneOfSlot(e.slot) : null;
-    if (z) return w[z] || 0;
-    if ((R.HAND_SLOTS || []).indexOf(e.slot) >= 0) return (e.base && e.base.category === 'Щити') ? w.shield : w.weapon;
-    return 0;
+    var R = ctx.R, z = R.zoneOfSlot ? R.zoneOfSlot(e.slot) : null, own = w['u:' + e.uid] || 0;   // own — блоки шансом саме цією річчю
+    if (z) return (w[z] || 0) + own;
+    if ((R.HAND_SLOTS || []).indexOf(e.slot) >= 0) return ((e.base && e.base.category === 'Щити') ? w.shield : w.weapon) + own;
+    return own;
   }
   function itemWear(ctx, e, w) { return Math.max(0, (e.off ? (e.w1 || 0) : wearOf(ctx, e, w)) - (e.w0 || 0)); }
   function leftDur(ctx, st, e) { return e.dur == null ? null : Math.max(0, e.dur - itemWear(ctx, e, st.wear)); }
@@ -70,6 +74,95 @@
   }
   function itemName(ctx, e) { return (e.base && e.base.name) || ((ctx.R.SLOT_UK || {})[e.slot]) || e.slot; }
 
+  /* ── ПОЯС у бою ──
+     Копія комірок пояса на старті: [{uid, id, bonus, idx, base, used}].
+     Використати річ — спецвміння ходу (те саме, що перевдягання): вибір
+     запам'ятовується (st.me.use) і спрацьовує, коли розігрується хід, ДО ударів.
+     Використане записується в st.used → після бою зникає з інвентаря;
+     невикористане лишається в поясі. Бот поясом не користується. */
+  function beltLite(belt) {
+    return (belt || []).map(function (e, i) {
+      if (!e || !e.inst || !e.base) return null;
+      var m = /^belt(\d+)$/.exec(e.inst.slot || ''), idx = m ? +m[1] : i;
+      return { uid: e.inst.uid, id: e.inst.id, bonus: e.inst.bonus, idx: idx, base: e.base, used: false };
+    }).filter(Boolean);
+  }
+  function fxOf(u) { if (!u.fx) u.fx = { buffs: {}, barrier: 0, fear: 0 }; return u.fx; }
+  function beltItem(st, uid) { return ((st.me && st.me.belt) || []).filter(function (b) { return b.uid === uid; })[0] || null; }
+  /* обрати річ із пояса на цей хід (uid) або скасувати вибір (null) */
+  function useBelt(ctx, st, uid) {
+    if (!isLive(st)) return false;
+    if (uid == null) {
+      if (st.me.use && st.me.useRound === st.round) { st.me.use = null; st.swapRound = 0; st.rev++; return true; }
+      return false;
+    }
+    var b = beltItem(st, uid);
+    if (!b || b.used || st.swapRound === st.round) return false;
+    st.me.use = uid; st.me.useRound = st.round; st.swapRound = st.round; st.rev++;
+    return true;
+  }
+  /* одна дія з пояса: actor використовує item проти target. Повертає запис для журналу. */
+  function applyUse(ctx, st, actor, target, side, item, rnd) {
+    var R = ctx.R, B = R.BATTLE || {}, fa = fxOf(actor), ft = fxOf(target);
+    var rec = { side: side, uid: item.uid, id: item.id, name: (item.base && item.base.name) || item.id, fx: [] };
+    if (side === 'me') { item.used = true; (st.used = st.used || []).push({ uid: item.uid, id: item.id, bonus: item.bonus }); }
+    if (fa.feared) { rec.lost = true; return rec; }                    // під страхом: річ витрачено без ефекту
+    var effs = R.useEffects ? R.useEffects(item.base, { bonus: item.bonus || 1 }, ctx.K) : [];
+    effs.forEach(function (ef) {
+      var r = { type: ef.type };
+      if (ef.type === 'heal') {
+        var add = Math.round(actor.max * ef.pct / 100), was = actor.force;
+        actor.force = Math.min(actor.max, actor.force + add);
+        r.pct = ef.pct; r.hp = Math.max(0, Math.round(actor.force - was));
+      } else if (ef.type === 'buff') {
+        var cur = fa.buffs[ef.key];
+        r.key = ef.key; r.pct = ef.pct;
+        if (cur && cur.turns > 0 && cur.pct > ef.pct) { r.weaker = true; r.has = cur.pct; }
+        else {
+          var lo = B.buffMin || 5, hi = B.buffMax || 10;
+          var t = lo + Math.floor(rnd() * (hi - lo + 1));
+          fa.buffs[ef.key] = { pct: ef.pct, turns: t, name: rec.name };
+          r.turns = t;
+        }
+      } else if (ef.type === 'scroll') {
+        var h = R.scrollStrike(R.buffed(actor.p, fa.buffs), R.buffed(target.p, ft.buffs), ef, rnd);
+        if (h.dmg > 0 && ft.barrier > 0) { ft.barrier--; h.barrier = true; h.absorbed = h.dmg; h.dmg = 0; h.magDmg = 0; h.kind = 'barrier'; }
+        target.force -= h.dmg;
+        r.hit = h;
+      } else if (ef.type === 'fear') {
+        var immune = ft.fear >= (B.fearImmune || 2);
+        if (immune) { r.immune = true; }
+        else {
+          r.need = Math.round(100 * (ft.fear ? (B.fearNext != null ? B.fearNext : 0.5) : (B.fearFirst != null ? B.fearFirst : 0.9)));
+          r.roll = R.d100(rnd);
+          r.ok = r.roll <= r.need;
+          if (r.ok) { ft.fear++; ft.feared = true; r.immuneNow = ft.fear >= (B.fearImmune || 2); }
+        }
+      } else if (ef.type === 'barrier') {
+        fa.barrier += ef.n; r.n = ef.n;
+      } else { r.key = ef.key; }
+      rec.fx.push(r);
+    });
+    return rec;
+  }
+  /* бар'єр: поглинає перший удар, що забрав би здоров'я */
+  function applyBarrier(fx, hit) {
+    if (!fx || !(fx.barrier > 0)) return;
+    var hs = hit.hits || [hit];
+    for (var i = 0; i < hs.length && fx.barrier > 0; i++) {
+      var h = hs[i];
+      if (!(h.dmg > 0)) continue;
+      fx.barrier--; h.absorbed = h.dmg; h.barrier = true; h.kind = 'barrier'; h.dmg = 0; h.magDmg = 0; h.physDmg = 0;
+    }
+    hit.dmg = hs.reduce(function (a, h) { return a + (h.dmg || 0); }, 0);
+    if (hs.every(function (h) { return h.kind === 'barrier' || h.kind === 'dodge' || h.kind === 'block'; }) && hs.some(function (h) { return h.kind === 'barrier'; })) hit.kind = 'barrier';
+  }
+  function tickBuffs(u) {
+    var f = u.fx; if (!f) return;
+    Object.keys(f.buffs || {}).forEach(function (k) { var b = f.buffs[k]; b.turns--; if (b.turns <= 0) delete f.buffs[k]; });
+    f.feared = false;
+  }
+
   /* ── СТАРТ ──
      me: {name, avatar, level, stats:{health,accuracy,agility,mana}, eq:[{base,inst}]}
      op: {f:{name, avatar, level, eq:[{slot,id,cat}]}, p} — суперник (бот) з готовим профілем */
@@ -80,8 +173,9 @@
       status: 'live', rev: 1, startedAt: now, deadline: now + turnMs(ctx), round: 1,
       me: { name: o.me.name, avatar: o.me.avatar, level: o.me.level || 1,
         stats: { health: num(o.me.stats.health), accuracy: num(o.me.stats.accuracy), agility: num(o.me.stats.agility), mana: num(o.me.stats.mana) },
-        eq: eqLite(o.me.eq), last: null, atk: null, block: null },
-      op: { f: o.op.f, p: o.op.p, atk: null, block: null },
+        eq: eqLite(o.me.eq), belt: beltLite(o.me.belt), use: null, fx: { buffs: {}, barrier: 0, fear: 0 },
+        last: null, atk: null, block: null },
+      op: { f: o.op.f, p: o.op.p, atk: null, block: null, fx: { buffs: {}, barrier: 0, fear: 0 } },
       wear: newWear(), swapRound: 0, played: 0, missed: 0, log: [], summary: null
     };
     st.me.p = profile(ctx, st);
@@ -112,11 +206,20 @@
     var W = ctx.R.WEAR || {}, w = st.wear;
     (opHit.hits || [opHit]).forEach(function (h) {
       if (h.kind === 'hit' || h.kind === 'crit') w[opAtk] = (w[opAtk] || 0) + (h.kind === 'crit' ? W.zoneCrit : W.zoneHit);
-      else if (h.kind === 'block') w.shield += h.crit ? W.shieldCritBlock : W.shieldBlock;
+      else if (h.kind === 'block') blockWear(ctx, st, h);
     });
     (meHit.hits || [meHit]).forEach(function (h) {
       if (h.kind === 'hit' || h.kind === 'crit') w.weapon += h.kind === 'crit' ? W.weaponCrit : W.weaponHit;
     });
+  }
+  /* блок зношує щит; блок «Шансом блоку» — саме ту річ, що заблокувала */
+  function blockWear(ctx, st, h) {
+    var W = ctx.R.WEAR || {}, w = st.wear, n = h.crit ? W.shieldCritBlock : W.shieldBlock;
+    if (h.byChance && h.blockBy) {
+      var e = activeIn(st, h.blockBy);
+      if (e) { w['u:' + e.uid] = (w['u:' + e.uid] || 0) + n; return; }
+    }
+    w.shield += n;
   }
   /* речі, чий знос за бій сягнув міцності, перестають діяти (і після бою зникнуть) */
   function checkBreaks(ctx, st) {
@@ -140,18 +243,45 @@
     var auto = !!opts.auto || !(choice && choice.atk && choice.block);
     var me = (choice && choice.atk && choice.block) ? { atk: choice.atk, block: choice.block } : autoChoice(st);
     var op = botChoice(st);
-    var meHit = ctx.R.attack(st.me.p, st.op.p, me.atk === op.block, rng(st.bid + '|' + st.round + '|me'));
-    var opHit = ctx.R.attack(st.op.p, st.me.p, op.atk === me.block, rng(st.bid + '|' + st.round + '|op'));
+    var R = ctx.R, fm = fxOf(st.me), fo = fxOf(st.op);
+    // 1) пояс — до ударів. Обидва щось використали — 🎲 хто перший (свиток страху першого
+    //    може зірвати дію другого). Бот поясом не користується (st.op.use завжди порожній).
+    var acts = [], ur = rng(st.bid + '|' + st.round + '|use');
+    var mi = st.me.use ? beltItem(st, st.me.use) : null;
+    if (mi && !mi.used) acts.push({ side: 'me', item: mi });
+    var oi = st.op.use ? ((st.op.belt || []).filter(function (b) { return b.uid === st.op.use; })[0] || null) : null;
+    if (oi && !oi.used) acts.push({ side: 'op', item: oi });
+    var first = null;
+    if (acts.length > 1) {
+      var a1 = R.d100(ur), a2 = R.d100(ur);
+      while (a1 === a2) { a1 = R.d100(ur); a2 = R.d100(ur); }
+      first = { me: a1, op: a2 };
+      if (a2 > a1) acts.reverse();
+    }
+    var uses = acts.map(function (a) {
+      return a.side === 'me' ? applyUse(ctx, st, st.me, st.op, 'me', a.item, ur) : applyUse(ctx, st, st.op, st.me, 'op', a.item, ur);
+    });
+    st.me.use = null; if (st.op.use) { if (oi) oi.used = true; st.op.use = null; }
+    // 2) удари (з підсиленнями зілль). Під страхом — не атакує. Хтось упав від свитка — ударів немає.
+    var down = st.me.force <= 0 || st.op.force <= 0;
+    var none = function (why) { return { dmg: 0, kind: why, crit: false, hits: [] }; };
+    var pm = R.buffed ? R.buffed(st.me.p, fm.buffs) : st.me.p, po = R.buffed ? R.buffed(st.op.p, fo.buffs) : st.op.p;
+    var meHit = down ? none('skip') : fm.feared ? none('fear') : R.attack(pm, po, me.atk === op.block, rng(st.bid + '|' + st.round + '|me'));
+    var opHit = down ? none('skip') : fo.feared ? none('fear') : R.attack(po, pm, op.atk === me.block, rng(st.bid + '|' + st.round + '|op'));
+    applyBarrier(fo, meHit); applyBarrier(fm, opHit);
     st.op.f.lastPlayerAtk = me.atk;
     addWear(ctx, st, meHit, opHit, op.atk);
     var broke = checkBreaks(ctx, st);
     st.op.force -= meHit.dmg;
     st.me.force -= opHit.dmg;
+    tickBuffs(st.me); tickBuffs(st.op);
     st.me.last = { atk: me.atk, block: me.block };
     st.me.atk = me.atk; st.me.block = me.block;      // вибір лишається на наступний хід
     st.op.atk = op.atk; st.op.block = op.block;
     st.played++; if (auto) st.missed++;
     var e = { t: 'turn', r: st.round, me: me, op: op, auto: auto, meHit: meHit, opHit: opHit, broke: broke };
+    if (uses.length) e.uses = uses;
+    if (first) e.first = first;
     st.log.push(e);
     st.rev++;
     if (st.me.force <= 0 || st.op.force <= 0) finish(ctx, st, { meDown: st.me.force <= 0, opDown: st.op.force <= 0, now: now });
@@ -329,7 +459,8 @@
     rng: rng, newBid: newBid, newWear: newWear, isLive: isLive, turnMs: turnMs,
     eqLite: eqLite, profile: profile, wearOf: wearOf, itemWear: itemWear, leftDur: leftDur, activeIn: activeIn,
     create: create, botChoice: botChoice, autoChoice: autoChoice, turn: turn, catchUp: catchUp,
-    swap: swap, surrender: surrender, finish: finish, applyToHero: applyToHero, lockLive: lockLive, noticeText: noticeText
+    swap: swap, useBelt: useBelt, beltItem: beltItem, beltLite: beltLite, applyUse: applyUse, fxOf: fxOf,
+    surrender: surrender, finish: finish, applyToHero: applyToHero, lockLive: lockLive, noticeText: noticeText
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   root.SKBATTLE = API;

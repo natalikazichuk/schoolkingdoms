@@ -12,8 +12,8 @@
 <link rel="stylesheet" href="sk-admin.css?v=2">
 <script src="sk-admin.js?v=1"></script>
 <script src="sk-curriculum.js?v=8"></script>
-<script src="sk-items.js?v=3"></script>
-<script src="sk-arena-rules.js?v=16"></script>
+<script src="sk-items.js?v=4"></script>
+<script src="sk-arena-rules.js?v=17"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -110,13 +110,16 @@ var HERO_PROGRESS=[
   {key:'coins',label:'Монети',emoji:'🪙',start:0,note:'Нагороди тренажерів'}
 ];
 /* Що бій на арені зараз справді читає (arena.html: maxForce/dmgOf/critRoll/dodgeRoll). */
-var ARENA_USES={health:"витривалість у бою",accuracy:'шанс влучити (проти спритності суперника)',agility:'шанс, що суперник промахнеться'};
+/* що робить атрибут на арені — з правил бою (SKARENA.attrInfo). Атрибут, якого
+   там немає (новий на речах), автоматично «не використовується на арені». */
+function arenaInfo(key,pct,cons){return (window.SKARENA&&SKARENA.attrInfo)?SKARENA.attrInfo(key,pct,cons):{used:false,text:null};}
+var NOT_USED='<span class="tag no">не використовується на арені на даний момент</span>';
 
 /* Канонічний ключ → назва українською (як на арені, STAT_UK у arena.html). */
 var CANON_UK={armor:'Броня',magicResist:'Магічна стійкість',agility:'Спритність',magicDamage:'Магічний урон',
   damage:'Фізичний урон',health:"Здоров'я",mana:'Мана',accuracy:'Точність',critDamage:'Шанс крит. урону',
   block:'Шанс блоку',stun:'Оглушення',healthRegen:"Відновлення здоров'я",extraAttack:'Додаткова атака',
-  beltSlots:'Комірки пояса'};
+  beltSlots:'Комірки пояса',fear:'Страх',barrier:"Бар'єр",antidote:'Антидот'};
 
 /* 12 слотів екіпіровки (як EQUIP в arena.html). Руки — окремо: дві
    одноручні речі (Зброя або Щити) або одна дворучна на обидві. */
@@ -300,22 +303,29 @@ function liveCheck(key,pct,raw){
   }
   return r;
 }
-function checkCell(key,pct,raw){
+function checkCell(key,pct,raw,cons){
+  var info=arenaInfo(key,pct,cons);
+  if(!info.used)return NOT_USED;
+  var txt='<span class="tag yes">діє на арені</span> <span class="key">'+esc(info.text||'')+'</span>';
+  if(cons)return txt+'<br><span class="key">разова річ — у бою з пояса (див. «Разові речі» нижче)</span>';
   var r=liveCheck(key,pct,raw);
-  if(r==null)return '<span class="key">—</span>';
-  return r.length?'<span class="tag yes">діє</span> <span class="key">+10'+(pct?'% (поверх +10 з речі)':'')+' → '+esc(r.join('; '))+'</span>'
-                 :'<span class="tag no">поки не задіяно</span>';
+  if(r&&r.length)txt+='<br><span class="key">перевірка: +10'+(pct?'% (поверх +10 з речі)':'')+' → '+esc(r.join('; '))+'</span>';
+  return txt;
 }
 
 /* усі атрибути, що є на речах: ключ + звичайне/%; плюс бойові з SKARENA.COMBAT_STATS (база 0) */
 function itemAttrs(){
   var map={},order=[];
-  function add(key,pct,raw){var id=key+(pct?'%':'');if(!map[id]){map[id]={key:key,pct:!!pct,raw:raw,n:0};order.push(id);}map[id].n++;if(!map[id].raw)map[id].raw=raw;}
-  ((window.SKARENA&&SKARENA.COMBAT_STATS)||[]).forEach(function(c){add(c.key,false,null);map[c.key].n--;});
+  function add(key,pct,raw,cons){var id=key+(pct?'%':'');if(!map[id]){map[id]={key:key,pct:!!pct,raw:raw,n:0,nItem:0};order.push(id);}
+    map[id].n++;if(!cons)map[id].nItem++;if(!map[id].raw)map[id].raw=raw;}
+  ((window.SKARENA&&SKARENA.COMBAT_STATS)||[]).forEach(function(c){add(c.key,false,null);map[c.key].n--;map[c.key].nItem--;});
   (ITEMS||[]).forEach(function(it){
-    if(it.stat)add(SKIT.canon(it.stat),false,it.stat);
-    (it.addStats||[]).forEach(function(e){if(SKIT.isFlagEntry(e))return;add(SKIT.canon(e.stat),!!e.pct,e.stat);});
+    var c=!!it.consumable;
+    if(it.stat)add(SKIT.canon(it.stat),false,it.stat,c);
+    (it.addStats||[]).forEach(function(e){if(SKIT.isFlagEntry(e))return;add(SKIT.canon(e.stat),!!e.pct,e.stat,c);});
   });
+  /* лише на зіллях / свитках — атрибут працює як разовий ефект з пояса */
+  order.forEach(function(id){var a=map[id];a.cons=a.n>0&&a.nItem<=0;});
   return order.map(function(id){return map[id];});
 }
 
@@ -333,7 +343,7 @@ function heroHTML(){
         +(im?'<br><span class="key">+ до '+im+' з речей</span>':'')+'</td>'
       +'<td>'+(s.active?'<span class="tag yes">росте</span>':'<span class="tag no">у базі, не росте</span>')+'</td>'
       +'<td>'+esc(s.note||'—')+'</td>'
-      +'<td>'+(ARENA_USES[s.key]?'<span class="key">'+esc(ARENA_USES[s.key])+'</span><br>':'')+checkCell(s.key,false)+'</td>'
+      +'<td>'+checkCell(s.key,false)+'</td>'
       +'</tr>';
   }).join('');
   /* 2) усі атрибути речей: старт 0 (або значення Героя для його характеристик), максимум з 12 слотів */
@@ -342,16 +352,18 @@ function heroHTML(){
     var c=CS[a.key],lbl=(c?c.emoji+' ':'')+(CANON_UK[a.key]||a.key)+(a.pct?' %':'');
     var im=itemMax(a.key,a.pct);
     var start=heroKeys[a.key]?'0%':(a.pct?'0%':'0');
-    var note=a.pct?(heroKeys[a.key]?'множить '+(heroKeys[a.key].label||a.key).toLowerCase()+' Героя + речей'
+    var note=a.cons?'разова річ (зілля / свиток) — діє з пояса в бою'
+      :(a.pct&&(a.key==='block'||a.key==='critDamage'))?'шанс у %, додається з усіх речей'
+      :a.pct?(heroKeys[a.key]?'множить '+(heroKeys[a.key].label||a.key).toLowerCase()+' Героя + речей'
       :(a.key==='armor'?'множить усю броню (суму з усіх речей)':a.key==='magicResist'?'множить увесь маг. захист (суму з усіх речей)'
        :a.key==='damage'?'множить увесь урон удару (база + зброя + речі, після броні)':a.key==='magicDamage'?'множить увесь маг. урон удару (після маг. захисту)':'множить суму з речей')):'';
     return '<tr><td><span class="nm">'+esc(lbl)+'</span><br><span class="key">'+esc(a.key+(a.pct?' (%)':''))+(a.raw&&a.raw!==(CANON_UK[a.key]||'')?' · в адмінці: '+esc(a.raw):'')+'</span>'
-        +(known(a.key)?'':'<br><span class="tag warn">арена не знає цієї назви</span>')+'</td>'
+        +(known(a.key)?'':'<br><span class="tag warn">нова назва — арена її не знає</span>')+'</td>'
       +'<td class="num">'+start+'</td>'
       +'<td class="num max">'+(im?'+'+im+(a.pct?'%':''):'0')+'<br><span class="key">'+(im?'з речей, 12 слотів':(a.n>0?'лише зілля / сувої':'жодна річ не дає'))+'</span></td>'
       +'<td><span class="tag item">лише з речей / вмінь</span></td>'
       +'<td>'+(note?esc(note):'Предмети')+'</td>'
-      +'<td>'+checkCell(a.key,a.pct,a.raw)+'</td></tr>';
+      +'<td>'+checkCell(a.key,a.pct,a.raw,a.cons)+'</td></tr>';
   }).join('');
   var grp='<tr class="grp"><td colspan="6">⚔️ Атрибути з речей — у Героя база <b>0</b>, додаються лише з речей або вмінь</td></tr>';
   var prog=HERO_PROGRESS.map(function(p){
@@ -359,13 +371,38 @@ function heroHTML(){
       +'<td class="num">'+p.start+'</td><td class="num">—</td><td><span class="tag">прогрес</span></td><td>'+esc(p.note)+'</td><td><span class="tag no">не бойова</span></td></tr>';
   }).join('');
   var nAct=(TESTS||[]).filter(function(t){return t&&t.active!==false;}).length;
-  var works=attrs.filter(function(a){var r=liveCheck(a.key,a.pct,a.raw);return r&&r.length;}).length;
+  var works=attrs.filter(function(a){return arenaInfo(a.key,a.pct,a.cons).used;}).length;
   return '<section class="sec"><h2>🦸 Базові характеристики Героя</h2>'
     +'<p class="hint">Зверху — те, що зберігається в самого Героя (heroes/{id}); <b>максимум зараз</b> = старт + активні тести й тренажери ('+nAct+' записів). Нижче — <b>усі атрибути, які є на речах</b> (звичайні й %): у Героя вони 0 і приходять лише з речей або вмінь.</p>'
-    +'<p class="hint"><b>Перевірка в бою</b> — жива: сторінка вдягає на тестового Героя річ з цим атрибутом (+10 або +10%) і дивиться, що змінилось у бойовому профілі (SKARENA.fighter). Зараз діє '+works+' з '+attrs.length+' атрибутів речей.</p>'
+    +'<p class="hint"><b>Арена</b> — що атрибут робить у бою (опис береться з sk-arena-rules.js → COMBAT_STATS / HERO_STATS). Новий атрибут на речах з’являється тут сам і позначається «не використовується на арені на даний момент», доки його не описано в правилах бою. Для речей додатково — жива перевірка: сторінка вдягає на тестового Героя річ з атрибутом (+10 або +10%) і дивиться, що змінилось у бойовому профілі. Зараз діє '+works+' з '+attrs.length+' атрибутів речей.</p>'
     +(TESTS_ERR?'<p class="hint" style="color:#a8322f">Не вдалося прочитати тести: '+esc(TESTS_ERR)+' — максимум показано без них.</p>':'')
-    +'<div class="tblwrap"><table class="st"><thead><tr><th>Характеристика</th><th>Старт</th><th>Максимум зараз</th><th>Стан</th><th>Звідки / як</th><th>Перевірка в бою</th></tr></thead>'
-    +'<tbody>'+rows+grp+arows+prog+'</tbody></table></div></section>';
+    +'<div class="tblwrap"><table class="st"><thead><tr><th>Характеристика</th><th>Старт</th><th>Максимум зараз</th><th>Стан</th><th>Звідки / як</th><th>Арена</th></tr></thead>'
+    +'<tbody>'+rows+grp+arows+prog+'</tbody></table></div></section>'+consHTML();
+}
+/* разові речі (зілля, свитки): що кожна робить у бою з пояса (SKARENA.useEffects) */
+function consHTML(){
+  if(!window.SKARENA||!SKARENA.useEffects)return '';
+  var B=SKARENA.BATTLE||{},list=(ITEMS||[]).filter(function(it){return it&&it.consumable;});
+  if(!list.length)return '';
+  var rows=list.map(function(it){
+    var ef=SKARENA.useEffects(it,{bonus:1},SKIT);
+    var txt=ef.map(function(f){
+      if(f.type==='heal')return "💚 +"+f.pct+"% від максимального здоров'я одразу (не вище максимуму)";
+      if(f.type==='buff')return '🧪 '+(CANON_UK[f.key]||f.key).toLowerCase()+' +'+f.pct+'% на 🎲 '+B.buffMin+'–'+B.buffMax+' ходів (не складається; краща банка підвищує й перекидає ходи)';
+      if(f.type==='scroll')return '📜 магічний удар '+f.min+'–'+f.max+': без ухилення й криту, крізь маг. захист, блокується лише шансом магічного блоку';
+      if(f.type==='fear')return '😱 суперник цей хід не атакує й не робить спецдій ('+Math.round(B.fearFirst*100)+'% → далі '+Math.round(B.fearNext*100)+'%, після '+B.fearImmune+' спрацювань — імунітет)';
+      if(f.type==='barrier')return "🫧 поглинає "+f.n+" удар, що забрав би здоров'я";
+      return null;
+    });
+    var none=ef.filter(function(f){return f.type==='none';}).map(function(f){return CANON_UK[f.key]||f.key;});
+    var ok=txt.filter(Boolean);
+    return '<tr class="'+(it.active===false?'off':'')+'"><td><span class="nm">'+esc(it.name||it.id)+'</span><br><span class="key">'+esc(it.id)+' · '+esc(it.category||'')+'</span></td>'
+      +'<td>'+(ok.length?'<span class="tag yes">діє на арені</span> '+esc(ok.join('; ')):'')
+      +(none.length?(ok.length?'<br>':'')+NOT_USED+' <span class="key">'+esc(none.join(', '))+'</span>':'')
+      +(!ok.length&&!none.length?NOT_USED:'')+'</td></tr>';
+  }).join('');
+  return '<section class="sec"><h2>🪢 Разові речі (пояс)</h2><p class="hint">Зілля й свитки беруть у бій у комірках пояса. Використати — спецвміння ходу (замість перевдягання); спрацьовує, коли розігрується хід, до ударів. Діє лише в цьому бою; після бою з інвентаря зникає тільки використане. Бот поясом не користується.</p>'
+    +'<div class="tblwrap"><table class="st"><thead><tr><th>Річ</th><th>Що робить у бою</th></tr></thead><tbody>'+rows+'</tbody></table></div></section>';
 }
 
 function setHTML(set){
@@ -428,6 +465,8 @@ function mechHTML(){
     row("Бойове здоров'я (витривалість)","здоров'я + речі",'Скільки урону Герой може отримати, доки не вибуде з бою. Здоров\'я Героя + «Здоров\'я» з речей, × відсотки з речей.'),
     row('1. Влучання','рівні → '+pct(1-B.hitStep)+'; спритність більша: 100% − '+pct(B.hitStep)+' × спритність / точність; точність більша: +'+pct(B.hitAccStep)+' за кожен раз переваги','Кидок 🎲 1–100: випало ≤ шансу — влучив. Залежить лише від співвідношення точності й спритності. Шанс від '+pct(B.hitMin)+' (завжди є шанс влучити) до '+pct(B.hitMax)+' (завжди є шанс промахнутись). 100/100 → '+hc(100,100)+', 150/100 → '+hc(150,100)+', 200/100 → '+hc(200,100)+', 250/100 → '+hc(250,100)+', 100/200 → '+hc(100,200)+', 100/300 → '+hc(100,300)+'. Промах — далі нічого не рахується.'),
     row('2. Блок',B.blockKeep?pct(B.blockKeep)+' урону':'0 урону',B.blockKeep?'Удар у заблоковану зону проходить на '+pct(B.blockKeep)+'.':'Удар у заблоковану зону повністю поглинає щит — урон далі не рахується. Після блоку — перевірка, чи удар був критичним (кидок 🎲): критичний зношує щит на '+W.shieldCritBlock+', звичайний — на '+W.shieldBlock+'.'),
+    row('2б. Шанс блоку','«Шанс блоку» з речей','Удар у НЕзахищену зону ще можна заблокувати кидком 🎲 1–100 ≤ сума «Шансу блоку» з вдягнених речей. Річ із бронею (чи іншою характеристикою) блокує фізичні удари, з магічним захистом чи магічним уроном — магічні удари й свитки. Зношується саме та річ, що заблокувала.'),
+    row('Пояс','1 річ за хід','Зілля або свиток із пояса — спецвміння ходу замість перевдягання; спрацьовує до ударів. Підсилення діють 🎲 '+B.buffMin+'–'+B.buffMax+' ходів. Страх: перший — '+pct(B.fearFirst)+', далі — '+pct(B.fearNext)+', після '+B.fearImmune+' спрацювань — імунітет. Деталі — «Базові характеристики Героя» → «Разові речі».'),
     row('Руки',B.dualWield?'зброя + зброя/щит':'зброя + щит','<b>Права рука</b> — зброя. <b>Ліва рука</b> — '+(B.dualWield?'друга зброя або щит':'лише щит (дві зброї одночасно поки не можна)')+'. <b>Дворучна</b> зброя (прапорець «Дворучний») займає обидві руки: вдягнув дворучну — річ з лівої руки знімається в сумку; вдягнув щит до дворучної — знімається дворучна. Так само в бою під час перевдягання (це одна заміна). Стара сумка з двома зброями чи дворучною зі щитом виправляється сама: зайве йде в сумку.'),
     row('3. Тип і урон удару',B.baseDmg+' + зброя + речі свого типу','<b>Без зброї</b> — лише база '+B.baseDmg+'. <b>Зі зброєю</b> — база + кидок 🎲 у діапазоні зброї: база '+B.baseDmg+' + киянка 3–12 → '+(B.baseDmg+3)+'–'+(B.baseDmg+12)+'. Саме так («'+B.baseDmg+'» або «'+(B.baseDmg+3)+'–'+(B.baseDmg+12)+'») урон показано в інвентарі. <b>Тип удару визначає зброя в руках.</b> Магічна зброя («Магічний урон») → <b>увесь</b> удар магічний, і база '+B.baseDmg+' теж: база + діапазон маг. зброї + «Маг. урон» речей. Без зброї або з фізичною → увесь удар фізичний: база + діапазон зброї + «Фіз. урон» речей. Бонуси іншого типу в цьому ударі не діють (кільце «Маг. урон» з мечем нічого не додає).'),
     row('4. Крізь захист','рівні → '+pct(B.armorEven)+'; удар сильніший: +'+pct(B.armorStep)+' за кожен раз переваги; захист сильніший: '+pct(B.armorEven)+' × удар / захист','Як точність і спритність — <b>співвідношенням</b>: r = сирий урон / броня (магічний удар — / маг. захист). Проходить частка удару від '+pct(B.armorMin)+' (крізь будь-який захист — удар завжди щось завдає) до '+pct(B.armorMax)+' (якщо захист є); захисту немає — 100%. Удар 20: броня 0 → '+pct(R.armorPass(20,0))+', 5 → '+pct(R.armorPass(20,5))+', 10 → '+pct(R.armorPass(20,10))+', 20 → '+pct(R.armorPass(20,20))+', 30 → '+pct(R.armorPass(20,30))+', 40+ → '+pct(R.armorPass(20,40))+'. Береться <b>уся</b> броня / <b>увесь</b> маг. захист суперника — сума з усіх його речей, уже з відсотками (див. нижче).'),

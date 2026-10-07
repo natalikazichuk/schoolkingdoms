@@ -35,6 +35,9 @@
           • захисту немає — проходить 100%.
        5) × відсотки з речей свого типу (+N% маг. урону / +N% урону)
        6) крит: шанс = critBase% + «Шанс крит. урону» речей (і вмінь) → × critMult
+       Між 2) і 3): удар у НЕзахищену зону ще можна заблокувати «Шансом блоку» з речей
+       (blockPhys — для фізичних ударів, blockMag — для магічних; тип — за головною
+       характеристикою речі, див. blockKind).
           (кидок 🎲 d100: випало ≤ шансу у % — крит)
        Влучний (не заблокований) удар завдає щонайменше minDmg.
      Ударів за хід = 1 + «Додаткова атака» з речей.
@@ -65,7 +68,12 @@
     blockKeep: 0,      // скільки урону проходить крізь блок (0 — блок поглинає повністю)
     botVary: 0.20,     // суперник: ±20% від показників Героя
     botItemVary: 0.20, // речі суперника: сума характеристик ±20% від речі Героя в тому ж слоті
-    swapsPerTurn: 1,   // спецвмінь (перевдягань) за хід
+    swapsPerTurn: 1,   // спецвмінь за хід: перевдягання АБО одна річ із пояса
+    buffMin: 5,        // підсилення із зілля діє 🎲 від buffMin …
+    buffMax: 10,       // … до buffMax ходів (кидок при використанні)
+    fearFirst: 0.90,   // шанс, що перший свиток страху спрацює
+    fearNext: 0.50,    // шанс кожного наступного (після першого спрацювання — опір 50%)
+    fearImmune: 2,     // після стількох спрацювань страху — імунітет до кінця бою
     dualWield: false,  // дві зброї одночасно (поки ні: ліва рука — лише щит)
     xpWin: 50,         // досвід за перемогу (× коефіцієнт сили суперника)
     xpDraw: 25,        // досвід за нічию (× той самий коефіцієнт)
@@ -78,19 +86,44 @@
   /* ── бойові характеристики Героя, яких немає в базі Героя ──
      Стартове значення в усіх 0: Герой отримує їх лише з речей
      (fighter() читає stats[key] — відсутнє = 0). arena — що вони роблять
-     у бою зараз (null — поки не діє). */
+     у бою зараз (null — на арені поки не використовується). */
   var COMBAT_STATS = [
     { key: 'armor',       label: 'Броня',                 emoji: '🛡️', base: 0, arena: 'зменшує фізичний урон суперника: броня = удару → проходить 50%, удвічі більша → 25% (мінімум)' },
-    { key: 'magicResist', label: 'Магічний захист',       emoji: '🔮', base: 0, arena: 'зменшує магічний урон так само, як броня — фізичний' },
+    { key: 'magicResist', label: 'Магічний захист',       emoji: '🔮', base: 0, arena: 'зменшує магічний урон (і свитки) так само, як броня — фізичний' },
     { key: 'damage',      label: 'Фізичний урон',         emoji: '⚔️', base: 0, arena: 'фізична зброя — діапазон удару; інші речі — + до удару, % — множник (лише для фізичного удару)' },
-    { key: 'magicDamage', label: 'Магічний урон',         emoji: '✨', base: 0, arena: 'магічна зброя робить увесь удар магічним; інші речі — + до удару, % — множник (лише для магічного удару)' },
+    { key: 'magicDamage', label: 'Магічний урон',         emoji: '✨', base: 0, arena: 'магічна зброя робить увесь удар магічним; інші речі — + до удару, % — множник магічного удару й свитків; на свитку — урон свитка' },
     { key: 'critDamage',  label: 'Шанс крит. урону',      emoji: '💥', base: 0, arena: '+ до шансу криту (у %)' },
     { key: 'extraAttack', label: 'Додаткова атака',       emoji: '⚡', base: 0, arena: '+1 удар за хід за кожну одиницю' },
-    { key: 'block',       label: 'Шанс блоку',            emoji: '🧱', base: 0, arena: null },
+    { key: 'block',       label: 'Шанс блоку',            emoji: '🧱', base: 0, arena: 'шанс заблокувати удар у НЕзахищену зону. Річ із бронею (або іншою характеристикою) блокує фізичні удари, з магічним захистом чи магічним уроном — магічні удари й свитки' },
+    { key: 'beltSlots',   label: 'Комірки пояса',         emoji: '🧵', base: 0, arena: 'скільки зілль і свитків можна взяти в бій (пояс)' },
+    { key: 'healthRegen', label: "Відновлення здоров'я",  emoji: '💚', base: 0, arena: "зілля з пояса: + N% від максимального здоров'я одразу, не вище максимуму" },
+    { key: 'fear',        label: 'Страх',                 emoji: '😱', base: 0, arena: 'свиток: суперник у цьому ході не атакує й не робить спецдій. Перший спрацьовує з шансом 90%, далі — 50% (опір); після двох спрацювань — імунітет' },
+    { key: 'barrier',     label: "Бар'єр",                emoji: '🫧', base: 0, arena: 'свиток: поглинає один удар, що забрав би здоров\'я (ухилився чи заблокував — бар\'єр лишається)' },
     { key: 'stun',        label: 'Оглушення',             emoji: '💫', base: 0, arena: null },
-    { key: 'healthRegen', label: "Відновлення здоров'я",  emoji: '💚', base: 0, arena: null },
-    { key: 'beltSlots',   label: 'Комірки пояса',         emoji: '🧵', base: 0, arena: null }
+    { key: 'antidote',    label: 'Антидот',               emoji: '🧪', base: 0, arena: null }
   ];
+  /* характеристики Героя (зберігаються в heroes/{id}) — що вони роблять на арені */
+  var HERO_STATS = {
+    health:   "витривалість у бою (максимум здоров'я)",
+    accuracy: 'шанс влучити (проти спритності суперника)',
+    agility:  'шанс, що суперник промахнеться',
+    mana:     null     // з'явиться разом із першими навичками / заклинаннями
+  };
+  /* зілля-підсилення з пояса: % до показника бійця на кілька ходів */
+  var BUFF_KEYS = { armor: 1, magicResist: 1, accuracy: 1, agility: 1, critDamage: 1, damage: 1, magicDamage: 1 };
+  /* що робить атрибут на арені: {used, text}. Невідома назва — «не використовується». */
+  function attrInfo(key, pct, consumable) {
+    if (HERO_STATS.hasOwnProperty(key)) {
+      if (consumable && pct && HERO_STATS[key] && BUFF_KEYS[key]) return { used: true, text: 'зілля: +N% на 🎲 ' + BATTLE.buffMin + '–' + BATTLE.buffMax + ' ходів' };
+      return HERO_STATS[key] ? { used: true, text: HERO_STATS[key] } : { used: false, text: null };
+    }
+    for (var i = 0; i < COMBAT_STATS.length; i++) if (COMBAT_STATS[i].key === key) {
+      var c = COMBAT_STATS[i];
+      if (consumable && pct && BUFF_KEYS[key]) return { used: true, text: 'зілля: +N% ' + c.label.toLowerCase() + ' на 🎲 ' + BATTLE.buffMin + '–' + BATTLE.buffMax + ' ходів' };
+      return c.arena ? { used: true, text: c.arena } : { used: false, text: null };
+    }
+    return { used: false, text: null };
+  }
 
   /* ── зони удару → слоти екіпіровки, які її закривають ──
      Ключі слотів — як у EQUIP в arena.html (inst.slot у інвентарі). */
@@ -164,7 +197,7 @@
   function num(v) { v = Number(v); return isNaN(v) ? 0 : v; }
   function fighter(stats, equipped, skit) {
     stats = stats || {};
-    var flat = {}, pct = {}, p = { wMin: 0, wMax: 0, magMin: 0, magMax: 0 };
+    var flat = {}, pct = {}, p = { wMin: 0, wMax: 0, magMin: 0, magMax: 0, blockPhys: 0, blockMag: 0, blockSrc: [] };
     function add(o, k, v) { o[k] = (o[k] || 0) + num(v); }
     (equipped || []).forEach(function (e) {
       if (!e || !e.base || !e.inst) return;
@@ -179,7 +212,14 @@
       }
       eff.addStats.forEach(function (a) {
         if (a.flag || a.value == null) return;
-        add(a.pct ? pct : flat, skit.canon(a.stat), a.value);
+        var k = skit.canon(a.stat);
+        if (k === 'block') {   // шанс блоку: тип — за головною характеристикою речі (blockKind)
+          var mg = blockKind(e.base, skit) === 'mag', v = num(a.value);
+          if (mg) p.blockMag += v; else p.blockPhys += v;
+          p.blockSrc.push({ slot: e.inst.slot, mag: mg, v: v });
+          return;
+        }
+        add(a.pct ? pct : flat, k, a.value);
       });
     });
     function tot(k) { return Math.round((num(stats[k]) + (flat[k] || 0)) * (1 + (pct[k] || 0) / 100)); }
@@ -198,13 +238,27 @@
     return p;
   }
 
+  /* яку атаку блокує «Шанс блоку» речі — за її головною характеристикою:
+     магічний захист або магічний урон → магічні удари (магічна зброя, свитки);
+     броня й усе інше → фізичні удари */
+  function blockKind(base, skit) {
+    var k = base && base.stat ? (skit && skit.canon ? skit.canon(base.stat) : base.stat) : '';
+    return (k === 'magicResist' || k === 'magicDamage') ? 'mag' : 'phys';
+  }
+  /* хто з речей блокує (для зносу): найбільший шанс потрібного типу */
+  function blockBy(def, magic) {
+    var best = null;
+    ((def && def.blockSrc) || []).forEach(function (b) { if (!!b.mag === !!magic && (!best || b.v > best.v)) best = b; });
+    return best ? best.slot : null;
+  }
+
   /* суперник: той самий профіль ±vary (кожне число окремо) */
   function varyFighter(p, vary, rnd) {
     rnd = rnd || Math.random; vary = vary == null ? BATTLE.botVary : vary;
     var o = {};
     Object.keys(p).forEach(function (k) {
       var v = p[k];
-      if (k === 'extra') { o[k] = v; return; }
+      if (k === 'extra' || k === 'blockPhys' || k === 'blockMag' || typeof v !== 'number') { o[k] = v; return; }
       o[k] = Math.max(k === 'hp' || k === 'accuracy' || k === 'agility' ? 1 : 0, Math.round(v * (1 - vary + rnd() * 2 * vary)));
     });
     if (o.wMax < o.wMin) o.wMax = o.wMin;
@@ -311,6 +365,16 @@
         calc: 'блок — удар не пройшов · крит? 🎲 ' + out.critRoll + (bc ? ' ≤ ' : ' > ') + out.critNeed + '% — '
           + (bc ? 'критичний → щит −' + WEAR.shieldCritBlock : 'звичайний → щит −' + WEAR.shieldBlock) });
     }
+    // 2б) не вгадав зону — шанс блоку з речей захисника (фізичні / магічні удари окремо)
+    var magic0 = isMagic(att), bch = num(magic0 ? def.blockMag : def.blockPhys);
+    if (!blocked && bch > 0) {
+      out.blockNeed = Math.min(100, Math.round(bch)); out.blockRoll = d100(rnd);
+      if (out.blockRoll <= out.blockNeed) {
+        var cb = critCheck();
+        return ret({ dmg: 0, kind: 'block', crit: cb, byChance: true, blockBy: blockBy(def, magic0),
+          calc: 'блок шансом 🎲 ' + out.blockRoll + ' ≤ ' + out.blockNeed + '%' + (magic0 ? ' (маг.)' : '') + ' · крит? 🎲 ' + out.critRoll + (cb ? ' ≤ ' : ' > ') + out.critNeed + '%' });
+      }
+    }
     // 3) урон. ТИП удару визначає зброя в руках:
     //    магічна зброя («Магічний урон») → УВЕСЬ удар магічний (і база baseDmg теж):
     //      (база + маг. зброя + «Маг. урон» речей) × крізь маг. захист × «% маг. урону»;
@@ -340,6 +404,72 @@
     return ret({ dmg: dmg, kind: crit ? 'crit' : 'hit', crit: crit, calc: calc });
   }
 
+  /* ── ПОЯС: що робить разова річ (зілля, свиток) ──
+     useEffects(base, inst, skit) → [{type, ...}]:
+       heal    {pct}            — + pct% від максимального здоров'я, не вище максимуму;
+       buff    {key, pct}       — + pct% до показника на 🎲 buffMin–buffMax ходів;
+       scroll  {min, max}       — окремий магічний удар: без ухилення й криту;
+       fear    {}               — суперник цей хід не атакує й не робить спецдій;
+       barrier {n}              — поглинає n ударів, що забрали б здоров'я;
+       none    {key}            — атрибут на арені поки не діє (річ витрачається). */
+  function useEffects(base, inst, skit) {
+    var out = [];
+    if (!base || !skit) return out;
+    var eff = skit.effective(base, inst || { bonus: 1 });
+    if (eff.stat && eff.valueMax != null) {
+      var mk = skit.canon(eff.stat);
+      if (mk === 'magicDamage' || mk === 'damage') out.push({ type: 'scroll', min: num(eff.valueMin != null ? eff.valueMin : eff.valueMax), max: num(eff.valueMax) });
+      else out.push({ type: 'none', key: mk });
+    }
+    (eff.addStats || []).forEach(function (a) {
+      if (a.flag || a.value == null) return;
+      var k = skit.canon(a.stat), v = num(a.value);
+      if (k === 'healthRegen') out.push({ type: 'heal', pct: v });
+      else if (k === 'fear') out.push({ type: 'fear' });
+      else if (k === 'barrier') out.push({ type: 'barrier', n: Math.max(1, Math.round(v)) });
+      else if (BUFF_KEYS[k]) out.push({ type: 'buff', key: k, pct: v });
+      else out.push({ type: 'none', key: k });
+    });
+    return out;
+  }
+  /* профіль із підсиленнями зілль: % множить показник (шанс криту — додається) */
+  function buffed(p, buffs) {
+    if (!buffs) return p;
+    var o = {}, k;
+    for (k in p) o[k] = p[k];
+    for (k in buffs) {
+      var b = buffs[k]; if (!b || !(b.turns > 0)) continue;
+      var v = num(b.pct);
+      if (k === 'critDamage') o.critPct = num(o.critPct) + v;
+      else if (k === 'damage') o.dmgPct = num(o.dmgPct) + v;
+      else if (k === 'magicDamage') o.magPct = num(o.magPct) + v;
+      else if (o[k] != null) o[k] = Math.round(num(o[k]) * (1 + v / 100));
+    }
+    return o;
+  }
+  /* удар свитка: без ухилення й криту; крізь маг. захист; × «% маг. урону»;
+     заблокувати можна лише шансом магічного блоку */
+  function scrollStrike(att, def, eff, rnd) {
+    rnd = rnd || Math.random;
+    var out = { kind: 'hit', crit: false, scroll: true, magic: true, critRoll: null, critNeed: null };
+    var bch = num(def.blockMag);
+    if (bch > 0) {
+      out.blockNeed = Math.min(100, Math.round(bch)); out.blockRoll = d100(rnd);
+      if (out.blockRoll <= out.blockNeed) {
+        out.dmg = 0; out.kind = 'block'; out.byChance = true; out.blockBy = blockBy(def, true);
+        out.calc = 'свиток заблоковано шансом 🎲 ' + out.blockRoll + ' ≤ ' + out.blockNeed + '% (маг.)';
+        return out;
+      }
+    }
+    var raw = rollRange(eff.min, eff.max, rnd), defV = num(def.magicResist), pctV = num(att.magPct);
+    var pass = armorPass(raw, defV);
+    var dmg = Math.max(BATTLE.minDmg, Math.round(raw * pass * (1 + pctV / 100)));
+    out.raw = raw; out.armor = defV; out.pass = pass; out.dmg = dmg; out.magDmg = dmg; out.physDmg = 0;
+    out.parts = { magic: true, raw: raw, def: defV, pass: pass, pct: pctV, mult: 1 };
+    out.calc = '📜 ✨маг. ' + raw + (defV > 0 ? ' × ' + pctOf(pass) + '% (маг. захист ' + defV + ')' : '') + (pctV ? ' × ' + (100 + pctV) + '%' : '');
+    return out;
+  }
+
   /* Атака за хід: 1 + extra ударів, кожен окремо. Підсумок — для показу. */
   function attack(att, def, blocked, rnd) {
     var n = 1 + Math.max(0, Math.floor(num(att.extra))), hits = [], dmg = 0;
@@ -353,6 +483,8 @@
     BATTLE: BATTLE, ZONES: ZONES, HAND_SLOTS: HAND_SLOTS, WEAR: WEAR, COMBAT_STATS: COMBAT_STATS,
     SLOT_UK: SLOT_UK, zoneOfSlot: zoneOfSlot,
     handCats: handCats, isTwoHanded: isTwoHanded, fitsHand: fitsHand, handsFix: handsFix,
+    HERO_STATS: HERO_STATS, BUFF_KEYS: BUFF_KEYS, attrInfo: attrInfo,
+    blockKind: blockKind, blockBy: blockBy, useEffects: useEffects, buffed: buffed, scrollStrike: scrollStrike,
     fighter: fighter, varyFighter: varyFighter, hitChance: hitChance, critChance: critChance, isMagic: isMagic,
     strike: strike, attack: attack, d100: d100, armorPass: armorPass,
     power: power, xpCoef: xpCoef, xpNeed: xpNeed, itemPower: itemPower, botItems: botItems
