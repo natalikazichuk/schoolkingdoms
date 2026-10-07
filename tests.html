@@ -46,19 +46,20 @@
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
   @media(max-width:560px){.grid{grid-template-columns:1fr 1fr;gap:12px}}
 
-  /* ── теми предмета в боковому меню ── */
+  /* ── теми предмета: смужка над плитками ──
+     Раніше на широкому екрані теми стояли боковою колонкою зі своєю прокруткою,
+     і гортати доводилось у двох місцях. Тепер — як на телефоні: одна смужка
+     зверху, що прилипає під час прокрутки; плитки — по 4 в ряд. */
   body.has-side .wrap{max-width:1200px}
-  .tlayout{display:grid;grid-template-columns:270px minmax(0,1fr);gap:18px;align-items:start}
-  .tside{position:sticky;top:12px;display:flex;flex-direction:column;gap:6px;
-    padding:0 10px 12px;border-radius:18px;border:2px solid rgba(242,199,92,.7);
-    background:linear-gradient(180deg,rgba(24,44,84,.94),rgba(10,24,50,.96));
-    box-shadow:0 10px 26px rgba(0,0,0,.3);max-height:calc(100vh - 120px);overflow:auto}
-  .tside .ts-head{position:sticky;top:0;z-index:1;margin:0 -10px 4px;padding:10px 12px;
-    text-align:center;font-family:'Playfair Display',Georgia,serif;font-weight:900;font-size:1.15rem;
-    color:#fff;background:linear-gradient(180deg,#2f5fb8,#1d3f86);border-bottom:2px solid rgba(242,199,92,.7);
-    text-shadow:0 2px 4px rgba(0,0,0,.35)}
+  .tlayout{display:flex;flex-direction:column;gap:10px}
+  .tside{position:sticky;top:0;z-index:5;display:flex;flex-direction:row;gap:6px;
+    overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin;padding:8px;border-radius:18px;
+    border:2px solid rgba(242,199,92,.7);
+    background:linear-gradient(180deg,rgba(24,44,84,.96),rgba(10,24,50,.97));
+    box-shadow:0 10px 26px rgba(0,0,0,.3)}
+  .tside .ts-head{display:none}
   .tside button{display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:4px 10px;
-    width:100%;text-align:left;border:1.5px solid transparent;border-radius:12px;
+    flex:0 0 auto;min-width:170px;white-space:nowrap;text-align:left;border:1.5px solid transparent;border-radius:12px;
     background:rgba(255,255,255,.05);color:#fff;font-family:inherit;font-weight:800;
     font-size:.88rem;padding:7px 10px;cursor:pointer;transition:background .15s,border-color .15s}
   .tside button:hover{background:rgba(255,255,255,.13)}
@@ -76,13 +77,8 @@
     background:linear-gradient(90deg,#f2c75c,#ffdf8a);transition:width .3s}
   .tside button.on .ts-bar i{background:#fff}
   .tside .ts-bar.done i{background:linear-gradient(90deg,#3fbf6f,#7be39b)}
-  .tmain .tgroup{scroll-margin-top:20px}
-  @media(max-width:760px){
-    .tlayout{grid-template-columns:1fr;gap:10px}
-    .tside{top:0;z-index:5;flex-direction:row;overflow-x:auto;max-height:none;padding:8px}
-    .tside .ts-head{display:none}
-    .tside button{width:auto;flex:0 0 auto;white-space:nowrap;min-width:170px}
-  }
+  .tmain .tgroup{scroll-margin-top:96px}
+  @media(min-width:1000px){.tmain .grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 
   /* базова картка-квадрат (клас / предмет) */
 
@@ -728,8 +724,8 @@
     var groups = (s.groups && s.groups.length) ? s.groups.filter(function(g){ return g.tests.length; })
                                                : (rest.length ? [{ name:'', tests:rest }] : []);
     var titled = groups.filter(function(g){ return g.name; }).length;
-    /* Кілька розділів → теми йдуть у бокове меню, праворуч — тести обраної
-       теми (або всі, якщо обрано «Усі теми»). */
+    /* Кілька розділів → теми йдуть у смужку над плитками; натискання гортає
+       до обраної теми («Усі теми» — на початок). */
     var side = [];
     groups.forEach(function(g){ side.push({ name: g.name || 'Інші', tests: g.tests }); });
     if(std.length) side.push({ name:'Словник', tests: std });
@@ -827,7 +823,7 @@
     var b=e.target.closest('[data-back]');
     if(b){ view=b.getAttribute('data-back'); render(); window.scrollTo(0,0); return; }
   });
-  /* ── бокове меню тем: перехід до теми й підсвітка теми, що зараз на екрані ── */
+  /* ── смужка тем: перехід до теми й підсвітка теми, що зараз на екрані ── */
   function sectionOf(name){
     var all = q('screen').querySelectorAll('[data-tsec]');
     for(var i=0;i<all.length;i++) if(all[i].getAttribute('data-tsec')===name) return all[i];
@@ -838,7 +834,7 @@
     for(var i=0;i<btns.length;i++){
       var on = btns[i].getAttribute('data-topic') === (name||'');
       btns[i].classList.toggle('on', on);
-      if(on && window.innerWidth<=760){ var nav=btns[i].parentNode;
+      if(on){ var nav=btns[i].parentNode;
         nav.scrollLeft = btns[i].offsetLeft - (nav.clientWidth-btns[i].offsetWidth)/2; }
     }
   }
@@ -855,7 +851,7 @@
     if(view!=='tests' || Date.now() < spyLock) return;
     var secs = q('screen').querySelectorAll('[data-tsec]'); if(!secs.length) return;
     var cur = null, line = 140;
-    if(window.innerWidth<=760){ var nv=q('screen').querySelector('.tside'); if(nv) line += nv.offsetHeight; }
+    var nv=q('screen').querySelector('.tside'); if(nv) line += nv.offsetHeight;
     for(var i=0;i<secs.length;i++){ if(secs[i].getBoundingClientRect().top <= line) cur = secs[i].getAttribute('data-tsec'); }
     if(i && window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) cur = secs[secs.length-1].getAttribute('data-tsec');
     if(cur === null && window.scrollY > 40) cur = secs[0].getAttribute('data-tsec');
@@ -863,6 +859,13 @@
     markTopic(selTopic);
   }
   window.addEventListener('scroll', function(){ requestAnimationFrame(spyTopic); }, {passive:true});
+  /* Колесо миші над смужкою тем гортає її вбік; на краю смужки — гортає сторінку. */
+  q('screen').addEventListener('wheel', function(e){
+    var nav = e.target.closest('.tside'); if(!nav || e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+    var max = nav.scrollWidth - nav.clientWidth;
+    if(max <= 0 || (e.deltaY < 0 && nav.scrollLeft <= 0) || (e.deltaY > 0 && nav.scrollLeft >= max - 1)) return;
+    e.preventDefault(); nav.scrollLeft += e.deltaY;
+  }, {passive:false});
 
   /* Стрілочка тепер у шапці, а не всередині #screen. */
   if(q('pgBack')) q('pgBack').addEventListener('click',function(){
