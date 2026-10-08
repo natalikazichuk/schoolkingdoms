@@ -483,7 +483,12 @@
       if ((Number(o.qty) || 1) !== (Number(x.qty) || 1)) d.qty[u] = Number(x.qty) || 1;
     });
     Object.keys(b).forEach(function (u) { if (!n[u]) d.remove.push(u); });
-    d.empty = !d.add.length && !d.remove.length && !Object.keys(d.slots).length && !Object.keys(d.qty).length;
+    // порядок речей у сумці (гравець переставив) — лише коли він змінився
+    // (порівнюємо з усім збереженим порядком — щойно знята річ теж має своє місце)
+    var no = (next || []).filter(isBag).map(function (i) { return i.uid; });
+    var keep = no.filter(function (u) { return b[u]; }), was = (base || []).map(function (i) { return i && i.uid; }).filter(function (u) { return u && no.indexOf(u) >= 0; });
+    if (keep.join('|') !== was.join('|')) d.order = no;
+    d.empty = !d.add.length && !d.remove.length && !Object.keys(d.slots).length && !Object.keys(d.qty).length && !d.order;
     return d;
   }
   function applyDiff(st, diff) {
@@ -498,6 +503,15 @@
       if (Object.prototype.hasOwnProperty.call(diff.qty, i.uid)) i.qty = diff.qty[i.uid];
     });
     (diff.add || []).forEach(function (i) { if (i && i.uid && !have[i.uid]) st.inventory.push(cloneInst(i)); });
+    /* новий порядок сумки: речі з diff.order займають ті самі позиції, що й займали, але в новій
+       черговості; решта (вдягнене, нове з іншої вкладки) лишається на своїх місцях */
+    if (Array.isArray(diff.order) && diff.order.length) {
+      var pos = {}; diff.order.forEach(function (u, k) { pos[u] = k; });
+      var at = [], items = [];
+      st.inventory.forEach(function (i, k) { if (i && i.uid && !i.slot && pos[i.uid] != null) { at.push(k); items.push(i); } });
+      items.sort(function (a, b) { return pos[a.uid] - pos[b.uid]; });
+      at.forEach(function (k, j) { st.inventory[k] = items[j]; });
+    }
     st.inventory = normSlots(st.inventory);
     return { state: st, result: { applied: 1 } };
   }

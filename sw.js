@@ -19,7 +19,7 @@
    ============================================================ */
 'use strict';
 
-const VERSION = 'sk-offline-v3';
+const VERSION = 'sk-offline-v4';
 const CACHE   = VERSION;
 
 /* Спільне для ігротеки й ігор. Шляхи — від кореня сайту (теки sw.js). */

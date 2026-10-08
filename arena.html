@@ -1002,6 +1002,14 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 .ek-bslot.ek-filled{border-style:solid;background:rgba(224,164,42,.12)}
 .ek-bslot.ek-compat{border-color:#7ef0a0}
 .ek-bslot.ek-over{background:rgba(126,240,160,.22)}
+.ek-art.ek-compat{box-shadow:0 0 0 3px rgba(255,224,122,.55),inset 0 -60px 60px -30px rgba(0,0,0,.28)}
+.ek-art.ek-over{box-shadow:0 0 0 4px #ffe07a,0 0 18px rgba(255,224,122,.7),inset 0 -60px 60px -30px rgba(0,0,0,.28)}
+.ek-cell.ek-ins-before::before,.ek-cell.ek-ins-after::after{content:'';position:absolute;top:4px;bottom:4px;width:4px;border-radius:2px;background:#ffe07a;box-shadow:0 0 8px #ffe07a;z-index:3}
+.ek-cell.ek-ins-before::before{left:-2px}
+.ek-cell.ek-ins-after::after{right:-2px}
+.ek-cell.ek-ins-before,.ek-cell.ek-ins-after{border-color:#ffe07a;transition:transform .12s}
+.ek-cell.ek-ins-before{transform:translateX(10px)}
+.ek-cell.ek-ins-after{transform:translateX(-10px)}
 .ek-bagc{font-family:inherit;font-size:.72rem;color:#9fb0d8;font-weight:800;margin-left:4px}
 .ek-store{margin-top:10px;display:flex;flex-direction:column;gap:10px}
 /* ── спільна плитка речі (SKIT.tile): гардероб, скриня, смітник, магазин ── */
@@ -3411,7 +3419,7 @@ window.SKHERO = (function(){
 })();
 </script>
 
-<script src="sk-items.js?v=7"></script>
+<script src="sk-items.js?v=8"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
    Дані ЗАРАЗ demo (локально). Крок 2: джерело речей → Firestore (адмінка).
@@ -3767,20 +3775,38 @@ function startDrag(el,x,y){var src=el.getAttribute('data-src'),cat,icon,usable=f
  mkGhost();ghost.innerHTML=iconHTML(icon);ghost.hidden=false;moveGhost(x,y);
  var slots=document.querySelectorAll('#ek-slots .ek-slot');for(var k=0;k<slots.length;k++)if(compat(cat,slots[k].getAttribute('data-slot')))slots[k].classList.add('ek-compat');
  if(usable){var bs=document.querySelectorAll('#ek-belt .ek-bslot');for(var j=0;j<bs.length;j++)bs[j].classList.add('ek-compat');}
+ var art=document.querySelector('#wtabGear .ek-art');if(art&&src==='inv'&&(usable||firstFree(cat)))art.classList.add('ek-compat');
  document.body.style.userSelect='none';}
 function moveGhost(x,y){ghost.style.left=x+'px';ghost.style.top=y+'px';}
 function targetAt(x,y){ghost.style.visibility='hidden';var el=document.elementFromPoint(x,y);ghost.style.visibility='';if(!el)return null;
  var slot=el.closest('.ek-slot');if(slot)return {type:'slot',id:slot.getAttribute('data-slot'),el:slot};
  var bsl=el.closest('.ek-bslot');if(bsl)return {type:'belt',idx:parseInt(bsl.getAttribute('data-belt'),10),el:bsl};
+ var art=el.closest('.ek-art');if(art)return {type:'hero',el:art};
+ var cell=el.closest('.ek-cell[data-uid]');if(cell){var r=cell.getBoundingClientRect();return {type:'cell',uid:cell.getAttribute('data-uid'),after:x>r.left+r.width/2,el:cell};}
  var inv=el.closest('.ek-inv');if(inv)return {type:'inv'};return null;}
-function highlightOver(t){var o=document.querySelectorAll('.ek-slot.ek-over,.ek-bslot.ek-over');for(var i=0;i<o.length;i++)o[i].classList.remove('ek-over');
+function highlightOver(t){var o=document.querySelectorAll('.ek-slot.ek-over,.ek-bslot.ek-over,.ek-art.ek-over,.ek-ins-before,.ek-ins-after');for(var i=0;i<o.length;i++)o[i].classList.remove('ek-over','ek-ins-before','ek-ins-after');
+ if(t&&t.type==='hero'&&t.el.classList.contains('ek-compat'))t.el.classList.add('ek-over');
+ if(t&&t.type==='cell'&&drag&&(drag.src==='slot'||(drag.src==='inv'&&drag.uid!==t.uid)))t.el.classList.add(t.after?'ek-ins-after':'ek-ins-before');
  if(t&&t.type==='slot'&&t.el.classList.contains('ek-compat'))t.el.classList.add('ek-over');
  if(t&&t.type==='belt'&&t.el&&t.el.classList.contains('ek-compat'))t.el.classList.add('ek-over');}
 function endDrag(x,y){var t=targetAt(x,y);if(drag&&t){
   if(t.type==='slot'&&compat(drag.cat,t.id)){if(drag.src==='inv')equipFromInv(drag.uid,t.id);else if(drag.src==='slot')moveSlot(drag.slot,t.id);}
   else if(t.type==='belt'&&drag.usable){if(drag.src==='inv')equipToBelt(drag.uid,t.idx);else if(drag.src==='belt')moveBelt(drag.belt,t.idx);}
+  else if(t.type==='hero'){if(drag.src==='inv')wearFromBag(drag.uid);}
+  else if(t.type==='cell'){
+   if(drag.src==='inv'){if(drag.uid!==t.uid)moveInBag(drag.uid,t.uid,t.after);}
+   else if(drag.src==='slot'){var se=EQUIP[drag.slot],si=se&&se._inst;unequip(drag.slot);if(si&&!si.slot)moveInBag(si.uid,t.uid,t.after);}
+   else if(drag.src==='belt')unequipBelt(drag.belt);}
   else if(t.type==='inv'){if(drag.src==='slot')unequip(drag.slot);else if(drag.src==='belt')unequipBelt(drag.belt);}}cleanup();}
-function cleanup(){drag=null;if(ghost)ghost.hidden=true;var c=document.querySelectorAll('.ek-slot.ek-compat,.ek-slot.ek-over,.ek-bslot.ek-compat,.ek-bslot.ek-over');for(var i=0;i<c.length;i++)c[i].classList.remove('ek-compat','ek-over');document.body.style.userSelect='';}
+/* річ із сумки — на портрет героя: як тап — у перший відповідний слот (зілля — у вільну комірку пояса) */
+function wearFromBag(u){var i=findInv(u);if(!i)return;
+ if(i.usable){var bi=firstFreeBelt();if(bi>=0)equipToBelt(u,bi);else if(window.showToast)showToast('Пояс',BELT.length?'На поясі немає вільної комірки':'Вдягни пояс із комірками, щоб класти зілля та свитки');return;}
+ var s=firstFree(i.cat);if(s)equipFromInv(u,s);else if(window.showToast)showToast('Не вдягається','Цю річ не можна вдягнути на героя');}
+/* сумка: перетягнута річ стає перед/після тієї, на яку її поклали; решта зсувається.
+   Вкладки фільтрують той самий список — порядок однотипних речей зберігається */
+function moveInBag(u,target,after){if(inBattle())return;var a=findInst(u),b=findInst(target);if(!a||!b||a===b||a.slot||b.slot)return;
+ ALL_INST.splice(ALL_INST.indexOf(a),1);ALL_INST.splice(ALL_INST.indexOf(b)+(after?1:0),0,a);rebuild();renderAll();persist();}
+function cleanup(){drag=null;if(ghost)ghost.hidden=true;var c=document.querySelectorAll('.ek-slot.ek-compat,.ek-slot.ek-over,.ek-bslot.ek-compat,.ek-bslot.ek-over,.ek-art.ek-compat,.ek-art.ek-over,.ek-ins-before,.ek-ins-after');for(var i=0;i<c.length;i++)c[i].classList.remove('ek-compat','ek-over','ek-ins-before','ek-ins-after');document.body.style.userSelect='';}
 function tap(el){var src=el.getAttribute('data-src');
  if(src==='inv'){var i=findInv(el.getAttribute('data-uid'));if(!i)return;
    if(i.usable){var bi=firstFreeBelt();if(bi>=0)equipToBelt(el.getAttribute('data-uid'),bi);return;}
