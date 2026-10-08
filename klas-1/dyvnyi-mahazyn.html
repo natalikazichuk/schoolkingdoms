@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Дивний магазин — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<style>
+/* Світла «пісочна» тема — як у «Вежі Логіки» та «Світі навиворіт». */
+:root{
+  --ink:#2c2b3a;--soft:#6b6a7d;--paper:#fff9ef;--line:#ece3d2;--card:#fff;
+  --orange:#ffa94d;--yellow:#ffd43b;--green:#51cf66;--teal:#22b8cf;--blue:#4dabf7;--purple:#cc5de8;
+  --good:#37b26f;--good-bg:#e4f7ec;--bad:#e06666;--bad-bg:#fbe7e7;
+  --shadow:0 6px 0 rgba(44,43,58,.13);
+  --accent:#4dabf7;--accent-d:#2f8fd6;--gold:#f4c842;
+}
+*{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+html,body{height:100%; overflow:hidden;}
+body{
+  font-family:'Nunito',system-ui,sans-serif; color:var(--ink);
+  user-select:none; -webkit-user-select:none; touch-action:manipulation; overscroll-behavior:none;
+  background:
+    radial-gradient(circle at 12% 8%,rgba(255,212,59,.28),transparent 42%),
+    radial-gradient(circle at 88% 14%,rgba(77,171,247,.26),transparent 44%),
+    radial-gradient(circle at 78% 92%,rgba(204,93,232,.22),transparent 46%),
+    radial-gradient(circle at 8% 86%,rgba(81,207,102,.24),transparent 44%),
+    var(--paper);
+}
+h1,.title,.cta,.linkbtn,.item .nm,.pill .val,.opt,.act,.big-btn{font-family:'Fredoka',sans-serif;letter-spacing:.3px;}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+#wrap{position:fixed; top:0; left:0; right:0;
+  bottom:calc(60px + env(safe-area-inset-bottom));
+  display:flex; flex-direction:column; max-width:640px; margin:0 auto;}
+
+/* ── верхня панель ── */
+#top{display:flex; align-items:center; gap:8px; padding:calc(env(safe-area-inset-top) + 12px) 14px 4px;}
+.iconbtn{width:44px; height:44px; border:2px solid var(--line); background:#fff; border-radius:14px;
+  font-family:inherit; font-weight:700; font-size:20px; color:var(--ink); cursor:pointer; flex:none;
+  display:grid; place-items:center; box-shadow:0 1px 3px rgba(44,43,58,.14);}
+.iconbtn:active{transform:translateY(2px);}
+.pill{position:relative; background:#fff; border:2px solid var(--line); border-radius:14px;
+  padding:6px 12px; font-weight:800; white-space:nowrap; box-shadow:var(--shadow);}
+.pill .lab{color:var(--soft); font-size:11px; display:block; line-height:1;}
+.pill .val{font-size:19px; line-height:1.15;}
+.pill.coins .val{color:#b07a10;}
+.pill.coins.bump{animation:bump .4s;}
+@keyframes bump{40%{transform:scale(1.12)}}
+.float{position:absolute; left:calc(100% + 6px); top:10px; font-family:'Fredoka'; font-weight:700;
+  font-size:17px; pointer-events:none; animation:floatUp 1.3s ease-out forwards; z-index:5;}
+.float.minus{color:var(--bad);} .float.plus{color:var(--good);}
+@keyframes floatUp{from{opacity:1; transform:translateY(0)} to{opacity:0; transform:translateY(-18px)}}
+#bag{font-size:22px; min-width:0; flex:1; text-align:center;}
+#menuBtn{cursor:pointer; font-family:'Fredoka'; font-weight:600; font-size:15px; flex:none;
+  background:#fff; border:2px solid var(--line); color:var(--ink);
+  border-radius:14px; padding:9px 14px; box-shadow:var(--shadow); margin-right:52px;}
+#menuBtn:active{transform:translateY(2px); box-shadow:0 3px 0 rgba(44,43,58,.13);}
+
+/* ── сцена ── */
+#main{flex:1 1 auto; overflow-y:auto; padding:6px 14px 12px; display:flex; flex-direction:column; gap:10px; min-height:0;}
+#main > *{width:100%; max-width:480px; margin:0 auto;}
+#kicker{font-size:11px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--accent-d); text-align:center;}
+
+.seller{display:flex; align-items:flex-start; gap:10px; padding-right:50px;}   /* праворуч — місце під «жучок» 🐞 */
+.seller .face{font-size:44px; line-height:1; flex:none;}
+.bubble{position:relative; flex:1; background:#fff; border:2px solid var(--line); border-radius:18px;
+  padding:9px 12px; font-weight:800; font-size:15px; line-height:1.35; box-shadow:var(--shadow);}
+.bubble:before{content:""; position:absolute; left:-9px; top:16px; border:8px solid transparent; border-right-color:var(--line); border-left:0;}
+.bubble.pop{animation:pop .3s;}
+@keyframes pop{from{transform:scale(.95)}}
+
+#hint{font-weight:800; font-size:14px; text-align:center; line-height:1.35; min-height:20px;}
+#hint.bad{color:var(--bad);} #hint.good{color:var(--good);}
+
+/* полиця */
+#shelf{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; padding:10px 8px 12px; border-radius:18px;
+  background:linear-gradient(180deg,#f7e6c8,#efd5a8); border:3px solid #d9b77c;
+  box-shadow:inset 0 -8px 0 #c99f5c;}
+.item{position:relative; border:2px solid #e6cfa6; background:#fffaf0; border-radius:14px; padding:7px 3px 6px; cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; gap:1px; font-family:inherit; color:var(--ink);
+  box-shadow:0 4px 0 rgba(120,80,20,.18); transition:transform .1s;}
+.item:active{transform:translateY(3px); box-shadow:0 1px 0 rgba(120,80,20,.18);}
+.item .ic{font-size:32px; line-height:1.1;}
+.item .nm{font-weight:600; font-size:12px; line-height:1.15; text-align:center;}
+.item .pr{font-weight:800; font-size:13px; color:#b07a10;}
+.item.sold{opacity:.45; cursor:default;}
+.item.sold:after{content:"Продано"; position:absolute; top:30%; left:50%; transform:translate(-50%,-50%) rotate(-14deg);
+  background:var(--bad); color:#fff; font-weight:800; font-size:11px; padding:2px 6px; border-radius:6px;}
+.item.shake{animation:shake .35s;}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.item.tested{border-color:var(--good);}
+.item .tick{position:absolute; top:3px; right:5px; font-size:12px;}
+
+/* журнал */
+#log{background:#fff; border:2px solid var(--line); border-radius:16px; padding:8px 10px; box-shadow:var(--shadow); font-size:14px;}
+#log .lh{font-weight:800; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--soft); margin-bottom:4px;}
+#log table{width:100%; border-collapse:collapse;}
+#log td{padding:3px 4px; border-top:1px dashed var(--line); font-weight:800;}
+#log td.n{text-align:right; white-space:nowrap;}
+#log td.m{color:var(--bad);} #log td.p{color:var(--good);}
+#log tr.odd td{background:#fff3cd;}
+#log .empty{color:var(--soft); font-weight:700; font-size:13px;}
+
+/* питання / дії */
+#panel{display:flex; flex-direction:column; gap:8px;}
+#panel:empty{display:none;}
+.q{font-weight:800; font-size:15px; text-align:center;}
+.opt{border:2px solid var(--line); background:#fff; border-radius:16px; padding:11px 12px; cursor:pointer;
+  font-weight:600; font-size:15px; color:var(--ink); box-shadow:var(--shadow); text-align:left;}
+.opt:active{transform:translateY(3px); box-shadow:0 3px 0 rgba(44,43,58,.13);}
+.opt.bad{border-color:var(--bad); background:var(--bad-bg);}
+.opt.good{border-color:var(--good); background:var(--good-bg);}
+.opt:disabled{opacity:.5; cursor:default;}
+.next{border:none; border-radius:16px; padding:13px; cursor:pointer; font-family:'Fredoka'; font-weight:700; font-size:18px;
+  color:#fff; background:var(--green); box-shadow:0 6px 0 #37a052;}
+.next:active{transform:translateY(3px); box-shadow:0 3px 0 #37a052;}
+.next:disabled{background:#c9c4b8; box-shadow:0 6px 0 #aaa497; cursor:default;}
+
+/* QA-чекліст */
+.qa{background:#fff; border:2px solid var(--purple); border-radius:16px; padding:10px 12px; box-shadow:var(--shadow);}
+.qa .qh{font-family:'Fredoka'; font-weight:700; font-size:16px; color:#8e3fb0; margin-bottom:4px;}
+.qa ol{list-style:none;}
+.qa li{display:flex; gap:8px; align-items:center; padding:4px 0; font-weight:800; font-size:14px; color:var(--soft);}
+.qa li .bx{width:22px; height:22px; border-radius:7px; border:2px solid var(--line); display:grid; place-items:center; flex:none; font-size:13px;}
+.qa li.now{color:var(--ink);}
+.qa li.now .bx{border-color:var(--purple);}
+.qa li.done{color:var(--good);}
+.qa li.done .bx{background:var(--good); border-color:var(--good); color:#fff;}
+.acts{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
+.act{border:2px solid #cfa8f5; background:linear-gradient(180deg,#f8f0ff,#ecdcff); border-radius:14px; padding:8px 4px; cursor:pointer;
+  font-weight:600; font-size:13px; color:var(--ink); display:flex; flex-direction:column; align-items:center; gap:2px; box-shadow:var(--shadow);}
+.act .ic{font-size:24px; line-height:1;}
+.act:active{transform:translateY(3px); box-shadow:0 3px 0 rgba(44,43,58,.13);}
+.shot{display:flex; align-items:center; gap:8px; font-weight:800; font-size:13px; color:var(--soft);}
+.shot .ph{width:46px; height:34px; border-radius:6px; border:2px solid var(--line); background:linear-gradient(180deg,#f7e6c8,#efd5a8);
+  display:grid; place-items:center; font-size:14px;}
+#flash{position:fixed; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:80;}
+#flash.on{animation:flash .45s;}
+@keyframes flash{from{opacity:.9} to{opacity:0}}
+.report{background:#fffdf4; border:2px dashed var(--bad); border-radius:14px; padding:10px 12px; font-weight:700; font-size:13px; line-height:1.45;}
+.report b{color:var(--bad);}
+
+/* модалка-знахідка */
+.modal{position:fixed; inset:0; z-index:70; display:flex; align-items:center; justify-content:center; padding:18px;
+  background:rgba(44,43,58,.45); backdrop-filter:blur(3px);}
+.modal.hidden{display:none;}
+.mcard{width:min(380px,100%); background:linear-gradient(180deg,#fffdf4,#fff6df); border:3px solid var(--gold); border-radius:24px;
+  padding:20px 18px 18px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px;
+  box-shadow:0 0 0 4px #fff9e6,0 12px 28px rgba(44,43,58,.25); animation:pop .3s;}
+.mcard .big{font-size:58px; line-height:1;}
+.mcard .mt{font-family:'Fredoka'; font-weight:700; font-size:22px;}
+.mcard .mb{font-weight:800; font-size:15px; color:var(--soft); line-height:1.4;}
+
+/* ── старт / фініш ── */
+.screen{position:absolute; inset:0; z-index:60; display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:12px; padding:calc(env(safe-area-inset-top) + 16px) 22px 18px; text-align:center;
+  background:
+    radial-gradient(circle at 15% 10%,rgba(255,212,59,.32),transparent 45%),
+    radial-gradient(circle at 85% 90%,rgba(204,93,232,.25),transparent 45%), var(--paper);
+  overflow-y:auto;}
+.screen.hidden{display:none;}
+.start-top{position:absolute; top:calc(env(safe-area-inset-top) + 16px); left:16px;}
+.big-emoji{font-size:64px; line-height:1;}
+h1{font-size:34px; font-weight:700;}
+.start-sub{color:var(--soft); font-weight:800; font-size:15px;}
+.riddle{background:#fff; border:2px solid var(--line); border-radius:20px; padding:14px 16px; max-width:420px;
+  font-weight:700; font-size:15px; line-height:1.5; box-shadow:var(--shadow); text-align:left;}
+.riddle .items{margin-top:6px; display:flex; flex-wrap:wrap; gap:4px 12px; color:var(--soft); font-size:14px;}
+.done-card{display:none; align-items:center; gap:12px; max-width:420px; width:100%; text-align:left;
+  background:linear-gradient(180deg,#fffdf4,#fff3cf); border:2px solid var(--gold); border-radius:18px; padding:10px 14px;}
+.done-card.on{display:flex;}
+.done-card .dc-ic{font-size:30px; flex:none;}
+.done-card .dc-got{font-family:'Fredoka'; font-weight:700; font-size:15px; color:#8a5e16; line-height:1.2;}
+.done-card .dc-go{font-weight:800; font-size:12px; color:var(--soft); margin-top:3px; line-height:1.25;}
+.big-btn{border:none; border-radius:18px; padding:16px 20px; width:100%; max-width:420px; cursor:pointer;
+  font-weight:700; font-size:20px; color:#fff; background:var(--accent); box-shadow:0 6px 0 var(--accent-d);}
+.big-btn:active{transform:translateY(3px); box-shadow:0 3px 0 var(--accent-d);}
+.crown{font-size:52px;}
+.title{font-size:26px; font-weight:700;}
+.stars{font-size:30px;}
+.sub{color:var(--soft); font-weight:800;}
+.lesson{background:#fff; border:2px solid var(--line); border-radius:18px; padding:12px 14px; max-width:420px;
+  text-align:left; font-weight:700; font-size:14px; line-height:1.45;}
+.lesson li{margin:4px 0 4px 18px;}
+.lesson .moral{margin-top:8px; font-family:'Fredoka'; font-weight:700; font-size:16px; color:#8e3fb0; text-align:center;}
+.cta{margin-top:4px; border:none; cursor:pointer; font-weight:700; font-size:18px; color:#fff;
+  background:var(--green); border-radius:16px; padding:12px 26px; box-shadow:0 6px 0 #37a052;}
+.cta:active{transform:translateY(3px); box-shadow:0 3px 0 #37a052;}
+.linkbtn{cursor:pointer; font-weight:600; font-size:15px; background:#fff; border:2px solid var(--line);
+  color:var(--ink); border-radius:14px; padding:9px 14px;}
+.linkbtn:active{transform:translateY(2px);}
+.winrow{display:flex; gap:10px; flex-wrap:wrap; justify-content:center;}
+
+@media (max-height:680px){
+  .seller .face{font-size:36px;} .bubble{font-size:14px; padding:7px 10px;}
+  .item .ic{font-size:26px;}
+  .big-emoji{font-size:48px;} h1{font-size:28px;}
+  .riddle{font-size:14px; padding:10px 12px;}
+}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <div class="pill"><span class="lab">Рівень</span><span class="val" id="lvl">1/3</span></div>
+    <div class="pill coins" id="coinsPill"><span class="lab">Гаманець</span><span class="val" id="coins">🪙 10</span></div>
+    <div id="bag" title="Сумка"></div>
+    <button id="menuBtn">☰ Меню</button>
+  </div>
+
+  <div id="main">
+    <div id="kicker">Дивний магазин · Логіка</div>
+    <div class="seller"><div class="face">🧙‍♂️</div><div class="bubble" id="say">…</div></div>
+    <div id="hint"></div>
+    <div id="shelf"></div>
+    <div id="log"></div>
+    <div id="panel"></div>
+  </div>
+
+  <div class="modal hidden" id="modal">
+    <div class="mcard">
+      <div class="big" id="mBig">🎁</div>
+      <div class="mt" id="mTitle"></div>
+      <div class="mb" id="mBody"></div>
+      <button class="next" id="mBtn" type="button">Далі →</button>
+    </div>
+  </div>
+  <div id="flash"></div>
+
+  <div class="screen" id="startScreen">
+    <div class="start-top"><button class="iconbtn backbtn" type="button" title="Назад" aria-label="Назад">←</button></div>
+    <div class="big-emoji">🏪</div>
+    <h1>Дивний магазин</h1>
+    <p class="start-sub">Логіка · 3 рівні · знайди правило і баг 🐞</p>
+    <div class="riddle">
+      Герой заходить у магазин. На полицях:
+      <div class="items"><span>🍎 яблуко — 10 🪙</span><span>🧸 іграшка — 20 🪙</span><span>🔑 ключ — 50 🪙</span><span>🎁 загадкова коробка — 100 🪙</span></div>
+      <div style="margin-top:8px">Але продавець каже: <i>«У нашому магазині ціна — це не те, скільки ти платиш».</i></div>
+    </div>
+    <div class="done-card" id="startDone">
+      <span class="dc-ic">🏆</span>
+      <div><div class="dc-got" id="doneGot">Магазин розгадано!</div>
+        <div class="dc-go" id="doneGo">Вирушай за новими досягненнями!</div></div>
+    </div>
+    <button class="big-btn" id="playBtn">Зайти в магазин ▶</button>
+  </div>
+
+  <div class="screen hidden" id="winScreen">
+    <div class="crown">🐞🔍</div>
+    <div class="title">Баг знайдено!</div>
+    <div class="stars" id="winStars">⭐⭐⭐</div>
+    <div class="sub" id="winSub">Чудова робота!</div>
+    <div class="lesson">Що ти розгадав(-ла):
+      <ol>
+        <li>Магазин <b>подвоює</b> витрачену суму — тож, щоб купити коробку за 100, спершу купи ключ за 50.</li>
+        <li>Продавець сказав «у нас <b>завжди</b> все навпаки» — а перевірка показала, що 🧪 зілля порушує правило.</li>
+        <li>Баг треба <b>відтворити</b>, зібрати доказ і повідомити.</li>
+      </ol>
+      <div class="moral">Не вір твердженню — перевір правило! ✅</div>
+    </div>
+    <div class="winrow"><button class="cta" id="againBtn">↻ Ще раз</button></div>
+    <div class="winrow">
+      <button class="linkbtn" id="toMenuBtn" type="button">☰ У меню</button>
+      <button class="linkbtn backbtn" type="button">← Назад</button>
+    </div>
+  </div>
+</div>
+
+<script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
+
+<script>
+(function(){
+  "use strict";
+
+  var ITEMS = {
+    apple: {ic:"🍎", nm:"яблуко",  price:10},
+    toy:   {ic:"🧸", nm:"іграшка", price:20},
+    key:   {ic:"🔑", nm:"ключ",    price:50},
+    box:   {ic:"🎁", nm:"коробка", price:100},
+    potion:{ic:"🧪", nm:"зілля",   price:30}
+  };
+
+  var $ = function(id){ return document.getElementById(id); };
+  var shelfEl=$("shelf"), logEl=$("log"), panelEl=$("panel"), hintEl=$("hint"), sayEl=$("say");
+
+  /* level: 1 — правило подвоєння й коробка; 2 — «завжди все навпаки?»; 3 — QA: відтворити баг
+     step (рівень 1): "explore" → "rule" (питання) → "box" → "done" */
+  var level, step, coins, mistakes, sold, log, tested, bag, qa, busy=true;
+
+  /* ── «Назад» / меню ── */
+  function goBack(){
+    if(window.skGoBackSmart){ skGoBackSmart("tests.html"); return; }
+    location.href="../tests.html";
+  }
+  function openMenu(){
+    busy = true;
+    refreshStart();
+    $("winScreen").classList.add("hidden");
+    $("startScreen").classList.remove("hidden");
+  }
+  document.querySelectorAll(".backbtn").forEach(function(b){ b.addEventListener("click", goBack); });
+  var hb = $("heroBackBtn");
+  if(hb) hb.addEventListener("click", function(){
+    if($("startScreen").classList.contains("hidden")) openMenu();
+    else goBack();
+  });
+
+  /* ── нагорода з адмінки (sk-prize.js) — один раз, за перше проходження ── */
+  var PRIZE_KEY = "sk_mahazyn_prize_v1";
+  var TR_HREF = "dyvnyi-mahazyn.html";
+  function refreshStart(){
+    var p = window.SKPRIZE ? SKPRIZE.summary(PRIZE_KEY) : null;
+    $("startDone").classList.toggle("on", !!p);
+    if(!p) return;
+    var t = SKPRIZE.doneText(p, "Дивний магазин розгадано — нагороду отримано!");
+    $("doneGot").textContent = t.got;
+    $("doneGo").textContent = t.go;
+  }
+
+  /* ── дрібні помічники ── */
+  function seller(txt){ sayEl.innerHTML = txt; sayEl.classList.remove("pop"); void sayEl.offsetWidth; sayEl.classList.add("pop"); }
+  function hint(txt,cls){ hintEl.className = cls||""; hintEl.innerHTML = txt||""; }
+  function el(tag,cls,html){ var d=document.createElement(tag); if(cls) d.className=cls; if(html!=null) d.innerHTML=html; return d; }
+  function later(fn,ms){ setTimeout(fn,ms); }
+  function setCoins(v){ coins = v; $("coins").textContent = "🪙 " + v; }
+  function floatCoins(txt,cls){
+    var p=$("coinsPill"), f=el("div","float "+cls,txt); p.appendChild(f);
+    p.classList.remove("bump"); void p.offsetWidth; p.classList.add("bump");
+    later(function(){ if(f.parentNode) f.parentNode.removeChild(f); }, 1300);
+  }
+  function renderBag(){ $("bag").textContent = bag.join(" "); }
+  function miss(txt){ mistakes++; thud(); buzz(40); hint(txt,"bad"); }
+
+  /* скільки магазин повертає за покупку на цьому рівні */
+  function refund(id){
+    var p = ITEMS[id].price;
+    if(level===1) return p*2;
+    return id==="potion" ? p*2 : p/2;      // 🐞 зілля «забуло» про нове правило
+  }
+
+  /* ═════════════ полиця ═════════════ */
+  function renderShelf(ids){
+    shelfEl.innerHTML = "";
+    ids.forEach(function(id){
+      var it = ITEMS[id];
+      var b = el("button","item"); b.type="button"; b.dataset.id=id;
+      b.innerHTML = '<span class="ic">'+it.ic+'</span><span class="nm">'+it.nm+'</span><span class="pr">'+it.price+' 🪙</span>';
+      if(sold[id]) b.classList.add("sold");
+      if(level===2 && tested[id]){ b.classList.add("tested"); b.appendChild(el("span","tick","✅")); }
+      b.addEventListener("click", function(){ buy(id, b); });
+      shelfEl.appendChild(b);
+    });
+  }
+  function shelfIds(){ return level===1 ? ["apple","toy","key","box"] : ["apple","toy","key","potion"]; }
+
+  function renderLog(){
+    logEl.innerHTML = '<div class="lh">📒 Журнал покупок</div>';
+    if(!log.length){ logEl.appendChild(el("div","empty","Поки порожньо — купи щось і подивись, що буде.")); return; }
+    var t = el("table");
+    log.slice(-6).forEach(function(r){
+      var tr = el("tr", r.odd ? "odd" : "");
+      tr.innerHTML = '<td>'+ITEMS[r.id].ic+' '+ITEMS[r.id].nm+'</td><td class="n m">−'+r.spent+'</td><td class="n p">+'+r.got+'</td><td class="n">'+(r.odd?"❗":"")+'</td>';
+      t.appendChild(tr);
+    });
+    logEl.appendChild(t);
+  }
+
+  /* ═════════════ покупка ═════════════ */
+  function buy(id, btn){
+    if(busy) return;
+    var it = ITEMS[id];
+    if(sold[id]){ hint("Цього товару вже немає на полиці."); return; }
+    if(it.price > coins){
+      thud(); btn.classList.remove("shake"); void btn.offsetWidth; btn.classList.add("shake");
+      if(level===1 && id==="box" && step==="box")
+        hint("Не вистачає: у тебе "+coins+" 🪙, а коробка коштує 100. Згадай правило магазину! 🤔","bad");
+      else hint("Не вистачає монет: "+it.ic+" коштує "+it.price+" 🪙, а в тебе "+coins+".","bad");
+      return;
+    }
+    if(level===1 && step==="rule"){ hint("Спершу дай відповідь продавцеві 👇"); return; }
+
+    var got = refund(id);
+    busy = true; tap();
+    setCoins(coins - it.price); floatCoins("−"+it.price,"minus");
+    later(function(){
+      setCoins(coins + got); floatCoins("+"+got,"plus"); coinSound();
+      var odd = level>1 && id==="potion";
+      log.push({id:id, spent:it.price, got:got, odd:odd});
+      renderLog();
+      busy = false;
+      if(level===1) afterBuy1(id, got);
+      else if(level===2) afterBuy2(id, got);
+      else afterBuy3(id, got);
+    }, 650);
+  }
+
+  /* ═════════════ РІВЕНЬ 1: магазин подвоює ═════════════ */
+  function startLevel1(){
+    level=1; step="explore"; $("lvl").textContent="1/3";
+    sold={}; log=[]; setCoins(10);
+    seller("Вітаю! У нашому магазині <b>ціна — це не те, скільки ти платиш</b>. 😉");
+    hint("У тебе 10 🪙. Купи щось і подивись, що буде.");
+    panelEl.innerHTML=""; renderShelf(shelfIds()); renderLog();
+  }
+
+  function afterBuy1(id, got){
+    if(step==="explore"){
+      sold[id] = true; renderShelf(shelfIds());
+      if(id==="apple" && !sold.toy){
+        seller("Купив яблуко за 10 — а я повертаю тобі <b>"+got+"</b>! 🍎");
+        hint("Дивно… Купи ще щось і порівняй.");
+        return;
+      }
+      if(sold.apple && sold.toy){ askRule(); return; }
+      seller("Тримай <b>"+got+"</b> 🪙 решти! Хі-хі.");
+      hint("Купи ще щось і порівняй.");
+      return;
+    }
+    if(step==="box" && id==="key"){
+      sold.key = true; renderShelf(shelfIds());
+      seller("Ключ за 50 — і ось тобі <b>100</b>! 🔑");
+      hint("Тепер у тебе 100 🪙. Що далі?","good");
+      chime();
+      return;
+    }
+    if(id==="box"){
+      sold.box = true; renderShelf(shelfIds());
+      step = "done"; busy = true;
+      bag.push("🗝️"); renderBag(); fanfare();
+      later(function(){
+        showModal("🗝️", "Ключ від будинку №17!",
+          "У загадковій коробці — не просто нагорода, а ключ від будинку №17. Він знадобиться в наступній загадці міста!",
+          startLevel2);
+      }, 500);
+    }
+  }
+
+  function askRule(){
+    step = "rule";
+    seller("Ну що, зрозумів(-ла), як працює мій магазин? 🧐");
+    hint("");
+    panelEl.innerHTML = "";
+    panelEl.appendChild(el("div","q","Яке правило магазину?"));
+    var opts = [
+      {t:"Повертає вдвічі більше, ніж ти заплатив(-ла)", ok:true},
+      {t:"Повертає стільки ж, скільки ти заплатив(-ла)"},
+      {t:"Завжди додає ще 10 🪙"}
+    ];
+    shuffle(opts).forEach(function(o){
+      var b = el("button","opt",o.t); b.type="button";
+      b.addEventListener("click", function(){
+        if(step!=="rule") return;
+        if(!o.ok){
+          b.classList.add("bad"); b.disabled = true;
+          miss(o.t.indexOf("10")>=0
+            ? "За яблуко дали на 10 більше, а за іграшку — на 20. Тож не «+10». Подивись у журнал 📒"
+            : "Подивись у журнал 📒: витратив(-ла) 10 — отримав(-ла) 20, витратив(-ла) 20 — отримав(-ла) 40.");
+          return;
+        }
+        b.classList.add("good"); chime();
+        step = "box"; panelEl.innerHTML = "";
+        setCoins(50); floatCoins("+10","plus");
+        seller("Правильно! Магазин <b>подвоює</b> витрачену суму. Ось тобі ще 10 🪙 за кмітливість — тепер у тебе 50.");
+        hint("🎁 Загадкова коробка коштує 100 🪙, а в тебе лише 50. Як її купити?");
+      });
+      panelEl.appendChild(b);
+    });
+  }
+
+  /* ═════════════ РІВЕНЬ 2: «у нас завжди все навпаки» ═════════════ */
+  function startLevel2(){
+    level=2; $("lvl").textContent="2/3";
+    sold={}; log=[]; tested={}; setCoins(200);
+    seller("О, ти повернувся(-лася)! А в нас нове правило: <b>сьогодні все навпаки</b>. Та що там — у нас <b>завжди</b> все навпаки! 😈");
+    hint("Не вір на слово — перевір щонайменше 3 товари. 🔍");
+    renderShelf(shelfIds()); renderLog(); renderConclusion();
+  }
+
+  function afterBuy2(id, got){
+    tested[id] = true; renderShelf(shelfIds());
+    if(id==="potion"){ seller("Зілля? Ну… ось тобі <b>"+got+"</b>. Е-е-е… 😅"); hint("Хм! Глянь у журнал 📒","good"); }
+    else seller("Бачиш? Витратив(-ла) "+ITEMS[id].price+" — отримав(-ла) лише <b>"+got+"</b>. Усе навпаки! 😈");
+    if(id!=="potion") hint(Object.keys(tested).length<3 ? "Перевір ще товари." : "Можна робити висновок — або перевірити ще.");
+    renderConclusion();
+  }
+
+  function renderConclusion(){
+    var n = Object.keys(tested).length;
+    panelEl.innerHTML = "";
+    panelEl.appendChild(el("div","q", n<3 ? "Перевірено товарів: "+n+" з 3" : "Що показала перевірка?"));
+    if(n<3) return;
+    later(function(){ panelEl.scrollIntoView({behavior:"smooth", block:"end"}); }, 50);
+    var opts = [
+      {t:"Продавець правий: у магазині завжди все навпаки", w:"Перевір усі товари — може, якийсь порушує правило? 🔍"},
+      {t:"Усе навпаки, крім 🧪 зілля — це баг! 🐞", ok:true},
+      {t:"Магазин, як і раніше, подвоює", w:"Подивись у журнал 📒: яблуко, іграшка й ключ повертають лише половину."}
+    ];
+    opts.forEach(function(o){
+      var b = el("button","opt",o.t); b.type="button";
+      b.addEventListener("click", function(){
+        if(busy) return;
+        if(o.ok && !tested.potion){ b.classList.add("bad"); miss("А ти перевірив(-ла) зілля? Спершу купи його 🧪"); return; }
+        if(!o.ok){ b.classList.add("bad"); b.disabled=true; miss(o.w); return; }
+        b.classList.add("good"); chime(); busy = true;
+        seller("Ой… Ти помітив(-ла)? 😳 Зілля: 30 → 60. Воно не підкоряється новому правилу!");
+        hint("Я знайшов(-ла) баг! 🐞","good");
+        later(function(){
+          showModal("🐞", "Ти знайшов(-ла) баг!",
+            "Яблуко 10 → 5, іграшка 20 → 10, ключ 50 → 25… а зілля 30 → 60 ❗<br>Тепер — перше завдання тестувальника (QA): <b>відтворити баг</b>.",
+            startLevel3);
+        }, 900);
+      });
+      panelEl.appendChild(b);
+    });
+  }
+
+  /* ═════════════ РІВЕНЬ 3: QA — відтворити баг ═════════════ */
+  var QA_STEPS = ["Купити зілля 🧪","Перевірити баланс 💰","Повторити покупку 🔁","Зробити скриншот 📸","Повідомити продавцю 📝"];
+
+  function startLevel3(){
+    level=3; $("lvl").textContent="3/3";
+    qa = {i:0, shot:false};
+    seller("Баг? У моєму магазині? Не може бути! Доведи! 🤨");
+    hint("Виконуй кроки по черзі.");
+    renderShelf(shelfIds()); renderQA();
+  }
+
+  function renderQA(){
+    panelEl.innerHTML = "";
+    var box = el("div","qa"); box.appendChild(el("div","qh","🧪 Завдання QA: відтворити баг"));
+    var ol = el("ol");
+    QA_STEPS.forEach(function(s,i){
+      var li = el("li", i<qa.i ? "done" : (i===qa.i ? "now" : ""), '<span class="bx">'+(i<qa.i?"✓":(i+1))+'</span>'+s);
+      ol.appendChild(li);
+    });
+    box.appendChild(ol);
+    panelEl.appendChild(box);
+    if(qa.i>=QA_STEPS.length) return;
+    var acts = el("div","acts");
+    [["balance","💰","Баланс"],["shot","📸","Скриншот"],["report","📝","Повідомити"]].forEach(function(a){
+      var b = el("button","act",'<span class="ic">'+a[1]+'</span>'+a[2]); b.type="button";
+      b.addEventListener("click", function(){ qaAction(a[0]); });
+      acts.appendChild(b);
+    });
+    panelEl.appendChild(acts);
+    if(qa.shot) panelEl.appendChild(el("div","shot",'<span class="ph">🧪❗</span>Скриншот збережено як доказ'));
+  }
+
+  function qaWrong(){ miss("Не поспішай! Зараз крок "+(qa.i+1)+": «"+QA_STEPS[qa.i]+"»."); }
+  function qaNext(txt){ qa.i++; chime(); hint(txt,"good"); renderQA(); }
+
+  function afterBuy3(id, got){
+    if(id!=="potion"){ hint("Зараз ми відтворюємо баг саме із зіллям 🧪"); return; }
+    if(qa.i===0){ qa.after = coins; qa.before = coins - got + ITEMS.potion.price; qaNext("Купили зілля: −30, +60. Тепер перевір баланс."); return; }
+    if(qa.i===2){ qaNext("Знову 30 → 60! Баг <b>відтворюється</b>. Тепер зроби скриншот."); return; }
+    if(qa.i>2){ hint("Зілля вже перевірено двічі — переходь до наступного кроку."); return; }
+    qaWrong();
+  }
+
+  function qaAction(a){
+    if(busy) return;
+    tap();
+    if(a==="balance"){
+      if(qa.i!==1){ qaWrong(); return; }
+      qaNext("Баланс: було "+qa.before+" 🪙, стало "+qa.after+" 🪙 — це <b>+30</b>, а мало бути −15! Повтори покупку.");
+      return;
+    }
+    if(a==="shot"){
+      if(qa.i!==3){ qaWrong(); return; }
+      var f=$("flash"); f.classList.remove("on"); void f.offsetWidth; f.classList.add("on"); shutter();
+      qa.shot = true;
+      qaNext("Клац! 📸 Доказ є. Тепер повідом продавцю.");
+      return;
+    }
+    if(a==="report"){
+      if(qa.i!==4){ qaWrong(); return; }
+      qa.i++; renderQA(); busy = true; fanfare();
+      panelEl.appendChild(el("div","report",
+        '<b>🐞 Звіт про баг</b><br>'+
+        '<b>Що:</b> зілля не підкоряється правилу «все навпаки».<br>'+
+        '<b>Кроки:</b> 1) купити 🧪 зілля за 30; 2) перевірити баланс; 3) повторити покупку.<br>'+
+        '<b>Очікувано:</b> повертають 15 🪙.<br>'+
+        '<b>Фактично:</b> повертають 60 🪙 — двічі поспіль.<br>'+
+        '<b>Доказ:</b> 📸 скриншот.'));
+      panelEl.lastChild.scrollIntoView({behavior:"smooth", block:"end"});
+      seller("Хм… кроки, баланс, скриншот… Ти маєш рацію! 🙇 Дякую, детективе-тестувальнику! Виправлю зілля.");
+      hint("Звіт надіслано! ✅","good");
+      later(finish, 4500);
+    }
+  }
+
+  /* ═════════════ модалка ═════════════ */
+  var modalNext = null;
+  function showModal(big, title, body, next){
+    busy = true;
+    $("mBig").textContent = big; $("mTitle").textContent = title; $("mBody").innerHTML = body;
+    modalNext = next; $("modal").classList.remove("hidden");
+  }
+  $("mBtn").addEventListener("click", function(){
+    $("modal").classList.add("hidden");
+    busy = false; tap();
+    if(modalNext){ var n = modalNext; modalNext = null; n(); }
+  });
+
+  /* ═════════════ звук ═════════════ */
+  var actx=null;
+  function tone(f,d,type){ try{
+    if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)();
+    var o=actx.createOscillator(), g=actx.createGain();
+    o.type=type||"triangle"; o.frequency.value=f; g.gain.value=0.06;
+    o.connect(g); g.connect(actx.destination); o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime+d); o.stop(actx.currentTime+d+0.02);
+  }catch(e){} }
+  function tap(){ tone(520,0.05); }
+  function coinSound(){ tone(988,0.07,"square"); setTimeout(function(){ tone(1319,0.1,"square"); },70); }
+  function chime(){ tone(660,0.09); setTimeout(function(){ tone(880,0.11); },90); }
+  function thud(){ tone(180,0.16,"sine"); }
+  function shutter(){ tone(1200,0.03,"square"); setTimeout(function(){ tone(800,0.04,"square"); },50); }
+  function fanfare(){ tone(523,0.12); setTimeout(function(){ tone(659,0.12); },120);
+    setTimeout(function(){ tone(784,0.14); },240); setTimeout(function(){ tone(1046,0.18); },380); }
+  function buzz(v){ try{ if(navigator.vibrate) navigator.vibrate(v); }catch(e){} }
+  function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+
+  /* ═════════════ фініш ═════════════ */
+  function finish(){
+    busy = true;
+    $("winStars").textContent = mistakes===0 ? "⭐⭐⭐" : (mistakes<=3 ? "⭐⭐" : "⭐");
+    $("winSub").textContent = mistakes===0
+      ? "Без жодної помилки — справжній детектив-тестувальник!"
+      : "Помилок: "+mistakes+". Але баг знайдено й відтворено!";
+    $("winScreen").classList.remove("hidden");
+    if(window.SKPRIZE && !SKPRIZE.summary(PRIZE_KEY))
+      SKPRIZE.claim({ key: PRIZE_KEY, href: TR_HREF, title: "Баг знайдено!", onClose: refreshStart });
+  }
+
+  function startGame(){
+    mistakes=0; bag=[]; renderBag(); busy=false;
+    $("modal").classList.add("hidden");
+    $("startScreen").classList.add("hidden");
+    $("winScreen").classList.add("hidden");
+    startLevel1();
+  }
+
+  $("playBtn").addEventListener("click", startGame);
+  $("againBtn").addEventListener("click", startGame);
+  $("menuBtn").addEventListener("click", openMenu);
+  $("toMenuBtn").addEventListener("click", openMenu);
+
+  refreshStart();
+  window.addEventListener("load", refreshStart);   // sk-prize.js підключено нижче
+})();
+</script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=8"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=4"></script>
+<script src="../sk-prize.js?v=1"></script>
+<script src="../sk-finish.js?v=6"></script>
+</body>
+</html>
