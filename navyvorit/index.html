@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Карта Світу навиворіт — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<style>
+/* Світла «пісочна» тема — як у «Вежі Логіки» та іграх «Світу навиворіт». */
+:root{
+  --ink:#2c2b3a;--soft:#6b6a7d;--paper:#fff9ef;--line:#ece3d2;--card:#fff;
+  --orange:#ffa94d;--yellow:#ffd43b;--green:#51cf66;--teal:#22b8cf;--blue:#4dabf7;--purple:#cc5de8;
+  --good:#37b26f;--good-bg:#e4f7ec;--bad:#e06666;--bad-bg:#fbe7e7;
+  --shadow:0 6px 0 rgba(44,43,58,.13);
+  --accent:#4dabf7;--accent-d:#2f8fd6;--gold:#f4c842;--nav:#8e3fb0;
+}
+*{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+html,body{height:100%; overflow:hidden;}
+body{
+  font-family:'Nunito',system-ui,sans-serif; color:var(--ink);
+  user-select:none; -webkit-user-select:none; touch-action:manipulation; overscroll-behavior:none;
+  background:
+    radial-gradient(circle at 12% 8%,rgba(255,212,59,.28),transparent 42%),
+    radial-gradient(circle at 88% 14%,rgba(77,171,247,.26),transparent 44%),
+    radial-gradient(circle at 78% 92%,rgba(204,93,232,.22),transparent 46%),
+    radial-gradient(circle at 8% 86%,rgba(81,207,102,.24),transparent 44%),
+    var(--paper);
+  transition:background-color .6s;
+}
+body.flipped{background-color:#efe6ff;}
+h1,.title,.pill .val,.flipBtn,.pin .lbl,.sheet .st,.opt,.play,.gateCard .gt{font-family:'Fredoka',sans-serif;letter-spacing:.3px;}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+#wrap{position:fixed; top:0; left:0; right:0;
+  bottom:calc(60px + env(safe-area-inset-bottom));
+  display:flex; flex-direction:column; max-width:640px; margin:0 auto;}
+#top{display:flex; align-items:center; gap:10px; padding:calc(env(safe-area-inset-top) + 12px) 64px 6px 14px;}   /* праворуч — місце під «жучок» 🐞 */
+h1{font-size:22px; font-weight:700; line-height:1.1; flex:1; min-width:0;}
+h1 small{display:block; font-family:'Nunito'; font-weight:800; font-size:12px; color:var(--soft); letter-spacing:0;}
+body.flipped h1{color:var(--nav);}
+.pill{background:#fff; border:2px solid var(--line); border-radius:14px; padding:6px 12px; font-weight:800; white-space:nowrap; box-shadow:var(--shadow); flex:none;}
+.pill .lab{color:var(--soft); font-size:11px; display:block; line-height:1;}
+.pill .val{font-size:19px; line-height:1.15; color:var(--orange);}
+
+#main{flex:1 1 auto; overflow-y:auto; padding:4px 12px 16px; display:flex; flex-direction:column; align-items:center; gap:12px; min-height:0;}
+#main > *{width:100%; max-width:480px; flex-shrink:0;}
+#intro{font-weight:800; font-size:14px; text-align:center; line-height:1.4; color:var(--soft); padding:0 36px;}   /* обабіч — місце під «жучок» 🐞 */
+#intro b{color:var(--ink);}
+body.flipped #intro b{color:var(--nav);}
+
+/* ═════════ карта ═════════ */
+#map{position:relative; aspect-ratio:9/13; border-radius:22px; border:3px solid #d9b77c; box-shadow:var(--shadow); overflow:hidden; perspective:1200px; background:#cfe9ff;}
+#world{position:absolute; inset:0; transition:transform 1.3s cubic-bezier(.6,-.2,.3,1.2);}
+body.flipped #world{transform:rotateX(180deg);}
+.sky{position:absolute; left:0; right:0; top:0; height:47%; background:linear-gradient(180deg,#8fd0ff,#dff2ff); transition:background .8s;}
+.land{position:absolute; left:0; right:0; top:47%; bottom:0; background:
+  radial-gradient(ellipse at 20% 30%,rgba(255,255,255,.18),transparent 40%),
+  linear-gradient(180deg,#9fd77f,#79c05b); transition:background .8s;}
+body.flipped .sky{background:linear-gradient(180deg,#1f2363,#4b3a8c);}
+body.flipped .land{background:radial-gradient(ellipse at 20% 30%,rgba(255,255,255,.08),transparent 40%), linear-gradient(180deg,#4f7a52,#365c3b);}
+.river{position:absolute; left:-4%; right:-4%; top:47%; height:10%;
+  background:repeating-linear-gradient(100deg,#4dabf7 0 18px,#74c0fc 18px 30px); border-top:3px solid #d0ebff; border-bottom:3px solid #a5d8ff;}
+body.flipped .river{background:repeating-linear-gradient(100deg,#3b5bdb 0 18px,#4c6ef5 18px 30px);}
+.bridge{position:absolute; left:43%; width:14%; top:46%; height:12%; background:repeating-linear-gradient(90deg,#b07a3c 0 6px,#8c5a2b 6px 8px); border-radius:4px; box-shadow:0 3px 0 rgba(0,0,0,.18);}
+
+#path{position:absolute; inset:0; width:100%; height:100%;}
+#path polyline{fill:none; stroke:#fff8e6; stroke-width:7; stroke-linecap:round; stroke-linejoin:round; vector-effect:non-scaling-stroke;}
+#path polyline.dash{stroke:#c99f5c; stroke-width:3; stroke-dasharray:2 9;}
+
+.thing{position:absolute; transform:translate(-50%,-50%); line-height:1; pointer-events:none; transition:left 1.2s ease-in-out, top 1.2s ease-in-out;}
+.thing .badge{position:absolute; right:-10px; top:-10px; font-size:.5em; opacity:0; transition:opacity .5s .6s;}
+body.flipped .thing .badge{opacity:1;}
+.thing.star{opacity:0; transition:opacity .8s;}
+body.flipped .thing.star{opacity:1;}
+.thing.bird{animation:flap 1.6s ease-in-out infinite;}
+.thing.fish{animation:swim 2.2s ease-in-out infinite;}
+@keyframes flap{50%{margin-top:-4px}}
+@keyframes swim{50%{margin-left:6px}}
+body.flipped .thing.fire{filter:hue-rotate(180deg) saturate(1.4);}
+body.flipped .thing.ice{filter:drop-shadow(0 0 8px #ff922b);}
+
+/* мітки ігор */
+.pin{position:absolute; transform:translate(-50%,-50%); display:flex; flex-direction:column; align-items:center; gap:2px; border:none; background:none; cursor:pointer; font-family:inherit; color:var(--ink); z-index:3;}
+.pin .em{width:54px; height:54px; border-radius:50%; background:#fff; border:3px solid #c99f5c; display:grid; place-items:center; font-size:28px; box-shadow:0 4px 0 rgba(0,0,0,.18); position:relative; transition:border-color .4s;}
+.pin .lbl{background:rgba(255,255,255,.94); border:2px solid #e6cfa6; border-radius:10px; padding:1px 7px; font-weight:600; font-size:12px; white-space:nowrap; transition:transform 1.3s cubic-bezier(.6,-.2,.3,1.2);}
+.pin .no{position:absolute; left:-6px; top:-6px; width:22px; height:22px; border-radius:50%; background:#2f5d8a; color:#fff; font-family:'Fredoka'; font-weight:700; font-size:12px; display:grid; place-items:center; border:2px solid #fff;}
+.pin .ok{position:absolute; right:-6px; bottom:-6px; font-size:18px; display:none;}
+.pin.done .ok{display:block;}
+.pin.done .em{border-color:var(--good);}
+.pin.next .em{animation:pulse 1.4s infinite;}
+@keyframes pulse{0%{box-shadow:0 4px 0 rgba(0,0,0,.18),0 0 0 0 rgba(77,171,247,.6)}70%{box-shadow:0 4px 0 rgba(0,0,0,.18),0 0 0 14px rgba(77,171,247,0)}}
+.pin:active .em{transform:translateY(2px);}
+body.flipped .pin .em{border-color:#b48be6; transform:rotateX(180deg);}
+body.flipped .pin.done .em{border-color:var(--good);}
+body.flipped .pin .lbl{transform:rotateX(180deg);}   /* підпис лишається читабельним, навіть коли світ перевернуто */
+.pin.gate .em{background:#fff6d6; border-color:var(--gold);}
+
+/* ═════════ кнопка перевороту ═════════ */
+.flipBtn{border:none; border-radius:18px; padding:15px 20px; cursor:pointer; font-weight:700; font-size:20px; color:#fff;
+  background:linear-gradient(180deg,#d77af0,#b04bd6); box-shadow:0 6px 0 #8e3fb0;}
+.flipBtn:active{transform:translateY(3px); box-shadow:0 3px 0 #8e3fb0;}
+body.flipped .flipBtn{background:linear-gradient(180deg,#74c0fc,#4dabf7); box-shadow:0 6px 0 var(--accent-d);}
+
+/* ═════════ правила світу ═════════ */
+.rules{background:#fff; border:2px solid var(--line); border-radius:18px; padding:10px 12px; box-shadow:var(--shadow);}
+.rules .rh{font-weight:800; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--soft); margin-bottom:6px;}
+.rules ul{list-style:none; display:flex; flex-direction:column; gap:5px;}
+.rules li{display:flex; align-items:center; gap:8px; font-weight:800; font-size:14px; line-height:1.25; padding:4px 6px; border-radius:10px;}
+.rules li .ic{font-size:20px; flex:none; width:28px; text-align:center;}
+.rules li .n{color:var(--soft);}
+.rules li .f{display:none; color:var(--nav);}
+body.flipped .rules li .n{display:none;}
+body.flipped .rules li .f{display:inline;}
+.rules li .ck{margin-left:auto; flex:none;}
+.rules li.got{background:var(--good-bg);}
+
+.gateCard{display:flex; align-items:center; gap:12px; background:linear-gradient(180deg,#fffdf4,#fff3cf); border:2px solid var(--gold); border-radius:18px; padding:10px 14px;}
+.gateCard .gi{font-size:34px; flex:none;}
+.gateCard .gt{font-weight:700; font-size:16px;}
+.gateCard .gs{font-weight:800; font-size:12px; color:var(--soft); line-height:1.3;}
+
+/* ═════════ нижня картка (гра / ворота) ═════════ */
+.sheetOv{position:fixed; inset:0; z-index:70; background:rgba(44,43,58,.45); backdrop-filter:blur(3px); display:flex; align-items:flex-end; justify-content:center;}
+.sheetOv.hidden{display:none;}
+.sheet{width:min(520px,100%); max-height:88%; overflow-y:auto; background:var(--paper); border-radius:24px 24px 0 0; border:3px solid var(--line); border-bottom:none;
+  padding:16px 16px calc(18px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; gap:10px; animation:up .25s ease-out;}
+@keyframes up{from{transform:translateY(40px); opacity:0}}
+.sheet .sx{align-self:flex-end; width:38px; height:38px; border-radius:12px; border:2px solid var(--line); background:#fff; font-size:18px; cursor:pointer;}
+.sheet .sb{font-size:52px; text-align:center; line-height:1;}
+.sheet .st{font-weight:700; font-size:22px; text-align:center;}
+.sheet .sd{font-weight:700; font-size:14px; color:var(--soft); text-align:center; line-height:1.4;}
+.rulePair{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+.rulePair div{border-radius:14px; padding:8px 10px; font-weight:800; font-size:13px; line-height:1.3;}
+.rulePair .a{background:#fff; border:2px solid var(--line);}
+.rulePair .b{background:#f8f0ff; border:2px solid #d9c2fb; color:var(--nav);}
+.rulePair small{display:block; font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--soft); margin-bottom:2px;}
+.play{display:block; text-align:center; text-decoration:none; border-radius:16px; padding:14px; font-weight:700; font-size:19px; color:#fff; background:var(--green); box-shadow:0 6px 0 #37a052;}
+.play:active{transform:translateY(3px); box-shadow:0 3px 0 #37a052;}
+.q{font-weight:800; font-size:16px; text-align:center; line-height:1.4;}
+.dots{display:flex; gap:6px; justify-content:center;}
+.dots span{width:10px; height:10px; border-radius:50%; background:var(--line);}
+.dots span.on{background:var(--good);}
+.dots span.cur{background:var(--purple);}
+.opts{display:flex; flex-direction:column; gap:8px;}
+.opt{border:2px solid var(--line); background:#fff; border-radius:16px; padding:11px 12px; cursor:pointer; font-weight:600; font-size:16px; color:var(--ink); box-shadow:var(--shadow); text-align:left;}
+.opt:active{transform:translateY(3px); box-shadow:0 3px 0 rgba(44,43,58,.13);}
+.opt.bad{border-color:var(--bad); background:var(--bad-bg);}
+.opt.good{border-color:var(--good); background:var(--good-bg);}
+.fb{font-weight:800; font-size:14px; text-align:center; min-height:20px; line-height:1.35;}
+.fb.bad{color:var(--bad);} .fb.good{color:var(--good);}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <h1 id="title">Світ навиворіт<small id="subtitle">🗺️ Карта · усе працює нормально…</small></h1>
+    <div class="pill"><span class="lab">Пройдено</span><span class="val" id="doneCnt">0/5</span></div>
+  </div>
+
+  <div id="main">
+    <div id="intro">У цьому світі все працює <b>нормально</b>… поки не станеться <b>Переворот</b>. Тоді треба зрозуміти нове правило — і використати його!</div>
+
+    <div id="map">
+      <div id="world">
+        <div class="sky"></div>
+        <div class="land"></div>
+        <div class="river"></div>
+        <div class="bridge"></div>
+        <svg id="path" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <polyline points="50,90 24,82 76,68 50,52 24,39 74,29 44,14"/>
+          <polyline class="dash" points="50,90 24,82 76,68 50,52 24,39 74,29 44,14"/>
+        </svg>
+        <div id="things"></div>
+        <div id="pins"></div>
+      </div>
+    </div>
+
+    <button class="flipBtn" id="flipBtn" type="button">🔄 Переворот!</button>
+
+    <div class="gateCard" id="gateCard">
+      <span class="gi">🎟️</span>
+      <div><div class="gt" id="gateTitle">Ворота у Світ навиворіт</div>
+        <div class="gs" id="gateSub">Зроби Переворот і розгадай 6 нових правил біля воріт — отримаєш перепустку.</div></div>
+    </div>
+
+    <div class="rules">
+      <div class="rh" id="rulesHead">Правила світу · зараз усе нормально</div>
+      <ul id="rulesList"></ul>
+    </div>
+  </div>
+
+</div>
+
+<!-- поза #wrap: інакше fixed-обгортка ховає картку під футер -->
+<div class="sheetOv hidden" id="sheetOv"><div class="sheet" id="sheet"></div></div>
+
+<script src="../sk-footer.js?v=5" data-base="../" data-active="games" data-back="igry.html"></script>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ═════════ ігри на карті (у порядку стежки) ═════════ */
+  var GAMES = [
+    {href:"svit-navyvorit.html",        em:"🌳", nm:"Дивне дерево",          x:24, y:82, prize:"sk_navyvorit_prize_v1",
+      d:"Коріння в небі, крона в землі — як дістати яблуко?",
+      a:"Яблуко падає вниз — лови знизу.", b:"Яблуко падає вгору — кошик став зверху!"},
+    {href:"dyvnyi-mahazyn.html",        em:"🏪", nm:"Дивний магазин",        x:76, y:68, prize:"sk_mahazyn_prize_v1",
+      d:"Ціна — це не те, скільки ти платиш. А в коробці — ключ від будинку №17.",
+      a:"Магазин подвоює витрачене.", b:"Повертає половину… але зілля — баг 🐞"},
+    {href:"hodynnykova-vezha.html",     em:"🕰️", nm:"Годинникова вежа",      x:24, y:39, prize:"sk_hodynnyk_prize_v1",
+      d:"Усі годинники показують різний час. Знайди закономірність!",
+      a:"Час іде вперед.", b:"Час іде назад — віднімай."},
+    {href:"budynok-z-dveryma.html",     em:"🚪", nm:"Будинок із дверима",    x:74, y:29, prize:"sk_dveri_prize_v1",
+      d:"Четверо дверей, троє персонажів — і один із них бреше.",
+      a:"Правильні двері брешуть.", b:"Правильні двері кажуть правду."},
+    {href:"budynok-yakoho-nemaye.html", em:"🏚️", nm:"Будинок, якого немає",  x:44, y:14, prize:"sk_nemaye_prize_v1",
+      d:"На карті — будинок №17, а на місці його немає…",
+      a:"Щохвилини номер меншає.", b:"Час назад — номер росте."}
+  ];
+
+  /* ═════════ правила Світу навиворіт + завдання біля воріт ═════════ */
+  var RULES = [
+    {ic:"🌞", n:"День — це день, ніч — це ніч", f:"День став ніччю, а ніч — днем",
+      q:"День став ніччю, а ніч — днем. Коли тут світить сонце?",
+      o:[["Уночі 🌙",1],["Удень ☀️","Удень тут темно — день став ніччю!"],["Ніколи","Сонце нікуди не зникло — просто поміняло час."]]},
+    {ic:"⬆️", n:"Верх — це верх", f:"Верх став низом",
+      q:"Верх став низом. Як вилізти на вершину гори?",
+      o:[["Іти вниз ⬇️",1],["Іти вгору ⬆️","Вгору тепер — це вниз! Так ти прийдеш до підніжжя."],["Стояти на місці","Так на вершину не потрапити."]]},
+    {ic:"💰", n:"Щоб мати більше — накопичуй", f:"Витрачати вигідніше, ніж накопичувати",
+      q:"Витрачати вигідніше, ніж накопичувати. Як стати багатшим?",
+      o:[["Витратити монети 💸",1],["Сховати монети в скарбничку","Скарбничка тут не допоможе — вигідно саме витрачати (як у Дивному магазині)!"],["Нічого не робити","Так монет не побільшає."]]},
+    {ic:"🐟", n:"Риби плавають, птахи літають", f:"Риби літають, а птахи плавають",
+      q:"Риби літають, а птахи плавають. Де ловити рибу?",
+      o:[["У небі ☁️",1],["У річці 🌊","У річці тепер плавають птахи 🐦!"],["У лісі 🌲","Риби тут не ходять — вони літають."]]},
+    {ic:"🏠", n:"Двері ведуть усередину", f:"Двері ведуть не всередину, а назовні",
+      q:"Двері ведуть не всередину, а назовні. Ти на вулиці. Як потрапити в будинок?",
+      o:[["Залізти через вікно 🪟",1],["Зайти у двері 🚪","Двері ведуть назовні — ти знову опинишся на вулиці!"],["Постукати й чекати","Двері все одно виведуть надвір."]]},
+    {ic:"🧊", n:"Вогонь гріє, лід холодить", f:"Вогонь заморожує, а лід горить",
+      q:"Вогонь заморожує, а лід горить. Як зігрітися?",
+      o:[["Сісти біля льоду 🧊",1],["Сісти біля вогнища 🔥","Вогонь тепер заморожує — замерзнеш! 🥶"],["Стрибнути в річку","Брр! Так точно не зігрієшся."]]}
+  ];
+
+  /* декор карти: [емодзі, клас, x, y, x навиворіт, y навиворіт, розмір, значок навиворіт] */
+  var THINGS = [
+    ["☀️","sun",  84,  8, 84,  8, 30],
+    ["✨","star", 14, 22, 14, 22, 16], ["✨","star", 60,  6, 60,  6, 14], ["✨","star", 92, 30, 92, 30, 14],
+    ["☁️","",     60, 16, 60, 16, 30],
+    ["🐦","bird", 30,  8, 32, 52, 24], ["🐦","bird", 88, 20, 72, 53, 20],
+    ["🐟","fish", 30, 52, 30,  8, 24], ["🐟","fish", 70, 53, 88, 20, 22],
+    ["⛰️","",     90, 42, 90, 42, 38, "🚩"],
+    ["🌲","",      8, 66,  8, 66, 26], ["🌲","",     92, 82, 92, 82, 26], ["🌲","",  56, 80, 56, 80, 22],
+    ["🔥","fire", 86, 90, 86, 90, 26, "❄️"],
+    ["🧊","ice",  72, 90, 72, 90, 24, "🔥"],
+    ["🪙","",     90, 64, 90, 64, 18, "💸"]
+  ];
+
+  var $ = function(id){ return document.getElementById(id); };
+  var flipped = false, gate = load();
+
+  function load(){ try{ return JSON.parse(localStorage.getItem("sk_navyvorit_gate_v1")||"{}") || {}; }catch(e){ return {}; } }
+  function save(){ try{ localStorage.setItem("sk_navyvorit_gate_v1", JSON.stringify(gate)); }catch(e){} }
+
+  /* ═════════ малювання ═════════ */
+  function renderThings(){
+    var box = $("things"); box.innerHTML = "";
+    THINGS.forEach(function(t){
+      var d = document.createElement("div");
+      d.className = "thing" + (t[1] ? " "+t[1] : "");
+      d.style.fontSize = t[6]+"px";
+      d.dataset.x = t[2]; d.dataset.y = t[3]; d.dataset.fx = t[4]; d.dataset.fy = t[5];
+      d.innerHTML = '<span class="e">'+t[0]+'</span>' + (t[7] ? '<span class="badge">'+t[7]+'</span>' : "");
+      box.appendChild(d);
+    });
+    placeThings();
+  }
+  function placeThings(){
+    Array.prototype.forEach.call(document.querySelectorAll(".thing"), function(d){
+      d.style.left = (flipped ? d.dataset.fx : d.dataset.x) + "%";
+      d.style.top  = (flipped ? d.dataset.fy : d.dataset.y) + "%";
+      if(d.classList.contains("sun")) d.querySelector(".e").textContent = flipped ? "🌙" : "☀️";
+    });
+  }
+
+  function isDone(g){ try{ return !!(window.SKPRIZE && SKPRIZE.summary(g.prize)); }catch(e){ return false; } }
+
+  function renderPins(){
+    var box = $("pins"); box.innerHTML = "";
+    var done = 0, nextSet = false;
+    var gp = pinEl({em:"🎟️", nm:gate.pass ? "Перепустка ✓" : "Ворота", x:50, y:90}, "", "gate"+(gate.pass?" done":""));
+    gp.addEventListener("click", openGate);
+    box.appendChild(gp);
+    GAMES.forEach(function(g,i){
+      var dn = isDone(g); if(dn) done++;
+      var cls = dn ? "done" : (!nextSet ? (nextSet = true, "next") : "");
+      var p = pinEl(g, i+1, cls);
+      p.addEventListener("click", function(){ tap(); openGame(i); });
+      box.appendChild(p);
+    });
+    $("doneCnt").textContent = done + "/" + GAMES.length;
+  }
+  function pinEl(g, no, cls){
+    var b = document.createElement("button"); b.type = "button";
+    b.className = "pin" + (cls ? " "+cls : "");
+    b.style.left = g.x+"%"; b.style.top = g.y+"%";
+    b.innerHTML = '<span class="em">'+g.em+(no!==""?'<span class="no">'+no+'</span>':"")+'<span class="ok">✅</span></span><span class="lbl">'+g.nm+'</span>';
+    return b;
+  }
+
+  function renderRules(){
+    var ul = $("rulesList"); ul.innerHTML = "";
+    RULES.forEach(function(r,i){
+      var li = document.createElement("li");
+      if(gate.got && gate.got[i]) li.className = "got";
+      li.innerHTML = '<span class="ic">'+r.ic+'</span><span><span class="n">'+r.n+'</span><span class="f">🔄 '+r.f+'</span></span><span class="ck">'+(gate.got && gate.got[i] ? "✅" : "")+'</span>';
+      ul.appendChild(li);
+    });
+    $("rulesHead").textContent = flipped ? "Правила світу · 🔄 після перевороту" : "Правила світу · зараз усе нормально";
+  }
+  function renderGateCard(){
+    var n = gate.got ? Object.keys(gate.got).length : 0;
+    $("gateTitle").textContent = gate.pass ? "🎟️ Перепустку отримано!" : "Ворота у Світ навиворіт";
+    $("gateSub").textContent = gate.pass
+      ? "Ти знаєш усі 6 правил Світу навиворіт. Обирай гру на карті!"
+      : (flipped ? "Світ перевернувся! Торкнись воріт 🎟️ на карті й розгадай нові правила ("+n+"/6)."
+                 : "Зроби Переворот і розгадай 6 нових правил біля воріт — отримаєш перепустку.");
+  }
+
+  /* ═════════ 🔄 Переворот ═════════ */
+  function setFlip(on){
+    flipped = on;
+    document.body.classList.toggle("flipped", on);
+    $("flipBtn").textContent = on ? "🔄 Перевернути назад" : "🔄 Переворот!";
+    $("subtitle").textContent = on ? "🗺️ Карта · 🔄 усе навиворіт!" : "🗺️ Карта · усе працює нормально…";
+    placeThings(); renderRules(); renderGateCard();
+  }
+  $("flipBtn").addEventListener("click", function(){
+    whoosh();
+    setFlip(!flipped);
+    if(flipped && !gate.pass) setTimeout(function(){
+      $("gateCard").scrollIntoView({behavior:"smooth", block:"center"});
+    }, 1300);
+  });
+
+  /* ═════════ картки ═════════ */
+  function openSheet(html){
+    $("sheet").innerHTML = '<button class="sx" type="button" aria-label="Закрити">✕</button>' + html;
+    $("sheet").querySelector(".sx").addEventListener("click", closeSheet);
+    $("sheetOv").classList.remove("hidden");
+  }
+  function closeSheet(){ $("sheetOv").classList.add("hidden"); }
+  $("sheetOv").addEventListener("click", function(e){ if(e.target === $("sheetOv")) closeSheet(); });
+
+  function openGame(i){
+    var g = GAMES[i];
+    openSheet(
+      '<div class="sb">'+g.em+'</div><div class="st">'+(i+1)+'. '+g.nm+(isDone(g)?' ✅':'')+'</div>'+
+      '<div class="sd">'+g.d+'</div>'+
+      '<div class="rulePair"><div class="a"><small>Звичайно</small>'+g.a+'</div><div class="b"><small>🔄 Навиворіт</small>'+g.b+'</div></div>'+
+      '<a class="play" href="'+g.href+'">Грати ▶</a>');
+  }
+
+  /* ── ворота: 6 завдань на нові правила ── */
+  var gi = 0;
+  function openGate(){
+    tap();
+    if(!flipped){
+      openSheet('<div class="sb">🎟️</div><div class="st">Ворота у Світ навиворіт</div>'+
+        '<div class="sd">Поки що тут усе працює нормально: сонце світить удень, риби плавають, а вогонь гріє.<br><br>'+
+        'Натисни <b>🔄 Переворот</b> — і повертайся до воріт. Подивимось, чи зрозумієш ти нові правила!</div>');
+      return;
+    }
+    if(gate.pass){
+      openSheet('<div class="sb">🎟️</div><div class="st">Перепустку отримано!</div>'+
+        '<div class="sd">Ти розгадав(-ла) всі 6 правил Світу навиворіт. Тепер — у дорогу: ігри чекають на карті!</div>'+
+        '<button class="play" type="button" id="regate" style="border:none;cursor:pointer;background:var(--purple);box-shadow:0 6px 0 #8e3fb0">↻ Пройти ворота ще раз</button>');
+      $("regate").addEventListener("click", function(){ gate = {}; save(); renderAll(); gi = 0; askGate(); });
+      return;
+    }
+    gi = 0; askGate();
+  }
+  function askGate(){
+    gate.got = gate.got || {};
+    while(gi < RULES.length && gate.got[gi]) gi++;
+    if(gi >= RULES.length){ gatePassed(); return; }
+    var r = RULES[gi];
+    var dots = RULES.map(function(_,k){ return '<span class="'+(gate.got[k]?"on":(k===gi?"cur":""))+'"></span>'; }).join("");
+    openSheet('<div class="dots">'+dots+'</div><div class="sb">'+r.ic+'</div>'+
+      '<div class="q">'+r.q+'</div><div class="opts" id="gOpts"></div><div class="fb" id="gFb"></div>');
+    var box = $("gOpts");
+    shuffle(r.o.slice()).forEach(function(o){
+      var b = document.createElement("button"); b.type = "button"; b.className = "opt"; b.textContent = o[0];
+      b.addEventListener("click", function(){
+        if(b.disabled) return;
+        if(o[1] !== 1){ b.classList.add("bad"); b.disabled = true; thud(); $("gFb").className = "fb bad"; $("gFb").textContent = o[1]; return; }
+        b.classList.add("good"); chime();
+        Array.prototype.forEach.call(box.children, function(x){ x.disabled = true; });
+        $("gFb").className = "fb good"; $("gFb").textContent = "Так! "+r.f+" — і ти цим скористався(-лася)!";
+        gate.got[gi] = 1; save(); renderRules(); renderGateCard();
+        setTimeout(function(){ gi++; askGate(); }, 1300);
+      });
+      box.appendChild(b);
+    });
+  }
+  function gatePassed(){
+    gate.pass = 1; save(); fanfare(); renderAll();
+    openSheet('<div class="sb">🎟️✨</div><div class="st">Перепустку отримано!</div>'+
+      '<div class="sd">Ти зрозумів(-ла) всі нові правила й використав(-ла) їх. Так і грають у Світі навиворіт: '+
+      'спершу помічаєш, що змінилось, — а тоді дієш інакше.<br><br>Тепер обирай гру на карті — почни з 🌳 <b>Дивного дерева</b>!</div>'+
+      '<a class="play" href="'+GAMES[0].href+'">🌳 До першої гри ▶</a>');
+  }
+
+  /* ═════════ звук ═════════ */
+  var actx=null;
+  function tone(f,d,type){ try{
+    if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)();
+    var o=actx.createOscillator(), g=actx.createGain();
+    o.type=type||"triangle"; o.frequency.value=f; g.gain.value=0.06;
+    o.connect(g); g.connect(actx.destination); o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime+d); o.stop(actx.currentTime+d+0.02);
+  }catch(e){} }
+  function tap(){ tone(520,0.05); }
+  function chime(){ tone(660,0.09); setTimeout(function(){ tone(880,0.11); },90); }
+  function thud(){ tone(180,0.16,"sine"); }
+  function whoosh(){ tone(650,0.2,"sine"); setTimeout(function(){ tone(450,0.2,"sine"); },180); setTimeout(function(){ tone(300,0.25,"sine"); },360); }
+  function fanfare(){ tone(523,0.12); setTimeout(function(){ tone(659,0.12); },120);
+    setTimeout(function(){ tone(784,0.14); },240); setTimeout(function(){ tone(1046,0.18); },380); }
+  function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var x=a[i]; a[i]=a[j]; a[j]=x; } return a; }
+
+  function renderAll(){ renderPins(); renderRules(); renderGateCard(); }
+  $("gateCard").addEventListener("click", openGate);
+
+  renderThings(); renderAll();
+  window.addEventListener("load", renderPins);   // sk-prize.js підключено нижче — тоді й видно ✅ пройдених ігор
+})();
+</script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=8"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=4"></script>
+<script src="../sk-prize.js?v=1"></script>
+<script src="../sk-finish.js?v=6"></script>
+</body>
+</html>

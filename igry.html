@@ -74,6 +74,30 @@
   a.game-card:hover{transform:translateY(-4px);border-color:var(--gold);box-shadow:0 16px 34px rgba(0,0,0,.46)}
   a.game-card:active{transform:translateY(-1px)}
 
+  /* ── банер «Світ навиворіт» (карта серії логічних ігор navyvorit/) ── */
+  .nav-feat{position:relative;display:flex;align-items:center;gap:14px;margin:4px 0 18px;padding:16px 18px;
+    border-radius:20px;text-decoration:none;color:#fff;overflow:hidden;
+    background:linear-gradient(135deg,#6a3fb5 0%,#9b4fd6 55%,#c06be8 100%);
+    border:2px solid #e3c3ff;box-shadow:0 12px 30px rgba(0,0,0,.4);transition:transform .15s,box-shadow .15s}
+  .nav-feat:hover{transform:translateY(-3px);box-shadow:0 16px 34px rgba(0,0,0,.48)}
+  .nav-feat .nf-ic{flex:none;width:64px;height:64px;border-radius:18px;display:grid;place-items:center;font-size:2.2rem;
+    background:rgba(255,255,255,.16);border:2px solid rgba(255,255,255,.35);animation:nfFlip 4s ease-in-out infinite}
+  @keyframes nfFlip{0%,70%{transform:rotateX(0)}85%,100%{transform:rotateX(360deg)}}
+  .nav-feat .nf-tt{flex:1 1 auto;min-width:0}
+  .nav-feat .nf-new{display:inline-block;font-size:.66rem;font-weight:900;letter-spacing:.08em;text-transform:uppercase;
+    background:#ffd43b;color:#5a3d05;border-radius:999px;padding:2px 8px;margin-bottom:4px}
+  .nav-feat .nf-name{display:block;font-family:'Playfair Display',serif;font-weight:900;font-size:1.25rem;line-height:1.15}
+  .nav-feat .nf-desc{display:block;font-size:.8rem;color:#f1e6ff;font-weight:700;line-height:1.35;margin-top:3px}
+  .nav-feat .nf-games{display:block;font-size:1.05rem;margin-top:6px;letter-spacing:2px}
+  .nav-feat .play{flex:none;display:inline-flex;align-items:center;background:linear-gradient(180deg,#FFE7A0,#E0A93A);color:#5a3d08;
+    border:2px solid var(--gold-d);border-radius:999px;padding:9px 16px;font-weight:900;font-size:.85rem;white-space:nowrap}
+  @media(max-width:520px){
+    .nav-feat{flex-wrap:wrap}
+    .nav-feat .nf-ic{width:54px;height:54px;font-size:1.9rem}
+    .nav-feat .play{width:100%;justify-content:center}
+  }
+  @media(prefers-reduced-motion:reduce){ .nav-feat .nf-ic{animation:none} }
+
   .empty-note{color:#cdd8ef;font-weight:600;text-align:center;padding:30px 10px;
     background:rgba(255,255,255,.05);border:1px dashed rgba(242,199,92,.4);border-radius:16px}
 
@@ -94,6 +118,17 @@
   </div>
 
   <main class="wrap">
+    <!-- Світ навиворіт: окрема карта з логічними іграми (navyvorit/). Банер не залежить від списку в базі. -->
+    <a class="nav-feat" href="navyvorit/index.html">
+      <span class="nf-ic">🔄</span>
+      <span class="nf-tt">
+        <span class="nf-new">Нове</span>
+        <span class="nf-name">Світ навиворіт</span>
+        <span class="nf-desc">Усе працює нормально… поки не станеться Переворот! Збагни нове правило — і використай його.</span>
+        <span class="nf-games">🌳 🏪 🕰️ 🚪 🏚️</span>
+      </span>
+      <span class="play">🗺️ На карту ▶</span>
+    </a>
     <div class="gtoolbar" id="gtoolbar" hidden>
       <div class="chips-row" id="gchips"></div>
       <div class="gexpand">
@@ -255,11 +290,14 @@ function lsGames(){
   try{ var d = JSON.parse(localStorage.getItem(GAMES_LS) || 'null'); return Array.isArray(d) && d.length ? d : null; }
   catch(e){ return null; }
 }
+/* Світ навиворіт — карта й ігри серії теж мають працювати без інтернету */
+var NAV_PAGES = ['navyvorit/index.html','navyvorit/svit-navyvorit.html','navyvorit/dyvnyi-mahazyn.html',
+  'navyvorit/hodynnykova-vezha.html','navyvorit/budynok-z-dveryma.html','navyvorit/budynok-yakoho-nemaye.html'];
 function warmOffline(list){
   try{
     if(!navigator.serviceWorker || !navigator.serviceWorker.controller) return;
     navigator.serviceWorker.controller.postMessage({ type:'sk-warm',
-      pages: list.map(function(g){ return g && g.href; }).filter(Boolean) });
+      pages: list.map(function(g){ return g && g.href; }).filter(Boolean).concat(NAV_PAGES) });
   }catch(e){}
 }
 if('serviceWorker' in navigator){
