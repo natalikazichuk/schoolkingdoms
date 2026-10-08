@@ -272,6 +272,28 @@ button{font-family:inherit}
 .sh-btns .go:disabled{opacity:.45;cursor:not-allowed}
 .sh-btns .cl{background:rgba(255,255,255,.12);color:#eaf2ff}
 .sh-hint{font-size:.7rem;color:#a9c1e4;font-weight:700;margin-top:8px;line-height:1.35}
+.sh-lbl.sell,.sh-lbl.buy{display:inline-flex;align-items:center;gap:5px;font-size:.8rem;padding:3px 11px;border-radius:999px;margin:8px 0 6px}
+.sh-lbl.sell{background:rgba(70,194,111,.22);border:1.5px solid #46c26f;color:#bff5cf}
+.sh-lbl.buy{background:rgba(255,140,90,.2);border:1.5px solid #ff9a6a;color:#ffd2bd}
+.sh-item .act{font-size:.54rem;font-weight:900;text-transform:uppercase;letter-spacing:.3px;border-radius:6px;padding:0 5px;margin-top:auto}
+.sh-item .act.sell{background:rgba(70,194,111,.22);color:#9ff0b4}
+.sh-item .act.buy{background:rgba(255,140,90,.2);color:#ffc2a6}
+.sh-item .act+.pr{margin-top:0}
+.sh-item .pr small{font-size:.85em;opacity:.8}
+.sh-item .sh-on{position:absolute;top:4px;left:5px;background:#3a2430;border:1px solid #e05a4a;color:#ffd2bd;border-radius:9px;padding:0 6px;font-size:.62rem;font-weight:900;line-height:16px}
+.sh-sum .bag{color:#a9c1e4}
+.sh-how{display:flex;flex-direction:column;gap:5px;margin-top:10px}
+.sh-how span{font-size:.72rem;font-weight:800;border-radius:10px;padding:6px 9px;line-height:1.25}
+.sh-how .s{background:rgba(70,194,111,.14);border:1px dashed rgba(70,194,111,.6);color:#bff5cf}
+.sh-how .b{background:rgba(255,140,90,.12);border:1px dashed rgba(255,154,106,.6);color:#ffd2bd}
+.sh-note2{font-size:.7rem;color:#a9c1e4;font-weight:800;margin:0 0 8px;line-height:1.3}
+/* вікно підтвердження угоди — у стилі магазину */
+.sh-ask{position:fixed;inset:0;z-index:240;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(6,12,26,.72)}
+.sh-ask-card{width:100%;max-width:380px;background:linear-gradient(180deg,#3a2430,#22161f);border:3px solid var(--gold);border-radius:20px;padding:16px;color:#eaf2ff;
+  box-shadow:0 18px 50px rgba(0,0,0,.55)}
+.sh-ask-t{display:block;font-family:'Fredoka';font-weight:700;font-size:1.2rem;color:#ffe9b8;margin-bottom:10px}
+.sh-ask-b{display:flex;flex-direction:column;gap:6px;font-weight:800;font-size:.9rem}
+.sh-ask-tot{margin-top:6px;padding-top:8px;border-top:1px dashed rgba(255,255,255,.25);color:#ffe9b8}
 /* телефон: зверху товари, посередині прилавок, знизу сумка */
 @media(max-width:860px){
   .shop{padding:6px;align-items:stretch}
@@ -304,6 +326,9 @@ button{font-family:inherit}
   font-size:clamp(1rem,1.7vw,1.35rem);color:#ffe7a0;text-shadow:0 2px 0 #6b4510,0 0 8px rgba(255,210,90,.45);letter-spacing:.02em}
 .tv-sign.tv-sign-shop span{top:62%;bottom:15%}
 .tv-sign:not(.tv-sign-img) img{display:none}
+.tv-sign[role=button]{cursor:pointer;transition:transform .12s,filter .12s}   /* вивіска — теж кнопка: відкриває магазин / інвентар */
+.tv-sign[role=button]:hover{transform:translateY(-2px);filter:brightness(1.12)}
+.tv-sign[role=button]:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .tv-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .tv-tile{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;
   background:linear-gradient(180deg,rgba(255,255,255,.1),rgba(0,0,0,.18));border:2px solid rgba(224,164,42,.55);border-radius:14px;
@@ -325,6 +350,12 @@ button{font-family:inherit}
   .tv-layout{display:grid;grid-template-columns:260px minmax(0,480px) 240px;justify-content:space-between;align-items:start;gap:16px;
     width:min(1220px,calc(100vw - 32px));position:relative;left:50%;transform:translateX(-50%)}
   .tv-side{position:sticky;top:12px;margin-top:4px}
+}
+/* 1000–1299px: бічні панелі ширші за колонку із заголовком, а вивіска-картинка піднята (−34px) —
+   опускаємо таверну, щоб вивіски «Магазин» / «Інвентар» не налазили на «Турнірна арена» */
+@media(min-width:1000px) and (max-width:1299px){
+  .tv-layout{margin-top:40px}
+  .tv-side{top:46px}
 }
 @media(max-width:999px){
   .tv-layout{display:flex;flex-wrap:wrap;gap:8px}
@@ -776,7 +807,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 .result .xpwon{font-family:'Fredoka';font-weight:700;color:var(--ok);font-size:1.2rem;margin:6px 0}
 
 /* toast рівня */
-.toast{position:fixed;left:50%;top:16px;transform:translateX(-50%) translateY(-120%);z-index:90;
+.toast{position:fixed;left:50%;top:16px;transform:translateX(-50%) translateY(-120%);z-index:250;   /* над інвентарем, магазином і карткою речі — інакше «Сумка повна» й помилки угоди не видно */
   background:linear-gradient(180deg,#ffe7a0,#e0a93a);color:#0c2247;font-family:'Fredoka';font-weight:700;
   padding:12px 20px;border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,.5);transition:transform .4s;text-align:center}
 .toast.show{transform:translateX(-50%) translateY(0)}
@@ -933,7 +964,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 .ek-stat.mdmg{--acc:#c06be6}.ek-stat.mdmg .ek-sv{color:#e2b0ff}
 .ek-stat.mres{--acc:#9d7bf0}.ek-stat.mres .ek-sv{color:#c3b0ff}
 .ek-stat.agi{--acc:#F2C75C}.ek-stat.agi .ek-sv{color:#F2C75C}
-.ek-slots{display:grid;grid-template-columns:repeat(2,var(--ek-cell));column-gap:var(--ek-gap);row-gap:var(--ek-gap);align-content:space-between;justify-content:center}
+.ek-slots{display:grid;grid-template-columns:repeat(2,var(--ek-cell));column-gap:var(--ek-gap);row-gap:var(--ek-gap);align-content:start;justify-content:center}   /* слоти щільно згори — без «дір», коли сумка чи картка героя високі */
 .ek-slot,.ek-cell{width:var(--ek-cell);height:var(--ek-cell);border-radius:14px;position:relative;display:flex;align-items:center;justify-content:center;user-select:none}
 .ek-slot{background:radial-gradient(120% 120% at 50% 20%,#24406e,#16294c);border:2px solid rgba(224,164,42,.45);box-shadow:inset 0 2px 10px rgba(0,0,0,.45)}
 .ek-gh{font-size:1.5rem;opacity:.28}
@@ -1073,7 +1104,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
    <div class="tv-layout">
     <!-- ЗЛІВА: магазин (розділи = вкладки магазину; картинки — img/arena/shop-*.webp) -->
     <aside class="tv-side tv-shop" aria-label="Магазин">
-      <div class="tv-sign tv-sign-img tv-sign-shop"><img src="img/arena/shop-sign.webp" alt="" onerror="this.parentNode.classList.remove('tv-sign-img')"><span>Магазин</span></div>
+      <div class="tv-sign tv-sign-img tv-sign-shop" data-shop="gear" role="button" tabindex="0" title="Відкрити магазин"><img src="img/arena/shop-sign.webp" alt="" onerror="this.parentNode.classList.remove('tv-sign-img')"><span>Магазин</span></div>
       <div class="tv-grid">
         <button type="button" class="tv-tile soon" data-shop="crystals"><span class="tv-ic"><img src="img/arena/shop-crystals.webp" alt="" onerror="this.replaceWith(document.createTextNode('💎'))"></span><span class="tv-nm">Кристали</span><span class="tv-cnt">скоро</span></button>
         <button type="button" class="tv-tile" data-shop="gear"><span class="tv-ic"><img src="img/arena/shop-gear.webp" alt="" onerror="this.replaceWith(document.createTextNode('🛡️'))"></span><span class="tv-nm">Екіпіровка</span><span class="tv-cnt">щодня нове</span></button>
@@ -1157,7 +1188,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 
     <!-- СПРАВА: інвентар (плитки розділів; картинки — img/arena/inv-*.webp, без них — емодзі) -->
     <aside class="tv-side tv-inv" aria-label="Інвентар">
-      <div class="tv-sign tv-sign-img"><img src="img/arena/inv-sign.webp" alt="" onerror="this.parentNode.classList.remove('tv-sign-img')"><span>Інвентар</span></div>
+      <div class="tv-sign tv-sign-img" data-inv="bag" role="button" tabindex="0" title="Відкрити інвентар"><img src="img/arena/inv-sign.webp" alt="" onerror="this.parentNode.classList.remove('tv-sign-img')"><span>Інвентар</span></div>
       <div class="tv-grid">
         <button type="button" class="tv-tile" data-inv="bag"><span class="tv-ic"><img src="img/arena/inv-bag.webp" alt="" onerror="this.replaceWith(document.createTextNode('🎒'))"></span><span class="tv-nm">Сумка</span><span class="tv-cnt" id="tvBag"></span></button>
         <button type="button" class="tv-tile" data-inv="gear"><span class="tv-ic"><img src="img/arena/inv-gear.webp" alt="" onerror="this.replaceWith(document.createTextNode('🛡️'))"></span><span class="tv-nm">Спорядження</span><span class="tv-cnt" id="tvGear"></span></button>
@@ -1321,13 +1352,13 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <div class="shop" id="shop" hidden role="dialog" aria-modal="true" aria-label="Магазин">
   <div class="shop-card">
     <div class="shop-h"><b>🛒 Магазин</b><span class="sh-coins" id="shCoins">—</span>
-      <span class="sh-note">Товари оновлюються щодня опівночі (Київ) · речі — по 1 шт., зілля й свитки — кілька</span>
+      <span class="sh-note">Товари оновлюються щодня опівночі (Київ) · речі — по 1 шт., зілля й свитки — кілька · викуп — останні 20 проданих</span>
       <button class="ward-x" id="shopX" aria-label="Вийти з магазину">✕</button></div>
     <div class="shop-body">
       <section class="sh-col store"><h3>🏪 Товари</h3><div class="sh-tabs" id="shTabs"></div><div id="shStore"></div></section>
       <section class="sh-col counter"><h3>🧾 Прилавок</h3><div id="shCounter"></div></section>
       <section class="sh-col inv"><h3>🎒 Сумка <small id="shBagCnt"></small></h3><div id="shInv"></div>
-        <div class="sh-hint">Натисни річ — вона одразу на прилавку для продажу; права кнопка (на телефоні — довге натискання) — роздивитись. Продаємо лише речі із сумки — вдягнене спершу зніми.</div></section>
+        <div class="sh-hint">Натисни річ — вона одразу на прилавку для продажу (стопку зілль — по одній штуці за натискання); права кнопка (на телефоні — довге натискання) — роздивитись, продати всю стопку або 🗑 викинути. Продаємо лише речі із сумки — вдягнене спершу зніми.</div></section>
     </div>
   </div>
 </div>
@@ -1359,7 +1390,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
         </section>
         <section class="ek-slots" id="ek-slots"></section>
         <section class="ek-inv">
-          <div class="ek-inv-h"><b>Речі <small class="ek-bagc" id="ek-bagCount"></small></b><span class="ek-coins"><span id="ek-coins">540</span></span></div>
+          <div class="ek-inv-h"><b>🎒 Сумка <small class="ek-bagc" id="ek-bagCount"></small></b><span class="ek-coins"><span id="ek-coins">540</span></span></div>
           <div class="ek-tabs" id="ek-tabs"></div>
           <div class="ek-grid" id="ek-invGrid"></div>
         </section>
@@ -1568,7 +1599,9 @@ window.SKHERO = (function(){
     if(RULES.fitsHand && (RULES.HAND_SLOTS||[]).indexOf(slot)>=0) return RULES.fitsHand(base, slot);   // руки: правила з sk-arena-rules.js
     var d=slotDef(slot); return !!(d && base && d[3].indexOf(base.category)>=0); }
   function itemIcon(id, fallback){
-    return '<img src="img/items/'+encodeURIComponent(id)+'.webp" alt="" onerror="this.replaceWith(document.createTextNode(\''+fallback+'\'))">';
+    var src='img/items/'+encodeURIComponent(id)+'.webp';
+    if(window.SKIT&&SKIT.imgMissing&&SKIT.imgMissing(src)) return fallback;   // немає на сервері — не просимо вдруге
+    return '<img src="'+src+'" alt="" onerror="window.SKIT&&SKIT.imgMissed&&SKIT.imgMissed(this.getAttribute(\'src\'));this.replaceWith(document.createTextNode(\''+fallback+'\'))">';
   }
   function swapsLeft(){ return (live() && !UI.resolving && B.swapRound !== B.round) ? 1 : 0; }
   function activeIn(slot){ return SB.activeIn(B, slot); }
@@ -3032,6 +3065,10 @@ window.SKHERO = (function(){
     document.querySelectorAll('.tv-side [data-shop]').forEach(function(b){
       b.addEventListener('click', function(){ if(window.SKSHOP) SKSHOP.open(b.getAttribute('data-shop')); });
     });
+    // вивіски-кнопки: Enter / пробіл — як клік
+    document.querySelectorAll('.tv-sign[role=button]').forEach(function(b){
+      b.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); b.click(); } });
+    });
     $('fleeBtn').addEventListener('click', function(){
       // вихід під час активного бою = здача → гравцю зараховується програш.
       // Питаємо, бо кнопка стоїть одразу під «Атака»: випадковий дотик не
@@ -3251,7 +3288,7 @@ window.SKHERO = (function(){
 })();
 </script>
 
-<script src="sk-items.js?v=6"></script>
+<script src="sk-items.js?v=7"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
    Дані ЗАРАЗ demo (локально). Крок 2: джерело речей → Firestore (адмінка).
@@ -3335,7 +3372,8 @@ function isImg(ic){return typeof ic==='string'&&/\.(webp|png|jpe?g|svg|gif)$/i.t
 /* спільна плитка речі (SKIT.tile): іконка, колір бонусу, міцність, ×N — як у магазині */
 function chip(e,attrs){var t=(window.SKIT&&SKIT.tile)?SKIT.tile(BYID[e.id],e._inst||e):{cls:'',html:iconHTML(e.icon)};
  return '<span class="ek-chip '+t.cls+'"'+(attrs||'')+'>'+t.html+'</span>';}
-function iconHTML(ic){if(isImg(ic))return '<img class="ek-img" src="'+ic+'" alt="" onerror="this.onerror=null;this.style.display=\'none\'">';return ic;}
+function iconHTML(ic){if(isImg(ic)){if(window.SKIT&&SKIT.imgMissing&&SKIT.imgMissing(ic))return '';
+  return '<img class="ek-img" src="'+ic+'" alt="" onerror="this.onerror=null;window.SKIT&&SKIT.imgMissed&&SKIT.imgMissed(this.getAttribute(\'src\'));this.style.display=\'none\'">';}return ic;}
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function totals(){var baseHero={health:HERO.health||0,mana:HERO.mana||0,agility:HERO.agility||0,accuracy:HERO.accuracy||0};
  var bases=[],insts=[];for(var s in EQUIP){var e=EQUIP[s];if(e&&e._inst&&BYID[e.id]){bases.push(BYID[e.id]);insts.push(e._inst);}}
@@ -3389,7 +3427,7 @@ function itemCard(x,acts){hideTip();
  var base=BYID[x.id],eff=(base&&window.SKIT&&SKIT.effective)?SKIT.effective(base,x._inst||{bonus:1}):null;
  var bc=bonusClass(x.bonus!=null?x.bonus:1);
  var emo=(base&&window.SKIT&&SKIT.CAT_EMO&&SKIT.CAT_EMO[base.category])||'🎒';   // як на плитці речі
- var img=isImg(x.icon)?'<img src="'+x.icon+'" alt="" onerror="this.onerror=null;this.outerHTML=\'<span class=ic-emo>'+emo+'</span>\'">':'<span class="ic-emo">'+(x.icon||emo)+'</span>';
+ var img=(isImg(x.icon)&&!(SKIT.imgMissing&&SKIT.imgMissing(x.icon)))?'<img src="'+x.icon+'" alt="" onerror="this.onerror=null;window.SKIT&&SKIT.imgMissed&&SKIT.imgMissed(this.getAttribute(\'src\'));this.outerHTML=\'<span class=ic-emo>'+emo+'</span>\'">':'<span class="ic-emo">'+(isImg(x.icon)?emo:(x.icon||emo))+'</span>';
  var meta=[];if(base&&base.category)meta.push(base.category);if(base&&base.grade)meta.push(base.grade+' клас');if(x.qty>1)meta.push('×'+x.qty);
  var body=tipHTML(x).replace(/^<div class="tp-name [^"]*">.*?<\/div>/,'');   // характеристики — ті самі, що в підказці
  var dur='';if(eff&&eff.durMax){var r=Math.max(0,Math.min(1,eff.durCur/eff.durMax));dur='<div class="ic-dur"><i style="width:'+Math.round(r*100)+'%"></i></div>';}
@@ -3499,9 +3537,15 @@ function tvCounts(){var set=function(id,t){var el=document.getElementById(id);if
  set('tvBag',bagN+'/'+lim);set('tvGear','вдягнено '+worn);
  set('tvChest',(STORE.chest||[]).length?(STORE.chest.length+' — забери!'):'порожня');
  set('tvTrash',(STORE.trash||[]).length?(STORE.trash.length+' до півночі'):'порожній');}
-function storeAct(fn){if(!(window.SK&&SK[fn]))return;if(inBattle())return;var args=[].slice.call(arguments,1);
- return SK[fn].apply(SK,args).then(function(r){if(window.SKHERO)SKHERO.apply(r);})
-  .catch(function(e){var m=(e&&e.message)||String(e);if(window.showToast)showToast('Не вийшло',m);else alert(m);});}
+/* дія зі скринею / смітником: одна за раз (подвійний клік не шле другий запит);
+   невдача — показуємо причину й перечитуємо стан, щоб річ не «висіла» в двох місцях */
+var STORE_BUSY=false;
+function storeAct(fn){if(!(window.SK&&SK[fn]))return;if(inBattle()||STORE_BUSY)return;var args=[].slice.call(arguments,1);
+ if(navigator.onLine===false){if(window.showToast)showToast('Немає інтернету','Перевір звʼязок і спробуй ще раз');return;}
+ STORE_BUSY=true;
+ return SK[fn].apply(SK,args).then(function(r){STORE_BUSY=false;if(window.SKHERO)SKHERO.apply(r);})
+  .catch(function(e){STORE_BUSY=false;var m=(e&&e.message)||String(e);if(!/[а-яіїєґ]/i.test(m))m='Немає звʼязку або щось пішло не так — спробуй ще раз';
+   if(window.showToast)showToast('Не вийшло',m);else alert(m);if(window.SKHERO)SKHERO.load(true).catch(function(){});});}
 document.addEventListener('click',function(e){var b=e.target.closest?e.target.closest('[data-sact]'):null;if(!b)return;
  var u=b.getAttribute('data-suid'),a=b.getAttribute('data-sact');
  if(a==='claim')storeAct('claimChest',u);else if(a==='restore')storeAct('restoreTrash',u);});
@@ -3518,9 +3562,26 @@ function equipFromInv(u,slotId){if(inBattle())return;var inst=findInst(u);if(!in
  // руки: дворучна знімає річ з лівої руки; щит знімає дворучну
  var also=null;if(slotId==='weaponR'&&twoHanded(e))also=EQUIP.weaponL;else if(slotId==='weaponL'&&twoHanded(EQUIP.weaponR))also=EQUIP.weaponR;
  if(also&&cur&&ST()&&ST().bagCount(ALL_INST)+1>ST().BAG_LIMIT){bagFullMsg();return;}
+ // новий пояс з меншою кількістю комірок — зайві зілля з пояса в сумку (якщо є місце)
+ if(slotId==='belt'){var bout=beltOut(beltCap(inst));if(bout.length){if(!beltFits(bout,cur?0:-1)){beltFullMsg(bout.length);return;}beltEmpty(bout);}}
  if(cur&&cur._inst)cur._inst.slot=null;if(also&&also._inst)also._inst.slot=null;inst.slot=slotId;rebuild();renderAll();persist();
  if(also)handMsg(slotId==='weaponR'?'Займає обидві руки — «'+also.name+'» знято в сумку':'«'+also.name+'» займає обидві руки — знято в сумку');}
-function unequip(slotId){if(inBattle())return;var e=EQUIP[slotId];if(!e||!e._inst)return;if(bagFull()){bagFullMsg();return;}e._inst.slot=null;rebuild();renderAll();persist();}
+/* Пояс: знімаємо (або міняємо на пояс з меншою кількістю комірок) — зілля з комірок, що зникають,
+   повертаються в сумку (у наявні стопки, якщо можна). Місця не вистачає — нічого не робимо. */
+function beltCap(inst){var b=inst&&BYID[inst.id];if(!b||!window.SKIT)return 0;var n=0;
+ (SKIT.effective(b,inst).addStats||[]).forEach(function(a){if(!a.flag&&SKIT.canon(a.stat)==='beltSlots')n+=(Number(a.value)||0);});return Math.max(0,Math.floor(n));}
+function beltOut(cap){return BELT.filter(function(e,i){return e&&e._inst&&i>=cap;}).map(function(e){return e._inst;});}
+function beltFits(out,extra){if(!ST())return true;var cells=extra||0,seen=[];
+ out.forEach(function(inst){var stack=ALL_INST.some(function(x){return !x.slot&&ST().sameStack(x,inst);})||seen.some(function(y){return ST().sameStack(y,inst);});if(!stack)cells++;seen.push(inst);});
+ return ST().bagCount(ALL_INST)+cells<=ST().BAG_LIMIT;}
+function beltFullMsg(n){var m='На поясі є зілля ('+n+') — для них немає місця в сумці. Звільни місце (продай або викинь зайве) і спробуй ще раз';if(window.showToast)showToast('Сумка повна',m);else alert('Сумка повна. '+m);}
+// місце вже перевірено (beltFits) — кладемо в стопку або окремо, без повторної перевірки
+function beltEmpty(out){out.forEach(function(inst){
+ for(var i=0;i<ALL_INST.length;i++){var x=ALL_INST[i];if(x!==inst&&!x.slot&&ST()&&ST().sameStack(x,inst)){x.qty=(Number(x.qty)||1)+(Number(inst.qty)||1);ALL_INST.splice(ALL_INST.indexOf(inst),1);return;}}
+ inst.slot=null;});}
+function unequip(slotId){if(inBattle())return;var e=EQUIP[slotId];if(!e||!e._inst)return;
+ if(slotId==='belt'){var out=beltOut(0);if(out.length){if(!beltFits(out,1)){beltFullMsg(out.length);return;}beltEmpty(out);}}
+ if(bagFull()){bagFullMsg();return;}e._inst.slot=null;rebuild();renderAll();persist();}
 function moveSlot(a,b){if(inBattle())return;if(a===b)return;var ea=EQUIP[a];if(!ea)return;if(!compat(ea.cat,b))return;var eb=EQUIP[b];if(ea._inst)ea._inst.slot=b;if(eb&&eb._inst)eb._inst.slot=a;rebuild();renderAll();persist();}
 
 var ghost=null;function mkGhost(){if(ghost)return;ghost=document.createElement('div');ghost.id='ek-ghost';ghost.hidden=true;document.body.appendChild(ghost);}
@@ -3602,7 +3663,10 @@ if(document.readyState!=='loading')init();else document.addEventListener('DOMCon
    Нічого не змінюється, доки не натиснути «Укласти угоду»: тоді одна транзакція
    SK.shopDeal (sk-items.js → SKIT.store.deal) пише і монети, і речі разом.
    • Купівля — без бонусу (1.0), повна міцність, кожна річ окремо; однакові зілля — стопкою.
-   • Продаж — 1/10 ціни (з бонусом) × міцність, не менше 1 сріб.
+   • Продаж — 1/10 ціни (з бонусом) × міцність, не менше 1 сріб. Стопку зілль кладемо на прилавок
+     по одній штуці (S.ct.sell = [{uid, n}]) — у SK.shopDeal іде {uid, qty}, решта стопки лишається.
+   • Однакові позиції на прилавку — одним рядком «×N»; натискання рядка забирає одну штуку.
+   • Викуп — останні SKIT.store.SHOP_SOLD_LIMIT (20) проданих; права кнопка на речі в сумці — ще й «🗑 Викинути».
    • Асортимент — SKIT.store.shopStock: 20 речей + 5 зілль/сувоїв (завжди є зілля здоров'я і мани),
      у наявності: речі — по 1 шт., зілля здоров'я й мани — 3–10, свитки — 1–5 (stock.qty),
      випадково з дозволених, той самий протягом доби за Києвом.
@@ -3620,7 +3684,9 @@ function coins(v){return SKIT.coinsText(v);}        // текст (підтве�
 function coinsH(v){return SKIT.coinsHtml(v);}       // на екрані: золоті золотим, срібні сріблом
 function ST(){return window.SKIT&&SKIT.store;}
 function toast(a,b){if(window.showToast)showToast(a,b);else alert(a+(b?'\n'+b:''));}
-function icon(base){var em=CAT_EMO[base&&base.category]||'🎒';return '<img src="img/items/'+encodeURIComponent(base?base.id:'')+'.webp" alt="" onerror="this.replaceWith(document.createTextNode(\''+em+'\'))">';}
+function icon(base){var em=CAT_EMO[base&&base.category]||'🎒',src='img/items/'+encodeURIComponent(base?base.id:'')+'.webp';
+  if(SKIT.imgMissing&&SKIT.imgMissing(src))return em;   // картинки немає на сервері — одразу емодзі, без нового 404
+  return '<img src="'+src+'" alt="" onerror="window.SKIT&&SKIT.imgMissed&&SKIT.imgMissed(this.getAttribute(\'src\'));this.replaceWith(document.createTextNode(\''+em+'\'))">';}
 function statLine(base,inst){
   if(!base||!window.SKIT)return '';
   var e=SKIT.effective(base,inst||{bonus:1}),p=[];
@@ -3667,47 +3733,70 @@ function bagItems(){if(!S.st)return [];var R=window.SKARENA||{};
   return ST().bagView(S.st,S.byId,{dualWield:!!(R.BATTLE&&R.BATTLE.dualWield),isTwoHanded:R.isTwoHanded}).bag;}
 // стан змінився деінде (гардероб, скриня, інша вкладка) — відкритий магазин підхоплює
 if(window.SKHERO)SKHERO.on(function(st){if(q('shop')&&!q('shop').hidden&&!S.busy&&S.cat.length){S.st=st;render();}});
-function onCounter(kind,key){return S.ct[kind].indexOf(key)>=0;}
+/* сумка поточного стану — рахуємо раз на перемальовку (bagView недешевий) */
+function bag(){return S._bag||(S._bag=bagItems());}
+function bagItem(u){var b=bag();for(var k=0;k<b.length;k++)if(b[k].uid===u)return b[k];return null;}
+function qtyOf(i){return Math.max(1,Number(i&&i.qty)||1);}
+function unitPrice(i){return ST().sellPrice(S.byId[i.id],i);}
+/* продаж: S.ct.sell = [{uid, n}] — n штук цієї речі (стопку зілль кладемо по одній) */
+function sellEntry(u){for(var k=0;k<S.ct.sell.length;k++)if(S.ct.sell[k].uid===u)return S.ct.sell[k];return null;}
+function sellN(u){var e=sellEntry(u);return e?e.n:0;}
+function sellLive(){return S.ct.sell.filter(function(e){var i=bagItem(e.uid);if(!i)return false;e.n=Math.min(e.n,qtyOf(i));return e.n>0;});}
+function sellAdd(u){var i=bagItem(u);if(!i)return;var e=sellEntry(u);if(!e)S.ct.sell.push({uid:u,n:1});else if(e.n<qtyOf(i))e.n++;}
+function sellBackOne(u){var e=sellEntry(u);if(!e)return;e.n--;if(e.n<=0)sellBackAll(u);}
+function sellBackAll(u){S.ct.sell=S.ct.sell.filter(function(x){return x.uid!==u;});}
+function onCounter(kind,key){return kind==='sell'?sellN(key)>0:S.ct[kind].indexOf(key)>=0;}
+function soldRec(u){return (S.st.shopSold||[]).filter(function(x){return x.inst.uid===u;})[0];}
+function ctEmpty(){return !sellLive().length&&!S.ct.buy.length&&!S.ct.buyback.length;}
 function totals(){
-  var got=0,spent=0;
-  S.ct.sell.forEach(function(u){var i=bagItems().filter(function(x){return x.uid===u;})[0];if(i)got+=ST().sellTotal(S.byId[i.id],i);});
+  var got=0,spent=0,sells=sellLive();
+  sells.forEach(function(e){got+=unitPrice(bagItem(e.uid))*e.n;});
   S.ct.buy.forEach(function(b){spent+=Math.round(Number(b.base.price)||0);});
-  S.ct.buyback.forEach(function(u){var t=(S.st.shopSold||[]).filter(function(x){return x.inst.uid===u;})[0];if(t)spent+=t.price;});
-  var have=S.st?S.st.coins:0;
-  var bagAfter=ST().bagCount(S.st?S.st.inventory:[])-S.ct.sell.length+S.ct.buyback.length
-    +S.ct.buy.filter(function(b,i){if(!b.base.consumable)return true;   // однакові зілля — одна комірка (стопкою)
-      if(bagItems().some(function(x){return x.cons&&x.id===b.base.id&&Number(x.bonus||1)===1;}))return false;
-      return !S.ct.buy.slice(0,i).some(function(y){return y.base.id===b.base.id;});}).length;
-  return {got:got,spent:spent,have:have,after:have+got-spent,bagAfter:bagAfter};}
+  S.ct.buyback.forEach(function(u){var t=soldRec(u);if(t)spent+=t.price;});
+  var have=S.st?S.st.coins:0,bagNow=ST().bagCount(S.st?S.st.inventory:[]);
+  /* комірки сумки: стопка звільняє місце лише коли продана вся; зілля лягає в наявну стопку */
+  var freed=sells.filter(function(e){return e.n>=qtyOf(bagItem(e.uid));}).length;
+  var stackLeft=function(id,bonus){return bag().some(function(x){return x.cons&&x.id===id&&Number(x.bonus||1)===Number(bonus||1)&&sellN(x.uid)<qtyOf(x);});};
+  var bbCells=S.ct.buyback.filter(function(u,k){var t=soldRec(u);if(!t)return false;var it=t.inst;if(!it.cons)return true;
+      if(stackLeft(it.id,it.bonus))return false;
+      return !S.ct.buyback.slice(0,k).some(function(v){var o=soldRec(v);return o&&ST().sameStack(o.inst,it);});}).length;
+  var buyCells=S.ct.buy.filter(function(b,k){if(!b.base.consumable)return true;   // однакові зілля — одна комірка (стопкою)
+      if(stackLeft(b.base.id,1))return false;
+      return !S.ct.buy.slice(0,k).some(function(y){return y.base.id===b.base.id;});}).length;
+  return {got:got,spent:spent,have:have,after:have+got-spent,bagNow:bagNow,bagAfter:bagNow-freed+bbCells+buyCells};}
 function renderCounter(){
-  var h='';
-  if(!S.ct.sell.length&&!S.ct.buy.length&&!S.ct.buyback.length)h+='<div class="sh-empty">Прилавок порожній. Натисни річ у сумці (продаж) або в товарах (купівля) — вона одразу тут. Права кнопка — роздивитись річ. Натисни річ на прилавку, щоб забрати її назад.</div>';
-  if(S.ct.sell.length){h+='<div class="sh-lbl">💰 Продаю</div><div class="sh-list">'+S.ct.sell.map(function(u){var i=bagItems().filter(function(x){return x.uid===u;})[0];if(!i)return '';var b=S.byId[i.id];
-    return '<button type="button" class="sh-row" data-back="sell" data-key="'+esc(u)+'"><span class="ic">'+icon(b)+'</span><span class="nm">'+esc(b.name)+((Number(i.qty)||1)>1?' ×'+i.qty:'')+'</span><span class="pr plus">+'+coinsH(ST().sellTotal(b,i))+'</span></button>';}).join('')+'</div>';}
-  /* однакові товари — одним рядком-стопкою «×N»; натискання забирає одну штуку (останню покладену) */
+  var h='',sells=sellLive();
+  if(ctEmpty())h+='<div class="sh-empty">Прилавок порожній. Натисни річ у сумці — продати, або товар — купити: вона одразу тут. Права кнопка — роздивитись річ. Натисни рядок на прилавку, щоб забрати назад.</div>';
+  /* продаж: однакові речі (та сама річ за ту саму ціну) — одним рядком «×N»; натискання забирає одну штуку */
+  var sg=[],si={};sells.forEach(function(e){var i=bagItem(e.uid),p=unitPrice(i),k=i.id+'|'+p;
+    if(si[k]==null){si[k]=sg.length;sg.push({base:S.byId[i.id],inst:i,price:p,n:0,last:e.uid});}var g=sg[si[k]];g.n+=e.n;g.last=e.uid;});
+  if(sg.length){h+='<div class="sh-lbl sell">💰 Продаю</div><div class="sh-list">'+sg.map(function(g){
+    return '<button type="button" class="sh-row" data-back="sell" data-key="'+esc(g.last)+'"'+(g.n>1?' title="Натисни — забрати одну штуку"':'')+'><span class="ic">'+icon(g.base)+'</span><span class="nm">'+esc(g.base.name)+(g.n>1?' ×'+g.n:'')+'</span><span class="pr plus">+'+coinsH(g.price*g.n)+'</span></button>';}).join('')+'</div>';}
+  /* купівля: однакові товари — одним рядком-стопкою «×N»; натискання забирає одну штуку (останню покладену) */
   var grp=[],gi={};S.ct.buy.forEach(function(e){var id=e.base.id;if(gi[id]==null){gi[id]=grp.length;grp.push({base:e.base,keys:[]});}grp[gi[id]].keys.push(e.key);});
   var buys=grp.map(function(g){var n=g.keys.length;return '<button type="button" class="sh-row" data-back="buy" data-key="'+esc(g.keys[n-1])+'"'+(n>1?' title="Натисни — забрати одну штуку"':'')+'><span class="ic">'+icon(g.base)+'</span><span class="nm">'+esc(g.base.name)+(n>1?' ×'+n:'')+'</span><span class="pr minus">−'+coinsH((Number(g.base.price)||0)*n)+'</span></button>';})
-   .concat(S.ct.buyback.map(function(u){var t=(S.st.shopSold||[]).filter(function(x){return x.inst.uid===u;})[0];if(!t)return '';var b=S.byId[t.inst.id];
-    return '<button type="button" class="sh-row" data-back="buyback" data-key="'+esc(u)+'"><span class="ic">'+icon(b)+'</span><span class="nm">↩ '+esc(b?b.name:t.inst.id)+'</span><span class="pr minus">−'+coinsH(t.price)+'</span></button>';}));
-  if(buys.length)h+='<div class="sh-lbl">🛍 Купую</div><div class="sh-list">'+buys.join('')+'</div>';
-  var t=totals(),lim=ST().BAG_LIMIT,poor=t.after<0,full=t.bagAfter>lim,empty=!S.ct.sell.length&&!S.ct.buy.length&&!S.ct.buyback.length;
+   .concat(S.ct.buyback.map(function(u){var t=soldRec(u);if(!t)return '';var b=S.byId[t.inst.id];
+    return '<button type="button" class="sh-row" data-back="buyback" data-key="'+esc(u)+'"><span class="ic">'+icon(b)+'</span><span class="nm">↩ '+esc(b?b.name:t.inst.id)+(qtyOf(t.inst)>1?' ×'+qtyOf(t.inst):'')+'</span><span class="pr minus">−'+coinsH(t.price)+'</span></button>';}));
+  if(buys.length)h+='<div class="sh-lbl buy">🛍 Купую</div><div class="sh-list">'+buys.join('')+'</div>';
+  var t=totals(),lim=ST().BAG_LIMIT,poor=t.after<0,full=t.bagAfter>lim,empty=ctEmpty();
   h+='<div class="sh-sum"><div><span>Маєш</span><b>'+coinsH(t.have)+'</b></div>'
     +(t.got?'<div><span>Продаж</span><b style="color:#9ff0b4">+'+coinsH(t.got)+'</b></div>':'')
     +(t.spent?'<div><span>Купівля</span><b style="color:#ffb38f">−'+coinsH(t.spent)+'</b></div>':'')
     +'<div class="tot'+(poor?' bad':'')+'"><span>Буде</span><b>'+(poor?'не вистачає '+coinsH(-t.after):coinsH(t.after))+'</b></div>'
-    +(full?'<div class="bad"><span>Сумка</span><b>'+t.bagAfter+'/'+lim+' — забагато речей</b></div>':'')+'</div>'
+    +(empty?'':'<div class="'+(full?'bad':'bag')+'"><span>🎒 Сумка</span><b>'+(t.bagAfter!==t.bagNow?t.bagNow+' → ':'')+t.bagAfter+'/'+lim+(full?' — забагато речей':'')+'</b></div>')+'</div>'
     +'<div class="sh-btns"><button type="button" class="go" id="shDeal"'+((empty||poor||full||S.busy)?' disabled':'')+'>🤝 Укласти угоду</button>'
-    +'<button type="button" class="cl" id="shClear"'+(empty?' disabled':'')+'>Очистити</button></div>';
+    +'<button type="button" class="cl" id="shClear"'+(empty?' disabled':'')+'>Очистити</button></div>'
+    +'<div class="sh-how"><span class="s">🎒 Річ у сумці → натисни, щоб <b>продати</b></span><span class="b">🏪 Товар → натисни, щоб <b>купити</b></span></div>';
   q('shCounter').innerHTML=h;}
 function renderInv(){
-  var bag=bagItems();q('shBagCnt').textContent=S.st?(ST().bagCount(S.st.inventory)+'/'+ST().BAG_LIMIT):'';
+  var b0=bag();q('shBagCnt').textContent=S.st?(ST().bagCount(S.st.inventory)+'/'+ST().BAG_LIMIT):'';
   if(!S.st){q('shInv').innerHTML='<div class="sh-empty">'+(S.err?esc(S.err):'Завантаження…')+'</div>';return;}
-  if(!bag.length){q('shInv').innerHTML='<div class="sh-empty">Сумка порожня.</div>';return;}
-  q('shInv').innerHTML='<div class="sh-grid">'+bag.map(function(i){var b=S.byId[i.id],used=onCounter('sell',i.uid);
+  if(!b0.length){q('shInv').innerHTML='<div class="sh-empty">Сумка порожня.</div>';return;}
+  q('shInv').innerHTML='<div class="sh-grid">'+b0.map(function(i){var b=S.byId[i.id],n=sellN(i.uid),qn=qtyOf(i),used=n>=qn,part=n>0&&!used;
     var t=SKIT.tile(b,i);
-    return '<button type="button" class="sh-item '+t.cls+(used?' used':'')+'" data-sell="'+esc(i.uid)+'" title="'+(used?'На прилавку — натисни ще раз, щоб забрати назад · ':'')+esc(b.name+' — '+statLine(b,i))+'">'
-     +'<span class="ic">'+t.html+'</span><span class="nm">'+esc(b.name)+'</span>'
-     +'<span class="pr sell">+'+coinsH(ST().sellTotal(b,i))+'</span></button>';}).join('')+'</div>';}
+    return '<button type="button" class="sh-item '+t.cls+(used?' used':'')+'" data-sell="'+esc(i.uid)+'" title="'+(used?'На прилавку — натисни ще раз, щоб забрати назад · ':(part?'На прилавку '+n+' з '+qn+' — натисни, щоб додати ще одну · ':''))+esc(b.name+' — '+statLine(b,i))+'">'
+     +'<span class="ic">'+t.html+'</span>'+(part?'<span class="sh-on">🧾 '+n+'</span>':'')+'<span class="nm">'+esc(b.name)+'</span>'
+     +'<span class="act sell">продати</span><span class="pr sell">+'+coinsH(unitPrice(i))+(qn>1?'<small> /шт</small>':'')+'</span></button>';}).join('')+'</div>';}
 function renderStore(){
   var st=S.stock,sold=S.st?(S.st.shopSold||[]):[];
   var cnt={gear:st?st.gear.length:0,cons:st?st.cons.length:0,back:sold.length};
@@ -3715,11 +3804,12 @@ function renderStore(){
   if(SH_SOON[S.tab]){q('shStore').innerHTML='<div class="sh-empty">'+esc(SH_SOON[S.tab])+'</div>';return;}
   if(!st){q('shStore').innerHTML='<div class="sh-empty">'+(S.err?esc(S.err):'Завантаження…')+'</div>';return;}
   if(S.tab==='back'){
-    if(!sold.length){q('shStore').innerHTML='<div class="sh-empty">Сьогодні ти ще нічого не продав. Продане можна викупити за ту саму ціну до півночі.</div>';return;}
-    q('shStore').innerHTML='<div class="sh-grid">'+sold.map(function(t){var b=S.byId[t.inst.id]||{id:t.inst.id,name:t.inst.id},used=onCounter('buyback',t.inst.uid);
+    if(!sold.length){q('shStore').innerHTML='<div class="sh-empty">Сьогодні ти ще нічого не продав. Продане можна викупити за ту саму ціну до півночі (останні '+ST().SHOP_SOLD_LIMIT+' речей).</div>';return;}
+    q('shStore').innerHTML='<div class="sh-note2">Тут — останні '+ST().SHOP_SOLD_LIMIT+' проданих речей: коли продаєш більше, найстаріша зникає. Опівночі викуп очищується.</div>'
+     +'<div class="sh-grid">'+sold.slice().reverse().map(function(t){var b=S.byId[t.inst.id]||{id:t.inst.id,name:t.inst.id},used=onCounter('buyback',t.inst.uid);
       var tl=SKIT.tile(b,t.inst);
       return '<button type="button" class="sh-item '+tl.cls+(used?' used':'')+'" data-buyback="'+esc(t.inst.uid)+'"'+(used?' title="На прилавку — натисни ще раз, щоб забрати назад"':'')+'>'
-       +'<span class="ic">'+tl.html+'</span><span class="nm">'+esc(b.name)+'</span><span class="pr">↩ '+coinsH(t.price)+'</span></button>';}).join('')+'</div>';
+       +'<span class="ic">'+tl.html+'</span><span class="nm">'+esc(b.name)+'</span><span class="act buy">викупити</span><span class="pr">↩ '+coinsH(t.price)+'</span></button>';}).join('')+'</div>';
     return;}
   var list=S.tab==='cons'?st.cons:st.gear;
   if(!list.length){q('shStore').innerHTML='<div class="sh-empty">Сьогодні тут порожньо.</div>';return;}
@@ -3729,27 +3819,65 @@ function renderStore(){
     var left=stockLeft(b.id),gone=left<=0,inCt=S.ct.buy.some(function(x){return x.base.id===b.id;});
     return '<button type="button" class="sh-item'+(gone?' used':'')+'" data-buy="'+esc(b.id)+'"'+(gone&&!inCt?' disabled':'')+' title="'+(inCt?'На прилавку — натисни ще раз, щоб повернути в товари · ':'')+esc(b.name+' — '+statLine(b)+(gone?' (сьогодні вже розкуплено)':' · у наявності: '+left+' шт.'))+'"><span class="ic">'+SKIT.tile(b,{bonus:1}).html+'</span>'
      +(stockMax(b.id)>1?'<span class="sh-qty">×'+Math.max(0,left)+'</span>':'')+'<span class="nm">'+esc(b.name)+'</span>'
-     +'<span class="st">'+esc(statLine(b))+'</span><span class="pr">'+(gone?(inCt?'✔ на прилавку':'✔ розкуплено'):coinsH(b.price))+'</span></button>';}).join('')+'</div>';}
+     +'<span class="st">'+esc(statLine(b))+'</span>'+(gone?'':'<span class="act buy">купити</span>')+'<span class="pr">'+(gone?(inCt?'✔ на прилавку':'✔ розкуплено'):coinsH(b.price))+'</span></button>';}).join('')+'</div>';}
 function stockMax(id){return (S.stock&&S.stock.qty&&S.stock.qty[id])||1;}
 /* скільки ще можна покласти на прилавок: наявність − куплене сьогодні − уже на прилавку */
 function stockLeft(id){var bought=S.st&&ST().boughtCount?ST().boughtCount(S.st,id):0;
   return stockMax(id)-bought-S.ct.buy.filter(function(x){return x.base.id===id;}).length;}
-function render(){q('shCoins').innerHTML=S.st?coinsH(S.st.coins):'…';renderInv();renderCounter();renderStore();}
+function render(){S._bag=null;q('shCoins').innerHTML=S.st?coinsH(S.st.coins):'…';renderInv();renderCounter();renderStore();}
+
+/* вікно підтвердження в стилі магазину (замість стандартного confirm браузера) */
+function ask(title,html,okLabel){
+  return new Promise(function(res){
+    var w=document.createElement('div');w.className='sh-ask';w.setAttribute('role','dialog');w.setAttribute('aria-modal','true');
+    w.innerHTML='<div class="sh-ask-card"><b class="sh-ask-t">'+esc(title)+'</b><div class="sh-ask-b">'+html+'</div>'
+      +'<div class="sh-btns"><button type="button" class="go" data-ok>'+esc(okLabel||'Так')+'</button><button type="button" class="cl" data-no>Скасувати</button></div></div>';
+    var done=function(v){if(!w.parentNode)return;w.remove();S.ask=null;document.removeEventListener('keydown',key,true);res(v);};
+    var key=function(e){if(e.key==='Escape'){e.stopPropagation();e.preventDefault();done(false);}else if(e.key==='Enter'){e.preventDefault();done(true);}};
+    w.addEventListener('click',function(e){e.stopPropagation();if(e.target.closest('[data-ok]'))done(true);else if(e.target===w||e.target.closest('[data-no]'))done(false);});
+    document.addEventListener('keydown',key,true);
+    document.body.appendChild(w);S.ask=w;var ok=w.querySelector('[data-ok]');if(ok)ok.focus();});}
+/* помилка угоди / смітника — зрозумілим текстом; гроші й речі в такому разі не змінились */
+function errText(e){
+  var c=e&&e.code,m=(e&&e.message)||String(e||'');
+  if(c==='unavailable'||c==='deadline-exceeded'||/offline|network|failed to fetch/i.test(m))return 'Немає звʼязку з інтернетом. Гроші й речі не змінились — спробуй ще раз, коли звʼязок повернеться.';
+  if(c==='permission-denied')return 'Немає доступу. Увійди як Герой і спробуй ще раз.';
+  if(/[а-яіїєґ]/i.test(m))return m;   // наші повідомлення (річ уже не в сумці, не вистачає грошей…) — уже українською
+  return 'Щось пішло не так. Гроші й речі не змінились — спробуй ще раз.';}
+function offline(){if(navigator.onLine===false){toast('Немає інтернету','Перевір звʼязок і спробуй ще раз — гроші й речі не змінились');return true;}return false;}
 
 function doDeal(){
-  var t=totals();if(S.busy)return;
-  var parts=[];if(S.ct.sell.length)parts.push('продати '+S.ct.sell.length+' за +'+coins(t.got));
-  if(S.ct.buy.length+S.ct.buyback.length)parts.push('купити '+(S.ct.buy.length+S.ct.buyback.length)+' за −'+coins(t.spent));
-  if(!confirm('Укласти угоду: '+parts.join(', ')+'?\nПісля угоди буде '+coins(t.after)+'.'))return;
-  S.busy=true;renderCounter();
-  SK.shopDeal({sell:S.ct.sell.slice(),buy:S.ct.buy.map(function(e){return e.base;}),buyback:S.ct.buyback.slice(),limit:(S.stock&&S.stock.qty)||{}},S.byId)
-   .then(function(r){S.ct={sell:[],buy:[],buyback:[]};if(r&&r.state)S.st=r.state;S.busy=false;render();
-     if(window.SKHERO)SKHERO.apply(r);   // гардероб і хедер — з того самого стану, без читання
-     toast('Угоду укладено 🤝','Тепер у тебе '+coins(S.st.coins));})
-   .catch(function(e){S.busy=false;toast('Угода не відбулась',(e&&e.message)||String(e));load(true);});}
+  if(S.busy||S.ask)return;
+  if(offline())return;
+  // магазин відкритий з учора — опівночі товари змінились
+  if(S.stock&&S.stock.day!==ST().kyivDay(Date.now())){var hid=(SK._heroUid&&SK._heroUid())||SK.activeHeroId||'';
+    S.stock=ST().shopStock(S.cat,hid,Date.now());S.ct.buy=[];render();toast('Настала нова доба','Товари в магазині оновились — переглянь прилавок');return;}
+  var t=totals(),sells=sellLive(),nSell=sells.reduce(function(a,e){return a+e.n;},0),nBuy=S.ct.buy.length+S.ct.buyback.length;
+  var html=(nSell?'<div>💰 Продати: <b>'+nSell+'</b> шт. — <b style="color:#9ff0b4">+'+coinsH(t.got)+'</b></div>':'')
+    +(nBuy?'<div>🛍 Купити: <b>'+nBuy+'</b> шт. — <b style="color:#ffb38f">−'+coinsH(t.spent)+'</b></div>':'')
+    +'<div class="sh-ask-tot">Після угоди буде: '+coinsH(t.after)+'</div>';
+  ask('🤝 Укласти угоду?',html,'🤝 Так, укласти').then(function(ok){
+    if(!ok||S.busy)return;
+    if(offline())return;
+    S.busy=true;renderCounter();
+    var sell=sellLive().map(function(e){var i=bagItem(e.uid);return (qtyOf(i)>1&&e.n<qtyOf(i))?{uid:e.uid,qty:e.n}:e.uid;});
+    SK.shopDeal({sell:sell,buy:S.ct.buy.map(function(e){return e.base;}),buyback:S.ct.buyback.slice(),limit:(S.stock&&S.stock.qty)||{}},S.byId)
+     .then(function(r){S.ct={sell:[],buy:[],buyback:[]};if(r&&r.state)S.st=r.state;S.busy=false;render();
+       if(window.SKHERO)SKHERO.apply(r);   // гардероб і хедер — з того самого стану, без читання
+       toast('Угоду укладено 🤝','Тепер у тебе '+coins(S.st.coins));})
+     .catch(function(e){S.busy=false;try{console.warn('[магазин] угода',e);}catch(_){}toast('Угода не відбулась',errText(e));load(true);});});}
+/* викинути річ просто з магазину (у смітник; повернути — в інвентарі до півночі) */
+function shopTrash(u){
+  if(S.busy)return;
+  if(window.SKARENA_LIVE&&SKARENA_LIVE()){toast('Спершу заверши бій','Під час бою речі не викидаються');return;}
+  if(offline())return;
+  S.busy=true;sellBackAll(u);render();
+  SK.trashItem(u).then(function(r){S.busy=false;if(r&&r.state)S.st=r.state;render();if(window.SKHERO)SKHERO.apply(r);
+     toast('🗑 Викинуто в смітник','Повернути можна до півночі: Інвентар → 🗑 Смітник');})
+   .catch(function(e){S.busy=false;toast('Не вийшло викинути',errText(e));load(true);});}
 
 document.addEventListener('click',function(e){
-  var m=q('shop');if(!m||m.hidden)return;
+  var m=q('shop');if(!m||m.hidden||S.ask)return;
   if(e.target===m||e.target.closest('#shopX')){closeShop();return;}
   if(S.busy||!S.st)return;
   var el;
@@ -3757,43 +3885,54 @@ document.addEventListener('click',function(e){
   /* ліва кнопка — річ одразу на прилавок; права (або довге натискання) — картка речі з дією */
   if(itemAct(e.target,false))return;
   if((el=e.target.closest('[data-back]'))){var k=el.getAttribute('data-back'),key=el.getAttribute('data-key');
-    if(k==='buy')S.ct.buy=S.ct.buy.filter(function(x){return x.key!==key;});else S.ct[k]=S.ct[k].filter(function(x){return x!==key;});render();return;}
+    if(k==='buy')S.ct.buy=S.ct.buy.filter(function(x){return x.key!==key;});
+    else if(k==='sell')sellBackOne(key);
+    else S.ct[k]=S.ct[k].filter(function(x){return x!==key;});render();return;}
   if(e.target.closest('#shClear')){S.ct={sell:[],buy:[],buyback:[]};render();return;}
   if(e.target.closest('#shDeal')){doDeal();return;}
 });
-/* річ у магазині: view=false — одразу на прилавок; view=true — збільшена картка (та сама, що в гардеробі) з дією */
 /* річ у магазині: перше натискання — на прилавок, повторне — назад (у сумку / товари / викуп).
-   view=true — збільшена картка (та сама, що в гардеробі) з дією.
-   Товар, якого кілька (зілля, свитки): кожне натискання додає ще одну штуку, доки є в наявності;
-   коли все вже на прилавку — наступне натискання повертає їх у товари. */
+   Стопка в сумці (зілля, свитки): кожне натискання кладе ще одну штуку, доки є;
+   коли вся стопка вже на прилавку — наступне натискання повертає її в сумку.
+   Товар, якого кілька: так само — по одній штуці, доки є в наявності.
+   view=true — збільшена картка (та сама, що в гардеробі) з діями. */
 function itemAct(t,view){
   var el,card=view&&window.SKCARD;
-  if((el=t.closest('[data-sell]'))&&!el.disabled){var su=el.getAttribute('data-sell'),si=bagItems().filter(function(x){return x.uid===su;})[0];
-    var onS=S.ct.sell.indexOf(su)>=0;
-    var sAdd=function(){if(S.ct.sell.indexOf(su)<0)S.ct.sell.push(su);render();};
-    var sBack=function(){S.ct.sell=S.ct.sell.filter(function(x){return x!==su;});render();};
-    if(si&&card)SKCARD.show(S.byId[si.id],si,[onS?{label:'↩ Забрати з прилавка',fn:sBack}:{label:'🧾 На прилавок — продати за +'+coins(ST().sellTotal(S.byId[si.id],si)),fn:sAdd}]);else (onS?sBack:sAdd)();return true;}
+  if((el=t.closest('[data-sell]'))&&!el.disabled){var su=el.getAttribute('data-sell'),si=bagItem(su);if(!si)return true;
+    var qn=qtyOf(si),n=sellN(su),full=n>=qn,b0=S.byId[si.id];
+    var sAdd=function(){sellAdd(su);render();};
+    var sAll=function(){var e=sellEntry(su);if(e)e.n=qn;else S.ct.sell.push({uid:su,n:qn});render();};
+    var sBack=function(){sellBackAll(su);render();};
+    if(card){var acts=[];
+      if(!full)acts.push({label:'🧾 На прилавок — продати'+(qn>1?' 1 шт.':'')+' за +'+coins(unitPrice(si)),fn:sAdd});
+      if(qn>1&&!full)acts.push({label:'🧾 Продати всі '+qn+' за +'+coins(unitPrice(si)*qn),fn:sAll});
+      if(n)acts.push({label:'↩ Забрати з прилавка',fn:sBack});
+      if(window.SK&&SK.trashItem)acts.push({label:'🗑 Викинути'+(qn>1?' (усі '+qn+')':''),cls:'ic-trash',fn:function(){shopTrash(su);},
+        confirm:'Викинути «'+((b0&&b0.name)||'річ')+'»'+(qn>1?' (усі '+qn+')':'')+' у смітник? До півночі її ще можна повернути в інвентарі.'});
+      SKCARD.show(b0,si,acts);}
+    else (full?sBack:sAdd)();
+    return true;}
   if((el=t.closest('[data-buy]'))&&!el.disabled){var b=S.byId[el.getAttribute('data-buy')];if(!b)return true;
     var inCt=S.ct.buy.some(function(x){return x.base.id===b.id;}),back=inCt&&stockLeft(b.id)<=0;
     var bAdd=function(){if(stockLeft(b.id)>0)S.ct.buy.push({key:'k'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),base:b});render();};
     var bBack=function(){S.ct.buy=S.ct.buy.filter(function(x){return x.base.id!==b.id;});render();};
     if(card)SKCARD.show(b,{bonus:1,identified:true},[back?{label:'↩ Повернути в товари',fn:bBack}:{label:'🛒 На прилавок — купити за '+coins(b.price),fn:bAdd}]);else (back?bBack:bAdd)();return true;}
-  if((el=t.closest('[data-buyback]'))&&!el.disabled){var bu=el.getAttribute('data-buyback'),bt=(S.st.shopSold||[]).filter(function(x){return x.inst.uid===bu;})[0];
+  if((el=t.closest('[data-buyback]'))&&!el.disabled){var bu=el.getAttribute('data-buyback'),bt=soldRec(bu);
     var onB=S.ct.buyback.indexOf(bu)>=0;
     var bbAdd=function(){if(S.ct.buyback.indexOf(bu)<0)S.ct.buyback.push(bu);render();};
     var bbBack=function(){S.ct.buyback=S.ct.buyback.filter(function(x){return x!==bu;});render();};
     if(bt&&card)SKCARD.show(S.byId[bt.inst.id]||{id:bt.inst.id,name:bt.inst.id},bt.inst,[onB?{label:'↩ Забрати з прилавка',fn:bbBack}:{label:'↩ На прилавок — викупити за '+coins(bt.price),fn:bbAdd}]);else (onB?bbBack:bbAdd)();return true;}
   return false;}
 document.addEventListener('contextmenu',function(e){
-  var m=q('shop');if(!m||m.hidden||S.busy||!S.st||!window.SKCARD)return;
+  var m=q('shop');if(!m||m.hidden||S.busy||S.ask||!S.st||!window.SKCARD)return;
   if(!e.target.closest('#shop [data-sell],#shop [data-buy],#shop [data-buyback]'))return;
   e.preventDefault();itemAct(e.target,true);});
-document.addEventListener('keydown',function(e){if(e.key==='Escape'&&q('shop')&&!q('shop').hidden)closeShop();});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!S.ask&&q('shop')&&!q('shop').hidden)closeShop();});
 window.addEventListener('pagehide',function(){if(q('shop')&&!q('shop').hidden)lockOff();});
 })();
 </script>
 <script>window.SK_HEADER_SUB='Турнірна арена';</script>
-<script src="sk-header.js?v=5"></script>
+<script src="sk-header.js?v=6"></script>
 </body>
 </html>
 
