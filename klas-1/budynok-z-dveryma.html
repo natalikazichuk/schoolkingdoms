@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Будинок із дверима — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<style>
+/* Світла «пісочна» тема — як у «Вежі Логіки» та інших логічних тренажерах. */
+:root{
+  --ink:#2c2b3a;--soft:#6b6a7d;--paper:#fff9ef;--line:#ece3d2;--card:#fff;
+  --orange:#ffa94d;--yellow:#ffd43b;--green:#51cf66;--teal:#22b8cf;--blue:#4dabf7;--purple:#cc5de8;
+  --good:#37b26f;--good-bg:#e4f7ec;--bad:#e06666;--bad-bg:#fbe7e7;
+  --shadow:0 6px 0 rgba(44,43,58,.13);
+  --accent:#4dabf7;--accent-d:#2f8fd6;--gold:#f4c842;
+}
+*{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+html,body{height:100%; overflow:hidden;}
+body{
+  font-family:'Nunito',system-ui,sans-serif; color:var(--ink);
+  user-select:none; -webkit-user-select:none; touch-action:manipulation; overscroll-behavior:none;
+  background:
+    radial-gradient(circle at 12% 8%,rgba(255,212,59,.28),transparent 42%),
+    radial-gradient(circle at 88% 14%,rgba(77,171,247,.26),transparent 44%),
+    radial-gradient(circle at 78% 92%,rgba(204,93,232,.22),transparent 46%),
+    radial-gradient(circle at 8% 86%,rgba(81,207,102,.24),transparent 44%),
+    var(--paper);
+}
+h1,.title,.cta,.linkbtn,.pill .val,.big-btn,.next,.ch .nm,.facade .no,.facade .rule{font-family:'Fredoka',sans-serif;letter-spacing:.3px;}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+#wrap{position:fixed; top:0; left:0; right:0;
+  bottom:calc(60px + env(safe-area-inset-bottom));
+  display:flex; flex-direction:column; max-width:640px; margin:0 auto;}
+
+#top{display:flex; align-items:center; gap:8px; padding:calc(env(safe-area-inset-top) + 12px) 14px 4px;}
+.iconbtn{width:44px; height:44px; border:2px solid var(--line); background:#fff; border-radius:14px;
+  font-family:inherit; font-weight:700; font-size:20px; color:var(--ink); cursor:pointer; flex:none;
+  display:grid; place-items:center; box-shadow:0 1px 3px rgba(44,43,58,.14);}
+.iconbtn:active{transform:translateY(2px);}
+.pill{background:#fff; border:2px solid var(--line); border-radius:14px;
+  padding:6px 12px; font-weight:800; white-space:nowrap; box-shadow:var(--shadow);}
+.pill .lab{color:var(--soft); font-size:11px; display:block; line-height:1;}
+.pill .val{font-size:19px; line-height:1.15; color:var(--orange);}
+#stepBadge{font-weight:800; font-size:13px; border-radius:12px; padding:6px 10px; border:2px solid var(--line); background:#fff; white-space:nowrap;}
+#spacer{flex:1;}
+#menuBtn{cursor:pointer; font-family:'Fredoka'; font-weight:600; font-size:15px; flex:none;
+  background:#fff; border:2px solid var(--line); color:var(--ink);
+  border-radius:14px; padding:9px 14px; box-shadow:var(--shadow); margin-right:52px;}
+#menuBtn:active{transform:translateY(2px); box-shadow:0 3px 0 rgba(44,43,58,.13);}
+#barWrap{padding:10px 64px 2px 16px;}   /* праворуч — місце під «жучок» 🐞 */
+#bar{height:12px; border-radius:8px; background:#f0e7d6; overflow:hidden;}
+#barFill{height:100%; width:0%; border-radius:8px; background:linear-gradient(90deg,var(--green),var(--teal)); transition:width .45s;}
+
+#main{flex:1 1 auto; overflow-y:auto; padding:6px 12px 14px; display:flex; flex-direction:column; align-items:center; gap:10px; min-height:0;}
+#main > *{width:100%; max-width:480px;}
+#hint{font-weight:800; font-size:15px; text-align:center; line-height:1.35; min-height:40px; padding:0 44px;}   /* обабіч — місце під «жучок» 🐞 */
+#hint.bad{color:var(--bad);} #hint.good{color:var(--good);}
+
+/* ── будинок ── */
+.house{position:relative; padding-top:26px;}
+.roof{position:absolute; top:0; left:6%; right:6%; height:40px; background:#c0603f;
+  clip-path:polygon(8% 100%,50% 0,92% 100%); }
+.facade{position:relative; background:linear-gradient(180deg,#fbeedd,#f3dcc0); border:3px solid #d9b77c; border-radius:14px;
+  padding:8px 8px 0; box-shadow:var(--shadow);}
+.facade .top{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
+.facade .no{flex:none; background:#2f5d8a; color:#fff; font-weight:700; font-size:15px; border-radius:10px; padding:4px 9px; border:2px solid #fff; box-shadow:0 0 0 2px #2f5d8a;}
+.facade .rule{flex:1; background:#fffaf0; border:2px dashed #b88a4a; border-radius:10px; padding:4px 8px; font-weight:600; font-size:13px; line-height:1.25; text-align:center; color:#7a4f2a;}
+#doors{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; perspective:600px;}
+.dw{display:flex; flex-direction:column; align-items:stretch; gap:4px;}
+.plate{min-height:0; background:#fffaf0; border:2px solid #d9b77c; border-radius:8px; padding:3px 4px; font-weight:800; font-size:11px; line-height:1.2; text-align:center;}
+.plate:empty{display:none;}
+.frame{position:relative; height:112px; border-radius:40px 40px 0 0; background:#3b2a1d; overflow:hidden; cursor:pointer;}
+.inside{position:absolute; inset:0; display:grid; place-items:center; font-size:30px; background:radial-gradient(circle at 50% 60%,#fff6c8,#f4c842);}
+.door{position:absolute; inset:3px 3px 0; border-radius:37px 37px 0 0; transform-origin:0 50%; transition:transform .9s ease-in-out;
+  box-shadow:inset 0 0 0 3px rgba(0,0,0,.12); display:flex; align-items:center; justify-content:center;}
+.door:before{content:""; position:absolute; inset:14px 12px 18px; border-radius:24px 24px 4px 4px; border:3px solid rgba(255,255,255,.35);}
+.door .knob{position:absolute; right:10px; top:58%; width:9px; height:9px; border-radius:50%; background:#ffe08a; box-shadow:0 0 0 2px rgba(0,0,0,.18);}
+.door .em{font-size:20px; position:relative;}
+.dw.open .door{transform:rotateY(-105deg);}
+.dw.shake .frame{animation:shake .35s;}
+.dw.crossed .door:after{content:"✖"; position:absolute; top:8px; right:8px; font-size:16px; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.4);}
+.dw .dl{font-weight:800; font-size:12px; text-align:center; color:var(--soft);}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.steps{height:10px; margin:0 -8px; background:#cdb38c; border-top:2px solid #b8996c; border-radius:0 0 10px 10px;}
+
+/* ── персонажі ── */
+.chhead{font-weight:800; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--soft); text-align:center;}
+#chars{display:flex; flex-direction:column; gap:8px;}
+.ch{display:flex; align-items:center; gap:10px; background:#fff; border:2px solid var(--line); border-radius:18px; padding:8px 10px;
+  box-shadow:var(--shadow); cursor:pointer; text-align:left; font-family:inherit; color:var(--ink); width:100%;}
+.ch:active{transform:translateY(3px); box-shadow:0 3px 0 rgba(44,43,58,.13);}
+.ch .face{font-size:34px; line-height:1; flex:none; width:42px; text-align:center;}
+.ch .tx{flex:1; min-width:0;}
+.ch .nm{font-weight:600; font-size:13px; color:var(--soft);}
+.ch .says{font-weight:800; font-size:15px; line-height:1.3;}
+.ch .mark{flex:none; font-size:22px;}
+.ch.bad{border-color:var(--bad); background:var(--bad-bg);}
+.ch.liar{border-color:var(--bad); background:var(--bad-bg);}
+.ch.true{border-color:var(--good); background:var(--good-bg);}
+.ch.off{cursor:default;}
+.ch.shake{animation:shake .35s;}
+
+/* ── модалка ── */
+.modal{position:fixed; inset:0; z-index:70; display:flex; align-items:center; justify-content:center; padding:18px;
+  background:rgba(44,43,58,.45); backdrop-filter:blur(3px);}
+.modal.hidden{display:none;}
+.mcard{width:min(380px,100%); background:linear-gradient(180deg,#fffdf4,#fff6df); border:3px solid var(--gold); border-radius:24px;
+  padding:20px 18px 18px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px;
+  box-shadow:0 0 0 4px #fff9e6,0 12px 28px rgba(44,43,58,.25);}
+.mcard .big{font-size:58px; line-height:1;}
+.mcard .mt{font-family:'Fredoka'; font-weight:700; font-size:22px;}
+.mcard .mb{font-weight:800; font-size:15px; color:var(--soft); line-height:1.4;}
+.next{border:none; border-radius:16px; padding:13px 22px; width:100%; cursor:pointer; font-weight:700; font-size:18px;
+  color:#fff; background:var(--green); box-shadow:0 6px 0 #37a052;}
+.next:active{transform:translateY(3px); box-shadow:0 3px 0 #37a052;}
+
+/* ── старт / фініш ── */
+.screen{position:absolute; inset:0; z-index:60; display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:12px; padding:calc(env(safe-area-inset-top) + 16px) 22px 18px; text-align:center;
+  background:
+    radial-gradient(circle at 15% 10%,rgba(255,212,59,.32),transparent 45%),
+    radial-gradient(circle at 85% 90%,rgba(204,93,232,.25),transparent 45%), var(--paper);
+  overflow-y:auto;}
+.screen.hidden{display:none;}
+.start-top{position:absolute; top:calc(env(safe-area-inset-top) + 16px); left:16px;}
+.big-emoji{font-size:64px; line-height:1;}
+h1{font-size:32px; font-weight:700;}
+.start-sub{color:var(--soft); font-weight:800; font-size:15px;}
+.riddle{background:#fff; border:2px solid var(--line); border-radius:20px; padding:14px 16px; max-width:420px;
+  font-weight:700; font-size:15px; line-height:1.5; box-shadow:var(--shadow); text-align:left;}
+.riddle .items{margin:6px 0; display:flex; flex-wrap:wrap; gap:4px 14px; color:var(--soft); font-size:14px;}
+.done-card{display:none; align-items:center; gap:12px; max-width:420px; width:100%; text-align:left;
+  background:linear-gradient(180deg,#fffdf4,#fff3cf); border:2px solid var(--gold); border-radius:18px; padding:10px 14px;}
+.done-card.on{display:flex;}
+.done-card .dc-ic{font-size:30px; flex:none;}
+.done-card .dc-got{font-family:'Fredoka'; font-weight:700; font-size:15px; color:#8a5e16; line-height:1.2;}
+.done-card .dc-go{font-weight:800; font-size:12px; color:var(--soft); margin-top:3px; line-height:1.25;}
+.big-btn{border:none; border-radius:18px; padding:16px 20px; width:100%; max-width:420px; cursor:pointer;
+  font-weight:700; font-size:20px; color:#fff; background:var(--accent); box-shadow:0 6px 0 var(--accent-d);}
+.big-btn:active{transform:translateY(3px); box-shadow:0 3px 0 var(--accent-d);}
+.crown{font-size:52px;}
+.title{font-size:26px; font-weight:700;}
+.stars{font-size:30px;}
+.sub{color:var(--soft); font-weight:800;}
+.lesson{background:#fff; border:2px solid var(--line); border-radius:18px; padding:12px 14px; max-width:420px;
+  text-align:left; font-weight:700; font-size:14px; line-height:1.45;}
+.lesson li{margin:4px 0 4px 18px;}
+.cta{margin-top:4px; border:none; cursor:pointer; font-weight:700; font-size:18px; color:#fff;
+  background:var(--green); border-radius:16px; padding:12px 26px; box-shadow:0 6px 0 #37a052;}
+.cta:active{transform:translateY(3px); box-shadow:0 3px 0 #37a052;}
+.linkbtn{cursor:pointer; font-weight:600; font-size:15px; background:#fff; border:2px solid var(--line);
+  color:var(--ink); border-radius:14px; padding:9px 14px;}
+.linkbtn:active{transform:translateY(2px);}
+.winrow{display:flex; gap:10px; flex-wrap:wrap; justify-content:center;}
+
+@media (max-height:700px){
+  .frame{height:92px;}
+  .ch .face{font-size:28px;} .ch .says{font-size:14px;}
+  #hint{font-size:14px; min-height:36px;}
+  .big-emoji{font-size:48px;} h1{font-size:28px;}
+  .riddle{font-size:14px; padding:10px 12px;}
+}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <div class="pill"><span class="lab">Завдання</span><span class="val" id="qNum">1/4</span></div>
+    <div id="stepBadge">🔍 Хто бреше?</div>
+    <div id="spacer"></div>
+    <button id="menuBtn">☰ Меню</button>
+  </div>
+  <div id="barWrap"><div id="bar"><div id="barFill"></div></div></div>
+
+  <div id="main">
+    <div id="hint"></div>
+    <div class="house">
+      <div class="roof"></div>
+      <div class="facade">
+        <div class="top"><span class="no">№17</span><span class="rule">«Правильні двері завжди брешуть»</span></div>
+        <div id="doors"></div>
+        <div class="steps"></div>
+      </div>
+    </div>
+    <div class="chhead">Підказки · бреше лише один 🤫</div>
+    <div id="chars"></div>
+  </div>
+
+  <div class="modal hidden" id="modal">
+    <div class="mcard">
+      <div class="big" id="mBig">🚪</div>
+      <div class="mt" id="mTitle"></div>
+      <div class="mb" id="mBody"></div>
+      <button class="next" id="mBtn" type="button">Далі →</button>
+    </div>
+  </div>
+
+  <div class="screen" id="startScreen">
+    <div class="start-top"><button class="iconbtn backbtn" type="button" title="Назад" aria-label="Назад">←</button></div>
+    <div class="big-emoji">🚪</div>
+    <h1>Будинок із дверима</h1>
+    <p class="start-sub">Логіка · 4 завдання · знайди, хто бреше</p>
+    <div class="riddle">
+      У будинку №17 — четверо дверей:
+      <div class="items"><span>🔴 червоні</span><span>🔵 сині</span><span>🟢 зелені</span><span>🟡 жовті</span></div>
+      На будинку напис: <i>«Правильні двері завжди брешуть»</i>.<br>
+      Троє мешканців дають різні підказки, але <b>один із них бреше</b>. Визнач, хто бреше, — і відчини правильні двері!
+    </div>
+    <div class="done-card" id="startDone">
+      <span class="dc-ic">🏆</span>
+      <div><div class="dc-got" id="doneGot">Будинок відчинено!</div>
+        <div class="dc-go" id="doneGo">Вирушай за новими досягненнями!</div></div>
+    </div>
+    <button class="big-btn" id="playBtn">Підійти до дверей ▶</button>
+  </div>
+
+  <div class="screen hidden" id="winScreen">
+    <div class="crown">🏠🗝️</div>
+    <div class="title" id="winTitle">Будинок №17 відчинено!</div>
+    <div class="stars" id="winStars">⭐⭐⭐</div>
+    <div class="sub" id="winSub">Чудова робота!</div>
+    <div class="lesson">Як знайти брехуна:
+      <ol>
+        <li>Припусти по черзі: «А що, як бреше <b>Кіт</b>?» — і перевір, чи все сходиться.</li>
+        <li>Якщо виходить <b>суперечність</b> (жодні двері не підходять або брехун раптом каже правду) — припущення хибне.</li>
+        <li>Правильні двері <b>брешуть</b>: напис на них — неправда, а на інших дверях — правда.</li>
+      </ol>
+    </div>
+    <div class="winrow"><button class="cta" id="againBtn">↻ Ще раз</button></div>
+    <div class="winrow">
+      <button class="linkbtn" id="toMenuBtn" type="button">☰ У меню</button>
+      <button class="linkbtn backbtn" type="button">← Назад</button>
+    </div>
+  </div>
+</div>
+
+<script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
+
+<script>
+(function(){
+  "use strict";
+
+  var DOORS = [
+    {nm:"червоні", Nm:"Червоні", loc:"червоних", em:"🔴", c:"#ff6b6b", d:"#e04f4f"},
+    {nm:"сині",    Nm:"Сині",    loc:"синіх",    em:"🔵", c:"#4dabf7", d:"#2f8fd6"},
+    {nm:"зелені",  Nm:"Зелені",  loc:"зелених",  em:"🟢", c:"#51cf66", d:"#37a052"},
+    {nm:"жовті",   Nm:"Жовті",   loc:"жовтих",   em:"🟡", c:"#ffd43b", d:"#e0b020"}
+  ];
+  var CHARS = [
+    {em:"🐱", nm:"Кіт Мурко"},
+    {em:"🦉", nm:"Сова Софія"},
+    {em:"🦊", nm:"Лис Лесик"}
+  ];
+  /* план завдань: 1–2 — підказки про двері; 3 — є підказка про іншого мешканця; 4 — ще й таблички на дверях */
+  var PLAN = [{}, {}, {person:true}, {plates:true}];
+
+  var $ = function(id){ return document.getElementById(id); };
+  var doorsEl=$("doors"), charsEl=$("chars"), hintEl=$("hint");
+  var qIndex, mistakes, cur, step, busy=true;
+
+  /* ── «Назад» / меню ── */
+  function goBack(){
+    if(window.skGoBackSmart){ skGoBackSmart("tests.html"); return; }
+    location.href="../tests.html";
+  }
+  function openMenu(){
+    busy = true;
+    refreshStart();
+    $("modal").classList.add("hidden");
+    $("winScreen").classList.add("hidden");
+    $("startScreen").classList.remove("hidden");
+  }
+  document.querySelectorAll(".backbtn").forEach(function(b){ b.addEventListener("click", goBack); });
+  var hb = $("heroBackBtn");
+  if(hb) hb.addEventListener("click", function(){
+    if($("startScreen").classList.contains("hidden")) openMenu();
+    else goBack();
+  });
+
+  /* ── нагорода з адмінки (sk-prize.js) ── */
+  var PRIZE_KEY = "sk_dveri_prize_v1";
+  var TR_HREF = "budynok-z-dveryma.html";
+  function refreshStart(){
+    var p = window.SKPRIZE ? SKPRIZE.summary(PRIZE_KEY) : null;
+    $("startDone").classList.toggle("on", !!p);
+    if(!p) return;
+    var t = SKPRIZE.doneText(p, "Будинок №17 відчинено — нагороду отримано!");
+    $("doneGot").textContent = t.got;
+    $("doneGo").textContent = t.go;
+  }
+
+  /* ═════════════ логіка тверджень ═════════════
+     Твердження: {t:"is",d} | {t:"not",d} | {t:"or",a,b} | {t:"truth",p} | {t:"lie",p}
+     Світ: L — хто з мешканців бреше, D — які двері правильні. */
+  function val(s, L, D){
+    if(s.t==="is")    return D===s.d;
+    if(s.t==="not")   return D!==s.d;
+    if(s.t==="or")    return D===s.a || D===s.b;
+    if(s.t==="truth") return s.p!==L;
+    return s.p===L;   // "lie"
+  }
+  function text(s){
+    if(s.t==="is")    return "Правильні двері — "+DOORS[s.d].nm+".";
+    if(s.t==="not")   return DOORS[s.d].Nm+" двері — неправильні.";
+    if(s.t==="or")    return "Правильні двері — "+DOORS[s.a].nm+" або "+DOORS[s.b].nm+".";
+    if(s.t==="truth") return CHARS[s.p].nm+" каже правду.";
+    return CHARS[s.p].nm+" бреше.";
+  }
+  function quote(s){ return "«"+text(s).replace(/\.$/,"")+"»"; }
+  /* чи світ (L,D) узгоджений з усіма підказками */
+  function charsOk(pz, L, D){
+    for(var i=0;i<3;i++) if(val(pz.says[i],L,D) !== (i!==L)) return false;
+    return true;
+  }
+  function platesOk(pz, D){
+    if(!pz.plates) return true;
+    for(var j=0;j<4;j++) if(val(pz.plates[j],-1,D) !== (j!==D)) return false;   // правильні двері брешуть, решта — ні
+    return true;
+  }
+  function solutions(pz){
+    var out=[];
+    for(var L=0;L<3;L++) for(var D=0;D<4;D++) if(charsOk(pz,L,D) && platesOk(pz,D)) out.push([L,D]);
+    return out;
+  }
+
+  function rnd(n){ return Math.floor(Math.random()*n); }
+  function doorStmt(){
+    var k = rnd(3), a = rnd(4), b;
+    if(k===0) return {t:"is", d:a};
+    if(k===1) return {t:"not", d:a};
+    do { b = rnd(4); } while(b===a);
+    return a<b ? {t:"or", a:a, b:b} : {t:"or", a:b, b:a};
+  }
+  function same(x,y){ return JSON.stringify(x)===JSON.stringify(y); }
+
+  function makePuzzle(opt){
+    for(var tries=0; tries<20000; tries++){
+      var says = [doorStmt(), doorStmt(), doorStmt()];
+      if(opt.person){
+        var who = rnd(3), p; do { p = rnd(3); } while(p===who);
+        says[who] = {t: rnd(2) ? "truth" : "lie", p:p};
+      }
+      if(same(says[0],says[1]) || same(says[1],says[2]) || same(says[0],says[2])) continue;
+      var pz = {says:says};
+      if(opt.plates){
+        pz.plates = [doorStmt(), doorStmt(), doorStmt(), doorStmt()];
+        if(pz.plates.some(function(x,k){ return pz.plates.slice(k+1).some(function(y){ return same(x,y); }); })) continue;
+      }
+      var sol = solutions(pz);
+      if(sol.length !== 1) continue;
+      pz.liar = sol[0][0]; pz.door = sol[0][1];
+      return pz;
+    }
+    return null;
+  }
+
+  /* пояснення, чому гіпотеза «бреше h» не працює */
+  function whyNotLiar(h){
+    var others = [0,1,2].filter(function(i){ return i!==h; });
+    var fit = [];
+    for(var D=0; D<4; D++){
+      var ok = others.every(function(i){ return val(cur.says[i],h,D); }) && platesOk(cur,D);
+      if(ok) fit.push(D);
+    }
+    var names = CHARS[others[0]].nm+" і "+CHARS[others[1]].nm;
+    if(!fit.length)
+      return "Якщо бреше "+CHARS[h].nm+", то "+names+" кажуть правду. Але тоді не підходять жодні двері — так не буває!";
+    return "Якщо бреше "+CHARS[h].nm+", то "+names+" кажуть правду. Але тоді й слова "+quote(cur.says[h])+" виходять правдою — а хтось один точно бреше!";
+  }
+  /* пояснення, чому двері D не правильні (брехун уже відомий) */
+  function whyNotDoor(D){
+    var L = cur.liar;
+    if(cur.plates){
+      if(val(cur.plates[D],-1,D)) return "Напис на "+DOORS[D].loc+" дверях — правда. А правильні двері завжди брешуть!";
+      for(var j=0;j<4;j++) if(j!==D && !val(cur.plates[j],-1,D))
+        return "Тоді напис на "+DOORS[j].loc+" дверях був би неправдою — а брешуть лише правильні двері.";
+    }
+    for(var i=0;i<3;i++) if(i!==L && !val(cur.says[i],L,D))
+      return CHARS[i].nm+" каже правду: "+quote(cur.says[i])+" — тож це не ці двері.";
+    return "Тоді слова "+quote(cur.says[L])+" стали б правдою — а "+CHARS[L].nm+" бреше!";
+  }
+
+  /* ═════════════ малювання ═════════════ */
+  function renderDoors(){
+    doorsEl.innerHTML = "";
+    DOORS.forEach(function(d,i){
+      var w = document.createElement("div"); w.className = "dw"; w.dataset.i = i;
+      var plate = cur.plates ? "«"+text(cur.plates[i])+"»" : "";
+      w.innerHTML = '<div class="plate">'+plate+'</div>'+
+        '<div class="frame"><div class="inside">'+(qIndex===PLAN.length-1?"🏠":"⭐")+'</div>'+
+        '<div class="door" style="background:linear-gradient(180deg,'+d.c+','+d.d+')"><span class="em">'+d.em+'</span><span class="knob"></span></div></div>'+
+        '<div class="dl">'+d.nm+'</div>';
+      w.querySelector(".frame").addEventListener("click", function(){ pickDoor(i, w); });
+      doorsEl.appendChild(w);
+    });
+  }
+  function renderChars(){
+    charsEl.innerHTML = "";
+    CHARS.forEach(function(c,i){
+      var b = document.createElement("button"); b.type="button"; b.className="ch"; b.dataset.i=i;
+      b.innerHTML = '<span class="face">'+c.em+'</span><span class="tx"><span class="nm">'+c.nm+' каже:</span><br><span class="says">«'+text(cur.says[i])+'»</span></span><span class="mark"></span>';
+      b.addEventListener("click", function(){ pickLiar(i, b); });
+      charsEl.appendChild(b);
+    });
+  }
+  function hint(t,cls){ hintEl.className = cls||""; hintEl.innerHTML = t; }
+  function shake(el){ el.classList.remove("shake"); void el.offsetWidth; el.classList.add("shake"); }
+
+  function renderRound(){
+    if(qIndex >= PLAN.length){ finish(); return; }
+    cur = makePuzzle(PLAN[qIndex]);
+    step = "liar";
+    $("qNum").textContent = (qIndex+1)+"/"+PLAN.length;
+    $("barFill").style.width = (qIndex/PLAN.length*100)+"%";
+    $("stepBadge").textContent = "🔍 Хто бреше?";
+    renderDoors(); renderChars();
+    hint(cur.plates
+      ? "Тепер і на дверях є таблички! Пам'ятай: напис на правильних дверях — <b>неправда</b>. Хто з мешканців бреше?"
+      : "Один із мешканців бреше. Хто? Торкнись його картки.");
+    busy = false;
+  }
+
+  /* ═════════════ хід гравця ═════════════ */
+  function pickLiar(i, btn){
+    if(busy) return;
+    if(step!=="liar"){ hint("Брехуна вже знайдено — тепер обери двері 🚪"); return; }
+    tap();
+    if(i !== cur.liar){
+      mistakes++; thud(); buzz(40); shake(btn);
+      hint(whyNotLiar(i), "bad");
+      return;
+    }
+    chime(); step = "door";
+    Array.prototype.forEach.call(charsEl.children, function(b,k){
+      b.classList.add(k===i ? "liar" : "true", "off");
+      b.querySelector(".mark").textContent = k===i ? "🤥" : "✅";
+    });
+    $("stepBadge").textContent = "🚪 Які двері?";
+    var tr = [0,1,2].filter(function(k){ return k!==i; }).map(function(k){ return CHARS[k].nm; });
+    hint("Так! Бреше "+CHARS[i].nm+" 🤥. Отже, "+tr[0]+" і "+tr[1]+" кажуть правду. Які двері правильні?", "good");
+  }
+
+  function pickDoor(D, w){
+    if(busy) return;
+    if(step!=="door"){ hint("Спершу визнач, хто бреше 🔍 — торкнись картки мешканця."); shake(w); return; }
+    tap();
+    if(D !== cur.door){
+      mistakes++; thud(); buzz(40); shake(w); w.classList.add("crossed");
+      hint(whyNotDoor(D), "bad");
+      return;
+    }
+    busy = true; creak();
+    w.classList.add("open");
+    hint("Двері відчинено! 🎉","good");
+    qIndex++;
+    $("barFill").style.width = (qIndex/PLAN.length*100)+"%";
+    var last = qIndex >= PLAN.length;
+    setTimeout(function(){
+      if(last){
+        fanfare();
+        showModal("🏠", "Ти в будинку №17!",
+          "Ключ із дивного магазину 🗝️ підійшов до "+DOORS[D].loc+" дверей. Брехуна викрито, двері відчинено!", finish);
+      } else {
+        chime();
+        showModal("⭐", "Правильні двері — "+DOORS[D].nm+"!",
+          "Брехуна викрито: "+CHARS[cur.liar].nm+" 🤥. Але мешканці не заспокоюються — вони вже придумали нову загадку…", renderRound);
+      }
+    }, 1000);
+  }
+
+  /* ═════════════ модалка ═════════════ */
+  var modalNext=null;
+  function showModal(big,title,body,next){
+    $("mBig").textContent=big; $("mTitle").textContent=title; $("mBody").innerHTML=body;
+    modalNext=next; $("modal").classList.remove("hidden");
+  }
+  $("mBtn").addEventListener("click", function(){
+    $("modal").classList.add("hidden"); tap();
+    if(modalNext){ var n=modalNext; modalNext=null; n(); }
+  });
+
+  /* ═════════════ звук ═════════════ */
+  var actx=null;
+  function tone(f,d,type){ try{
+    if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)();
+    var o=actx.createOscillator(), g=actx.createGain();
+    o.type=type||"triangle"; o.frequency.value=f; g.gain.value=0.06;
+    o.connect(g); g.connect(actx.destination); o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime+d); o.stop(actx.currentTime+d+0.02);
+  }catch(e){} }
+  function tap(){ tone(520,0.05); }
+  function chime(){ tone(660,0.09); setTimeout(function(){ tone(880,0.11); },90); }
+  function thud(){ tone(180,0.16,"sine"); }
+  function creak(){ tone(220,0.25,"sawtooth"); setTimeout(function(){ tone(260,0.3,"sawtooth"); },200); }
+  function fanfare(){ tone(523,0.12); setTimeout(function(){ tone(659,0.12); },120);
+    setTimeout(function(){ tone(784,0.14); },240); setTimeout(function(){ tone(1046,0.18); },380); }
+  function buzz(v){ try{ if(navigator.vibrate) navigator.vibrate(v); }catch(e){} }
+
+  /* ═════════════ фініш ═════════════ */
+  function finish(){
+    busy = true;
+    $("winStars").textContent = mistakes===0 ? "⭐⭐⭐" : (mistakes<=3 ? "⭐⭐" : "⭐");
+    $("winTitle").textContent = mistakes===0 ? "Жоден брехун не обдурив тебе!" : "Будинок №17 відчинено!";
+    $("winSub").textContent = mistakes===0
+      ? "Ти справжній детектив логіки!"
+      : "Пройдено "+PLAN.length+" з "+PLAN.length+" · Помилок: "+mistakes+".";
+    $("winScreen").classList.remove("hidden");
+    if(window.SKPRIZE && !SKPRIZE.summary(PRIZE_KEY))
+      SKPRIZE.claim({ key: PRIZE_KEY, href: TR_HREF, title: "Будинок відчинено!", onClose: refreshStart });
+  }
+
+  function startGame(){
+    qIndex=0; mistakes=0;
+    $("startScreen").classList.add("hidden");
+    $("winScreen").classList.add("hidden");
+    $("modal").classList.add("hidden");
+    renderRound();
+  }
+
+  $("playBtn").addEventListener("click", startGame);
+  $("againBtn").addEventListener("click", startGame);
+  $("menuBtn").addEventListener("click", openMenu);
+  $("toMenuBtn").addEventListener("click", openMenu);
+
+  refreshStart();
+  window.addEventListener("load", refreshStart);   // sk-prize.js підключено нижче
+})();
+</script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=8"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=4"></script>
+<script src="../sk-prize.js?v=1"></script>
+<script src="../sk-finish.js?v=6"></script>
+</body>
+</html>
