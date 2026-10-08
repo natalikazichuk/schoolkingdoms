@@ -31,7 +31,7 @@ body{
     radial-gradient(circle at 8% 86%,rgba(81,207,102,.24),transparent 44%),
     var(--paper);
 }
-h1,.title,.cta,.linkbtn,.pill .val,.big-btn,.next,.ch .nm,.facade .no,.facade .rule{font-family:'Fredoka',sans-serif;letter-spacing:.3px;}
+h1,.title,.cta,.linkbtn,.pill .val,.big-btn,.next,.ch .nm,.facade .no,#houseRule{font-family:'Fredoka',sans-serif;letter-spacing:.3px;}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
 #wrap{position:fixed; top:0; left:0; right:0;
@@ -58,7 +58,7 @@ h1,.title,.cta,.linkbtn,.pill .val,.big-btn,.next,.ch .nm,.facade .no,.facade .r
 #barFill{height:100%; width:0%; border-radius:8px; background:linear-gradient(90deg,var(--green),var(--teal)); transition:width .45s;}
 
 #main{flex:1 1 auto; overflow-y:auto; padding:6px 12px 14px; display:flex; flex-direction:column; align-items:center; gap:10px; min-height:0;}
-#main > *{width:100%; max-width:480px;}
+#main > *{width:100%; max-width:480px; flex-shrink:0;}
 #hint{font-weight:800; font-size:15px; text-align:center; line-height:1.35; min-height:40px; padding:0 44px;}   /* обабіч — місце під «жучок» 🐞 */
 #hint.bad{color:var(--bad);} #hint.good{color:var(--good);}
 
@@ -70,11 +70,14 @@ h1,.title,.cta,.linkbtn,.pill .val,.big-btn,.next,.ch .nm,.facade .no,.facade .r
   padding:8px 8px 0; box-shadow:var(--shadow);}
 .facade .top{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
 .facade .no{flex:none; background:#2f5d8a; color:#fff; font-weight:700; font-size:15px; border-radius:10px; padding:4px 9px; border:2px solid #fff; box-shadow:0 0 0 2px #2f5d8a;}
-.facade .rule{flex:1; background:#fffaf0; border:2px dashed #b88a4a; border-radius:10px; padding:4px 8px; font-weight:600; font-size:13px; line-height:1.25; text-align:center; color:#7a4f2a;}
 #doors{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; perspective:600px;}
 .dw{display:flex; flex-direction:column; align-items:stretch; gap:4px;}
-.plate{min-height:0; background:#fffaf0; border:2px solid #d9b77c; border-radius:8px; padding:3px 4px; font-weight:800; font-size:11px; line-height:1.2; text-align:center;}
-.plate:empty{display:none;}
+.plate{background:#fffaf0; border:2px solid #d9b77c; border-radius:8px; padding:3px 4px; font-weight:800; font-size:10.5px; line-height:1.2; text-align:center; color:#7a4f2a; min-height:52px; display:grid; place-items:center;}
+.plate.flip{animation:plateFlip .8s ease-in-out;}
+@keyframes plateFlip{0%{transform:rotateX(180deg)}100%{transform:rotateX(0)}}
+#houseRule{flex:1; text-align:center; font-weight:800; font-size:13px; color:#7a4f2a; background:#fffaf0; border:2px dashed #b88a4a; border-radius:10px; padding:4px 8px;}
+#houseRule.flipped{color:#8e3fb0; border-color:#c39ae8; background:#f8f0ff;}
+.ch.liar .says{text-decoration:line-through; text-decoration-thickness:2px; opacity:.75;}
 .frame{position:relative; height:112px; border-radius:40px 40px 0 0; background:#3b2a1d; overflow:hidden; cursor:pointer;}
 .inside{position:absolute; inset:0; display:grid; place-items:center; font-size:30px; background:radial-gradient(circle at 50% 60%,#fff6c8,#f4c842);}
 .door{position:absolute; inset:3px 3px 0; border-radius:37px 37px 0 0; transform-origin:0 50%; transition:transform .9s ease-in-out;
@@ -171,7 +174,7 @@ h1{font-size:32px; font-weight:700;}
 <body>
 <div id="wrap">
   <div id="top">
-    <div class="pill"><span class="lab">Завдання</span><span class="val" id="qNum">1/4</span></div>
+    <div class="pill"><span class="lab">Завдання</span><span class="val" id="qNum">1/6</span></div>
     <div id="stepBadge">🔍 Хто бреше?</div>
     <div id="spacer"></div>
     <button id="menuBtn">☰ Меню</button>
@@ -183,12 +186,12 @@ h1{font-size:32px; font-weight:700;}
     <div class="house">
       <div class="roof"></div>
       <div class="facade">
-        <div class="top"><span class="no">№17</span><span class="rule">«Правильні двері завжди брешуть»</span></div>
+        <div class="top"><span class="no">№17</span><span id="houseRule">Правильні двері — брехливі 🤥</span></div>
         <div id="doors"></div>
         <div class="steps"></div>
       </div>
     </div>
-    <div class="chhead">Підказки · бреше лише один 🤫</div>
+    <div class="chhead">Біля дверей · бреше лише один 🤫</div>
     <div id="chars"></div>
   </div>
 
@@ -205,12 +208,13 @@ h1{font-size:32px; font-weight:700;}
     <div class="start-top"><button class="iconbtn backbtn" type="button" title="Назад" aria-label="Назад">←</button></div>
     <div class="big-emoji">🚪</div>
     <h1>Будинок із дверима</h1>
-    <p class="start-sub">Логіка · 4 завдання · знайди, хто бреше</p>
+    <p class="start-sub">Логіка · 6 завдань · знайди, хто бреше</p>
     <div class="riddle">
       У будинку №17 — четверо дверей:
       <div class="items"><span>🔴 червоні</span><span>🔵 сині</span><span>🟢 зелені</span><span>🟡 жовті</span></div>
-      На будинку напис: <i>«Правильні двері завжди брешуть»</i>.<br>
-      Троє мешканців дають різні підказки, але <b>один із них бреше</b>. Визнач, хто бреше, — і відчини правильні двері!
+      На кожних дверях напис: <i>«Правильні двері завжди брешуть»</i>.<br>
+      Біля дверей стоять три персонажі, і кожен дає свою підказку. Але <b>один із них бреше</b>.
+      Визнач, хто бреше, — і знайди правильні двері! А потім… 🔄 навиворіт.
     </div>
     <div class="done-card" id="startDone">
       <span class="dc-ic">🏆</span>
@@ -227,9 +231,9 @@ h1{font-size:32px; font-weight:700;}
     <div class="sub" id="winSub">Чудова робота!</div>
     <div class="lesson">Як знайти брехуна:
       <ol>
-        <li>Припусти по черзі: «А що, як бреше <b>Кіт</b>?» — і перевір, чи все сходиться.</li>
-        <li>Якщо виходить <b>суперечність</b> (жодні двері не підходять або брехун раптом каже правду) — припущення хибне.</li>
-        <li>Правильні двері <b>брешуть</b>: напис на них — неправда, а на інших дверях — правда.</li>
+        <li>Порівняй кожну підказку з <b>правилом на дверях</b>.</li>
+        <li>Чия підказка <b>суперечить правилу</b> — той і бреше. Його підказку <b>відкидаємо</b> ✂️ і шукаємо двері за іншими.</li>
+        <li>🔄 Навиворіт: правило змінилося — тепер правильні двері <b>кажуть правду</b>. Перевіряй за новим правилом!</li>
       </ol>
     </div>
     <div class="winrow"><button class="cta" id="againBtn">↻ Ще раз</button></div>
@@ -253,16 +257,31 @@ h1{font-size:32px; font-weight:700;}
     {nm:"жовті",   Nm:"Жовті",   loc:"жовтих",   em:"🟡", c:"#ffd43b", d:"#e0b020"}
   ];
   var CHARS = [
-    {em:"🐱", nm:"Кіт Мурко"},
-    {em:"🦉", nm:"Сова Софія"},
-    {em:"🦊", nm:"Лис Лесик"}
+    {em:"🐱", nm:"Кіт Мурко",  gen:"Кота Мурка"},
+    {em:"🦉", nm:"Сова Софія", gen:"Сови Софії"},
+    {em:"🦊", nm:"Лис Лесик",  gen:"Лиса Лесика"}
   ];
-  /* план завдань: 1–2 — підказки про двері; 3 — є підказка про іншого мешканця; 4 — ще й таблички на дверях */
-  var PLAN = [{}, {}, {person:true}, {plates:true}];
+  /* Правило на дверях:
+       "lie"   — правильні двері завжди брешуть (а решта — кажуть правду);
+       "truth" — 🔄 навиворіт: правильні двері завжди кажуть правду (а решта — брешуть).
+     План: у першому завданні кожного правила брехун прямо заперечує правило,
+     далі — суперечність видно лише разом з іншими підказками. */
+  var PLAN = [
+    {rule:"lie",   direct:true},
+    {rule:"lie"},
+    {rule:"lie"},
+    {rule:"truth", direct:true, flipBefore:true},
+    {rule:"truth"},
+    {rule:"truth"}
+  ];
+  var RULE_TEXT = {
+    lie:   "Правильні двері завжди брешуть",
+    truth: "Правильні двері завжди кажуть правду"
+  };
 
   var $ = function(id){ return document.getElementById(id); };
   var doorsEl=$("doors"), charsEl=$("chars"), hintEl=$("hint");
-  var qIndex, mistakes, cur, step, busy=true;
+  var qIndex, mistakes, cur, step, rule="lie", busy=true;
 
   /* ── «Назад» / меню ── */
   function goBack(){
@@ -295,65 +314,66 @@ h1{font-size:32px; font-weight:700;}
     $("doneGo").textContent = t.go;
   }
 
-  /* ═════════════ логіка тверджень ═════════════
-     Твердження: {t:"is",d} | {t:"not",d} | {t:"or",a,b} | {t:"truth",p} | {t:"lie",p}
-     Світ: L — хто з мешканців бреше, D — які двері правильні. */
-  function val(s, L, D){
-    if(s.t==="is")    return D===s.d;
-    if(s.t==="not")   return D!==s.d;
-    if(s.t==="or")    return D===s.a || D===s.b;
-    if(s.t==="truth") return s.p!==L;
-    return s.p===L;   // "lie"
+  /* ═════════════ логіка підказок ═════════════
+     Підказка: {t:"is",d} | {t:"not",d} | {t:"or",a,b} | {t:"lies",d} | {t:"honest",d} | {t:"rule",r}
+     Світ: L — хто з персонажів бреше, D — які двері правильні; правило (rule) — відоме всім. */
+  function doorLies(d, D, r){ return r==="lie" ? d===D : d!==D; }
+  function val(s, D, r){
+    if(s.t==="is")     return D===s.d;
+    if(s.t==="not")    return D!==s.d;
+    if(s.t==="or")     return D===s.a || D===s.b;
+    if(s.t==="lies")   return doorLies(s.d, D, r);
+    if(s.t==="honest") return !doorLies(s.d, D, r);
+    return s.r===r;    // "rule": «правильні двері брешуть / кажуть правду»
   }
   function text(s){
-    if(s.t==="is")    return "Правильні двері — "+DOORS[s.d].nm+".";
-    if(s.t==="not")   return DOORS[s.d].Nm+" двері — неправильні.";
-    if(s.t==="or")    return "Правильні двері — "+DOORS[s.a].nm+" або "+DOORS[s.b].nm+".";
-    if(s.t==="truth") return CHARS[s.p].nm+" каже правду.";
-    return CHARS[s.p].nm+" бреше.";
+    if(s.t==="is")     return "Правильні двері — "+DOORS[s.d].nm+".";
+    if(s.t==="not")    return DOORS[s.d].Nm+" двері — неправильні.";
+    if(s.t==="or")     return "Правильні двері — "+DOORS[s.a].nm+" або "+DOORS[s.b].nm+".";
+    if(s.t==="lies")   return DOORS[s.d].Nm+" двері брешуть.";
+    if(s.t==="honest") return DOORS[s.d].Nm+" двері кажуть правду.";
+    return s.r==="lie" ? "Правильні двері брешуть." : "Правильні двері кажуть правду.";
   }
   function quote(s){ return "«"+text(s).replace(/\.$/,"")+"»"; }
-  /* чи світ (L,D) узгоджений з усіма підказками */
-  function charsOk(pz, L, D){
-    for(var i=0;i<3;i++) if(val(pz.says[i],L,D) !== (i!==L)) return false;
-    return true;
-  }
-  function platesOk(pz, D){
-    if(!pz.plates) return true;
-    for(var j=0;j<4;j++) if(val(pz.plates[j],-1,D) !== (j!==D)) return false;   // правильні двері брешуть, решта — ні
+  function ok(pz, L, D){
+    for(var i=0;i<3;i++) if(val(pz.says[i],D,pz.rule) !== (i!==L)) return false;
     return true;
   }
   function solutions(pz){
     var out=[];
-    for(var L=0;L<3;L++) for(var D=0;D<4;D++) if(charsOk(pz,L,D) && platesOk(pz,D)) out.push([L,D]);
+    for(var L=0;L<3;L++) for(var D=0;D<4;D++) if(ok(pz,L,D)) out.push([L,D]);
     return out;
   }
 
   function rnd(n){ return Math.floor(Math.random()*n); }
-  function doorStmt(){
-    var k = rnd(3), a = rnd(4), b;
+  function hintStmt(honestyOnly){
+    var k = honestyOnly ? 3+rnd(2) : rnd(5), a = rnd(4), b;
     if(k===0) return {t:"is", d:a};
     if(k===1) return {t:"not", d:a};
+    if(k===3) return {t:"lies", d:a};
+    if(k===4) return {t:"honest", d:a};
     do { b = rnd(4); } while(b===a);
     return a<b ? {t:"or", a:a, b:b} : {t:"or", a:b, b:a};
   }
   function same(x,y){ return JSON.stringify(x)===JSON.stringify(y); }
+  function isHonesty(s){ return s.t==="lies" || s.t==="honest"; }
 
   function makePuzzle(opt){
     for(var tries=0; tries<20000; tries++){
-      var says = [doorStmt(), doorStmt(), doorStmt()];
-      if(opt.person){
-        var who = rnd(3), p; do { p = rnd(3); } while(p===who);
-        says[who] = {t: rnd(2) ? "truth" : "lie", p:p};
+      var says = [hintStmt(), hintStmt(), hintStmt()], liar = -1;
+      if(opt.direct){
+        liar = rnd(3);
+        says[liar] = {t:"rule", r: opt.rule==="lie" ? "truth" : "lie"};   // прямо заперечує напис на дверях
+      } else {
+        /* без прямого заперечення: хоч одна підказка — про те, які двері брешуть/кажуть правду,
+           щоб без правила на дверях загадку не можна було розв'язати */
+        if(!says.some(isHonesty)) says[rnd(3)] = hintStmt(true);
       }
       if(same(says[0],says[1]) || same(says[1],says[2]) || same(says[0],says[2])) continue;
-      var pz = {says:says};
-      if(opt.plates){
-        pz.plates = [doorStmt(), doorStmt(), doorStmt(), doorStmt()];
-        if(pz.plates.some(function(x,k){ return pz.plates.slice(k+1).some(function(y){ return same(x,y); }); })) continue;
-      }
+      var pz = {says:says, rule:opt.rule};
       var sol = solutions(pz);
       if(sol.length !== 1) continue;
+      if(liar>=0 && sol[0][0]!==liar) continue;
       pz.liar = sol[0][0]; pz.door = sol[0][1];
       return pz;
     }
@@ -362,28 +382,40 @@ h1{font-size:32px; font-weight:700;}
 
   /* пояснення, чому гіпотеза «бреше h» не працює */
   function whyNotLiar(h){
+    var s = cur.says[h];
+    if(s.t==="rule") return CHARS[h].nm+" каже те саме, що написано на дверях: "+quote(s)+". Це правда!";
     var others = [0,1,2].filter(function(i){ return i!==h; });
     var fit = [];
-    for(var D=0; D<4; D++){
-      var ok = others.every(function(i){ return val(cur.says[i],h,D); }) && platesOk(cur,D);
-      if(ok) fit.push(D);
-    }
+    for(var D=0; D<4; D++) if(others.every(function(i){ return val(cur.says[i],D,cur.rule); })) fit.push(D);
     var names = CHARS[others[0]].nm+" і "+CHARS[others[1]].nm;
     if(!fit.length)
-      return "Якщо бреше "+CHARS[h].nm+", то "+names+" кажуть правду. Але тоді не підходять жодні двері — так не буває!";
-    return "Якщо бреше "+CHARS[h].nm+", то "+names+" кажуть правду. Але тоді й слова "+quote(cur.says[h])+" виходять правдою — а хтось один точно бреше!";
+      return "Якщо бреше "+CHARS[h].nm+", то "+names+" кажуть правду. Але разом із правилом на дверях не підходять жодні двері — так не буває!";
+    return "Якщо бреше "+CHARS[h].nm+", то "+names+" кажуть правду. Але тоді й слова "+CHARS[h].gen+" "+quote(s)+" виходять правдою — а хтось один точно бреше!";
+  }
+  /* чому підказка брехуна суперечить правилу (показуємо, коли брехуна знайдено) */
+  function whyLiar(){
+    var L = cur.liar, s = cur.says[L];
+    if(s.t==="rule") return "ця підказка суперечить напису на дверях";
+    return "з цією підказкою правило на дверях не сходиться";
   }
   /* пояснення, чому двері D не правильні (брехун уже відомий) */
   function whyNotDoor(D){
     var L = cur.liar;
-    if(cur.plates){
-      if(val(cur.plates[D],-1,D)) return "Напис на "+DOORS[D].loc+" дверях — правда. А правильні двері завжди брешуть!";
-      for(var j=0;j<4;j++) if(j!==D && !val(cur.plates[j],-1,D))
-        return "Тоді напис на "+DOORS[j].loc+" дверях був би неправдою — а брешуть лише правильні двері.";
+    for(var i=0;i<3;i++){
+      if(i===L) continue;
+      var s = cur.says[i];
+      if(val(s,D,cur.rule)) continue;
+      if(isHonesty(s)){
+        var nm = DOORS[s.d].nm, oneDoor = (s.t==="lies") === (cur.rule==="lie");
+        var why = cur.rule==="lie"
+          ? (s.t==="lies" ? "брешуть лише правильні двері" : "правду кажуть усі двері, крім правильних")
+          : (s.t==="honest" ? "правду кажуть лише правильні двері" : "брешуть усі двері, крім правильних");
+        return CHARS[i].nm+" каже правду: "+quote(s)+". За правилом "+why+", отже, "+
+          (oneDoor ? "правильні двері — "+nm+"." : nm+" двері — неправильні.");
+      }
+      return CHARS[i].nm+" каже правду: "+quote(s)+" — тож це не ці двері.";
     }
-    for(var i=0;i<3;i++) if(i!==L && !val(cur.says[i],L,D))
-      return CHARS[i].nm+" каже правду: "+quote(cur.says[i])+" — тож це не ці двері.";
-    return "Тоді слова "+quote(cur.says[L])+" стали б правдою — а "+CHARS[L].nm+" бреше!";
+    return "Тоді підказка "+CHARS[L].gen+" стала б правдою — а "+CHARS[L].nm+" бреше!";
   }
 
   /* ═════════════ малювання ═════════════ */
@@ -391,8 +423,7 @@ h1{font-size:32px; font-weight:700;}
     doorsEl.innerHTML = "";
     DOORS.forEach(function(d,i){
       var w = document.createElement("div"); w.className = "dw"; w.dataset.i = i;
-      var plate = cur.plates ? "«"+text(cur.plates[i])+"»" : "";
-      w.innerHTML = '<div class="plate">'+plate+'</div>'+
+      w.innerHTML = '<div class="plate">«'+RULE_TEXT[rule]+'»</div>'+
         '<div class="frame"><div class="inside">'+(qIndex===PLAN.length-1?"🏠":"⭐")+'</div>'+
         '<div class="door" style="background:linear-gradient(180deg,'+d.c+','+d.d+')"><span class="em">'+d.em+'</span><span class="knob"></span></div></div>'+
         '<div class="dl">'+d.nm+'</div>';
@@ -409,20 +440,28 @@ h1{font-size:32px; font-weight:700;}
       charsEl.appendChild(b);
     });
   }
+  function setRule(r){
+    rule = r;
+    $("houseRule").textContent = r==="lie" ? "Правильні двері — брехливі 🤥" : "🔄 Навиворіт: правильні — чесні 😇";
+    $("houseRule").classList.toggle("flipped", r!=="lie");
+  }
   function hint(t,cls){ hintEl.className = cls||""; hintEl.innerHTML = t; }
   function shake(el){ el.classList.remove("shake"); void el.offsetWidth; el.classList.add("shake"); }
 
   function renderRound(){
     if(qIndex >= PLAN.length){ finish(); return; }
-    cur = makePuzzle(PLAN[qIndex]);
+    var p = PLAN[qIndex];
+    if(p.flipBefore && rule!==p.rule){ showFlip(); return; }
+    setRule(p.rule);
+    cur = makePuzzle(p);
     step = "liar";
     $("qNum").textContent = (qIndex+1)+"/"+PLAN.length;
     $("barFill").style.width = (qIndex/PLAN.length*100)+"%";
     $("stepBadge").textContent = "🔍 Хто бреше?";
     renderDoors(); renderChars();
-    hint(cur.plates
-      ? "Тепер і на дверях є таблички! Пам'ятай: напис на правильних дверях — <b>неправда</b>. Хто з мешканців бреше?"
-      : "Один із мешканців бреше. Хто? Торкнись його картки.");
+    hint(p.direct
+      ? "Прочитай напис на дверях і порівняй з ним підказки. Чия підказка <b>суперечить правилу</b>?"
+      : "Один із персонажів бреше. Чия підказка не сходиться з правилом на дверях?");
     busy = false;
   }
 
@@ -442,13 +481,12 @@ h1{font-size:32px; font-weight:700;}
       b.querySelector(".mark").textContent = k===i ? "🤥" : "✅";
     });
     $("stepBadge").textContent = "🚪 Які двері?";
-    var tr = [0,1,2].filter(function(k){ return k!==i; }).map(function(k){ return CHARS[k].nm; });
-    hint("Так! Бреше "+CHARS[i].nm+" 🤥. Отже, "+tr[0]+" і "+tr[1]+" кажуть правду. Які двері правильні?", "good");
+    hint("Так! Бреше "+CHARS[i].nm+" 🤥 — "+whyLiar()+". Відкидаємо її ✂️. Які двері правильні?", "good");
   }
 
   function pickDoor(D, w){
     if(busy) return;
-    if(step!=="door"){ hint("Спершу визнач, хто бреше 🔍 — торкнись картки мешканця."); shake(w); return; }
+    if(step!=="door"){ hint("Спершу визнач, хто бреше 🔍 — торкнись картки персонажа."); shake(w); return; }
     tap();
     if(D !== cur.door){
       mistakes++; thud(); buzz(40); shake(w); w.classList.add("crossed");
@@ -465,19 +503,32 @@ h1{font-size:32px; font-weight:700;}
       if(last){
         fanfare();
         showModal("🏠", "Ти в будинку №17!",
-          "Ключ із дивного магазину 🗝️ підійшов до "+DOORS[D].loc+" дверей. Брехуна викрито, двері відчинено!", finish);
+          "Ключ із дивного магазину 🗝️ підійшов до "+DOORS[D].loc+" дверей. Брехуна викрито, двері відчинено!", "Далі →", finish);
       } else {
         chime();
         showModal("⭐", "Правильні двері — "+DOORS[D].nm+"!",
-          "Брехуна викрито: "+CHARS[cur.liar].nm+" 🤥. Але мешканці не заспокоюються — вони вже придумали нову загадку…", renderRound);
+          "Брехуна викрито: "+CHARS[cur.liar].nm+" 🤥. Але персонажі вже придумали нову загадку…", "Далі →", renderRound);
       }
     }, 1000);
   }
 
+  /* ═════════════ 🔄 Навиворіт ═════════════ */
+  function showFlip(){
+    busy = true;
+    showModal("🔄", "Навиворіт!",
+      "Раптом усі написи на дверях перевертаються… Тепер правило інше: <b>правильні двері завжди кажуть правду</b>, а всі інші — брешуть.",
+      "🔄 Перевернути написи", function(){
+        setRule("truth");
+        whoosh();
+        renderRound();
+        Array.prototype.forEach.call(doorsEl.querySelectorAll(".plate"), function(p){ p.classList.add("flip"); });
+      });
+  }
+
   /* ═════════════ модалка ═════════════ */
   var modalNext=null;
-  function showModal(big,title,body,next){
-    $("mBig").textContent=big; $("mTitle").textContent=title; $("mBody").innerHTML=body;
+  function showModal(big,title,body,btn,next){
+    $("mBig").textContent=big; $("mTitle").textContent=title; $("mBody").innerHTML=body; $("mBtn").textContent=btn;
     modalNext=next; $("modal").classList.remove("hidden");
   }
   $("mBtn").addEventListener("click", function(){
@@ -498,6 +549,7 @@ h1{font-size:32px; font-weight:700;}
   function chime(){ tone(660,0.09); setTimeout(function(){ tone(880,0.11); },90); }
   function thud(){ tone(180,0.16,"sine"); }
   function creak(){ tone(220,0.25,"sawtooth"); setTimeout(function(){ tone(260,0.3,"sawtooth"); },200); }
+  function whoosh(){ tone(650,0.2,"sine"); setTimeout(function(){ tone(450,0.2,"sine"); },180); setTimeout(function(){ tone(300,0.25,"sine"); },360); }
   function fanfare(){ tone(523,0.12); setTimeout(function(){ tone(659,0.12); },120);
     setTimeout(function(){ tone(784,0.14); },240); setTimeout(function(){ tone(1046,0.18); },380); }
   function buzz(v){ try{ if(navigator.vibrate) navigator.vibrate(v); }catch(e){} }
@@ -516,7 +568,7 @@ h1{font-size:32px; font-weight:700;}
   }
 
   function startGame(){
-    qIndex=0; mistakes=0;
+    qIndex=0; mistakes=0; setRule("lie");
     $("startScreen").classList.add("hidden");
     $("winScreen").classList.add("hidden");
     $("modal").classList.add("hidden");
