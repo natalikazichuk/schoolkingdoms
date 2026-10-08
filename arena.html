@@ -280,6 +280,9 @@ button{font-family:inherit}
 .sh-item .act.buy{background:rgba(255,140,90,.2);color:#ffc2a6}
 .sh-item .act+.pr{margin-top:0}
 .sh-item .pr small{font-size:.85em;opacity:.8}
+.sh-item.worn{border-color:#46c26f;background:rgba(20,60,40,.55)}
+.sh-item .sh-worn{position:absolute;top:4px;left:5px;width:18px;height:18px;border-radius:50%;background:#2fa952;color:#fff;font-size:.7rem;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #0c2247}
+.sh-item .act.worn{background:rgba(70,194,111,.25);color:#bff5cf;text-transform:none;font-size:.6rem}
 .sh-item .sh-on{position:absolute;top:4px;left:5px;background:#3a2430;border:1px solid #e05a4a;color:#ffd2bd;border-radius:9px;padding:0 6px;font-size:.62rem;font-weight:900;line-height:16px}
 .sh-sum .bag{color:#a9c1e4}
 .sh-how{display:flex;flex-direction:column;gap:5px;margin-top:10px}
@@ -971,7 +974,10 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 .ek-slot .ek-lab{position:absolute;left:4px;right:4px;bottom:5px;font-size:.52rem;font-weight:800;color:#ffe6ab;text-align:center;line-height:1.05;text-shadow:0 1px 2px rgba(0,0,0,.6)}
 .ek-slot.ek-compat{border-color:#ffe07a;box-shadow:0 0 0 3px rgba(255,224,122,.5),inset 0 2px 10px rgba(0,0,0,.4)}
 .ek-slot.ek-over{background:radial-gradient(120% 120% at 50% 20%,#33528a,#1c355f)}
-.ek-slot.ek-filled{border-color:#ffd873}
+.ek-slot.ek-filled{border-color:#46c26f;box-shadow:0 0 0 1px rgba(70,194,111,.45),inset 0 2px 10px rgba(0,0,0,.45)}
+/* вдягнена річ: зелена галочка «надіто» в куті слота */
+.ek-worn{position:absolute;top:-6px;right:-6px;z-index:3;width:20px;height:20px;border-radius:50%;background:#2fa952;color:#fff;font-size:.72rem;font-weight:900;
+  display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #14274a;pointer-events:none}
 .ek-slot.ek-filled .ek-lab{display:none}
 .ek-chip{position:absolute;inset:5px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#2c4a7d,#1b3157);border:1.5px solid rgba(255,214,115,.6);font-size:1.7rem;line-height:1;box-shadow:0 3px 8px rgba(0,0,0,.35)}
 .ek-drag{cursor:grab;touch-action:none}
@@ -1085,6 +1091,8 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 #ek-card .ic-meta{display:flex;align-items:center;justify-content:center;gap:8px;width:max-content;max-width:90%;margin:-2px auto 12px;padding:5px 16px;
   font-size:.9rem;font-weight:700;color:#d5e2f6;background:#0c1d44;border:2px solid #b8892e;border-radius:999px;position:relative;z-index:1}
 #ek-card .ic-mi{font-size:1.05rem}
+#ek-card .ic-worn{width:max-content;margin:-4px auto 10px;padding:3px 14px;border-radius:999px;font-weight:900;font-size:.9rem;color:#eafff0;
+  background:linear-gradient(180deg,#3fbf62,#23863f);border:2px solid #9ff0b4;box-shadow:0 0 10px rgba(70,194,111,.45)}
 #ek-card .ic-stats{background:rgba(8,20,48,.55);border:1px solid rgba(120,160,230,.25);border-radius:14px;padding:2px 12px;margin-bottom:8px}
 #ek-card .ic-srow{display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(160,190,240,.14);font-size:1rem}
 #ek-card .ic-srow:last-child{border-bottom:0}
@@ -3498,11 +3506,14 @@ function itemCard(x,acts){hideTip();
   +'<div class="ic-img"><span class="ic-glow"></span><span class="ic-ped"></span>'+img+'</div>'
   +'<div class="ic-banner"><span class="ic-gem"></span><div class="tp-name '+bc+'">'+esc(x.name||'')+'</div></div>'
   +(meta.length?'<div class="ic-meta"><span class="ic-mi">'+emo+'</span>'+esc(meta.join(' · '))+'</div>':'')
+  +(isWorn(x)?'<div class="ic-worn">Надіто ✔️</div>':'')
   +cardStats(x,base,eff)+dur
   +(eff?'<div class="ic-price"><span class="ic-spark">✦</span>'+coinsTxt(eff.priceNow)+'<span class="ic-spark">✦</span></div>':'')
   +CARD_ACTS.map(function(a,i){return actBtn(a,i);}).join('')
   +'</div>';
  card.hidden=false;}
+/* річ вдягнена на Герої (слот спорядження; пояс — не «надіто») */
+function isWorn(x){var sl=x&&x._inst&&x._inst.slot;return !!(sl&&!/^belt\d+$/.test(sl));}
 /* характеристики картки: рядок = іконка · назва · значення праворуч (як у макеті) */
 var STAT_IC={damage:'🗡️',armor:'🛡️',health:'❤️',mana:'💧',accuracy:'🎯',agility:'👟',magicDamage:'✨',magicResist:'🔮',critDamage:'💥',block:'🧱',stun:'💫',healthRegen:'💖',extraAttack:'⚡',beltSlots:'🪢'};
 function cardStats(x,base,eff){if(!base||!eff)return '';var rows=[];
@@ -3569,7 +3580,7 @@ function renderStats(){var t=totals();
  q('ek-statGrid').innerHTML=tiles.map(function(a){return '<div class="ek-stat '+a[0]+'"><div class="ek-si">'+a[1]+'</div><div class="ek-sl">'+a[2]+'</div><div class="ek-sv">'+a[3]+'</div></div>';}).join('');}
 
 function renderSlots(){q('ek-slots').innerHTML=SLOT_DEFS.map(function(d){var id=d[0],lab=d[1],ghost=d[2];var item=EQUIP[id];
- var inner=item?chip(item,' data-src="slot" data-slot="'+id+'"').replace('class="ek-chip ','class="ek-chip ek-drag ')
+ var inner=item?chip(item,' data-src="slot" data-slot="'+id+'" title="'+esc(item.name||'')+' — надіто ✔️"').replace('class="ek-chip ','class="ek-chip ek-drag ')+'<span class="ek-worn" aria-label="надіто">✔</span>'
   :'<span class="ek-gh">'+ghost+'</span>';
  return '<div class="ek-slot'+(item?' ek-filled':'')+'" data-slot="'+id+'">'+inner+'<span class="ek-lab">'+lab.split('|').join('<br>')+'</span></div>';}).join('');}
 
@@ -3808,8 +3819,11 @@ function load(force){var my=++S.seq;
 
 /* ── прилавок ── */
 /* сумка — те саме правило, що й у гардеробі (SKIT.store.bagView) */
-function bagItems(){if(!S.st)return [];var R=window.SKARENA||{};
-  return ST().bagView(S.st,S.byId,{dualWield:!!(R.BATTLE&&R.BATTLE.dualWield),isTwoHanded:R.isTwoHanded}).bag;}
+function bagViewNow(){if(!S.st)return null;var R=window.SKARENA||{};
+  return ST().bagView(S.st,S.byId,{dualWield:!!(R.BATTLE&&R.BATTLE.dualWield),isTwoHanded:R.isTwoHanded});}
+function bagItems(){var v=bagViewNow();return v?v.bag:[];}
+/* вдягнене на Герої (без пояса) — показуємо в сумці магазину з позначкою «надіто», але не продаємо */
+function wornItems(){var v=bagViewNow();if(!v)return [];var out=[];for(var k in v.equip)if(v.equip[k])out.push(v.equip[k]);return out;}
 // стан змінився деінде (гардероб, скриня, інша вкладка) — відкритий магазин підхоплює
 if(window.SKHERO)SKHERO.on(function(st){if(q('shop')&&!q('shop').hidden&&!S.busy&&S.cat.length){S.st=st;render();}});
 /* сумка поточного стану — рахуємо раз на перемальовку (bagView недешевий) */
@@ -3870,8 +3884,12 @@ function renderCounter(){
 function renderInv(){
   var b0=bag();q('shBagCnt').textContent=S.st?(ST().bagCount(S.st.inventory)+'/'+ST().BAG_LIMIT):'';
   if(!S.st){q('shInv').innerHTML='<div class="sh-empty">'+(S.err?esc(S.err):'Завантаження…')+'</div>';return;}
-  if(!b0.length){q('shInv').innerHTML='<div class="sh-empty">Сумка порожня.</div>';return;}
-  q('shInv').innerHTML='<div class="sh-grid">'+b0.map(function(i){var b=S.byId[i.id],n=sellN(i.uid),qn=qtyOf(i),used=n>=qn,part=n>0&&!used;
+  var worn=wornItems();
+  if(!b0.length&&!worn.length){q('shInv').innerHTML='<div class="sh-empty">Сумка порожня.</div>';return;}
+  q('shInv').innerHTML='<div class="sh-grid">'+worn.map(function(i){var b=S.byId[i.id];if(!b)return '';var t=SKIT.tile(b,i);
+    return '<button type="button" class="sh-item worn '+t.cls+'" data-worn="'+esc(i.uid)+'" title="'+esc(b.name)+' — надіто на Герої. Щоб продати, спершу зніми в інвентарі">'
+     +'<span class="ic">'+t.html+'</span><span class="sh-worn">✔</span><span class="nm">'+esc(b.name)+'</span>'
+     +'<span class="act worn">надіто ✔️</span></button>';}).join('')+b0.map(function(i){var b=S.byId[i.id],n=sellN(i.uid),qn=qtyOf(i),used=n>=qn,part=n>0&&!used;
     var t=SKIT.tile(b,i);
     return '<button type="button" class="sh-item '+t.cls+(used?' used':'')+'" data-sell="'+esc(i.uid)+'" title="'+(used?'На прилавку — натисни ще раз, щоб забрати назад · ':(part?'На прилавку '+n+' з '+qn+' — натисни, щоб додати ще одну · ':''))+esc(b.name+' — '+statLine(b,i))+'">'
      +'<span class="ic">'+t.html+'</span>'+(part?'<span class="sh-on">🧾 '+n+'</span>':'')+'<span class="nm">'+esc(b.name)+'</span>'
@@ -3977,6 +3995,10 @@ document.addEventListener('click',function(e){
    view=true — збільшена картка (та сама, що в гардеробі) з діями. */
 function itemAct(t,view){
   var el,card=view&&window.SKCARD;
+  if((el=t.closest('[data-worn]'))){var wu=el.getAttribute('data-worn'),wi=wornItems().filter(function(x){return x.uid===wu;})[0];if(!wi)return true;
+    if(card)SKCARD.show(S.byId[wi.id],wi,[]);
+    else toast('Надіто на Герої ✔️','Щоб продати цю річ, спершу зніми її в інвентарі');
+    return true;}
   if((el=t.closest('[data-sell]'))&&!el.disabled){var su=el.getAttribute('data-sell'),si=bagItem(su);if(!si)return true;
     var qn=qtyOf(si),n=sellN(su),full=n>=qn,b0=S.byId[si.id];
     var sAdd=function(){sellAdd(su);render();};
@@ -4004,7 +4026,7 @@ function itemAct(t,view){
   return false;}
 document.addEventListener('contextmenu',function(e){
   var m=q('shop');if(!m||m.hidden||S.busy||S.ask||!S.st||!window.SKCARD)return;
-  if(!e.target.closest('#shop [data-sell],#shop [data-buy],#shop [data-buyback]'))return;
+  if(!e.target.closest('#shop [data-sell],#shop [data-buy],#shop [data-buyback],#shop [data-worn]'))return;
   e.preventDefault();itemAct(e.target,true);});
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!S.ask&&q('shop')&&!q('shop').hidden)closeShop();});
 window.addEventListener('pagehide',function(){if(q('shop')&&!q('shop').hidden)lockOff();});
