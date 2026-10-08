@@ -105,14 +105,21 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
 /* ── лоток з цифрами ── */
 #tray{display:flex; align-items:center; justify-content:center; gap:clamp(6px,1.8vw,10px);
   padding:8px 12px 14px; flex-wrap:wrap;}
-.piece{position:relative; cursor:grab; touch-action:none; font-weight:700;
+.piece{position:relative; cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36'%3E%3Ctext x='4' y='29' font-size='28'%3E%E2%9C%8B%3C/text%3E%3C/svg%3E") 16 10, grab; touch-action:none; font-weight:700;
   width:clamp(46px,12.6vw,66px); height:clamp(46px,12.6vw,66px);
   font-size:clamp(21px,5.6vw,32px); color:#fff;
   background:var(--blue);
   border:none; border-radius:16px; display:flex; align-items:center; justify-content:center;
   box-shadow:0 5px 0 #2f8fd6, 0 9px 16px rgba(44,43,58,.16);
   transition:transform .12s, box-shadow .12s; will-change:transform;}
-.piece:active{cursor:grabbing;}
+.piece:active{cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36'%3E%3Ctext x='4' y='29' font-size='28'%3E%E2%9C%8A%3C/text%3E%3C/svg%3E") 16 14, grabbing;}
+/* наведення на цифру: «рука» замість системного курсора (у деяких браузерах grab схожий на приціл),
+   цифра піднімається й світиться — видно, що її можна взяти й перетягнути */
+@media (hover:hover){
+  .piece:hover:not(.dragging){transform:translateY(-4px) scale(1.08);
+    box-shadow:0 0 0 4px #ffd54a, 0 8px 0 #2f8fd6, 0 14px 22px rgba(44,43,58,.22);}
+}
+.piece.dragging{cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36'%3E%3Ctext x='4' y='29' font-size='28'%3E%E2%9C%8A%3C/text%3E%3C/svg%3E") 16 14, grabbing;}
 .piece.dragging{transition:none; box-shadow:0 12px 22px rgba(44,43,58,.28); z-index:50; opacity:.98;}
 .piece.flyto{transition:transform .2s cubic-bezier(.3,.9,.3,1.2);}
 .piece.wrong{animation:shake .34s;}
@@ -448,7 +455,18 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
     var p = window.SKREWARD ? SKREWARD.claim(TR_HREF) : Promise.resolve({skipped:true});
     p.catch(function(){ return {skipped:true}; }).then(function(res){
       prizeBusy=false;
-      if(!res || res.skipped) return;                 // не Герой / офлайн — спробуємо наступного разу
+      /* нагороду не видано зараз — кажемо чому (раніше екран просто мовчав);
+         замок не ставимо: наступний заселений будиночок спробує ще раз */
+      if(!res || res.skipped){
+        var why=res&&res.reason;
+        if(why==="not-hero") showPrize({got:"🎁 Нагорода — для Героя. Увійди як Герой і засели будиночок — вона чекатиме на тебе!"});
+        else if(why==="no-record"){
+          try{ console.warn("[Будиночки чисел] для sklad.html немає запису в «Тестах» з нагородою — налаштуй її в адмінці"); }catch(e){}
+          showPrize({got:"🏆 Ти заселив усі будиночки! Вирушай за новими досягненнями!"});
+        }
+        else showPrize({got:"🎁 Нагорода чекає на тебе — заберемо її, щойно буде звʼязок"});
+        return;
+      }
       if(res.failed){
         showPrize({got:'Нагорода не збереглась — заберемо її, щойно буде звʼязок 🎁'
           +'<span class="p-why">'+escH(res.failed.join(" · "))+'</span>'});
@@ -459,10 +477,12 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
         try{ if(!localStorage.getItem(PRIZE_KEY)) localStorage.setItem(PRIZE_KEY, JSON.stringify({at:Date.now()})); }catch(e){}
         if(res.restored && res.items && res.items.length)
           showPrize({got:"Ось твоя нагорода: "+escH(res.items.map(function(x){return x.name;}).join(", "))+"!", items:res.items});
+        else showPrize({got:"🎁 Нагороду за всі будиночки ти вже отримав раніше — молодець!"});
         return;
       }
       var names=(res.items||[]).map(function(x){ return x.name; });
-      showPrize({got: names.length ? "🎁 Ти отримав: "+escH(names.join(", "))+"!" : "🎁 Ти отримав нагороду!",
+      showPrize({got: names.length ? "🎁 Ти отримав: "+escH(names.join(", "))+"!"
+                   : ((res.coins>0||res.stat) ? "🎁 Ти отримав нагороду!" : "🏆 Ти заселив усі будиночки! Вирушай за новими досягненнями!"),
                  coins:res.coins, stat:res.stat, items:res.items});
       try{ localStorage.setItem(PRIZE_KEY, JSON.stringify({at:Date.now(), coins:res.coins||0, names:names,
         stat:res.stat?{label:res.stat.label,value:res.stat.value}:null})); }catch(e){}
@@ -667,10 +687,17 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
     document.getElementById("nextBtn").textContent =
       (idx<HOUSES.length-1) ? ("Будиночок "+HOUSES[idx+1]+" ▶") : "Ще один будиночок ▶";
     // будиночок заселено → зараховуємо; усі заселені → нагорода (один раз)
+    var wasAll=allDone();
     if(!doneHouses[N]){ doneHouses[N]=true; saveProgress(); }
+    var finale=!wasAll && allDone();               // щойно заселено останній — окремий фінальний екран
+    document.querySelector("#winScreen .crown").textContent = finale ? "🏆" : "🏡";
+    if(finale) document.getElementById("winTitle").textContent="Усі будиночки заселено!";
     document.getElementById("winProg").innerHTML=progText();
     document.getElementById("prize").classList.remove("on");
-    if(allDone() && !prizeSummary()) claimPrize();
+    if(allDone() && !prizeSummary()){
+      showPrize({got:"🎁 Відкриваємо нагороду…"});
+      claimPrize();
+    }
     document.getElementById("winScreen").classList.remove("hidden");
   }
 
