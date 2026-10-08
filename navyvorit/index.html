@@ -159,7 +159,7 @@ body.flipped .rules li .f{display:inline;}
 <div id="wrap">
   <div id="top">
     <h1 id="title">Світ навиворіт<small id="subtitle">🗺️ Карта · усе працює нормально…</small></h1>
-    <div class="pill"><span class="lab">Пройдено</span><span class="val" id="doneCnt">0/5</span></div>
+    <div class="pill"><span class="lab">Пройдено</span><span class="val" id="doneCnt">0/6</span></div>
   </div>
 
   <div id="main">
@@ -172,8 +172,8 @@ body.flipped .rules li .f{display:inline;}
         <div class="river"></div>
         <div class="bridge"></div>
         <svg id="path" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-          <polyline points="50,90 24,82 76,68 50,52 24,39 74,29 44,14"/>
-          <polyline class="dash" points="50,90 24,82 76,68 50,52 24,39 74,29 44,14"/>
+          <polyline points="50,90 80,84 24,82 76,68 50,52 24,39 74,29 44,14"/>
+          <polyline class="dash" points="50,90 80,84 24,82 76,68 50,52 24,39 74,29 44,14"/>
         </svg>
         <div id="things"></div>
         <div id="pins"></div>
@@ -207,19 +207,22 @@ body.flipped .rules li .f{display:inline;}
 
   /* ═════════ ігри на карті (у порядку стежки) ═════════ */
   var GAMES = [
-    {href:"svit-navyvorit.html",        em:"🌳", nm:"Дивне дерево",          x:24, y:82, prize:"sk_navyvorit_prize_v1",
+    {href:"avtobus-0.html",             em:"🚌", nm:"Автобус №0",            x:80, y:84, prize:"sk_avtobus_prize_v1", no:0,
+      d:"Отримав(-ла) перепустку? Сідай на екскурсію! 1 → 3 → 5 → 7 → ? — а наступної зупинки немає на карті.",
+      a:"Маршрут уперед: +2.", b:"🔄 Flip: 7 → 5 → 3 → 1, а в кінці — депо 0."},
+    {href:"svit-navyvorit.html",        em:"🌳", nm:"Дивне дерево",          x:24, y:82, prize:"sk_navyvorit_prize_v1", no:1,
       d:"Коріння в небі, крона в землі — як дістати яблуко?",
       a:"Яблуко падає вниз — лови знизу.", b:"Яблуко падає вгору — кошик став зверху!"},
-    {href:"dyvnyi-mahazyn.html",        em:"🏪", nm:"Дивний магазин",        x:76, y:68, prize:"sk_mahazyn_prize_v1",
+    {href:"dyvnyi-mahazyn.html",        em:"🏪", nm:"Дивний магазин",        x:76, y:68, prize:"sk_mahazyn_prize_v1", no:2,
       d:"Ціна — це не те, скільки ти платиш. А в коробці — ключ від будинку №17.",
       a:"Магазин подвоює витрачене.", b:"Повертає половину… але зілля — баг 🐞"},
-    {href:"hodynnykova-vezha.html",     em:"🕰️", nm:"Годинникова вежа",      x:24, y:39, prize:"sk_hodynnyk_prize_v1",
+    {href:"hodynnykova-vezha.html",     em:"🕰️", nm:"Годинникова вежа",      x:24, y:39, prize:"sk_hodynnyk_prize_v1", no:3,
       d:"Усі годинники показують різний час. Знайди закономірність!",
       a:"Час іде вперед.", b:"Час іде назад — віднімай."},
-    {href:"budynok-z-dveryma.html",     em:"🚪", nm:"Будинок із дверима",    x:74, y:29, prize:"sk_dveri_prize_v1",
+    {href:"budynok-z-dveryma.html",     em:"🚪", nm:"Будинок із дверима",    x:74, y:29, prize:"sk_dveri_prize_v1", no:4,
       d:"Четверо дверей, троє персонажів — і один із них бреше.",
       a:"Правильні двері брешуть.", b:"Правильні двері кажуть правду."},
-    {href:"budynok-yakoho-nemaye.html", em:"🏚️", nm:"Будинок, якого немає",  x:44, y:14, prize:"sk_nemaye_prize_v1",
+    {href:"budynok-yakoho-nemaye.html", em:"🏚️", nm:"Будинок, якого немає",  x:44, y:14, prize:"sk_nemaye_prize_v1", no:5,
       d:"На карті — будинок №17, а на місці його немає…",
       a:"Щохвилини номер меншає.", b:"Час назад — номер росте."}
   ];
@@ -255,8 +258,8 @@ body.flipped .rules li .f{display:inline;}
     ["🐟","fish", 30, 52, 30,  8, 24], ["🐟","fish", 70, 53, 88, 20, 22],
     ["⛰️","",     90, 42, 90, 42, 38, "🚩"],
     ["🌲","",      8, 66,  8, 66, 26], ["🌲","",     92, 82, 92, 82, 26], ["🌲","",  56, 80, 56, 80, 22],
-    ["🔥","fire", 86, 90, 86, 90, 26, "❄️"],
-    ["🧊","ice",  72, 90, 72, 90, 24, "🔥"],
+    ["🔥","fire", 10, 93, 10, 93, 26, "❄️"],
+    ["🧊","ice",  34, 95, 34, 95, 24, "🔥"],
     ["🪙","",     90, 64, 90, 64, 18, "💸"]
   ];
 
@@ -298,7 +301,7 @@ body.flipped .rules li .f{display:inline;}
     GAMES.forEach(function(g,i){
       var dn = isDone(g); if(dn) done++;
       var cls = dn ? "done" : (!nextSet ? (nextSet = true, "next") : "");
-      var p = pinEl(g, i+1, cls);
+      var p = pinEl(g, g.no, cls);
       p.addEventListener("click", function(){ tap(); openGame(i); });
       box.appendChild(p);
     });
@@ -359,7 +362,7 @@ body.flipped .rules li .f{display:inline;}
   function openGame(i){
     var g = GAMES[i];
     openSheet(
-      '<div class="sb">'+g.em+'</div><div class="st">'+(i+1)+'. '+g.nm+(isDone(g)?' ✅':'')+'</div>'+
+      '<div class="sb">'+g.em+'</div><div class="st">'+g.no+'. '+g.nm+(isDone(g)?' ✅':'')+'</div>'+
       '<div class="sd">'+g.d+'</div>'+
       '<div class="rulePair"><div class="a"><small>Звичайно</small>'+g.a+'</div><div class="b"><small>🔄 Навиворіт</small>'+g.b+'</div></div>'+
       '<a class="play" href="'+g.href+'">Грати ▶</a>');
@@ -411,8 +414,8 @@ body.flipped .rules li .f{display:inline;}
     gate.pass = 1; save(); fanfare(); renderAll();
     openSheet('<div class="sb">🎟️✨</div><div class="st">Перепустку отримано!</div>'+
       '<div class="sd">Ти зрозумів(-ла) всі нові правила й використав(-ла) їх. Так і грають у Світі навиворіт: '+
-      'спершу помічаєш, що змінилось, — а тоді дієш інакше.<br><br>Тепер обирай гру на карті — почни з 🌳 <b>Дивного дерева</b>!</div>'+
-      '<a class="play" href="'+GAMES[0].href+'">🌳 До першої гри ▶</a>');
+      'спершу помічаєш, що змінилось, — а тоді дієш інакше.<br><br>Тепер сідай в 🚌 <b>Автобус №0</b> — він повезе тебе на екскурсію Світом навиворіт!</div>'+
+      '<a class="play" href="'+GAMES[0].href+'">🚌 На екскурсію ▶</a>');
   }
 
   /* ═════════ звук ═════════ */
