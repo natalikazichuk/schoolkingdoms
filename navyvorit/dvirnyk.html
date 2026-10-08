@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Двірник — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<link rel="stylesheet" href="nav-common.css">
+<style>
+/* ── вулиця ── */
+#scene{height:220px; background:linear-gradient(180deg,#bfe3ff 0%,#e7f5ff 40%,#cfd6dc 40%,#b9c2ca 100%);}
+body.flipped #scene{background:linear-gradient(180deg,#cdb8ff 0%,#efe6ff 40%,#d8cfe6 40%,#c3b7d6 100%);}
+.house{position:absolute; bottom:60%; font-size:40px;}
+.curb{position:absolute; left:0; right:0; top:40%; height:8px; background:#9aa3ab;}
+#trash{position:absolute; left:0; right:0; top:44%; bottom:0;}
+#trash span{position:absolute; font-size:24px; transition:transform .35s, opacity .35s; transform:translate(-50%,-50%);}
+#trash span.new{animation:pop .4s;}
+@keyframes pop{0%{transform:translate(-50%,-50%) scale(0)}70%{transform:translate(-50%,-50%) scale(1.25)}}
+#worker{position:absolute; bottom:14px; left:10px; font-size:40px; z-index:2; transition:left .5s;}
+#worker .broom{display:inline-block; font-size:30px; transform-origin:50% 0;}
+#worker.sweep .broom{animation:sweep .3s 3;}
+@keyframes sweep{50%{transform:rotate(-35deg)}}
+body.flipped #worker{transform:scaleX(-1);}
+#counter{display:flex; align-items:center; justify-content:center; gap:10px; background:#fff; border:2px solid var(--line); border-radius:14px; padding:8px 12px; box-shadow:var(--shadow); font-weight:800;}
+#counter .n{font-family:'Fredoka'; font-weight:700; font-size:26px; color:#8a5e16; min-width:30px; text-align:center;}
+#counter .n.bump{animation:bump .35s;}
+@keyframes bump{40%{transform:scale(1.3)}}
+#counter .clean{color:var(--good);}
+</style>
+</head>
+<body>
+<script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
+<script src="nav-common.js"></script>
+<script>
+(function(){
+  "use strict";
+  var TOTAL = 6, ITEMS = ["🍌","📰","🥫","🍂","🧃","🍎"];
+  var n, stage, acts, log, moves;
+
+  NAV.mount({
+    title:"Двірник", emoji:"🧹🗑️", sub:"Логіка · Світ навиворіт · 6 кроків",
+    riddle:"Двірник прибирає вулицю. Але щоразу, коли він підмітає,<span class='seq'>🧹 → 🗑️ сміття стає БІЛЬШЕ!</span>Не поспішай допомагати йому прибирати — спершу зрозумій, як тут усе працює. Можливо, треба зробити <b>навпаки</b>?",
+    play:"На вулицю ▶", steps:TOTAL, crown:"🧹✨",
+    badgeOff:"🧹 вулиця", badgeOn:"🔄 переворот",
+    prizeKey:"sk_dvirnyk_prize_v1", href:"dvirnyk.html", doneText:"Вулицю прибрано — нагороду отримано!",
+    winTitle:"Вулиця чиста!", winPerfect:"Вулицю прибрано без жодної помилки!",
+    lesson:[
+      "Тут підмітання працює <b>навиворіт</b>: 🧹 підмів — сміття <b>+2</b>. А 🍌 насмітив — сміття <b>−1</b>!",
+      "Щоб прибрати вулицю, треба було не допомагати підмітати, а <b>зробити навпаки</b>.",
+      "🔄 Після перевороту правило змінилось: тепер 🧹 прибирає (<b>−2</b>), а 🍌 смітить (<b>+1</b>)."
+    ],
+    scene:'<span class="house" style="left:8%">🏠</span><span class="house" style="left:40%">🏪</span><span class="house" style="right:8%">🏡</span>'+
+      '<div class="curb"></div><div id="trash"></div><div id="worker"><span>👷</span><span class="broom">🧹</span></div>',
+    afterScene:'<div id="counter"></div><div class="log" id="log"></div>',
+    onStart:startGame
+  });
+
+  function sweepDelta(){ return NAV.flipped ? -2 : 2; }
+  function litterDelta(){ return NAV.flipped ? 1 : -1; }
+
+  function renderTrash(prev){
+    var box = NAV.$("trash"); box.innerHTML = "";
+    for(var i=0;i<n;i++){
+      var s = NAV.el("span", i>=prev ? "new" : "", ITEMS[i % ITEMS.length]);
+      s.style.left = (8 + (i*37 + (i%3)*11) % 84) + "%";
+      s.style.top = (18 + (i*23) % 70) + "%";
+      box.appendChild(s);
+    }
+    var c = NAV.$("counter");
+    c.innerHTML = n===0 ? '<span class="clean">✨ Вулиця чиста!</span>' : 'Сміття на вулиці: <span class="n" id="cnt">'+n+'</span> 🗑️';
+    var e = NAV.$("cnt"); if(e && prev!==n){ e.classList.add("bump"); }
+  }
+  function renderLog(){
+    var box = NAV.$("log"); box.innerHTML = '<div class="lh">📒 Що сталося</div>';
+    if(!log.length){ box.appendChild(NAV.el("div","empty","Поки нічого.")); return; }
+    var rows = NAV.el("div","rows"); log.slice(-4).forEach(function(r){ rows.appendChild(NAV.el("div","r",r)); }); box.appendChild(rows);
+  }
+  function apply(d, what){
+    var prev = n; n = Math.max(0, n + d); moves++;
+    var diff = n - prev;
+    log.push(what+" → сміття "+(diff>0 ? "<b>+"+diff+"</b>" : (diff<0 ? "<b>"+diff+"</b>" : "без змін"))+" (було "+prev+", стало "+n+")");
+    renderTrash(prev); renderLog();
+    return diff;
+  }
+
+  function startGame(){
+    n = 2; log = []; moves = 0; stage = "observe";
+    NAV.step(0,TOTAL); renderTrash(n); renderLog();
+    NAV.hint("Двірник береться до роботи. Натисни 🧹 «Підмести» й подивись, що станеться.");
+    buttons(true);
+  }
+  function buttons(onlySweep){
+    acts = NAV.actions([
+      {id:"sweep", ic:"🧹", tx:"Підмести", fn:sweep},
+      {id:"litter", ic:"🍌", tx:"Насмітити", fn:litter}
+    ], 2);
+    acts.litter.disabled = !!onlySweep;
+  }
+  function sweep(){
+    NAV.$("worker").classList.remove("sweep"); void NAV.$("worker").offsetWidth; NAV.$("worker").classList.add("sweep");
+    NAV.snd.tone(300,0.08,"sawtooth"); setTimeout(function(){ NAV.snd.tone(340,0.08,"sawtooth"); },120);
+    var d = apply(sweepDelta(), "🧹 Двірник підмів");
+    after("sweep", d);
+  }
+  function litter(){
+    NAV.snd.tone(700,0.06);
+    var d = apply(litterDelta(), "🍌 Ти насмітив(-ла)");
+    after("litter", d);
+  }
+
+  function after(what, d){
+    if(stage==="observe"){
+      if(moves===1){ NAV.hint("Ой! Сміття стало <b>більше</b> 😮 Нехай двірник підмете ще раз."); return; }
+      askRule(); return;
+    }
+    if(stage==="clean" || stage==="clean2"){
+      if(n===0){ cleaned(); return; }
+      NAV.hint(d>0 ? "Сміття побільшало 😬 Згадай правило цієї вулиці!" : "Менше! Сміття: "+n+". Ще трохи!", d>0 ? "bad" : "");
+      return;
+    }
+    if(stage==="flipObserve"){
+      if(moves>=2) askRule2();
+      else NAV.hint("Цікаво… Спробуй ще раз — і порівняй із тим, що було до перевороту.");
+    }
+  }
+
+  function askRule(){
+    stage = "rule"; NAV.step(1,TOTAL);
+    NAV.hint("Подивись у журнал 📒.");
+    NAV.question("Що стається, коли двірник підмітає?", [
+      {tx:"Сміття стає більше 🗑️⬆️", ok:true},
+      {tx:"Сміття стає менше", why:"Глянь у журнал: було 2, потім 4, потім 6 — сміття тільки більшає!"},
+      {tx:"Нічого не змінюється", why:"Змінюється — порахуй купки сміття на вулиці."}
+    ], function(){
+      setTimeout(function(){
+        NAV.hint("Так, підмітання тут працює навиворіт. Що ж робити?");
+        NAV.question("Як зробити вулицю чистою?", [
+          {tx:"Зробити навпаки — насмітити 🍌", ok:true},
+          {tx:"Попросити двірника підмітати ще швидше", why:"Що більше він підмітає, то більше сміття! Треба інакше."},
+          {tx:"Нічого не робити", why:"Тоді сміття так і лишиться на вулиці."}
+        ], function(){
+          NAV.hint("Спробуймо! Прибери вулицю — до нуля 🗑️0","good");
+          setTimeout(function(){ stage = "clean"; NAV.step(2,TOTAL); buttons(false); NAV.busy = false; }, 1100);
+        });
+      }, 900);
+    });
+  }
+
+  function cleaned(){
+    NAV.busy = true; NAV.snd.fanfare();
+    if(stage==="clean"){
+      NAV.hint("✨ Вулиця чиста! Ти зробив(-ла) <b>навпаки</b> — і це спрацювало.","good");
+      setTimeout(askCount, 1500);
+    } else {
+      NAV.hint("✨ Вулиця чиста! Після перевороту допомогло саме підмітання.","good");
+      setTimeout(NAV.finish, 1600);
+    }
+  }
+
+  function askCount(){
+    stage = "count"; NAV.step(3,TOTAL);
+    var a = NAV.rnd(3,6), k = NAV.pick([1,2]), right = a + 2*k;
+    NAV.hint("Задачка про цю дивну вулицю 🤔");
+    var opts = [{tx:String(right), ok:true}];
+    [a - 2*k, a + k, a].forEach(function(x){ if(x>=0 && !opts.some(function(o){ return o.tx===String(x); })) opts.push({tx:String(x), why:"Тут кожне підмітання додає 2 купки сміття. "+k+" раз(и) по +2 — це +"+(2*k)+"."}); });
+    NAV.question("На вулиці <b>"+a+"</b> купок сміття. Двірник підмів <b>"+k+"</b> раз"+(k>1?"и":"")+". Скільки стало сміття?", opts.slice(0,4), function(){
+      NAV.hint("Правильно! "+a+" + "+(2*k)+" = "+right+". Що більше підмітаєш — то більше сміття 🙃","good");
+      setTimeout(flip, 1600);
+    }, {cols:4, big:true});
+  }
+
+  function flip(){
+    NAV.modal("🔄","Навиворіт!","Над вулицею пролетів вітер-перевертун… Двірник обернувся, і щось змінилось. Перевір: як тепер працюють 🧹 і 🍌?",{nav:true, btn:"🔄 Перевернути"}, function(){
+      NAV.snd.whoosh(); NAV.flipAnim();
+      setTimeout(function(){
+        NAV.setFlip(true); stage = "flipObserve"; moves = 0; n = 5; NAV.step(4,TOTAL);
+        log.push("🔄 <b>Світ перевернувся!</b>"); renderTrash(n); renderLog();
+        buttons(false); NAV.busy = false;
+        NAV.hint("Світ перевернувся. Спробуй 🧹 або 🍌 — що тепер станеться?");
+      }, 500);
+    });
+  }
+  function askRule2(){
+    stage = "rule2";
+    NAV.hint("Подивись у журнал 📒 — правило змінилось?");
+    NAV.question("Як тепер працює вулиця?", [
+      {tx:"Тепер 🧹 прибирає (−2), а 🍌 смітить (+1)", ok:true},
+      {tx:"Як і раніше: 🧹 смітить, 🍌 прибирає", why:"Перевір журнал після перевороту — тепер усе інакше!"},
+      {tx:"І 🧹, і 🍌 прибирають", why:"Подивись уважно: одне прибирає, а друге — смітить."}
+    ], function(){
+      NAV.hint("Так! Тепер прибери вулицю до нуля — за правилами перевернутого світу.","good");
+      setTimeout(function(){ stage = "clean2"; NAV.step(5,TOTAL); buttons(false); NAV.busy = false; }, 1200);
+    });
+  }
+})();
+</script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=8"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=4"></script>
+<script src="../sk-prize.js?v=1"></script>
+<script src="../sk-finish.js?v=6"></script>
+</body>
+</html>

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Банк — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<link rel="stylesheet" href="nav-common.css">
+<style>
+/* ── банк ── */
+#scene{height:220px; background:linear-gradient(180deg,#bfe3ff 0%,#e7f5ff 70%,#d9c6a5 70%,#c9b48f 100%);}
+body.flipped #scene{background:linear-gradient(180deg,#cdb8ff 0%,#efe6ff 70%,#cbb6e6 70%,#b9a3d8 100%);}
+.bank{position:absolute; left:50%; bottom:30%; width:250px; transform:translateX(-50%);}
+.bank .roof{height:34px; background:#c9a46a; clip-path:polygon(0 100%,50% 0,100% 100%);}
+.bank .front{height:96px; background:#f1e3c6; border:3px solid #c9a46a; border-top:none; display:flex; justify-content:space-around; align-items:flex-end; padding:0 10px; position:relative;}
+.bank .col{width:12px; height:70px; background:#e3cfa6; border-radius:3px;}
+.bank .door{width:42px; height:56px; background:#8c5a2b; border-radius:20px 20px 0 0;}
+#sign{position:absolute; left:50%; top:30px; transform:translateX(-50%); background:#fff; border:3px solid #2f5d8a; border-radius:10px; padding:4px 10px;
+  font-family:'Fredoka'; font-weight:700; font-size:14px; color:#2f5d8a; white-space:nowrap; z-index:2; transition:transform .5s;}
+#sign.flip{animation:signFlip .9s ease-in-out;}
+@keyframes signFlip{50%{transform:translateX(-50%) rotateX(90deg)}}
+body.flipped #sign{border-color:#8e3fb0; color:#8e3fb0;}
+.bank .title{position:absolute; left:50%; top:4px; transform:translateX(-50%); font-family:'Fredoka'; font-weight:700; font-size:12px; color:#8a5e16;}
+#visitor{position:absolute; bottom:12%; left:-50px; font-size:40px; transition:left 1s ease-in-out; z-index:3;}
+#bubble{position:absolute; bottom:44%; left:50%; transform:translateX(-50%); background:#fff; border:2px solid var(--line); border-radius:12px; padding:4px 10px; font-weight:800; font-size:13px; white-space:nowrap; z-index:4; opacity:0; transition:opacity .3s;}
+#bubble.on{opacity:1;}
+#wallet{display:flex; align-items:center; justify-content:center; gap:10px; background:#fff; border:2px solid var(--line); border-radius:14px; padding:8px 12px; box-shadow:var(--shadow); font-weight:800;}
+#wallet .v{font-family:'Fredoka'; font-weight:700; font-size:22px; color:#b07a10;}
+.log .r .res{white-space:nowrap;}
+.log .r.good{color:var(--good);} .log .r.bad{color:var(--bad);}
+</style>
+</head>
+<body>
+<script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
+<script src="nav-common.js"></script>
+<script>
+(function(){
+  "use strict";
+  var TOTAL = 7;
+  var SIGN = { off:"«Не залишайте тут свої гроші»", on:"«Залишайте тут свої гроші»" };
+  /* відвідувачі: до перевороту нагороду дають тим, хто ЗАЛИШАЄ монети; після — тим, хто НЕ залишає */
+  var VIS1 = [
+    {em:"🐱", nm:"Кіт",  f:false, leave:true,  c:5},
+    {em:"🦊", nm:"Лис",  f:false, leave:false, c:5},
+    {em:"🦉", nm:"Сова", f:true,  leave:true,  c:3}
+  ];
+  var VIS2 = [
+    {em:"🐸", nm:"Жабка",   f:true,  leave:true,  c:4},
+    {em:"🐻", nm:"Ведмідь", f:false, leave:false, c:6},
+    {em:"🐰", nm:"Зайчик",  f:false, leave:false, c:2}
+  ];
+  var coins, log, vi, list, stage;
+
+  NAV.mount({
+    title:"Банк", emoji:"🏦🪙", sub:"Логіка · Світ навиворіт · 7 кроків",
+    riddle:"На вході в банк напис:<span class='seq'>«Не залишайте тут свої гроші»</span>Але всередині персонажі отримують нагороди саме за те, що <b>залишають</b> монети… Поспостерігай за відвідувачами й визнач <b>справжнє правило банку</b>.",
+    play:"До банку ▶", steps:TOTAL, crown:"🏦🏅",
+    badgeOff:"🏦 банк", badgeOn:"🔄 переворот",
+    prizeKey:"sk_bank_prize_v1", href:"bank.html", doneText:"Правило банку розгадано — нагороду отримано!",
+    winTitle:"Правило банку розгадано!", winPerfect:"Банк тебе не обдурив!",
+    lesson:[
+      "Напис на вході: «Не залишайте…» — а нагороду дають тим, хто <b>залишає</b> монети.",
+      "🔄 Після перевороту напис: «Залишайте…» — а нагороду дають тим, хто <b>не залишає</b>.",
+      "Справжнє правило банку: <b>роби навпаки до напису</b>. Не вір написам — дивись, що відбувається насправді!"
+    ],
+    scene:'<div class="bank"><div class="roof"></div><div class="front"><span class="title">🏦 БАНК</span><span class="col"></span><span class="door"></span><span class="col"></span></div></div>'+
+      '<div id="sign">'+SIGN.off+'</div><div id="visitor"></div><div id="bubble"></div>',
+    afterScene:'<div id="wallet"></div><div class="log" id="log"></div>',
+    onStart:startGame
+  });
+
+  function rewardFor(leave){ return NAV.flipped ? !leave : leave; }
+  function renderWallet(){ NAV.$("wallet").innerHTML = 'Твій гаманець: <span class="v">🪙 '+coins+'</span>'; }
+  function renderLog(){
+    var box = NAV.$("log"); box.innerHTML = '<div class="lh">📒 Що відбувається в банку</div>';
+    if(!log.length){ box.appendChild(NAV.el("div","empty","Поки нікого не було.")); return; }
+    var rows = NAV.el("div","rows"); log.slice(-6).forEach(function(r){ rows.appendChild(NAV.el("div","r "+(r.cls||""),r.t)); }); box.appendChild(rows);
+  }
+  function bubble(t){ var b = NAV.$("bubble"); b.textContent = t; b.classList.toggle("on", !!t); }
+
+  function startGame(){
+    coins = 10; log = []; stage = "obs1"; vi = 0; list = VIS1;
+    NAV.$("sign").textContent = SIGN.off; NAV.step(0,TOTAL); renderWallet(); renderLog(); bubble("");
+    NAV.$("visitor").style.left = "-50px";
+    NAV.hint("Поспостерігай за відвідувачами банку 👀");
+    NAV.actions([{id:"watch", ic:"👀", tx:"Наступний відвідувач", cls:"gold", fn:nextVisitor}], 1);
+  }
+
+  function nextVisitor(){
+    var v = list[vi], vis = NAV.$("visitor");
+    NAV.busy = true; bubble("");
+    vis.style.transition = "none"; vis.style.left = "-50px"; vis.textContent = v.em; vis.getBoundingClientRect(); vis.style.transition = "";
+    vis.style.left = "calc(50% - 20px)";
+    setTimeout(function(){
+      var rew = rewardFor(v.leave);
+      bubble(v.leave ? "Залишаю "+v.c+" 🪙" : "Забираю свої "+v.c+" 🪙");
+      NAV.snd.tone(v.leave ? 600 : 400, 0.1);
+      setTimeout(function(){
+        bubble(rew ? "🏅 Нагорода! +"+(v.c*2)+" 🪙" : "😐 Нічого не "+(v.f?"отримала":"отримав"));
+        if(rew) NAV.snd.chime(); else NAV.snd.thud();
+        log.push({t:v.em+" "+v.nm+(v.leave?" ":" не ")+(v.f?"залишила ":"залишив ")+v.c+" 🪙 → "+(rew ? "🏅 нагорода +"+(v.c*2)+" 🪙" : "нічого 😐"), cls:rew?"good":"bad"});
+        renderLog();
+        setTimeout(function(){
+          vis.style.left = "110%"; vi++; NAV.busy = false;
+          if(vi >= list.length){ setTimeout(stage==="obs1" ? askRule1 : askRule2, 700); return; }
+          NAV.hint("Цікаво… Подивись на наступного.");
+        }, 900);
+      }, 900);
+    }, 1000);
+  }
+
+  function askRule1(){
+    stage = "rule1"; NAV.step(1,TOTAL); bubble("");
+    NAV.hint("Порівняй напис на вході з тим, що в журналі 📒.");
+    NAV.question("Яке <b>справжнє</b> правило банку?", [
+      {tx:"Хто залишає монети — отримує нагороду 🏅", ok:true},
+      {tx:"Напис правдивий: монети тут залишати не можна", why:"Подивись у журнал: Кіт і Сова залишили монети — і отримали нагороди!"},
+      {tx:"Нагороди отримують усі", why:"Лис нічого не отримав — бо не залишив монети."}
+    ], function(){
+      NAV.hint("Так! Напис каже одне, а насправді все <b>навпаки</b>.","good");
+      setTimeout(act1, 1300);
+    });
+  }
+
+  function act1(){
+    stage = "act1"; NAV.step(2,TOTAL); NAV.busy = false;
+    NAV.hint("Твоя черга! У тебе 10 🪙. Що зробиш?");
+    NAV.actions([
+      {id:"leave", ic:"🏦", tx:"Залишити 10 🪙", fn:function(){ myTurn(true); }},
+      {id:"keep",  ic:"👛", tx:"Не залишати", fn:function(){ myTurn(false); }}
+    ], 2);
+  }
+  function myTurn(leave){
+    var rew = rewardFor(leave);
+    if(!rew){
+      NAV.miss(NAV.flipped
+        ? "Ти залишив(-ла) монети… і нічого не отримав(-ла). Згадай, що тепер у журналі 📒!"
+        : "Ти послухав(-ла) напис… і нічого не отримав(-ла). А що показав журнал?");
+      return;
+    }
+    NAV.busy = true; NAV.snd.fanfare();
+    coins = coins + 10;   // нагорода банку: +10 🪙
+    renderWallet();
+    log.push({t:"🧒 Ти "+(leave?"залишив(-ла)":"не залишив(-ла)")+" монети → 🏅 нагорода! Тепер "+coins+" 🪙", cls:"good"}); renderLog();
+    bubble("🏅 Нагорода!");
+    if(stage==="act1"){
+      NAV.hint("🏅 Нагорода! Ти зробив(-ла) не так, як написано, а так, як насправді працює банк.","good");
+      setTimeout(flip, 1600);
+    } else {
+      NAV.hint("🏅 Нагорода! Ти знову зробив(-ла) навпаки до напису — і це спрацювало.","good");
+      setTimeout(NAV.finish, 1600);
+    }
+  }
+
+  function flip(){
+    NAV.modal("🔄","Навиворіт!","Ти виходиш із банку… а коли повертаєшся — усе перевернулось! Навіть напис на вході тепер інший. Поспостерігай знову: як тепер дають нагороди?",{nav:true, btn:"🔄 Перевернути"}, function(){
+      NAV.snd.whoosh(); NAV.flipAnim();
+      var s = NAV.$("sign"); s.classList.remove("flip"); void s.offsetWidth; s.classList.add("flip");
+      setTimeout(function(){
+        NAV.setFlip(true); s.textContent = SIGN.on;
+        stage = "obs2"; vi = 0; list = VIS2; NAV.step(3,TOTAL); bubble("");
+        log.push({t:"🔄 <b>Банк перевернувся!</b> Напис тепер: "+SIGN.on}); renderLog();
+        NAV.busy = false;
+        NAV.hint("Новий напис: "+SIGN.on+". Поспостерігай за відвідувачами 👀");
+        NAV.actions([{id:"watch", ic:"👀", tx:"Наступний відвідувач", cls:"gold", fn:nextVisitor}], 1);
+      }, 500);
+    });
+  }
+
+  function askRule2(){
+    stage = "rule2"; NAV.step(4,TOTAL); bubble("");
+    NAV.hint("Порівняй новий напис із журналом 📒.");
+    NAV.question("Яке тепер справжнє правило?", [
+      {tx:"Тепер нагороду дають тим, хто НЕ залишає монети", ok:true},
+      {tx:"Як і раніше: хто залишає — отримує нагороду", why:"Жабка залишила монети — і нічого не отримала. Правило змінилось!"},
+      {tx:"Тепер напис правдивий", why:"Напис каже «Залишайте», а нагороди отримали Ведмідь і Зайчик, які НЕ залишили!"}
+    ], function(){
+      setTimeout(function(){
+        NAV.step(5,TOTAL);
+        NAV.hint("А тепер — найголовніше відкриття 🔍");
+        NAV.question("Як у цьому банку <b>завжди</b> знайти справжнє правило?", [
+          {tx:"Робити навпаки до напису на вході", ok:true},
+          {tx:"Робити так, як написано", why:"Обидва рази напис обманював: нагороди давали за протилежне!"},
+          {tx:"Правила немає — усе випадково", why:"Правило є: глянь, що щоразу робили ті, хто отримав нагороду."}
+        ], function(){
+          NAV.hint("Так! Напис на вході <b>завжди бреше</b> — роби навпаки 🔄","good");
+          setTimeout(function(){ stage = "act2"; NAV.step(6,TOTAL); NAV.hint("Твоя черга! У тебе "+coins+" 🪙. Що зробиш тепер?");
+            NAV.actions([
+              {id:"leave", ic:"🏦", tx:"Залишити монети", fn:function(){ myTurn(true); }},
+              {id:"keep",  ic:"👛", tx:"Не залишати", fn:function(){ myTurn(false); }}
+            ], 2); NAV.busy = false; }, 1400);
+        });
+      }, 900);
+    });
+  }
+})();
+</script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=8"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=4"></script>
+<script src="../sk-prize.js?v=1"></script>
+<script src="../sk-finish.js?v=6"></script>
+</body>
+</html>

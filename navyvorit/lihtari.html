@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Ліхтарі — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<link rel="stylesheet" href="nav-common.css">
+<style>
+/* ── нічна вулиця ── */
+#scene{height:250px; background:linear-gradient(180deg,#7fa7ee 0%,#c4dafc 55%,#b08a66 55%,#9a7652 100%); border-color:#3a3f6b;}
+body.flipped #scene{background:linear-gradient(180deg,#b79cf0 0%,#e3d6ff 55%,#b08a66 55%,#9a7652 100%);}
+.moon{position:absolute; right:16px; top:12px; font-size:26px;}
+.wall{position:absolute; left:0; right:0; top:20%; height:28%; background:repeating-linear-gradient(90deg,#7a5c45 0 38px,#6c503b 38px 40px), #7a5c45;
+  box-shadow:inset 0 -4px 0 rgba(0,0,0,.25);}
+.win{position:absolute; width:22px; height:18px; top:28%; background:#ffd97a; border:3px solid #4a3528; border-radius:3px; opacity:.85;}
+.pass{position:absolute; top:22%; width:46px; height:60px; border-radius:22px 22px 0 0; border:3px dashed rgba(255,240,180,.0);
+  background:rgba(255,236,160,0); display:grid; place-items:center; font-size:26px; cursor:pointer; transition:all .5s; z-index:4; color:transparent;}
+.pass.show{border-color:#ffe066; background:radial-gradient(circle,#fff7cf,#ffd43b); color:#5a3d05; box-shadow:0 0 22px 8px rgba(255,212,59,.75); animation:glow 1.2s infinite alternate;}
+.pass.found{background:#51cf66; border-style:solid; border-color:#fff; box-shadow:0 0 18px 6px rgba(81,207,102,.7);}
+@keyframes glow{to{box-shadow:0 0 30px 12px rgba(255,212,59,.95)}}
+#pass1{left:12%;} #pass2{right:12%;}
+.lamps{position:absolute; left:0; right:0; bottom:10px; display:flex; justify-content:space-around; z-index:5;}
+.lamp{position:relative; width:52px; height:96px; border:none; background:none; cursor:pointer; display:flex; flex-direction:column; align-items:center;}
+.lamp .head{width:30px; height:30px; border-radius:50%; background:#555b6e; border:3px solid #2c2f3a; display:grid; place-items:center; font-size:16px; transition:all .3s;}
+.lamp.on .head{background:#ffe066; box-shadow:0 0 18px 8px rgba(255,224,102,.65);}
+.lamp .post{width:6px; flex:1; background:#2c2f3a; border-radius:3px;}
+.lamp .base{width:22px; height:8px; background:#2c2f3a; border-radius:4px;}
+.lamp .st{position:absolute; top:-18px; font-weight:800; font-size:11px; color:#fff; text-shadow:0 1px 2px #000; white-space:nowrap;}
+.lamp:active .head{transform:scale(.92);}
+/* темрява: що менше світла, то густіша */
+#dark{position:absolute; inset:0; background:#050818; pointer-events:none; transition:opacity .5s; z-index:3;}
+#meter{display:flex; align-items:center; justify-content:center; gap:6px; background:#fff; border:2px solid var(--line); border-radius:14px; padding:6px 10px; box-shadow:var(--shadow); font-weight:800;}
+#meter .sun{font-size:22px; opacity:.18; transition:opacity .3s, transform .3s;}
+#meter .sun.on{opacity:1; transform:scale(1.1);}
+#meter .lb{font-size:12px; color:var(--soft); margin-right:4px;}
+</style>
+</head>
+<body>
+<script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
+<script src="nav-common.js"></script>
+<script>
+(function(){
+  "use strict";
+  var N = 5, TOTAL = 6;
+  var lamps, stage, lastLight, log, toggles;
+
+  NAV.mount({
+    title:"Ліхтарі", emoji:"🔦🌙", sub:"Логіка · Світ навиворіт · 6 кроків",
+    riddle:"Вночі вулиця освітлена ліхтарями. Але тут щось не так:<span class='seq'>💡 вимкнеш ліхтар — стає світліше!</span>Зрозумій, як працює світло, — і знайди прихований прохід. А потім… 🔄 навиворіт!",
+    play:"На нічну вулицю ▶", steps:TOTAL, crown:"🔦🚪",
+    badgeOff:"🌙 ніч", badgeOn:"🔄 переворот",
+    prizeKey:"sk_lihtari_prize_v1", href:"lihtari.html", doneText:"Ліхтарі розгадано — нагороду отримано!",
+    winTitle:"Обидва проходи знайдено!", winPerfect:"Обидва проходи — без жодної помилки!",
+    lesson:[
+      "Тут світло працює <b>навиворіт</b>: вимкнеш ліхтар — стає <b>світліше</b>. Тому прохід видно, коли <b>всі ліхтарі вимкнені</b>.",
+      "🔄 Після перевороту правило змінилось: тепер увімкнеш — світліше, і другий прохід видно, коли <b>всі ліхтарі горять</b>.",
+      "Спершу помічай, що змінюється, — і лише тоді дій!"
+    ],
+    scene:
+      '<span class="moon">🌙</span>'+
+      '<div class="wall"></div>'+
+      '<div class="win" style="left:34%"></div><div class="win" style="left:58%"></div>'+
+      '<button class="pass" id="pass1" type="button" aria-label="Прихований прохід">🚪</button>'+
+      '<button class="pass" id="pass2" type="button" aria-label="Другий прихований прохід">🚪</button>'+
+      '<div id="dark"></div>'+
+      '<div class="lamps" id="lamps"></div>',
+    afterScene:'<div id="meter"></div><div class="log" id="log"></div>',
+    onStart:startGame
+  });
+
+  /* скільки світла: до перевороту — скільки ліхтарів ВИМКНЕНО, після — скільки ГОРИТЬ */
+  function light(){
+    var on = lamps.filter(Boolean).length;
+    return NAV.flipped ? on : N - on;
+  }
+
+  function render(){
+    var box = NAV.$("lamps"); box.innerHTML = "";
+    lamps.forEach(function(on,i){
+      var b = NAV.el("button","lamp"+(on?" on":""),'<span class="st">'+(on?"горить":"вимкнено")+'</span><span class="head">'+(on?"💡":"")+'</span><span class="post"></span><span class="base"></span>');
+      b.type = "button"; b.setAttribute("aria-label","Ліхтар "+(i+1));
+      b.addEventListener("click", function(){ toggle(i); });
+      box.appendChild(b);
+    });
+    var L = light();
+    NAV.$("dark").style.opacity = (0.9 - L*0.17).toFixed(2);   // ☀️0 — глупа ніч, ☀️5 — майже день
+    var m = '<span class="lb">Світло:</span>';
+    for(var i=0;i<N;i++) m += '<span class="sun'+(i<L?" on":"")+'">☀️</span>';
+    NAV.$("meter").innerHTML = m;
+    var p1 = NAV.$("pass1"), p2 = NAV.$("pass2");
+    p1.classList.toggle("show", stage==="pass1" && L===N);
+    p2.classList.toggle("show", stage==="pass2" && L===N);
+  }
+  function renderLog(){
+    var box = NAV.$("log");
+    box.innerHTML = '<div class="lh">📒 Що я помітив(-ла)</div>';
+    if(!log.length){ box.appendChild(NAV.el("div","empty","Торкнись ліхтаря — і стеж за світлом ☀️")); return; }
+    var rows = NAV.el("div","rows");
+    log.slice(-4).forEach(function(r){ rows.appendChild(NAV.el("div","r",r)); });
+    box.appendChild(rows);
+  }
+
+  function toggle(i){
+    if(NAV.busy || ["explore","pass1","flipExplore","pass2"].indexOf(stage)<0) return;
+    lamps[i] = !lamps[i]; toggles++;
+    var L = light(), d = L - lastLight;
+    NAV.snd.tone(lamps[i] ? 880 : 440, 0.08);
+    log.push((lamps[i] ? "Увімкнув(-ла)" : "Вимкнув(-ла)")+" ліхтар → світла "+(d>0 ? "<b>більше</b> ☀️"+L : "<b>менше</b> ☀️"+L));
+    lastLight = L;
+    render(); renderLog();
+    if(stage==="explore" && toggles>=2) askRule();
+    else if(stage==="flipExplore" && toggles>=2) askRule2();
+    else if((stage==="pass1" || stage==="pass2") && L===N){ NAV.snd.chime(); NAV.hint("Ось він! У стіні засвітився прохід — торкнись його 🚪","good"); }
+    else if(stage==="pass1" || stage==="pass2") NAV.hint("Світла ☀️"+L+" з "+N+". Прохід видно лише при найяскравішому світлі.");
+  }
+
+  function startGame(){
+    lamps = [true,true,true,false,false]; stage = "explore"; log = []; toggles = 0;
+    NAV.$("pass1").classList.remove("found"); NAV.$("pass2").classList.remove("found");
+    lastLight = light(); NAV.step(0,TOTAL);
+    NAV.hint("Нічна вулиця. Десь тут прихований прохід… Торкайся ліхтарів і стеж за світлом ☀️");
+    NAV.$("panel").innerHTML = "";
+    render(); renderLog();
+  }
+
+  function askRule(){
+    stage = "rule"; NAV.step(1,TOTAL);
+    NAV.hint("Подивись у журнал 📒. Що відбувається зі світлом?");
+    NAV.question("Як тут працюють ліхтарі?", [
+      {tx:"Вимкнеш ліхтар — стає світліше 💡➡️☀️", ok:true},
+      {tx:"Вимкнеш ліхтар — стає темніше", why:"Подивись у журнал: коли ліхтар вимикали, світла ставало БІЛЬШЕ!"},
+      {tx:"Ліхтарі на світло не впливають", why:"Впливають! Шкала ☀️ змінюється щоразу, як ти торкаєшся ліхтаря."}
+    ], function(){
+      NAV.hint("Так! Світло працює <b>навиворіт</b> 🔄","good");
+      setTimeout(function(){
+        stage = "pass1"; NAV.step(2,TOTAL); NAV.$("panel").innerHTML = ""; NAV.busy = false;
+        NAV.hint("Прихований прохід видно лише при найяскравішому світлі ☀️5. Що зробити з ліхтарями?");
+        render();
+      }, 1400);
+    });
+  }
+
+  NAV.$("pass1").addEventListener("click", function(){ found(1); });
+  NAV.$("pass2").addEventListener("click", function(){ found(2); });
+  function found(n){
+    if(NAV.busy) return;
+    var p = NAV.$("pass"+n);
+    if(!p.classList.contains("show")){ return; }
+    NAV.busy = true; NAV.snd.fanfare(); p.classList.remove("show"); p.classList.add("found");
+    if(n===1){
+      NAV.hint("Прохід знайдено! 🚪 Щоб світла було найбільше, треба було <b>вимкнути всі</b> ліхтарі.","good");
+      setTimeout(function(){
+        NAV.modal("🔄","Навиворіт!","Ти проходиш крізь прихований прохід… і світ перевертається! Що тепер буде з ліхтарями? Перевір сам(а).",{nav:true, btn:"🔄 Перевернутися"}, function(){
+          NAV.snd.whoosh(); NAV.flipAnim();
+          setTimeout(function(){
+            NAV.setFlip(true); stage = "flipExplore"; toggles = 0; lastLight = light(); NAV.step(3,TOTAL);
+            log.push("🔄 <b>Світ перевернувся!</b>");
+            NAV.busy = false; render(); renderLog();
+            NAV.hint("Світ перевернувся. Торкайся ліхтарів — як тепер працює світло?");
+          }, 500);
+        });
+      }, 1300);
+    } else {
+      NAV.hint("Другий прохід знайдено! 🚪 Після перевороту треба було <b>увімкнути всі</b> ліхтарі.","good");
+      setTimeout(askPredict, 1500);
+    }
+  }
+
+  function askRule2(){
+    stage = "rule2";
+    NAV.hint("Подивись у журнал 📒 — що змінилось після перевороту?");
+    NAV.question("Як тепер працюють ліхтарі?", [
+      {tx:"Тепер увімкнеш ліхтар — стає світліше", ok:true},
+      {tx:"Як і раніше: вимкнеш — світліше", why:"Перевір журнал: після перевороту правило змінилось!"},
+      {tx:"Світло тепер не змінюється", why:"Змінюється — глянь на шкалу ☀️."}
+    ], function(){
+      NAV.hint("Так! Після перевороту правило змінилось 🔄","good");
+      setTimeout(function(){
+        stage = "pass2"; NAV.step(4,TOTAL); NAV.$("panel").innerHTML = ""; NAV.busy = false;
+        NAV.hint("З іншого боку вулиці — ще один прохід. Його теж видно лише при світлі ☀️5. Що тепер зробити?");
+        render();
+      }, 1400);
+    });
+  }
+
+  function askPredict(){
+    stage = "predict"; NAV.step(5,TOTAL);
+    var on = NAV.pick([1,2,3]);
+    NAV.hint("Остання загадка! Згадай вулицю <b>до перевороту</b>, де світло працювало навиворіт.");
+    var right = N - on, opts = [{tx:String(right), ok:true}];
+    [on, N, right+1, right-1].forEach(function(x){
+      if(opts.length<3 && x>=0 && x<=N && !opts.some(function(o){ return o.tx===String(x); }))
+        opts.push({tx:String(x), why:"До перевороту світла стільки, скільки ліхтарів <b>вимкнено</b>. Горять "+on+" з "+N+" — а скільки вимкнено?"});
+    });
+    NAV.question("До перевороту горять <b>"+on+"</b> ліхтарі з "+N+". Скільки буде світла ☀️?", opts, function(){
+      NAV.hint("Правильно! Вимкнено "+right+" ліхтарі — отже, світла ☀️"+right+".","good");
+      setTimeout(NAV.finish, 1400);
+    }, {cols:3, big:true});
+  }
+})();
+</script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=8"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=4"></script>
+<script src="../sk-prize.js?v=1"></script>
+<script src="../sk-finish.js?v=6"></script>
+</body>
+</html>
