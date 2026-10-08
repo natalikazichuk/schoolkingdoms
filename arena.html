@@ -617,6 +617,9 @@ body.scr-battle .wrap{max-width:1500px}
 .step .no{flex:none;font-family:'Fredoka';font-weight:700;font-size:.64rem;color:#0c2247;background:var(--gold);border-radius:20px;padding:1px 7px;margin-top:1px}
 .step .txt{color:#eaf2ff}
 .step .g{color:var(--ok)} .step .b{color:#ffcf4d} .step .r{color:#ff9a6b}
+.step .ln{display:block}
+.step .ln+.ln{margin-top:3px;padding-top:3px;border-top:1px dashed rgba(255,255,255,.12)}
+.step .sno{font-size:.6rem;font-weight:900;color:#0c2247;background:#a9c1e4;border-radius:8px;padding:0 5px;vertical-align:1px}
 .step .dice{display:block;margin-top:2px;font-size:.64rem;font-weight:700;color:#a9c1e4;line-height:1.3}
 .step .dice b{color:#eaf2ff}
 .step .crit{color:#ff3b3b;font-weight:900}               /* Критичний урон !!! */
@@ -2490,11 +2493,29 @@ window.SKHERO = (function(){
       (e.first ? '<span class="use">🎲 Хто перший з поясом: ти '+e.first.me+' · '+biEsc(B.op.f.name)+' '+e.first.op+'</span>' : '')
       + (e.uses||[]).map(useLine).join('')
       + (e.auto ? '<span class="b" title="Хід без тебе: ті самі зони, що минулого разу">⏳ авто</span> ' : '')
-      + phrase('Ти → '+ZONE_UA[e.me.atk], e.meHit)
-      + ' <span style="opacity:.5">·</span> '
-      + phrase(B.op.f.name+' → '+ZONE_UA[e.op.atk], e.opHit)
-      + diceLine('Ти', e.meHit) + diceLine(B.op.f.name, e.opHit));
+      + strikeLines(e));
     (e.broke||[]).forEach(function(b){ addBreak(b); });
+  }
+  /* Кожен удар — окремим рядком журналу: рядок N = мій удар N · удар суперника N.
+     У кого ударів більше (додаткові атаки: 2, 3, 6…) — у зайвих рядках лише його удари.
+     Кидки (детальний режим) — під своїм рядком. */
+  function strikesOf(hit){
+    if(!hit) return [];
+    var hs = hit.hits;
+    if(hit.kind==='fear' || hit.kind==='skip' || !hs || !hs.length) return [hit];   // не атакував — один рядок
+    return hs.map(function(h){ return { kind:h.kind, dmg:h.dmg||0, crit:!!h.crit, hits:[h] }; });
+  }
+  function strikeLines(e){
+    var mh = strikesOf(e.meHit), oh = strikesOf(e.opHit), n = Math.max(mh.length, oh.length), out = '';
+    var tag = function(arr, i){ return arr.length>1 ? ' <span class="sno">удар '+(i+1)+'/'+arr.length+'</span>' : ''; };
+    for(var i=0;i<n;i++){
+      var parts = [];
+      if(mh[i]) parts.push(phrase('Ти → '+ZONE_UA[e.me.atk]+tag(mh,i), mh[i]));
+      if(oh[i]) parts.push(phrase(B.op.f.name+' → '+ZONE_UA[e.op.atk]+tag(oh,i), oh[i]));
+      out += '<span class="ln">'+parts.join(' <span style="opacity:.5">·</span> ')
+        + (mh[i] ? diceLine('Ти', mh[i]) : '') + (oh[i] ? diceLine(B.op.f.name, oh[i]) : '') + '</span>';
+    }
+    return out;
   }
   function enterBattle(){
     if(live() && Date.now() >= B.deadline + TURN_SECONDS*1000){   // поки не дивились — минуло кілька ходів
@@ -2755,10 +2776,22 @@ window.SKHERO = (function(){
     lines.push('Режим: '+(full ? 'детальний' : 'простий'), '');
     stepsChrono(box).forEach(function(r){
       var no = r.querySelector('.no'), txt = r.querySelector('.txt'); if(!txt) return;
-      var c = txt.cloneNode(true), dice = [];
-      Array.prototype.forEach.call(c.querySelectorAll('.dice'), function(x){ dice.push(x.textContent.replace(/\s+/g,' ').trim()); x.remove(); });
-      var head = (no ? no.textContent.trim() : '');
-      lines.push((r.classList.contains('brk') ? '💥 ' : r.classList.contains('swap') ? '🔄 ' : (head ? head+': ' : '')) + c.textContent.replace(/\s+/g,' ').trim());
+      var c = txt.cloneNode(true), dice = [], sq = function(x){ return x.replace(/\s+/g,' ').trim(); };
+      var head = (no ? no.textContent.trim() : ''), lead = r.classList.contains('brk') ? '💥 ' : r.classList.contains('swap') ? '🔄 ' : (head ? head+': ' : '');
+      var lns = Array.prototype.slice.call(c.querySelectorAll('.ln'));
+      if(lns.length){   // хід: кожен удар — своїм рядком (кидки — одразу під ним)
+        lns.forEach(function(l){ l.remove(); });
+        var pre = sq(c.textContent);
+        if(pre) lines.push(lead + pre);
+        lns.forEach(function(l, i){
+          var dl = []; Array.prototype.forEach.call(l.querySelectorAll('.dice'), function(x){ dl.push(sq(x.textContent)); x.remove(); });
+          lines.push((i===0 && !pre ? lead : '    ') + sq(l.textContent));
+          if(full) dl.forEach(function(t){ lines.push('        '+t); });
+        });
+        return;
+      }
+      Array.prototype.forEach.call(c.querySelectorAll('.dice'), function(x){ dice.push(sq(x.textContent)); x.remove(); });
+      lines.push(lead + sq(c.textContent));
       if(full) dice.forEach(function(t){ lines.push('    '+t); });
     });
     if(lines.length <= 5) lines.push('(журнал порожній)');
