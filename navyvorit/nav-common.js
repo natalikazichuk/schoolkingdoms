@@ -185,6 +185,7 @@
     $("winTitle").textContent = m===0 ? (cfg.winPerfect || "Без жодної помилки!") : (cfg.winTitle || "Пройдено!");
     $("winSub").textContent = m===0 ? (cfg.winPerfectSub || "Ти справжній знавець Світу навиворіт!") : "Помилок: "+m+". Але загадку розгадано!";
     $("winScreen").classList.remove("hidden");
+    try{ localStorage.setItem("sk_navyvorit_done_"+cfg.href, "1"); }catch(e){}   // позначка для карти: наступний пункт відкривається
     if(window.SKPRIZE && !SKPRIZE.summary(cfg.prizeKey))
       SKPRIZE.claim({ key: cfg.prizeKey, href: cfg.href, title: cfg.winTitle || "Пройдено!", onClose: refreshStart });
   };
