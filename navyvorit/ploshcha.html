@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Площа з пам'ятниками — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<link rel="stylesheet" href="nav-common.css">
+<style>
+/* ── площа ── */
+#scene{height:230px; background:linear-gradient(180deg,#bfe3ff 0%,#e7f5ff 48%,#e9dcc4 48%,#d9c6a5 100%);}
+body.flipped #scene{background:linear-gradient(180deg,#cdb8ff 0%,#efe6ff 48%,#e2d4f0 48%,#cbb6e6 100%);}
+.tiles{position:absolute; left:0; right:0; top:48%; bottom:0; background:repeating-linear-gradient(90deg,rgba(0,0,0,.05) 0 1px,transparent 1px 34px),repeating-linear-gradient(0deg,rgba(0,0,0,.05) 0 1px,transparent 1px 24px);}
+#statues{position:absolute; left:6px; right:6px; bottom:22px; display:flex; justify-content:space-around; align-items:flex-end; z-index:2;}
+.st{position:relative; width:18%; display:flex; flex-direction:column; align-items:center; border:none; background:none; cursor:pointer; font-family:inherit;}
+.st .fig{font-size:44px; line-height:1; transition:transform .25s; display:inline-block; transform-origin:50% 90%;}
+.st .ped{width:84%; height:22px; margin-top:-2px; background:linear-gradient(180deg,#cfc6b8,#a99d8c); border-radius:4px 4px 2px 2px; box-shadow:0 3px 0 rgba(0,0,0,.18);}
+.st .no{position:absolute; bottom:3px; font-family:'Fredoka'; font-weight:700; font-size:12px; color:#4a4136;}
+.st.pick .ped{background:linear-gradient(180deg,#ffe066,#e0a92e);}
+.st.good .ped{background:linear-gradient(180deg,#8ce99a,#37b26f);}
+.st.bad .ped{background:linear-gradient(180deg,#ffa8a8,#e06666);}
+.st:active .fig{filter:brightness(1.1);}
+#curtain{position:absolute; inset:0; z-index:5; display:grid; place-items:center; background:rgba(44,43,58,.82); color:#fff; font-family:'Fredoka'; font-weight:700; font-size:20px;
+  opacity:0; pointer-events:none; transition:opacity .35s; text-align:center; line-height:1.3;}
+#curtain.on{opacity:1; pointer-events:auto;}
+#curtain .em{font-size:52px; display:block;}
+#timer{position:absolute; left:10px; right:10px; top:10px; height:8px; background:rgba(255,255,255,.6); border-radius:6px; overflow:hidden; z-index:3;}
+#timer i{display:block; height:100%; width:100%; background:linear-gradient(90deg,#ffd43b,#ffa94d); transition:width linear;}
+.sun{position:absolute; right:14px; top:22px; font-size:26px;}
+body.flipped .sun{transform:rotate(180deg);}
+</style>
+</head>
+<body>
+<script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
+<script src="nav-common.js"></script>
+<script>
+(function(){
+  "use strict";
+  /* фігури статуй і можливі положення: дзеркально (обличчям в інший бік) і нахил */
+  var FIGS = ["🗿","🦁","🐎","🦉","🐘","🦒","🐻"];
+  var TILTS = [-18, 0, 18];
+  var PLAN = [
+    {same:true,  kind:"face"},          // 🗿 🗿 🗿 🗿 🗿 — одна повернулась
+    {kind:"tilt"},
+    {kind:"any"},
+    {flip:true, kind:"any"},            // 🔄 змінюються всі, крім однієї
+    {flip:true, kind:"any"},
+    {flip:true, kind:"any", fast:true}
+  ];
+  var TOTAL = PLAN.length, qi, cur, before, after, target, phase, timerT;
+
+  NAV.mount({
+    title:"Площа з пам'ятниками", emoji:"🗿🗿🗿", sub:"Пам'ять · Світ навиворіт · 6 раундів",
+    riddle:"На площі 5 статуй. Поки ти на них дивишся — вони стоять смирно:<span class='seq'>🗿 → 🗿 → 🗿 → 🗿 → 🗿</span>Але варто відвернутися й повернутися — <b>одна статуя змінює положення</b>. Запам'ятай, як вони стоять, і знайди, яка саме змінилась!",
+    play:"На площу ▶", steps:TOTAL, crown:"🗿🔍", stepLabel:"Раунд",
+    badgeOff:"👀 одна зміна", badgeOn:"🔄 навиворіт",
+    prizeKey:"sk_ploshcha_prize_v1", href:"ploshcha.html", doneText:"Площу з пам'ятниками розгадано — нагороду отримано!",
+    winTitle:"Усі статуї перевірено!", winPerfect:"Жодна статуя тебе не обдурила!",
+    lesson:[
+      "Щоб помітити зміну, <b>запам'ятай</b>, як стоїть кожна статуя: куди дивиться і чи нахилена.",
+      "Звичайно змінюється <b>одна</b> статуя — шукай ту, що стоїть інакше.",
+      "🔄 Навиворіт: змінюються <b>всі, крім однієї</b> — тепер шукай ту, що стоїть <b>так само</b>!"
+    ],
+    scene:'<span class="sun">☀️</span><div class="tiles"></div><div id="timer"><i id="timerBar"></i></div><div id="statues"></div><div id="curtain"></div>',
+    onStart:function(){ qi = 0; next(); }
+  });
+
+  function pose(f){ return "scaleX("+f.face+") rotate("+f.tilt+"deg)"; }
+  function render(state, clickable){
+    var box = NAV.$("statues"); box.innerHTML = "";
+    state.forEach(function(f,i){
+      var b = NAV.el("button","st",'<span class="fig" style="transform:'+pose(f)+'">'+f.em+'</span><span class="ped"></span><span class="no">'+(i+1)+'</span>');
+      b.type = "button"; b.setAttribute("aria-label","Статуя "+(i+1));
+      if(clickable) b.addEventListener("click", function(){ pickStatue(i, b); });
+      box.appendChild(b);
+    });
+  }
+  function changeOne(f, kind){
+    var g = {em:f.em, face:f.face, tilt:f.tilt};
+    var k = kind==="any" ? NAV.pick(["face","tilt"]) : kind;
+    if(k==="face") g.face = -f.face;
+    else g.tilt = NAV.pick(TILTS.filter(function(t){ return t!==f.tilt; }));
+    return g;
+  }
+  function describe(a, b){
+    var parts = [];
+    if(a.face !== b.face) parts.push("повернулась в інший бік");
+    if(a.tilt !== b.tilt) parts.push(b.tilt===0 ? "випрямилась" : "нахилилась");
+    return parts.join(" і ");
+  }
+
+  function next(){
+    if(qi >= TOTAL){ NAV.finish(); return; }
+    cur = PLAN[qi];
+    if(cur.flip && !NAV.flipped){
+      NAV.busy = true;
+      NAV.modal("🔄","Навиворіт!","Над площею пролетіла чарівна зірка… і статуї стали хитрішими: тепер, коли ти відвертаєшся, <b>змінюються всі статуї, крім однієї</b>. Знайди ту, що лишилась такою самою!",{nav:true, btn:"🔄 Перевернути"}, function(){
+        NAV.snd.whoosh(); NAV.flipAnim();
+        setTimeout(function(){ NAV.setFlip(true); next(); }, 500);
+      });
+      return;
+    }
+    NAV.step(qi, TOTAL); NAV.$("panel").innerHTML = "";
+    var figs = NAV.shuffle(FIGS.slice());
+    before = [];
+    for(var i=0;i<5;i++) before.push(cur.same ? {em:"🗿", face:1, tilt:0}
+      : {em:figs[i], face:NAV.pick([1,-1]), tilt:NAV.pick(TILTS)});
+    target = NAV.rnd(0,4);
+    after = before.map(function(f,i){
+      var changes = cur.flip ? i!==target : i===target;
+      return changes ? changeOne(f, cur.kind) : {em:f.em, face:f.face, tilt:f.tilt};
+    });
+    phase = "look";
+    render(before, false);
+    NAV.$("curtain").classList.remove("on");
+    var secs = cur.fast ? 3 : (qi===0 ? 5 : 4);
+    NAV.hint(cur.flip
+      ? "Запам'ятай статуї! Потім <b>усі, крім однієї,</b> зміняться — знайдеш ту, що лишилась такою самою?"
+      : "Запам'ятай, як стоїть кожна статуя: куди дивиться і чи нахилена 👀");
+    var bar = NAV.$("timerBar");
+    bar.style.transition = "none"; bar.style.width = "100%"; bar.getBoundingClientRect();
+    bar.style.transition = "width "+secs+"s linear"; bar.style.width = "0%";
+    NAV.actions([{id:"turn", ic:"🙈", tx:"Я запам'ятав(-ла) — відвернутися", cls:"gold", fn:turnAway}], 1);
+    NAV.busy = false;
+    clearTimeout(timerT); timerT = setTimeout(turnAway, secs*1000);
+  }
+
+  function turnAway(){
+    if(phase !== "look") return;
+    phase = "away"; clearTimeout(timerT); NAV.busy = true;
+    var bar = NAV.$("timerBar"); bar.style.transition = "none"; bar.style.width = "0%";
+    NAV.$("panel").innerHTML = "";
+    var c = NAV.$("curtain");
+    c.innerHTML = '<div><span class="em">🙈</span>Герой відвернувся…<br><small>щось шурхотить на площі</small></div>';
+    c.classList.add("on");
+    NAV.snd.tone(300,0.15,"sine"); setTimeout(function(){ NAV.snd.tone(260,0.15,"sine"); }, 400);
+    setTimeout(function(){
+      render(after, true);
+      c.classList.remove("on");
+      phase = "find"; NAV.busy = false;
+      NAV.hint(cur.flip ? "Знайди статую, яка <b>НЕ змінилась</b>!" : "Яка статуя <b>змінила</b> положення? Торкнись її!");
+    }, 1500);
+  }
+
+  function pickStatue(i, b){
+    if(NAV.busy || phase !== "find") return;
+    NAV.snd.tap();
+    if(i !== target){
+      b.classList.add("bad");
+      NAV.miss(cur.flip
+        ? "Статуя "+(i+1)+" теж змінилась: вона "+describe(before[i], after[i])+". Шукай ту, що стоїть так само!"
+        : "Статуя "+(i+1)+" стоїть так само, як і була. Спробуй ще!");
+      return;
+    }
+    NAV.busy = true; phase = "done"; b.classList.add("good"); NAV.snd.chime();
+    NAV.hint(cur.flip
+      ? "Так! Статуя "+(i+1)+" лишилась такою самою — а всі інші змінились 🔄"
+      : "Так! Статуя "+(i+1)+" "+describe(before[i], after[i])+".", "good");
+    NAV.actions([{id:"show", ic:"👀", tx:"Як було", fn:function(){ render(before,false); NAV.hint("Ось як вони стояли до того, як ти відвернувся(-лася)."); }},
+                 {id:"now", ic:"🗿", tx:"Як стало", fn:function(){ render(after,false); markGood(); NAV.hint("А ось як стоять зараз."); }},
+                 {id:"next", ic:"▶", tx:qi+1<TOTAL?"Далі":"Фініш", cls:"gold", fn:function(){ qi++; next(); }}], 3);
+    NAV.busy = false; phase = "review";
+  }
+  function markGood(){ var b = NAV.$("statues").children[target]; if(b) b.classList.add("good"); }
+})();
+</script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=8"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=4"></script>
+<script src="../sk-prize.js?v=1"></script>
+<script src="../sk-finish.js?v=6"></script>
+</body>
+</html>

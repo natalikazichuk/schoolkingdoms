@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Автобус №0 — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<style>
+/* Світла «пісочна» тема — як у «Вежі Логіки» та інших іграх «Світу навиворіт». */
+:root{
+  --ink:#2c2b3a;--soft:#6b6a7d;--paper:#fff9ef;--line:#ece3d2;--card:#fff;
+  --orange:#ffa94d;--yellow:#ffd43b;--green:#51cf66;--teal:#22b8cf;--blue:#4dabf7;--purple:#cc5de8;
+  --good:#37b26f;--good-bg:#e4f7ec;--bad:#e06666;--bad-bg:#fbe7e7;
+  --shadow:0 6px 0 rgba(44,43,58,.13);
+  --accent:#4dabf7;--accent-d:#2f8fd6;--gold:#f4c842;--nav:#8e3fb0;
+}
+*{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+html,body{height:100%; overflow:hidden;}
+body{
+  font-family:'Nunito',system-ui,sans-serif; color:var(--ink);
+  user-select:none; -webkit-user-select:none; touch-action:manipulation; overscroll-behavior:none;
+  background:
+    radial-gradient(circle at 12% 8%,rgba(255,212,59,.28),transparent 42%),
+    radial-gradient(circle at 88% 14%,rgba(77,171,247,.26),transparent 44%),
+    radial-gradient(circle at 78% 92%,rgba(204,93,232,.22),transparent 46%),
+    radial-gradient(circle at 8% 86%,rgba(81,207,102,.24),transparent 44%),
+    var(--paper);
+}
+h1,.title,.cta,.linkbtn,.pill .val,.big-btn,.next,.opt,.act,.stop .n{font-family:'Fredoka',sans-serif;letter-spacing:.3px;}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+#wrap{position:fixed; top:0; left:0; right:0;
+  bottom:calc(60px + env(safe-area-inset-bottom));
+  display:flex; flex-direction:column; max-width:640px; margin:0 auto;}
+#top{display:flex; align-items:center; gap:8px; padding:calc(env(safe-area-inset-top) + 12px) 14px 4px;}
+.iconbtn{width:44px; height:44px; border:2px solid var(--line); background:#fff; border-radius:14px;
+  font-family:inherit; font-weight:700; font-size:20px; color:var(--ink); cursor:pointer; flex:none;
+  display:grid; place-items:center; box-shadow:0 1px 3px rgba(44,43,58,.14);}
+.iconbtn:active{transform:translateY(2px);}
+.pill{background:#fff; border:2px solid var(--line); border-radius:14px; padding:6px 12px; font-weight:800; white-space:nowrap; box-shadow:var(--shadow);}
+.pill .lab{color:var(--soft); font-size:11px; display:block; line-height:1;}
+.pill .val{font-size:19px; line-height:1.15; color:var(--orange);}
+#dirBadge{font-weight:800; font-size:13px; border-radius:12px; padding:6px 10px; border:2px solid var(--line); background:#fff; white-space:nowrap;}
+body.flipped #dirBadge{background:#f3e8ff; border-color:#cfa8f5; color:var(--nav);}
+#spacer{flex:1;}
+#menuBtn{cursor:pointer; font-family:'Fredoka'; font-weight:600; font-size:15px; flex:none;
+  background:#fff; border:2px solid var(--line); color:var(--ink);
+  border-radius:14px; padding:9px 14px; box-shadow:var(--shadow); margin-right:52px;}
+#menuBtn:active{transform:translateY(2px); box-shadow:0 3px 0 rgba(44,43,58,.13);}
+#barWrap{padding:10px 64px 2px 16px;}   /* праворуч — місце під «жучок» 🐞 */
+#bar{height:12px; border-radius:8px; background:#f0e7d6; overflow:hidden;}
+#barFill{height:100%; width:0%; border-radius:8px; background:linear-gradient(90deg,var(--green),var(--teal)); transition:width .45s;}
+
+#main{flex:1 1 auto; overflow-y:auto; padding:6px 12px 14px; display:flex; flex-direction:column; align-items:center; gap:10px; min-height:0;}
+#main > *{width:100%; max-width:480px; flex-shrink:0;}
+#hint{font-weight:800; font-size:15px; text-align:center; line-height:1.35; min-height:40px; padding:0 36px;}
+#hint.bad{color:var(--bad);} #hint.good{color:var(--good);}
+#hint b{color:var(--accent-d);}
+body.flipped #hint b{color:var(--nav);}
+
+/* ── карта маршруту ── */
+#scene{position:relative; border-radius:20px; overflow:hidden; border:3px solid #d9b77c; box-shadow:var(--shadow); padding:86px 10px 26px;
+  background:linear-gradient(180deg,#bfe3ff 0%,#e7f5ff 46%,#a6d98a 46%,#86c56a 100%); transition:background .6s;}
+body.flipped #scene{background:linear-gradient(180deg,#cdb8ff 0%,#efe6ff 46%,#9ccf88 46%,#7ab865 100%);}
+#scene.flip{animation:flip 1s ease-in-out;}
+@keyframes flip{50%{transform:rotateY(90deg) scale(.94)}}
+#routeName{position:absolute; top:10px; left:10px; background:#fff; border:2px solid var(--line); border-radius:12px; padding:4px 9px; font-weight:800; font-size:12px; box-shadow:0 2px 0 rgba(44,43,58,.12);}
+#road{position:relative; display:flex; align-items:center; justify-content:space-between; gap:4px;}
+#road:before{content:""; position:absolute; left:4%; right:4%; top:50%; height:14px; transform:translateY(-50%); background:#8a8f99; border-radius:8px;
+  box-shadow:inset 0 0 0 2px #6f747d;}
+#road:after{content:""; position:absolute; left:6%; right:6%; top:50%; height:0; border-top:3px dashed #fff8d6; transform:translateY(-50%);}
+.stop{position:relative; z-index:1; flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; gap:3px;}
+.stop .n{width:44px; height:44px; border-radius:50%; display:grid; place-items:center; background:#fff; border:3px solid #2f5d8a;
+  font-weight:700; font-size:19px; color:#2f5d8a; box-shadow:0 3px 0 rgba(0,0,0,.18);}
+.stop .lb{font-weight:800; font-size:11px; line-height:1.15; color:#1f4e3a; text-align:center; min-height:26px; max-width:64px;}
+.stop.miss .n{border-style:dashed; border-color:#e06666; color:#e06666; background:#fff4f4;}
+.stop.miss .lb{color:#c0392b;}
+.stop.found .n{animation:pop .5s; border-color:var(--good); color:var(--good);}
+.stop.depot .n{background:#fff3bf; border-color:#e0a92e; color:#8a5e16;}
+.stop.target .n{border-color:#e0a92e; box-shadow:0 0 0 4px rgba(255,212,59,.6),0 3px 0 rgba(0,0,0,.18);}
+.stop.here .n{background:#e7f3fe;}
+@keyframes pop{40%{transform:scale(1.25)}}
+#bus{position:absolute; top:44px; left:0; font-size:34px; line-height:1; z-index:3; transition:left .55s ease-in-out; transform:translateX(-50%);}
+#bus .b{display:inline-block; transition:transform .3s;}
+#bus.right .b{transform:scaleX(-1);}   /* емодзі 🚌 «дивиться» ліворуч — віддзеркалюємо, коли їде праворуч */
+#bus.go{animation:bob .3s infinite;}
+@keyframes bob{50%{margin-top:-3px}}
+#scene.shake{animation:shake .35s;}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.deco{position:absolute; font-size:22px; line-height:1;}
+#scene .deco:first-child{top:44px;}
+
+/* питання й дії */
+#panel{display:flex; flex-direction:column; gap:8px;}
+.q{font-weight:800; font-size:15px; text-align:center; line-height:1.35;}
+.opts{display:grid; grid-template-columns:repeat(4,1fr); gap:8px;}
+.opt{border:2px solid var(--line); background:#fff; border-radius:16px; padding:12px 6px; cursor:pointer; font-weight:700; font-size:22px; color:var(--ink); box-shadow:var(--shadow);}
+.opt:active{transform:translateY(3px); box-shadow:0 3px 0 rgba(44,43,58,.13);}
+.opt.bad{border-color:var(--bad); background:var(--bad-bg);}
+.opt.good{border-color:var(--good); background:var(--good-bg);}
+.opt:disabled{cursor:default;}
+.acts{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
+.act{border:2px solid var(--line); background:#fff; border-radius:16px; padding:9px 4px; cursor:pointer; font-weight:600; font-size:14px; color:var(--ink);
+  display:flex; flex-direction:column; align-items:center; gap:2px; box-shadow:var(--shadow);}
+.act .ic{font-size:26px; line-height:1;}
+.act:active{transform:translateY(3px); box-shadow:0 3px 0 rgba(44,43,58,.13);}
+.act.flip{background:linear-gradient(180deg,#f8f0ff,#ecdcff); border-color:#cfa8f5;}
+body.flipped .act.flip{background:#cc5de8; color:#fff; border-color:#a43fc4;}
+.act.out{background:linear-gradient(180deg,#fffaf0,#ffefc2); border-color:var(--gold);}
+.why{background:#fff; border:2px solid var(--line); border-radius:14px; padding:8px 12px; font-weight:800; font-size:14px; line-height:1.4; text-align:center;}
+.why .d{color:var(--good);} body.flipped .why .d{color:var(--nav);}
+
+/* модалка — поза #wrap (див. нижче) */
+.modal{position:fixed; inset:0; z-index:70; display:flex; align-items:center; justify-content:center; padding:18px;
+  background:rgba(44,43,58,.45); backdrop-filter:blur(3px);}
+.modal.hidden{display:none;}
+.mcard{width:min(380px,100%); max-height:calc(100% - 20px); overflow-y:auto; background:linear-gradient(180deg,#fffdf4,#fff6df); border:3px solid var(--gold); border-radius:24px;
+  padding:20px 18px 18px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px;
+  box-shadow:0 0 0 4px #fff9e6,0 12px 28px rgba(44,43,58,.25);}
+.mcard.navm{background:linear-gradient(180deg,#fdf8ff,#f1e4ff); border-color:#cfa8f5; box-shadow:0 0 0 4px #faf3ff,0 12px 28px rgba(44,43,58,.25);}
+.mcard .big{font-size:58px; line-height:1;}
+.mcard .mt{font-family:'Fredoka'; font-weight:700; font-size:22px;}
+.mcard .mb{font-weight:800; font-size:15px; color:var(--soft); line-height:1.4;}
+.next{border:none; border-radius:16px; padding:13px 22px; width:100%; cursor:pointer; font-weight:700; font-size:18px;
+  color:#fff; background:var(--green); box-shadow:0 6px 0 #37a052;}
+.next:active{transform:translateY(3px); box-shadow:0 3px 0 #37a052;}
+.mcard.navm .next{background:var(--purple); box-shadow:0 6px 0 #a43fc4;}
+
+/* старт / фініш */
+.screen{position:absolute; inset:0; z-index:60; display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:12px; padding:calc(env(safe-area-inset-top) + 16px) 22px 18px; text-align:center;
+  background:
+    radial-gradient(circle at 15% 10%,rgba(255,212,59,.32),transparent 45%),
+    radial-gradient(circle at 85% 90%,rgba(204,93,232,.25),transparent 45%), var(--paper);
+  overflow-y:auto;}
+.screen.hidden{display:none;}
+.start-top{position:absolute; top:calc(env(safe-area-inset-top) + 16px); left:16px;}
+.big-emoji{font-size:64px; line-height:1;}
+h1{font-size:32px; font-weight:700;}
+.start-sub{color:var(--soft); font-weight:800; font-size:15px;}
+.riddle{background:#fff; border:2px solid var(--line); border-radius:20px; padding:14px 16px; max-width:420px;
+  font-weight:700; font-size:15px; line-height:1.5; box-shadow:var(--shadow); text-align:left;}
+.riddle .seq{display:block; margin:6px 0; font-family:'Fredoka'; font-weight:700; font-size:20px; color:var(--accent-d); text-align:center;}
+.done-card{display:none; align-items:center; gap:12px; max-width:420px; width:100%; text-align:left;
+  background:linear-gradient(180deg,#fffdf4,#fff3cf); border:2px solid var(--gold); border-radius:18px; padding:10px 14px;}
+.done-card.on{display:flex;}
+.done-card .dc-ic{font-size:30px; flex:none;}
+.done-card .dc-got{font-family:'Fredoka'; font-weight:700; font-size:15px; color:#8a5e16; line-height:1.2;}
+.done-card .dc-go{font-weight:800; font-size:12px; color:var(--soft); margin-top:3px; line-height:1.25;}
+.big-btn{border:none; border-radius:18px; padding:16px 20px; width:100%; max-width:420px; cursor:pointer;
+  font-weight:700; font-size:20px; color:#fff; background:var(--accent); box-shadow:0 6px 0 var(--accent-d);}
+.big-btn:active{transform:translateY(3px); box-shadow:0 3px 0 var(--accent-d);}
+.crown{font-size:52px;}
+.title{font-size:26px; font-weight:700;}
+.stars{font-size:30px;}
+.sub{color:var(--soft); font-weight:800;}
+.lesson{background:#fff; border:2px solid var(--line); border-radius:18px; padding:12px 14px; max-width:420px;
+  text-align:left; font-weight:700; font-size:14px; line-height:1.45;}
+.lesson li{margin:4px 0 4px 18px;}
+.cta{margin-top:4px; border:none; cursor:pointer; font-weight:700; font-size:18px; color:#fff;
+  background:var(--green); border-radius:16px; padding:12px 26px; box-shadow:0 6px 0 #37a052;}
+.cta:active{transform:translateY(3px); box-shadow:0 3px 0 #37a052;}
+.linkbtn{cursor:pointer; font-weight:600; font-size:15px; background:#fff; border:2px solid var(--line);
+  color:var(--ink); border-radius:14px; padding:9px 14px; text-decoration:none;}
+.linkbtn:active{transform:translateY(2px);}
+.winrow{display:flex; gap:10px; flex-wrap:wrap; justify-content:center;}
+
+@media (max-width:360px){ .stop .n{width:38px; height:38px; font-size:17px;} }
+@media (max-height:700px){
+  #hint{font-size:14px; min-height:36px;}
+  .big-emoji{font-size:48px;} h1{font-size:28px;}
+  .riddle{font-size:14px; padding:10px 12px;}
+}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <div class="pill"><span class="lab">Зупинка</span><span class="val" id="qNum">1/8</span></div>
+    <div id="dirBadge">⏩ маршрут уперед</div>
+    <div id="spacer"></div>
+    <button id="menuBtn">☰ Меню</button>
+  </div>
+  <div id="barWrap"><div id="bar"><div id="barFill"></div></div></div>
+
+  <div id="main">
+    <div id="hint"></div>
+    <div id="scene">
+      <span class="deco" style="right:12px; top:8px">☁️</span>
+      <span class="deco" style="left:30%; bottom:2px; font-size:18px">🌼</span>
+      <span class="deco" style="right:22%; bottom:2px; font-size:18px">🌳</span>
+      <div id="routeName">🚌 Автобус №0 · маршрут</div>
+      <div id="road"></div>
+      <div id="bus"><span class="b">🚌</span></div>
+    </div>
+    <div id="panel"></div>
+  </div>
+
+  <div class="screen" id="startScreen">
+    <div class="start-top"><button class="iconbtn backbtn" type="button" title="Назад" aria-label="Назад">←</button></div>
+    <div class="big-emoji">🚌🎟️</div>
+    <h1>Автобус №0</h1>
+    <p class="start-sub">Логіка · екскурсія Світом навиворіт · 8 зупинок</p>
+    <div class="riddle">
+      Ти отримав(-ла) перепустку — сідай в автобус на екскурсію! Автобус їздить маршрутом:
+      <span class="seq">1 → 3 → 5 → 7 → ?</span>
+      Але наступної зупинки немає на карті. Знайди закономірність — і автобус поїде далі. А потім… 🔄 Flip!
+    </div>
+    <div class="done-card" id="startDone">
+      <span class="dc-ic">🏆</span>
+      <div><div class="dc-got" id="doneGot">Екскурсію завершено!</div>
+        <div class="dc-go" id="doneGo">Вирушай за новими досягненнями!</div></div>
+    </div>
+    <button class="big-btn" id="playBtn">Сісти в автобус ▶</button>
+  </div>
+
+  <div class="screen hidden" id="winScreen">
+    <div class="crown">🚌🏁</div>
+    <div class="title" id="winTitle">Екскурсію завершено!</div>
+    <div class="stars" id="winStars">⭐⭐⭐</div>
+    <div class="sub" id="winSub">Чудова робота!</div>
+    <div class="lesson">Що ти дізнався(-лася):
+      <ol>
+        <li>Щоб знайти зупинку, якої немає на карті, порівняй <b>сусідні</b>: на скільки змінюється номер?</li>
+        <li>Маршрут уперед: 1 → 3 → 5 → 7 → <b>9</b> — щоразу <b>+2</b>.</li>
+        <li>🔄 Flip: маршрут навпаки, 7 → 5 → 3 → 1 — щоразу <b>−2</b>. А рейс 6 → 4 → 2 → <b>0</b> приїжджає в депо 0 — тому автобус і має №0!</li>
+      </ol>
+    </div>
+    <div class="winrow"><button class="cta" id="againBtn">↻ Ще раз</button></div>
+    <div class="winrow">
+      <a class="linkbtn" href="index.html">🗺️ На карту</a>
+      <button class="linkbtn" id="toMenuBtn" type="button">☰ У меню</button>
+    </div>
+  </div>
+</div>
+
+<!-- поза #wrap: fixed-обгортка інакше ховає модалку (і кнопку «Далі») під футер -->
+<div class="modal hidden" id="modal">
+  <div class="mcard" id="mCard">
+    <div class="big" id="mBig">🚌</div>
+    <div class="mt" id="mTitle"></div>
+    <div class="mb" id="mBody"></div>
+    <button class="next" id="mBtn" type="button">Далі →</button>
+  </div>
+</div>
+
+<script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
+
+<script>
+(function(){
+  "use strict";
+
+  var $ = function(id){ return document.getElementById(id); };
+  var roadEl=$("road"), busEl=$("bus"), panelEl=$("panel"), hintEl=$("hint"), sceneEl=$("scene");
+  var plan, qIndex, mistakes, cur, busy=true, flipped=false;
+
+  /* ── «Назад» / меню ── */
+  function goBack(){
+    if(window.skGoBackSmart){ skGoBackSmart("navyvorit/index.html"); return; }
+    location.href="index.html";
+  }
+  function openMenu(){
+    busy = true;
+    refreshStart();
+    $("modal").classList.add("hidden");
+    $("winScreen").classList.add("hidden");
+    $("startScreen").classList.remove("hidden");
+  }
+  document.querySelectorAll(".backbtn").forEach(function(b){ b.addEventListener("click", goBack); });
+  var hb = $("heroBackBtn");
+  if(hb) hb.addEventListener("click", function(){
+    if($("startScreen").classList.contains("hidden")) openMenu();
+    else goBack();
+  });
+
+  /* ── нагорода з адмінки (sk-prize.js) ── */
+  var PRIZE_KEY = "sk_avtobus_prize_v1";
+  var TR_HREF = "avtobus-0.html";
+  function refreshStart(){
+    var p = window.SKPRIZE ? SKPRIZE.summary(PRIZE_KEY) : null;
+    $("startDone").classList.toggle("on", !!p);
+    if(!p) return;
+    var t = SKPRIZE.doneText(p, "Екскурсію автобусом №0 завершено — нагороду отримано!");
+    $("doneGot").textContent = t.got;
+    $("doneGo").textContent = t.go;
+  }
+
+  /* ═════════════ маршрути ═════════════
+     Зупинка «?» — та, якої немає на карті. step > 0 — уперед, step < 0 — 🔄 навиворіт. */
+  function rnd(a,b){ return a + Math.floor(Math.random()*(b-a+1)); }
+  function pick(a){ return a[rnd(0,a.length-1)]; }
+  function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var x=a[i]; a[i]=a[j]; a[j]=x; } return a; }
+  function route(start, step, n, gapAt){
+    var stops = []; for(var i=0;i<n;i++) stops.push(start + step*i);
+    var g = gapAt==null ? n-1 : gapAt;
+    return { stops:stops, gap:g, ans:stops[g], step:step };
+  }
+  function buildPlan(){
+    var p = [];
+    /* поверх 1 — уперед */
+    p.push(route(1, 2, 5));                                                  // 1 → 3 → 5 → 7 → ?
+    var s = pick([2,3,5,10]);
+    p.push(route(s===2 ? pick([2,4]) : (s===3 ? rnd(1,3) : s), s, 5));
+    s = pick([2,3,4,5]);
+    p.push(route(rnd(1,4), s, 5, 2));                                         // зупинки посередині немає
+    /* 🔄 Flip — маршрут навиворіт */
+    var f = route(7, -2, 4); f.flipBefore = true; p.push(f);                   // 7 → 5 → 3 → ?
+    var d = route(6, -2, 4); d.depot = true; p.push(d);                        // 6 → 4 → 2 → ? (депо 0)
+    s = pick([2,3,5]);
+    p.push(route(s*rnd(5,6), -s, 5));
+    s = pick([2,3,4,5]);
+    p.push(route(s*rnd(4,6), -s, 5, 2));
+    p.push({ drive:true });
+    return p;
+  }
+
+  /* ═════════════ малювання ═════════════ */
+  function renderRoad(stops, opt){
+    opt = opt || {};
+    roadEl.innerHTML = "";
+    stops.forEach(function(n,i){
+      var d = document.createElement("div");
+      var miss = opt.gap===i && !opt.solved;
+      d.className = "stop" + (miss ? " miss" : "") + (opt.solved && opt.gap===i ? " found" : "") +
+        (opt.target===i ? " target" : "") + (n===0 && !miss ? " depot" : "");
+      d.innerHTML = '<span class="n">'+(miss ? "?" : n)+'</span><span class="lb">'+
+        (miss ? "немає на карті" : (opt.target===i ? "🏁 тобі сюди" : (n===0 ? "🏠 депо" : "")))+'</span>';
+      roadEl.appendChild(d);
+    });
+  }
+  function busTo(i, instant){
+    var st = roadEl.children[i]; if(!st) return;
+    var x = st.offsetLeft + st.offsetWidth/2 + roadEl.offsetLeft;
+    if(instant){ busEl.style.transition = "none"; busEl.style.left = x+"px"; busEl.getBoundingClientRect(); busEl.style.transition = ""; }
+    else busEl.style.left = x+"px";
+  }
+  function busFace(rightwards){ busEl.classList.toggle("right", rightwards); }
+  function hint(t,cls){ hintEl.className = cls||""; hintEl.innerHTML = t; }
+  function setStep(){
+    $("qNum").textContent = (qIndex+1)+"/"+plan.length;
+    $("barFill").style.width = (qIndex/plan.length*100)+"%";
+  }
+  function setFlip(on){
+    flipped = on;
+    document.body.classList.toggle("flipped", on);
+    $("dirBadge").textContent = on ? "⏪ маршрут навиворіт" : "⏩ маршрут уперед";
+    $("routeName").textContent = on ? "🚌 Автобус №0 · 🔄 маршрут навиворіт" : "🚌 Автобус №0 · маршрут";
+  }
+  function diffs(c){
+    var a = [];
+    for(var i=0;i+1<c.stops.length;i++){
+      if(i===c.gap || i+1===c.gap) continue;
+      var dd = c.stops[i+1]-c.stops[i];
+      a.push(c.stops[i]+" → "+c.stops[i+1]+' <span class="d">('+(dd>0?"+":"−")+Math.abs(dd)+")</span>");
+    }
+    return a.join(", ");
+  }
+  function stepWord(st){ return (st>0 ? "на "+st+" більша" : "на "+(-st)+" менша"); }
+
+  /* ═════════════ завдання «яка зупинка?» ═════════════ */
+  function renderRound(){
+    if(qIndex >= plan.length){ finish(); return; }
+    cur = plan[qIndex];
+    if(cur.flipBefore && !flipped){ showFlip(); return; }
+    if(cur.drive){ startDrive(); return; }
+    setStep(); busy = false;
+    renderRoad(cur.stops, {gap:cur.gap});
+    var at = cur.gap - 1;                     // автобус стоїть перед зупинкою, якої немає на карті
+    busFace(true); busTo(Math.max(0,at), true);
+    if(cur.depot) hint("Інший рейс навиворіт: 6 → 4 → 2 → … Куди автобус приїде після зупинки 2?");
+    else if(cur.gap < cur.stops.length-1) hint("Посередині маршруту зупинки немає на карті! Яка вона?");
+    else hint(flipped ? "Маршрут навиворіт ⏪. Яка зупинка наступна?" : "Автобус їде далі… Яка наступна зупинка?");
+    ask();
+  }
+
+  function ask(){
+    var a = cur.ans, st = cur.step, prev = cur.stops[cur.gap-1];
+    var cand = [a, prev + (st>0 ? 1 : -1), a + st, prev, a - st, a + (st>0?1:-1)];
+    var opts = [];
+    cand.forEach(function(x){ if(x>=0 && opts.indexOf(x)<0 && opts.length<4) opts.push(x); });
+    panelEl.innerHTML = '<div class="q">'+(cur.depot ? "Після зупинки 2 автобус приїде на…" : "Яка зупинка замість «?»")+'</div>';
+    var box = document.createElement("div"); box.className = "opts";
+    shuffle(opts).forEach(function(x){
+      var b = document.createElement("button"); b.type="button"; b.className="opt"; b.textContent = x;
+      b.addEventListener("click", function(){ answer(x, b, box); });
+      box.appendChild(b);
+    });
+    panelEl.appendChild(box);
+  }
+
+  function answer(x, b, box){
+    if(busy || b.disabled) return;
+    if(x !== cur.ans){
+      mistakes++; thud(); buzz(40); b.classList.add("bad"); b.disabled = true;
+      sceneEl.classList.remove("shake"); void sceneEl.offsetWidth; sceneEl.classList.add("shake");
+      hint(cur.depot
+        ? "Подивись: 6 → 4 → 2 — щоразу −2. Скільки буде 2 − 2?"
+        : "Не та зупинка. Порівняй сусідні: "+diffs(cur)+".", "bad");
+      return;
+    }
+    busy = true; b.classList.add("good"); chime();
+    Array.prototype.forEach.call(box.children, function(o){ o.disabled = true; });
+    renderRoad(cur.stops, {gap:cur.gap, solved:true});
+    busTo(Math.max(0,cur.gap-1), true);
+    busEl.classList.add("go");
+    setTimeout(function(){ busTo(cur.gap); }, 60);
+    var why = cur.depot
+      ? "6 → 4 → 2 → <b>0</b>: щоразу −2, а 2 − 2 = 0. Зупинка 0 — це депо!"
+      : "Так! Кожна наступна зупинка "+stepWord(cur.step)+": "+cur.stops.join(" → ")+".";
+    panelEl.innerHTML = '<div class="why">'+why+'</div>';
+    hint(cur.depot ? "Автобус приїхав у депо 🏠" : "Зупинку знайдено — автобус їде далі! 🚌", "good");
+    setTimeout(function(){
+      busEl.classList.remove("go");
+      qIndex++;
+      if(cur.depot){
+        fanfare();
+        showModal("🏠", "Депо «0»!", "Ось чому автобус має <b>№0</b>: у світі навиворіт його маршрут закінчується в депо під номером 0: 6 → 4 → 2 → <b>0</b>.", false, renderRound);
+      } else setTimeout(renderRound, 900);
+    }, 1400);
+  }
+
+  /* ═════════════ 🔄 Flip ═════════════ */
+  function showFlip(){
+    busy = true;
+    showModal("🔄", "Flip!", "Автобус доїхав до кінця маршруту… і водій натискає кнопку 🔄 <b>Flip</b>. Тепер маршрут іде навиворіт: <b>7 → 5 → 3 → 1</b>.", true, function(){
+      whoosh();
+      sceneEl.classList.remove("flip"); void sceneEl.offsetWidth; sceneEl.classList.add("flip");
+      setTimeout(function(){ setFlip(true); renderRound(); }, 500);
+    }, "🔄 Flip");
+  }
+
+  /* ═════════════ фінальна зупинка: доїхати до мети, скористатись Flip ═════════════ */
+  var drive;
+  function startDrive(){
+    setStep(); setFlip(false);
+    var stops = [1,3,5,7,9,11,13];
+    var from = pick([4,5,6]), to = pick([0,1,2]);           // мета — позаду автобуса
+    drive = { stops:stops, at:from, to:to, dir:1 };
+    renderRoad(stops, {target:to});
+    busFace(true); busTo(from, true); markHere();
+    hint("Остання зупинка екскурсії! Тобі треба на зупинку <b>"+stops[to]+"</b> 🏁, а автобус стоїть на "+stops[from]+" і їде вперед ⏩.");
+    panelEl.innerHTML = "";
+    var acts = document.createElement("div"); acts.className = "acts";
+    [["go","▶","Їхати"],["flip","🔄","Flip"],["out","🚏","Вийти"]].forEach(function(a){
+      var b = document.createElement("button"); b.type="button"; b.className="act "+a[0];
+      b.innerHTML = '<span class="ic">'+a[1]+'</span>'+a[2];
+      b.addEventListener("click", function(){ driveAct(a[0]); });
+      acts.appendChild(b);
+    });
+    panelEl.appendChild(acts);
+    busy = false;
+  }
+  function markHere(){
+    Array.prototype.forEach.call(roadEl.children, function(s,i){ s.classList.toggle("here", i===drive.at); });
+  }
+  function driveAct(a){
+    if(busy) return;
+    tap();
+    if(a==="flip"){
+      drive.dir = -drive.dir; whoosh(); setFlip(drive.dir<0); busFace(drive.dir>0);
+      hint(drive.dir<0 ? "🔄 Flip! Тепер автобус їде <b>навиворіт</b>: номери зупинок меншають." : "Автобус знову їде вперед ⏩.");
+      return;
+    }
+    if(a==="go"){
+      var n = drive.at + drive.dir;
+      if(n<0 || n>=drive.stops.length){ thud(); hint("Кінцева! Далі дороги немає. Спробуй 🔄 Flip.", "bad"); return; }
+      busy = true; drive.at = n; busEl.classList.add("go"); busTo(n); markHere();
+      setTimeout(function(){
+        busEl.classList.remove("go"); busy = false;
+        var here = drive.stops[n], goal = drive.stops[drive.to];
+        if(here===goal) hint("Зупинка <b>"+here+"</b> — це твоя! Виходь 🚏", "good");
+        else if((goal-here)*drive.dir < 0) hint("Зупинка "+here+". Ой, автобус віддаляється від мети: "+here+" → "+(here+2*drive.dir)+"… 🤔");
+        else hint("Зупинка "+here+". Ще трохи: до "+goal+" лишилось "+Math.abs(goal-here)/2+" зуп.");
+      }, 600);
+      return;
+    }
+    var here = drive.stops[drive.at], goal = drive.stops[drive.to];
+    if(here !== goal){ mistakes++; thud(); buzz(40); hint("Це зупинка "+here+", а тобі треба на <b>"+goal+"</b>!", "bad"); return; }
+    busy = true; fanfare();
+    hint("Приїхали! 🏁 Ти скористався(-лася) Flip, щоб поїхати назад.", "good");
+    qIndex++; $("barFill").style.width = "100%";
+    setTimeout(finish, 1300);
+  }
+
+  /* ═════════════ модалка ═════════════ */
+  var modalNext=null;
+  function showModal(big,title,body,nav,next,btn){
+    busy = true;
+    $("mBig").textContent=big; $("mTitle").textContent=title; $("mBody").innerHTML=body;
+    $("mBtn").textContent = btn || "Далі →";
+    $("mCard").classList.toggle("navm", !!nav);
+    modalNext=next; $("modal").classList.remove("hidden");
+  }
+  $("mBtn").addEventListener("click", function(){
+    $("modal").classList.add("hidden"); tap();
+    if(modalNext){ var n=modalNext; modalNext=null; n(); }
+  });
+
+  /* ═════════════ звук ═════════════ */
+  var actx=null;
+  function tone(f,d,type){ try{
+    if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)();
+    var o=actx.createOscillator(), g=actx.createGain();
+    o.type=type||"triangle"; o.frequency.value=f; g.gain.value=0.06;
+    o.connect(g); g.connect(actx.destination); o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime+d); o.stop(actx.currentTime+d+0.02);
+  }catch(e){} }
+  function tap(){ tone(520,0.05); }
+  function chime(){ tone(660,0.09); setTimeout(function(){ tone(880,0.11); },90); }
+  function thud(){ tone(180,0.16,"sine"); }
+  function whoosh(){ tone(650,0.2,"sine"); setTimeout(function(){ tone(450,0.2,"sine"); },180); setTimeout(function(){ tone(300,0.25,"sine"); },360); }
+  function fanfare(){ tone(523,0.12); setTimeout(function(){ tone(659,0.12); },120);
+    setTimeout(function(){ tone(784,0.14); },240); setTimeout(function(){ tone(1046,0.18); },380); }
+  function buzz(v){ try{ if(navigator.vibrate) navigator.vibrate(v); }catch(e){} }
+
+  /* ═════════════ фініш ═════════════ */
+  function finish(){
+    busy = true;
+    $("winStars").textContent = mistakes===0 ? "⭐⭐⭐" : (mistakes<=3 ? "⭐⭐" : "⭐");
+    $("winTitle").textContent = mistakes===0 ? "Екскурсія без жодної помилки!" : "Екскурсію завершено!";
+    $("winSub").textContent = mistakes===0 ? "Ти справжній штурман Світу навиворіт!" : "Помилок: "+mistakes+". Але всі зупинки знайдено!";
+    $("winScreen").classList.remove("hidden");
+    if(window.SKPRIZE && !SKPRIZE.summary(PRIZE_KEY))
+      SKPRIZE.claim({ key: PRIZE_KEY, href: TR_HREF, title: "Екскурсію завершено!", onClose: refreshStart });
+  }
+
+  function startGame(){
+    plan = buildPlan(); qIndex = 0; mistakes = 0; setFlip(false);
+    $("modal").classList.add("hidden");
+    $("startScreen").classList.add("hidden");
+    $("winScreen").classList.add("hidden");
+    renderRound();
+  }
+  window.addEventListener("resize", function(){
+    if(drive && cur && cur.drive) busTo(drive.at, true);
+    else if(cur && cur.stops) busTo(Math.max(0, cur.gap-1), true);
+  });
+
+  $("playBtn").addEventListener("click", startGame);
+  $("againBtn").addEventListener("click", startGame);
+  $("menuBtn").addEventListener("click", openMenu);
+  $("toMenuBtn").addEventListener("click", openMenu);
+
+  refreshStart();
+  window.addEventListener("load", refreshStart);   // sk-prize.js підключено нижче
+})();
+</script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=8"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=4"></script>
+<script src="../sk-prize.js?v=1"></script>
+<script src="../sk-finish.js?v=6"></script>
+</body>
+</html>

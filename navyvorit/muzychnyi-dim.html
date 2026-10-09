@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Музичний будинок — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<link rel="stylesheet" href="nav-common.css">
+<style>
+/* ── музичний будинок ── */
+#scene{padding:14px 14px 0; background:linear-gradient(180deg,#26306b 0%,#3e4a8f 100%); border-color:#3a3f6b;}
+body.flipped #scene{background:linear-gradient(180deg,#4b2a7a 0%,#7a4fb0 100%);}
+.roof{width:86%; height:46px; margin:0 auto; background:#c0603f; clip-path:polygon(0 100%,50% 0,100% 100%); position:relative;}
+.house{width:86%; margin:0 auto; background:#f1e3c6; border:3px solid #c99f5c; border-bottom:none; padding:14px 14px 10px; display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+.win{aspect-ratio:1/0.85; border-radius:10px; border:5px solid #8c5a2b; cursor:pointer; position:relative; transition:filter .12s, transform .12s, box-shadow .12s;
+  filter:brightness(.45) saturate(.6);}
+.win:after{content:""; position:absolute; left:50%; top:0; bottom:0; width:4px; transform:translateX(-50%); background:#8c5a2b;}
+.win:before{content:""; position:absolute; top:50%; left:0; right:0; height:4px; transform:translateY(-50%); background:#8c5a2b;}
+.win.lit{filter:none; transform:scale(1.05); box-shadow:0 0 22px 8px rgba(255,255,255,.55);}
+.win[data-i="0"]{background:#ff6b6b;} .win[data-i="1"]{background:#4dabf7;} .win[data-i="2"]{background:#51cf66;} .win[data-i="3"]{background:#ffd43b;}
+.win .lb{position:absolute; left:6px; bottom:4px; font-size:16px; z-index:1;}
+.door{width:38px; height:44px; margin:0 auto; background:#8c5a2b; border-radius:16px 16px 0 0;}
+.note{position:absolute; font-size:22px; color:#fff; animation:fly 1.2s ease-out forwards; pointer-events:none; z-index:3;}
+@keyframes fly{to{transform:translateY(-70px); opacity:0}}
+#dots{display:flex; justify-content:center; gap:8px; min-height:26px; flex-wrap:wrap;}
+#dots span{width:24px; height:24px; border-radius:50%; border:3px solid var(--line); background:#fff;}
+#dots span.ok{border-color:var(--good);}
+#dots span[data-c="0"]{background:#ff6b6b;} #dots span[data-c="1"]{background:#4dabf7;} #dots span[data-c="2"]{background:#51cf66;} #dots span[data-c="3"]{background:#ffd43b;}
+</style>
+</head>
+<body>
+<script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
+<script src="nav-common.js"></script>
+<script>
+(function(){
+  "use strict";
+  var COLORS = ["🔴","🔵","🟢","🟡"], FREQ = [262, 330, 392, 523];   // до, мі, соль, до²
+  var PLAN = [3, 4, 5, -3, -4, -5];                                  // мінус — 🔄 після Flip (грати з кінця)
+  var TOTAL = PLAN.length, qi, seq, input, phase, discovered;
+
+  NAV.mount({
+    title:"Музичний будинок", emoji:"🎵🏠", sub:"Пам'ять · Світ навиворіт · 6 мелодій",
+    riddle:"Вікна будинку світяться в такт музиці:<span class='seq'>🔴 🔵 🟢 🟡</span>Послухай мелодію й повтори її — торкайся вікон у тому самому порядку. А після 🔄 Flip будинок починає грати <b>задом наперед</b>…",
+    play:"Послухати будинок ▶", steps:TOTAL, crown:"🎵🎹", stepLabel:"Мелодія",
+    badgeOff:"🎵 як чуєш", badgeOn:"🔄 з кінця",
+    prizeKey:"sk_muzdim_prize_v1", href:"muzychnyi-dim.html", doneText:"Музичний будинок розгадано — нагороду отримано!",
+    winTitle:"Усі мелодії зіграно!", winPerfect:"Усі мелодії — без жодної помилки!",
+    lesson:[
+      "Щоб повторити мелодію, запам'ятовуй <b>порядок</b> вікон: 🔴 → 🔵 → 🟢…",
+      "🔄 Після Flip будинок грає твої ноти <b>задом наперед</b>.",
+      "Тому мелодію треба грати <b>з кінця</b>: остання нота — перша. Так перевернутий будинок зіграє її правильно!"
+    ],
+    scene:'<div class="roof"></div><div class="house" id="house">'+
+      COLORS.map(function(c,i){ return '<button class="win" type="button" data-i="'+i+'" aria-label="Вікно '+c+'"><span class="lb">'+c+'</span></button>'; }).join("")+
+      '</div><div class="door"></div>',
+    afterScene:'<div id="dots"></div>',
+    onStart:function(){ qi = 0; discovered = false; next(); }
+  });
+
+  function wins(){ return document.querySelectorAll(".win"); }
+  function flash(i, ms){
+    var w = wins()[i]; if(!w) return;
+    w.classList.add("lit"); NAV.snd.tone(FREQ[i], (ms||420)/1000, "sine", 0.09);
+    var r = w.getBoundingClientRect(), s = NAV.$("scene").getBoundingClientRect();
+    var n = NAV.el("span","note","♪"); n.style.left = (r.left - s.left + r.width/2 - 8)+"px"; n.style.top = (r.top - s.top)+"px";
+    NAV.$("scene").appendChild(n); setTimeout(function(){ n.remove(); }, 1300);
+    setTimeout(function(){ w.classList.remove("lit"); }, (ms||420) - 60);
+  }
+  function playSeq(list, then, gap){
+    NAV.busy = true; phase = "listen";
+    var i = 0, g = gap || 650;
+    (function step(){
+      if(i >= list.length){ setTimeout(function(){ NAV.busy = false; if(then) then(); }, 300); return; }
+      flash(list[i], g - 150); i++; setTimeout(step, g);
+    })();
+  }
+  function expected(){ return PLAN[qi] < 0 ? seq.slice().reverse() : seq; }
+  function renderDots(){
+    var d = NAV.$("dots"); d.innerHTML = "";
+    for(var i=0;i<seq.length;i++){
+      var s = NAV.el("span", i<input.length ? "ok" : "");
+      if(i<input.length) s.setAttribute("data-c", input[i]);
+      d.appendChild(s);
+    }
+  }
+
+  function next(){
+    if(qi >= TOTAL){ NAV.finish(); return; }
+    if(PLAN[qi] < 0 && !NAV.flipped){
+      NAV.busy = true;
+      NAV.modal("🔄","Flip!","Будинок раптом перевертається… Музиканти всередині теж стали навиворіт! Зіграй наступну мелодію — і послухай, що буде 👂",{nav:true, btn:"🔄 Flip"}, function(){
+        NAV.snd.whoosh(); NAV.flipAnim();
+        setTimeout(function(){ NAV.setFlip(true); next(); }, 500);
+      });
+      return;
+    }
+    var len = Math.abs(PLAN[qi]);
+    /* без однакових нот поспіль і без «паліндромів» — щоб «задом наперед» завжди звучало інакше */
+    do {
+      seq = []; for(var i=0;i<len;i++){ var c; do { c = NAV.rnd(0,3); } while(i>0 && c===seq[i-1]); seq.push(c); }
+    } while(seq.join() === seq.slice().reverse().join());
+    input = []; NAV.step(qi, TOTAL); renderDots();
+    NAV.hint(NAV.flipped && discovered ? "Слухай уважно — і грай мелодію <b>з кінця</b> 🔄" : "Слухай уважно 👂");
+    controls();
+    setTimeout(function(){ playSeq(seq, ready); }, 500);
+  }
+  function controls(){
+    NAV.actions([{id:"replay", ic:"🔁", tx:"Послухати ще раз", fn:function(){ input = []; renderDots(); playSeq(seq, ready); }}], 1);
+  }
+  function ready(){
+    phase = "play";
+    NAV.hint(NAV.flipped
+      ? (discovered ? "Твоя черга! Грай з <b>останньої</b> ноти до першої." : "Твоя черга! Повтори мелодію.")
+      : "Твоя черга! Торкайся вікон у тому самому порядку.");
+  }
+
+  Array.prototype.forEach.call(wins(), function(w){
+    w.addEventListener("click", function(){
+      if(NAV.busy || phase !== "play") return;
+      var c = +w.dataset.i; flash(c, 300);
+      input.push(c); renderDots();
+      var exp = expected(), k = input.length - 1;
+      /* перша мелодія після Flip: якщо дитина грає «як чула» — будинок відповідає задом наперед, і це підказка */
+      if(NAV.flipped && !discovered){
+        if(input.length < seq.length) return;
+        if(input.every(function(x,j){ return x===seq[j]; })){
+          phase = "listen"; NAV.busy = true;
+          NAV.hint("Слухай, що зіграв будинок… 👂");
+          setTimeout(function(){
+            playSeq(input.slice().reverse(), function(){
+              discovered = true;
+              NAV.hint("Ой! Будинок зіграв твої ноти <b>задом наперед</b> 🔄 Щоб мелодія звучала правильно, грай її <b>з кінця</b>!","bad");
+              input = []; renderDots(); phase = "play";
+            }, 550);
+          }, 400);
+          return;
+        }
+        if(input.every(function(x,j){ return x===exp[j]; })){ discovered = true; success(); return; }
+        NAV.miss("Не так. Послухай ще раз 🔁 і повтори мелодію."); input = []; renderDots(); return;
+      }
+      if(c !== exp[k]){
+        NAV.miss(NAV.flipped
+          ? "Не та нота! Грай <b>з кінця</b>: спершу остання нота мелодії. 🔁 — послухати ще раз."
+          : "Не та нота! Послухай ще раз 🔁 і повтори по порядку.");
+        input = []; setTimeout(renderDots, 300);
+        return;
+      }
+      if(input.length === seq.length) success();
+    });
+  });
+
+  function success(){
+    phase = "done"; NAV.busy = true; NAV.snd.chime();
+    var shown = seq.map(function(c){ return COLORS[c]; }).join(" → ");
+    NAV.hint(NAV.flipped
+      ? "Чудово! Мелодія "+shown+" — ти зіграв(-ла) її з кінця, і перевернутий будинок заграв правильно 🎵"
+      : "Чудово! "+shown+" 🎵", "good");
+    setTimeout(function(){
+      if(NAV.flipped){ playSeq(seq, function(){ qi++; setTimeout(next, 500); }, 520); }
+      else { qi++; setTimeout(next, 900); }
+    }, 900);
+  }
+})();
+</script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=8"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=4"></script>
+<script src="../sk-prize.js?v=1"></script>
+<script src="../sk-finish.js?v=6"></script>
+</body>
+</html>

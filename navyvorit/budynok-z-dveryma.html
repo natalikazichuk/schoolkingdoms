@@ -119,6 +119,17 @@ h1,.title,.cta,.linkbtn,.pill .val,.big-btn,.next,.ch .nm,.facade .no,#houseRule
 .mcard .big{font-size:58px; line-height:1;}
 .mcard .mt{font-family:'Fredoka'; font-weight:700; font-size:22px;}
 .mcard .mb{font-weight:800; font-size:15px; color:var(--soft); line-height:1.4;}
+.mcard{max-height:calc(100% - 20px); overflow-y:auto;}
+/* «💡 Чому так?» — розв'язання по кроках */
+.why{width:100%; text-align:left; background:#fff; border:2px solid var(--line); border-radius:16px; padding:10px 12px;
+  font-weight:700; font-size:13.5px; line-height:1.4; color:var(--ink);}
+.why .wh{font-family:'Fredoka'; font-weight:700; font-size:15px; margin-bottom:4px; color:var(--accent-d);}
+.why ol{margin:0; padding-left:20px; display:flex; flex-direction:column; gap:6px;}
+.why .rule{display:inline-block; background:#fffaf0; border:1.5px dashed #b88a4a; border-radius:8px; padding:0 6px; color:#7a4f2a;}
+.why .rule.t{background:#f8f0ff; border-color:#c39ae8; color:#8e3fb0;}
+.why ul{margin:4px 0 0; padding-left:4px; list-style:none; display:flex; flex-direction:column; gap:3px;}
+.why .x{color:var(--bad);} .why .ok{color:var(--good);}
+.why .dd{white-space:nowrap;}
 .next{border:none; border-radius:16px; padding:13px 22px; width:100%; cursor:pointer; font-weight:700; font-size:18px;
   color:#fff; background:var(--green); box-shadow:0 6px 0 #37a052;}
 .next:active{transform:translateY(3px); box-shadow:0 3px 0 #37a052;}
@@ -195,14 +206,6 @@ h1{font-size:32px; font-weight:700;}
     <div id="chars"></div>
   </div>
 
-  <div class="modal hidden" id="modal">
-    <div class="mcard">
-      <div class="big" id="mBig">🚪</div>
-      <div class="mt" id="mTitle"></div>
-      <div class="mb" id="mBody"></div>
-      <button class="next" id="mBtn" type="button">Далі →</button>
-    </div>
-  </div>
 
   <div class="screen" id="startScreen">
     <div class="start-top"><button class="iconbtn backbtn" type="button" title="Назад" aria-label="Назад">←</button></div>
@@ -241,6 +244,16 @@ h1{font-size:32px; font-weight:700;}
       <button class="linkbtn" id="toMenuBtn" type="button">☰ У меню</button>
       <button class="linkbtn backbtn" type="button">← Назад</button>
     </div>
+  </div>
+</div>
+
+<!-- поза #wrap: fixed-обгортка інакше ховає модалку (і кнопку «Далі») під футер -->
+<div class="modal hidden" id="modal">
+  <div class="mcard">
+    <div class="big" id="mBig">🚪</div>
+    <div class="mt" id="mTitle"></div>
+    <div class="mb" id="mBody"></div>
+    <button class="next" id="mBtn" type="button">Далі →</button>
   </div>
 </div>
 
@@ -398,6 +411,62 @@ h1{font-size:32px; font-weight:700;}
     if(s.t==="rule") return "ця підказка суперечить напису на дверях";
     return "з цією підказкою правило на дверях не сходиться";
   }
+  /* ═════════════ «💡 Чому так?» — повне розв'язання завдання ═════════════
+     1) правило на дверях; 2) чому бреше саме цей персонаж (інші варіанти не сходяться);
+     3) що кожна правдива підказка каже про двері; 4) які двері лишаються. */
+  function doorsList(arr){ return arr.map(function(d){ return '<span class="dd">'+DOORS[d].em+" "+DOORS[d].nm+'</span>'; }).join(", "); }
+  function hintMeans(s){
+    var nm = DOORS[s.d!=null ? s.d : 0].nm;
+    if(s.t==="is")  return "правильні — "+nm;
+    if(s.t==="not") return nm+" відпадають";
+    if(s.t==="or")  return "правильні — "+DOORS[s.a].nm+" або "+DOORS[s.b].nm;
+    var lieRule = cur.rule==="lie";
+    if(s.t==="lies") return lieRule
+      ? "брешуть лише правильні двері, отже правильні — "+nm
+      : "брешуть усі двері, крім правильних, отже "+nm+" відпадають";
+    return lieRule   // "honest"
+      ? "правду кажуть усі двері, крім правильних, отже "+nm+" відпадають"
+      : "правду кажуть лише правильні двері, отже правильні — "+nm;
+  }
+  function explain(){
+    var L = cur.liar, D = cur.door, r = cur.rule;
+    var ruleHtml = '<span class="rule'+(r==="lie"?"":" t")+'">«'+RULE_TEXT[r]+'»</span>';
+    var rest = r==="lie" ? "а всі інші двері кажуть правду" : "а всі інші двері брешуть";
+    var steps = [];
+    steps.push("На дверях написано "+ruleHtml+" — "+rest+".");
+
+    var ls = cur.says[L];
+    if(ls.t==="rule"){
+      steps.push(CHARS[L].em+" "+CHARS[L].nm+" каже "+quote(ls)+" — це <b>суперечить напису на дверях</b>. Отже, бреше "+CHARS[L].nm+".");
+    } else {
+      var why = [0,1,2].filter(function(h){ return h!==L; }).map(function(h){
+        var others = [0,1,2].filter(function(i){ return i!==h; });
+        var fit = [0,1,2,3].filter(function(d){ return others.every(function(i){ return val(cur.says[i],d,r); }); });
+        return '<li><span class="x">✖</span> Якщо бреше '+CHARS[h].nm+" — "+(fit.length
+          ? "тоді слова "+CHARS[h].gen+" "+quote(cur.says[h])+" теж стають правдою, а хтось один має брехати."
+          : "решта підказок разом із правилом не пасують до жодних дверей.")+"</li>";
+      }).join("");
+      steps.push("Хто бреше? Перевіряємо по черзі:<ul>"+why+'<li><span class="ok">✔</span> Якщо бреше '+CHARS[L].nm+" — усе сходиться!</li></ul>");
+    }
+
+    var trueOnes = [0,1,2].filter(function(i){ return i!==L; });
+    var left = [0,1,2,3];
+    var lines = trueOnes.map(function(i){
+      var s = cur.says[i];
+      left = left.filter(function(d){ return val(s,d,r); });
+      return "<li>"+CHARS[i].em+" "+quote(s)+" → "+hintMeans(s)+".</li>";
+    }).join("");
+    steps.push("Відкидаємо підказку "+CHARS[L].gen+" ✂️ і читаємо дві правдиві:<ul>"+lines+"</ul>");
+    if(left.length > 1){
+      /* дві правдиві підказки лишили кілька дверей — решту відсікає те, що брехун каже неправду */
+      var drop = left.filter(function(d){ return val(ls,d,r); });
+      steps.push("Підходять "+doorsList(left)+". Але "+CHARS[L].nm+" бреше, тож "+quote(ls)+" — неправда: "+doorsList(drop)+" відпадають.");
+      left = left.filter(function(d){ return !val(ls,d,r); });
+    }
+    steps.push("Лишаються "+doorsList(left)+" — це й є правильні двері ✅");
+    return '<div class="why"><div class="wh">💡 Чому так?</div><ol>'+steps.map(function(x){ return "<li>"+x+"</li>"; }).join("")+"</ol></div>";
+  }
+
   /* пояснення, чому двері D не правильні (брехун уже відомий) */
   function whyNotDoor(D){
     var L = cur.liar;
@@ -503,11 +572,11 @@ h1{font-size:32px; font-weight:700;}
       if(last){
         fanfare();
         showModal("🏠", "Ти в будинку №17!",
-          "Ключ із дивного магазину 🗝️ підійшов до "+DOORS[D].loc+" дверей. Брехуна викрито, двері відчинено!", "Далі →", finish);
+          "Ключ із дивного магазину 🗝️ підійшов до "+DOORS[D].loc+" дверей. Брехуна викрито, двері відчинено!"+explain(), "Далі →", finish);
       } else {
         chime();
         showModal("⭐", "Правильні двері — "+DOORS[D].nm+"!",
-          "Брехуна викрито: "+CHARS[cur.liar].nm+" 🤥. Але персонажі вже придумали нову загадку…", "Далі →", renderRound);
+          "Брехуна викрито: "+CHARS[cur.liar].nm+" 🤥"+explain()+"Але персонажі вже придумали нову загадку…", "Далі →", renderRound);
       }
     }, 1000);
   }
