@@ -426,8 +426,9 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
       rowH = gap; sep = 0;
     }
     var unit = rowH + sep;
-    /* розмір шрифту: висхідні/великі літери сягають верхньої лінії робочого рядка */
-    var fs   = rowH / FASC;
+    /* коса: малі літери стоять у вузькому робочому рядку (базова → верхня наступного юніта),
+       великі сягають допоміжної лінії над ним; широка: великі — до попередньої лінії */
+    var fs   = wide ? rowH / FASC : sep / FX;
     var writeW=PAGE_W-M.left-M.right-3;
 
     var avail=BOTLIM-blockTop-sep;
@@ -486,13 +487,14 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     var visual=[];
     for(var s=0;s<src.length;s++){ var arr=wl(src[s]); for(var k2=0;k2<arr.length;k2++) visual.push(arr[k2]); }
 
-    var rowsText=new Array(N).fill(null);
-    if(state.mode==='trace'){ for(var r=0;r<visual.length&&r<N;r++) rowsText[r]=visual[r]; }
-    else{ var rr=0; for(var vi=0; vi<visual.length && rr<N; vi++){ if(visual[vi].trim()==='')continue; rowsText[rr]=visual[vi]; rr+=2; } }
+    var NT = wide ? N : Math.max(1, N-1);   /* у косій робочих рядків на один менше */
+    var rowsText=new Array(NT).fill(null);
+    if(state.mode==='trace'){ for(var r=0;r<visual.length&&r<NT;r++) rowsText[r]=visual[r]; }
+    else{ var rr=0; for(var vi=0; vi<visual.length && rr<NT; vi++){ if(visual[vi].trim()==='')continue; rowsText[rr]=visual[vi]; rr+=2; } }
 
-    for(var rw=0; rw<N; rw++){
+    for(var rw=0; rw<NT; rw++){
       var T=rowsText[rw]; if(T==null||T==='')continue;
-      var by=firstTop+rw*unit+rowH;
+      var by = wide ? firstTop+rw*unit+rowH : firstTop+(rw+1)*unit;
       var tEl=el("text",{x:M.left+2.2, y:by,
         "font-family":"Propysy, Nunito, sans-serif", "font-size":fs, "text-anchor":"start"});
       styleMark(tEl,true); tEl.textContent=T; SVG.appendChild(tEl);
