@@ -488,21 +488,25 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
 
     /* переноси */
     mctx.font = fs + "px Propysy, Nunito, sans-serif";
+    var IND = fs*1.5;                         /* абзацний відступ */
     function wl(str){
-      if(str.trim()==='') return [''];
+      if(str.trim()==='') return [{t:'',ind:0}];
+      var ind = isPara(str) ? IND : 0;
       var words=str.split(/\s+/).filter(Boolean), out=[], cur='';
       var w=function(s){return mctx.measureText(s).width;};
+      var lim=function(){ return writeW-(out.length?0:ind); };
       for(var q=0;q<words.length;q++){
         var word=words[q], tryl=cur?cur+" "+word:word;
-        if(w(tryl)<=writeW){cur=tryl;continue;}
+        if(w(tryl)<=lim()){cur=tryl;continue;}
         if(cur){out.push(cur);cur='';}
-        if(w(word)<=writeW){cur=word;continue;}
+        if(w(word)<=lim()){cur=word;continue;}
         var piece='';
-        for(var c=0;c<word.length;c++){var t2=piece+word[c]; if(w(t2)<=writeW)piece=t2; else{if(piece)out.push(piece);piece=word[c];}}
+        for(var c=0;c<word.length;c++){var t2=piece+word[c]; if(w(t2)<=lim())piece=t2; else{if(piece)out.push(piece);piece=word[c];}}
         cur=piece;
       }
       if(cur)out.push(cur);
-      return out.length?out:[''];
+      if(!out.length) out=[''];
+      return out.map(function(t,i){ return {t:t, ind:i===0?ind:0}; });
     }
     var raw=paperText();
     var src = raw.length ? raw.split("\n") : [];
@@ -512,12 +516,13 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     var NT = wide ? N : Math.max(1, N-1);   /* у косій робочих рядків на один менше */
     var rowsText=new Array(NT).fill(null);
     if(state.mode==='trace'){ for(var r=0;r<visual.length&&r<NT;r++) rowsText[r]=visual[r]; }
-    else{ var rr=0; for(var vi=0; vi<visual.length && rr<NT; vi++){ if(visual[vi].trim()==='')continue; rowsText[rr]=visual[vi]; rr+=2; } }
+    else{ var rr=0; for(var vi=0; vi<visual.length && rr<NT; vi++){ if(visual[vi].t.trim()==='')continue; rowsText[rr]=visual[vi]; rr+=2; } }
 
     for(var rw=0; rw<NT; rw++){
-      var T=rowsText[rw]; if(T==null||T==='')continue;
+      var R=rowsText[rw]; if(R==null||R.t==='')continue;
+      var T=R.t;
       var by = wide ? firstTop+rw*unit+rowH : firstTop+(rw+1)*unit;
-      var tEl=el("text",{x:M.left+2.2, y:by,
+      var tEl=el("text",{x:M.left+2.2+R.ind, y:by,
         "font-family":"Propysy, Nunito, sans-serif", "font-size":fs, "text-anchor":"start"});
       styleMark(tEl,true); tEl.textContent=T; SVG.appendChild(tEl);
     }
@@ -597,6 +602,13 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     }
   }
 
+  /* абзац: рядок, що починається пробілом/табом, або речення з кількох слів із розділовим знаком у кінці */
+  function isPara(str){
+    if(/^[ \t\u00a0]+\S/.test(str)) return true;
+    var t=str.trim();
+    return /^[A-ZА-ЯҐЄІЇ«"]/.test(t) && /[.!?…»"]$/.test(t) && t.split(/\s+/).length>=3;
+  }
+
   /* у режимі «Текст» знаки на аркуші не ставляться — текст друкується зверху */
   function paperText(){ return state.mode==='print' ? '' : txt.value.replace(/\r/g,""); }
 
@@ -608,21 +620,22 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     var x0 = M.left+2, maxW = PAGE_W-M.right-x0;
     var font = "'Nunito', sans-serif";
     mctx.font = "700 " + fs + "px Nunito, sans-serif";
-    var out=[];
+    var out=[], IND=fs*2;
     raw.split("\n").forEach(function(str){
-      var words=str.split(/\s+/).filter(Boolean), cur='';
-      if(!words.length){ out.push(''); return; }
+      var words=str.split(/\s+/).filter(Boolean), cur='', ind=isPara(str)?IND:0, first=true;
+      if(!words.length){ out.push({t:''}); return; }
       words.forEach(function(w){
         var t=cur?cur+" "+w:w;
-        if(!cur || mctx.measureText(t).width<=maxW) cur=t; else { out.push(cur); cur=w; }
+        if(!cur || mctx.measureText(t).width<=maxW-(first?ind:0)) cur=t;
+        else { out.push({t:cur, ind:first?ind:0}); first=false; cur=w; }
       });
-      out.push(cur);
+      out.push({t:cur, ind:first?ind:0});
     });
     var y = blockTop + fs*1.1;
     for(var i=0;i<out.length;i++){
-      if(out[i]){
-        var t=el("text",{x:x0, y:y, "font-size":fs, "font-family":font, "font-weight":700, fill:"#2d3a5a"});
-        t.textContent=out[i]; SVG.appendChild(t);
+      if(out[i].t){
+        var t=el("text",{x:x0+out[i].ind, y:y, "font-size":fs, "font-family":font, "font-weight":700, fill:"#2d3a5a"});
+        t.textContent=out[i].t; SVG.appendChild(t);
       }
       y += lh;
     }
