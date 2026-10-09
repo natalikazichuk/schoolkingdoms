@@ -8,7 +8,7 @@
 
    NAV.mount({ ... }) будує сторінку: верхня панель (крок, значок
    напрямку, меню), підказка, сцена (cfg.scene — HTML), панель дій,
-   стартовий і фінальний екрани, модалка (поза #wrap!). Далі гра
+   стартовий і фінальний екрани (cfg.next — куди веде «Вирушай далі! ›»), модалка (поза #wrap!). Далі гра
    користується помічниками NAV.* (hint, step, question, actions,
    modal, setFlip, miss, finish, snd).
 
@@ -63,7 +63,8 @@
       '<div class="screen hidden" id="winScreen"><div class="crown">'+(c.crown||"🏆")+'</div>'+
         '<div class="title" id="winTitle"></div><div class="stars" id="winStars">⭐⭐⭐</div><div class="sub" id="winSub"></div>'+
         '<div class="lesson">'+(c.lessonHead||"Що ти дізнався(-лася):")+'<ol>'+c.lesson.map(function(x){ return "<li>"+x+"</li>"; }).join("")+'</ol></div>'+
-        '<div class="winrow"><button class="cta" id="againBtn" type="button">↻ Ще раз</button></div>'+
+        '<div class="winrow">'+(c.next ? '<a class="cta" id="nextBtn" href="'+c.next+'">'+(c.nextText||"Вирушай далі! ›")+'</a>'
+          : '<button class="cta" id="againBtn" type="button">↻ Ще раз</button>')+'</div>'+
         '<div class="winrow"><a class="linkbtn" href="index.html">🗺️ На карту</a><button class="linkbtn" id="toMenuBtn" type="button">☰ У меню</button></div></div>';
     var footer = document.querySelector('script[src*="sk-footer.js"]');
     document.body.insertBefore(wrap, footer || document.body.firstChild);
@@ -77,7 +78,7 @@
     $("menuBtn").addEventListener("click", openMenu);
     $("toMenuBtn").addEventListener("click", openMenu);
     $("playBtn").addEventListener("click", start);
-    $("againBtn").addEventListener("click", start);
+    if($("againBtn")) $("againBtn").addEventListener("click", start);
     $("mBtn").addEventListener("click", function(){
       $("modal").classList.add("hidden"); NAV.snd.tap();
       if(modalNext){ var n = modalNext; modalNext = null; n(); }
