@@ -142,6 +142,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
 @media(max-width:520px){
   .apphead h1{font-size:1.9rem}
   .chips{grid-template-columns:1fr}
+  .params{grid-template-columns:1fr}
 }
 
 </style>
@@ -206,6 +207,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
             <div class="seg" id="segMode">
               <button data-v="trace" class="on"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5 13.5 4.5 6 12l-3 1 1-3z"/></svg> Обведи</button>
               <button data-v="copy"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><rect x="3" y="2.5" width="10" height="11" rx="1.5"/><path d="M5.5 6h5M5.5 8.5h5M5.5 11h3"/></svg> Спиши</button>
+              <button data-v="print"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><path d="M3 3h10M3 5.5h7" stroke-width="1.7"/><path d="M2.5 9.5h11M2.5 12h11M2.5 14.5h11" stroke-width="0.9"/></svg> Текст</button>
             </div></div>
         </div>
 
@@ -479,7 +481,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
       if(cur)out.push(cur);
       return out.length?out:[''];
     }
-    var raw=txt.value.replace(/\r/g,"");
+    var raw=paperText();
     var src = raw.length ? raw.split("\n") : [];
     var visual=[];
     for(var s=0;s<src.length;s++){ var arr=wl(src[s]); for(var k2=0;k2<arr.length;k2++) visual.push(arr[k2]); }
@@ -507,7 +509,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     for(var c=0;c<=cols;c++){ var x=M.left+c*cell; SVG.appendChild(line(x, blockTop, x, gridBottom, "#c9d5ee", 0.13)); }
     for(var r=0;r<=rows;r++){ var y=blockTop+r*cell; SVG.appendChild(line(M.left, y, gridRight, y, "#c9d5ee", 0.13)); }
     SVG.appendChild(line(M.left, blockTop, M.left, gridBottom, "#e2a0a0", 0.28));
-    var raw=txt.value.replace(/\r/g,"");
+    var raw=paperText();
     var nums=raw.split("\n").map(function(x){return x.trim();}).filter(Boolean);
     if(!nums.length) return;
     var Hh=gridBottom-blockTop, slot=Hh/nums.length;
@@ -545,7 +547,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     SVG.appendChild(line(M.left, blockTop, M.left, gridBottom, "#e2a0a0", 0.28));
 
     /* розкладка знаків по клітинках */
-    var raw=txt.value.replace(/\r/g,"");
+    var raw=paperText();
     var src = raw.length ? raw.split("\n") : [];
 
     var gr=0; /* поточний рядок сітки */
@@ -571,12 +573,45 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     }
   }
 
+  /* у режимі «Текст» знаки на аркуші не ставляться — текст друкується зверху */
+  function paperText(){ return state.mode==='print' ? '' : txt.value.replace(/\r/g,""); }
+
+  /* ---- надрукований текст над лініями ---- */
+  function drawPrintedText(blockTop){
+    var raw=txt.value.replace(/\r/g,"").trim();
+    if(!raw) return blockTop;
+    var fs = state.size==='big' ? 6 : 4.8, lh = fs*1.45;
+    var x0 = M.left+2, maxW = PAGE_W-M.right-x0;
+    var font = "'Nunito', sans-serif";
+    mctx.font = "700 " + fs + "px Nunito, sans-serif";
+    var out=[];
+    raw.split("\n").forEach(function(str){
+      var words=str.split(/\s+/).filter(Boolean), cur='';
+      if(!words.length){ out.push(''); return; }
+      words.forEach(function(w){
+        var t=cur?cur+" "+w:w;
+        if(!cur || mctx.measureText(t).width<=maxW) cur=t; else { out.push(cur); cur=w; }
+      });
+      out.push(cur);
+    });
+    var y = blockTop + fs*1.1;
+    for(var i=0;i<out.length;i++){
+      if(out[i]){
+        var t=el("text",{x:x0, y:y, "font-size":fs, "font-family":font, "font-weight":700, fill:"#2d3a5a"});
+        t.textContent=out[i]; SVG.appendChild(t);
+      }
+      y += lh;
+    }
+    return y - lh + fs*0.6 + 4;
+  }
+
   function render(){
     var decor=chkDecor.checked;
     var TOP = decor?30:16;
     var BOTLIM = decor?248:(PAGE_H-14);
     var blockTop=drawPageBase(TOP, decor);
     if(decor) appendDecor(blockTop, BOTLIM);
+    if(state.mode==='print') blockTop=drawPrintedText(blockTop);
     if(state.paper==='grid'){ if(state.ladder) renderLadder(blockTop, BOTLIM); else renderGrid(blockTop, BOTLIM); }
     else renderLiniya(blockTop, BOTLIM);
   }
