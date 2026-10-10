@@ -7,6 +7,7 @@
    window.SKSKILLS = {
      VERSION, CLASSES, SKILLS, TOPICS, QUESTIONS,
      UNIVERSAL (12 вмінь рівнів 1–3), LEARN_START, CLASS_LEVEL, pointsForLevel(lv),
+     GROWTH, growTable(total), pctFromUses(uses,total), usesForPct(pct,total),
      byId(id), forClass(cls)
    }
 
@@ -526,7 +527,7 @@ var UNIVERSAL = [];
 function U(lv, key, icon, name, type, cost, kid, mech){
   UNIVERSAL.push({ id: 'base.' + key, lv: lv, icon: icon, name: name, type: type, cost: cost || '', kid: kid, mech: mech });
 }
-var GROW_HIT = 'кожен удар цим вмінням у бою; невдалий теж учить, але повільніше';
+var GROW_HIT = 'кожне використання в бою; невдала спроба — пів спрацювання';
 
 U(1,'weapons','⚔️','Основи користування зброєю','P','',
   'Чим краще знаєш основи, тим сильніше б\'єш будь-якою зброєю.',
@@ -607,6 +608,53 @@ U(3,'bond','🔗','Зв\'язок зі зброєю','P','',
    ['Розрив','змінив зброю в бою — зв\'язок рветься, знову 5 ходів'],
    ['Як росте','кожен хід з активним зв\'язком']]);
 
+/* ══ ШКАЛА РОСТУ МАЙСТЕРНОСТІ ══
+   Майстерність рахується з кількості спрацювань (uses), без випадковості:
+   шлях 25% → 100% ділиться на етапи, кожен забирає свою частку всіх
+   спрацювань (total). Невдала спроба теж учить, але з вагою failWeight.
+   Зараз total = 200 для тесту (потім, напр., 10000). У вміння може бути
+   власне grow — тоді воно росте за своєю шкалою. */
+var GROWTH = {
+  total: 200,          // спрацювань від 25% до 100%
+  failWeight: 0.5,     // невдала спроба = пів спрацювання
+  stages: [            // [від %, до %, частка всіх спрацювань]
+    [25, 50, 0.20],
+    [50, 75, 0.30],
+    [75, 90, 0.30],
+    [90, 100, 0.20]
+  ]
+};
+function growTotal(sk) { return (sk && sk.grow) || GROWTH.total; }
+/* таблиця етапів: [{from, to, share, uses, perPct, upTo}] для total спрацювань */
+function growTable(total) {
+  total = total || GROWTH.total;
+  var acc = 0;
+  return GROWTH.stages.map(function (st) {
+    var uses = total * st[2]; acc += uses;
+    return { from: st[0], to: st[1], share: st[2], uses: uses, perPct: uses / (st[1] - st[0]), upTo: acc };
+  });
+}
+/* майстерність (25…100, ціле, вниз) за кількістю спрацювань */
+function pctFromUses(uses, total) {
+  uses = Math.max(0, uses || 0);
+  var t = growTable(total), left = uses;
+  for (var i = 0; i < t.length; i++) {
+    if (left < t[i].uses) return Math.floor(t[i].from + left / t[i].perPct);
+    left -= t[i].uses;
+  }
+  return 100;
+}
+/* скільки спрацювань (від вивчення) потрібно, щоб дійти до pct */
+function usesForPct(pct, total) {
+  pct = Math.max(LEARN_START, Math.min(100, pct));
+  var t = growTable(total), sum = 0;
+  for (var i = 0; i < t.length; i++) {
+    if (pct <= t[i].to) return sum + (pct - t[i].from) * t[i].perPct;
+    sum += t[i].uses;
+  }
+  return sum;
+}
+
 /* очки вмінь за рівні арени: по 1 на рівнях 1–4, далі по 1 кожні два (5, 7, 9…) */
 function pointsForLevel(lv) {
   lv = Math.max(0, Math.floor(lv || 0));
@@ -619,7 +667,7 @@ var BY_ID = {};
 SKILLS.forEach(function(s){ BY_ID[s.id] = s; });
 
 window.SKSKILLS = {
-  VERSION: 3,
+  VERSION: 4,
   CLASSES: CLASSES,
   SKILLS: SKILLS,
   TOPICS: TOPICS,
@@ -627,6 +675,11 @@ window.SKSKILLS = {
   LEARN_START: LEARN_START,
   CLASS_LEVEL: 3,
   pointsForLevel: pointsForLevel,
+  GROWTH: GROWTH,
+  growTotal: growTotal,
+  growTable: growTable,
+  pctFromUses: pctFromUses,
+  usesForPct: usesForPct,
   QUESTIONS: QUESTIONS,
   byId: function(id){ return BY_ID[id] || null; },
   forClass: function(cls){ return SKILLS.filter(function(s){ return s.cls === cls; }); }

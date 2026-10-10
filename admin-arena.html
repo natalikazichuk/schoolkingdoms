@@ -14,7 +14,7 @@
 <script src="sk-curriculum.js?v=8"></script>
 <script src="sk-items.js?v=10"></script>
 <script src="sk-arena-rules.js?v=18"></script>
-<script src="sk-skills.js?v=3"></script>
+<script src="sk-skills.js?v=4"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -130,6 +130,9 @@
   table.skm-tbl td:last-child{width:40px}
   .skm-tbl input,.skm-tbl textarea{font:inherit;font-size:.86rem;color:var(--ink);width:100%;border:1px solid var(--border);border-radius:8px;padding:5px 8px;background:#fff;resize:vertical}
   .skm-tbl input{font-weight:700}
+  .skm-grow{font-size:.8rem;color:var(--muted);font-weight:600;margin:8px 0 0;line-height:1.5}
+  .skm-grow b{color:var(--ink)}
+  .skm-h3{font-size:1rem;color:var(--ink);margin:14px 0 4px}
   .skm-tbl textarea{min-height:36px;height:auto;field-sizing:content}
 </style>
 </head>
@@ -823,6 +826,19 @@ function skmRows(sk){
   return (SKM_WORK[sk.id]=src.map(function(r){return [r[0],r[1]];}));
 }
 function skmEdited(sk){var d=pdoc(skmDocId(sk));return !!(d.rows&&d.rows.length);}
+function skmNum(n){return (Math.round(n*10)/10).toString().replace('.',',');}
+function skmGrowLine(sk){
+  var tot=SKSKILLS.growTotal(sk);
+  return '<div class="skm-grow">📈 <b>'+tot+'</b> спрацювань до 100%: '+SKSKILLS.growTable(tot).map(function(r){
+    return r.from+'→'+r.to+'%: <b>'+skmNum(r.uses)+'</b>';}).join(' · ')+'</div>';
+}
+function skmGrowTable(){
+  var G=SKSKILLS.GROWTH,t=SKSKILLS.growTable(G.total);
+  var rows=t.map(function(r){return '<tr><td><b>'+r.from+'% → '+r.to+'%</b></td><td>'+Math.round(r.share*100)+'%</td><td>'+skmNum(r.uses)+'</td><td>'+skmNum(r.perPct)+'</td><td>'+skmNum(r.upTo)+'</td><td>'+skmNum(r.uses*50)+'</td></tr>';}).join('');
+  return '<h3 class="skm-h3">📈 Шкала росту майстерності</h3>'
+    +'<p class="hint">Майстерність рахується з кількості спрацювань, без випадковості. Невдала спроба — '+String(G.failWeight).replace('.',',')+' спрацювання. Зараз для тесту — <b>'+G.total+'</b> спрацювань до 100% (у коді: GROWTH у sk-skills.js; у вміння може бути своє значення).</p>'
+    +'<div class="tblwrap"><table class="st"><thead><tr><th>Етап</th><th>Частка</th><th>Спрацювань</th><th>На 1%</th><th>Разом від вивчення</th><th>Якби 10000</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
 function skmCard(sk){
   var id=skmDocId(sk),d=pdoc(id),rows=skmRows(sk),open=!!POPEN[id];
   var tr=rows.map(function(r,i){
@@ -837,6 +853,7 @@ function skmCard(sk){
     +(skmEdited(sk)?' <span class="tag item">✎ змінено</span>':'')+(d.comment?' <span class="tag pct">💬</span>':'')
     +'<div class="pl-kid">🧒 '+esc(sk.kid)+'</div></div></div>'
     +'<div class="tblwrap"><table class="st skm-tbl"><thead><tr><th>Параметр</th><th>Значення / як працює</th><th></th></tr></thead><tbody>'+tr+'</tbody></table></div>'
+    +skmGrowLine(sk)
     +'<div class="pl-acts"><button type="button" class="btn-ghost" data-skact="add" data-sk="'+esc(sk.id)+'">＋ рядок</button>'
     +'<button type="button" class="btn-save" data-skact="save" data-sk="'+esc(sk.id)+'">💾 Зберегти</button>'
     +'<button type="button" class="btn-ghost" data-skact="reset" data-sk="'+esc(sk.id)+'" title="Повернути рядки з sk-skills.js">↺ Стандартні</button>'
@@ -859,7 +876,7 @@ function skmHTML(){
   return err+'<section class="sec"><h2>🧠 Механіка вмінь</h2><p class="hint">Що дає майстерність кожного вміння — для балансу. «м» = майстерність / 100. Рядки можна змінити, додати чи прибрати; «💾 Зберегти» пише в базу, «↺ Стандартні» повертає рядки з sk-skills.js.</p>'
     +'<ul class="exl"><li>Вміння <b>вивчають за очко</b>: після вивчення — <b>'+SKSKILLS.LEARN_START+'%</b>, далі росте в бою (і від невдалих спроб).</li>'
     +'<li>Очки за рівні арени: по 1 на рівнях 1–4, далі по 1 кожні два. Разом: '+esc(pts)+'. Плюс очки за позначені тести.</li>'
-    +'<li>Клас обирається на <b>'+SKSKILLS.CLASS_LEVEL+' рівні</b>.</li></ul></section>'+body;
+    +'<li>Клас обирається на <b>'+SKSKILLS.CLASS_LEVEL+' рівні</b>.</li></ul>'+skmGrowTable()+'</section>'+body;
 }
 var skmBound=false;
 function bindSkm(){
