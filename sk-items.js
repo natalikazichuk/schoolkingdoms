@@ -60,6 +60,41 @@
   };
   var FLAG_STATS = ['Дворучний', 'Разовий предмет'];
 
+  /* ---- вид зброї і тип урону (поля речі weaponType / dmgType) ----
+     Вид зброї потрібен для вмінь класів («Меч», «Кинджал»… — sk-skills.js).
+     Тип урону — як захист в Аладоні: від уколу, рубки, удару й магії.
+     dmg — тип урону, який підставляється для виду за замовчуванням
+     (посох — тупий, але з головною характеристикою «Магічний урон» — магічний).
+     ranged — стріляє здалеку: у груповому бою (3×3) б'є будь-кого, не зважаючи
+     на провокацію (taunt). На арені поки не діють: лише розмітка каталогу. */
+  var WEAPON_TYPES = [
+    { key: 'sword',    label: 'Меч',          icon: '⚔️', dmg: 'slash',  hint: 'мечі, шаблі' },
+    { key: 'dagger',   label: 'Кинджал',      icon: '🗡️', dmg: 'pierce', hint: 'кинджали, ножі' },
+    { key: 'axe',      label: 'Сокира',       icon: '🪓', dmg: 'slash',  hint: 'сокири, топірці' },
+    { key: 'mace',     label: 'Булава',       icon: '🔨', dmg: 'bash',   hint: 'булави, молоти, дубини, киянки' },
+    { key: 'flail',    label: 'Кистень',      icon: '⛓️', dmg: 'bash',   hint: 'кистені, ціпи' },
+    { key: 'spear',    label: 'Спис',         icon: '🔱', dmg: 'pierce', hint: 'списи, вила, алебарди' },
+    { key: 'whip',     label: 'Кнут',         icon: '➰', dmg: 'slash',  hint: 'кнути, батоги, плетки' },
+    { key: 'staff',    label: 'Посох',        icon: '🦯', dmg: 'bash',   hint: 'посохи, палиці' },
+    { key: 'wand',     label: 'Жезл',         icon: '🪄', dmg: 'magic',  hint: 'жезли, чарівні палички, указки' },
+    { key: 'knuckles', label: 'Кастет',       icon: '👊', dmg: 'bash',   hint: 'кастети, бойові рукавиці' },
+    { key: 'bow',      label: 'Лук',          icon: '🏹', dmg: 'pierce', hint: 'луки, рогатки, пращі', ranged: true },
+    { key: 'exotic',   label: 'Екзотична',    icon: '🌀', dmg: 'bash',   hint: 'незвичайна зброя: ложка, парасолька…' }
+  ];
+  var DMG_TYPES = [
+    { key: 'pierce', label: 'Колючий',  icon: '📌' },
+    { key: 'slash',  label: 'Рублячий', icon: '🪚' },
+    { key: 'bash',   label: 'Тупий',    icon: '🪨' },
+    { key: 'magic',  label: 'Магічний', icon: '✨' }
+  ];
+  function weaponType(key) { for (var i = 0; i < WEAPON_TYPES.length; i++) if (WEAPON_TYPES[i].key === key) return WEAPON_TYPES[i]; return null; }
+  function dmgType(key) { for (var i = 0; i < DMG_TYPES.length; i++) if (DMG_TYPES[i].key === key) return DMG_TYPES[i]; return null; }
+  /* тип урону за замовчуванням для виду; зброя з головною «Магічний урон» — магічна */
+  function defaultDmgType(wKey, mainStat) {
+    if (mainStat && canon(mainStat) === 'magicDamage') return 'magic';
+    var w = weaponType(wKey); return w ? w.dmg : null;
+  }
+
   function isFlagEntry(e) { return !!(e && (e.flag || FLAG_STATS.indexOf(e.stat) >= 0)); }
   function canon(name) { return STAT_MAP[name] || name; }
   function floor(n) { return Math.floor(n); }
@@ -569,6 +604,11 @@
     scaleStat: scaleStat,
     newUid: newUid,
     CAT_EMO: CAT_EMO,
+    WEAPON_TYPES: WEAPON_TYPES,
+    DMG_TYPES: DMG_TYPES,
+    weaponType: weaponType,
+    dmgType: dmgType,
+    defaultDmgType: defaultDmgType,
     bonusCls: bonusCls,
     tile: tile,
     imgMissing: imgMissing,

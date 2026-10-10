@@ -13,6 +13,7 @@
      Порядок важливий: ПІСЛЯ sk-styles.css і ДО локальних стилів нижче. -->
 <link rel="stylesheet" href="sk-admin.css?v=2">
 <script src="sk-admin.js?v=1"></script>
+<script src="sk-items.js?v=9"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -69,6 +70,9 @@
   .pill.cons,.pill.price{color:var(--gold-ink);border-color:#f0dca8;background:#fdf5e0}
   .pill.add{color:#8a5e16;border-color:#f0dca8;background:#fdf5e0;font-weight:800}
   .pill.flag{color:#a85a22;border-color:#f0d2b8;background:#fdf0e4}
+  .pill.weapon{color:#3d4f8a;border-color:#ccd5ef;background:#eef2fc}
+  .pill.warn{color:#a8322f;border-color:#efc2c0;background:#fdecec}
+  .weapon-box{background:#f6f8fe;border:1px solid #dfe5f5;border-radius:14px;padding:10px 12px;margin:0 0 12px}
   .coin.gold{color:var(--gold-ink);font-weight:800}
   .coin.silver{color:#6b7689;font-weight:800}
   .skc{display:inline-flex;align-items:center;gap:.28em;white-space:nowrap;font-weight:800}
@@ -373,6 +377,16 @@ function coinsHtml(silver){
   return '<span class="coins-light">'+out.join('')+'</span>';
 }
 function isFlagStat(e){ return e.flag || FLAG_STATS.indexOf(e.stat)>=0; }
+/* ---- вид зброї й тип урону (SKIT.WEAPON_TYPES / DMG_TYPES у sk-items.js) ---- */
+var WEAPON_CAT='Зброя';
+function isWeapon(it){ return (it&&String(it.category||'').trim())===WEAPON_CAT; }
+function weaponPill(it){
+  if(!isWeapon(it)||!window.SKIT) return '';
+  var w=SKIT.weaponType(it.weaponType);
+  if(!w) return '<span class="pill warn" title="Вид зброї не вказано — відкрий ✏️ і вибери">⚠️ вид зброї?</span>';
+  var d=SKIT.dmgType(it.dmgType||SKIT.defaultDmgType(it.weaponType,it.stat));
+  return '<span class="pill weapon">'+w.icon+' '+esc(w.label)+(d?' · '+d.icon+' '+esc(d.label.toLowerCase()):'')+'</span>';
+}
 function addPills(it){
   var a=(it&&it.addStats)||[]; if(!a.length) return '';
   return a.map(function(e){
@@ -386,6 +400,7 @@ function metaPills(it){
   var vt=valueText(it);
   if(it.stat){ out+='<span class="pill '+statPillClass(it.stat)+'">'+esc(it.stat)+(vt?' '+esc(vt):'')+'</span>'; }
   else if(vt){ out+='<span class="pill">'+esc(vt)+'</span>'; }
+  out+=weaponPill(it);
   out+='<span class="pill">міцність '+esc(it.durability!=null?it.durability:'—')+'</span>';
   if(it.price!=null && it.price!=='') out+='<span class="pill price">💰 '+coinsHtml(it.price)+'</span>';
   out+=addPills(it);
@@ -428,6 +443,8 @@ function renderChips(){
   });
   var ns=ITEMS.filter(function(it){ return it.noShop; }).length;
   html+='<button class="chip'+(FILTER==='__noshop'?' on':'')+'" data-cat="__noshop" title="Недоступні в магазині">🚫 Не в магазині<span class="n">'+ns+'</span></button>';
+  var nt=ITEMS.filter(function(it){ return isWeapon(it) && !(window.SKIT&&SKIT.weaponType(it.weaponType)) && (GRADE==null||Number(it.grade||1)===GRADE); }).length;
+  if(nt||FILTER==='__notype') html+='<button class="chip'+(FILTER==='__notype'?' on':'')+'" data-cat="__notype" title="Зброя, якій ще не вибрано вид">⚠️ Зброя без виду<span class="n">'+nt+'</span></button>';
   host.innerHTML=html;
 }
 
@@ -461,6 +478,7 @@ function renderView(){
 function passFilter(it){
   if(GRADE!=null && Number(it.grade||1)!==GRADE) return false;
   if(FILTER==='__noshop'){ if(!it.noShop) return false; }
+  else if(FILTER==='__notype'){ if(!isWeapon(it)||(window.SKIT&&SKIT.weaponType(it.weaponType))) return false; }
   else if(FILTER!=='__all' && (it.category||'')!==FILTER) return false;
   if(SEARCH){
     var q=SEARCH.toLowerCase();
@@ -579,6 +597,21 @@ function durBlock(){
   return '<div class="field"><label>Міцність (напр. 5000 / 2500)</label>'
     +'<input type="number" id="m_dur" value="'+esc(M.durability!=null?M.durability:'')+'" placeholder="5000"></div>';
 }
+function weaponBlock(){
+  if(!isWeapon(M)||!window.SKIT) return '';
+  var wo='<option value=""'+(!M.weaponType?' selected':'')+'>— вибери вид —</option>'
+    +SKIT.WEAPON_TYPES.map(function(w){ return '<option value="'+w.key+'"'+(M.weaponType===w.key?' selected':'')+'>'+w.icon+' '+esc(w.label)+' — '+esc(w.hint)+'</option>'; }).join('');
+  var def=SKIT.defaultDmgType(M.weaponType,M.stat);
+  var cur=M.dmgType||def||'';
+  var dopts='<option value=""'+(!cur?' selected':'')+'>—</option>'+SKIT.DMG_TYPES.map(function(d){
+    return '<option value="'+d.key+'"'+(cur===d.key?' selected':'')+'>'+d.icon+' '+esc(d.label)+(d.key===def?' (за замовчуванням)':'')+'</option>'; }).join('');
+  return '<div class="grid weapon-box">'
+    +'<div class="field"><label for="m_wtype">⚔️ Вид зброї</label><select id="m_wtype">'+wo+'</select>'
+    +'<div class="inline-note">Для вмінь класів («Меч», «Кинджал»…). Дворучність — як і раніше, прапорцем «Дворучний».</div></div>'
+    +'<div class="field"><label for="m_dmg">Тип урону</label><select id="m_dmg">'+dopts+'</select>'
+    +'<div class="inline-note">Підставляється з виду зброї; можна змінити (напр. магічний меч). На арені поки не діє.</div></div>'
+    +'</div>';
+}
 function renderEditor(){
   var idField = M._isNew
     ? '<div class="field"><label>Код предмета (id)</label><input type="text" id="m_id" class="code-input" value="'+esc(M.id)+'" placeholder="IT-131"><div class="inline-note">Унікальний код. На нього посилатимуться ігри й тренажери — краще лишити запропонований.</div></div>'
@@ -589,6 +622,7 @@ function renderEditor(){
     +  idField
     +'  <div class="field"><label>Категорія</label><input type="text" id="m_category" list="catlist" value="'+esc(M.category||'')+'"><datalist id="catlist">'+catOptions()+'</datalist></div>'
     +'</div>'
+    +weaponBlock()
     +'<div class="field"><label>Назва</label><input type="text" id="m_name" value="'+esc(M.name||'')+'" placeholder="Напр.: Сталевий шолом"></div>'
     +'<div class="grid">'
     +'  <div class="field"><label>Клас</label><select id="m_grade">'+gradeOptions(M.grade)+'</select></div>'
@@ -625,6 +659,8 @@ function collectForm(){
   if(!el('#m_name')) return;
   if(M._isNew && el('#m_id')) M.id=(el('#m_id').value||'').trim();
   M.category=(el('#m_category').value||'').trim();
+  if(el('#m_wtype')) M.weaponType=el('#m_wtype').value||null;
+  if(el('#m_dmg')) M.dmgType=el('#m_dmg').value||null;
   M.name=el('#m_name').value;
   if(el('#m_grade')) M.grade=Number(el('#m_grade').value)||1;
   if(el('#m_price')) M.price=toNum(el('#m_price').value)||0;
@@ -668,6 +704,8 @@ function buildClean(){
     addStats: Array.isArray(M.addStats)?M.addStats:[],
     active: !!M.active,
     noShop: !!M.noShop,
+    weaponType: isWeapon(M)?(M.weaponType||null):null,
+    dmgType: isWeapon(M)?(M.dmgType||(window.SKIT?SKIT.defaultDmgType(M.weaponType,M.stat):null)||null):null,
     order: Number(M.order)||nextOrder()
   };
   return out;
@@ -683,6 +721,10 @@ function editorInput(e){
   var t=e.target;
   if(t && t.id==='m_img'){ var p=el('#imgprev'); if(p) p.innerHTML=imgPrevHtml(t.value, M.id); }
   if(t && t.closest && t.closest('#addstats')){ collectAddStats(); }
+  if(t && t.id==='m_category'){
+    var was=!!el('#m_wtype'), now=String(t.value||'').trim()===WEAPON_CAT;
+    if(was!==now){ collectForm(); renderEditor(); var c=el('#m_category'); if(c){ c.focus(); var n=c.value.length; try{ c.setSelectionRange(n,n); }catch(_){ } } }
+  }
 }
 function editorClick(e){
   var b=e.target.closest('[data-act]'); if(!b) return;
@@ -696,6 +738,8 @@ function editorClick(e){
 function editorChange(e){
   var t=e.target;
   if(t && t.id==='m_ranged'){ collectForm(); renderEditor(); return; }
+  if(t && t.id==='m_stat' && isWeapon(M) && window.SKIT){ var od=SKIT.defaultDmgType(M.weaponType,M.stat); collectForm(); if(!M.dmgType||M.dmgType===od) M.dmgType=SKIT.defaultDmgType(M.weaponType,M.stat); renderEditor(); return; }
+  if(t && t.id==='m_wtype'){ collectForm(); M.dmgType=window.SKIT?SKIT.defaultDmgType(M.weaponType,M.stat):null; renderEditor(); return; }
   if(t && t.classList && t.classList.contains('as-stat')){ collectAddStats(); renderAddStats(); return; }
   if(t && t.classList && t.classList.contains('as-pct')){ collectAddStats(); return; }
 }
