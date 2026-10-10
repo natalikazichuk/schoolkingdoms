@@ -72,6 +72,7 @@
   .pill.flag{color:#a85a22;border-color:#f0d2b8;background:#fdf0e4}
   .pill.weapon{color:#3d4f8a;border-color:#ccd5ef;background:#eef2fc}
   .pill.warn{color:#a8322f;border-color:#efc2c0;background:#fdecec}
+  .weapon-box.w3{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
   .weapon-box{background:#f6f8fe;border:1px solid #dfe5f5;border-radius:14px;padding:10px 12px;margin:0 0 12px}
   .coin.gold{color:var(--gold-ink);font-weight:800}
   .coin.silver{color:#6b7689;font-weight:800}
@@ -318,6 +319,14 @@ var CAT_ICON={ 'Шоломи':'⛑️','Обладунки':'🦺','Рукави
 var ADD_STAT_LABELS=["Антидот","Барєр","Броня","Відновлення здоров'я","Додаткова атака","Здоров'я","Комірки пояса","Маг. Резист","Маг. Урон","Мана","Оглушить","Спритність","Страх","Точність","Фіз. Урон","Шанс блоку","Шанс крит. урону"];
 var GRADES=[1,2,3,4,5,6,7,8,9,10,11];
 var FLAG_STATS=["Дворучний","Разовий предмет"];
+/* «Дворучний» лишається прапорцем у addStats (так його читає арена: SKARENA.isTwoHanded),
+   але в редакторі це не навичка, а список «Хват» у блоці зброї (M.twoHanded). */
+var TWO_HANDED="Дворучний";
+function splitHands(m){
+  var a=Array.isArray(m.addStats)?m.addStats:[];
+  m.twoHanded=a.some(function(e){ return e&&e.stat===TWO_HANDED; });
+  m.addStats=a.filter(function(e){ return !(e&&e.stat===TWO_HANDED); });
+}
 
 
 var root=document.getElementById('root');
@@ -558,7 +567,7 @@ function gradeOptions(sel){
 /* ---- редактор додаткових навичок ---- */
 function addStatRow(e,i){
   var isFlag=isFlagStat(e);
-  var opts=FLAG_STATS.map(function(f){ return '<option value="'+esc(f)+'"'+(e.stat===f?' selected':'')+'>'+esc(f)+' (прапорець)</option>'; }).join('');
+  var opts=FLAG_STATS.filter(function(f){ return f!==TWO_HANDED; }).map(function(f){ return '<option value="'+esc(f)+'"'+(e.stat===f?' selected':'')+'>'+esc(f)+' (прапорець)</option>'; }).join('');
   ADD_STAT_LABELS.forEach(function(s){ opts+='<option value="'+esc(s)+'"'+(e.stat===s?' selected':'')+'>'+esc(s)+'</option>'; });
   return '<div class="asrow" data-i="'+i+'">'
     +'<select class="as-stat">'+opts+'</select>'
@@ -605,9 +614,13 @@ function weaponBlock(){
   var cur=M.dmgType||def||'';
   var dopts='<option value=""'+(!cur?' selected':'')+'>—</option>'+SKIT.DMG_TYPES.map(function(d){
     return '<option value="'+d.key+'"'+(cur===d.key?' selected':'')+'>'+d.icon+' '+esc(d.label)+(d.key===def?' (за замовчуванням)':'')+'</option>'; }).join('');
-  return '<div class="grid weapon-box">'
+  return '<div class="grid weapon-box w3">'
     +'<div class="field"><label for="m_wtype">⚔️ Вид зброї</label><select id="m_wtype">'+wo+'</select>'
-    +'<div class="inline-note">Для вмінь класів («Меч», «Кинджал»…). Дворучність — як і раніше, прапорцем «Дворучний».</div></div>'
+    +'<div class="inline-note">Для вмінь класів («Меч», «Кинджал»…).</div></div>'
+    +'<div class="field"><label for="m_hands">✋ Хват</label><select id="m_hands">'
+      +'<option value="one"'+(!M.twoHanded?' selected':'')+'>Одноручна</option>'
+      +'<option value="two"'+(M.twoHanded?' selected':'')+'>Дворучна</option></select>'
+    +'<div class="inline-note">Дворучна займає обидві руки — зі щитом не носиться.</div></div>'
     +'<div class="field"><label for="m_dmg">Тип урону</label><select id="m_dmg">'+dopts+'</select>'
     +'<div class="inline-note">Підставляється з виду зброї; можна змінити (напр. магічний меч). На арені поки не діє.</div></div>'
     +'</div>';
@@ -641,7 +654,7 @@ function renderEditor(){
     +'<div class="field"><label>Додаткові навички</label>'
       +'<div id="addstats"></div>'
       +'<button class="btn ghost" type="button" data-act="addstat" style="margin-top:8px;align-self:flex-start">＋ навичка</button>'
-      +'<div class="inline-note">Перша навичка зазвичай в одиницях, друга — у %. «Дворучний» — прапорець (зброя на дві руки, без числа).</div>'
+      +'<div class="inline-note">Перша навичка зазвичай в одиницях, друга — у %. Одноручна чи дворучна — у блоці зброї вгорі («Хват»).</div>'
     +'</div>'
     +'<label class="chk" style="margin-bottom:6px"><input type="checkbox" id="m_active"'+(M.active!==false?' checked':'')+'> Предмет активний (доступний)</label>'
     +'<label class="chk" style="margin-bottom:14px"><input type="checkbox" id="m_noShop"'+(M.noShop?' checked':'')+'> 🚫 Недоступна в магазині (лише нагорода в тестах / випробуваннях / пригодах)</label>'
@@ -661,6 +674,7 @@ function collectForm(){
   M.category=(el('#m_category').value||'').trim();
   if(el('#m_wtype')) M.weaponType=el('#m_wtype').value||null;
   if(el('#m_dmg')) M.dmgType=el('#m_dmg').value||null;
+  if(el('#m_hands')) M.twoHanded=el('#m_hands').value==='two';
   M.name=el('#m_name').value;
   if(el('#m_grade')) M.grade=Number(el('#m_grade').value)||1;
   if(el('#m_price')) M.price=toNum(el('#m_price').value)||0;
@@ -701,7 +715,8 @@ function buildClean(){
     consumable: (Array.isArray(M.addStats)?M.addStats.some(function(e){return e.flag&&e.stat==='Разовий предмет';}):false),
     durability: (M.durability!=null?M.durability:null),
     price: (M.price!=null?Number(M.price)||0:0),
-    addStats: Array.isArray(M.addStats)?M.addStats:[],
+    addStats: (Array.isArray(M.addStats)?M.addStats.filter(function(e){ return !(e&&e.stat===TWO_HANDED); }):[])
+      .concat(isWeapon(M)&&M.twoHanded?[{stat:TWO_HANDED,flag:true}]:[]),
     active: !!M.active,
     noShop: !!M.noShop,
     weaponType: isWeapon(M)?(M.weaponType||null):null,
@@ -809,6 +824,7 @@ function loadIntoEditor(it){
   if(M.grade==null) M.grade=1;
   if(M.price==null) M.price=0;
   if(!Array.isArray(M.addStats)) M.addStats=[];
+  splitHands(M);
   M._ranged=(M.valueMin!=null && M.valueMax!=null && M.valueMin!==M.valueMax);
   if(M.consumable) M.durability=(M.durability!=null?M.durability:null);
   else if(M.durability==null) M.durability=5000;
