@@ -62,7 +62,7 @@
 
   /* ---- вид зброї і тип урону (поля речі weaponType / dmgType) ----
      Вид зброї потрібен для вмінь класів («Меч», «Кинджал»… — sk-skills.js).
-     Тип урону — як захист в Аладоні: від уколу, рубки, удару й магії.
+     Тип урону — як захист в Аладоні: від уколу, рубки, удару й магії; плюс стихії.
      dmg — тип урону, який підставляється для виду за замовчуванням
      (посох — тупий, але з головною характеристикою «Магічний урон» — магічний).
      ranged — стріляє здалеку: у груповому бою (3×3) б'є будь-кого, не зважаючи
@@ -85,7 +85,12 @@
     { key: 'pierce', label: 'Колючий',  icon: '📌' },
     { key: 'slash',  label: 'Рублячий', icon: '🪚' },
     { key: 'bash',   label: 'Тупий',    icon: '🪨' },
-    { key: 'magic',  label: 'Магічний', icon: '✨' }
+    { key: 'magic',  label: 'Магічний', icon: '✨' },
+    /* стихії — на майбутнє (вогняні мечі, крижані посохи, світлі й темні чари) */
+    { key: 'fire',   label: 'Вогонь',   icon: '🔥' },
+    { key: 'cold',   label: 'Холод',    icon: '❄️' },
+    { key: 'light',  label: 'Світло',   icon: '☀️' },
+    { key: 'dark',   label: 'Темрява',  icon: '🌑' }
   ];
   function weaponType(key) { for (var i = 0; i < WEAPON_TYPES.length; i++) if (WEAPON_TYPES[i].key === key) return WEAPON_TYPES[i]; return null; }
   function dmgType(key) { for (var i = 0; i < DMG_TYPES.length; i++) if (DMG_TYPES[i].key === key) return DMG_TYPES[i]; return null; }
