@@ -72,6 +72,12 @@
   .pill.flag{color:#a85a22;border-color:#f0d2b8;background:#fdf0e4}
   .pill.weapon{color:#3d4f8a;border-color:#ccd5ef;background:#eef2fc}
   .pill.warn{color:#a8322f;border-color:#efc2c0;background:#fdecec}
+  .meta .pill-sel{width:auto;flex:0 0 auto;min-height:0;height:auto;line-height:1.3;box-shadow:none;margin:0}
+  .pill-sel{font-family:inherit;font-weight:800;font-size:.72rem;border-radius:999px;padding:3px 8px;border:1px solid #ccd5ef;
+    background:#eef2fc;color:#3d4f8a;cursor:pointer;max-width:100%}
+  .pill-sel.warn{color:#a8322f;border-color:#efc2c0;background:#fdecec}
+  .pill-sel:focus-visible{outline:3px solid var(--gold);outline-offset:1px}
+  .pill-sel:disabled{opacity:.6;cursor:wait}
   .weapon-box{background:#f6f8fe;border:1px solid #dfe5f5;border-radius:14px;padding:10px 12px;margin:0 0 12px}
   .coin.gold{color:var(--gold-ink);font-weight:800}
   .coin.silver{color:#6b7689;font-weight:800}
@@ -383,9 +389,15 @@ function isWeapon(it){ return (it&&String(it.category||'').trim())===WEAPON_CAT;
 function weaponPill(it){
   if(!isWeapon(it)||!window.SKIT) return '';
   var w=SKIT.weaponType(it.weaponType);
-  if(!w) return '<span class="pill warn" title="Вид зброї не вказано — відкрий ✏️ і вибери">⚠️ вид зброї?</span>';
-  var d=SKIT.dmgType(it.dmgType||SKIT.defaultDmgType(it.weaponType,it.stat));
-  return '<span class="pill weapon">'+w.icon+' '+esc(w.label)+(d?' · '+d.icon+' '+esc(d.label.toLowerCase()):'')+'</span>';
+  var wo='<option value=""'+(!w?' selected':'')+'>⚠️ вид зброї?</option>'
+    +SKIT.WEAPON_TYPES.map(function(x){ return '<option value="'+x.key+'"'+(w&&w.key===x.key?' selected':'')+'>'+x.icon+' '+esc(x.label)+'</option>'; }).join('');
+  var html='<select class="pill-sel'+(w?' weapon':' warn')+'" data-wsel="weaponType" data-id="'+esc(it.id)+'" title="Вид зброї" aria-label="Вид зброї">'+wo+'</select>';
+  if(w){
+    var cur=it.dmgType||SKIT.defaultDmgType(it.weaponType,it.stat);
+    var dopts=SKIT.DMG_TYPES.map(function(d){ return '<option value="'+d.key+'"'+(cur===d.key?' selected':'')+'>'+d.icon+' '+esc(d.label.toLowerCase())+'</option>'; }).join('');
+    html+='<select class="pill-sel weapon" data-wsel="dmgType" data-id="'+esc(it.id)+'" title="Тип урону" aria-label="Тип урону">'+dopts+'</select>';
+  }
+  return html;
 }
 function addPills(it){
   var a=(it&&it.addStats)||[]; if(!a.length) return '';
@@ -816,6 +828,21 @@ function loadIntoEditor(it){
 }
 
 /* ---- кліки по списку ---- */
+/* вид зброї / тип урону прямо на картці — зберігаємо одразу */
+function listChange(e){
+  var t=e.target; if(!t||!t.getAttribute||!t.getAttribute('data-wsel')) return;
+  var id=t.getAttribute('data-id'), field=t.getAttribute('data-wsel');
+  var it=ITEMS.filter(function(x){ return x.id===id; })[0]; if(!it) return;
+  var patch={id:id};
+  if(field==='weaponType'){ patch.weaponType=t.value||null; patch.dmgType=t.value?SKIT.defaultDmgType(t.value,it.stat):null; }
+  else patch.dmgType=t.value||null;
+  t.disabled=true;
+  SK.saveItem(patch).then(function(){
+    it.weaponType=('weaponType' in patch)?patch.weaponType:it.weaponType; it.dmgType=patch.dmgType;
+    if(M&&M.id===id&&!M._isNew){ M.weaponType=it.weaponType; M.dmgType=it.dmgType; if(el('#m_wtype')) renderEditor(); }
+    renderChips(); renderList();
+  }).catch(function(err){ t.disabled=false; alert('Не вдалося зберегти: '+(err&&err.message||err)); });
+}
 function listClick(e){
   var b=e.target.closest('[data-act]'); if(!b) return;
   var act=b.getAttribute('data-act');
@@ -960,6 +987,7 @@ function renderAdminUI(){
   el('#gradeBack').addEventListener('click', function(){ GRADE=null; renderView(); window.scrollTo(0,0); });
   el('#chips').addEventListener('click', chipClick);
   el('#itemList').addEventListener('click', listClick);
+  el('#itemList').addEventListener('change', listChange);
   el('#editor').addEventListener('click', editorClick);
   el('#editor').addEventListener('input', editorInput);
   el('#editor').addEventListener('change', editorChange);
