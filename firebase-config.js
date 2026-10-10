@@ -1030,6 +1030,25 @@ const SK = {
     await deleteDoc(doc(db, 'items', String(id)));
   },
 
+  /* ── ПЛАН АРЕНИ (admin-arena.html → вкладка «План») ──
+     arenaPlan/{id}: статус, коментар і змінені тексти вміння, теми чи питання.
+     id — з sk-skills.js (наприклад «knight.sword», «topic.conc», «q.37»).
+     Лише для адміна (firestore.rules). */
+  async listArenaPlan() {
+    const snap = await getDocs(collection(db, 'arenaPlan'));
+    return snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+  },
+  // patch зливається з документом (merge). Поле зі значенням null — скинути.
+  async saveArenaPlan(id, patch) {
+    if (!id) throw new Error('empty-id');
+    const u = auth.currentUser;
+    const data = Object.assign({}, patch, {
+      updatedAt: serverTimestamp(),
+      updatedBy: (u && (u.email || u.uid)) || null
+    });
+    await setDoc(doc(db, 'arenaPlan', String(id)), data, { merge: true });
+  },
+
   // «Недоступна в магазині» — річ не потрапляє в щоденний асортимент магазину
   async setItemNoShop(id, noShop) {
     if (!id) return;
