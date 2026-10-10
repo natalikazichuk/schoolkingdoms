@@ -84,6 +84,22 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
   font-family:"Fredoka",sans-serif;font-weight:700;font-size:.95rem}
 .tlbl{font-weight:800;font-size:.9rem;color:#37456a;line-height:1.05}
 
+/* MY TEMPLATES */
+.myhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:14px 0 8px}
+.mytitle{font-weight:800;font-size:.86rem;color:#41527a}
+.mycount{color:#8a99b6;font-weight:700}
+.btn-save{border:2px solid #bfe0c9;background:#effaf2;color:#25864a;border-radius:11px;padding:7px 11px;
+  font-family:inherit;font-weight:800;font-size:.82rem;cursor:pointer}
+.btn-save:disabled{opacity:.5;cursor:default}
+.mychips{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.mychips .tcard{position:relative;padding-right:34px;min-width:0}
+.mychips .tlbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.mychips .tcard > span:nth-child(2){min-width:0;display:flex;flex-direction:column;gap:2px}
+.tsub{font-size:.7rem;font-weight:700;color:#8a99b6}
+.tdel{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:24px;height:24px;border-radius:8px;
+  border:none;background:#fdeef0;color:#d4485f;font-weight:900;cursor:pointer;line-height:1}
+.myempty{font-size:.78rem;color:#8a99b6;font-weight:700}
+
 /* PARAM CARDS */
 .params{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px}
 .pcard{background:#f7faff;border:2px solid #e9f0fc;border-radius:15px;padding:9px 10px}
@@ -143,6 +159,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
   .apphead h1{font-size:1.9rem}
   .chips{grid-template-columns:1fr}
   .params{grid-template-columns:1fr}
+  .mychips{grid-template-columns:minmax(0,1fr)}
 }
 
 </style>
@@ -182,6 +199,11 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
       <div class="sec">
         <div class="sechead"><span class="badge">2</span>Або обери шаблон</div>
         <div class="chips" id="chips"></div>
+        <div class="myhead">
+          <span class="mytitle">⭐ Мої шаблони <span class="mycount" id="myCount"></span></span>
+          <button class="btn-save" id="btnSave" type="button">＋ Зберегти аркуш</button>
+        </div>
+        <div class="chips mychips" id="myChips"></div>
       </div>
 
       <div class="sec">
@@ -466,21 +488,25 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
 
     /* переноси */
     mctx.font = fs + "px Propysy, Nunito, sans-serif";
+    var IND = fs*1.5;                         /* абзацний відступ */
     function wl(str){
-      if(str.trim()==='') return [''];
+      if(str.trim()==='') return [{t:'',ind:0}];
+      var ind = isPara(str) ? IND : 0;
       var words=str.split(/\s+/).filter(Boolean), out=[], cur='';
       var w=function(s){return mctx.measureText(s).width;};
+      var lim=function(){ return writeW-(out.length?0:ind); };
       for(var q=0;q<words.length;q++){
         var word=words[q], tryl=cur?cur+" "+word:word;
-        if(w(tryl)<=writeW){cur=tryl;continue;}
+        if(w(tryl)<=lim()){cur=tryl;continue;}
         if(cur){out.push(cur);cur='';}
-        if(w(word)<=writeW){cur=word;continue;}
+        if(w(word)<=lim()){cur=word;continue;}
         var piece='';
-        for(var c=0;c<word.length;c++){var t2=piece+word[c]; if(w(t2)<=writeW)piece=t2; else{if(piece)out.push(piece);piece=word[c];}}
+        for(var c=0;c<word.length;c++){var t2=piece+word[c]; if(w(t2)<=lim())piece=t2; else{if(piece)out.push(piece);piece=word[c];}}
         cur=piece;
       }
       if(cur)out.push(cur);
-      return out.length?out:[''];
+      if(!out.length) out=[''];
+      return out.map(function(t,i){ return {t:t, ind:i===0?ind:0}; });
     }
     var raw=paperText();
     var src = raw.length ? raw.split("\n") : [];
@@ -490,12 +516,13 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     var NT = wide ? N : Math.max(1, N-1);   /* у косій робочих рядків на один менше */
     var rowsText=new Array(NT).fill(null);
     if(state.mode==='trace'){ for(var r=0;r<visual.length&&r<NT;r++) rowsText[r]=visual[r]; }
-    else{ var rr=0; for(var vi=0; vi<visual.length && rr<NT; vi++){ if(visual[vi].trim()==='')continue; rowsText[rr]=visual[vi]; rr+=2; } }
+    else{ var rr=0; for(var vi=0; vi<visual.length && rr<NT; vi++){ if(visual[vi].t.trim()==='')continue; rowsText[rr]=visual[vi]; rr+=2; } }
 
     for(var rw=0; rw<NT; rw++){
-      var T=rowsText[rw]; if(T==null||T==='')continue;
+      var R=rowsText[rw]; if(R==null||R.t==='')continue;
+      var T=R.t;
       var by = wide ? firstTop+rw*unit+rowH : firstTop+(rw+1)*unit;
-      var tEl=el("text",{x:M.left+2.2, y:by,
+      var tEl=el("text",{x:M.left+2.2+R.ind, y:by,
         "font-family":"Propysy, Nunito, sans-serif", "font-size":fs, "text-anchor":"start"});
       styleMark(tEl,true); tEl.textContent=T; SVG.appendChild(tEl);
     }
@@ -575,6 +602,13 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     }
   }
 
+  /* абзац: рядок, що починається пробілом/табом, або речення з кількох слів із розділовим знаком у кінці */
+  function isPara(str){
+    if(/^[ \t\u00a0]+\S/.test(str)) return true;
+    var t=str.trim();
+    return /^[A-ZА-ЯҐЄІЇ«"]/.test(t) && /[.!?…»"]$/.test(t) && t.split(/\s+/).length>=3;
+  }
+
   /* у режимі «Текст» знаки на аркуші не ставляться — текст друкується зверху */
   function paperText(){ return state.mode==='print' ? '' : txt.value.replace(/\r/g,""); }
 
@@ -586,21 +620,22 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     var x0 = M.left+2, maxW = PAGE_W-M.right-x0;
     var font = "'Nunito', sans-serif";
     mctx.font = "700 " + fs + "px Nunito, sans-serif";
-    var out=[];
+    var out=[], IND=fs*2;
     raw.split("\n").forEach(function(str){
-      var words=str.split(/\s+/).filter(Boolean), cur='';
-      if(!words.length){ out.push(''); return; }
+      var words=str.split(/\s+/).filter(Boolean), cur='', ind=isPara(str)?IND:0, first=true;
+      if(!words.length){ out.push({t:''}); return; }
       words.forEach(function(w){
         var t=cur?cur+" "+w:w;
-        if(!cur || mctx.measureText(t).width<=maxW) cur=t; else { out.push(cur); cur=w; }
+        if(!cur || mctx.measureText(t).width<=maxW-(first?ind:0)) cur=t;
+        else { out.push({t:cur, ind:first?ind:0}); first=false; cur=w; }
       });
-      out.push(cur);
+      out.push({t:cur, ind:first?ind:0});
     });
     var y = blockTop + fs*1.1;
     for(var i=0;i<out.length;i++){
-      if(out[i]){
-        var t=el("text",{x:x0, y:y, "font-size":fs, "font-family":font, "font-weight":700, fill:"#2d3a5a"});
-        t.textContent=out[i]; SVG.appendChild(t);
+      if(out[i].t){
+        var t=el("text",{x:x0+out[i].ind, y:y, "font-size":fs, "font-family":font, "font-weight":700, fill:"#2d3a5a"});
+        t.textContent=out[i].t; SVG.appendChild(t);
       }
       y += lh;
     }
@@ -656,6 +691,62 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     };
     chips.appendChild(b);
   });
+
+  /* ---- мої шаблони: до 5 збережених аркушів (localStorage, лише на цьому пристрої) ---- */
+  var MY_KEY='sk_spysuvannya_saved', MY_MAX=5;
+  var myChips=document.getElementById('myChips'), btnSave=document.getElementById('btnSave'), myCount=document.getElementById('myCount');
+  function loadMy(){ try{ var a=JSON.parse(localStorage.getItem(MY_KEY)||"[]"); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
+  function storeMy(a){ try{ localStorage.setItem(MY_KEY, JSON.stringify(a)); }catch(e){} }
+  var PAPER_LBL={liniya:'Коса', wide:'Широка', grid:'Клітинка'};
+  var MODE_LBL={trace:'Обведи', copy:'Спиши', print:'Текст'};
+  function applySaved(t){
+    txt.value=t.v||'';
+    ['paper','style','size','mode'].forEach(function(k){ if(t[k]){ state[k]=t[k]; } });
+    state.ladder=(t.ladder===true);
+    activateSeg('segPaper',state.paper); activateSeg('segStyle',state.style);
+    activateSeg('segSize',state.size); activateSeg('segMode',state.mode);
+    if(typeof t.name==='boolean') chkName.checked=t.name;
+    if(typeof t.decor==='boolean') chkDecor.checked=t.decor;
+    render();
+  }
+  function renderMy(){
+    var a=loadMy();
+    myChips.innerHTML='';
+    myCount.textContent='('+a.length+'/'+MY_MAX+')';
+    btnSave.disabled = a.length>=MY_MAX;
+    btnSave.title = a.length>=MY_MAX ? 'Можна зберегти до '+MY_MAX+' аркушів — видали один' : '';
+    if(!a.length){
+      var e=document.createElement('div'); e.className='myempty';
+      e.textContent='Налаштуй аркуш і натисни «Зберегти» — він з’явиться тут.';
+      myChips.appendChild(e); return;
+    }
+    a.forEach(function(t,i){
+      var b=document.createElement('div');
+      b.className='tcard'; b.setAttribute('role','button'); b.tabIndex=0;
+      var ic=document.createElement('span'); ic.className='tico'; ic.style.background='#fff6d6'; ic.style.color='#d99a1e'; ic.textContent=(i+1);
+      var box=document.createElement('span');
+      var l=document.createElement('span'); l.className='tlbl'; l.textContent=t.title||'Аркуш '+(i+1);
+      var sub=document.createElement('span'); sub.className='tsub'; sub.textContent=(PAPER_LBL[t.paper]||'')+' · '+(MODE_LBL[t.mode]||'');
+      box.appendChild(l); box.appendChild(sub);
+      var del=document.createElement('button'); del.className='tdel'; del.type='button'; del.textContent='✕'; del.title='Видалити';
+      del.onclick=function(ev){ ev.stopPropagation(); if(!confirm('Видалити «'+(t.title||'аркуш')+'»?')) return; var arr=loadMy(); arr.splice(i,1); storeMy(arr); renderMy(); };
+      b.appendChild(ic); b.appendChild(box); b.appendChild(del);
+      b.onclick=function(){ applySaved(t); };
+      b.onkeydown=function(ev){ if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); applySaved(t); } };
+      myChips.appendChild(b);
+    });
+  }
+  btnSave.onclick=function(){
+    var a=loadMy(); if(a.length>=MY_MAX) return;
+    var first=(txt.value.split("\n").filter(function(x){return x.trim();})[0]||'').trim();
+    var def=first.length>24 ? first.slice(0,24)+'…' : (first||'Аркуш '+(a.length+1));
+    var title=prompt('Назва шаблону:', def); if(title===null) return;
+    title=title.trim()||def;
+    a.push({title:title, v:txt.value, paper:state.paper, style:state.style, size:state.size, mode:state.mode,
+            ladder:state.ladder, name:chkName.checked, decor:chkDecor.checked});
+    storeMy(a); renderMy();
+  };
+  renderMy();
 
   function seg(id, key){
     var box=document.getElementById(id);
