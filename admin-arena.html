@@ -14,7 +14,7 @@
 <script src="sk-curriculum.js?v=8"></script>
 <script src="sk-items.js?v=10"></script>
 <script src="sk-arena-rules.js?v=18"></script>
-<script src="sk-skills.js?v=2"></script>
+<script src="sk-skills.js?v=3"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -119,6 +119,18 @@
   .pl-qt{flex:1;min-width:0;font-size:.9rem;color:var(--ink)}
   .pl-qa{display:flex;gap:6px;align-items:center}
   .pl-err{border-color:#efc2c0;background:#fdf3f2}
+  /* ── 🧠 Механіка вмінь ── */
+  .skm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:12px}
+  @media (max-width:520px){.skm-grid{grid-template-columns:1fr}}
+  .skm-card{border:1px solid var(--border);border-radius:14px;padding:12px;background:#fffdf7;min-width:0}
+  .skm-h{display:flex;gap:10px;align-items:flex-start;margin:0 0 8px}
+  .skm-ic{font-size:1.6rem;line-height:1}
+  table.skm-tbl td{padding:4px 6px}
+  table.skm-tbl td:first-child{width:34%}
+  table.skm-tbl td:last-child{width:40px}
+  .skm-tbl input,.skm-tbl textarea{font:inherit;font-size:.86rem;color:var(--ink);width:100%;border:1px solid var(--border);border-radius:8px;padding:5px 8px;background:#fff;resize:vertical}
+  .skm-tbl input{font-weight:700}
+  .skm-tbl textarea{min-height:36px;height:auto;field-sizing:content}
 </style>
 </head>
 <body>
@@ -147,7 +159,7 @@
 var root=document.getElementById('root');
 var esc=SKADMIN.esc;
 var TAB='hero';
-try{ if(location.hash==='#items') TAB='items'; else if(location.hash==='#mech') TAB='mech'; else if(location.hash==='#plan') TAB='plan'; }catch(e){}
+try{ if(location.hash==='#items') TAB='items'; else if(location.hash==='#mech') TAB='mech'; else if(location.hash==='#plan') TAB='plan'; else if(location.hash==='#skmech') TAB='skmech'; }catch(e){}
 var ITEMS=[],TESTS=[],ITEMS_ERR=null,TESTS_ERR=null;
 
 /* Стартові значення — копія defaultHero() з firebase-config.js. */
@@ -314,7 +326,7 @@ function bestSet(items,key,pct,bonus){
 /* ══ малювання ══ */
 function tabsHTML(){
   function b(id,ttl){return '<button class="tab'+(TAB===id?' on':'')+'" data-tab="'+id+'">'+ttl+'</button>';}
-  return '<div class="tabs">'+b('hero','🦸 Базові характеристики Героя')+b('items','🎒 Характеристики речей')+b('mech','⚙️ Механіка')+b('plan','📋 План')+'</div>';
+  return '<div class="tabs">'+b('hero','🦸 Базові характеристики Героя')+b('items','🎒 Характеристики речей')+b('mech','⚙️ Механіка')+b('skmech','🧠 Механіка вмінь')+b('plan','📋 План')+'</div>';
 }
 
 /* Розгортаний список записів, від найщедрішого: видно, хто дає найбільше. */
@@ -626,7 +638,7 @@ function loadPlan(){
   var p=(window.SK&&SK.listArenaPlan)?SK.listArenaPlan():Promise.reject(new Error('no-api'));
   p.then(function(l){PLAN={};(l||[]).forEach(function(d){PLAN[d.id]=d;});PLAN_ERR=null;},
          function(e){PLAN={};PLAN_ERR=(e&&(e.code||e.message))||String(e);})
-   .then(function(){PLAN_LOADED=true;PLAN_LOADING=false;if(TAB==='plan')render();});
+   .then(function(){PLAN_LOADED=true;PLAN_LOADING=false;if(TAB==='plan'||TAB==='skmech')render();});
 }
 function pdoc(id){return PLAN[id]||{};}
 function pstat(id){var s=pdoc(id).status;return ST_KEYS.indexOf(s)>=0?s:'todo';}
@@ -734,7 +746,7 @@ function planHTML(){
     +'<label class="pl-chk"><input type="checkbox" id="pfNotes" data-act="fnotes"'+(PF.notes?' checked':'')+'> лише з коментарем або змінами</label></div></section>'
     +'<div id="plList">'+planListHTML()+'</div>';
 }
-function planRefreshList(){var el=document.getElementById('plList');if(el)el.innerHTML=planListHTML();}
+function planRefreshList(){if(TAB==='skmech'){render();return;}var el=document.getElementById('plList');if(el)el.innerHTML=planListHTML();}
 function planSave(id,patch,msgEl){
   if(msgEl)msgEl.textContent='Зберігаю…';
   return SK.saveArenaPlan(id,patch).then(function(){
@@ -752,8 +764,9 @@ var planBound=false;
 function bindPlan(){
   if(planBound)return;planBound=true;
   root.addEventListener('input',function(e){
-    var t=e.target;if(TAB!=='plan')return;
+    var t=e.target;if(TAB!=='plan'&&TAB!=='skmech')return;
     if(t.dataset&&t.dataset.fid){PDRAFT[t.dataset.fid]=t.value;return;}
+    if(TAB!=='plan')return;
     if(t.id==='pfQ'){PF.q=t.value.trim();planRefreshList();}
   });
   root.addEventListener('change',function(e){
@@ -767,7 +780,7 @@ function bindPlan(){
     }
   });
   root.addEventListener('click',function(e){
-    var b=e.target.closest('[data-act]');if(!b||TAB!=='plan'||b.tagName==='INPUT'||b.tagName==='SELECT')return;
+    var b=e.target.closest('[data-act]');if(!b||(TAB!=='plan'&&TAB!=='skmech')||b.tagName==='INPUT'||b.tagName==='SELECT')return;
     var act=b.dataset.act,id=b.dataset.id;
     if(act==='fcls'){PF.cls=b.dataset.v;render();return;}
     if(act==='open'){POPEN[id]=!POPEN[id];planRefreshList();
@@ -799,13 +812,93 @@ function bindPlan(){
   });
 }
 
+/* ══ МЕХАНІКА ВМІНЬ: що дає майстерність 25…100% (sk-skills.js → UNIVERSAL) ══
+   Стандартні рядки — у sk-skills.js (mech). Змінені рядки й коментар —
+   у arenaPlan/mech.<id> (та сама колекція й правило, що й «План»). */
+var SKM_WORK={},SKM_DIRTY={};
+function skmDocId(sk){return 'mech.'+sk.id;}
+function skmRows(sk){
+  if(SKM_WORK[sk.id])return SKM_WORK[sk.id];
+  var d=pdoc(skmDocId(sk)),src=(d.rows&&d.rows.length)?d.rows.map(function(r){return [r.k,r.v];}):sk.mech;
+  return (SKM_WORK[sk.id]=src.map(function(r){return [r[0],r[1]];}));
+}
+function skmEdited(sk){var d=pdoc(skmDocId(sk));return !!(d.rows&&d.rows.length);}
+function skmCard(sk){
+  var id=skmDocId(sk),d=pdoc(id),rows=skmRows(sk),open=!!POPEN[id];
+  var tr=rows.map(function(r,i){
+    var fk='skm-k-'+sk.id+'-'+i,fv='skm-v-'+sk.id+'-'+i;
+    return '<tr><td><input type="text" id="'+esc(fk)+'" data-skm="'+esc(sk.id)+'" data-i="'+i+'" data-f="0" value="'+esc(r[0])+'" aria-label="Параметр"></td>'
+      +'<td><textarea id="'+esc(fv)+'" data-skm="'+esc(sk.id)+'" data-i="'+i+'" data-f="1" rows="1" aria-label="Значення">'+esc(r[1])+'</textarea></td>'
+      +'<td><button type="button" class="btn-ghost" data-skact="del" data-sk="'+esc(sk.id)+'" data-i="'+i+'" title="Прибрати рядок">🗑</button></td></tr>';
+  }).join('');
+  return '<div class="skm-card" id="skm-'+esc(sk.id)+'">'
+    +'<div class="skm-h"><span class="skm-ic">'+sk.icon+'</span><div><b>'+esc(sk.name)+'</b>'
+    +' <span class="tag ty-'+sk.type+'">'+TY_UK[sk.type]+'</span>'+(sk.cost?' <span class="tag">'+esc(sk.cost)+'</span>':'')
+    +(skmEdited(sk)?' <span class="tag item">✎ змінено</span>':'')+(d.comment?' <span class="tag pct">💬</span>':'')
+    +'<div class="pl-kid">🧒 '+esc(sk.kid)+'</div></div></div>'
+    +'<div class="tblwrap"><table class="st skm-tbl"><thead><tr><th>Параметр</th><th>Значення / як працює</th><th></th></tr></thead><tbody>'+tr+'</tbody></table></div>'
+    +'<div class="pl-acts"><button type="button" class="btn-ghost" data-skact="add" data-sk="'+esc(sk.id)+'">＋ рядок</button>'
+    +'<button type="button" class="btn-save" data-skact="save" data-sk="'+esc(sk.id)+'">💾 Зберегти</button>'
+    +'<button type="button" class="btn-ghost" data-skact="reset" data-sk="'+esc(sk.id)+'" title="Повернути рядки з sk-skills.js">↺ Стандартні</button>'
+    +'<button type="button" class="btn-ghost" data-act="open" data-id="'+esc(id)+'" aria-expanded="'+open+'">💬 Коментар</button>'
+    +'<span class="pl-msg" id="skmm-'+esc(sk.id)+'">'+(SKM_DIRTY[sk.id]?'● не збережено':esc(pwhen(d)))+'</span></div>'
+    +(d.comment&&!open?'<p class="pl-note">💬 '+esc(d.comment)+'</p>':'')
+    +(open?detForm(id,[],'Коментар / завдання'):'')
+    +'</div>';
+}
+function skmHTML(){
+  if(!window.SKSKILLS||!SKSKILLS.UNIVERSAL)return '<section class="sec"><p class="hint">Не завантажився sk-skills.js.</p></section>';
+  if(!PLAN_LOADED){loadPlan();return '<div class="empty">Завантаження…</div>';}
+  var err=PLAN_ERR?'<section class="sec pl-err"><h2>⚠ Не читається з бази</h2><p class="hint">Помилка: '+esc(PLAN_ERR)+'. Опублікуй firestore.rules (колекція <span class="key">arenaPlan</span>) у консолі Firebase. До того видно стандартні рядки, але зберегти зміни не вийде.</p></section>':'';
+  var pts=[1,2,3,4,5,7,9].map(function(l){return l+' рів. → '+SKSKILLS.pointsForLevel(l);}).join(' · ');
+  var lv={1:'Рівень 1 · перший бій',2:'Рівень 2 · магія й оборона',3:'Рівень 3 · майстерність (і вибір класу)'};
+  var body=[1,2,3].map(function(l){
+    var cards=SKSKILLS.UNIVERSAL.filter(function(s){return s.lv===l;}).map(skmCard).join('');
+    return '<section class="sec"><h2>'+esc(lv[l])+'</h2><div class="skm-grid">'+cards+'</div></section>';
+  }).join('');
+  return err+'<section class="sec"><h2>🧠 Механіка вмінь</h2><p class="hint">Що дає майстерність кожного вміння — для балансу. «м» = майстерність / 100. Рядки можна змінити, додати чи прибрати; «💾 Зберегти» пише в базу, «↺ Стандартні» повертає рядки з sk-skills.js.</p>'
+    +'<ul class="exl"><li>Вміння <b>вивчають за очко</b>: після вивчення — <b>'+SKSKILLS.LEARN_START+'%</b>, далі росте в бою (і від невдалих спроб).</li>'
+    +'<li>Очки за рівні арени: по 1 на рівнях 1–4, далі по 1 кожні два. Разом: '+esc(pts)+'. Плюс очки за позначені тести.</li>'
+    +'<li>Клас обирається на <b>'+SKSKILLS.CLASS_LEVEL+' рівні</b>.</li></ul></section>'+body;
+}
+var skmBound=false;
+function bindSkm(){
+  if(skmBound)return;skmBound=true;
+  root.addEventListener('input',function(e){
+    var t=e.target;if(TAB!=='skmech'||!t.dataset||!t.dataset.skm)return;
+    var sk=null;SKSKILLS.UNIVERSAL.forEach(function(x){if(x.id===t.dataset.skm)sk=x;});if(!sk)return;
+    skmRows(sk)[+t.dataset.i][+t.dataset.f]=t.value;SKM_DIRTY[sk.id]=true;
+    var m=document.getElementById('skmm-'+sk.id);if(m)m.textContent='● не збережено';
+  });
+  root.addEventListener('click',function(e){
+    var b=e.target.closest('[data-skact]');if(!b||TAB!=='skmech')return;
+    var sk=null;SKSKILLS.UNIVERSAL.forEach(function(x){if(x.id===b.dataset.sk)sk=x;});if(!sk)return;
+    var act=b.dataset.skact,rows=skmRows(sk),card=function(){var el=document.getElementById('skm-'+sk.id);if(el)el.outerHTML=skmCard(sk);};
+    if(act==='add'){rows.push(['','']);SKM_DIRTY[sk.id]=true;card();var n=document.getElementById('skm-k-'+sk.id+'-'+(rows.length-1));if(n)n.focus();return;}
+    if(act==='del'){rows.splice(+b.dataset.i,1);SKM_DIRTY[sk.id]=true;card();return;}
+    var id=skmDocId(sk),msg=document.getElementById('skmm-'+sk.id),patch;
+    if(act==='save'){
+      var clean=rows.map(function(r){return {k:String(r[0]||'').trim(),v:String(r[1]||'').trim()};}).filter(function(r){return r.k||r.v;});
+      patch={rows:clean};
+    } else if(act==='reset'){patch={rows:null};}
+    else return;
+    b.disabled=true;
+    planSave(id,patch,msg).then(function(ok){
+      b.disabled=false;if(!ok)return;
+      if(PLAN[id]&&patch.rows===null)PLAN[id].rows=null;
+      delete SKM_WORK[sk.id];delete SKM_DIRTY[sk.id];card();
+      var m=document.getElementById('skmm-'+sk.id);if(m)m.textContent='✓ Збережено · '+pwhen(pdoc(id));
+    });
+  });
+}
+
 function render(){
   root.innerHTML='<h1>⚔️ Арена · характеристики</h1>'
     +'<p class="sub">Які характеристики є в Героя і що до них можна додати предметами.</p>'
-    +tabsHTML()+(TAB==='items'?itemsHTML():TAB==='mech'?mechHTML():TAB==='plan'?planHTML():heroHTML());
+    +tabsHTML()+(TAB==='items'?itemsHTML():TAB==='mech'?mechHTML():TAB==='plan'?planHTML():TAB==='skmech'?skmHTML():heroHTML());
   root.querySelectorAll('.tab[data-tab]').forEach(function(b){b.onclick=function(){
     TAB=b.getAttribute('data-tab');try{history.replaceState(null,'','#'+TAB);}catch(e){}render();};});
-  bindPlan();
+  bindPlan();bindSkm();
 }
 
 function load(){
