@@ -618,10 +618,10 @@ var GROWTH = {
   total: 200,          // спрацювань від 25% до 100%
   failWeight: 0.5,     // невдала спроба = пів спрацювання
   stages: [            // [від %, до %, частка всіх спрацювань]
-    [25, 50, 0.20],
-    [50, 75, 0.30],
+    [25, 50, 0.15],
+    [50, 75, 0.25],
     [75, 90, 0.30],
-    [90, 100, 0.20]
+    [90, 100, 0.30]
   ]
 };
 function growTotal(sk) { return (sk && sk.grow) || GROWTH.total; }
@@ -667,7 +667,7 @@ var BY_ID = {};
 SKILLS.forEach(function(s){ BY_ID[s.id] = s; });
 
 window.SKSKILLS = {
-  VERSION: 4,
+  VERSION: 5,
   CLASSES: CLASSES,
   SKILLS: SKILLS,
   TOPICS: TOPICS,
