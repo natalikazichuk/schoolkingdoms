@@ -1,8 +1,9 @@
 /* ============================================================
-   firebase-config.js — спільний модуль Firebase для SchoolKingdom
+   firebase-config.js — спільний модуль даних і входу для SchoolKingdom
    Підключення на будь-якій сторінці:
        <script type="module" src="firebase-config.js"></script>
-   CDN-імпорти — працюють на GitHub Pages без build-інструментів.
+   Назва історична: дані тепер на власному сервері (server/app), а
+   sk-fb.js повторює потрібні функції Firebase SDK.
 
    МОДЕЛЬ ДОСТУПУ (нова):
      • user — звичайний акаунт Firebase Auth (email+пароль).
@@ -30,18 +31,20 @@
      }
    ============================================================ */
 
-import { initializeApp, deleteApp }
-  from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+/* Раніше тут були імпорти Firebase SDK з gstatic. Тепер сайт працює на
+   власному сервері (school-king.pp.ua, server/app), а sk-fb.js повторює
+   ті самі функції Firebase — тому решта цього файлу не змінилась. */
 import {
+  initializeApp, deleteApp,
   getAuth, setPersistence, browserLocalPersistence, browserSessionPersistence,
   createUserWithEmailAndPassword, signInWithEmailAndPassword,
-  signOut, onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
-import {
+  signOut, onAuthStateChanged,
   getFirestore, initializeFirestore, doc, getDoc, setDoc, updateDoc, addDoc, deleteDoc,
   collection, getDocs, query, where, serverTimestamp, runTransaction
-} from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+} from "./sk-fb.js?v=1";
 
+// Налаштування старого проєкту Firebase. sk-fb.js їх не використовує,
+// лишаються для initializeApp(...) — як ім'я «застосунку».
 const firebaseConfig = {
   apiKey: "AIzaSyALZtXycA1CI1WvbSfNXMyMYuPpWTp6JzA",
   authDomain: "schoolkingdom-d46bc.firebaseapp.com",
@@ -54,23 +57,13 @@ const firebaseConfig = {
 
 const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-// initializeFirestore (замість getFirestore): вмикаємо авто-визначення
-// long-polling. У мережах/за блокувальниками/проксі, де стрімовий WebChannel
-// ріжеться (400 на /Listen/channel, "transport errored"), SDK сам перемикається
-// на long-polling. Де WebChannel працює — лишається він, без втрати швидкості.
-const db   = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
+const db   = initializeFirestore(app);
 
-// Сесія «прилипає» між вкладками й заходами (localStorage/IndexedDB), тому
+// Сесія «прилипає» між вкладками й заходами (cookie сервера на рік), тому
 // відкриття гри/тесту в новій вкладці й перехід між сторінками НЕ розлогінюють.
 // Вихід — лише явно, кнопкою 🚪 Вийти (SK.logout). Для тестування кількох
 // акаунтів користуйся окремим вікном "інкогніто".
 try { await setPersistence(auth, browserLocalPersistence); } catch (e) {}
-
-try {
-  const { getAnalytics, isSupported } =
-    await import("https://www.gstatic.com/firebasejs/11.1.0/firebase-analytics.js");
-  if (await isSupported()) getAnalytics(app);
-} catch (e) {}
 
 /* ---------- константи ---------- */
 const HERO_EMAIL_DOMAIN = 'hero.schoolkingdom.app';
