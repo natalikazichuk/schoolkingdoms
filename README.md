@@ -4,9 +4,9 @@
 Дитина вчиться через тести, тренажери, ігри, читання та словник, а її герой росте:
 характеристики, монети, спорядження, бої на Турнірній арені. Батьки бачать усе з власного кабінету.
 
-> Ukrainian-language gamified learning platform for kids. A build-less static site on GitHub Pages, powered by Firebase (Auth + Firestore).
+> Ukrainian-language gamified learning platform for kids. A build-less static site on its own server (nginx + Node.js API + PostgreSQL); GitHub keeps the code archive.
 
-🌐 **Демо:** https://natalikazichuk.github.io/schoolkingdoms
+🌐 **Сайт:** https://school-king.pp.ua
 
 ---
 
@@ -52,11 +52,11 @@
 
 Вхід починається з `index.html`: **«Вхід — user»** (батьки) або **«Вхід — Герой»** (дитина).
 
-- **Батьки** — звичайний акаунт Firebase Auth (email + пароль), реєстрація родини.
+- **Батьки** — акаунт з email + паролем, реєстрація родини.
 - **Герой** — окрема дитяча сесія на синтетичному email (`login@hero.schoolkingdom.app`), логін і пароль створює дорослий.
 - **Адміністратор** — батьківський акаунт із прапорцем адміна (`SK.isAdmin()`), бачить кнопку «⚙️ Адмінка».
 
-Сесія тримається через `browserSessionPersistence` — до закриття вкладки.
+Сесія — HttpOnly cookie сервера, тримається рік або до кнопки «🚪 Вийти».
 Щоб тестувати Героя й батьків одночасно, потрібні різні браузери або вікно інкогніто.
 
 ---
@@ -89,7 +89,7 @@ admin.html ─┬─ admin-books.html · admin-items.html · admin-vocab.html ·
 
 | Файл | Глобал | Призначення |
 |------|--------|-------------|
-| `firebase-config.js` | `SK` | Ініціалізація Firebase; уся робота з даними: вхід, Герої, тести, завдання, книжки, предмети, словник, друзі, звіти |
+| `firebase-config.js` | `SK` | Уся робота з даними (назва історична — Firebase більше не використовується): вхід, Герої, тести, завдання, книжки, предмети, словник, друзі, звіти |
 | `sk-curriculum.js` | `SKCUR` | Єдина карта королівства (ступені → класи → предмети → розділи → тести); `DEFAULT_MAP` як запасний варіант, коли база недоступна. Має `API_VERSION` — сторінки перевіряють його |
 | `sk-header.js` | — | Спільна шапка: бренд, навігація з карти, характеристики активного Героя |
 | `sk-footer.js` | — | Спільний нижній навбар; вкладки `home · navch · games · arena`; налаштування — атрибутами `data-active`, `data-back`, `data-last` на теґу `<script>` |
@@ -110,9 +110,9 @@ admin.html ─┬─ admin-books.html · admin-items.html · admin-vocab.html ·
 
 ---
 
-## 🔥 Дані у Firestore
+## 🔥 Дані
 
-Проєкт Firebase: **`schoolkingdom-d46bc`**.
+Дані лежать на власному сервері в PostgreSQL зі структурою колекцій і документів, як була у Firestore (див. [`server/README.md`](server/README.md)). `sk-fb.js` повторює потрібні функції Firebase SDK. Старий проєкт Firebase — **`schoolkingdom-d46bc`**.
 
 | Колекція | Що зберігає |
 |----------|-------------|
@@ -210,17 +210,18 @@ python3 -m http.server 8000     # або: npx serve .
 
 Відкрити `http://localhost:8000`.
 
-> ⚠️ Відкрити файл через `file://` недостатньо: Firebase і ES-модулі потребують `http(s)`.
+> ⚠️ Відкрити файл через `file://` недостатньо: ES-модулі потребують `http(s)`. Вхід і дані працюють лише разом з API (`server/`), тобто на сервері.
 
 ---
 
 ## 🚀 Деплой
 
-Сайт публікується **GitHub Pages** з гілки `main`. Будь-який мердж у `main` одразу на проді.
-Оновлювати можна і без CLI: **Add file → Upload files → Commit** у веб-інтерфейсі GitHub.
+Сайт працює на власній VM: **https://school-king.pp.ua**. Сервер раз на 2 хвилини
+перевіряє гілку `main` на GitHub і сам оновлюється — будь-який мердж у `main` одразу на проді.
+GitHub Pages більше не використовується: старі адреси `*.github.io` переводять на новий домен.
+Як влаштований сервер, резервні копії й команди — у [`server/README.md`](server/README.md).
 
-Правила Firestore (`firestore.rules`) публікуються в консолі Firebase **повним файлом** —
-частковий файл мовчки забирає доступ до пропущених колекцій.
+Правила доступу — `server/app/src/rules.js` (перенесені з `firestore.rules`).
 
 ---
 
@@ -254,9 +255,9 @@ python3 -m http.server 8000     # або: npx serve .
 | Шар | Технологія |
 |-----|-----------|
 | Фронтенд | Ванільні **HTML5 / CSS3 / JavaScript (ES6+)** — без фреймворків і збірки |
-| Автентифікація | **Firebase Authentication** |
-| База даних | **Cloud Firestore** |
-| Хостинг | **GitHub Pages** |
+| Автентифікація | Свій вхід (email + пароль, HttpOnly-сесія) |
+| База даних | **PostgreSQL** (документи у jsonb) |
+| Сервер | **nginx** + **Node.js** API у Docker, власна VM |
 | PWA | `manifest.webmanifest` + іконки 192/512 |
 | Шрифти | Fredoka, Nunito, Playfair Display, Comfortaa (Google Fonts) |
 | Озвучка | Web Speech API + власні mp3 |

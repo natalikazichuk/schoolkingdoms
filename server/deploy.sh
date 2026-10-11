@@ -46,6 +46,13 @@ cat > /etc/cron.d/sk-backup <<EOF
 17 3 * * * root $SK/repo/server/backup.sh >> /var/log/sk-backup.log 2>&1
 EOF
 
+# автооновлення з GitHub — лише коли сайт працює з main
+if [ "$BRANCH" = "main" ]; then
+  echo "*/2 * * * * root $SK/repo/server/autodeploy.sh main >> /var/log/sk-deploy.log 2>&1" > /etc/cron.d/sk-autodeploy
+else
+  rm -f /etc/cron.d/sk-autodeploy
+fi
+
 for i in $(seq 1 30); do
   if curl -fsS http://127.0.0.1:3000/api/health >/dev/null 2>&1; then
     echo "OK: $VERSION"; curl -s http://127.0.0.1:3000/api/health; echo
