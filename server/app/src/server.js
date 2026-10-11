@@ -266,6 +266,88 @@ async function commit(user, body) {
   }
 }
 
+/* ---------- перегляд бази (admin-db.html), лише адмін, лише читання ---------- */
+async function requireAdmin(user) {
+  if (!user) throw new ApiError(401, 'unauthenticated');
+  const r = await pool.query(`select data->>'role' as role from docs where path = $1`, ['users/' + user.uid]);
+  if (!r.rows.length || r.rows[0].role !== 'admin') throw deny();
+}
+// heroes/abc/battles → heroes/*/battles: підколекції групуємо за шаблоном
+const collPattern = parent => parent.split('/').map((s, i) => (i % 2 ? '*' : s)).join('/');
+function parentFilter(pattern, params) {
+  if (!isCollPath(pattern.replace(/\*/g, 'x'))) throw new ApiError(400, 'invalid-argument', 'bad collection');
+  if (!pattern.includes('*')) { params.push(pattern); return `parent = $${params.length}`; }
+  params.push(pattern.replace(/[%_\\]/g, '\\$&').replace(/\*/g, '%'));
+  return `parent like $${params.length}`;
+}
+
+async function adminCollections(user) {
+  await requireAdmin(user);
+  const r = await pool.query(
+    `select parent, count(*)::int as n, sum(pg_column_size(data))::bigint as bytes, max(updated_at) as updated
+       from docs group by parent`);
+  const m = new Map();
+  for (const row of r.rows) {
+    const k = collPattern(row.parent);
+    const c = m.get(k) || { collection: k, count: 0, bytes: 0, updated: null };
+    c.count += row.n; c.bytes += Number(row.bytes);
+    if (!c.updated || row.updated > c.updated) c.updated = row.updated;
+    m.set(k, c);
+  }
+  const a = await pool.query('select count(*)::int as n from accounts');
+  const s = await pool.query('select pg_database_size(current_database())::bigint as b');
+  return [{
+    collections: [...m.values()].sort((x, y) => x.collection.localeCompare(y.collection)),
+    accounts: a.rows[0].n,
+    dbBytes: Number(s.rows[0].b)
+  }];
+}
+
+async function adminDocs(user, body) {
+  await requireAdmin(user);
+  const params = [];
+  const conds = [parentFilter(String(body.collection || ''), params)];
+  const q = String(body.q || '').trim();
+  if (q) { params.push('%' + q.replace(/[%_\\]/g, '\\$&') + '%'); conds.push(`(path ilike $${params.length} or data::text ilike $${params.length})`); }
+  const where = conds.join(' and ');
+  const limit = Math.min(Math.max(Number(body.limit) || 50, 1), 200);
+  const offset = Math.max(Number(body.offset) || 0, 0);
+  const total = (await pool.query(`select count(*)::int as n from docs where ${where}`, params)).rows[0].n;
+  const sort = body.sort === 'id' ? 'id' : 'updated_at desc';
+  const r = await pool.query(
+    `select path, id, version, created_at, updated_at, pg_column_size(data) as bytes,
+            left(data::text, 400) as preview
+       from docs where ${where} order by ${sort} limit ${limit} offset ${offset}`, params);
+  return [{ total, docs: r.rows.map(x => Object.assign(x, { version: Number(x.version), bytes: Number(x.bytes) })) }];
+}
+
+async function adminDoc(user, body) {
+  await requireAdmin(user);
+  const r = await pool.query('select * from docs where path = $1', [String(body.path || '')]);
+  if (!r.rows.length) throw new ApiError(404, 'not-found');
+  const d = r.rows[0];
+  const subs = await pool.query(
+    `select parent, count(*)::int as n from docs where parent like $1 group by parent`,
+    [d.path.replace(/[%_\\]/g, '\\$&') + '/%']);
+  return [{
+    doc: { path: d.path, id: d.id, data: d.data, version: Number(d.version), created_at: d.created_at, updated_at: d.updated_at },
+    subcollections: subs.rows.map(x => ({ collection: x.parent, count: x.n }))
+  }];
+}
+
+async function adminAccounts(user) {
+  await requireAdmin(user);
+  // паролі не віддаємо — лише формат (старий Firebase чи вже перешифрований)
+  const r = await pool.query(
+    `select a.uid, a.email, a.created_at, a.last_login, a.disabled,
+            case when a.pass like 'fb$%' then 'firebase' else 'new' end as pass_format,
+            (select count(*)::int from sessions s where s.uid = a.uid) as sessions,
+            exists(select 1 from docs where path = 'users/' || a.uid) as has_user,
+            exists(select 1 from docs where path = 'heroes/' || a.uid) as has_hero
+       from accounts a order by a.last_login desc nulls last, a.created_at desc`);
+  return [{ accounts: r.rows }];
+}
+
 /* ---------- маршрутизація ---------- */
 const ROUTES = {
   'POST /api/auth/signup': (req, user, b) => signup(req, b),
@@ -275,6 +357,10 @@ const ROUTES = {
   'POST /api/get': (req, user, b) => getDoc(user, b),
   'POST /api/query': (req, user, b) => query(user, b),
   'POST /api/commit': (req, user, b) => commit(user, b),
+  'GET /api/admin/collections': (req, user) => adminCollections(user),
+  'POST /api/admin/docs': (req, user, b) => adminDocs(user, b),
+  'POST /api/admin/doc': (req, user, b) => adminDoc(user, b),
+  'GET /api/admin/accounts': (req, user) => adminAccounts(user),
   'GET /api/health': async () => {
     await pool.query('select 1');
     return [{ ok: true, version: process.env.APP_VERSION || 'dev' }];

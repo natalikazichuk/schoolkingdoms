@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>База даних — School Kingdom</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="sk-styles.css">
+<link rel="stylesheet" href="sk-admin.css?v=2">
+<script src="sk-admin.js?v=1"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* Перегляд бази: лише читання. Дані — /api/admin/* (server/app/src/server.js),
+     доступ лише адміну й на сервері, і тут (SKADMIN.guard). */
+  *{-webkit-tap-highlight-color:transparent}
+  body{line-height:1.45}
+  #wrap{padding:0 0 80px}
+  .wrap-in{max-width:1200px;margin:0 auto;padding:16px 16px 0}
+  .empty{color:var(--muted);font-weight:700;font-size:.95rem;padding:22px 4px}
+  .gate{padding:34px 22px;max-width:460px;margin:40px auto}
+
+  .stats{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+  .stat{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:8px 14px;
+    font-weight:800;color:var(--ink);font-size:.9rem}
+  .stat span{color:var(--muted);font-weight:700;font-size:.78rem;display:block}
+
+  .layout{display:grid;grid-template-columns:240px minmax(0,1fr);gap:14px;align-items:start}
+  @media (max-width:760px){ .layout{grid-template-columns:minmax(0,1fr)} }
+
+  .side{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:8px;
+    box-shadow:var(--shadow);position:sticky;top:12px}
+  @media (max-width:760px){ .side{position:static} }
+  .coll{display:flex;align-items:center;gap:8px;width:100%;text-align:left;font:inherit;font-weight:800;
+    font-size:.88rem;color:var(--ink);background:none;border:0;border-radius:12px;padding:8px 10px;cursor:pointer}
+  .coll:hover{background:#f6f1e3}
+  .coll.on{background:linear-gradient(180deg,var(--gold),var(--gold-deep));color:var(--gold-ink)}
+  .coll .n{margin-left:auto;font-weight:700;opacity:.7;font-size:.78rem}
+  .coll .sz{display:block;font-weight:600;opacity:.65;font-size:.72rem}
+  .side hr{border:0;border-top:1px dashed var(--border);margin:6px 4px}
+
+  .main{min-width:0}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 10px}
+  .bar input[type=search]{flex:1 1 220px;min-width:0;font:inherit;font-weight:700;padding:9px 12px;
+    border:2px solid var(--border);border-radius:12px;background:var(--card);color:var(--ink)}
+  .bar input[type=search]:focus{outline:none;border-color:var(--gold-deep)}
+  .bar select{font:inherit;font-weight:700;padding:8px;border:2px solid var(--border);border-radius:12px;background:var(--card)}
+  .crumbs{font-weight:800;color:var(--ink);font-size:1.05rem;margin:0 0 10px;word-break:break-all}
+  .crumbs a{color:var(--primary-ink);cursor:pointer;text-decoration:underline}
+  .muted{color:var(--muted);font-weight:700;font-size:.82rem}
+
+  .rows{display:flex;flex-direction:column;gap:8px}
+  .row{display:block;width:100%;text-align:left;font:inherit;background:var(--card);border:1px solid var(--border);
+    border-radius:14px;padding:10px 12px;cursor:pointer;box-shadow:var(--shadow)}
+  .row:hover{border-color:var(--gold-deep)}
+  .row .id{font-weight:800;color:var(--ink);word-break:break-all}
+  .row .meta{float:right;color:var(--muted);font-weight:700;font-size:.74rem;margin-left:8px}
+  .row .pv{display:block;color:var(--muted);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.74rem;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:4px}
+  .pager{display:flex;gap:8px;align-items:center;margin:12px 0}
+
+  .docbox{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:14px;box-shadow:var(--shadow)}
+  .docmeta{display:flex;gap:6px 16px;flex-wrap:wrap;margin:0 0 10px}
+  .tree{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.82rem;line-height:1.55;overflow-x:auto}
+  .tree details{margin-left:14px}
+  .tree summary{cursor:pointer;list-style-position:outside}
+  .tree .kv{margin-left:14px;white-space:pre-wrap;word-break:break-word}
+  .tree .k{color:#6b3fa0;font-weight:700}
+  .tree .s{color:#1f7a4d}
+  .tree .num{color:#2f5ea8}
+  .tree .b{color:#b0560e}
+  .tree .nul{color:var(--muted)}
+  .tree .ts{color:#a0366b}
+  .tree .cnt{color:var(--muted)}
+  .tree img{max-width:220px;max-height:160px;border:1px solid var(--border);border-radius:8px;vertical-align:top}
+  .subs{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
+
+  table.acc{width:100%;border-collapse:collapse;background:var(--card);border-radius:14px;overflow:hidden;font-size:.84rem}
+  .acc th,.acc td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+  .acc th{background:#f6f1e3;font-weight:800;color:var(--ink)}
+  .acc td{font-weight:600;color:var(--ink);word-break:break-all}
+  .acc a{color:var(--primary-ink);cursor:pointer;text-decoration:underline}
+  .accwrap{overflow-x:auto;border:1px solid var(--border);border-radius:14px}
+  .pill{font-size:.7rem;font-weight:800;padding:2px 8px;border-radius:999px;border:1px solid var(--border);white-space:nowrap}
+  .pill.hero{background:#f3edfc;color:#6b3fa0}
+  .pill.parent{background:#eaf1fb;color:#2f5ea8}
+  .pill.old{background:#fdf5e0;color:var(--gold-ink)}
+</style>
+</head>
+<body>
+<header class="topbar"></header>
+<div id="wrap">
+  <div class="wrap-in" id="root">
+    <div class="empty">Завантаження…</div>
+  </div>
+</div>
+
+<script type="module" src="firebase-config.js"></script>
+<script>
+(function(){
+  'use strict';
+  var root = document.getElementById('root');
+  var esc = SKADMIN.esc;
+  var PAGE = 50;
+  var S = { info:null, coll:null, q:'', offset:0, sort:'updated', list:null, doc:null, view:'coll' };
+
+  /* ── API ── */
+  function api(method, path, body){
+    return fetch('api/admin/' + path, {
+      method: method, credentials: 'same-origin',
+      headers: body ? { 'Content-Type':'application/json' } : {},
+      body: body ? JSON.stringify(body) : undefined
+    }).then(function(r){
+      return r.json().catch(function(){ return {}; }).then(function(j){
+        if(!r.ok) throw new Error((j.error && j.error.code) || ('HTTP ' + r.status));
+        return j;
+      });
+    });
+  }
+
+  /* ── формат ── */
+  function kb(b){ return b < 1024 ? b + ' Б' : b < 1048576 ? (b/1024).toFixed(1) + ' КБ' : (b/1048576).toFixed(1) + ' МБ'; }
+  function when(v){
+    if(!v) return '—';
+    var d = new Date(v);
+    return isNaN(d) ? '—' : d.toLocaleString('uk-UA', { dateStyle:'short', timeStyle:'short' });
+  }
+  var COLL_UA = { users:'батьки', heroes:'герої', 'heroes/*/battles':'бої героїв', heroCards:'картки героїв',
+    friendships:'дружба', inviteCodes:'коди-запрошення', tests:'тести', books:'книги', items:'предмети',
+    vocab:'словник', vocabDecks:'набори слів', curriculum:'карта навчання', reports:'помилки',
+    arenaPlan:'план арени', meta:'службове' };
+
+  /* ── JSON-дерево: мапи й масиви згортаються, дати й картинки — по-людськи ── */
+  function isTs(v){ return v && typeof v === 'object' && typeof v.$ts === 'number' && Object.keys(v).length === 1; }
+  function leaf(v){
+    if(v === null) return '<span class="nul">null</span>';
+    if(isTs(v)) return '<span class="ts">📅 ' + esc(when(v.$ts)) + '</span>';
+    if(typeof v === 'number') return '<span class="num">' + v + '</span>';
+    if(typeof v === 'boolean') return '<span class="b">' + v + '</span>';
+    var s = String(v);
+    if(/^data:image\//.test(s)) return '<span class="cnt">картинка ' + kb(s.length) + '</span><br><img alt="" src="' + esc(s) + '">';
+    if(s.length > 600) return '<span class="s">"' + esc(s.slice(0, 600)) + '…"</span> <span class="cnt">(' + s.length + ' симв.)</span>';
+    return '<span class="s">"' + esc(s) + '"</span>';
+  }
+  function tree(v, key, depth){
+    var k = key == null ? '' : '<span class="k">' + esc(key) + '</span>: ';
+    if(v && typeof v === 'object' && !isTs(v)){
+      var arr = Array.isArray(v);
+      var keys = Object.keys(v);
+      var head = k + '<span class="cnt">' + (arr ? '[' + keys.length + ']' : '{' + keys.length + '}') + '</span>';
+      if(!keys.length) return '<div class="kv">' + head + '</div>';
+      var open = depth < 1 ? ' open' : '';
+      return '<details' + open + '><summary>' + head + '</summary>'
+        + keys.map(function(kk){ return tree(v[kk], kk, depth + 1); }).join('') + '</details>';
+    }
+    return '<div class="kv">' + k + leaf(v) + '</div>';
+  }
+
+  /* ── відмальовка ── */
+  function sideHTML(){
+    var i = S.info;
+    var h = i.collections.map(function(c){
+      return '<button class="coll' + (S.view === 'coll' && S.coll === c.collection ? ' on' : '') + '" data-coll="' + esc(c.collection) + '">'
+        + '<span>' + esc(c.collection) + '<span class="sz">' + esc(COLL_UA[c.collection] || '') + ' · ' + kb(c.bytes) + '</span></span>'
+        + '<span class="n">' + c.count + '</span></button>';
+    }).join('');
+    h += '<hr><button class="coll' + (S.view === 'acc' ? ' on' : '') + '" data-acc="1"><span>🔑 Акаунти<span class="sz">логіни (без паролів)</span></span><span class="n">' + i.accounts + '</span></button>';
+    return '<nav class="side" aria-label="Колекції">' + h + '</nav>';
+  }
+  function listHTML(){
+    if(!S.coll) return '<div class="empty">Обери колекцію ліворуч.</div>';
+    var h = '<div class="crumbs">📁 ' + esc(S.coll) + ' <span class="muted">' + esc(COLL_UA[S.coll] || '') + '</span></div>'
+      + '<div class="bar"><input type="search" id="q" placeholder="Пошук: id або будь-який текст у документі" value="' + esc(S.q) + '">'
+      + '<select id="sort"><option value="updated"' + (S.sort === 'updated' ? ' selected' : '') + '>Нові зміни спершу</option>'
+      + '<option value="id"' + (S.sort === 'id' ? ' selected' : '') + '>За id</option></select></div>';
+    if(!S.list) return h + '<div class="empty">Завантаження…</div>';
+    if(!S.list.docs.length) return h + '<div class="empty">Нічого не знайдено.</div>';
+    h += '<div class="muted" style="margin:0 0 8px">Знайдено: ' + S.list.total + '</div><div class="rows">'
+      + S.list.docs.map(function(d){
+        return '<button class="row" data-path="' + esc(d.path) + '"><span class="meta">' + kb(d.bytes) + ' · v' + d.version + ' · ' + esc(when(d.updated_at)) + '</span>'
+          + '<span class="id">' + esc(d.path) + '</span><span class="pv">' + esc(d.preview) + '</span></button>';
+      }).join('') + '</div>';
+    var from = S.offset + 1, to = S.offset + S.list.docs.length;
+    h += '<div class="pager"><button class="btn sm" id="prev"' + (S.offset ? '' : ' disabled') + '>← Назад</button>'
+      + '<span class="muted">' + from + '–' + to + ' з ' + S.list.total + '</span>'
+      + '<button class="btn sm" id="next"' + (to < S.list.total ? '' : ' disabled') + '>Далі →</button></div>';
+    return h;
+  }
+  function docHTML(){
+    var r = S.doc, d = r.doc;
+    var parts = d.path.split('/');
+    var crumbs = parts.map(function(p, i){
+      if(i % 2 === 0 && i < parts.length - 1) return '<a data-coll="' + esc(i ? parts.slice(0, i + 1).join('/') : p) + '">' + esc(p) + '</a>';
+      return esc(p);
+    }).join(' / ');
+    return '<div class="crumbs">📄 ' + crumbs + '</div>'
+      + '<div class="docbox"><div class="docmeta muted">'
+      + '<span>версія ' + d.version + '</span><span>створено ' + esc(when(d.created_at)) + '</span><span>змінено ' + esc(when(d.updated_at)) + '</span>'
+      + '<button class="btn xs" id="copy">📋 Копіювати JSON</button><button class="btn xs" id="back">← До списку</button></div>'
+      + '<div class="tree">' + tree(d.data, null, 0) + '</div>'
+      + (r.subcollections.length ? '<div class="subs">' + r.subcollections.map(function(s){
+          return '<button class="btn sm" data-coll="' + esc(s.collection) + '">📁 ' + esc(s.collection.split('/').pop()) + ' (' + s.count + ')</button>';
+        }).join('') + '</div>' : '')
+      + '</div>';
+  }
+  function accHTML(){
+    if(!S.acc) return '<div class="empty">Завантаження…</div>';
+    return '<div class="crumbs">🔑 Акаунти <span class="muted">паролі не показуються</span></div><div class="accwrap"><table class="acc"><thead><tr>'
+      + '<th>Email / логін</th><th>Хто</th><th>Останній вхід</th><th>Створено</th><th>Пароль</th><th>Сесій</th></tr></thead><tbody>'
+      + S.acc.map(function(a){
+        var hero = /@hero\.schoolkingdom\.app$/.test(a.email);
+        var link = a.has_hero ? 'heroes/' + a.uid : a.has_user ? 'users/' + a.uid : '';
+        return '<tr><td>' + (link ? '<a data-path="' + esc(link) + '">' + esc(hero ? a.email.split('@')[0] : a.email) + '</a>' : esc(a.email))
+          + (a.disabled ? ' 🚫' : '') + '</td>'
+          + '<td><span class="pill ' + (hero ? 'hero">герой' : 'parent">дорослий') + '</span></td>'
+          + '<td>' + esc(when(a.last_login)) + '</td><td>' + esc(when(a.created_at)) + '</td>'
+          + '<td>' + (a.pass_format === 'firebase' ? '<span class="pill old" title="Ще не входив на новому сервері">з Firebase</span>' : 'новий') + '</td>'
+          + '<td>' + a.sessions + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+  }
+  function render(){
+    var i = S.info;
+    var main = S.view === 'acc' ? accHTML() : S.view === 'doc' ? docHTML() : listHTML();
+    root.innerHTML = '<div class="stats">'
+      + '<div class="stat"><span>Документів</span>' + i.collections.reduce(function(a, c){ return a + c.count; }, 0) + '</div>'
+      + '<div class="stat"><span>Колекцій</span>' + i.collections.length + '</div>'
+      + '<div class="stat"><span>Акаунтів</span>' + i.accounts + '</div>'
+      + '<div class="stat"><span>Розмір бази</span>' + kb(i.dbBytes) + '</div></div>'
+      + '<div class="layout">' + sideHTML() + '<section class="main">' + main + '</section></div>';
+    var q = document.getElementById('q');
+    if(q && S.focusQ){ q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
+  }
+
+  /* ── дії ── */
+  function fail(e){ SKADMIN.toast('Помилка: ' + (e && e.message || e), true); }
+  function loadList(){
+    S.list = null; render();
+    api('POST', 'docs', { collection:S.coll, q:S.q, offset:S.offset, limit:PAGE, sort:S.sort })
+      .then(function(r){ S.list = r; render(); }, fail);
+  }
+  function openColl(c){ S.view = 'coll'; S.coll = c; S.q = ''; S.offset = 0; S.focusQ = false; loadList(); }
+  function openDoc(path){
+    api('POST', 'doc', { path:path }).then(function(r){ S.doc = r; S.view = 'doc'; render(); window.scrollTo(0, 0); }, fail);
+  }
+  function openAcc(){
+    S.view = 'acc'; render();
+    api('GET', 'accounts').then(function(r){ S.acc = r.accounts; render(); }, fail);
+  }
+  function loadInfo(){
+    return api('GET', 'collections').then(function(r){ S.info = r; render(); });
+  }
+
+  var qTimer = null;
+  root.addEventListener('click', function(e){
+    var t = e.target.closest('[data-coll],[data-path],[data-acc],#prev,#next,#copy,#back');
+    if(!t) return;
+    if(t.dataset.coll) return openColl(t.dataset.coll);
+    if(t.dataset.path) return openDoc(t.dataset.path);
+    if(t.dataset.acc) return openAcc();
+    if(t.id === 'prev'){ S.offset = Math.max(0, S.offset - PAGE); return loadList(); }
+    if(t.id === 'next'){ S.offset += PAGE; return loadList(); }
+    if(t.id === 'back'){ S.view = 'coll'; return S.coll ? loadList() : render(); }
+    if(t.id === 'copy'){
+      navigator.clipboard.writeText(JSON.stringify(S.doc.doc.data, null, 2))
+        .then(function(){ SKADMIN.toast('Скопійовано'); }, fail);
+    }
+  });
+  root.addEventListener('input', function(e){
+    if(e.target.id !== 'q') return;
+    S.q = e.target.value; S.offset = 0; S.focusQ = true;
+    clearTimeout(qTimer); qTimer = setTimeout(loadList, 300);
+  });
+  root.addEventListener('change', function(e){
+    if(e.target.id !== 'sort') return;
+    S.sort = e.target.value; S.offset = 0; S.focusQ = false; loadList();
+  });
+
+  SKADMIN.header({
+    name:'База даних',
+    sub:'School Kingdom · перегляд (лише читання)',
+    nav:[ { href:'admin.html', label:'🏠 Головна (Адмінка)' },
+          { id:'btnReload', label:'🔄 Оновити' } ]
+  });
+
+  SKADMIN.guard({
+    denyMsg:'Увійди адміністратором, щоб переглядати базу.',
+    onOk:function(){
+      var rl = document.getElementById('btnReload');
+      if(rl) rl.onclick = function(){
+        loadInfo().then(function(){ if(S.view === 'coll' && S.coll) loadList(); else if(S.view === 'acc') openAcc(); }, fail);
+      };
+      loadInfo().catch(function(e){
+        root.innerHTML = '<div class="empty">Не вдалося завантажити: ' + esc(e.message) + '</div>';
+      });
+    }
+  });
+})();
+</script>
+</body>
+</html>
