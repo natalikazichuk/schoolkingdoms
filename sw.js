@@ -9,17 +9,16 @@
        {type:'sk-warm', pages:[…]} — докешовуємо й нові ігри;
      • сторінки (HTML) — «спершу мережа»: з інтернетом завжди свіжа версія,
        без інтернету — з кешу. Свої файли — так само (мережа, інакше кеш);
-     • шрифти Google і модулі Firebase з gstatic теж кешуються, щоб сторінки
-       без інтернету не ламались на імпорті;
-     • запити до бази (Firestore / Auth) НЕ чіпаємо — без мережі вони просто
-       не вдаються, а ігри від них не залежать.
+     • шрифти Google теж кешуються;
+     • запити до сервера (/api/ — дані й вхід) НЕ чіпаємо — без мережі вони
+       просто не вдаються, а ігри від них не залежать.
 
    Зміниш набір спільних файлів або стратегію — підніми VERSION: старий кеш
    видалиться при активації.
    ============================================================ */
 'use strict';
 
-const VERSION = 'sk-offline-v4';
+const VERSION = 'sk-offline-v5';
 const CACHE   = VERSION;
 
 /* Спільне для ігротеки й ігор. Шляхи — від кореня сайту (теки sw.js). */
@@ -27,17 +26,9 @@ const CORE = [
   'igry.html',
   'sk-styles.css', 'sk-game.css', 'sk-game-chalk.css',
   'sk-header.js?v=6', 'sk-footer.js?v=5', 'sk-finish.js?v=6', 'sk-report.js?v=2',
-  'sk-zadachi.js', 'sk-voice.js', 'sk-curriculum.js?v=8', 'firebase-config.js',
+  'sk-zadachi.js', 'sk-voice.js', 'sk-curriculum.js?v=8', 'firebase-config.js', 'sk-fb.js?v=1',
   'manifest.webmanifest', 'favicon-32.png', 'apple-touch-icon.png',
   'icon-192.png', 'icon-512.png', 'logo-small.png'
-];
-
-/* Модулі Firebase SDK, які імпортує firebase-config.js: без них сторінка
-   з firebase-config.js офлайн ламалась би на імпорті. */
-const FIREBASE_SDK = [
-  'https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js',
-  'https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js',
-  'https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js'
 ];
 
 /* Ті самі ігри, що й GAMES_DEFAULT в igry.html. Решту (додані в адмінці)
@@ -51,11 +42,10 @@ const GAMES = [
 const ROOT = new URL('./', self.location).href;          // …/schoolkingdoms/
 const abs  = p => new URL(p, ROOT).href;
 
-/* Чужі адреси, які варто кешувати: шрифти й модулі Firebase SDK. */
+/* Чужі адреси, які варто кешувати: шрифти. */
 function cacheableForeign(url){
   return url.hostname === 'fonts.googleapis.com'
-      || url.hostname === 'fonts.gstatic.com'
-      || (url.hostname === 'www.gstatic.com' && url.pathname.startsWith('/firebasejs/'));
+      || url.hostname === 'fonts.gstatic.com';
 }
 
 /* Локальні файли, на які посилається сторінка/стиль: src/href, url(…) і
@@ -122,7 +112,7 @@ async function warm(pages, onlyNew){
 
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
-    await warm(CORE.concat(GAMES, FIREBASE_SDK));
+    await warm(CORE.concat(GAMES));
     await self.skipWaiting();
   })());
 });
@@ -200,7 +190,7 @@ async function localAssetStrategy(event){
   }
 }
 
-/* Шрифти й Firebase SDK — адреси з версією, не міняються: з кешу, інакше з мережі. */
+/* Шрифти — адреси з версією, не міняються: з кешу, інакше з мережі. */
 async function foreignStrategy(event){
   const req = event.request;
   const cache = await caches.open(CACHE);
@@ -221,7 +211,8 @@ self.addEventListener('fetch', event => {
   const url = new URL(req.url);
 
   const same = url.origin === self.location.origin && req.url.startsWith(ROOT);
-  if(!same && !cacheableForeign(url)) return;               // база, auth, аналітика — повз
+  if(!same && !cacheableForeign(url)) return;               // чужі адреси — повз
+  if(same && req.url.startsWith(abs('api/'))) return;       // дані й вхід — завжди з сервера
 
   if(same && (req.mode === 'navigate' || req.destination === 'document')){
     event.respondWith(pageStrategy(event));
