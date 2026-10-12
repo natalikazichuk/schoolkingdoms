@@ -27,6 +27,7 @@
   var TITLE_IMG = [
     /* English */
     [/дні тижня|days of (the )?week/,  'eng-days-of-week', /англ|english/],
+    [/fly ?high/,                      'flyhigh-2-test',   /англ|english/],   // тести Fly High 2
     /* Інформатика 1 кл. */
     [/миш.*клавіатур/,                 'inf1-mysha-klaviatura'],
     [/пристрої навколо/,               'inf1-mysha-klaviatura-2'],

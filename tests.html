@@ -97,6 +97,15 @@
   .tcard .tname{font-family:'Playfair Display',serif;font-weight:800;font-size:.96rem;
     line-height:1.18;text-align:center}
   .tcard .cprog{width:100%;margin-top:auto}
+  /* словник — довгий рядок на всю ширину: значок ліворуч, назва й прогрес праворуч */
+  .grid.wide-grid{grid-template-columns:1fr!important}
+  .tcard.wide{display:grid;grid-template-columns:76px 1fr;grid-template-rows:auto auto auto;
+    column-gap:14px;row-gap:4px;align-items:center;padding:12px 16px}
+  .tcard.wide .thumb,.tcard.wide .emoji{grid-row:1 / span 3;width:76px}
+  .tcard.wide .emoji{font-size:2.6rem;text-align:center;padding:0}
+  .tcard.wide .tname{text-align:left;font-size:1.15rem;align-self:end}
+  .tcard.wide .tsub{font-size:.82rem;font-weight:700;color:rgba(255,255,255,.72);line-height:1.25}
+  .tcard.wide .cprog{align-self:start;margin-top:4px}
 
   /* ── прогрес унизу картки ── */
   .cprog{display:flex;flex-direction:column;gap:4px}
@@ -160,7 +169,7 @@
 
 <!-- Спільна карта королівства. МАЄ йти перед інлайн-скриптом нижче -->
 <script src="sk-curriculum.js?v=8"></script>
-<script src="sk-covers.js?v=18"></script>
+<script src="sk-covers.js?v=19"></script>
 <script>
 /* ── Запобіжник: sk-curriculum.js має бути свіжим ── */
 (function(){
@@ -488,6 +497,7 @@
          не потрапляв (малюються тільки тести з розділів). */
       eng.tests.unshift({
         id:'std-words-en', title:'WORDS', std:true, gkey:key,   // клас — для прогресу словника
+        sub:'Словник English · картки, перевірка, збери слово',
         href:'slovnyk-en.html?skdone=t:std-words-en&skback=tests.html',
         isLink:true, isLevels:false, levelCount:0, icon:'🔤',
         imgCard:'img/tr/slovnyk-en.webp'   // немає файлу → лишиться емодзі
@@ -709,14 +719,20 @@
         label='🧩 '+d+'/'+t.levelCount+' рівнів'; if(t.levelCount && d>=t.levelCount) cls='done'; }
       else { var pd=isPassed(t); label=pd?'✅ пройдено':'▶ не пройдено'; if(pd) cls='done'; }
       var tgt = (t.isLink && t.blank) ? ' target="_blank" rel="noopener"' : '';
-      return '<a class="tcard" href="'+esc(t.href)+'" data-testid="'+esc(t.id)+'"'+(t.isLink?' data-link="1"':'')+tgt+'>'
+      return '<a class="tcard'+(t.std?' wide':'')+'" href="'+esc(t.href)+'" data-testid="'+esc(t.id)+'"'+(t.isLink?' data-link="1"':'')+tgt+'>'
         + testVisual(t)
         + '<span class="tname">'+esc(t.title)+'</span>'
+        + (t.std && t.sub ? '<span class="tsub">'+esc(t.sub)+'</span>' : '')
         + bar(testFrac(t), label, cls) + '</a>';
     }
+    /* Розділ, де лише вбудовані картки (словник), — у одну колонку: довгий рядок. */
+    function gridHtml(list){
+      var wide = list.length && list.every(function(t){ return t.std; });
+      return '<div class="grid'+(wide?' wide-grid':'')+'">'+list.map(cardHtml).join('')+'</div>';
+    }
     /* Вбудовані картки (словник) не лежать у розділах карти — малюємо їх
-       окремим розділом «Словник» під усіма розділами, у кожному класі,
-       де є предмет English. */
+       окремим розділом «Словник» першим, над усіма розділами, у кожному
+       класі, де є предмет English. */
     var std = s.tests.filter(function(t){ return t.std; });
     var rest = s.tests.filter(function(t){ return !t.std; });
     /* Групи — розділи з карти. Якщо розділ один і без назви, заголовки не
@@ -727,8 +743,8 @@
     /* Кілька розділів → теми йдуть у смужку над плитками; натискання гортає
        до обраної теми («Усі теми» — на початок). */
     var side = [];
-    groups.forEach(function(g){ side.push({ name: g.name || 'Інші', tests: g.tests }); });
     if(std.length) side.push({ name:'Словник', tests: std });
+    groups.forEach(function(g){ side.push({ name: g.name || 'Інші', tests: g.tests }); });
     var useSide = titled > 0 && side.length > 1;
     document.body.classList.toggle('has-side', useSide);
     if(useSide){
@@ -757,12 +773,17 @@
         body += '<div class="tgroup" data-tsec="'+esc(x.name)+'"><span class="tg-name">'+esc(x.name)+'</span>'
               + '<span class="tg-cnt">'+x.tests.filter(isPassed).length+' / '+x.tests.length
               + ' · '+Math.round(topicFrac(x.tests)*100)+'%</span></div>'
-              + '<div class="grid">'+x.tests.map(cardHtml).join('')+'</div>';
+              + gridHtml(x.tests);
       });
       q('screen').innerHTML = '<div class="tlayout">'+nav+'<div class="tmain">'+body+'</div></div>';
       if(jumpTopic){ var jt = jumpTopic; jumpTopic = null; requestAnimationFrame(function(){ goTopic(jt, false); }); }
       spyTopic();
       return;
+    }
+    if(std.length){
+      html += '<div class="tgroup"><span class="tg-name">Словник</span>'
+            + '<span class="tg-cnt">'+std.filter(isPassed).length+' / '+std.length+'</span></div>'
+            + gridHtml(std);
     }
     groups.forEach(function(g){
       var done = g.tests.filter(isPassed).length;
@@ -775,11 +796,6 @@
       }
       html += '<div class="grid">'+g.tests.map(cardHtml).join('')+'</div>';
     });
-    if(std.length){
-      html += '<div class="tgroup"><span class="tg-name">Словник</span>'
-            + '<span class="tg-cnt">'+std.filter(isPassed).length+' / '+std.length+'</span></div>'
-            + '<div class="grid">'+std.map(cardHtml).join('')+'</div>';
-    }
     q('screen').innerHTML=html;
   }
   function render(){
