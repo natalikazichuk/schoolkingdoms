@@ -671,21 +671,24 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     var raw=paperText();
     var nums=raw.split("\n").map(function(x){return x.trim();}).filter(Boolean);
     if(!nums.length) return;
-    var Hh=gridBottom-blockTop, slot=Hh/nums.length;
-    var fs=Math.min(slot*0.7, cell*3.4);
-    for(var i=0;i<nums.length;i++){
-      var cy=blockTop+slot*(i+0.5);
-      var dh=fs*0.72, dx=M.left+cell*1.0+dh*0.35;
-      for(var j=0;j<nums[i].length;j++){
-        var ch=nums[i][j];
-        if(isDigit(ch)) SVG.appendChild(handDigit(ch, dx, cy, dh, false));
+    /* як у зошиті: кожна цифра — в одній клітинці, між числами — порожній рядок;
+       у режимі «Обведи» число повторюється вздовж рядка через клітинку */
+    var dh=cell*0.86;
+    function putNum(str, col, row){
+      for(var j=0;j<str.length;j++){
+        var cx=M.left+(col+j+0.5)*cell, cy=blockTop+(row+0.5)*cell, ch=str[j];
+        if(isDigit(ch)) SVG.appendChild(handDigit(ch, cx, cy, dh, false));
         else{
-          var tEl=el("text",{x:dx, y:cy, "font-family":DIGIT_FONT, "font-size":fs,
+          var tEl=el("text",{x:cx, y:cy, "font-family":DIGIT_FONT, "font-size":cell*0.8,
             "font-weight":800, "text-anchor":"middle", "dominant-baseline":"central"});
           styleMark(tEl,true,true); tEl.textContent=ch; SVG.appendChild(tEl);
         }
-        dx+=dh*DIG_ADV;
       }
+    }
+    for(var i=0;i<nums.length;i++){
+      var row=1+2*i; if(row>=rows) break;
+      var L=nums[i].length, reps=state.mode==='trace' ? 5 : 1;
+      for(var k=0, col=1; k<reps && col+L<=cols; k++, col+=L+1) putNum(nums[i], col, row);
     }
   }
 
@@ -726,7 +729,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
         if(col>=cols){ col=0; gr++; if(gr>=rows) return; }
         var cx=M.left+col*cell+cell/2;
         var cy=blockTop+gr*cell+cell/2;
-        if(isDigit(ch)){ SVG.appendChild(handDigit(ch, cx, cy, cell*0.72, false)); col++; continue; }
+        if(isDigit(ch)){ SVG.appendChild(handDigit(ch, cx, cy, cell*0.84, false)); col++; continue; }
         var tEl=el("text",{x:cx, y:cy, "font-family":DIGIT_FONT, "font-size":fs,
           "font-weight":800, "text-anchor":"middle", "dominant-baseline":"central"});
         styleMark(tEl,true,true); tEl.textContent=ch; SVG.appendChild(tEl);
