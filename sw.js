@@ -172,15 +172,21 @@ async function pageStrategy(event){
    довантажується у фоні (наступного разу вже буде вона). Раніше й вони
    чекали мережу до 4 с, і сайт із кешем вантажився так само повільно. */
 const MEDIA_RE = /\.(?:png|jpe?g|webp|gif|svg|ico|mp3|wav|ogg|woff2?)$/i;
+/* Картинки словника (img/en/) адмінка замінює під тією самою назвою —
+   їх завжди звіряємо з сервером (cache:'no-cache' → 304, якщо не мінялись),
+   інакше нова картинка з'являлась би лише з наступного разу. */
+const FRESH_RE = /\/img\/en\//;
 async function localAssetStrategy(event){
   const req = event.request;
   const cache = await caches.open(CACHE);
   const hit = await cache.match(req) || (await cache.match(req, { ignoreSearch: true }));
-  const net = fetch(req).then(res => {
+  const path = new URL(req.url).pathname;
+  const fresh = FRESH_RE.test(path);
+  const net = fetch(req, fresh ? { cache: 'no-cache' } : undefined).then(res => {
     if(res && res.ok) cache.put(req, res.clone());
     return res;
   });
-  if(hit && MEDIA_RE.test(new URL(req.url).pathname)){
+  if(hit && !fresh && MEDIA_RE.test(path)){
     event.waitUntil(net.catch(() => null));
     return hit;
   }
