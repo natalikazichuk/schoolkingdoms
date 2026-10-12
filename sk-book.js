@@ -174,7 +174,24 @@ function clsHTML(ready){
 }
 function render(){
   var f = $('ek-flip'); if (f) f.classList.toggle('book', OPEN);
-  paintBtn(); renderBar(); renderBook();
+  paintBtn(); renderBar(); renderBook(); paintBattle();
+}
+
+/* ── колонка вмінь у бою (arena.html → #btSkills) ──
+   Поки що показ: вміння з панелі з майстерністю. Удари вміннями (урон,
+   ріст майстерності) — наступний крок у рушії бою (sk-battle.js). */
+function paintBattle(){
+  var host = $('btSkills'); if (!host) return;
+  var n = SKS.barSlots(ST.lv), h = '<h4>⚡ Вміння</h4>', any = false;
+  for (var i = 0; i < SKS.BAR_N; i++){
+    var id = ST.bar[i];
+    if (i >= n) { h += '<div class="skb-slot lock" title="Відкриється на ' + SKS.BAR_LEVELS[i] + ' рівні">🔒<br>' + SKS.BAR_LEVELS[i] + ' рів.</div>'; continue; }
+    if (id && sk(id)) any = true;
+    h += '<div class="skb-slot' + (id && sk(id) ? ' full skb-bt' : '') + '"' + (id && sk(id) ? ' data-skb-battle="' + id + '"' : '')
+      + ' title="' + esc(id && sk(id) ? sk(id).name + ' — ' + SKS.effectText(id, pct(id) / 100) : 'Порожній слот: постав вміння в Інвентарі → 📖 Книга вмінь') + '">'
+      + '<span class="k">' + (i + 1) + '</span>' + (id && sk(id) ? tile(id, { inBar: true }) : '') + '</div>';
+  }
+  host.innerHTML = h + (any ? '' : '<div class="hint">Постав вміння:<br>Інвентар → 📖</div>');
 }
 
 /* ── дії ── */
@@ -278,6 +295,8 @@ document.addEventListener('click', function(e){
   if ((b = t.closest('[data-skb-unbar]'))) { closeSheet(); unplace(ST.bar.indexOf(b.getAttribute('data-skb-unbar'))); return; }
   if ((b = t.closest('[data-skb-ret]'))) { unplace(ST.bar.indexOf(b.getAttribute('data-skb-ret'))); return; }
   if ((b = t.closest('[data-skb-info]'))) { info(b.getAttribute('data-skb-info')); return; }
+  if ((b = t.closest('[data-skb-battle]'))) {
+    toast('⚡ ' + sk(b.getAttribute('data-skb-battle')).name, 'Удари вміннями з\'являться в бою з наступного оновлення 🔜'); return; }
   if (t.closest('[data-skb-x]') || t.id === 'skbSheet') { closeSheet(); return; }
 });
 document.addEventListener('keydown', function(e){
@@ -342,6 +361,7 @@ window.SKBOOK = {
   btnHtml: btnHtml,
   refresh: refresh,
   render: render,
+  paintBattle: paintBattle,
   isOpen: function(){ return OPEN; },
   close: function(){ OPEN = false; sel = null; closeSheet(); render(); },
   state: function(){ return ST; }

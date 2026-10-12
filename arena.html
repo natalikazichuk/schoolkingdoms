@@ -791,6 +791,36 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
   .fxi .fxtip{top:auto;bottom:calc(100% + 6px);transform:none;left:0;right:auto;width:200px}
   .fxcol.o .fxi .fxtip{left:auto;right:0}
 }
+/* ── бій: пояс і вміння — колонки ліворуч від сцени; ефекти — рядками над і під панелями ──
+   Пояс — ті самі комірки (.bbslot, paintBelt), лише вертикально; вміння — sk-book.js (SKBOOK.paintBattle). */
+.bt-main{display:flex;gap:10px;align-items:stretch}
+.bt-main>.arena-scene{flex:1 1 auto;min-width:0}
+.bt-sides{display:flex;gap:8px;margin:4px 0 3px;flex:none}
+.bt-side{width:84px;display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 6px;border-radius:18px;
+  border:2px solid var(--gold-d);background:linear-gradient(180deg,rgba(23,58,44,.92),rgba(12,33,24,.92));box-shadow:0 10px 26px rgba(0,0,0,.45)}
+.bt-side.bt-skills{background:linear-gradient(180deg,rgba(34,24,74,.92),rgba(18,12,46,.92))}
+.bt-side h4{margin:0;font-family:'Fredoka';font-weight:700;font-size:.74rem;color:#ffe9b8;text-align:center;line-height:1.1}
+.bt-side.empty::after{content:'порожньо';font-size:.6rem;font-weight:800;color:#9fb0d8;text-align:center}
+.bt-belt .beltbar{flex-direction:column;flex-wrap:nowrap;gap:8px}
+.bt-belt .beltbar .bl{margin:0;font-size:.74rem}
+.bt-belt .bbslot{flex-direction:column;width:68px;gap:3px;padding:6px 3px 5px;font-size:.56rem;line-height:1.1;text-align:center;border-radius:14px}
+.bt-belt .bbslot .ic{width:38px;height:38px;font-size:1.5rem}
+.bt-belt .bbhint{font-size:.54rem;line-height:1.25}
+/* ефекти рядками: негативні — над «Захистом»/«Атакою», позитивні — під */
+.side-col .fxcol{order:-1;flex:none;flex-direction:row;flex-wrap:wrap;justify-content:center;align-self:stretch;min-height:44px;padding:4px;gap:6px}
+.side-col .fxcol.pos{order:9}
+.side-col .fxcol:empty{min-height:12px;padding:0;border-style:dashed;opacity:.45}
+.side-col .fxcol.neg .fxi .fxtip,.side-col .fxcol.o.neg .fxi .fxtip{top:calc(100% + 6px);bottom:auto;left:50%;right:auto;transform:translateX(-50%)}
+.side-col .fxcol.pos .fxi .fxtip,.side-col .fxcol.o.pos .fxi .fxtip{top:auto;bottom:calc(100% + 6px);left:50%;right:auto;transform:translateX(-50%)}
+@media(max-width:999px){
+  .bt-main{flex-direction:column;gap:0}
+  .bt-sides{order:2;flex-direction:column;gap:6px;margin:6px 0 0}
+  .bt-side{width:auto;flex-direction:row;flex-wrap:wrap;justify-content:center;padding:6px 8px}
+  .bt-belt .beltbar{flex-direction:row;flex-wrap:wrap}
+  .bt-belt .bbslot{flex-direction:row;width:auto;padding:3px 9px 3px 4px;font-size:.72rem}
+  .bt-belt .bbslot .ic{width:28px;height:28px;font-size:1.2rem}
+  .bt-side.empty{display:none}
+}
 .step .use{display:block;color:#b8ffcf;font-weight:800}
 /* відскок спритністю — бірюзовим; магічний блок — фіолетовим (як магічний урон) */
 .ev{color:#5fe3c8;font-weight:900}
@@ -1186,7 +1216,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 @media(max-width:520px){#wtabGear{--ek-cell:66px}.ek-slots{grid-template-columns:repeat(3,var(--ek-cell))}.ek-body{gap:10px}}
 
 </style>
-<link rel="stylesheet" href="sk-book.css?v=1">
+<link rel="stylesheet" href="sk-book.css?v=2">
 </head>
 <body>
 <div class="bg-img"></div>
@@ -1305,15 +1335,18 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
   <!-- ════════════ ЕКРАН: БІЙ ════════════ -->
   <section id="screen-battle" class="hidden">
 
+    <!-- ліворуч від сцени: пояс і панель вмінь (на вузьких екранах — рядками під сценою) -->
+    <div class="bt-main">
+    <div class="bt-sides">
+      <aside class="bt-side bt-belt" aria-label="Пояс"><div class="beltbar" id="beltBar" hidden></div></aside>
+      <aside class="bt-side bt-skills" id="btSkills" aria-label="Вміння"></aside>
+    </div>
     <!-- СЦЕНА: об'єднані картки бійців (ім'я + аватар + рівень + HP) -->
     <div class="arena-scene">
       <div class="scene-row">
-        <div class="fxbreak"></div>
-        <!-- ефекти Героя: негативні (зовні) · позитивні -->
-        <div class="fxcol neg p" id="pFxNeg" aria-label="Негативні ефекти"></div>
-        <div class="fxcol pos p" id="pFxPos" aria-label="Позитивні ефекти"></div>
-        <!-- ЗАХИСТ (ліворуч, біля твого героя) -->
+        <!-- ЗАХИСТ (ліворуч, біля твого героя); ефекти Героя — рядками: негативні над, позитивні під -->
         <div class="side-col def-col">
+          <div class="fxcol neg p" id="pFxNeg" aria-label="Негативні ефекти"></div>
           <div class="side-h def"><span class="sh-ic">🛡️</span><span class="sh-t">Захист</span></div>
           <div class="side-sub">Обери частину тіла для захисту</div>
           <div class="side-btns" id="guardRow">
@@ -1322,6 +1355,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
             <button class="gbtn z-body" data-zone="body" type="button"><span class="zi"><svg viewBox="0 0 32 32"><path fill="currentColor" d="M7.5 9.2c0-.9.6-1.6 1.4-1.9C10.9 6.6 13.4 6.2 16 6.2s5.1.4 7.1 1.1c.8.3 1.4 1 1.4 1.9 0 2-.3 4-.9 5.9-.7 2.3-1.1 4.7-1.1 7.1 0 2-1.7 3.6-3.7 3.6h-5.6c-2 0-3.7-1.6-3.7-3.6 0-2.4-.4-4.8-1.1-7.1-.6-1.9-.9-3.9-.9-5.9Z"/><path fill="none" stroke="rgba(0,0,0,.28)" stroke-width="1.3" stroke-linecap="round" d="M16 7.5v17M12.3 14.5h7.4M12.3 18h7.4"/></svg></span><span class="zl">Тулуб</span></button>
             <button class="gbtn z-legs" data-zone="legs" type="button"><span class="zi"><svg viewBox="0 0 32 32" fill="currentColor"><path d="M12 5c-1.1 0-2 .9-2 2v11.4c0 .9-.3 1.7-1 2.4l-2.5 2.6c-1 1-.3 2.8 1.2 2.8H26c1.1 0 2-.9 2-2 0-2.6-1.6-5-4.1-6L19 18.7V7c0-1.1-.9-2-2-2h-5Z"/></svg></span><span class="zl">Ноги</span></button>
           </div>
+          <div class="fxcol pos p" id="pFxPos" aria-label="Позитивні ефекти"></div>
         </div>
         <!-- ти -->
         <div class="avablk blue" id="pScene" tabindex="0" role="button" aria-label="Твоє спорядження">
@@ -1368,8 +1402,9 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
             <span class="hpstat green" id="oStat">🟢 Здоровий</span>
           </div>
         </div>
-        <!-- АТАКА (праворуч, біля суперника) -->
+        <!-- АТАКА (праворуч, біля суперника); ефекти суперника — так само: негативні над, позитивні під -->
         <div class="side-col atk-col">
+          <div class="fxcol neg o" id="oFxNeg" aria-label="Негативні ефекти суперника"></div>
           <div class="side-h atk"><span class="sh-ic">⚔️</span><span class="sh-t">Атака</span></div>
           <div class="side-sub">Обери частину тіла для атаки</div>
           <div class="side-btns" id="atkRow">
@@ -1378,17 +1413,14 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
             <button class="tcard z-body" data-zone="body" type="button"><span class="zi"><svg viewBox="0 0 32 32"><path fill="currentColor" d="M7.5 9.2c0-.9.6-1.6 1.4-1.9C10.9 6.6 13.4 6.2 16 6.2s5.1.4 7.1 1.1c.8.3 1.4 1 1.4 1.9 0 2-.3 4-.9 5.9-.7 2.3-1.1 4.7-1.1 7.1 0 2-1.7 3.6-3.7 3.6h-5.6c-2 0-3.7-1.6-3.7-3.6 0-2.4-.4-4.8-1.1-7.1-.6-1.9-.9-3.9-.9-5.9Z"/><path fill="none" stroke="rgba(0,0,0,.28)" stroke-width="1.3" stroke-linecap="round" d="M16 7.5v17M12.3 14.5h7.4M12.3 18h7.4"/></svg></span><span class="zl">Тулуб</span></button>
             <button class="tcard z-legs" data-zone="legs" type="button"><span class="zi"><svg viewBox="0 0 32 32" fill="currentColor"><path d="M12 5c-1.1 0-2 .9-2 2v11.4c0 .9-.3 1.7-1 2.4l-2.5 2.6c-1 1-.3 2.8 1.2 2.8H26c1.1 0 2-.9 2-2 0-2.6-1.6-5-4.1-6L19 18.7V7c0-1.1-.9-2-2-2h-5Z"/></svg></span><span class="zl">Ноги</span></button>
           </div>
+          <div class="fxcol pos o" id="oFxPos" aria-label="Позитивні ефекти суперника"></div>
         </div>
-        <!-- ефекти суперника: позитивні · негативні (зовні) -->
-        <div class="fxcol pos o" id="oFxPos" aria-label="Позитивні ефекти суперника"></div>
-        <div class="fxcol neg o" id="oFxNeg" aria-label="Негативні ефекти суперника"></div>
       </div>
     </div>
+    </div><!-- /bt-main -->
 
     <!-- кнопка атаки — одразу під бійцями -->
     <div class="act-row">
-      <!-- пояс: зілля й свитки (спецвміння ходу — замість перевдягання) -->
-      <div class="beltbar" id="beltBar" hidden></div>
       <button class="strike" id="strikeBtn" disabled>⚔️ Атака&nbsp;✓</button>
     </div>
 
@@ -1945,6 +1977,7 @@ window.SKHERO = (function(){
   function paintBelt(){
     var bar = $('beltBar'); if(!bar) return;
     var belt = (B && B.me && B.me.belt) || [];
+    var col = bar.closest('.bt-side'); if(col) col.classList.toggle('empty', !B || !belt.length);
     if(!B || !belt.length){ bar.hidden = true; bar.innerHTML = ''; return; }
     var can = live() && !UI.resolving, chosen = B.me.use, free = swapsLeft();
     bar.hidden = false;
@@ -2498,6 +2531,7 @@ window.SKHERO = (function(){
     applySel();                          // вибір лишається з попереднього ходу
     renderLog();
     paintBelt(); paintFx();
+    if(window.SKBOOK) SKBOOK.paintBattle();   // колонка вмінь ліворуч від сцени
   }
   /* журнал — із записів бою (і доіграних без гравця ходів теж) */
   function renderLog(){
@@ -2541,6 +2575,7 @@ window.SKHERO = (function(){
       SB.catchUp(ctx(), B, Date.now()); saveBattle();
       if(!live()){ finishBattle(); return; }
     }
+    if(window.SKBOOK) SKBOOK.refresh();       // свіжа панель вмінь героя (колонка ліворуч)
     paintBattle();
     show('battle');
     startTimer();
@@ -3432,7 +3467,7 @@ window.SKHERO = (function(){
 
 <script src="sk-items.js?v=10"></script>
 <script src="sk-skills.js?v=6"></script>
-<script src="sk-book.js?v=1"></script>
+<script src="sk-book.js?v=2"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
    Дані ЗАРАЗ demo (локально). Крок 2: джерело речей → Firestore (адмінка).
