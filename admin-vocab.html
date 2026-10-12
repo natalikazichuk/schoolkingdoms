@@ -53,6 +53,30 @@
   .phrase input{padding:7px 9px; font-size:.9rem}
   .rew{display:grid; grid-template-columns:1.6fr .8fr .8fr auto; gap:6px; margin-bottom:6px; align-items:center}
   .rew input, .rew select{padding:7px 9px; font-size:.88rem}
+
+  /* Бічний блок тем (вкладка «Слова»): клік — показати лише цю тему.
+     Сторінка ширша за інші admin-сторінки, щоб панель стала зліва. */
+  #root{max-width:1240px}
+  .wlay{display:grid; grid-template-columns:230px minmax(0,1fr); gap:18px; align-items:start}
+  .tside{position:sticky; top:12px; max-height:calc(100vh - 24px); overflow:auto;
+    background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:10px}
+  .tside h3{margin:2px 6px 8px; font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted)}
+  .tbtn{display:flex; align-items:center; gap:8px; width:100%; text-align:left; cursor:pointer;
+    border:0; background:none; border-radius:10px; padding:7px 9px; font:inherit; font-weight:700;
+    font-size:.9rem; color:var(--ink)}
+  .tbtn:hover{background:var(--panel-2)}
+  .tbtn.on{background:var(--ink); color:#fff}
+  .tbtn .tn{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .tbtn .tc{flex:0 0 auto; font-size:.75rem; font-weight:800; color:var(--muted);
+    background:var(--panel-2); border-radius:999px; padding:1px 8px}
+  .tbtn.on .tc{background:rgba(255,255,255,.18); color:#fff}
+  @media (max-width:860px){
+    .wlay{grid-template-columns:1fr}
+    .tside{position:static; max-height:none; display:flex; gap:6px; overflow-x:auto; padding:8px}
+    .tside h3{display:none}
+    .tbtn{width:auto; flex:0 0 auto; white-space:nowrap; background:var(--panel-2)}
+  }
 </style>
 </head>
 <body>
@@ -71,6 +95,9 @@
 
   <!-- СЛОВА -->
   <section id="paneWords">
+   <div class="wlay">
+    <aside class="tside" id="wTopics" aria-label="Теми"></aside>
+    <div>
     <div class="toolbar">
       <button class="btn gold" id="wNew">＋ Нове слово</button>
       <button class="btn ghost sm" id="wImport">⬆ Імпорт JSON</button>
@@ -79,6 +106,8 @@
       <input type="text" id="wSearch" placeholder="🔎 Пошук: слово / переклад / id / тема">
     </div>
     <div id="wList"></div>
+    </div>
+   </div>
   </section>
 
   <!-- НАБОРИ -->
@@ -257,14 +286,34 @@ function dupeKeys(){
   });
   return dup;
 }
+/* Бічний блок тем: теми слів обраного класу з кількістю. topicSel —
+   обрана тема (null = усі). Тема, якої в цьому класі немає, скидається. */
+var topicSel=null;
+function wTopicName(w){ return String((w&&w.topic)||'').trim() || '— без теми'; }
+function renderTopicSide(words){
+  var cnt={};
+  words.forEach(function(w){ var t=wTopicName(w); cnt[t]=(cnt[t]||0)+1; });
+  var names=Object.keys(cnt).sort(function(a,b){ return a.localeCompare(b,'uk'); });
+  if(topicSel!=null && !cnt[topicSel]) topicSel=null;
+  function btn(val,label,n){
+    var on=(val===topicSel);
+    return '<button class="tbtn'+(on?' on':'')+'" data-topic="'+(val==null?'':esc(val))+'"'+(val==null?' data-all="1"':'')
+      +' aria-pressed="'+on+'"><span class="tn">'+esc(label)+'</span><span class="tc">'+n+'</span></button>';
+  }
+  $('wTopics').innerHTML='<h3>Теми</h3>'+btn(null,'Усі теми',words.length)
+    +names.map(function(t){ return btn(t,t,cnt[t]); }).join('');
+}
+
 function renderWords(){
   var dl=$('topicList'); dl.innerHTML=topics().map(function(t){return '<option value="'+esc(t)+'">';}).join('');
   fillGradeFilter();
   var dup=dupeKeys();
   var q=($('wSearch').value||'').trim().toLowerCase();
   var gf=($('wGrade').value||'');
-  var list=WORDS.filter(function(w){
-    if(gf!=='' && wGradeNum(w)!==Number(gf)) return false;
+  var inGrade=WORDS.filter(function(w){ return gf==='' || wGradeNum(w)===Number(gf); });
+  renderTopicSide(inGrade);
+  var list=inGrade.filter(function(w){
+    if(topicSel!=null && wTopicName(w)!==topicSel) return false;
     if(!q) return true;
     return [w.word,w.uk,w.id,w.topic,w.ipa].some(function(x){return String(x||'').toLowerCase().indexOf(q)>=0;});
   });
@@ -538,6 +587,12 @@ function wire(){
   $('wNew').onclick=function(){ openWord(null); };
   $('wSearch').oninput=renderWords;
   $('wGrade').onchange=renderWords;
+  $('wTopics').onclick=function(e){
+    var b=e.target.closest('.tbtn'); if(!b) return;
+    topicSel = b.hasAttribute('data-all') ? null : b.getAttribute('data-topic');
+    renderWords();
+    $('wList').scrollIntoView({block:'start', behavior:'smooth'});
+  };
   $('wImport').onclick=function(){ $('impText').value=''; $('impModal').classList.add('open'); };
   $('wExport').onclick=exportWords;
   $('wList').onclick=function(e){
