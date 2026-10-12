@@ -222,6 +222,19 @@ python3 -m http.server 8000     # або: npx serve .
 GitHub Pages більше не використовується: старі адреси `*.github.io` переводять на новий домен.
 Як влаштований сервер, резервні копії й команди — у [`server/README.md`](server/README.md).
 
+### Публічне демо для портфоліо
+
+Цей репозиторій — **приватний**. Назовні відкрита лише демо-версія (1 клас, без бази й входу)
+та відео-презентація — в окремому публічному репозиторії
+[`natalikazichuk/schoolkingdoms-demo`](https://github.com/natalikazichuk/schoolkingdoms-demo)
+на GitHub Pages: https://natalikazichuk.github.io/schoolkingdoms-demo/
+
+```bash
+bash tools/publish-demo.sh   # збирає dist-demo/ і пушить у schoolkingdoms-demo (main)
+```
+
+Детальніше про склад демо — у [`demo/README.md`](demo/README.md).
+
 Правила доступу — `server/app/src/rules.js` (перенесені з `firestore.rules`).
 
 ---
