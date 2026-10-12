@@ -30,14 +30,16 @@ class FirebaseError extends Error {
   }
 }
 
-async function call(method, path, body, auth) {
+async function call(method, path, body, auth, opts) {
   let res;
   try {
     res = await fetch(API + path, {
       method,
       credentials: 'same-origin',
       headers: body ? { 'Content-Type': 'application/json' } : {},
-      body: body ? JSON.stringify(body) : undefined
+      body: body ? JSON.stringify(body) : undefined,
+      // keepalive: запит доходить навіть коли сторінку закривають / переходять далі
+      keepalive: !!(opts && opts.keepalive)
     });
   } catch (e) {
     throw new FirebaseError(auth ? 'auth/network-request-failed' : 'unavailable', 'network error');
@@ -52,8 +54,14 @@ async function call(method, path, body, auth) {
 }
 
 /* Власні маршрути сервера, яких немає у Firebase (книга вмінь тощо):
-   skApi('POST', 'skills/learn', {id}) → відповідь або FirebaseError з code. */
-export function skApi(method, path, body) { return call(method, path, body); }
+   skApi('POST', 'skills/learn', {id}) → відповідь або FirebaseError з code.
+   opts.keepalive — для запису під час закриття сторінки (тіло до 64 КБ). */
+export function skApi(method, path, body, opts) { return call(method, path, body, false, opts); }
+
+/* setDoc(merge) із keepalive — лише для малих записів при закритті сторінки */
+export async function setDocKeepalive(ref, data) {
+  await call('POST', 'commit', { writes: [writeOf('set', ref, data, { merge: true })], reads: [] }, false, { keepalive: true });
+}
 
 /* ---------- Timestamp ---------- */
 export class Timestamp {

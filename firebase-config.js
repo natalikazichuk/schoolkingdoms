@@ -40,8 +40,8 @@ import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword,
   signOut, onAuthStateChanged,
   getFirestore, initializeFirestore, doc, getDoc, setDoc, updateDoc, addDoc, deleteDoc,
-  collection, getDocs, query, where, serverTimestamp, runTransaction, Timestamp, skApi
-} from "./sk-fb.js?v=2";
+  collection, getDocs, query, where, serverTimestamp, runTransaction, Timestamp, skApi, setDocKeepalive
+} from "./sk-fb.js?v=3";
 
 // Налаштування старого проєкту Firebase. sk-fb.js їх не використовує,
 // лишаються для initializeApp(...) — як ім'я «застосунку».
@@ -152,6 +152,9 @@ const PROGRESS_SKIP = [
 
 // Один запис прогресу не має бути більшим за це (захист від роздування).
 const PROGRESS_MAX_VALUE = 64 * 1024;
+
+// змінені, ще не записані в базу ключі прогресу (див. trackProgress унизу)
+const PROG = { dirty: new Set(), timer: 0, quiet: false };
 
 function isProgressKey(k) {
   return !!k && k.startsWith('sk_') && PROGRESS_SKIP.indexOf(k) === -1;
@@ -285,11 +288,13 @@ const SK = {
   },
 
   async login(email, password) {
+    await SK.flushProgress().catch(() => {});   // поки стара сесія жива — дописати прогрес
     const cred = await signInWithEmailAndPassword(auth, email, password);
     return cred.user.uid;
   },
 
   async logout() {
+    await SK.flushProgress().catch(() => {});   // незбережений прогрес — у базу, поки ще ввійшли
     SK.activeChildId = null;
     SK.activeHeroId = null;
     localStorage.removeItem('sk_active_child');
@@ -352,6 +357,7 @@ const SK = {
 
   // Вхід Героя по логіну+паролю (з лендингу / login.html)
   async heroLogin(login, password) {
+    await SK.flushProgress().catch(() => {});
     const cred = await signInWithEmailAndPassword(auth, heroEmail(login), password);
     SK.activeChildId = cred.user.uid;
     SK.activeHeroId  = cred.user.uid;
@@ -811,10 +817,13 @@ const SK = {
     /* Чистимо ДО перевірки на існування документа. Інакше в Героя без поля
        progress (щойно створений) у localStorage лишався б прогрес попередньої
        дитини на цьому пристрої — і перший же pushLocal записав би його йому. */
-    progressKeys().forEach(k => localStorage.removeItem(k));
-    Object.entries(progress).forEach(([k, v]) => {
-      if (v != null && isProgressKey(k)) localStorage.setItem(k, v);
-    });
+    PROG.quiet = true;   // це дані з бази — не позначаємо їх «зміненими»
+    try {
+      progressKeys().forEach(k => localStorage.removeItem(k));
+      Object.entries(progress).forEach(([k, v]) => {
+        if (v != null && isProgressKey(k)) localStorage.setItem(k, v);
+      });
+    } finally { PROG.quiet = false; PROG.dirty.clear(); }
 
     /* Позначаємо власника localStorage одразу тут, а не лише в
        onAuthStateChanged: guard у pushLocal спирається на цей ключ, і
@@ -1681,9 +1690,65 @@ onAuthStateChanged(auth, async (user) => {
   SK._userCbs.forEach(cb => { try { cb(user); } catch (e) {} });
 });
 
+/* ── ПРОГРЕС — У БАЗУ ОДРАЗУ ПІСЛЯ ЗМІНИ ──
+   Раніше прогрес ішов у базу лише коли вкладка ховалась. Цей запит браузер
+   часто обриває при переході на іншу сторінку чи закритті, а якщо потім на
+   тому ж пристрої входив інший Герой, pullLocal стирав незбережене.
+   Тепер кожна зміна ключа sk_* позначається, і за ~1,5 с змінені ключі (лише
+   вони — запис малий) їдуть у heroes/{id}.progress. При закритті сторінки
+   решта відправляється з keepalive — запит доходить і після закриття. */
+(function trackProgress() {
+  let ls;
+  try { ls = window.localStorage; } catch (e) { return; }
+  if (!ls || !window.Storage) return;
+  const P = Storage.prototype, set0 = P.setItem, del0 = P.removeItem;
+  const mark = (st, k) => {
+    if (st !== ls || PROG.quiet || !isProgressKey(k)) return;
+    PROG.dirty.add(k);
+    clearTimeout(PROG.timer);
+    PROG.timer = setTimeout(() => flushProgress(false), 1500);
+  };
+  P.setItem = function (k, v) { const r = set0.apply(this, arguments); mark(this, String(k)); return r; };
+  P.removeItem = function (k) { const r = del0.apply(this, arguments); mark(this, String(k)); return r; };
+})();
+
+async function flushProgress(closing) {
+  clearTimeout(PROG.timer);
+  if (!PROG.dirty.size) return false;
+  const hid = SK._heroUid();
+  // localStorage належить іншому Герою (або ще не гідратований) — як у pushLocal
+  if (!hid || localStorage.getItem('sk_active_child') !== hid) return false;
+  const keys = Array.from(PROG.dirty);
+  PROG.dirty.clear();
+  const progress = {};
+  let size = 0;
+  keys.forEach(k => {
+    const v = localStorage.getItem(k);
+    if (v == null || v.length > PROGRESS_MAX_VALUE) return;   // видалене / завелике — не шлемо
+    progress[k] = v; size += k.length + v.length;
+  });
+  if (!Object.keys(progress).length) return false;
+  try {
+    const ref = doc(db, 'heroes', hid);
+    // keepalive має ліміт ~64 КБ на тіло — більше відправляємо звичайним запитом
+    if (closing && size < 60000) await setDocKeepalive(ref, { progress });
+    else await setDoc(ref, { progress }, { merge: true });
+    return true;
+  } catch (e) {
+    keys.forEach(k => PROG.dirty.add(k));    // не вийшло — спробуємо наступного разу
+    if (!closing) PROG.timer = setTimeout(() => flushProgress(false), 10000);
+    return false;
+  }
+}
+SK.flushProgress = () => flushProgress(false).catch(() => false);
+
 window.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') SK.pushLocal().catch(() => {});
+  if (document.visibilityState === 'hidden') {
+    flushProgress(true).catch(() => {});
+    SK.pushLocal().catch(() => {});
+  }
 });
+window.addEventListener('pagehide', () => { flushProgress(true).catch(() => {}); });
 
 window.SK = SK;
 
