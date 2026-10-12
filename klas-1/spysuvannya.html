@@ -276,6 +276,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
         <label class="chk"><span class="ci"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3" stroke-linecap="round"/></svg></span>Рядок «Ім'я / Дата»<input type="checkbox" id="chkName" checked></label>
         <label class="chk"><span class="ci"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M8 2.2c-3.2 0-5.8 2.3-5.8 5.2 0 2.3 1.9 3.4 3.4 3.4.9 0 1.3.6 1.3 1.2 0 .9.6 1.6 1.6 1.6 3 0 5.3-2.4 5.3-5.6C13.8 4.6 11.2 2.2 8 2.2Z"/><circle cx="5.6" cy="7" r=".9" fill="currentColor" stroke="none"/><circle cx="8" cy="5.4" r=".9" fill="currentColor" stroke="none"/><circle cx="10.4" cy="7" r=".9" fill="currentColor" stroke="none"/></svg></span>Оздоблення (кольоровий друк)<input type="checkbox" id="chkDecor" checked></label>
         <label class="chk"><span class="ci"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2 5h12M2 9h7.5M11 9h3M2 13h5"/></svg></span>Переносити слова (по складах)<input type="checkbox" id="chkHyph"></label>
+        <label class="chk"><span class="ci"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2 8h2.2M6 8h2.2M10 8h2.2"/><path d="M13 5.5 15 8l-2 2.5"/></svg></span>Повторювати до кінця рядка<input type="checkbox" id="chkRep"></label>
       </div>
 
       <div class="actions">
@@ -327,6 +328,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
   var chkName=document.getElementById('chkName');
   var chkDecor=document.getElementById('chkDecor');
   var chkHyph=document.getElementById('chkHyph');
+  var chkRep=document.getElementById('chkRep');
 
   /* ---- перенос слів по складах (спрощені шкільні правила) ---- */
   var VOW="аеєиіїоуюяАЕЄИІЇОУЮЯaeiouyAEIOUY";
@@ -359,16 +361,27 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
   var UP="А Б В Г Ґ Д Е Є Ж З И І Ї Й К Л М Н О П Р С Т У Ф Х Ц Ч Ш Щ Ь Ю Я";
   var LO="а б в г ґ д е є ж з и і ї й к л м н о п р с т у ф х ц ч ш щ ь ю я";
   var TEMPLATES=[
-    {k:"Великі літери", v: UP,        paper:'liniya'},
+    {g:"Абетка і речення", k:"Великі літери", v: UP,        paper:'liniya'},
     {k:"Малі літери",   v: LO,        paper:'liniya'},
     {k:"Склади",        v: "ма мо му ми ме\nна но ну ни не\nла ло лу ли ле\nса со су си се", paper:'liniya'},
     {k:"Короткі речення", v: "Мама мила раму.\nМи йдемо в парк.\nУ лісі тихо.\nКотик спить.", paper:'liniya'},
-    {k:"Цифри",         v: "1 2 3 4 5 6 7 8 9 0", paper:'grid'},
-    {k:"Числа 0–10",    paper:'grid', size:'big', ladder:true, v:"0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10"},
     {k:"Прописи (абетка)", paper:'liniya', size:'mid', v:
       "Аа Бб Вв Гг Ґґ Дд\nЕе Єє Жж Зз Ии Іі\nЇї Йй Кк Лл Мм Нн\n"+
       "Оо Пп Рр Сс Тт Уу\nФф Хх Цц Чч Шш Щщ\nЬь Юю Яя\n"+
-      "Aa Bb Cc Dd Ee Ff Gg\nHh Ii Jj Kk Ll Mm Nn\nOo Pp Qq Rr Ss Tt Uu\nVv Ww Xx Yy Zz"}
+      "Aa Bb Cc Dd Ee Ff Gg\nHh Ii Jj Kk Ll Mm Nn\nOo Pp Qq Rr Ss Tt Uu\nVv Ww Xx Yy Zz"},
+    /* як у прописах: у кожному рядку — зразок і повтори до кінця рядка */
+    {g:"Повтори (як у прописах)", k:"Голосні: а о у и і е я ю є ї", repeat:true, paper:'liniya', v:"а\nо\nу\nи\nі\nе\nя\nю\nє\nї"},
+    {k:"Приголосні: б – й", repeat:true, paper:'liniya', v:"б\nв\nг\nґ\nд\nж\nз\nй"},
+    {k:"Приголосні: к – т", repeat:true, paper:'liniya', v:"к\nл\nм\nн\nп\nр\nс\nт"},
+    {k:"Приголосні: ф – ь", repeat:true, paper:'liniya', v:"ф\nх\nц\nч\nш\nщ\nь"},
+    {k:"Великі: А – И", repeat:true, paper:'liniya', v:"А\nБ\nВ\nГ\nҐ\nД\nЕ\nЄ\nЖ\nЗ\nИ"},
+    {k:"Великі: І – С", repeat:true, paper:'liniya', v:"І\nЇ\nЙ\nК\nЛ\nМ\nН\nО\nП\nР\nС"},
+    {k:"Великі: Т – Я", repeat:true, paper:'liniya', v:"Т\nУ\nФ\nХ\nЦ\nЧ\nШ\nЩ\nЮ\nЯ"},
+    {k:"Пари: Аа Бб Вв …", repeat:true, paper:'liniya', v:"Аа\nБб\nВв\nГг\nДд\nЕе\nЖж\nЗз\nИи\nІі\nКк"},
+    {k:"Склади: ма мо му …", repeat:true, paper:'liniya', v:"ма\nмо\nму\nми\nна\nно\nну\nни\nла\nло\nлу"},
+    {g:"Цифри", k:"Цифри",         v: "1 2 3 4 5 6 7 8 9 0", paper:'grid'},
+    {k:"Числа 0–10",    paper:'grid', size:'big', ladder:true, v:"0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10"},
+    {k:"Повтори цифр 0–9", repeat:true, paper:'grid', size:'big', v:"0\n1\n2\n3\n4\n5\n6\n7\n8\n9"}
   ];
 
   var mcv=document.createElement('canvas'), mctx=mcv.getContext('2d');
@@ -410,12 +423,14 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
   };
   function isDigit(ch){ return HD.hasOwnProperty(ch); }
   /* цифра висотою h (мм); (cx,cy) — центр, якщо baseline=false, або точка на базовій лінії зліва */
-  function handDigit(ch, x, y, h, baseline){
+  function handDigit(ch, x, y, h, baseline, solid){
     var k=h/9, tf;
     if(baseline) tf="translate("+x+","+y+") skewX(-14) scale("+k+") translate(-0.4,-9.5)";
     else tf="translate("+x+","+y+") skewX(-14) scale("+k+") translate(-3,-5)";
     var pEl=el("path",{d:HD[ch], transform:tf, fill:"none", "stroke-linecap":"round", "stroke-linejoin":"round"});
-    if(state.style==='gray'){
+    if(solid){
+      pEl.setAttribute("stroke",SAMPLE_INK); pEl.setAttribute("stroke-width",(Math.max(0.35,h*0.05)/k).toFixed(3));
+    } else if(state.style==='gray'){
       pEl.setAttribute("stroke","#b4c0da"); pEl.setAttribute("stroke-width",(Math.max(0.45,h*0.075)/k).toFixed(3));
     } else {
       pEl.setAttribute("stroke","#7f8fb5"); pEl.setAttribute("stroke-width",(0.32/k).toFixed(3));
@@ -423,7 +438,9 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     }
     return pEl;
   }
-  var DIG_ADV=0.78;                         /* крок між цифрами — частка висоти */
+  var DIG_ADV=0.78;
+  var SAMPLE_INK="#3d4d70";                 /* зразок на початку рядка — суцільний */
+  function sampleMark(tEl){ tEl.setAttribute("fill",SAMPLE_INK); tEl.setAttribute("stroke","none"); }                         /* крок між цифрами — частка висоти */
 
   function styleMark(tEl, big, dense){
     if(state.style==='gray'){
@@ -627,7 +644,18 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     var raw=paperText();
     var src = raw.length ? raw.split("\n") : [];
     var visual=[];
-    for(var s=0;s<src.length;s++){ var arr=wl(src[s]); for(var k2=0;k2<arr.length;k2++) visual.push(arr[k2]); }
+    var dhL=Math.min(fs*FASC*0.72, wide?rowH*0.8:rowH), GAP="   ";
+    function tw(str){ var w=0; (str.match(/[0-9]|[^0-9]+/g)||[]).forEach(function(p){ w+= isDigit(p) ? dhL*DIG_ADV : mctx.measureText(p).width; }); return w; }
+    for(var s=0;s<src.length;s++){
+      if(chkRep.checked && src[s].trim()!==''){
+        /* повтор: зразок + копії до кінця рядка */
+        var tok=src[s].trim(), full=tok;
+        while(tw(full+GAP+tok)<=writeW) full+=GAP+tok;
+        visual.push({t:full, ind:0, sample:tok});
+        continue;
+      }
+      var arr=wl(src[s]); for(var k2=0;k2<arr.length;k2++) visual.push(arr[k2]);
+    }
 
     var NT = wide ? N : Math.max(1, N-1);   /* у косій робочих рядків на один менше */
     var rowsText=new Array(NT).fill(null);
@@ -640,19 +668,27 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
       var by = wide ? firstTop+rw*unit+rowH : firstTop+(rw+1)*unit;
       var x0=M.left+2.2+R.ind;
       if(!/[0-9]/.test(T)){
-        var tEl=el("text",{x:x0, y:by,
+        var restT=T, xr=x0;
+        if(R.sample){
+          var sEl=el("text",{x:x0, y:by, "font-family":"Propysy, Nunito, sans-serif", "font-size":fs, "text-anchor":"start"});
+          sampleMark(sEl); sEl.textContent=R.sample; SVG.appendChild(sEl);
+          restT=T.slice(R.sample.length); xr=x0+mctx.measureText(R.sample).width;
+        }
+        var tEl=el("text",{x:xr, y:by,
           "font-family":"Propysy, Nunito, sans-serif", "font-size":fs, "text-anchor":"start"});
-        styleMark(tEl,true); tEl.textContent=T; SVG.appendChild(tEl);
+        tEl.setAttribute("xml:space","preserve"); tEl.style.whiteSpace="pre";
+        styleMark(tEl,true); tEl.textContent=restT; SVG.appendChild(tEl);
         continue;
       }
       /* рядок із цифрами: літери — шрифтом, цифри — прописними штрихами */
-      var dh=Math.min(fs*FASC*0.72, wide?rowH*0.8:rowH), runs=T.match(/[0-9]|[^0-9]+/g), xx=x0;
+      var dh=dhL, runs=T.match(/[0-9]|[^0-9]+/g), xx=x0, sLeft=R.sample?R.sample.length:0;
       for(var ri=0; ri<runs.length; ri++){
-        var part=runs[ri];
-        if(isDigit(part)){ SVG.appendChild(handDigit(part, xx+dh*0.08, by, dh, true)); xx+=dh*DIG_ADV; continue; }
+        var part=runs[ri], isS=sLeft>0; sLeft-=part.length;
+        if(isDigit(part)){ SVG.appendChild(handDigit(part, xx+dh*0.08, by, dh, true, isS)); xx+=dh*DIG_ADV; continue; }
         var tp=el("text",{x:xx, y:by, "font-family":"Propysy, Nunito, sans-serif", "font-size":fs, "text-anchor":"start"});
         tp.setAttribute("xml:space","preserve"); tp.style.whiteSpace="pre";
-        styleMark(tp,true); tp.textContent=part; SVG.appendChild(tp);
+        if(isS) sampleMark(tp); else styleMark(tp,true);
+        tp.textContent=part; SVG.appendChild(tp);
         xx+=mctx.measureText(part).width;
       }
     }
@@ -671,21 +707,24 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     var raw=paperText();
     var nums=raw.split("\n").map(function(x){return x.trim();}).filter(Boolean);
     if(!nums.length) return;
-    var Hh=gridBottom-blockTop, slot=Hh/nums.length;
-    var fs=Math.min(slot*0.7, cell*3.4);
-    for(var i=0;i<nums.length;i++){
-      var cy=blockTop+slot*(i+0.5);
-      var dh=fs*0.72, dx=M.left+cell*1.0+dh*0.35;
-      for(var j=0;j<nums[i].length;j++){
-        var ch=nums[i][j];
-        if(isDigit(ch)) SVG.appendChild(handDigit(ch, dx, cy, dh, false));
+    /* як у зошиті: кожна цифра — в одній клітинці, між числами — порожній рядок;
+       у режимі «Обведи» число повторюється вздовж рядка через клітинку */
+    var dh=cell*0.86;
+    function putNum(str, col, row, solid){
+      for(var j=0;j<str.length;j++){
+        var cx=M.left+(col+j+0.5)*cell, cy=blockTop+(row+0.5)*cell, ch=str[j];
+        if(isDigit(ch)) SVG.appendChild(handDigit(ch, cx, cy, dh, false, solid));
         else{
-          var tEl=el("text",{x:dx, y:cy, "font-family":DIGIT_FONT, "font-size":fs,
+          var tEl=el("text",{x:cx, y:cy, "font-family":DIGIT_FONT, "font-size":cell*0.8,
             "font-weight":800, "text-anchor":"middle", "dominant-baseline":"central"});
           styleMark(tEl,true,true); tEl.textContent=ch; SVG.appendChild(tEl);
         }
-        dx+=dh*DIG_ADV;
       }
+    }
+    for(var i=0;i<nums.length;i++){
+      var row=1+2*i; if(row>=rows) break;
+      var L=nums[i].length, reps=state.mode==='trace' ? 5 : 1;
+      for(var k=0, col=1; k<reps && col+L<=cols; k++, col+=L+1) putNum(nums[i], col, row, reps>1 && k===0);
     }
   }
 
@@ -718,24 +757,32 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     var src = raw.length ? raw.split("\n") : [];
 
     var gr=0; /* поточний рядок сітки */
-    function placeLine(str){
-      var col=0;
+    function placeLine(str, sampleLen){
+      var col=0, nonSp=0;
       for(var ci=0; ci<str.length; ci++){
         var ch=str[ci];
         if(ch===' '){ col++; if(col>=cols){col=0; gr++; if(gr>=rows)return;} continue; }
         if(col>=cols){ col=0; gr++; if(gr>=rows) return; }
         var cx=M.left+col*cell+cell/2;
         var cy=blockTop+gr*cell+cell/2;
-        if(isDigit(ch)){ SVG.appendChild(handDigit(ch, cx, cy, cell*0.72, false)); col++; continue; }
+        var isS = nonSp++ < (sampleLen||0);
+        if(isDigit(ch)){ SVG.appendChild(handDigit(ch, cx, cy, cell*0.84, false, isS)); col++; continue; }
         var tEl=el("text",{x:cx, y:cy, "font-family":DIGIT_FONT, "font-size":fs,
           "font-weight":800, "text-anchor":"middle", "dominant-baseline":"central"});
-        styleMark(tEl,true,true); tEl.textContent=ch; SVG.appendChild(tEl);
+        if(isS) sampleMark(tEl); else styleMark(tEl,true,true);
+        tEl.textContent=ch; SVG.appendChild(tEl);
         col++;
       }
     }
     for(var s=0; s<src.length && gr<rows; s++){
       if(src[s].trim()===''){ gr++; continue; }
-      placeLine(src[s]);
+      if(chkRep.checked){
+        /* повтор через клітинку до кінця рядка; перший — зразок */
+        var tok=src[s].trim().replace(/\s+/g,''), rl=tok;
+        while((rl+' '+tok).length<=cols-1) rl+=' '+tok;
+        placeLine(' '+rl, tok.length);
+        gr++;                                /* порожній рядок між повторами, як у зошиті */
+      } else placeLine(src[s]);
       gr++;                                  /* новий рядок сітки для наступного джерела */
       if(state.mode==='copy') gr++;          /* + порожній рядок для списування */
     }
@@ -813,13 +860,16 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     "Прописи (абетка)":{t:"✎",c:"#ffedf0",fg:"#e2536b"}
   };
   var tplSel=document.getElementById('tplSel');
+  var grp=tplSel;
   TEMPLATES.forEach(function(t,i){
-    var o=document.createElement('option'); o.value=i; o.textContent=t.k; tplSel.appendChild(o);
+    if(t.g){ grp=document.createElement('optgroup'); grp.label=t.g; tplSel.appendChild(grp); }
+    var o=document.createElement('option'); o.value=i; o.textContent=t.k; grp.appendChild(o);
   });
   tplSel.addEventListener('change', function(){
     var t=TEMPLATES[tplSel.value]; if(!t) return;
     txt.value=t.v;
     state.ladder = (t.ladder===true);
+    chkRep.checked = (t.repeat===true);
     if(t.paper && !(t.paper==='liniya' && state.paper==='wide')){ state.paper=t.paper; activateSeg('segPaper', t.paper); }
     if(t.size){ state.size=t.size; activateSeg('segSize', t.size); }
     render();
@@ -841,6 +891,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     if(typeof t.name==='boolean') chkName.checked=t.name;
     if(typeof t.decor==='boolean') chkDecor.checked=t.decor;
     chkHyph.checked=(t.hyph===true);
+    chkRep.checked=(t.rep===true);
     render();
   }
   function renderMy(){
@@ -877,7 +928,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     var title=prompt('Назва шаблону:', def); if(title===null) return;
     title=title.trim()||def;
     a.push({title:title, v:txt.value, paper:state.paper, style:state.style, size:state.size, mode:state.mode,
-            ladder:state.ladder, name:chkName.checked, decor:chkDecor.checked, hyph:chkHyph.checked});
+            ladder:state.ladder, name:chkName.checked, decor:chkDecor.checked, hyph:chkHyph.checked, rep:chkRep.checked});
     storeMy(a); renderMy();
   };
   renderMy();
@@ -896,6 +947,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
   chkName.addEventListener('change', render);
   chkDecor.addEventListener('change', render);
   chkHyph.addEventListener('change', render);
+  chkRep.addEventListener('change', render);
 
   txt.value="а б в г ґ д е\nма мо му ми ме\nМама мила раму.";
 
