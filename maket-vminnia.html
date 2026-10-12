@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Макет: Книга вмінь — School Kingdom</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<script src="sk-skills.js?v=5"></script>
+<style>
+/* ════════════════════════════════════════════════════════════════
+   МАКЕТ «Книга вмінь» у вікні героя (арена → Інвентар).
+   Дані вмінь, підказки й шкала росту — справжні (sk-skills.js);
+   герой, рівень, очки й прогрес — вигадані, живуть у localStorage
+   цього браузера (панель «🧪 Макет» унизу). Зі справжньою базою
+   нічого не пов'язано.
+   Стилі вікна — копія ek-* з arena.html, щоб макет виглядав як гра.
+   ════════════════════════════════════════════════════════════════ */
+:root{--gold:#F2C75C;--gold-d:#E0A42A;--ink:#ffe9b8;--mut:#9fb0d8;--cell:78px;--gap:8px;--bar:86px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%}
+body{font-family:'Nunito',system-ui,sans-serif;color:#eaf1ff;background:#0b1630 url(arena-bg.webp) center/cover fixed;
+  display:flex;align-items:flex-start;justify-content:center;padding:20px 12px 120px}
+body::before{content:"";position:fixed;inset:0;background:rgba(6,12,30,.62);backdrop-filter:blur(3px);z-index:0}
+button{font:inherit;color:inherit}
+
+.stage{position:relative;z-index:1;display:flex;gap:10px;align-items:flex-start;width:100%;max-width:calc(980px + var(--bar) + 10px)}
+
+/* ── вікно ── */
+.card{flex:1;min-width:0;background:linear-gradient(180deg,#132a4f,#0c1a36);border:3px solid var(--gold);border-radius:22px;
+  padding:14px;box-shadow:0 24px 60px rgba(0,0,0,.55)}
+.card-h{display:flex;align-items:center;justify-content:space-between;margin:0 0 12px}
+.card-h b{font-family:'Nunito';font-weight:900;font-size:1.1rem;color:var(--ink)}
+.xbtn{width:34px;height:34px;border-radius:10px;border:1.5px solid rgba(224,164,42,.5);background:rgba(0,0,0,.25);cursor:pointer}
+.body{display:grid;grid-template-columns:250px calc(var(--cell)*2 + var(--gap)) minmax(0,1fr);gap:12px;align-items:stretch}
+
+.panel{background:linear-gradient(180deg,#1c3357,#111f3c);border:2px solid rgba(224,164,42,.5);border-radius:16px;padding:10px;min-width:0}
+.ribbon{background:linear-gradient(180deg,#2f6fc4,#21539c);border:2px solid #fff;border-radius:14px;padding:7px;text-align:center;
+  font-family:'Nunito';font-weight:900;font-size:1.05rem}
+.grade{display:block;width:max-content;margin:7px auto 9px;background:linear-gradient(180deg,#f4c842,#e0a42a);color:#5a3d05;
+  font-weight:900;font-size:.78rem;padding:3px 16px;border-radius:20px;border:2px solid #fff}
+.lvlrow{display:flex;gap:8px;align-items:center;margin-bottom:9px}
+.shield{width:40px;height:46px;flex:none;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.1rem;color:#3a2a06;
+  background:linear-gradient(180deg,#FFE29A,#E7B23E);border:2px solid #b9822a;clip-path:polygon(50% 0,100% 15%,100% 60%,50% 100%,0 60%,0 15%)}
+.xp{flex:1;background:rgba(9,18,38,.72);border:1.5px solid rgba(224,164,42,.6);border-radius:12px;padding:5px 9px;font-size:.62rem;font-weight:800;color:var(--ink)}
+.xp i{display:block;height:7px;margin-top:3px;border-radius:6px;background:linear-gradient(90deg,#8fd0ff,#4d9bff)}
+.art{border-radius:12px;overflow:hidden;background:#bfe3fb url(img/portrait-bg.webp) center/cover;aspect-ratio:1/1;display:flex;align-items:flex-end;justify-content:center}
+.art img{width:94%;height:96%;object-fit:contain;object-position:bottom}
+.hpmp{display:grid;gap:6px;margin-top:9px}
+.trk{height:18px;border-radius:10px;background:rgba(0,0,0,.38);border:1.5px solid rgba(255,255,255,.14);position:relative;overflow:hidden;
+  font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center}
+.trk::before{content:"";position:absolute;inset:0;border-radius:10px}
+.trk.hp::before{background:linear-gradient(180deg,#ff7a6b,#d23a2c)}
+.trk.mp::before{background:linear-gradient(180deg,#7fb2ff,#3f6fe0)}
+.trk span{position:relative}
+
+/* слоти екіпіровки */
+.slots{display:grid;grid-template-columns:repeat(2,var(--cell));gap:var(--gap);align-content:start}
+.eslot{width:var(--cell);height:var(--cell);border-radius:14px;position:relative;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(120% 120% at 50% 20%,#24406e,#16294c);border:2px solid rgba(224,164,42,.45);box-shadow:inset 0 2px 10px rgba(0,0,0,.45)}
+.eslot.on{border-color:#46c26f}
+.eslot img{width:82%;height:82%;object-fit:contain;filter:drop-shadow(0 2px 3px rgba(0,0,0,.4))}
+.eslot .gh{font-size:1.4rem;opacity:.28}
+.eslot .lb{position:absolute;bottom:4px;left:3px;right:3px;font-size:.5rem;font-weight:800;color:#ffe6ab;text-align:center}
+
+/* ── кнопка «Книга вмінь» (квадрат під кільцями) ── */
+.bookbtn{grid-column:1/-1;height:calc(var(--cell) + 18px);border-radius:16px;cursor:pointer;position:relative;overflow:hidden;
+  border:2px solid var(--gold);background:radial-gradient(120% 140% at 30% 0%,#5a3fa3,#2a1b5c 60%,#1a1240);
+  display:flex;align-items:center;gap:10px;padding:0 12px;box-shadow:0 6px 18px rgba(0,0,0,.35),inset 0 0 22px rgba(160,120,255,.25);
+  transition:transform .15s,box-shadow .2s}
+.bookbtn:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(0,0,0,.4),0 0 18px rgba(242,199,92,.35)}
+.bookbtn .bi{font-size:2.2rem;filter:drop-shadow(0 3px 4px rgba(0,0,0,.5))}
+.bookbtn .bt{text-align:left;font-family:'Nunito';font-weight:900;font-size:.95rem;line-height:1.1;color:#fff4d6}
+.bookbtn .bt small{display:block;font-family:'Nunito';font-weight:800;font-size:.62rem;color:#cbb8ff;margin-top:3px}
+.bookbtn.open{border-color:#7ef0a0;box-shadow:0 0 0 3px rgba(126,240,160,.35)}
+.badge{position:absolute;top:6px;right:6px;min-width:22px;height:22px;border-radius:11px;padding:0 6px;font-size:.72rem;font-weight:900;
+  display:flex;align-items:center;justify-content:center;color:#3b2700;background:linear-gradient(180deg,#fff2a8,#f2b72e);
+  box-shadow:0 0 0 2px #fff,0 0 14px rgba(255,214,90,.9);animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.12)}}
+
+/* ── права панель: сумка ↔ книга (перегортання) ── */
+.flip{perspective:1600px;min-width:0;display:flex}
+.flip-in{position:relative;flex:1;display:grid;transition:transform .55s cubic-bezier(.3,.7,.2,1);transform-style:preserve-3d}
+.flip.book .flip-in{transform:rotateY(-180deg)}
+.face{grid-area:1/1;backface-visibility:hidden;-webkit-backface-visibility:hidden;display:flex;flex-direction:column;min-height:0}
+.face.back{transform:rotateY(180deg)}
+.flip:not(.book) .face.back,.flip.book .face.front{visibility:hidden;transition:visibility 0s .28s}
+.ph{display:flex;align-items:center;gap:8px;margin-bottom:9px;flex-wrap:wrap}
+.ph b{font-family:'Nunito';font-weight:900;font-size:1.02rem;color:var(--ink);flex:1}
+.chip{display:inline-flex;align-items:center;gap:5px;font-weight:900;font-size:.78rem;color:var(--ink);background:rgba(0,0,0,.3);
+  border:1.5px solid rgba(224,164,42,.55);border-radius:20px;padding:3px 10px}
+.chip.pts{color:#3b2700;background:linear-gradient(180deg,#fff2a8,#f2b72e);border-color:#fff}
+.chip.pts.zero{color:var(--mut);background:rgba(0,0,0,.3);border-color:rgba(224,164,42,.4)}
+.tabs{display:flex;gap:6px;margin-bottom:9px;flex-wrap:wrap}
+.tab{display:inline-flex;align-items:center;gap:4px;font-weight:800;font-size:.78rem;cursor:pointer;padding:6px 11px;border-radius:11px;
+  color:#dfe8fb;border:1.5px solid transparent;background:rgba(255,255,255,.06)}
+.tab:hover{background:rgba(255,255,255,.11)}
+.tab.on{background:linear-gradient(180deg,#FFE7A0,#E0A93A);color:#5a3d08;border-color:#C9942F}
+.tab.glow{box-shadow:0 0 0 2px #fff2a8,0 0 12px rgba(255,214,90,.8)}
+.bag{display:grid;grid-template-columns:repeat(auto-fill,var(--cell));gap:var(--gap);justify-content:center;align-content:start;overflow:auto;flex:1;min-height:0;max-height:560px}
+.bag .eslot{border-color:rgba(70,194,111,.55)}
+.mini{font-weight:800;font-size:.78rem;cursor:pointer;padding:6px 11px;border-radius:11px;border:1.5px solid rgba(224,164,42,.55);background:rgba(0,0,0,.25);color:var(--ink)}
+.mini:hover{border-color:var(--gold)}
+
+/* ── рядки книги: квадрат + опис праворуч ── */
+.list{display:flex;flex-direction:column;gap:8px;overflow:auto;flex:1;min-height:0;max-height:560px;padding:2px}
+.row{display:flex;align-items:center;gap:12px;padding:8px 10px 8px 8px;border-radius:16px;
+  background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));border:1.5px solid rgba(255,255,255,.08);transition:border-color .15s,background .15s}
+.row.can{border-color:rgba(255,214,90,.55);background:linear-gradient(90deg,rgba(255,214,90,.12),rgba(255,255,255,.02))}
+.row.lock{opacity:.55}
+.row .txt{flex:1;min-width:0;cursor:pointer}
+.row .nm{font-family:'Nunito';font-weight:900;font-size:.98rem;color:#fff;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.tag{font-family:'Nunito';font-size:.6rem;font-weight:900;padding:1px 7px;border-radius:8px;letter-spacing:.02em}
+.tag.a{background:#ff8a3d;color:#3a1600}
+.tag.p{background:rgba(159,176,216,.22);color:#c9d6f2}
+.row .kid{font-size:.8rem;font-weight:700;color:#c9d6f2;line-height:1.3;margin-top:2px}
+.row .st{font-size:.72rem;font-weight:800;color:var(--gold);margin-top:4px}
+.row .st.mut{color:var(--mut)}
+.learn{flex:none;font-weight:900;font-size:.8rem;cursor:pointer;padding:8px 12px;border-radius:12px;border:2px solid #fff;color:#3b2700;
+  background:linear-gradient(180deg,#fff2a8,#f2b72e);box-shadow:0 0 14px rgba(255,214,90,.5)}
+.learn:hover{transform:translateY(-1px)}
+
+/* плитка вміння: кільце майстерності + емодзі */
+.sk{--p:0;width:64px;height:64px;flex:none;border-radius:16px;position:relative;display:flex;align-items:center;justify-content:center;
+  background:conic-gradient(var(--ring,#5fd2ff) calc(var(--p)*1%),rgba(255,255,255,.1) 0);padding:3px;user-select:none;-webkit-user-select:none}
+.sk .in{width:100%;height:100%;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:1.9rem;
+  background:radial-gradient(120% 120% at 50% 15%,#34548c,#172a4f);box-shadow:inset 0 2px 8px rgba(0,0,0,.45)}
+.sk.act .in{background:radial-gradient(120% 120% at 50% 15%,#7a3b2a,#2d1610)}
+.sk.max{background:conic-gradient(#ffd75e 100%,#ffd75e 0);box-shadow:0 0 14px rgba(255,214,90,.7)}
+.sk.none{background:rgba(255,255,255,.08)}
+.sk.none .in{filter:grayscale(.7) brightness(.8)}
+.sk .pc{position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);font-size:.6rem;font-weight:900;padding:0 6px;border-radius:8px;
+  background:#0b1630;border:1.5px solid rgba(95,210,255,.7);color:#bfeaff;white-space:nowrap}
+.sk.max .pc{border-color:#ffd75e;color:#ffe9a8}
+.sk .lk{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.3rem;background:rgba(6,12,30,.55);border-radius:16px}
+.sk.drag{cursor:grab;touch-action:none}
+.sk.sel{outline:3px solid #fff2a8;outline-offset:2px;box-shadow:0 0 18px rgba(255,214,90,.9);animation:wob .9s ease-in-out infinite}
+@keyframes wob{50%{transform:translateY(-3px)}}
+.sk.ghostspot{background:none;border:2px dashed rgba(126,240,160,.55)}
+.sk.ghostspot .in{background:rgba(126,240,160,.08);font-size:.6rem;font-weight:900;color:#9ff0bd;text-align:center;line-height:1.15;box-shadow:none}
+
+/* ── панель вмінь (прямокутник ліворуч) ── */
+.sbar{width:var(--bar);flex:none;position:sticky;top:20px;background:linear-gradient(180deg,#22184a,#120c2e);border:3px solid var(--gold);
+  border-radius:20px;padding:10px 8px;display:flex;flex-direction:column;align-items:center;gap:10px;box-shadow:0 18px 40px rgba(0,0,0,.5)}
+.sbar h4{margin:0;font-family:'Nunito';font-weight:900;font-size:.72rem;color:var(--ink);text-align:center;line-height:1.1}
+.bslot{width:66px;height:66px;border-radius:16px;position:relative;display:flex;align-items:center;justify-content:center;
+  border:2px dashed rgba(255,214,90,.4);background:rgba(0,0,0,.25);transition:border-color .15s,background .15s,transform .15s}
+.bslot .k{position:absolute;top:-7px;left:-7px;width:20px;height:20px;border-radius:50%;font-size:.62rem;font-weight:900;
+  display:flex;align-items:center;justify-content:center;background:#0b1630;border:1.5px solid rgba(224,164,42,.7);color:var(--ink);z-index:2}
+.bslot.full{border-style:solid;border-color:#ff8a3d;background:rgba(255,138,61,.12);cursor:pointer}
+.bslot.lock{border-style:solid;border-color:rgba(255,255,255,.1);background:rgba(0,0,0,.35);font-size:.56rem;font-weight:900;color:var(--mut);text-align:center;line-height:1.15}
+.bslot.want{border-color:#7ef0a0;box-shadow:0 0 0 3px rgba(126,240,160,.3);animation:want 1s ease-in-out infinite}
+@keyframes want{50%{box-shadow:0 0 0 6px rgba(126,240,160,.15)}}
+.bslot.over{background:rgba(126,240,160,.25);transform:scale(1.07)}
+.bslot .sk{width:58px;height:58px;padding:2px}
+.bslot .sk .in{font-size:1.6rem}
+.bslot .sk .pc{display:none}
+.bslot .nm{position:absolute;bottom:-14px;left:-6px;right:-6px;font-size:.52rem;font-weight:800;color:#ffd9bf;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sbar .hint{font-size:.56rem;font-weight:700;color:var(--mut);text-align:center;line-height:1.25;margin-top:6px}
+
+.belt{margin-top:10px;display:flex;align-items:center;gap:10px}
+.belt .lbl{font-family:'Nunito';font-weight:900;color:var(--ink);font-weight:700;white-space:nowrap}
+
+/* ── картка вміння (деталі) ── */
+.sheet-bg{position:fixed;inset:0;z-index:50;background:rgba(5,10,25,.6);display:flex;align-items:center;justify-content:center;padding:16px}
+.sheet-bg[hidden]{display:none}
+.sheet{width:100%;max-width:440px;max-height:88vh;overflow:auto;background:linear-gradient(180deg,#1f3561,#101e3d);border:3px solid var(--gold);
+  border-radius:22px;padding:16px;box-shadow:0 30px 70px rgba(0,0,0,.6);animation:pop .22s ease-out}
+@keyframes pop{from{transform:scale(.92);opacity:0}}
+.sh-top{display:flex;gap:14px;align-items:center}
+.sh-top .sk{width:80px;height:80px}
+.sh-top .sk .in{font-size:2.5rem}
+.sh-top h3{margin:0;font-family:'Nunito';font-weight:900;font-size:1.25rem;color:#fff}
+.sh-kid{font-size:.95rem;font-weight:700;color:#dbe6ff;margin:12px 0}
+.fx{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.fx div{background:rgba(0,0,0,.25);border:1.5px solid rgba(255,255,255,.1);border-radius:12px;padding:8px 10px;font-size:.8rem;font-weight:800}
+.fx div small{display:block;font-size:.64rem;color:var(--mut);font-weight:800;margin-bottom:2px}
+.fx div.now{border-color:rgba(95,210,255,.55)}
+.fx div.max{border-color:rgba(255,214,90,.55)}
+.prog{margin:12px 0 4px}
+.prog .tr{height:12px;border-radius:7px;background:rgba(0,0,0,.4);overflow:hidden;position:relative}
+.prog .tr i{position:absolute;inset:0 auto 0 0;border-radius:7px;background:linear-gradient(90deg,#5fd2ff,#3b8cff)}
+.prog .tr b{position:absolute;top:0;bottom:0;width:2px;background:rgba(255,255,255,.35)}
+.prog .cap{display:flex;justify-content:space-between;font-size:.66rem;font-weight:800;color:var(--mut);margin-top:4px}
+.sh-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.sh-acts .learn{flex:1}
+.sh-note{font-size:.74rem;font-weight:700;color:var(--mut);margin-top:10px}
+.mech{margin-top:10px;font-size:.74rem}
+.mech summary{cursor:pointer;font-weight:800;color:var(--mut)}
+.mech div{display:flex;gap:8px;padding:4px 0;border-bottom:1px dashed rgba(255,255,255,.08)}
+.mech div b{color:var(--ink);min-width:40%}
+
+/* вибір класу */
+.cls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ccard{text-align:left;cursor:pointer;padding:12px;border-radius:16px;border:2px solid rgba(255,255,255,.12);
+  background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02))}
+.ccard:hover{border-color:var(--gold)}
+.ccard .ci{font-size:2rem}
+.ccard b{display:block;font-family:'Nunito';font-weight:900;font-size:1.05rem;color:#fff;margin:4px 0}
+.ccard p{margin:0;font-size:.74rem;font-weight:700;color:#c9d6f2;line-height:1.3}
+.banner{padding:12px;border-radius:16px;margin-bottom:10px;font-weight:800;font-size:.86rem;color:#fff4d6;
+  background:linear-gradient(90deg,rgba(160,120,255,.3),rgba(255,214,90,.15));border:1.5px solid rgba(255,214,90,.45)}
+
+/* перетягування */
+.ghost{position:fixed;z-index:80;pointer-events:none;transform:translate(-50%,-50%) scale(1.1);filter:drop-shadow(0 10px 16px rgba(0,0,0,.6))}
+.toast{position:fixed;left:50%;top:16px;transform:translateX(-50%) translateY(-150%);z-index:90;background:#0b1630;border:2px solid var(--gold);
+  border-radius:14px;padding:10px 16px;font-weight:800;font-size:.9rem;transition:transform .25s;max-width:92vw;text-align:center}
+.toast.on{transform:translateX(-50%) translateY(0)}
+
+/* панель макета */
+.demo{position:fixed;left:12px;bottom:12px;z-index:60;background:rgba(10,18,40,.95);border:2px dashed #ff8a3d;border-radius:14px;padding:8px 10px;
+  display:flex;gap:6px;align-items:center;flex-wrap:wrap;max-width:calc(100vw - 24px);font-size:.74rem;font-weight:800}
+.demo b{color:#ffb27a}
+.demo button{font-weight:800;font-size:.72rem;cursor:pointer;padding:5px 8px;border-radius:9px;border:1.5px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06)}
+
+/* ── вузькі екрани: панель вмінь — закріплений рядок унизу екрана,
+      щоб у неї можна було перетягнути вміння з будь-якого місця книги ── */
+@media (max-width:1060px){
+  .stage{flex-direction:column}
+  body{padding-bottom:150px}
+  .sbar{position:fixed;left:50%;bottom:8px;top:auto;transform:translateX(-50%);z-index:40;width:auto;max-width:calc(100vw - 12px);
+    flex-direction:row;gap:8px;padding:8px 10px 18px;border-radius:18px}
+  .sbar h4{writing-mode:vertical-rl;transform:rotate(180deg);font-size:.62rem}
+  .sbar h4 br{display:none}
+  .sbar .hint{position:absolute;left:0;right:0;bottom:3px;margin:0;font-size:.52rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 8px}
+  .sbar .hint br{display:none}
+  .bslot{width:56px;height:56px}
+  .bslot .sk{width:50px;height:50px}
+  .bslot .sk .in{font-size:1.35rem}
+  .bslot .nm{display:none}
+  .demo{bottom:auto;top:8px;right:8px;left:auto;max-width:230px;font-size:.66rem}
+  .demo:not(.open)>:not(b){display:none}
+}
+@media (max-width:820px){
+  .body{grid-template-columns:1fr}
+  .slots{grid-template-columns:repeat(4,var(--cell));justify-content:center}
+  .list,.bag{max-height:none}
+}
+@media (max-width:520px){
+  :root{--cell:66px}
+  body{padding:10px 6px 130px}
+  .card{padding:10px;border-radius:18px}
+  .slots{grid-template-columns:repeat(3,var(--cell))}
+  .row{gap:10px}
+  .sk{width:56px;height:56px}
+  .sk .in{font-size:1.6rem}
+  .learn{padding:7px 9px;font-size:.74rem}
+  .fx{grid-template-columns:1fr}
+  .cls{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="stage">
+  <aside class="sbar" id="sbar" aria-label="Панель вмінь"></aside>
+
+  <main class="card">
+    <div class="card-h"><b>🎒 Інвентар</b><button class="xbtn" type="button" aria-label="Закрити">✕</button></div>
+    <div class="body">
+      <section class="panel">
+        <div class="ribbon">vova</div>
+        <span class="grade">Перший клас</span>
+        <div class="lvlrow"><div class="shield" id="lvl">3</div><div class="xp">1230 / 1500<i style="width:82%"></i></div></div>
+        <div class="art"><img src="img/ava/knight-green-boy-full.webp" alt=""></div>
+        <div class="hpmp"><div class="trk hp"><span>261 / 261</span></div><div class="trk mp"><span>381 / 381</span></div></div>
+      </section>
+
+      <section class="slots" id="eslots"></section>
+
+      <section class="flip panel" id="flip">
+        <div class="flip-in">
+          <div class="face front">
+            <div class="ph"><b>🎒 Сумка</b><span class="chip">🪙 9783</span></div>
+            <div class="bag" id="bag"></div>
+          </div>
+          <div class="face back">
+            <div class="ph"><b>📖 Книга вмінь</b><span class="chip pts" id="pts"></span><button class="mini" type="button" id="toBag">🎒 Сумка</button></div>
+            <div class="tabs" id="tabs"></div>
+            <div class="list" id="list"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div class="belt"><span class="lbl">🪢 Пояс</span>
+      <div class="eslot on"><img src="img/items/IT-126.webp" alt=""></div><div class="eslot on"><img src="img/items/IT-119.webp" alt=""></div></div>
+  </main>
+</div>
+
+<div class="sheet-bg" id="sheetBg" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+<div class="toast" id="toast"></div>
+
+<div class="demo" id="demo">
+  <b data-d="toggle" style="cursor:pointer">🧪 Макет</b>
+  <span>рівень <button data-d="lv-">−</button> <span id="dLv"></span> <button data-d="lv+">+</button></span>
+  <button data-d="pt">+1 очко (тест)</button>
+  <button data-d="fight">⚔️ Бій: +20 спрацювань</button>
+  <button data-d="reset">↺ Скинути</button>
+</div>
+
+<script>
+(function(){
+'use strict';
+var SKS = window.SKSKILLS;
+var SK_LIST = SKS.UNIVERSAL;
+var BY = {}; SK_LIST.forEach(function(s){ BY[s.id] = s; });
+var BAR_N = 5;
+
+/* ── що вміння дає зараз (м = майстерність 0…1) і на 100% — коротко для дітей ── */
+function pc(x){ return (x < 10 ? Math.round(x * 10) / 10 : Math.round(x)) + '%'; }
+var FX = {
+  'base.weapons': function(m){ return '+' + pc(25 * m) + ' урону зброєю'; },
+  'base.kick':    function(m){ return 'вдається в ' + pc(50 + 50 * m) + ', збиває з ніг ' + pc(10 * m); },
+  'base.potions': function(m){ return 'зілля сильніші на ' + pc(50 * m); },
+  'base.scrolls': function(m){ return 'свитки сильніші на ' + pc(50 * m) + (m >= 1 ? ', 2 бар\'єри' : ''); },
+  'base.trade':   function(m){ return 'купуєш дешевше на ' + pc(20 * m) + ', продаєш дорожче на ' + pc(20 * m); },
+  'base.magic':   function(m){ return '+' + pc(25 * m) + ' сили заклинань'; },
+  'base.spark':   function(m){ return 'вдається в ' + pc(50 + 50 * m) + ', урон 5–10'; },
+  'base.shield':  function(m){ return '+' + pc(5 * m) + ' шансу блокувати'; },
+  'base.dodge':   function(m){ return 'ухиляєшся в ' + pc(15 * m) + ' ударів у відкрите місце'; },
+  'base.focus':   function(m){ return 'шанс зосередитись ' + pc(40 + 60 * m) + ' за спокійний хід'; },
+  'base.exotic':  function(m){ return '+' + pc(50 * m) + ' урону екзотичною зброєю'; },
+  'base.bond':    function(m){ return '+' + pc(10 * m) + ' урону, поки зброя «твоя»'; }
+};
+
+/* ── стан макета (localStorage цього браузера) ── */
+var KEY = 'sk_maket_vminnia_v1';
+function fresh(){
+  return { lv: 3, bonus: 1, uses: { 'base.weapons': 70, 'base.kick': 12, 'base.spark': 0 },
+           bar: ['base.kick', null, null, null, null], cls: null, tab: 1, book: true };
+}
+var S;
+try { S = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch(e) { S = null; }
+if (!S || !S.uses) S = fresh();
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} }
+var sel = null;          // обране (піднесене) активне вміння, чекає на слот
+var lastTap = { id: null, t: 0 };
+
+/* ── обчислення ── */
+function learned(id){ return Object.prototype.hasOwnProperty.call(S.uses, id); }
+function pct(id){ return learned(id) ? SKS.pctFromUses(S.uses[id], SKS.growTotal(BY[id])) : 0; }
+function earned(){ return SKS.pointsForLevel(S.lv) + S.bonus; }
+function free(){ return earned() - Object.keys(S.uses).length; }
+function openSlots(){ return S.lv >= 15 ? 5 : S.lv >= 10 ? 4 : S.lv >= 5 ? 3 : 2; }
+var SLOT_LV = [1, 1, 5, 10, 15];
+function onBar(id){ return S.bar.indexOf(id) !== -1; }
+function isActive(id){ return BY[id].type === 'A'; }
+function toNext(id){
+  var p = pct(id); if (p >= 100) return 0;
+  var tot = SKS.growTotal(BY[id]);
+  return Math.max(1, Math.ceil(SKS.usesForPct(p + 1, tot) - S.uses[id]));
+}
+
+/* ── дрібниці ── */
+var $ = function(id){ return document.getElementById(id); };
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+var tT;
+function toast(m){ var t = $('toast'); t.textContent = m; t.classList.add('on'); clearTimeout(tT); tT = setTimeout(function(){ t.classList.remove('on'); }, 2400); }
+
+function tile(id, opts){
+  opts = opts || {};
+  var s = BY[id], L = learned(id), p = pct(id);
+  var cls = 'sk' + (s.type === 'A' ? ' act' : '') + (!L ? ' none' : p >= 100 ? ' max' : '');
+  if (opts.drag) cls += ' drag';
+  if (sel === id && !opts.inBar) cls += ' sel';
+  return '<div class="' + cls + '" style="--p:' + (L ? p : 0) + '" data-sk="' + id + '"' + (opts.from != null ? ' data-from="' + opts.from + '"' : '') + '>'
+    + '<div class="in">' + s.icon + '</div>'
+    + (L ? '<span class="pc">' + (p >= 100 ? '👑 100%' : p + '%') + '</span>' : '')
+    + (opts.lock ? '<div class="lk">🔒</div>' : '') + '</div>';
+}
+
+/* ── відмальовка ── */
+var EQ = [['head','Шолом','⛑️','IT-001'],['body','Обладунок','🥋','IT-016'],['gloves','Рукавиці','🧤','IT-036'],['bracers','Наручі','🦾','IT-132'],
+  ['belt','Пояс','🪢','IT-061'],['pants','Штани','👖','IT-048'],['boots','Взуття','👢','IT-068'],['amulet','Амулет','📿','IT-113'],
+  ['weapon','Зброя','🗡️','IT-079'],['shield','Щит','🛡️','IT-095'],['ring1','Кільце 1','💍','IT-105'],['ring2','Кільце 2','💍','']];
+function renderEquip(){
+  $('eslots').innerHTML = EQ.map(function(e){
+    return e[3] ? '<div class="eslot on"><img src="img/items/' + e[3] + '.webp" alt="' + e[1] + '"></div>'
+                : '<div class="eslot"><span class="gh">' + e[2] + '</span><span class="lb">' + e[1] + '</span></div>';
+  }).join('') + '<button class="bookbtn' + (S.book ? ' open' : '') + '" id="bookBtn" type="button"><span class="bi">📖</span>'
+    + '<span class="bt">Книга вмінь<small>' + (S.book ? 'відкрита →' : 'вміння й заклинання') + '</small></span>'
+    + (free() > 0 ? '<span class="badge">✨' + free() + '</span>' : '') + '</button>';
+  var bag = [];
+  for (var i = 0; i < 24; i++) bag.push('<div class="eslot on"><img src="img/items/IT-' + String(2 + i * 6).padStart(3, '0') + '.webp" alt="" onerror="this.remove()"></div>');
+  $('bag').innerHTML = bag.join('');
+}
+
+function renderBar(){
+  var n = openSlots(), h = '<h4>⚡ Панель<br>вмінь</h4>';
+  for (var i = 0; i < BAR_N; i++){
+    var id = S.bar[i];
+    if (i >= n) { h += '<div class="bslot lock" data-slot="' + i + '">🔒<br>' + SLOT_LV[i] + ' рів.</div>'; continue; }
+    var want = sel && !id ? ' want' : (sel && id ? ' want' : '');
+    h += '<div class="bslot' + (id ? ' full' : '') + want + '" data-slot="' + i + '"><span class="k">' + (i + 1) + '</span>'
+      + (id ? tile(id, { drag: true, from: i, inBar: true }) + '<span class="nm">' + esc(BY[id].name) + '</span>' : '') + '</div>';
+  }
+  h += '<div class="hint">' + (sel ? 'Торкнись слота, куди поставити «' + esc(BY[sel].name) + '»' : 'Сюди — активні вміння.<br>Торкнись вміння тут — повернеш у книгу') + '</div>';
+  $('sbar').innerHTML = h;
+}
+
+function rowHTML(id){
+  var s = BY[id], L = learned(id), lock = s.lv > S.lv, p = pct(id);
+  var can = !L && !lock && free() > 0;
+  var st;
+  if (lock) st = '<div class="st mut">🔒 Відкриється на ' + s.lv + ' рівні</div>';
+  else if (!L) st = '<div class="st mut">' + (free() > 0 ? 'Ще не вивчено' : 'Потрібне очко вмінь') + '</div>';
+  else if (p >= 100) st = '<div class="st">👑 Майстер! ' + esc(FX[id](1)) + '</div>';
+  else st = '<div class="st">Зараз: ' + esc(FX[id](p / 100)) + ' · ще ' + toNext(id) + ' до ' + (p + 1) + '%</div>';
+  var left;
+  if (L && isActive(id) && onBar(id)) left = '<div class="sk ghostspot" data-ret="' + id + '"><div class="in">⚡ на<br>панелі</div></div>';
+  else left = tile(id, { drag: L && isActive(id), lock: lock });
+  return '<div class="row' + (can ? ' can' : '') + (lock ? ' lock' : '') + '">' + left
+    + '<div class="txt" data-info="' + id + '"><div class="nm">' + esc(s.name) + ' <span class="tag ' + (s.type === 'A' ? 'a">АКТИВНЕ' : 'p">ПАСИВНЕ') + '</span></div>'
+    + '<div class="kid">' + esc(s.kid) + '</div>' + st + '</div>'
+    + (can ? '<button class="learn" type="button" data-learn="' + id + '">✨ Вивчити</button>' : '') + '</div>';
+}
+
+function renderBook(){
+  var f = free();
+  $('pts').textContent = '✨ ' + f + ' ' + (f === 1 ? 'очко' : f >= 2 && f <= 4 ? 'очки' : 'очок');
+  $('pts').className = 'chip pts' + (f > 0 ? '' : ' zero');
+  var t = '';
+  [1, 2, 3].forEach(function(lv){
+    var has = SK_LIST.some(function(s){ return s.lv === lv && !learned(s.id) && s.lv <= S.lv; }) && f > 0;
+    t += '<button class="tab' + (S.tab === lv ? ' on' : '') + (has && S.tab !== lv ? ' glow' : '') + '" data-tab="' + lv + '">'
+      + (lv > S.lv ? '🔒 ' : '') + 'Рівень ' + lv + '</button>';
+  });
+  var clsReady = S.lv >= 3;
+  t += '<button class="tab' + (S.tab === 'cls' ? ' on' : '') + (clsReady && !S.cls && S.tab !== 'cls' ? ' glow' : '') + '" data-tab="cls">'
+    + (!clsReady ? '🔒 ' : S.cls ? SKS.CLASSES[S.cls].icon + ' ' : '✨ ') + 'Клас</button>';
+  $('tabs').innerHTML = t;
+
+  var L = $('list');
+  if (S.tab === 'cls') {
+    if (!clsReady) L.innerHTML = '<div class="banner">🔒 На 3 рівні ти обереш свій шлях: Лицар, Слідопит, Чарівник чи Цілитель. Тоді тут з\'являться вміння класу.</div>';
+    else if (!S.cls) L.innerHTML = '<div class="banner">✨ Час обрати свій шлях! Клас обирається один раз — подумай, як тобі подобається битися.</div><div class="cls">'
+      + Object.keys(SKS.CLASSES).map(function(k){ var c = SKS.CLASSES[k];
+          return '<button class="ccard" type="button" data-cls="' + k + '"><span class="ci">' + c.icon + '</span><b>' + c.name + '</b><p>' + esc(c.about) + '</p></button>'; }).join('') + '</div>';
+    else {
+      var c = SKS.CLASSES[S.cls];
+      L.innerHTML = '<div class="banner">' + c.icon + ' Ти — <b>' + c.name + '</b>. Вміння класу з\'являться в наступному кроці — тут буде їхній список.</div>'
+        + SKS.SKILLS.filter(function(s){ return s.cls === S.cls; }).slice(0, 6).map(function(s){
+          return '<div class="row lock"><div class="sk none"><div class="in">' + c.icon + '</div><div class="lk">🔒</div></div><div class="txt"><div class="nm">' + esc(s.name)
+            + ' <span class="tag ' + (s.type === 'A' ? 'a">АКТИВНЕ' : 'p">ПАСИВНЕ') + '</span></div><div class="kid">' + esc(s.kid || s.desc) + '</div></div></div>';
+        }).join('');
+    }
+    return;
+  }
+  L.innerHTML = SK_LIST.filter(function(s){ return s.lv === S.tab; }).map(function(s){ return rowHTML(s.id); }).join('');
+}
+
+function render(){
+  $('lvl').textContent = S.lv; $('dLv').textContent = S.lv;
+  $('flip').classList.toggle('book', !!S.book);
+  renderEquip(); renderBar(); renderBook();
+}
+
+/* ── дії ── */
+function place(id, slot){
+  if (slot >= openSlots()) return toast('🔒 Цей слот відкриється на ' + SLOT_LV[slot] + ' рівні');
+  var from = S.bar.indexOf(id), old = S.bar[slot];
+  if (from !== -1) S.bar[from] = (from !== slot ? old : null);   // з панелі на панель — міняємо місцями
+  S.bar[slot] = id;
+  lastTap = { id: null, t: 0 };   // наступний тап — знову «перший», а не другий з подвійного
+  if (old && old !== id && from === -1) toast('🔁 «' + BY[old].name + '» повернулось у книгу');
+  sel = null; save(); render();
+}
+function autoPlace(id){
+  if (onBar(id)) return;
+  var n = openSlots();
+  for (var i = 0; i < n; i++) if (!S.bar[i]) return place(id, i);
+  sel = id; render();
+  toast('Усі слоти зайняті — торкнись слота, щоб замінити');
+}
+function unplace(slot){
+  var id = S.bar[slot]; if (!id) return;
+  S.bar[slot] = null; sel = null; lastTap = { id: null, t: 0 }; save(); render();
+  toast('📖 «' + BY[id].name + '» повернулось у книгу');
+}
+function tapSkill(id){
+  if (!learned(id)) return info(id);
+  if (!isActive(id)) { info(id); return; }
+  var now = Date.now();
+  var dbl = lastTap.id === id && now - lastTap.t < 380;
+  lastTap = { id: id, t: now };
+  if (dbl) { sel = null; return autoPlace(id); }
+  sel = (sel === id ? null : id); render();
+}
+function learn(id){
+  if (free() <= 0 || learned(id) || BY[id].lv > S.lv) return;
+  S.uses[id] = 0; save(); closeSheet(); render();
+  toast('✨ Вивчено «' + BY[id].name + '» — 25%!' + (isActive(id) ? ' Постав його на панель ⚡' : ''));
+}
+
+/* ── картка вміння ── */
+function info(id){
+  var s = BY[id], L = learned(id), p = pct(id), lock = s.lv > S.lv;
+  var stages = SKS.GROWTH.stages.map(function(g){ return '<b style="left:' + ((g[0] - 25) / 75 * 100) + '%"></b>'; }).join('');
+  var h = '<div class="sh-top">' + tile(id) + '<div><h3>' + esc(s.name) + '</h3><span class="tag ' + (s.type === 'A' ? 'a">АКТИВНЕ' : 'p">ПАСИВНЕ') + '</span>'
+    + (s.cost ? ' <span class="tag p">' + esc(s.cost) + '</span>' : '') + '</div></div>'
+    + '<div class="sh-kid">' + esc(s.kid) + '</div>'
+    + '<div class="fx"><div class="now"><small>Зараз (' + (L ? p : 0) + '%)</small>' + (L ? esc(FX[id](p / 100)) : 'ще не вивчено') + '</div>'
+    + '<div class="max"><small>На 100% 👑</small>' + esc(FX[id](1)) + '</div></div>';
+  if (L && p < 100) h += '<div class="prog"><div class="tr"><i style="width:' + ((p - 25) / 75 * 100) + '%"></i>' + stages + '</div>'
+    + '<div class="cap"><span>25%</span><span>ще ' + toNext(id) + ' спрацювань до ' + (p + 1) + '%</span><span>100%</span></div></div>';
+  h += '<div class="sh-note">' + (s.type === 'A'
+      ? '⚡ Активне: став на панель вмінь — у бою це кнопка. Росте щоразу, як використовуєш (навіть якщо не вдалось).'
+      : '🌀 Пасивне: діє саме, на панель ставити не треба. Росте, коли в бою трапляється потрібна ситуація.') + '</div>';
+  h += '<details class="mech"><summary>Для дорослих: точні правила</summary>'
+    + s.mech.map(function(r){ return '<div><b>' + esc(r[0]) + '</b><span>' + esc(r[1]) + '</span></div>'; }).join('') + '</details>';
+  h += '<div class="sh-acts">';
+  if (lock) h += '<button class="mini" type="button" disabled>🔒 Відкриється на ' + s.lv + ' рівні</button>';
+  else if (!L) h += free() > 0 ? '<button class="learn" type="button" data-confirm="' + id + '">✨ Вивчити за 1 очко</button>'
+                              : '<button class="mini" type="button" disabled>Потрібне очко вмінь</button>';
+  else if (isActive(id)) h += onBar(id) ? '<button class="mini" type="button" data-unbar="' + id + '">📖 Зняти з панелі</button>'
+                                        : '<button class="learn" type="button" data-tobar="' + id + '">⚡ На панель</button>';
+  h += '<button class="mini" type="button" data-close="1">Закрити</button></div>';
+  $('sheet').innerHTML = h; $('sheetBg').hidden = false;
+}
+function confirmLearn(id){
+  var acts = $('sheet').querySelector('.sh-acts');
+  acts.innerHTML = '<div class="sh-note" style="width:100%;margin:0 0 6px">Вивчене вміння лишається назавжди. Вивчити «' + esc(BY[id].name) + '»?</div>'
+    + '<button class="learn" type="button" data-learn="' + id + '">✨ Так, вивчити</button><button class="mini" type="button" data-info-back="' + id + '">Ні</button>';
+}
+function closeSheet(){ $('sheetBg').hidden = true; }
+
+/* ── натискання ── */
+document.addEventListener('click', function(e){
+  var t = e.target;
+  if (t.closest('#bookBtn')) { S.book = !S.book; sel = null; save(); render(); return; }
+  if (t.closest('#toBag')) { S.book = false; sel = null; save(); render(); return; }
+  var b;
+  if ((b = t.closest('[data-tab]'))) { var v = b.dataset.tab; S.tab = v === 'cls' ? 'cls' : +v; save(); renderBook(); return; }
+  if ((b = t.closest('[data-cls]'))) {
+    var c = SKS.CLASSES[b.dataset.cls];
+    $('sheet').innerHTML = '<div class="sh-top"><div class="sk max"><div class="in">' + c.icon + '</div></div><div><h3>' + c.name + '</h3></div></div>'
+      + '<div class="sh-kid">' + esc(c.about) + '</div><div class="sh-note">Клас обирається один раз. Обрати «' + c.name + '»?</div>'
+      + '<div class="sh-acts"><button class="learn" type="button" data-pick="' + b.dataset.cls + '">' + c.icon + ' Так, я — ' + c.name + '</button><button class="mini" type="button" data-close="1">Ще подумаю</button></div>';
+    $('sheetBg').hidden = false; return;
+  }
+  if ((b = t.closest('[data-pick]'))) { S.cls = b.dataset.pick; save(); closeSheet(); render(); toast(SKS.CLASSES[S.cls].icon + ' Тепер ти — ' + SKS.CLASSES[S.cls].name + '!'); return; }
+  if ((b = t.closest('[data-learn]'))) { learn(b.dataset.learn); return; }
+  if ((b = t.closest('[data-confirm]'))) { confirmLearn(b.dataset.confirm); return; }
+  if ((b = t.closest('[data-info-back]'))) { info(b.dataset.infoBack); return; }
+  if ((b = t.closest('[data-tobar]'))) { closeSheet(); autoPlace(b.dataset.tobar); return; }
+  if ((b = t.closest('[data-unbar]'))) { closeSheet(); unplace(S.bar.indexOf(b.dataset.unbar)); return; }
+  if ((b = t.closest('[data-ret]'))) { unplace(S.bar.indexOf(b.dataset.ret)); return; }
+  if ((b = t.closest('[data-info]'))) { info(b.dataset.info); return; }
+  if (t.closest('[data-close]') || t === $('sheetBg')) { closeSheet(); return; }
+  if ((b = t.closest('[data-d]'))) { demo(b.dataset.d); return; }
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') { closeSheet(); if (sel) { sel = null; render(); } } });
+
+/* ── перетягування й торкання плиток (миша і палець) ── */
+var drag = null;
+document.addEventListener('pointerdown', function(e){
+  var tl = e.target.closest('.sk[data-sk]');
+  var slot = e.target.closest('.bslot[data-slot]');
+  if (!tl && slot && !slot.classList.contains('lock')) {        // торкання порожнього/зайнятого слота
+    drag = { kind: 'slot', slot: +slot.dataset.slot, x: e.clientX, y: e.clientY, moved: false };
+    return;
+  }
+  if (!tl) return;
+  if (tl.closest('.sheet')) return;
+  drag = { kind: 'tile', id: tl.dataset.sk, from: tl.dataset.from != null ? +tl.dataset.from : null,
+           x: e.clientX, y: e.clientY, moved: false, el: tl, canDrag: tl.classList.contains('drag') };
+  if (drag.canDrag) tl.setPointerCapture && tl.setPointerCapture(e.pointerId);
+});
+document.addEventListener('pointermove', function(e){
+  if (!drag || drag.kind !== 'tile' || !drag.canDrag) return;
+  if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 8) return;
+  if (!drag.moved) {
+    drag.moved = true;
+    drag.ghost = drag.el.cloneNode(true); drag.ghost.classList.add('ghost'); drag.ghost.classList.remove('sel');
+    document.body.appendChild(drag.ghost);
+    document.querySelectorAll('.bslot:not(.lock)').forEach(function(s){ s.classList.add('want'); });
+  }
+  drag.ghost.style.left = e.clientX + 'px'; drag.ghost.style.top = e.clientY + 'px';
+  document.querySelectorAll('.bslot.over').forEach(function(s){ s.classList.remove('over'); });
+  var under = document.elementFromPoint(e.clientX, e.clientY);
+  var s = under && under.closest('.bslot:not(.lock)');
+  if (s) s.classList.add('over');
+  e.preventDefault();
+});
+function endDrag(e){
+  if (!drag) return;
+  var d = drag; drag = null;
+  if (d.kind === 'slot') {
+    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 8) return;
+    if (sel) place(sel, d.slot);
+    return;
+  }
+  if (d.ghost) {
+    d.ghost.remove();
+    var under = document.elementFromPoint(e.clientX, e.clientY);
+    var s = under && under.closest('.bslot');
+    if (s && !s.classList.contains('lock')) place(d.id, +s.dataset.slot);
+    else if (s) toast('🔒 Цей слот відкриється на ' + SLOT_LV[+s.dataset.slot] + ' рівні');
+    else if (d.from != null) unplace(d.from);                    // витягнули з панелі назовні — у книгу
+    else render();
+    return;
+  }
+  // просто торкання
+  if (d.from != null) { if (sel && sel !== d.id) place(sel, d.from); else unplace(d.from); return; }
+  if (d.el.closest('.sheet')) return;
+  tapSkill(d.id);
+}
+document.addEventListener('pointerup', endDrag);
+document.addEventListener('pointercancel', function(){ if (drag && drag.ghost) drag.ghost.remove(); drag = null; render(); });
+
+/* ── панель макета ── */
+function demo(a){
+  if (a === 'toggle') { $('demo').classList.toggle('open'); return; }
+  if (a === 'lv+') S.lv = Math.min(30, S.lv + 1);
+  if (a === 'lv-') S.lv = Math.max(1, S.lv - 1);
+  if (a === 'pt') { S.bonus++; toast('🎓 Тест пройдено: +1 очко вмінь!'); }
+  if (a === 'fight') {
+    var got = [];
+    Object.keys(S.uses).forEach(function(id){ var b = pct(id); S.uses[id] += 20; var n = pct(id); if (n > b) got.push(BY[id].icon + ' ' + BY[id].name + ' ' + b + '→' + n + '%'); });
+    toast(got.length ? '⚔️ Після бою: ' + got.join(' · ') : '⚔️ Вивчи щось, щоб воно росло');
+  }
+  if (a === 'reset') { S = fresh(); toast('↺ Макет скинуто'); }
+  var n = openSlots(); for (var i = n; i < BAR_N; i++) S.bar[i] = null;   // слоти, що закрились при зниженні рівня
+  if (S.lv < 3) S.cls = null;
+  if (typeof S.tab === 'number' && S.tab > 3) S.tab = 1;
+  save(); render();
+}
+
+render();
+})();
+</script>
+</body>
+</html>
