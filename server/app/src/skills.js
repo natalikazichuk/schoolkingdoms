@@ -99,7 +99,40 @@ function chooseClass(user, body) {
   });
 }
 
-/* поля книги, які браузер не може змінювати напряму (rules.js) */
-const PROTECTED = ['skills', 'skillBar', 'heroClass', 'skillBonus'];
+/* Ріст майстерності після бою: спрацювання зі summary.grow бою
+   heroes/{id}/battles/{bid}. Один раз на бій (skillGrowIds — останні 30),
+   лише вивчені вміння, не більше GROW_CAP спрацювань на хід бою. */
+const GROW_CAP = 4;
+async function growAfterBattle(user, body) {
+  const bid = String(body.bid || '');
+  if (!user) throw new SkillError('unauthenticated');
+  if (!/^[a-z0-9]{6,40}$/i.test(bid)) throw new SkillError('invalid-argument', 'Немає такого бою');
+  const b = await pool.query('select data from docs where path = $1', ['heroes/' + user.uid + '/battles/' + bid]);
+  const st = b.rows.length ? b.rows[0].data : null;
+  if (!st || st.status !== 'over' || !st.summary) throw new SkillError('failed-precondition', 'Бій ще не завершено');
+  const sum = st.summary;
+  let report = null;
+  const res = await withHero(user, (hero, bst) => {
+    const done = Array.isArray(hero.skillGrowIds) ? hero.skillGrowIds : [];
+    if (done.indexOf(bid) >= 0) { report = { already: true }; return {}; }
+    const S = lib(), cap = Math.max(1, Number(sum.played) || 0) * GROW_CAP;
+    const skills = Object.assign({}, bst.skills), before = {}, after = {};
+    Object.keys(sum.grow || {}).forEach(id => {
+      if (!Object.prototype.hasOwnProperty.call(skills, id)) return;
+      const add = Math.max(0, Math.min(cap, Number(sum.grow[id]) || 0));
+      if (!add) return;
+      const tot = S.growTotal(S.byId(id));
+      before[id] = S.pctFromUses(skills[id], tot);
+      skills[id] = Math.round((Number(skills[id]) + add) * 10) / 10;
+      after[id] = S.pctFromUses(skills[id], tot);
+    });
+    report = { before, after };
+    return { skills, skillGrowIds: done.concat(bid).slice(-30) };
+  });
+  return Object.assign(res, report);
+}
 
-module.exports = { learn, setBar, chooseClass, SkillError, PROTECTED, lib };
+/* поля книги, які браузер не може змінювати напряму (rules.js) */
+const PROTECTED = ['skills', 'skillBar', 'heroClass', 'skillBonus', 'skillGrowIds'];
+
+module.exports = { learn, setBar, chooseClass, growAfterBattle, SkillError, PROTECTED, lib };

@@ -398,6 +398,8 @@ const SK = {
   learnSkill(id)      { return skApi('POST', 'skills/learn', { id }); },
   setSkillBar(bar)    { return skApi('POST', 'skills/bar', { bar }); },
   chooseClass(cls)    { return skApi('POST', 'skills/class', { cls }); },
+  // після бою: ріст майстерності за спрацюваннями (сервер — один раз на бій)
+  growSkills(bid)     { return skApi('POST', 'skills/grow', { bid }); },
 
   async getHero() {
     const heroId = SK._heroUid();
