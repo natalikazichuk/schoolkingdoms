@@ -660,7 +660,6 @@ body.scr-battle .wrap{max-width:1500px}
   animation:skfly 4.6s cubic-bezier(.25,.7,.35,1) forwards}
 .skup small{display:block;margin-top:4px;font-family:'Nunito',sans-serif;font-weight:900;font-size:1rem;
   -webkit-text-stroke:0;color:#fff3c4;text-shadow:0 2px 6px rgba(0,0,0,.9)}
-.skup.half{color:#f1e3b0;font-size:2.4rem;text-shadow:0 0 10px rgba(255,220,120,.6),0 4px 10px rgba(0,0,0,.85)}
 @keyframes skfly{
   0%{opacity:0;transform:translate(-50%,0) scale(.4)}
   8%{opacity:1;transform:translate(-50%,-10px) scale(1.15)}
@@ -671,7 +670,7 @@ body.scr-battle .wrap{max-width:1500px}
 #screen-battle .scene-mid{--fly:360px}
 @media (max-width:640px){
   #screen-battle .scene-mid{--fly:230px}
-  .skup{top:calc(100% + 10px);font-size:2.3rem}.skup.half{font-size:1.9rem}.skup small{font-size:.78rem}}
+  .skup{top:calc(100% + 10px);font-size:2.3rem}.skup small{font-size:.78rem}}
 /* оглушений (Пінок збив з ніг): зірочки кружляють над головою */
 
 .stun{position:absolute;top:13%;left:50%;width:0;height:0;z-index:40;pointer-events:none}
@@ -2105,17 +2104,26 @@ window.SKHERO = (function(){
     });
   }
   /* вміння зросли за цей хід: іконка + «+1» злітає від твоєї картки (по черзі) */
-  /* вдале спрацювання — «+1», невдале — «+½» (на невдачах шкала вдвічі довша) */
+  /* майстерність злітає лише коли виросла на цілий відсоток: «🛡️ +1%».
+     Рахуємо як сервер: старт (use0) + вдалі + кожні 2 невдалі (разом із fail0). */
+  function masteryNow(id, ok, bad){
+    var S = window.SKSKILLS, u0 = (B.me.use0||{})[id], f0 = (B.me.fail0||{})[id]||0;
+    if(!S || u0==null) return null;
+    return S.pctFromUses(u0 + (ok||0) + Math.floor((f0 + (bad||0)) / 2), S.growTotal(S.byId(id)));
+  }
   function floatGrow(g0, g1, f0, f1, delay){
-    var card = document.querySelector('#screen-battle .scene-mid'); if(!card || !window.SKSKILLS) return;
+    var card = document.querySelector('#screen-battle .scene-mid'); if(!card || !window.SKSKILLS || !B.me.use0) return;
     g0 = g0||{}; g1 = g1||{}; f0 = f0||{}; f1 = f1||{};
-    var ids = Object.keys(Object.assign({}, g1, f1)).filter(function(id){ return (g1[id]||0) > (g0[id]||0) || (f1[id]||0) > (f0[id]||0); });
-    ids.forEach(function(id, i){
-      var ok = (g1[id]||0) - (g0[id]||0), bad = (f1[id]||0) - (f0[id]||0), S = SKSKILLS.byId(id);
-      var d = ok + bad / 2, txt = d === Math.floor(d) ? String(d) : (Math.floor(d) ? Math.floor(d) : '') + '½';
+    var ups = [];
+    Object.keys(Object.assign({}, g1, f1)).forEach(function(id){
+      var was = masteryNow(id, g0[id], f0[id]), now = masteryNow(id, g1[id], f1[id]);
+      if(was!=null && now > was) ups.push({id:id, d:now-was, now:now});
+    });
+    ups.forEach(function(u, i){
+      var S = SKSKILLS.byId(u.id);
       setTimeout(function(){
-        var el = document.createElement('div'); el.className = 'skup' + (ok ? '' : ' half');
-        el.innerHTML = (S ? S.icon : '📈') + ' +' + txt + '<small>' + biEsc(S ? S.name : id) + '</small>';
+        var el = document.createElement('div'); el.className = 'skup';
+        el.innerHTML = (S ? S.icon : '📈') + ' +' + u.d + '%' + '<small>' + biEsc(S ? S.name : u.id) + ' · ' + u.now + '%' + (u.now>=100?' 👑':'') + '</small>';
         card.appendChild(el); setTimeout(function(){ el.remove(); }, 4800);
       }, delay + i * 900);
     });
@@ -2488,13 +2496,13 @@ window.SKHERO = (function(){
         belt = (bv.belt||[]).filter(Boolean).map(function(i){ return {base:by[i.id], inst:i}; });
       }catch(e){ belt = []; }
       // вміння: майстерність 0…1 вивчених і активні з панелі (sk-skills.js; бій бере знімок на старті)
-      var sk = {}, bar = [], S = window.SKSKILLS;
+      var sk = {}, bar = [], use0 = {}, fail0 = {}, S = window.SKSKILLS;
       if(S && r[2]){
-        var bst = S.bookState(r[2]);
-        Object.keys(bst.skills).forEach(function(id){ if(S.byId(id)) sk[id] = S.mastery(bst, id)/100; });
+        var bst = S.bookState(r[2]), hf = r[2].skillFails || {};
+        Object.keys(bst.skills).forEach(function(id){ if(S.byId(id)){ sk[id] = S.mastery(bst, id)/100; use0[id] = Number(bst.skills[id])||0; fail0[id] = Number(hf[id])||0; } });
         bar = bst.bar.filter(function(id){ return id && sk[id]!=null && S.byId(id).type==='A'; });
       }
-      return {p:RULES.fighter(stats, eq, window.SKIT), eq:eq, belt:belt, catalog:r[1]||[], sk:sk, bar:bar};
+      return {p:RULES.fighter(stats, eq, window.SKIT), eq:eq, belt:belt, catalog:r[1]||[], sk:sk, bar:bar, use0:use0, fail0:fail0};
     }).catch(function(e){ try{ console.error('[арена] екіпіровку не прочитано:', e); }catch(_){} return {p:plainFighter(stats), eq:[]}; });
   }
 
@@ -2724,6 +2732,8 @@ window.SKHERO = (function(){
                 sk: r.sk||{}, bar: r.bar||[] },
           op: { f: bot, p: bp }
         });
+        // для «+1%» у бою: скільки спрацювань і невдач було на старті (як рахує сервер)
+        st.me.use0 = r.use0 || {}; st.me.fail0 = r.fail0 || {};
         var go = function(){ startBattle.busy = false; B = st; UI.logFrom = 0; localPut(B); startTicker(); enterBattle(); };
         if(!remote()){ go(); return; }
         return SK.startBattle(st).then(go, function(e){
@@ -3294,14 +3304,13 @@ window.SKHERO = (function(){
     if(!remote() || !SK.growSkills) return;
     SK.growSkills(st.bid).then(function(r){
       if(!r || r.already) return;
-      var S = window.SKSKILLS, ids = Object.keys(r.after||{});
+      // лише ті вміння, що виросли на цілі відсотки (одиниці спрацювань не показуємо)
+      var S = window.SKSKILLS, ids = Object.keys(r.after||{}).filter(function(id){ return r.after[id] > r.before[id]; });
       if(!ids.length) return;
-      // ✔ вдалі (+1 кожне) · ✖ невдалі (2 невдалі = +1)
       el.innerHTML = '📈 Майстерність: ' + ids.map(function(id){
-        var k = S && S.byId(id), b = r.before[id], a = r.after[id], ok = (r.ok||{})[id]||0, bad = (r.fail||{})[id]||0;
-        var cnt = ' <span style="opacity:.75">(' + (ok ? '✔'+ok : '') + (ok && bad ? ' ' : '') + (bad ? '✖'+bad : '') + ')</span>';
-        return (k ? k.icon+' '+biEsc(k.name) : id) + ' ' + (a>b ? b+'% → <b>'+a+'%</b>'+(a>=100?' 👑':'') : a+'%') + cnt;
-      }).join(' · ') + '<div style="opacity:.65;font-size:.72rem;margin-top:2px">✔ вдало — +1 до росту · ✖ не вийшло — +½ (2 невдачі = 1 вдале)</div>';
+        var k = S && S.byId(id), b = r.before[id], a = r.after[id];
+        return (k ? k.icon+' '+biEsc(k.name) : id) + ' ' + b + '% → <b>' + a + '%</b>' + (a>=100 ? ' 👑' : '');
+      }).join(' · ');
       el.style.display = '';
       if(window.SKBOOK) SKBOOK.refresh();
     }, function(e){ try{ console.warn('[арена] ріст вмінь не записано:', e); }catch(_){} });
