@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Облік баг-репортів — School Kingdoms</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<style>
+:root{
+  --ink:#20232e;--soft:#6b6f80;--paper:#f4f6fb;--card:#fff;--line:#e4e8f0;
+  --blue:#3b6fd4;--blue-d:#2b56a8;--good:#2fa96a;--good-bg:#e5f7ee;--bad:#e0554f;--bad-bg:#fceceb;
+  --amber:#e0a42a;--amber-bg:#fdf3dc;--violet:#7a5bd4;--violet-bg:#efe9fc;--grey-bg:#eef0f5;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{font-family:'Nunito',system-ui,sans-serif;color:var(--ink);background:var(--paper);
+  padding:16px;padding-bottom:60px;display:flex;flex-direction:column;align-items:center}
+.wrap{width:100%;max-width:980px}
+h1,h2,h3,h4{font-family:'Fredoka',sans-serif;font-weight:700;margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+
+/* header */
+.head{background:linear-gradient(135deg,#1e3a6b,#16294f);color:#fff;border-radius:20px;padding:20px;
+  box-shadow:0 8px 24px rgba(22,41,79,.25);border-top:4px solid var(--amber)}
+.head h1{font-size:24px;line-height:1.15}
+.head p{margin:4px 0 0;color:#c7d6ee;font-weight:800;font-size:13px}
+.summary{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.stat{background:rgba(255,255,255,.1);border-radius:14px;padding:10px 14px;flex:1;min-width:90px}
+.stat b{font-family:'Fredoka';font-size:26px;display:block;line-height:1}
+.stat span{font-size:11px;font-weight:800;color:#c7d6ee;text-transform:uppercase;letter-spacing:.4px}
+.stat.open b{color:#ff9d97}.stat.prog b{color:#ffe08a}.stat.done b{color:#7ee6ac}.stat.crit b{color:#ffb4f0}
+
+/* toolbar */
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0;align-items:center}
+.btn{border:0;border-radius:12px;padding:10px 14px;font-weight:800;font-size:14px;cursor:pointer;
+  background:#fff;border:1px solid var(--line);display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{border-color:var(--blue)}
+.btn.primary{background:var(--blue);color:#fff;border-color:var(--blue)}
+.btn.primary:hover{background:var(--blue-d)}
+.btn.danger{color:var(--bad)}
+.btn.sm{padding:6px 10px;font-size:12.5px;border-radius:10px}
+.grow{flex:1}
+
+.filters{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;display:grid;
+  grid-template-columns:2fr repeat(4,1fr);gap:8px}
+@media(max-width:760px){.filters{grid-template-columns:1fr 1fr}.filters .q{grid-column:1/-1}}
+
+input,select,textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:#fff;font-weight:700;font-size:14px}
+input:focus,select:focus,textarea:focus{outline:2px solid #cfe0fa;border-color:var(--blue)}
+textarea{resize:vertical;min-height:70px;line-height:1.45}
+
+/* list */
+.list{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px 16px;cursor:pointer;
+  border-left:5px solid var(--p,var(--line));transition:box-shadow .15s}
+.card:hover{box-shadow:0 4px 16px rgba(30,58,107,.1)}
+.card .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.card .id{font-family:'Fredoka';color:var(--blue-d);font-size:14px}
+.card h3{font-size:17px;margin:6px 0 4px;line-height:1.25}
+.card .meta{font-size:12.5px;color:var(--soft);font-weight:800;display:flex;gap:12px;flex-wrap:wrap}
+.card .thumbs{display:flex;gap:6px;margin-top:8px}
+.card .thumbs img{width:54px;height:40px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
+.empty{text-align:center;color:var(--soft);font-weight:800;padding:40px 10px;background:#fff;border:1px dashed var(--line);border-radius:16px}
+
+.tag{display:inline-block;font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:20px;background:var(--grey-bg);color:var(--soft)}
+.tag.s-Blocker{background:#3a1f2b;color:#ffb4c4}.tag.s-Critical{background:var(--bad-bg);color:var(--bad)}
+.tag.s-Major{background:var(--amber-bg);color:#a56f00}.tag.s-Minor{background:#eaf1fc;color:var(--blue-d)}
+.tag.s-Trivial{background:var(--grey-bg);color:var(--soft)}
+.tag.st-New{background:var(--bad-bg);color:var(--bad)}.tag.st-Open{background:var(--bad-bg);color:var(--bad)}
+.tag.st-In_Progress{background:var(--amber-bg);color:#a56f00}.tag.st-Fixed{background:var(--violet-bg);color:var(--violet)}
+.tag.st-Retest{background:var(--violet-bg);color:var(--violet)}.tag.st-Closed{background:var(--good-bg);color:var(--good)}
+.tag.st-Reopened{background:#3a1f2b;color:#ffb4c4}.tag.st-Rejected,.tag.st-Duplicate{background:var(--grey-bg);color:var(--soft)}
+
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(20,28,48,.55);display:none;align-items:flex-start;justify-content:center;
+  padding:20px 12px;overflow-y:auto;z-index:50}
+.modal.show{display:flex}
+.sheet{background:var(--paper);border-radius:20px;width:100%;max-width:860px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.sheet-head{background:linear-gradient(135deg,#1e3a6b,#16294f);color:#fff;padding:16px 20px;display:flex;align-items:center;gap:10px;border-top:4px solid var(--amber)}
+.sheet-head h2{font-size:20px;flex:1}
+.x{background:rgba(255,255,255,.15);border:0;color:#fff;width:34px;height:34px;border-radius:10px;font-size:20px;cursor:pointer}
+.sheet-body{padding:16px 20px}
+.sec{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.sec h4{font-size:15px;color:var(--blue-d);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.grid.g2{grid-template-columns:1fr 1fr}
+.grid .full{grid-column:1/-1}
+@media(max-width:700px){.grid,.grid.g2{grid-template-columns:1fr}}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:800;color:var(--soft);text-transform:uppercase;letter-spacing:.3px}
+label.f .req{color:var(--bad)}
+.hint{font-size:12px;color:var(--soft);font-weight:700;text-transform:none;letter-spacing:0}
+.invalid{border-color:var(--bad)!important;background:#fff8f7}
+
+.steps{display:flex;flex-direction:column;gap:6px}
+.step{display:flex;gap:6px;align-items:flex-start}
+.step .n{font-family:'Fredoka';color:var(--blue-d);width:24px;text-align:right;padding-top:9px;flex:none}
+.step textarea{min-height:40px}
+.icon-btn{flex:none;border:1px solid var(--line);background:#fff;border-radius:10px;width:36px;height:38px;cursor:pointer;font-weight:800}
+.icon-btn:hover{border-color:var(--bad);color:var(--bad)}
+
+.links{display:flex;flex-direction:column;gap:6px}
+.link-row{display:grid;grid-template-columns:150px 1fr 36px;gap:6px}
+@media(max-width:560px){.link-row{grid-template-columns:1fr 36px}.link-row select{grid-column:1/-1}}
+
+.drop{border:2px dashed #cfe0fa;border-radius:14px;padding:16px;text-align:center;color:var(--blue-d);font-weight:800;
+  background:#f7faff;cursor:pointer;font-size:13.5px}
+.drop.over{background:#eaf1fc;border-color:var(--blue)}
+.media{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-top:10px}
+.mi{position:relative;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.mi img,.mi video{width:100%;height:100px;object-fit:cover;display:block;background:#000;cursor:zoom-in}
+.mi .cap{font-size:11px;font-weight:800;padding:4px 6px;color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mi .rm{position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:8px;border:0;background:rgba(0,0,0,.6);color:#fff;cursor:pointer}
+
+.sheet-foot{display:flex;gap:8px;flex-wrap:wrap;padding:0 20px 18px}
+
+/* view */
+.kv{width:100%;border-collapse:collapse;font-size:14px}
+.kv th,.kv td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}
+.kv th{width:34%;color:var(--blue-d);font-family:'Fredoka';font-weight:500}
+.pre{white-space:pre-wrap;font-weight:700;font-size:14px;line-height:1.5}
+.pre.code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:#1e2433;color:#d6e2ff;padding:10px;border-radius:10px;overflow-x:auto;font-weight:400}
+ol.vsteps{margin:0;padding-left:22px;font-weight:700;line-height:1.6}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:600px){.cmp{grid-template-columns:1fr}}
+.cmp .exp{background:var(--good-bg);border-radius:12px;padding:10px 12px}
+.cmp .act{background:var(--bad-bg);border-radius:12px;padding:10px 12px}
+.cmp b{display:block;font-family:'Fredoka';font-size:13px;margin-bottom:4px}
+.hist{font-size:12.5px;color:var(--soft);font-weight:800;line-height:1.7}
+a{color:var(--blue-d)}
+
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;z-index:80;padding:20px}
+.lightbox.show{display:flex}
+.lightbox img,.lightbox video{max-width:100%;max-height:100%;border-radius:8px}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);background:#20232e;color:#fff;
+  padding:10px 18px;border-radius:12px;font-weight:800;font-size:14px;transition:transform .25s;z-index:90}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+@media print{
+  body{background:#fff;padding:0}
+  .head,.bar,.filters,.list,.sheet-foot,.x{display:none!important}
+  .modal{position:static;display:block!important;padding:0;background:none}
+  .sheet{box-shadow:none;max-width:none}
+  .sheet-head{background:#fff;color:#000;border-bottom:2px solid #000}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="head">
+    <h1>🐞 Облік баг-репортів</h1>
+    <p>QA · School Kingdoms та інші проєкти · дані зберігаються у цьому браузері (IndexedDB)</p>
+    <div class="summary" id="summary"></div>
+  </header>
+
+  <div class="bar">
+    <button class="btn primary" id="btnNew">＋ Новий баг-репорт</button>
+    <span class="grow"></span>
+    <button class="btn" id="btnExport" title="Резервна копія всіх репортів з картинками і відео">⬇ Експорт JSON</button>
+    <label class="btn" title="Відновити з резервної копії">⬆ Імпорт JSON<input type="file" id="importFile" accept="application/json,.json" hidden></label>
+    <button class="btn" id="btnCsv">⬇ CSV</button>
+  </div>
+
+  <div class="filters">
+    <input class="q" id="fQ" type="search" placeholder="Пошук: ID, заголовок, кроки, модуль…">
+    <select id="fProject"><option value="">Усі проєкти</option></select>
+    <select id="fStatus"><option value="">Усі статуси</option></select>
+    <select id="fSeverity"><option value="">Уся серйозність</option></select>
+    <select id="fTester"><option value="">Усі тестери</option></select>
+  </div>
+
+  <div class="list" id="list"></div>
+</div>
+
+<!-- edit / view modal -->
+<div class="modal" id="modal">
+  <div class="sheet">
+    <div class="sheet-head"><h2 id="mTitle">Баг-репорт</h2><button class="x" id="mClose" aria-label="Закрити">×</button></div>
+    <div class="sheet-body" id="mBody"></div>
+    <div class="sheet-foot" id="mFoot"></div>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox"></div>
+<div class="toast" id="toast"></div>
+
+<datalist id="dlProjects"></datalist>
+<datalist id="dlTesters"></datalist>
+<datalist id="dlModules"></datalist>
+<datalist id="dlDevices"></datalist>
+<datalist id="dlBrowsers"><option>Chrome</option><option>Safari</option><option>Firefox</option><option>Edge</option><option>Samsung Internet</option><option>Opera</option></datalist>
+<datalist id="dlOS"><option>Windows 11</option><option>Windows 10</option><option>macOS</option><option>iOS</option><option>iPadOS</option><option>Android</option><option>Linux</option></datalist>
+
+<script>
+/* ============================================================
+   Облік баг-репортів — односторінковий застосунок без сервера.
+   Сховище: IndexedDB "sk-bug-reports", store "reports".
+   Картинки і відео зберігаються як Blob у тому ж записі.
+   ============================================================ */
+
+const SEVERITY = ['Blocker','Critical','Major','Minor','Trivial'];
+const SEV_COLOR = {Blocker:'#3a1f2b',Critical:'#e0554f',Major:'#e0a42a',Minor:'#3b6fd4',Trivial:'#b6bccb'};
+const PRIORITY = ['Highest','High','Medium','Low'];
+const STATUS = ['New','Open','In Progress','Fixed','Retest','Reopened','Closed','Rejected','Duplicate'];
+const STATUS_UA = {'New':'Новий','Open':'Відкритий','In Progress':'В роботі','Fixed':'Виправлено','Retest':'На ретест',
+  'Reopened':'Перевідкрито','Closed':'Закрито','Rejected':'Відхилено','Duplicate':'Дублікат'};
+const TYPE = ['Functional','UI / Layout','Usability','Performance','Security','Compatibility','Content / Text','Data','Crash','Localization','Other'];
+const REPRO = ['Always (100%)','Often','Sometimes','Rarely','Once / не відтворено'];
+const DEVICE_TYPE = ['Desktop','Laptop','Smartphone','Tablet','Інше'];
+const NETWORK = ['Wi-Fi','Ethernet','4G/5G','3G / повільна','Offline'];
+const LINK_TYPES = ['Сторінка з багом','Тікет / задача','Тест-кейс','Чек-лист','Pull Request / коміт','Відео (посилання)','Логи','Інше'];
+const PREFIX = 'SK-BUG-';
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today = () => new Date().toLocaleDateString('sv-SE');
+const fmtDate = d => d ? new Date(d + 'T00:00').toLocaleDateString('uk-UA') : '—';
+const fmtDT = t => new Date(t).toLocaleString('uk-UA',{dateStyle:'short',timeStyle:'short'});
+
+/* ---------- IndexedDB ---------- */
+let db;
+function openDB(){
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('sk-bug-reports', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('reports', {keyPath:'id'});
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+const tx = (mode, fn) => new Promise((res, rej) => {
+  const t = db.transaction('reports', mode); const s = t.objectStore('reports');
+  const out = fn(s); t.oncomplete = () => res(out && out.result); t.onerror = () => rej(t.error);
+});
+const dbAll = () => tx('readonly', s => s.getAll());
+const dbPut = r => tx('readwrite', s => s.put(r));
+const dbDel = id => tx('readwrite', s => s.delete(id));
+
+/* ---------- state ---------- */
+let reports = [];
+let draft = null;          // запис, що редагується
+const urls = new Map();    // Blob → objectURL кеш
+const blobURL = b => { if(!urls.has(b)) urls.set(b, URL.createObjectURL(b)); return urls.get(b); };
+
+function nextId(){
+  const n = reports.map(r => parseInt(String(r.id).replace(/\D/g,''),10) || 0);
+  return PREFIX + String((n.length ? Math.max(...n) : 0) + 1).padStart(3,'0');
+}
+function lastOf(field){ const r = [...reports].sort((a,b)=>b.createdAt-a.createdAt)[0]; return r ? r[field] : ''; }
+
+function blank(){
+  return {
+    id: nextId(), title:'', date: today(), tester: lastOf('tester') || '', project: lastOf('project') || 'School Kingdoms',
+    module:'', build:'', url:'',
+    severity:'Major', priority:'Medium', type:'Functional', status:'New', repro:'Always (100%)',
+    deviceType:'Desktop', device:'', os:'', browser:'', screen:'', network:'Wi-Fi', userRole:'', testData:'',
+    preconditions:'', steps:[''], expected:'', actual:'', notes:'', logs:'',
+    links:[{type:'Сторінка з багом', url:''}], media:[],
+    assignee:'', fixedIn:'', history:[], createdAt: Date.now(), updatedAt: Date.now()
+  };
+}
+
+/* ---------- list ---------- */
+function fillSelect(sel, values, labelFn = v => v){
+  const keep = sel.value; const first = sel.options[0].outerHTML;
+  sel.innerHTML = first + values.map(v => `<option value="${esc(v)}">${esc(labelFn(v))}</option>`).join('');
+  sel.value = values.includes(keep) ? keep : '';
+}
+function uniq(field){ return [...new Set(reports.map(r => r[field]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'uk')); }
+
+function renderFilters(){
+  fillSelect($('#fProject'), uniq('project'));
+  fillSelect($('#fStatus'), STATUS, s => STATUS_UA[s]);
+  fillSelect($('#fSeverity'), SEVERITY);
+  fillSelect($('#fTester'), uniq('tester'));
+  $('#dlProjects').innerHTML = [...new Set(['School Kingdoms', ...uniq('project')])].map(v=>`<option>${esc(v)}</option>`).join('');
+  $('#dlTesters').innerHTML = uniq('tester').map(v=>`<option>${esc(v)}</option>`).join('');
+  $('#dlModules').innerHTML = uniq('module').map(v=>`<option>${esc(v)}</option>`).join('');
+  $('#dlDevices').innerHTML = uniq('device').map(v=>`<option>${esc(v)}</option>`).join('');
+}
+
+function renderSummary(){
+  const c = s => reports.filter(r => s.includes(r.status)).length;
+  const crit = reports.filter(r => ['Blocker','Critical'].includes(r.severity) && !['Closed','Rejected','Duplicate'].includes(r.status)).length;
+  $('#summary').innerHTML = `
+    <div class="stat"><b>${reports.length}</b><span>Усього</span></div>
+    <div class="stat open"><b>${c(['New','Open','Reopened'])}</b><span>Відкриті</span></div>
+    <div class="stat prog"><b>${c(['In Progress','Fixed','Retest'])}</b><span>В роботі / ретест</span></div>
+    <div class="stat done"><b>${c(['Closed'])}</b><span>Закриті</span></div>
+    <div class="stat crit"><b>${crit}</b><span>Критичні відкриті</span></div>`;
+}
+
+function renderList(){
+  const q = $('#fQ').value.trim().toLowerCase();
+  const f = {project:$('#fProject').value, status:$('#fStatus').value, severity:$('#fSeverity').value, tester:$('#fTester').value};
+  const rows = reports.filter(r =>
+    (!f.project || r.project === f.project) && (!f.status || r.status === f.status) &&
+    (!f.severity || r.severity === f.severity) && (!f.tester || r.tester === f.tester) &&
+    (!q || [r.id,r.title,r.module,r.actual,r.expected,r.steps.join(' '),r.device,r.browser].join(' ').toLowerCase().includes(q))
+  ).sort((a,b) => (b.date||'').localeCompare(a.date||'') || b.createdAt - a.createdAt);
+
+  if(!reports.length){
+    $('#list').innerHTML = `<div class="empty">Ще немає жодного баг-репорту.<br>Натисніть «＋ Новий баг-репорт», щоб додати перший.</div>`; return;
+  }
+  if(!rows.length){ $('#list').innerHTML = `<div class="empty">Нічого не знайдено за цими фільтрами.</div>`; return; }
+
+  $('#list').innerHTML = rows.map(r => {
+    const imgs = r.media.filter(m => m.kind==='image').slice(0,4);
+    const vids = r.media.filter(m => m.kind==='video').length + r.links.filter(l => l.type.startsWith('Відео') && l.url).length;
+    return `<div class="card" style="--p:${SEV_COLOR[r.severity]}" data-id="${esc(r.id)}">
+      <div class="top"><span class="id">${esc(r.id)}</span>
+        <span class="tag s-${r.severity}">${r.severity}</span>
+        <span class="tag st-${r.status.replace(' ','_')}">${STATUS_UA[r.status]}</span>
+        <span class="tag">${esc(r.priority)}</span></div>
+      <h3>${esc(r.title) || '<i style="color:#aaa">Без заголовка</i>'}</h3>
+      <div class="meta">
+        <span>📅 ${fmtDate(r.date)}</span><span>👤 ${esc(r.tester)||'—'}</span><span>📁 ${esc(r.project)||'—'}${r.module?' · '+esc(r.module):''}</span>
+        <span>💻 ${esc([r.device||r.deviceType, r.os, r.browser].filter(Boolean).join(' · '))}</span>
+        ${imgs.length||vids ? `<span>📎 ${r.media.filter(m=>m.kind==='image').length} фото${vids?` · ${vids} відео`:''}</span>`:''}
+      </div>
+      ${imgs.length ? `<div class="thumbs">${imgs.map(m=>`<img src="${blobURL(m.blob)}" alt="">`).join('')}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function refresh(){ renderSummary(); renderFilters(); renderList(); }
+
+/* ---------- form ---------- */
+const opt = (arr, v, lbl = x => x) => arr.map(x => `<option value="${esc(x)}"${x===v?' selected':''}>${esc(lbl(x))}</option>`).join('');
+const fld = (key, label, {req, type='text', list, ph='', full, hint}={}) =>
+  `<label class="f${full?' full':''}">${label}${req?' <span class="req">*</span>':''}
+    <input data-k="${key}" type="${type}" value="${esc(draft[key])}" ${list?`list="${list}"`:''} placeholder="${esc(ph)}">
+    ${hint?`<span class="hint">${hint}</span>`:''}</label>`;
+const sel = (key, label, arr, lbl, req) =>
+  `<label class="f">${label}${req?' <span class="req">*</span>':''}<select data-k="${key}">${opt(arr, draft[key], lbl)}</select></label>`;
+const area = (key, label, {req, ph='', full=true, rows=3, cls=''}={}) =>
+  `<label class="f${full?' full':''}">${label}${req?' <span class="req">*</span>':''}
+    <textarea data-k="${key}" rows="${rows}" class="${cls}" placeholder="${esc(ph)}">${esc(draft[key])}</textarea></label>`;
+
+function cloneRec(r){ const c = structuredClone({...r, media: []}); c.media = r.media.slice(); return c; } // Blob-и не клонуємо
+let isNew = false;
+function openEdit(src, copy = false){
+  // src=null → новий; copy=true → новий на основі src; інакше редагування src
+  isNew = !src || copy;
+  draft = !src ? blank() : copy ? {...cloneRec(src), id: nextId(), status:'New', date: today(), history:[], createdAt: Date.now()} : cloneRec(src);
+  const rec = isNew ? null : src;
+  $('#mTitle').textContent = rec ? `Редагування ${rec.id}` : copy ? `Копія ${src.id}` : 'Новий баг-репорт';
+  $('#mBody').innerHTML = `
+    <div class="sec"><h4>📌 Основне</h4><div class="grid">
+      <label class="f">ID<input data-k="id" value="${esc(draft.id)}"${rec?' readonly':''}></label>
+      ${fld('date','Дата виявлення',{req:1,type:'date'})}
+      ${fld('tester','Тестер',{req:1,list:'dlTesters',ph:"Ім'я тестера"})}
+      ${fld('title','Заголовок (суть бага одним реченням)',{req:1,full:1,ph:'Що не так, де і за якої умови'})}
+      ${fld('project','Проєкт',{req:1,list:'dlProjects'})}
+      ${fld('module','Модуль / функціонал',{list:'dlModules',ph:'Арена, Магазин, Реєстрація…'})}
+      ${fld('build','Збірка / версія',{ph:'main @ prod, v1.2, коміт…'})}
+    </div></div>
+
+    <div class="sec"><h4>🏷 Класифікація</h4><div class="grid">
+      ${sel('severity','Серйозність (Severity)',SEVERITY,undefined,1)}
+      ${sel('priority','Пріоритет (Priority)',PRIORITY,undefined,1)}
+      ${sel('status','Статус',STATUS,s=>STATUS_UA[s],1)}
+      ${sel('type','Тип дефекту',TYPE)}
+      ${sel('repro','Відтворюваність',REPRO,undefined,1)}
+      ${fld('assignee','Відповідальний (розробник)')}
+    </div></div>
+
+    <div class="sec"><h4>💻 Обладнання та оточення
+        <button type="button" class="btn sm" id="autoEnv" style="margin-left:auto">⚡ Заповнити з цього пристрою</button></h4>
+      <div class="grid">
+      ${sel('deviceType','Тип пристрою',DEVICE_TYPE,undefined,1)}
+      ${fld('device','Модель пристрою',{list:'dlDevices',ph:'iPhone 13, Galaxy A54, MacBook Air M2…'})}
+      ${fld('os','ОС і версія',{req:1,list:'dlOS',ph:'iOS 18.1, Windows 11…'})}
+      ${fld('browser','Браузер і версія',{req:1,list:'dlBrowsers',ph:'Chrome 129'})}
+      ${fld('screen','Роздільність / viewport',{ph:'1920×1080, 390×844'})}
+      ${sel('network','Мережа',NETWORK)}
+      ${fld('userRole','Роль / акаунт',{ph:'Батьки, Герой, адмін…'})}
+      ${fld('testData','Тестові дані',{ph:'логін, клас, рівень…'})}
+      ${fld('url','URL сторінки',{type:'url',ph:'https://…'})}
+    </div></div>
+
+    <div class="sec"><h4>🧪 Опис дефекту</h4><div class="grid">
+      ${area('preconditions','Передумови',{ph:'Що має бути зроблено до початку кроків'})}
+      <div class="full"><label class="f">Кроки відтворення <span class="req">*</span></label>
+        <div class="steps" id="steps"></div>
+        <button type="button" class="btn sm" id="addStep" style="margin-top:6px">＋ Крок</button></div>
+      <div class="full grid g2">
+        ${area('expected','Очікуваний результат',{req:1,full:false,ph:'Як має бути'})}
+        ${area('actual','Фактичний результат',{req:1,full:false,ph:'Що відбувається насправді'})}
+      </div>
+      ${area('notes','Додатково / обхідний шлях / коментарі',{rows:2})}
+      ${area('logs','Логи консолі / помилки',{rows:3,cls:'mono',ph:'Вставте текст з DevTools Console / Network'})}
+    </div></div>
+
+    <div class="sec"><h4>🔗 Посилання</h4>
+      <div class="links" id="links"></div>
+      <button type="button" class="btn sm" id="addLink" style="margin-top:6px">＋ Посилання</button>
+    </div>
+
+    <div class="sec"><h4>🖼 Скріншоти та відео</h4>
+      <div class="drop" id="drop">Перетягніть файли сюди, натисніть щоб вибрати, або вставте скріншот <b>Ctrl+V</b>
+        <div class="hint" style="margin-top:4px">Картинки стискаються до 1600 px. Відео до 50 МБ — великі краще давати посиланням.</div></div>
+      <input type="file" id="mediaFile" accept="image/*,video/*" multiple hidden>
+      <div class="media" id="media"></div>
+    </div>
+
+    ${rec ? `<div class="sec"><h4>🕑 Історія</h4><div class="hist">${histHTML(rec)}</div></div>`:''}
+  `;
+  $('#mFoot').innerHTML = `
+    <button class="btn primary" id="save">💾 Зберегти</button>
+    ${rec ? `<button class="btn" id="cancel">Скасувати</button>` : `<button class="btn" id="saveNew">💾 Зберегти і створити ще</button>`}`;
+  renderSteps(); renderLinks(); renderMedia();
+  bindForm(!!rec);
+  showModal();
+  $('#mBody').querySelector('[data-k="title"]').focus();
+}
+
+function renderSteps(){
+  $('#steps').innerHTML = draft.steps.map((s,i)=>`<div class="step"><span class="n">${i+1}.</span>
+    <textarea data-step="${i}" rows="1" placeholder="Дія…">${esc(s)}</textarea>
+    <button type="button" class="icon-btn" data-delstep="${i}" title="Видалити">×</button></div>`).join('');
+}
+function renderLinks(){
+  $('#links').innerHTML = draft.links.map((l,i)=>`<div class="link-row">
+    <select data-ltype="${i}">${opt(LINK_TYPES,l.type)}</select>
+    <input data-lurl="${i}" type="url" value="${esc(l.url)}" placeholder="https://…">
+    <button type="button" class="icon-btn" data-dellink="${i}" title="Видалити">×</button></div>`).join('');
+}
+function renderMedia(){
+  $('#media').innerHTML = draft.media.map((m,i)=>`<div class="mi">
+    ${m.kind==='image' ? `<img src="${blobURL(m.blob)}" data-zoom="${i}" alt="">` : `<video src="${blobURL(m.blob)}" data-zoom="${i}" muted preload="metadata"></video>`}
+    <div class="cap">${m.kind==='video'?'🎬 ':''}${esc(m.name)} · ${(m.blob.size/1024/1024).toFixed(1)} МБ</div>
+    <button type="button" class="rm" data-delmedia="${i}" title="Видалити">×</button></div>`).join('');
+}
+
+function bindForm(isEdit){
+  const body = $('#mBody');
+  body.oninput = e => {
+    const t = e.target;
+    if(t.dataset.k) { draft[t.dataset.k] = t.value; t.classList.remove('invalid'); }
+    if(t.dataset.step !== undefined) { draft.steps[+t.dataset.step] = t.value; t.classList.remove('invalid'); }
+    if(t.dataset.lurl !== undefined) draft.links[+t.dataset.lurl].url = t.value;
+  };
+  body.onchange = e => {
+    const t = e.target;
+    if(t.dataset.k) draft[t.dataset.k] = t.value;
+    if(t.dataset.ltype !== undefined) draft.links[+t.dataset.ltype].type = t.value;
+  };
+  body.onclick = e => {
+    const t = e.target.closest('button,[data-zoom],#drop'); if(!t) return;
+    if(t.id==='addStep'){ draft.steps.push(''); renderSteps(); body.querySelector(`[data-step="${draft.steps.length-1}"]`).focus(); }
+    else if(t.dataset.delstep){ draft.steps.splice(+t.dataset.delstep,1); if(!draft.steps.length) draft.steps=['']; renderSteps(); }
+    else if(t.id==='addLink'){ draft.links.push({type:'Інше',url:''}); renderLinks(); }
+    else if(t.dataset.dellink){ draft.links.splice(+t.dataset.dellink,1); renderLinks(); }
+    else if(t.dataset.delmedia){ draft.media.splice(+t.dataset.delmedia,1); renderMedia(); }
+    else if(t.dataset.zoom){ zoom(draft.media[+t.dataset.zoom]); }
+    else if(t.id==='drop'){ $('#mediaFile').click(); }
+    else if(t.id==='autoEnv'){ autoEnv(); }
+  };
+  body.addEventListener('keydown', e => {
+    if(e.key==='Enter' && !e.shiftKey && e.target.dataset.step !== undefined){
+      e.preventDefault(); const i = +e.target.dataset.step + 1;
+      draft.steps.splice(i,0,''); renderSteps(); body.querySelector(`[data-step="${i}"]`).focus();
+    }
+  });
+  $('#mediaFile').onchange = e => { addFiles(e.target.files); e.target.value=''; };
+  const drop = $('#drop');
+  drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+  drop.ondragleave = () => drop.classList.remove('over');
+  drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); addFiles(e.dataTransfer.files); };
+
+  $('#save').onclick = () => save(false);
+  if($('#saveNew')) $('#saveNew').onclick = () => save(true);
+  if($('#cancel')) $('#cancel').onclick = () => openView(reports.find(r=>r.id===draft.id));
+}
+
+document.addEventListener('paste', e => {
+  if(!draft || !$('#modal').classList.contains('show') || !$('#drop')) return;
+  const files = [...e.clipboardData.items].filter(i=>i.kind==='file').map(i=>i.getAsFile()).filter(Boolean);
+  if(files.length){ e.preventDefault(); addFiles(files); }
+});
+
+async function addFiles(list){
+  for(const f of list){
+    if(f.type.startsWith('image/')){
+      const blob = f.type==='image/gif' || f.type==='image/svg+xml' ? f : await shrink(f);
+      draft.media.push({kind:'image', name: f.name || `screenshot-${Date.now()}.png`, type: blob.type, blob});
+    } else if(f.type.startsWith('video/')){
+      if(f.size > 50*1024*1024){ toast(`«${f.name}» більше 50 МБ — додайте посилання на відео`); continue; }
+      draft.media.push({kind:'video', name: f.name, type: f.type, blob: f});
+    } else toast(`«${f.name}» — не картинка і не відео`);
+  }
+  renderMedia();
+}
+function shrink(file, max = 1600){
+  return new Promise(res => {
+    const img = new Image(); const u = URL.createObjectURL(file);
+    img.onload = () => {
+      const k = Math.min(1, max / Math.max(img.width, img.height));
+      if(k === 1 && file.size < 900*1024){ URL.revokeObjectURL(u); return res(file); }
+      const c = document.createElement('canvas'); c.width = Math.round(img.width*k); c.height = Math.round(img.height*k);
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(u);
+      const type = file.type==='image/png' ? 'image/png' : 'image/jpeg';
+      c.toBlob(b => res(b && b.size < file.size ? b : file), type, .85);
+    };
+    img.onerror = () => { URL.revokeObjectURL(u); res(file); };
+    img.src = u;
+  });
+}
+
+function autoEnv(){
+  const ua = navigator.userAgent; const set = (k,v) => { draft[k]=v; const el=$(`#mBody [data-k="${k}"]`); if(el) el.value=v; };
+  let os = 'Інша ОС', m;
+  if(/iPhone|iPod/.test(ua)) os = 'iOS ' + ((m=ua.match(/OS (\d+[_\d]*)/)) ? m[1].replace(/_/g,'.') : '');
+  else if(/iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints>1)) os = 'iPadOS';
+  else if(/Android/.test(ua)) os = 'Android ' + ((m=ua.match(/Android ([\d.]+)/))?m[1]:'');
+  else if(/Windows NT 10/.test(ua)) os = 'Windows 10/11';
+  else if(/Windows/.test(ua)) os = 'Windows';
+  else if(/Mac OS X/.test(ua)) os = 'macOS';
+  else if(/Linux/.test(ua)) os = 'Linux';
+  let br = 'Браузер';
+  if((m=ua.match(/Edg\/(\d+)/))) br='Edge '+m[1];
+  else if((m=ua.match(/OPR\/(\d+)/))) br='Opera '+m[1];
+  else if((m=ua.match(/SamsungBrowser\/(\d+)/))) br='Samsung Internet '+m[1];
+  else if((m=ua.match(/(?:Chrome|CriOS)\/(\d+)/))) br='Chrome '+m[1];
+  else if((m=ua.match(/(?:Firefox|FxiOS)\/(\d+)/))) br='Firefox '+m[1];
+  else if((m=ua.match(/Version\/([\d.]+).*Safari/))) br='Safari '+m[1];
+  const mobile = /Mobi|iPhone|Android(?!.*Tablet)/.test(ua), tablet = /iPad|Tablet/.test(ua) || (/Macintosh/.test(ua)&&navigator.maxTouchPoints>1);
+  set('os', os.trim()); set('browser', br);
+  set('screen', `${screen.width}×${screen.height} (viewport ${innerWidth}×${innerHeight}, DPR ${devicePixelRatio})`);
+  set('deviceType', tablet ? 'Tablet' : mobile ? 'Smartphone' : 'Desktop');
+  const c = navigator.connection; if(c && c.type) set('network', c.type==='wifi'?'Wi-Fi':c.type==='ethernet'?'Ethernet':'4G/5G');
+  toast('Оточення заповнено — перевірте модель пристрою');
+}
+
+const REQUIRED = ['title','date','tester','project','os','browser','expected','actual'];
+async function save(andNew){
+  let bad = null;
+  for(const k of REQUIRED){
+    const el = $(`#mBody [data-k="${k}"]`);
+    if(!String(draft[k]||'').trim()){ el.classList.add('invalid'); bad = bad || el; }
+  }
+  draft.steps = draft.steps.map(s=>s.trim()).filter(Boolean);
+  if(!draft.steps.length){ draft.steps=['']; renderSteps(); const el=$('#mBody [data-step="0"]'); el.classList.add('invalid'); bad = bad || el; }
+  if(bad){ bad.scrollIntoView({block:'center',behavior:'smooth'}); bad.focus(); toast("Заповніть обов'язкові поля (позначені *)"); return; }
+
+  draft.id = String(draft.id).trim();
+  const old = reports.find(r=>r.id===draft.id);
+  if(isNew && old){ const el=$('#mBody [data-k="id"]'); el.classList.add('invalid'); el.focus(); toast('Такий ID вже існує'); return; }
+  draft.links = draft.links.filter(l=>l.url.trim());
+  draft.updatedAt = Date.now();
+  if(isNew) draft.history = [{t:Date.now(), text:`Створено · ${STATUS_UA[draft.status]}`}];
+  else {
+    const ch = [];
+    if(old.status!==draft.status) ch.push(`статус: ${STATUS_UA[old.status]} → ${STATUS_UA[draft.status]}`);
+    if(old.severity!==draft.severity) ch.push(`severity: ${old.severity} → ${draft.severity}`);
+    if(old.priority!==draft.priority) ch.push(`priority: ${old.priority} → ${draft.priority}`);
+    draft.history = [...(old.history||[]), {t:Date.now(), text: ch.length ? ch.join('; ') : 'Відредаговано'}];
+  }
+  await dbPut(draft);
+  reports = await dbAll(); refresh();
+  toast(old ? 'Збережено' : `Створено ${draft.id}`);
+  if(andNew) openEdit(); else openView(reports.find(r=>r.id===draft.id));
+}
+
+/* ---------- view ---------- */
+function histHTML(r){ return (r.history||[]).slice().reverse().map(h=>`${fmtDT(h.t)} — ${esc(h.text)}`).join('<br>') || '—'; }
+const row = (k,v) => v ? `<tr><th>${k}</th><td>${v}</td></tr>` : '';
+
+function openView(r){
+  draft = null;
+  $('#mTitle').textContent = r.id;
+  const links = r.links.filter(l=>l.url);
+  $('#mBody').innerHTML = `
+    <div class="sec">
+      <div class="top" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+        <span class="tag s-${r.severity}">${r.severity}</span>
+        <span class="tag st-${r.status.replace(' ','_')}">${STATUS_UA[r.status]}</span>
+        <span class="tag">Priority: ${esc(r.priority)}</span><span class="tag">${esc(r.type)}</span></div>
+      <h3 style="font-size:20px;line-height:1.25">${esc(r.title)}</h3>
+    </div>
+    <div class="sec"><h4>📌 Картка дефекту</h4><table class="kv">
+      ${row('Дата виявлення', fmtDate(r.date))}${row('Тестер', esc(r.tester))}${row('Проєкт', esc(r.project))}
+      ${row('Модуль', esc(r.module))}${row('Збірка / версія', esc(r.build))}${row('Відтворюваність', esc(r.repro))}
+      ${row('Відповідальний', esc(r.assignee))}
+    </table></div>
+    <div class="sec"><h4>💻 Оточення</h4><table class="kv">
+      ${row('Пристрій', esc([r.deviceType, r.device].filter(Boolean).join(' · ')))}${row('ОС', esc(r.os))}${row('Браузер', esc(r.browser))}
+      ${row('Екран', esc(r.screen))}${row('Мережа', esc(r.network))}${row('Роль / акаунт', esc(r.userRole))}
+      ${row('Тестові дані', esc(r.testData))}${row('URL', r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a>`:'')}
+    </table></div>
+    <div class="sec"><h4>🧪 Опис</h4>
+      ${r.preconditions ? `<h4 style="color:var(--ink);font-size:14px;margin:0 0 4px">Передумови</h4><div class="pre" style="margin-bottom:12px">${esc(r.preconditions)}</div>`:''}
+      <h4 style="color:var(--ink);font-size:14px;margin:0 0 4px">Кроки відтворення</h4>
+      <ol class="vsteps">${r.steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>
+      <div class="cmp" style="margin-top:12px">
+        <div class="exp"><b>✅ Очікуваний результат</b><div class="pre">${esc(r.expected)}</div></div>
+        <div class="act"><b>❌ Фактичний результат</b><div class="pre">${esc(r.actual)}</div></div></div>
+      ${r.notes ? `<h4 style="color:var(--ink);font-size:14px;margin:12px 0 4px">Додатково</h4><div class="pre">${esc(r.notes)}</div>`:''}
+      ${r.logs ? `<h4 style="color:var(--ink);font-size:14px;margin:12px 0 4px">Логи</h4><div class="pre code">${esc(r.logs)}</div>`:''}
+    </div>
+    ${links.length ? `<div class="sec"><h4>🔗 Посилання</h4><table class="kv">${links.map(l=>row(esc(l.type), `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.url)}</a>`)).join('')}</table></div>`:''}
+    ${r.media.length ? `<div class="sec"><h4>🖼 Скріншоти та відео (${r.media.length})</h4><div class="media">${r.media.map((m,i)=>`<div class="mi">
+      ${m.kind==='image'?`<img src="${blobURL(m.blob)}" data-vz="${i}" alt="">`:`<video src="${blobURL(m.blob)}" data-vz="${i}" muted preload="metadata"></video>`}
+      <div class="cap">${m.kind==='video'?'🎬 ':''}${esc(m.name)}</div></div>`).join('')}</div></div>`:''}
+    <div class="sec"><h4>🕑 Історія</h4><div class="hist">${histHTML(r)}</div></div>`;
+  $('#mBody').onclick = e => { const t = e.target.closest('[data-vz]'); if(t) zoom(r.media[+t.dataset.vz]); };
+  $('#mBody').oninput = $('#mBody').onchange = null;
+  $('#mFoot').innerHTML = `
+    <button class="btn primary" id="vEdit">✏️ Редагувати</button>
+    <select id="vStatus" style="width:auto">${opt(STATUS, r.status, s=>'Статус: '+STATUS_UA[s])}</select>
+    <button class="btn" id="vMd">📋 Копіювати Markdown</button>
+    <button class="btn" id="vDup">⧉ Дублювати</button>
+    <button class="btn" id="vPrint">🖨 Друк / PDF</button>
+    <span class="grow"></span>
+    <button class="btn danger" id="vDel">🗑 Видалити</button>`;
+  $('#vEdit').onclick = () => openEdit(r);
+  $('#vStatus').onchange = async e => {
+    const s = e.target.value; r.history = [...(r.history||[]), {t:Date.now(), text:`статус: ${STATUS_UA[r.status]} → ${STATUS_UA[s]}`}];
+    r.status = s; r.updatedAt = Date.now(); await dbPut(r); reports = await dbAll(); refresh(); openView(r); toast('Статус оновлено');
+  };
+  $('#vMd').onclick = () => copyText(toMarkdown(r));
+  $('#vDup').onclick = () => openEdit(r, true);
+  $('#vPrint').onclick = () => print();
+  $('#vDel').onclick = async () => { if(!confirm(`Видалити ${r.id}? Це не можна скасувати.`)) return; await dbDel(r.id); reports = await dbAll(); refresh(); hideModal(); toast('Видалено'); };
+  showModal();
+}
+
+function toMarkdown(r){
+  const L = [];
+  L.push(`# Bug Report — ${r.title}`, '', `> ${r.project}${r.module?' · '+r.module:''}`, '', '---', '', '## Картка дефекту', '', '| Поле | Значення |', '|---|---|');
+  const t = (k,v) => v && L.push(`| **${k}** | ${String(v).replace(/\|/g,'\\|').replace(/\n/g,' ')} |`);
+  t('ID', r.id); t('Заголовок', r.title); t('Дата', fmtDate(r.date)); t('Тестер', r.tester); t('Проєкт', r.project); t('Модуль', r.module);
+  t('Severity', r.severity); t('Priority', r.priority); t('Type', r.type); t('Status', STATUS_UA[r.status]); t('Reproducibility', r.repro);
+  t('Build', r.build); t('Відповідальний', r.assignee);
+  L.push('', '## Оточення', '', '| Поле | Значення |', '|---|---|');
+  t('Пристрій', [r.deviceType, r.device].filter(Boolean).join(' · ')); t('ОС', r.os); t('Браузер', r.browser); t('Екран', r.screen);
+  t('Мережа', r.network); t('Роль / акаунт', r.userRole); t('Тестові дані', r.testData); t('URL', r.url);
+  if(r.preconditions) L.push('', '## Передумови', '', r.preconditions);
+  L.push('', '## Кроки відтворення', '', ...r.steps.map((s,i)=>`${i+1}. ${s}`));
+  L.push('', '## Очікуваний результат', '', r.expected, '', '## Фактичний результат', '', r.actual);
+  if(r.notes) L.push('', '## Додатково', '', r.notes);
+  if(r.logs) L.push('', '## Логи', '', '```', r.logs, '```');
+  const links = r.links.filter(l=>l.url);
+  if(links.length) L.push('', '## Посилання', '', ...links.map(l=>`- ${l.type}: ${l.url}`));
+  if(r.media.length) L.push('', '## Вкладення', '', ...r.media.map(m=>`- ${m.kind==='image'?'🖼':'🎬'} ${m.name}`));
+  return L.join('\n');
+}
+
+/* ---------- export / import ---------- */
+const blobToB64 = b => new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(b); });
+const b64ToBlob = async d => (await fetch(d)).blob();
+function download(name, data, type){ const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data],{type})); a.download = name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000); }
+
+$('#btnExport').onclick = async () => {
+  if(!reports.length) return toast('Немає що експортувати');
+  toast('Готую файл…');
+  const out = [];
+  for(const r of reports) out.push({...r, media: await Promise.all(r.media.map(async m=>({kind:m.kind,name:m.name,type:m.type,data: await blobToB64(m.blob)})))});
+  download(`bug-reports-${today()}.json`, JSON.stringify({app:'sk-bug-reports', version:1, exported:new Date().toISOString(), reports:out}, null, 1), 'application/json');
+};
+$('#importFile').onchange = async e => {
+  const f = e.target.files[0]; e.target.value=''; if(!f) return;
+  try{
+    const j = JSON.parse(await f.text()); const list = Array.isArray(j) ? j : j.reports;
+    if(!Array.isArray(list)) throw 0;
+    let add = 0, upd = 0;
+    for(const r of list){
+      if(!r.id) continue;
+      const rec = {...blank(), ...r, media: await Promise.all((r.media||[]).map(async m=>({kind:m.kind,name:m.name,type:m.type,blob: await b64ToBlob(m.data)})))};
+      const ex = reports.find(x=>x.id===rec.id);
+      if(ex && (ex.updatedAt||0) >= (rec.updatedAt||0)) continue;
+      ex ? upd++ : add++; await dbPut(rec);
+    }
+    reports = await dbAll(); refresh(); toast(`Імпортовано: нових ${add}, оновлено ${upd}`);
+  }catch{ toast('Не вдалося прочитати файл'); }
+};
+$('#btnCsv').onclick = () => {
+  if(!reports.length) return toast('Немає що експортувати');
+  const cols = [['id','ID'],['date','Дата'],['tester','Тестер'],['project','Проєкт'],['module','Модуль'],['title','Заголовок'],['severity','Severity'],
+    ['priority','Priority'],['status','Статус'],['type','Тип'],['repro','Відтворюваність'],['build','Збірка'],['deviceType','Тип пристрою'],['device','Пристрій'],
+    ['os','ОС'],['browser','Браузер'],['screen','Екран'],['network','Мережа'],['userRole','Роль'],['url','URL'],['preconditions','Передумови'],
+    ['steps','Кроки'],['expected','Очікуваний'],['actual','Фактичний'],['notes','Додатково'],['links','Посилання'],['assignee','Відповідальний']];
+  const cell = v => `"${String(v??'').replace(/"/g,'""')}"`;
+  const val = (r,k) => k==='steps' ? r.steps.map((s,i)=>`${i+1}. ${s}`).join('\n') : k==='links' ? r.links.map(l=>`${l.type}: ${l.url}`).join('\n') : k==='status' ? STATUS_UA[r.status] : r[k];
+  const csv = '﻿' + [cols.map(c=>cell(c[1])).join(';'), ...reports.map(r=>cols.map(c=>cell(val(r,c[0]))).join(';'))].join('\r\n');
+  download(`bug-reports-${today()}.csv`, csv, 'text/csv;charset=utf-8');
+};
+
+/* ---------- ui helpers ---------- */
+function showModal(){ $('#modal').classList.add('show'); $('#modal').scrollTop = 0; document.body.style.overflow='hidden'; }
+function hideModal(){ $('#modal').classList.remove('show'); document.body.style.overflow=''; draft = null; }
+$('#mClose').onclick = () => { if(draft && !confirm('Закрити без збереження?')) return; hideModal(); };
+$('#modal').onclick = e => { if(e.target.id==='modal' && !draft) hideModal(); };
+function zoom(m){
+  const lb = $('#lightbox');
+  lb.innerHTML = m.kind==='image' ? `<img src="${blobURL(m.blob)}" alt="">` : `<video src="${blobURL(m.blob)}" controls autoplay></video>`;
+  lb.classList.add('show');
+}
+$('#lightbox').onclick = e => { if(e.target.tagName!=='VIDEO'){ $('#lightbox').classList.remove('show'); $('#lightbox').innerHTML=''; } };
+document.addEventListener('keydown', e => {
+  if(e.key!=='Escape') return;
+  if($('#lightbox').classList.contains('show')) { $('#lightbox').click(); return; }
+  if($('#modal').classList.contains('show')) $('#mClose').click();
+});
+let tt; function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove('show'),2600); }
+async function copyText(s){ try{ await navigator.clipboard.writeText(s); toast('Скопійовано в буфер'); }catch{ download('bug-report.md', s, 'text/markdown'); } }
+
+$('#list').onclick = e => { const c = e.target.closest('.card'); if(c) openView(reports.find(r=>r.id===c.dataset.id)); };
+$('#btnNew').onclick = () => openEdit();
+['#fQ','#fProject','#fStatus','#fSeverity','#fTester'].forEach(s => $(s).addEventListener('input', renderList));
+
+(async () => {
+  try{ db = await openDB(); reports = await dbAll(); }
+  catch{ toast('Браузер не дозволяє зберігати дані (приватний режим?)'); }
+  refresh();
+})();
+</script>
+</body>
+</html>
