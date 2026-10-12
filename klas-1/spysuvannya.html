@@ -29,6 +29,13 @@ body{
 .iconbtn:active{transform:translateY(1px)}
 
 .page{max-width:600px;margin:0 auto;padding:2px 12px 26px;display:flex;flex-direction:column;gap:16px}
+@media screen and (min-width:1000px){
+  .page{max-width:1240px;display:grid;grid-template-columns:minmax(440px,560px) minmax(0,1fr);align-items:start;gap:22px}
+  .preview{position:sticky;top:10px}
+  .sheet{max-width:none;width:auto;height:calc(100vh - 175px);aspect-ratio:210/297}
+  .sheet svg{height:100%}
+  #btnPrev{display:none}
+}
 
 /* APP CARD */
 .app{background:var(--card);border-radius:26px;overflow:hidden;
@@ -67,7 +74,7 @@ body{
   background:linear-gradient(180deg,#4a8ae6,#2f6fd0);color:#fff;font-size:.8rem;font-weight:800;
   box-shadow:0 2px 5px rgba(47,111,208,.4)}
 
-textarea{width:100%;min-height:104px;resize:vertical;border:2px solid var(--line);
+textarea{width:100%;min-height:230px;resize:vertical;border:2px solid var(--line);
   border-radius:16px;padding:13px 14px;font-family:"Nunito",sans-serif;font-size:1.05rem;
   font-weight:700;color:var(--ink);background:#fbfdff;line-height:1.4}
 textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
@@ -105,13 +112,10 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
 .pcard{background:#f7faff;border:2px solid #e9f0fc;border-radius:15px;padding:9px 10px}
 .plabel{font-weight:800;font-size:.7rem;letter-spacing:.03em;text-transform:uppercase;
   color:#7286a6;margin:0 0 7px}
-.seg{display:flex;gap:5px;background:#e7eefb;border-radius:11px;padding:4px}
-.seg button{flex:1;border:none;background:none;border-radius:8px;padding:8px 4px;cursor:pointer;
-  font-family:inherit;font-weight:800;font-size:.82rem;color:#5f6f90;
-  display:flex;align-items:center;justify-content:center;gap:5px;line-height:1}
-.seg button svg{opacity:.85}
-.seg button.on{background:#fff;color:var(--blue);box-shadow:0 2px 6px rgba(37,96,184,.18)}
-.seg.small button{font-size:.85rem;padding:7px 4px}
+.dd{width:100%;appearance:none;-webkit-appearance:none;border:2px solid var(--line);border-radius:11px;
+  padding:9px 34px 9px 11px;font-family:inherit;font-weight:800;font-size:.9rem;color:var(--ink);cursor:pointer;
+  background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%232f6fd0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 12px center}
+.dd:focus{outline:none;border-color:#8fc0ff}
 
 /* CHECKS */
 .chk{display:flex;align-items:center;gap:10px;font-weight:800;font-size:.9rem;color:#41527a;
@@ -124,7 +128,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
 .actions{margin-top:6px}
 .fmt{display:flex;align-items:center;gap:10px;margin-bottom:11px}
 .fmt>span{font-weight:800;font-size:.72rem;letter-spacing:.03em;text-transform:uppercase;color:#7286a6}
-.fmt .seg{max-width:150px}
+.fmt .dd{max-width:150px}
 .btnrow{display:flex;gap:10px}
 .btn-ghost,.btn-print{border:none;border-radius:15px;padding:14px 12px;cursor:pointer;
   font-family:"Fredoka",sans-serif;font-weight:700;font-size:1rem;
@@ -158,7 +162,6 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
 @media(max-width:520px){
   .apphead h1{font-size:1.9rem}
   .chips{grid-template-columns:1fr}
-  .params{grid-template-columns:1fr}
   .mychips{grid-template-columns:minmax(0,1fr)}
 }
 
@@ -198,7 +201,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
 
       <div class="sec">
         <div class="sechead"><span class="badge">2</span>Або обери шаблон</div>
-        <div class="chips" id="chips"></div>
+        <select class="dd" id="tplSel" aria-label="Шаблон"><option value="">— Обери шаблон —</option></select>
         <div class="myhead">
           <span class="mytitle">⭐ Мої шаблони <span class="mycount" id="myCount"></span></span>
           <button class="btn-save" id="btnSave" type="button">＋ Зберегти аркуш</button>
@@ -210,27 +213,13 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
         <div class="sechead"><span class="badge">3</span>Параметри аркуша</div>
         <div class="params">
           <div class="pcard"><div class="plabel">Аркуш</div>
-            <div class="seg" id="segPaper">
-              <button data-v="liniya" class="on"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2 5h12M2 9h12M2 13h12"/><path d="M6 3 4 15M11 3 9 15" stroke-width="1"/></svg> Коса</button>
-              <button data-v="wide"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2 4.5h12M2 8.5h12M2 12.5h12"/></svg> Широка</button>
-              <button data-v="grid"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M2.5 6.2h11M2.5 9.8h11M6.2 2.5v11M9.8 2.5v11" stroke-width="1"/></svg> Клітинка</button>
-            </div></div>
+            <select class="dd" id="segPaper"><option value="liniya">Коса лінія</option><option value="wide">Широка лінія</option><option value="grid">Клітинка</option></select></div>
           <div class="pcard"><div class="plabel">Знаки</div>
-            <div class="seg" id="segStyle">
-              <button data-v="dot" class="on"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><circle cx="3" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="13" cy="8" r="1.3"/></svg> Пунктир</button>
-              <button data-v="gray"><svg viewBox="0 0 16 16" width="14" height="14"><rect x="3" y="3" width="10" height="10" rx="2.5" fill="currentColor" opacity=".55"/></svg> Сірі</button>
-            </div></div>
+            <select class="dd" id="segStyle"><option value="dot">Пунктир</option><option value="gray">Сірі</option></select></div>
           <div class="pcard"><div class="plabel">Розмір</div>
-            <div class="seg" id="segSize">
-              <button data-v="big" class="on"><svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" font-size="13"><text x="8" y="12.5" text-anchor="middle" font-family="Fredoka,sans-serif" font-weight="700">A</text></svg> Великий</button>
-              <button data-v="mid"><svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor"><text x="8" y="12" text-anchor="middle" font-family="Fredoka,sans-serif" font-weight="700" font-size="10">a</text></svg> Середній</button>
-            </div></div>
+            <select class="dd" id="segSize"><option value="big">Великий</option><option value="mid">Середній</option></select></div>
           <div class="pcard"><div class="plabel">Режим</div>
-            <div class="seg" id="segMode">
-              <button data-v="trace" class="on"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5 13.5 4.5 6 12l-3 1 1-3z"/></svg> Обведи</button>
-              <button data-v="copy"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><rect x="3" y="2.5" width="10" height="11" rx="1.5"/><path d="M5.5 6h5M5.5 8.5h5M5.5 11h3"/></svg> Спиши</button>
-              <button data-v="print"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><path d="M3 3h10M3 5.5h7" stroke-width="1.7"/><path d="M2.5 9.5h11M2.5 12h11M2.5 14.5h11" stroke-width="0.9"/></svg> Текст</button>
-            </div></div>
+            <select class="dd" id="segMode"><option value="trace">Обведи</option><option value="copy">Спиши</option><option value="print">Текст</option></select></div>
         </div>
 
         <label class="chk"><span class="ci"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3" stroke-linecap="round"/></svg></span>Рядок «Ім'я / Дата»<input type="checkbox" id="chkName" checked></label>
@@ -239,10 +228,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
 
       <div class="actions">
         <div class="fmt"><span>Формат друку</span>
-          <div class="seg small" id="segPrint">
-            <button data-v="A4" class="on">A4</button>
-            <button data-v="A5">A5</button>
-          </div>
+          <select class="dd" id="segPrint"><option value="A4">A4</option><option value="A5">A5</option></select>
         </div>
         <div class="btnrow">
           <button class="btn-ghost" id="btnPrev"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z"/><circle cx="8" cy="8" r="2"/></svg> Перегляд</button>
@@ -661,10 +647,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
   };
 
   function activateSeg(boxId, val){
-    var box=document.getElementById(boxId);
-    [].forEach.call(box.querySelectorAll('button'), function(b){
-      b.classList.toggle('on', b.dataset.v===val);
-    });
+    document.getElementById(boxId).value=val;
   }
 
   var ICONS={
@@ -676,20 +659,17 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     "Числа 0–10":{t:"0-9",c:"#e6f6ea",fg:"#3aa657"},
     "Прописи (абетка)":{t:"✎",c:"#ffedf0",fg:"#e2536b"}
   };
-  var chips=document.getElementById('chips');
-  TEMPLATES.forEach(function(t){
-    var ic=ICONS[t.k]||{t:"★",c:"#eef2fb",fg:"#3a4c73"};
-    var b=document.createElement('button');
-    b.className='tcard'; b.type='button';
-    b.innerHTML='<span class="tico" style="background:'+ic.c+';color:'+ic.fg+'">'+ic.t+'</span><span class="tlbl">'+t.k+'</span>';
-    b.onclick=function(){
-      txt.value=t.v;
-      state.ladder = (t.ladder===true);
-      if(t.paper && !(t.paper==='liniya' && state.paper==='wide')){ state.paper=t.paper; activateSeg('segPaper', t.paper); }
-      if(t.size){ state.size=t.size; activateSeg('segSize', t.size); }
-      render();
-    };
-    chips.appendChild(b);
+  var tplSel=document.getElementById('tplSel');
+  TEMPLATES.forEach(function(t,i){
+    var o=document.createElement('option'); o.value=i; o.textContent=t.k; tplSel.appendChild(o);
+  });
+  tplSel.addEventListener('change', function(){
+    var t=TEMPLATES[tplSel.value]; if(!t) return;
+    txt.value=t.v;
+    state.ladder = (t.ladder===true);
+    if(t.paper && !(t.paper==='liniya' && state.paper==='wide')){ state.paper=t.paper; activateSeg('segPaper', t.paper); }
+    if(t.size){ state.size=t.size; activateSeg('segSize', t.size); }
+    render();
   });
 
   /* ---- мої шаблони: до 5 збережених аркушів (localStorage, лише на цьому пристрої) ---- */
@@ -750,18 +730,15 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
 
   function seg(id, key){
     var box=document.getElementById(id);
-    box.addEventListener('click', function(e){
-      var b=e.target.closest('button'); if(!b) return;
-      [].forEach.call(box.querySelectorAll('button'), function(x){ x.classList.remove('on'); });
-      b.classList.add('on');
-      state[key]=b.dataset.v;
+    box.addEventListener('change', function(){
+      state[key]=box.value;
+      if(key==='paper') state.ladder=false;
       render();
     });
   }
   seg('segPaper','paper'); seg('segStyle','style'); seg('segSize','size'); seg('segMode','mode');
-  document.getElementById('segPaper').addEventListener('click', function(){ state.ladder=false; });
 
-  txt.addEventListener('input', function(){ state.ladder=false; render(); });
+  txt.addEventListener('input', function(){ state.ladder=false; tplSel.value=''; render(); });
   chkName.addEventListener('change', render);
   chkDecor.addEventListener('change', render);
 
@@ -769,7 +746,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
 
   var printFmt="A4";
   var segPrint=document.getElementById('segPrint');
-  if(segPrint){ segPrint.addEventListener('click', function(e){ var b=e.target.closest('button'); if(!b)return; [].forEach.call(segPrint.querySelectorAll('button'),function(x){x.classList.remove('on');}); b.classList.add('on'); printFmt=b.dataset.v; }); }
+  if(segPrint){ segPrint.addEventListener('change', function(){ printFmt=segPrint.value; }); }
   var btnPrint=document.getElementById('btnPrint'); if(btnPrint){ btnPrint.onclick=function(){ printPaper(printFmt); }; }
   var btnPrev=document.getElementById('btnPrev'); if(btnPrev){ btnPrev.onclick=function(){ var pv=document.getElementById('preview'); if(pv) pv.scrollIntoView({behavior:'smooth',block:'start'}); }; }
 
