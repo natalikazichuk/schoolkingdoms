@@ -56,6 +56,19 @@ test('Пінок заблоковано, якщо суперник захища�
   assert.strictEqual(blocked, tries);
 });
 
+test('Вогник: невдача теж забирає всю ману', () => {
+  let failed = 0;
+  for (let i = 0; i < 40; i++) {
+    const st = battle({ 'base.spark': 0 }, ['base.spark']); st.bid = 'mf' + i;   // м = 0 → шанс 50%
+    st.me.mana = 20;
+    SB.useSkill(ctx, st, 'base.spark');
+    const e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+    assert.strictEqual(e.skill.mana, 5); assert.strictEqual(st.me.mana, 15);
+    if (e.skill.kind === 'fail') failed++;
+  }
+  assert.ok(failed > 0, 'були невдачі');
+});
+
 test('Вогник: мана, магічний урон; без мани — не можна', () => {
   const st = battle({ 'base.spark': 1, 'base.magic': 1 }, ['base.spark']);
   st.me.mana = 7;

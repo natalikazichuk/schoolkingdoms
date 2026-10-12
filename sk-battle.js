@@ -136,7 +136,7 @@
     var need = Math.round(50 + 50 * m), roll = R.d100(rnd);
     rec.need = need; rec.roll = roll;
     if (id === SKILL.spark.id) {
-      var cost = roll <= need ? SKILL.spark.mana : Math.ceil(SKILL.spark.mana / 2);
+      var cost = SKILL.spark.mana;                               // мана витрачається повністю, навіть якщо не вдалося
       st.me.mana = Math.max(0, num(st.me.mana) - cost); rec.mana = cost;
     }
     var magic = id === SKILL.spark.id, cfg = magic ? SKILL.spark : SKILL.kick;
