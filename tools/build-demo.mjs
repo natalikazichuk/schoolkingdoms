@@ -3,7 +3,8 @@
    build-demo.mjs — збирає ДЕМО-версію SchoolKingdoms (1 клас) у dist-demo/.
 
    Демо = статичний сайт без Firebase, входу, Героя, Арени й адмінки:
-     • сторінки 1 класу (klas-1/), learn/, ігри (games/), плеєр тестів;
+     • сторінки 1 класу (klas-1/), learn/, плеєр тестів;
+     • з ігор — лише «Світ навиворіт» (navyvorit/); games/ та igry.html — редірект на демо-головну;
      • firebase-config.js підміняється на demo/sk-demo.js (без бази);
      • нагороди, 🐞-звіти й прогрес героя — заглушки з demo/stubs/;
      • у футері немає вкладки «Арена», «Головна» веде на демо-головну;
@@ -22,8 +23,8 @@ const DEMO = path.join(ROOT, 'demo');
 const OUT = path.join(ROOT, 'dist-demo');
 
 /* Що потрапляє в демо (шляхи від кореня репозиторію). */
-const PAGE_DIRS = ['klas-1', 'games', 'learn'];
-const ROOT_PAGES = ['test.html', 'igry.html', 'prezentaciya.html'];
+const PAGE_DIRS = ['klas-1', 'learn', 'navyvorit'];
+const ROOT_PAGES = ['test.html', 'prezentaciya.html'];
 /* Сторінки з PAGE_DIRS, яких у демо НЕ має бути (лише приклади на головній).
    На їхньому місці — редірект на демо-головну. */
 const EXCLUDE_PAGES = [
@@ -31,7 +32,9 @@ const EXCLUDE_PAGES = [
   'klas-1/zadachi-zapys.html', 'klas-1/chas.html', 'klas-1/hroshi.html', 'klas-1/heometriya.html',
   'klas-1/labirynt.html', 'klas-1/pazly.html', 'klas-1/lohika.html',
   'klas-1/litery-druk-pysm.html', 'klas-1/pyshy-po-punktyru.html', 'klas-1/spysuvannya.html',
-  'klas-1/teksty.html', 'klas-1/vyznach-chastynu-movy.html'
+  'klas-1/teksty.html', 'klas-1/vyznach-chastynu-movy.html',
+  /* ігри повної версії: у демо з ігор лише «Світ навиворіт» */
+  ...fs.readdirSync(path.join(ROOT, 'games')).filter(f => f.endsWith('.html')).map(f => 'games/' + f)
 ];
 const SHARED = [
   'sk-curriculum.js', 'sk-finish.js', 'sk-items.js', 'sk-prize.js', 'sk-cards.js', 'sk-covers.js',
@@ -111,6 +114,8 @@ for (const r of pages) {
   write(r, demoPage(fs.readFileSync(path.join(ROOT, r), 'utf8')));
 }
 SHARED.forEach(copy);
+/* «Світ навиворіт»: власні стилі, скрипти й картинки серії (navyvorit/img/…). */
+walk('navyvorit').filter(f => !f.endsWith('.html') && !f.endsWith('.md')).forEach(copy);
 
 /* ── 3. Підміни ────────────────────────────────────────────── */
 for (const [dst, src] of Object.entries(REPLACE)) {
@@ -146,6 +151,9 @@ copied.add('index.html');
 const redirect = '<!DOCTYPE html><meta charset="utf-8"><title>SchoolKingdoms demo</title>'
   + '<meta http-equiv="refresh" content="0;url=index.html"><script>location.replace("index.html")</script>';
 REDIRECTS.forEach(r => { write(r, redirect); copied.add(r); });
+/* Вкладка «Ігри» у футері й кнопки «До ігор» → розділ ігор на демо-головній. */
+write('igry.html', redirect.split('index.html').join('index.html#games'));
+copied.add('igry.html');
 EXCLUDE_PAGES.forEach(r => {
   const up = '../'.repeat(r.split('/').length - 1);
   write(r, redirect.split('index.html').join(up + 'index.html'));
