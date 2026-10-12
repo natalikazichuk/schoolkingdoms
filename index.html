@@ -177,7 +177,12 @@
         setTimeout(function(){ if(sp.parentNode) sp.parentNode.removeChild(sp); }, 500);
       }, wait);
     }
-    window.addEventListener('load', hide);
+    // Ховаємо, щойно розмітка сторінки готова (виклик у кінці <body>), а не
+    // після 'load': 'load' чекає ВСІ картинки, шрифти й модулі — на повільному
+    // інтернеті заставка висіла до MAX, хоча сторінка вже була готова.
+    // Картинки довантажуються вже під відкритою сторінкою.
+    window.skHideSplash = hide;
+    document.addEventListener('DOMContentLoaded', hide);
     setTimeout(hide, MAX);
   })();
   </script>
@@ -221,7 +226,7 @@
     <!-- ВЕЛИКИЙ ЛОГОТИП: заміни src="logo-big.webp" та href за потреби.
          WebP замість PNG: 2.5 МБ → 382 КБ на першому екрані сайту. -->
     <a class="hero-logo-link" href="index.html">
-      <img class="hero-logo" src="logo-big.webp" width="1536" height="1024" fetchpriority="high" alt="SchoolKingdoms — Твої знання. Твоє королівство."
+      <img class="hero-logo" src="logo-big.webp" width="960" height="596" fetchpriority="high" alt="SchoolKingdoms — Твої знання. Твоє королівство."
            onerror="this.style.display='none';this.parentElement.classList.add('ph')">
     </a>
 
@@ -277,6 +282,7 @@
   </footer>
 
   <!-- ── Авторедірект: лендінг бачать лише гості; залогінених кидаємо в їхній кабінет ── -->
+  <script>window.skHideSplash && skHideSplash();</script>
   <script type="module" src="firebase-config.js"></script>
   <script>
   (function(){

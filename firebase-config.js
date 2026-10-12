@@ -40,7 +40,7 @@ import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword,
   signOut, onAuthStateChanged,
   getFirestore, initializeFirestore, doc, getDoc, setDoc, updateDoc, addDoc, deleteDoc,
-  collection, getDocs, query, where, serverTimestamp, runTransaction
+  collection, getDocs, query, where, serverTimestamp, runTransaction, Timestamp
 } from "./sk-fb.js?v=1";
 
 // Налаштування старого проєкту Firebase. sk-fb.js їх не використовує,
@@ -58,6 +58,56 @@ const firebaseConfig = {
 const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = initializeFirestore(app);
+
+/* ── Кеш колекції tests ──
+   listActiveTests викликають майже всі сторінки (герой, кабінет, навчання,
+   тести, сам тест — і там двічі), а колекція важка: усі тести з усіма
+   питаннями. Тягнемо її раз і тримаємо TESTS_TTL у пам'яті сторінки та в
+   sessionStorage (переживає перехід між сторінками в цій вкладці).
+   Не localStorage: там прогрес дитини, і великий кеш міг би з'їсти квоту.
+   Кожен виклик отримує свіжу копію (JSON.parse), тож сторінки можуть
+   змінювати список, не псуючи кеш. Адмінка (saveTest/…) кеш скидає. */
+const TESTS_TTL = 5 * 60 * 1000;
+const TESTS_KEY = 'sk-tests-cache-v1';
+let testsMem = null;        // { at, json } або { at, p } поки йде запит
+function testsToJson(rows) {
+  return JSON.stringify(rows, function (k, v) {
+    return (this[k] instanceof Timestamp) ? { $ts: this[k].toMillis() } : v;
+  });
+}
+function testsFromJson(json) {
+  return JSON.parse(json, (k, v) =>
+    (v && typeof v === 'object' && typeof v.$ts === 'number' && Object.keys(v).length === 1)
+      ? Timestamp.fromMillis(v.$ts) : v);
+}
+function dropTestsCache() {
+  testsMem = null;
+  try { sessionStorage.removeItem(TESTS_KEY); } catch (e) {}
+}
+async function allTestsCached() {
+  const now = Date.now();
+  if (!testsMem) {
+    try {
+      const c = JSON.parse(sessionStorage.getItem(TESTS_KEY) || 'null');
+      if (c && typeof c.json === 'string' && now - c.at < TESTS_TTL) testsMem = c;
+    } catch (e) {}
+  }
+  if (testsMem && now - testsMem.at < TESTS_TTL) {
+    const json = testsMem.json || await testsMem.p;
+    return testsFromJson(json);
+  }
+  const p = getDocs(collection(db, 'tests')).then(snap => {
+    const rows = [];
+    snap.forEach(d => rows.push({ id: d.id, data: d.data() }));
+    const json = testsToJson(rows);
+    testsMem = { at: Date.now(), json };
+    try { sessionStorage.setItem(TESTS_KEY, JSON.stringify(testsMem)); } catch (e) {}
+    return json;
+  });
+  testsMem = { at: now, p };
+  p.catch(() => { if (testsMem && testsMem.p === p) testsMem = null; });   // помилку не кешуємо
+  return testsFromJson(await p);
+}
 
 // Сесія «прилипає» між вкладками й заходами (cookie сервера на рік), тому
 // відкриття гри/тесту в новій вкладці й перехід між сторінками НЕ розлогінюють.
@@ -831,11 +881,12 @@ const SK = {
   },
 
   // Лише активні тести (для Академії / tests.html). grade — необов'язковий фільтр.
+  // Колекція — разом з усіма питаннями, тож її тягнемо через кеш (allTestsCached).
   async listActiveTests(grade) {
-    const snap = await getDocs(collection(db, 'tests'));
+    const all = await allTestsCached();
     const out = [];
-    snap.forEach(d => {
-      const t = d.data();
+    all.forEach(d => {
+      const t = d.data;
       if (t.active === false) return;
       if (grade != null && Number(t.grade) !== Number(grade)) return;
       out.push(Object.assign({ id: d.id }, t));
@@ -852,6 +903,7 @@ const SK = {
 
   // Створити (без id) або оновити (з id) тест. -> id
   async saveTest(test) {
+    dropTestsCache();
     if (!test || typeof test !== 'object') throw new Error('empty-test');
     const { id, ...data } = test;
     data.updatedAt = serverTimestamp();
@@ -865,11 +917,13 @@ const SK = {
   },
 
   async deleteTest(id) {
+    dropTestsCache();
     if (!id) return;
     await deleteDoc(doc(db, 'tests', id));
   },
 
   async setTestActive(id, active) {
+    dropTestsCache();
     if (!id) return;
     await updateDoc(doc(db, 'tests', id), {
       active: !!active,
