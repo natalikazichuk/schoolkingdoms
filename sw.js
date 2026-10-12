@@ -166,8 +166,12 @@ async function pageStrategy(event){
   }
 }
 
-/* Свої файли (css/js/картинки): як і сторінки — спершу мережа, щоб після
-   оновлення сайту не підсунути старий скрипт; без мережі — з кешу. */
+/* Свої файли (css/js): як і сторінки — спершу мережа, щоб після оновлення
+   сайту не підсунути старий скрипт; без мережі — з кешу.
+   Картинки, звуки, шрифти — одразу з кешу, а свіжа версія тихо
+   довантажується у фоні (наступного разу вже буде вона). Раніше й вони
+   чекали мережу до 4 с, і сайт із кешем вантажився так само повільно. */
+const MEDIA_RE = /\.(?:png|jpe?g|webp|gif|svg|ico|mp3|wav|ogg|woff2?)$/i;
 async function localAssetStrategy(event){
   const req = event.request;
   const cache = await caches.open(CACHE);
@@ -176,6 +180,10 @@ async function localAssetStrategy(event){
     if(res && res.ok) cache.put(req, res.clone());
     return res;
   });
+  if(hit && MEDIA_RE.test(new URL(req.url).pathname)){
+    event.waitUntil(net.catch(() => null));
+    return hit;
+  }
   if(!hit){
     try { return await net; } catch(e){ return new Response('', { status: 504, statusText: 'offline' }); }
   }
