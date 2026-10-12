@@ -51,6 +51,10 @@ async function call(method, path, body, auth) {
   return json || {};
 }
 
+/* Власні маршрути сервера, яких немає у Firebase (книга вмінь тощо):
+   skApi('POST', 'skills/learn', {id}) → відповідь або FirebaseError з code. */
+export function skApi(method, path, body) { return call(method, path, body); }
+
 /* ---------- Timestamp ---------- */
 export class Timestamp {
   constructor(seconds, nanoseconds) {

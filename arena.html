@@ -1186,6 +1186,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 @media(max-width:520px){#wtabGear{--ek-cell:66px}.ek-slots{grid-template-columns:repeat(3,var(--ek-cell))}.ek-body{gap:10px}}
 
 </style>
+<link rel="stylesheet" href="sk-book.css?v=1">
 </head>
 <body>
 <div class="bg-img"></div>
@@ -1467,6 +1468,9 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 
 <!-- гардероб: вибір образу бійця -->
 <div class="ward" id="ward" hidden>
+ <div class="skb-stage">
+  <!-- ліворуч від вікна: панель вмінь для бою (sk-book.js) -->
+  <div class="skb-sides"><aside class="skb-bar" id="skbBar" aria-label="Панель вмінь"></aside></div>
   <div class="ward-card">
     <div class="ward-h"><b>🎒 Інвентар</b><button class="ward-x" id="wardX" aria-label="Закрити">✕</button></div>
 
@@ -1490,11 +1494,15 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
           <div class="ek-stats" id="ek-statGrid"></div>
         </section>
         <section class="ek-slots" id="ek-slots"></section>
-        <section class="ek-inv">
-          <div class="ek-inv-h"><b>🎒 Сумка <small class="ek-bagc" id="ek-bagCount"></small></b><span class="ek-coins"><span id="ek-coins">540</span></span></div>
-          <div class="ek-tabs" id="ek-tabs"></div>
-          <div class="ek-grid" id="ek-invGrid"></div>
-        </section>
+        <!-- сумка ↔ книга вмінь: кнопка «📖 Книга вмінь» під слотами перегортає панель (sk-book.js) -->
+        <section class="ek-inv skb-flip" id="ek-flip"><div class="skb-flip-in">
+          <div class="skb-face front">
+            <div class="ek-inv-h"><b>🎒 Сумка <small class="ek-bagc" id="ek-bagCount"></small></b><span class="ek-coins"><span id="ek-coins">540</span></span></div>
+            <div class="ek-tabs" id="ek-tabs"></div>
+            <div class="ek-grid" id="ek-invGrid"></div>
+          </div>
+          <div class="skb-face back" id="ek-book"></div>
+        </div></section>
       </div>
       <section class="ek-beltbar"><div class="ek-belt-lbl">🪢 Пояс <span class="ek-belt-c" id="ek-beltCount"></span></div><div class="ek-belt" id="ek-belt"></div></section>
       <section class="ek-store" id="ek-store" hidden></section>
@@ -1516,6 +1524,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
     </div>
 
   </div>
+ </div>
 </div>
 
 <!-- ── навігація ── -->
@@ -2215,6 +2224,7 @@ window.SKHERO = (function(){
   /* перемикання вкладок гардероба (gear / look / items) */
   function switchWTab(tab){
     var map={gear:'wtabGear', look:'wtabLook', items:'wtabItems'};
+    $('ward').classList.toggle('skb-look', tab!=='gear');   // бокова панель вмінь — лише біля спорядження
     Object.keys(map).forEach(function(t){ var el=$(map[t]); if(el) el.classList.toggle('hidden', t!==tab); });
     document.querySelectorAll('.wtab').forEach(function(b){
       b.classList.toggle('on', b.getAttribute('data-tab')===(tab==='items'?'gear':tab));
@@ -2248,6 +2258,7 @@ window.SKHERO = (function(){
   /* інвентар на потрібному розділі: сумка, спорядження, скриня, смітник */
   function openInvSection(sec){
     openWardrobe();
+    if(sec==='bag' && window.SKBOOK && SKBOOK.isOpen()) SKBOOK.close();
     var id = {bag:'ek-invGrid', gear:'ek-slots', chest:'ek-sChest', trash:'ek-sTrash'}[sec];
     setTimeout(function(){
       var el = id && document.getElementById(id); if(!el) return;
@@ -3224,7 +3235,7 @@ window.SKHERO = (function(){
     var himg = $('heroImgBtn');
     if(himg) himg.addEventListener('click', openWardrobe);
     $('wardX').addEventListener('click', function(){ $('ward').hidden=true; });
-    $('ward').addEventListener('click', function(e){ if(e.target===$('ward')) $('ward').hidden=true; });
+    $('ward').addEventListener('click', function(e){ if(e.target===$('ward') || e.target.classList.contains('skb-stage')) $('ward').hidden=true; });
     document.querySelectorAll('.wtab').forEach(function(b){
       b.addEventListener('click', function(){ switchWTab(b.getAttribute('data-tab')); });
     });
@@ -3420,6 +3431,8 @@ window.SKHERO = (function(){
 </script>
 
 <script src="sk-items.js?v=10"></script>
+<script src="sk-skills.js?v=6"></script>
+<script src="sk-book.js?v=1"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
    Дані ЗАРАЗ demo (локально). Крок 2: джерело речей → Firestore (адмінка).
@@ -3674,7 +3687,8 @@ function renderStats(){var t=totals();
 function renderSlots(){q('ek-slots').innerHTML=SLOT_DEFS.map(function(d){var id=d[0],lab=d[1],ghost=d[2];var item=EQUIP[id];
  var inner=item?chip(item,' data-src="slot" data-slot="'+id+'" title="'+esc(item.name||'')+' — надіто ✔️"').replace('class="ek-chip ','class="ek-chip ek-drag ')+'<span class="ek-worn" aria-label="надіто">✔</span>'
   :'<span class="ek-gh">'+ghost+'</span>';
- return '<div class="ek-slot'+(item?' ek-filled':'')+'" data-slot="'+id+'">'+inner+'<span class="ek-lab">'+lab.split('|').join('<br>')+'</span></div>';}).join('');}
+ return '<div class="ek-slot'+(item?' ek-filled':'')+'" data-slot="'+id+'">'+inner+'<span class="ek-lab">'+lab.split('|').join('<br>')+'</span></div>';}).join('')
+  +(window.SKBOOK?SKBOOK.btnHtml():'');}   /* під слотами — кнопка «📖 Книга вмінь» (sk-book.js) */
 
 function renderInv(){var f=null;for(var i=0;i<TABS.length;i++)if(TABS[i][0]===curTab)f=TABS[i][3];
  var list=INV.filter(function(x){return x.qty>0&&f(x.cat);});var g=q('ek-invGrid');
@@ -3849,7 +3863,7 @@ function loadData(force){if((loaded&&!force)||loading)return Promise.resolve();l
    try{console.error('[гардероб] не вдалось прочитати предмети:',e);}catch(_){}
    renderAll();});}
 if(window.SKHERO)SKHERO.on(function(st){if(loaded)applyState(st);});
-window.EKEQUIP={render:function(token,hd){if(hd){['health','mana','agility','accuracy','coins','baseHP'].forEach(function(k){if(hd[k]!=null)HERO[k]=hd[k];});if(hd.level!=null)LEVEL.level=hd.level;if(hd.xp!=null)LEVEL.xp=hd.xp;if(hd.xpMax!=null&&hd.xpMax>0)LEVEL.xpMax=hd.xpMax;if(hd.name!=null){var nn=document.getElementById('ek-heroName');if(nn)nn.textContent=hd.name;}if(hd.grade!=null){var gg=document.getElementById('ek-heroGrade');if(gg)gg.textContent=hd.grade;}}paintAvatar(token);renderAll();loadData();},reload:function(){return loadData(true);}};
+window.EKEQUIP={render:function(token,hd){if(hd){['health','mana','agility','accuracy','coins','baseHP'].forEach(function(k){if(hd[k]!=null)HERO[k]=hd[k];});if(hd.level!=null)LEVEL.level=hd.level;if(hd.xp!=null)LEVEL.xp=hd.xp;if(hd.xpMax!=null&&hd.xpMax>0)LEVEL.xpMax=hd.xpMax;if(hd.name!=null){var nn=document.getElementById('ek-heroName');if(nn)nn.textContent=hd.name;}if(hd.grade!=null){var gg=document.getElementById('ek-heroGrade');if(gg)gg.textContent=hd.grade;}}paintAvatar(token);renderAll();loadData();if(window.SKBOOK)SKBOOK.refresh();},reload:function(){return loadData(true);}};   /* книга вмінь — свіжий стан з бази (рівень — той, що бачить сервер) */
 function init(){renderAll();paintAvatar(null);loadData();}
 if(document.readyState!=='loading')init();else document.addEventListener('DOMContentLoaded',init);
 })();
