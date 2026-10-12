@@ -196,7 +196,7 @@ function paintBattle(bs){
     var p = b ? Math.round(Number(b.me.sk[id] || 0) * 100) : pct(id);
     var cls = 'skb-slot full skb-bt', badge = '', tip = s.name + ' — ' + SKS.effectText(id, p / 100);
     if (b) {
-      var cd = (b.me.cd || {})[id], sel2 = b.me.skill === id && b.me.skillRound === b.round;
+      var cd = (b.me.cd || {})[id], sel2 = b.me.skill === id;
       if (sel2) { cls += ' on'; tip += ' · обрано на цей хід'; }
       else if (cd && b.round <= cd) { cls += ' cd'; badge = '<span class="skb-cd">' + (cd - b.round + 1) + '</span>'; tip += ' · перезарядка'; }
       else if (id === 'base.spark' && Number(b.me.mana) < 5) { cls += ' cd'; badge = '<span class="skb-cd">💧</span>'; tip += ' · мало мани'; }
@@ -206,7 +206,7 @@ function paintBattle(bs){
       + '<div class="' + cls2 + '" style="--p:' + p + '"><div class="in">' + s.icon + '</div></div>' + badge + '</div>';
   }
   var hint = !any ? 'Постав вміння:<br>Інвентар → 📖'
-    : b ? (b.me.skill ? 'Вміння вдарить<br>у зону атаки' : 'Торкнись — удар<br>вмінням цього ходу') : '';
+    : b ? (b.me.skill ? 'Б\'є щоходу, коли<br>доступне · ще раз — зняти' : 'Торкнись — вміння<br>битиме щоходу') : '';
   if (b && b.me.sk['base.spark'] != null) hint += '<br>💧 мана: ' + Math.round(Number(b.me.mana) || 0);
   host.innerHTML = h + (hint ? '<div class="hint">' + hint + '</div>' : '');
 }

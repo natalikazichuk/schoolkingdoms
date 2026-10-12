@@ -1604,7 +1604,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
 <script src="sk-arena-rules.js?v=18"></script>
-<script src="sk-battle.js?v=5"></script>
+<script src="sk-battle.js?v=7"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
    Інвентар, скриня, смітник, продане / куплене сьогодні й монети
@@ -2035,11 +2035,11 @@ window.SKHERO = (function(){
     col.addEventListener('click', function(e){
       var b = e.target.closest('[data-skb-use]'); if(!b || !B || !live() || UI.resolving) return;
       var id = b.getAttribute('data-skb-use'), why = SB.skillBlock(B, id);
+      // вибір лишається, доки гравець його не змінить: вміння б'є щоходу, коли доступне
       if(B.me.skill===id){ SB.useSkill(ctx(), B, null); }
-      else if(why==='cd') { showToast('⏳ Перезарядка', 'Ще '+((B.me.cd||{})[id]-B.round+1)+' хід.'); return; }
-      else if(why==='mana') { showToast('💧 Не вистачає мани', 'Потрібно 5 мани'); return; }
-      else if(why) return;
-      else SB.useSkill(ctx(), B, id);
+      else if(!SB.useSkill(ctx(), B, id)) return;
+      else if(why==='cd') showToast('⏳ Перезарядка', 'Обрано — спрацює, щойно перезарядиться (ще '+((B.me.cd||{})[id]-B.round+1)+' хід.).');
+      else if(why==='mana') showToast('💧 Не вистачає мани', 'Обрано — спрацює, коли буде 5 мани.');
       saveBattle(); if(window.SKBOOK) SKBOOK.paintBattle(B);
     });
   }
@@ -3620,8 +3620,8 @@ window.SKHERO = (function(){
 </script>
 
 <script src="sk-items.js?v=10"></script>
-<script src="sk-skills.js?v=7"></script>
-<script src="sk-book.js?v=3"></script>
+<script src="sk-skills.js?v=8"></script>
+<script src="sk-book.js?v=4"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
    Дані ЗАРАЗ demo (локально). Крок 2: джерело речей → Firestore (адмінка).
@@ -4353,7 +4353,7 @@ window.addEventListener('pagehide',function(){if(q('shop')&&!q('shop').hidden)lo
 })();
 </script>
 <script>window.SK_HEADER_SUB='Турнірна арена';</script>
-<script src="sk-header.js?v=7"></script>
+<script src="sk-header.js?v=9"></script>
 </body>
 </html>
 
