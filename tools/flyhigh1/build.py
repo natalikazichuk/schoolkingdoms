@@ -1,10 +1,10 @@
 """Збирає тренажери FlyHigh 1 (klas-1/flyhigh-1-*.html) з рушія klas-2/flyhigh-2.html.
 Кожна сторінка — самодостатній файл: рушій + спільний набір генераторів
 (kit.js) + словник і рівні тренажера (<назва>.js / <назва>.gen.js).
-Налаштування сторінок — trainers.json.
+Налаштування сторінок — trainers.json («open»: усі рівні відкриті — для тестів).
 
 Запуск:  python3 tools/flyhigh1/build.py              → усі тренажери
-         python3 tools/flyhigh1/build.py . flyhigh-1-alphabet   → лише один
+         python3 tools/flyhigh1/build.py . flyhigh-1-tests   → лише один
 Після правки рушія klas-2/flyhigh-2.html — перезібрати й перевірити."""
 import os, sys, json
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -25,6 +25,9 @@ EXTRA_CSS = """/* парта (desk), крашанки (stripes / spots), вел�
 .egg.plain{background:#f6efe2}
 .dot.big{width:110px;height:110px;border-width:4px}
 .board .word{text-align:center}
+.opt .dot{width:30px;height:30px;border-width:2px}
+.opt .many-in{font-size:24px;letter-spacing:1px;line-height:1.2;display:inline-block;max-width:150px}
+.opt .numopt{font-family:'Fredoka',sans-serif;font-size:40px;color:var(--ink)}
 """
 
 def rep(t, a, b, n=1):
@@ -61,6 +64,10 @@ def build(c):
     t = rep(t, '"FlyHigh 2 пройдено — нагороду отримано!"', f'"{c["title"]} пройдено — нагороду отримано!"')
     t = rep(t, 'href:"flyhigh-2.html"', f'href:"{c["slug"]}.html"')
     t = rep(t, ".hero-stub{", EXTRA_CSS + ".hero-stub{")
+    if c.get("open"):                     # тести: усі рівні відкриті одразу
+        t = rep(t, "const S = { unlocked:0,", "const S = { unlocked:N-1,")
+        t = rep(t, "S.unlocked = Math.min(N-1, Math.max(0, o.unlocked|0));", "S.unlocked = N-1;")
+        t = rep(t, "Не більше 2 помилок — рівень пройдено · без помилок — 3 зірки", c["note"])
     out = os.path.join(REPO, "klas-1", c["slug"] + ".html")
     open(out, "w", encoding="utf-8").write(t)
     print("built", out)
