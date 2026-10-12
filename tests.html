@@ -715,8 +715,8 @@
         + bar(testFrac(t), label, cls) + '</a>';
     }
     /* Вбудовані картки (словник) не лежать у розділах карти — малюємо їх
-       окремим розділом «Словник» під усіма розділами, у кожному класі,
-       де є предмет English. */
+       окремим розділом «Словник» першим, над усіма розділами, у кожному
+       класі, де є предмет English. */
     var std = s.tests.filter(function(t){ return t.std; });
     var rest = s.tests.filter(function(t){ return !t.std; });
     /* Групи — розділи з карти. Якщо розділ один і без назви, заголовки не
@@ -727,8 +727,8 @@
     /* Кілька розділів → теми йдуть у смужку над плитками; натискання гортає
        до обраної теми («Усі теми» — на початок). */
     var side = [];
-    groups.forEach(function(g){ side.push({ name: g.name || 'Інші', tests: g.tests }); });
     if(std.length) side.push({ name:'Словник', tests: std });
+    groups.forEach(function(g){ side.push({ name: g.name || 'Інші', tests: g.tests }); });
     var useSide = titled > 0 && side.length > 1;
     document.body.classList.toggle('has-side', useSide);
     if(useSide){
@@ -764,6 +764,11 @@
       spyTopic();
       return;
     }
+    if(std.length){
+      html += '<div class="tgroup"><span class="tg-name">Словник</span>'
+            + '<span class="tg-cnt">'+std.filter(isPassed).length+' / '+std.length+'</span></div>'
+            + '<div class="grid">'+std.map(cardHtml).join('')+'</div>';
+    }
     groups.forEach(function(g){
       var done = g.tests.filter(isPassed).length;
       if(titled && g.name){
@@ -775,11 +780,6 @@
       }
       html += '<div class="grid">'+g.tests.map(cardHtml).join('')+'</div>';
     });
-    if(std.length){
-      html += '<div class="tgroup"><span class="tg-name">Словник</span>'
-            + '<span class="tg-cnt">'+std.filter(isPassed).length+' / '+std.length+'</span></div>'
-            + '<div class="grid">'+std.map(cardHtml).join('')+'</div>';
-    }
     q('screen').innerHTML=html;
   }
   function render(){
