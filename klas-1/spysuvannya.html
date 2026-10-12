@@ -29,13 +29,7 @@ body{
 .iconbtn:active{transform:translateY(1px)}
 
 .page{max-width:600px;margin:0 auto;padding:2px 12px 26px;display:flex;flex-direction:column;gap:16px}
-@media screen and (min-width:1000px){
-  .page{max-width:1240px;display:grid;grid-template-columns:minmax(440px,560px) minmax(0,1fr);align-items:start;gap:22px}
-  .preview{position:sticky;top:10px}
-  .sheet{max-width:none;width:auto;height:calc(100vh - 175px);aspect-ratio:210/297}
-  .sheet svg{height:100%}
-  #btnPrev{display:none}
-}
+
 
 /* APP CARD */
 .app{background:var(--card);border-radius:26px;overflow:hidden;
@@ -149,6 +143,15 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
   -webkit-print-color-adjust:exact;print-color-adjust:exact}
 .sheet svg{display:block;width:100%;height:auto}
 
+/* ДВІ КОЛОНКИ: налаштування + повний аркуш поруч */
+@media screen and (min-width:1000px){
+  .page{max-width:1280px;display:grid;grid-template-columns:minmax(420px,520px) minmax(0,1fr);align-items:start;gap:24px}
+  .preview{position:sticky;top:8px;align-self:start}
+  .preview .sheet{--sh:calc(100vh - 150px);height:var(--sh);width:calc(var(--sh) * 210 / 297);max-width:100%;flex:none}
+  .preview .sheet svg{width:100%;height:100%}
+  #btnPrev{display:none}
+}
+
 /* PRINT */
 @media print{
   @page{margin:0}
@@ -224,6 +227,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
 
         <label class="chk"><span class="ci"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3" stroke-linecap="round"/></svg></span>Рядок «Ім'я / Дата»<input type="checkbox" id="chkName" checked></label>
         <label class="chk"><span class="ci"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M8 2.2c-3.2 0-5.8 2.3-5.8 5.2 0 2.3 1.9 3.4 3.4 3.4.9 0 1.3.6 1.3 1.2 0 .9.6 1.6 1.6 1.6 3 0 5.3-2.4 5.3-5.6C13.8 4.6 11.2 2.2 8 2.2Z"/><circle cx="5.6" cy="7" r=".9" fill="currentColor" stroke="none"/><circle cx="8" cy="5.4" r=".9" fill="currentColor" stroke="none"/><circle cx="10.4" cy="7" r=".9" fill="currentColor" stroke="none"/></svg></span>Оздоблення (для друку кольором)<input type="checkbox" id="chkDecor" checked></label>
+        <label class="chk"><span class="ci"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2 5h12M2 9h7.5M11 9h3M2 13h5"/></svg></span>Переносити слова (по складах)<input type="checkbox" id="chkHyph"></label>
       </div>
 
       <div class="actions">
@@ -265,6 +269,33 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
   var txt=document.getElementById('txt');
   var chkName=document.getElementById('chkName');
   var chkDecor=document.getElementById('chkDecor');
+  var chkHyph=document.getElementById('chkHyph');
+
+  /* ---- перенос слів по складах (спрощені шкільні правила) ---- */
+  var VOW="аеєиіїоуюяАЕЄИІЇОУЮЯaeiouyAEIOUY";
+  var GLUE="ьЬ'’ʼ";                          /* не відриваються від попередньої літери */
+  function isV(c){ return VOW.indexOf(c)>=0; }
+  function isL(c){ return /[A-Za-zА-Яа-яҐґЄєІіЇї'’ʼ]/.test(c); }
+  /* позиції, де можна розірвати слово: межі складів, без одиночних літер на краях */
+  function hyphPoints(w){
+    var m=w.match(/^([^A-Za-zА-Яа-яҐґЄєІіЇї]*)(.*?)([^A-Za-zА-Яа-яҐґЄєІіЇї'’ʼ]*)$/);
+    var pre=m[1].length, core=m[2], pts=[];
+    if(core.length<4 || !/^[A-Za-zА-Яа-яҐґЄєІіЇї'’ʼ]+$/.test(core)) return pts;
+    var vi=[]; for(var i=0;i<core.length;i++) if(isV(core[i])) vi.push(i);
+    for(var k=0;k+1<vi.length;k++){
+      var a=vi[k], b=vi[k+1], cut;
+      if(b-a===1) cut=b;                                   /* ді-яти */
+      else{
+        cut=a+1;                                           /* ма-ма */
+        if(b-a>2 && !/^д[жз]$/i.test(core.substr(a+1,2))) cut=a+2;   /* сес-тра, жов-тень, але ґу-дзик */
+        while(cut<b && (core[cut]==='й'||core[cut]==='Й'||GLUE.indexOf(core[cut])>=0)) cut++;   /* чай-ник */
+        if(cut>a+1 && b-cut<1) cut=b;
+        if(GLUE.indexOf(core[cut])>=0) continue;
+      }
+      if(cut>=2 && core.length-cut>=2) pts.push(pre+cut);
+    }
+    return pts;
+  }
 
   var state={ paper:'liniya', style:'dot', size:'big', mode:'trace', ladder:false };
 
@@ -484,6 +515,17 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
       for(var q=0;q<words.length;q++){
         var word=words[q], tryl=cur?cur+" "+word:word;
         if(w(tryl)<=lim()){cur=tryl;continue;}
+        if(chkHyph.checked){
+          var pts=hyphPoints(word), done=false;
+          for(var h=pts.length-1;h>=0;h--){
+            var head=word.slice(0,pts[h])+'-';
+            if(w(cur?cur+" "+head:head)<=lim()){
+              out.push(cur?cur+" "+head:head); cur=''; word=word.slice(pts[h]);
+              tryl=word; done=true; break;
+            }
+          }
+          if(done){ if(w(word)<=lim()){cur=word;continue;} }
+        }
         if(cur){out.push(cur);cur='';}
         if(w(word)<=lim()){cur=word;continue;}
         var piece='';
@@ -687,6 +729,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     activateSeg('segSize',state.size); activateSeg('segMode',state.mode);
     if(typeof t.name==='boolean') chkName.checked=t.name;
     if(typeof t.decor==='boolean') chkDecor.checked=t.decor;
+    chkHyph.checked=(t.hyph===true);
     render();
   }
   function renderMy(){
@@ -723,7 +766,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     var title=prompt('Назва шаблону:', def); if(title===null) return;
     title=title.trim()||def;
     a.push({title:title, v:txt.value, paper:state.paper, style:state.style, size:state.size, mode:state.mode,
-            ladder:state.ladder, name:chkName.checked, decor:chkDecor.checked});
+            ladder:state.ladder, name:chkName.checked, decor:chkDecor.checked, hyph:chkHyph.checked});
     storeMy(a); renderMy();
   };
   renderMy();
@@ -741,6 +784,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
   txt.addEventListener('input', function(){ state.ladder=false; tplSel.value=''; render(); });
   chkName.addEventListener('change', render);
   chkDecor.addEventListener('change', render);
+  chkHyph.addEventListener('change', render);
 
   txt.value="а б в г ґ д е\nма мо му ми ме\nМама мила раму.";
 
