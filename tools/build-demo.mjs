@@ -33,6 +33,8 @@ const EXCLUDE_PAGES = [
   'klas-1/labirynt.html', 'klas-1/pazly.html', 'klas-1/lohika.html',
   'klas-1/litery-druk-pysm.html', 'klas-1/pyshy-po-punktyru.html', 'klas-1/spysuvannya.html',
   'klas-1/teksty.html', 'klas-1/vyznach-chastynu-movy.html',
+  'klas-1/cherez-desyatok.html', 'klas-1/flyhigh-1-holidays.html',
+  'klas-1/flyhigh-1-units-7-10.html', 'klas-1/flyhigh-1-units-11-14.html',
   /* ігри повної версії: у демо з ігор лише «Світ навиворіт» */
   ...fs.readdirSync(path.join(ROOT, 'games')).filter(f => f.endsWith('.html')).map(f => 'games/' + f)
 ];
