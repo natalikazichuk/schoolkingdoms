@@ -1216,7 +1216,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 @media(max-width:520px){#wtabGear{--ek-cell:66px}.ek-slots{grid-template-columns:repeat(3,var(--ek-cell))}.ek-body{gap:10px}}
 
 </style>
-<link rel="stylesheet" href="sk-book.css?v=2">
+<link rel="stylesheet" href="sk-book.css?v=4">
 </head>
 <body>
 <div class="bg-img"></div>
@@ -1472,6 +1472,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
     <div class="xpwon" id="resXp">+25 досвіду</div>
     <div class="wearline" id="resNote" style="display:none"></div>
     <div class="wearline" id="resWear" style="display:none"></div>
+    <div class="wearline" id="resSkills" style="display:none"></div>
     <div class="logsave">
       <button type="button" id="resSaveLog" title="Зберегти журнал бою (кольоровий, відкривається в браузері)">💾 Зберегти журнал</button>
       <button type="button" id="resSaveTxt" title="Зберегти журнал як простий текст">📄 .txt</button>
@@ -1502,7 +1503,11 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <div class="ward" id="ward" hidden>
  <div class="skb-stage">
   <!-- ліворуч від вікна: панель вмінь для бою (sk-book.js) -->
-  <div class="skb-sides"><aside class="skb-bar" id="skbBar" aria-label="Панель вмінь"></aside></div>
+  <div class="skb-sides">
+    <!-- пояс: зілля й свитки на бій (рендер — renderBelt, перетягування — як і раніше) -->
+    <aside class="ek-beltbar skb-beltside" aria-label="Пояс"><div class="ek-belt-lbl">🪢 Пояс <span class="ek-belt-c" id="ek-beltCount"></span></div><div class="ek-belt" id="ek-belt"></div></aside>
+    <aside class="skb-bar" id="skbBar" aria-label="Панель вмінь"></aside>
+  </div>
   <div class="ward-card">
     <div class="ward-h"><b>🎒 Інвентар</b><button class="ward-x" id="wardX" aria-label="Закрити">✕</button></div>
 
@@ -1536,7 +1541,6 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
           <div class="skb-face back" id="ek-book"></div>
         </div></section>
       </div>
-      <section class="ek-beltbar"><div class="ek-belt-lbl">🪢 Пояс <span class="ek-belt-c" id="ek-beltCount"></span></div><div class="ek-belt" id="ek-belt"></div></section>
       <section class="ek-store" id="ek-store" hidden></section>
       <div class="ek-hint2"><b>Тапни</b> річ — відкриється картка з кнопками «Вдягнути» та «У смітник». Можна й <b>перетягнути</b> річ у слот — вдягнеться одразу.</div>
     </div>
@@ -1566,7 +1570,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
 <script src="sk-arena-rules.js?v=18"></script>
-<script src="sk-battle.js?v=3"></script>
+<script src="sk-battle.js?v=4"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
    Інвентар, скриня, смітник, продане / куплене сьогодні й монети
@@ -1991,6 +1995,20 @@ window.SKHERO = (function(){
       + '<div class="bbhint">'+(belt.every(function(b){ return b.used; }) ? 'Усе з пояса вже використано в цьому бою.' : chosen ? 'Спрацює в цьому ході, перед ударами. Натисни ще раз — скасувати.'
           : free ? 'Спецвміння ходу: використай одну річ із пояса (або перевдягнись).' : (live() ? 'Спецвміння цього ходу вже використано.' : ''))+'</div>';
   }
+  /* колонка вмінь: тап — обрати вміння на цей хід (ще тап — скасувати) */
+  function bindSkills(){
+    var col = $('btSkills'); if(!col) return;
+    col.addEventListener('click', function(e){
+      var b = e.target.closest('[data-skb-use]'); if(!b || !B || !live() || UI.resolving) return;
+      var id = b.getAttribute('data-skb-use'), why = SB.skillBlock(B, id);
+      if(B.me.skill===id){ SB.useSkill(ctx(), B, null); }
+      else if(why==='cd') { showToast('⏳ Перезарядка', 'Ще '+((B.me.cd||{})[id]-B.round+1)+' хід.'); return; }
+      else if(why==='mana') { showToast('💧 Не вистачає мани', 'Потрібно 5 мани'); return; }
+      else if(why) return;
+      else SB.useSkill(ctx(), B, id);
+      saveBattle(); if(window.SKBOOK) SKBOOK.paintBattle(B);
+    });
+  }
   function bindBelt(){
     var bar = $('beltBar'); if(!bar) return;
     bar.addEventListener('click', function(e){
@@ -2011,6 +2029,9 @@ window.SKHERO = (function(){
       out.push({neg: b.pct<0, ic: b.id ? itemIcon(b.id, FX_EMO[k]||'🧪') : (FX_EMO[k]||'🧪'), n: b.turns,
         title: b.name || 'Підсилення', text: (FX_UK[k]||k)+' '+(b.pct>0?'+':'')+b.pct+'%', left: 'Ще '+b.turns+' '+(b.turns===1?'хід':b.turns<5?'ходи':'ходів')});
     });
+    if(f.focus>0) out.push({neg:false, ic:'🕯️', n:f.focus, title:'Концентрація', text:'+'+(5*f.focus)+'% до урону. Хід без урону — шанс зосередитись ще більше; отримав урон — концентрацію збито.', left:'Доки не отримаєш урон'});
+    if(f.bond && u.sk) out.push({neg:false, ic:'🔗', n:'', title:"Зв'язок зі зброєю", text:'+'+Math.round(10*(u.sk['base.bond']||0))+'% урону: ти добре відчуваєш свою зброю.', left:'Доки не зміниш зброю'});
+    if(f.knock && B && f.knock===B.round) out.push({neg:true, ic:'😵', n:'', title:'Збитий з ніг', text:'Пінок збив з ніг — цей хід не атакує.', left:'Цей хід'});
     if(f.barrier>0) out.push({neg:false, ic:'🫧', n: f.barrier>1 ? '×'+f.barrier : '',
       title: "Бар'єр", text: "Поглине "+(f.barrier>1?f.barrier+' удари':'один удар')+", що забрав би здоров'я. Ухилився чи заблокував — бар'єр лишається.", left: 'До першого удару, що влучить'});
     if(f.fear>=imm) out.push({neg:false, ic:'😱', n:'∞', title:'Імунітет до страху', text:'Свитки страху більше не діють.', left:'До кінця бою'});
@@ -2386,7 +2407,8 @@ window.SKHERO = (function(){
   function loadHeroFighter(){
     var stats = {health:hero.health, accuracy:hero.accuracy, agility:hero.agility, mana:hero.mana};
     if(!RULES.fighter || !window.SKIT || !window.SK || !SK.getInventory || !SK.listItems) return Promise.resolve({p:plainFighter(stats), eq:[]});
-    return Promise.all([SK.getInventory(), SK.listItems()]).then(function(r){
+    var pHero = SK.getHero ? SK.getHero().catch(function(){ return null; }) : Promise.resolve(null);
+    return Promise.all([SK.getInventory(), SK.listItems(), pHero]).then(function(r){
       var by = {}; (r[1]||[]).forEach(function(it){ by[it.id] = it; });
       // одна річ на слот і лише відповідної категорії — так само, як показує інвентар
       var seen = {};
@@ -2402,7 +2424,14 @@ window.SKHERO = (function(){
         var bv = SKIT.store.bagView({inventory:r[0]||[]}, by, {dualWield:!!CFG.dualWield, isTwoHanded:RULES.isTwoHanded});
         belt = (bv.belt||[]).filter(Boolean).map(function(i){ return {base:by[i.id], inst:i}; });
       }catch(e){ belt = []; }
-      return {p:RULES.fighter(stats, eq, window.SKIT), eq:eq, belt:belt, catalog:r[1]||[]};
+      // вміння: майстерність 0…1 вивчених і активні з панелі (sk-skills.js; бій бере знімок на старті)
+      var sk = {}, bar = [], S = window.SKSKILLS;
+      if(S && r[2]){
+        var bst = S.bookState(r[2]);
+        Object.keys(bst.skills).forEach(function(id){ if(S.byId(id)) sk[id] = S.mastery(bst, id)/100; });
+        bar = bst.bar.filter(function(id){ return id && sk[id]!=null && S.byId(id).type==='A'; });
+      }
+      return {p:RULES.fighter(stats, eq, window.SKIT), eq:eq, belt:belt, catalog:r[1]||[], sk:sk, bar:bar};
     }).catch(function(e){ try{ console.error('[арена] екіпіровку не прочитано:', e); }catch(_){} return {p:plainFighter(stats), eq:[]}; });
   }
 
@@ -2531,7 +2560,7 @@ window.SKHERO = (function(){
     applySel();                          // вибір лишається з попереднього ходу
     renderLog();
     paintBelt(); paintFx();
-    if(window.SKBOOK) SKBOOK.paintBattle();   // колонка вмінь ліворуч від сцени
+    if(window.SKBOOK) SKBOOK.paintBattle(B);  // колонка вмінь ліворуч від сцени (вибір вміння на хід)
   }
   /* журнал — із записів бою (і доіграних без гравця ходів теж) */
   function renderLog(){
@@ -2546,8 +2575,23 @@ window.SKHERO = (function(){
       (e.first ? '<span class="use">🎲 Хто перший з поясом: ти '+e.first.me+' · '+biEsc(B.op.f.name)+' '+e.first.op+'</span>' : '')
       + (e.uses||[]).map(useLine).join('')
       + (e.auto ? '<span class="b" title="Хід без тебе: ті самі зони, що минулого разу">⏳ авто</span> ' : '')
-      + strikeLines(e));
+      + strikeLines(e) + skillLine(e));
     (e.broke||[]).forEach(function(b){ addBreak(b); });
+  }
+  /* рядок журналу: удар активним вмінням (у ту саму зону, що й основний) */
+  function usesWord(n){
+    if(n!==Math.floor(n)) return 'спрацювання';
+    var d=n%10, h=n%100;
+    return d===1&&h!==11 ? 'спрацювання' : d>=2&&d<=4&&(h<12||h>14) ? 'спрацювання' : 'спрацювань';
+  }
+  function skillLine(e){
+    var k = e.skill; if(!k) return '';
+    var S = window.SKSKILLS && SKSKILLS.byId(k.id), nm = S ? S.icon+' «'+S.name+'»' : '⚡ вміння';
+    var dice = '<span class="dice">🎲 '+k.roll+(k.ok?' ≤ ':' > ')+k.need+'%'+(k.calc && k.kind==='hit' ? ' · '+biEsc(k.calc)+' = '+k.dmg : '')+'</span>';
+    var t = k.kind==='fail' ? '<span class="b">не вдалося</span>'
+      : k.kind==='block' ? '<span class="b">заблоковано</span>'
+      : '<span class="g">влучив</span> (−'+dmgHtml(k.dmg, k.magDmg||0)+')' + (k.knock ? ' · <span class="crit">збив з ніг 😵</span> — суперник пропустить удар' : '');
+    return '<span class="ln use">Ти: '+nm+' → '+ZONE_UA[e.me.atk]+': '+t+(k.mana ? ' <span style="opacity:.75">(−'+k.mana+' мани)</span>' : '')+dice+'</span>';
   }
   /* Кожен удар — окремим рядком журналу: рядок N = мій удар N · удар суперника N.
      У кого ударів більше (додаткові атаки: 2, 3, 6…) — у зайвих рядках лише його удари.
@@ -2555,7 +2599,7 @@ window.SKHERO = (function(){
   function strikesOf(hit){
     if(!hit) return [];
     var hs = hit.hits;
-    if(hit.kind==='fear' || hit.kind==='skip' || !hs || !hs.length) return [hit];   // не атакував — один рядок
+    if(hit.kind==='fear' || hit.kind==='skip' || hit.kind==='knock' || !hs || !hs.length) return [hit];   // не атакував — один рядок
     return hs.map(function(h){ return { kind:h.kind, dmg:h.dmg||0, crit:!!h.crit, hits:[h] }; });
   }
   function strikeLines(e){
@@ -2575,7 +2619,6 @@ window.SKHERO = (function(){
       SB.catchUp(ctx(), B, Date.now()); saveBattle();
       if(!live()){ finishBattle(); return; }
     }
-    if(window.SKBOOK) SKBOOK.refresh();       // свіжа панель вмінь героя (колонка ліворуч)
     paintBattle();
     show('battle');
     startTimer();
@@ -2619,7 +2662,8 @@ window.SKHERO = (function(){
         var st = SB.create(ctx(), {
           heroId: battleHeroId(), kind: 'arena',
           me: { name: hero.name, avatar: hero.avatar, level: arena.level,
-                stats: {health:hero.health, accuracy:hero.accuracy, agility:hero.agility, mana:hero.mana}, eq: r.eq, belt: r.belt||[] },
+                stats: {health:hero.health, accuracy:hero.accuracy, agility:hero.agility, mana:hero.mana}, eq: r.eq, belt: r.belt||[],
+                sk: r.sk||{}, bar: r.bar||[] },
           op: { f: bot, p: bp }
         });
         var go = function(){ startBattle.busy = false; B = st; UI.logFrom = 0; localPut(B); startTicker(); enterBattle(); };
@@ -2945,20 +2989,23 @@ window.SKHERO = (function(){
     flashZone(e.me.atk, meHit.kind==='block'?'blockflash':'hitflash');
 
     // РЕЗУЛЬТАТ атаки → у панель праворуч (лишається), + спливаючі цифри на картках
-    setResult(meHit, opHit);
-    floatDmg('o', meHit);   // скільки втратив суперник від тебе
-    floatDmg('p', opHit);   // скільки втратив ти від суперника
+    setResult(meHit, opHit, e.skill);
+    var nMe = floatDmg('o', meHit);   // скільки втратив суперник від тебе — кожен удар окремо
+    floatDmg('p', opHit);             // скільки втратив ти від суперника
+    if(e.skill){ var ski = window.SKSKILLS && SKSKILLS.byId(e.skill.id);
+      floatOne('o', e.skill, nMe, nMe + 1, ski ? ski.icon : '⚡');
+      if(e.skill.knock) setTimeout(function(){ floatOne('o', {kind:'knock'}, 0, 1); }, (nMe+1)*380); }
 
     renderTurn(e);          // журнал: Хід N (+ поломки)
     (e.uses||[]).forEach(function(u){ (u.fx||[]).forEach(function(r){
       if(r.type==='scroll' && r.hit) floatDmg(u.side==='me'?'o':'p', r.hit);
       if(r.type==='heal' && r.hp>0){ var c=$(u.side==='me'?'pScene':'oScene'); if(c){ var el=document.createElement('div'); el.className='dmg-float hit'; el.style.color='#7dff9a'; el.textContent='+'+r.hp; c.appendChild(el); setTimeout(function(){ el.remove(); }, 2900); } }
     }); });
-    paintBelt(); paintFx();
+    paintBelt(); paintFx(); if(window.SKBOOK) SKBOOK.paintBattle(B);
 
     // анімації смужок
     updateForce('o', B.op); updateForce('p', B.me);
-    if(meHit.dmg>0) shakeCard('oScene');
+    if(meHit.dmg>0 || (e.skill && e.skill.dmg>0)) shakeCard('oScene');
     if(opHit.dmg>0) shakeCard('pScene');
 
     setTimeout(function(){
@@ -2982,7 +3029,7 @@ window.SKHERO = (function(){
     return who+' заблокував 🛡️';
   }
   /* результат ТВОЄЇ атаки → у панель праворуч; випадає й лишається до наступного ходу */
-  function setResult(meHit, opHit){
+  function setResult(meHit, opHit, sk){
     var rb = $('rbig'); if(!rb) return;
     var cls, num, lbl;
     if(meHit.kind==='fear'){ cls='miss'; num='—'; lbl='Ти під страхом 😱'; }
@@ -2995,16 +3042,19 @@ window.SKHERO = (function(){
     // короткий підсумок відповіді суперника
     var ok;
     if(opHit.kind==='fear') ok='не атакує (страх 😱)';
+    else if(opHit.kind==='knock') ok='не атакує (збитий з ніг 😵)';
     else if(opHit.kind==='skip') ok='удару не було';
     else if(opHit.kind==='barrier') ok='бар\'єр поглинув 🫧';
-    else if(opHit.kind==='dodge') ok='промах';
+    else if(opHit.kind==='dodge') ok=(opHit.hits||[]).some(function(h){ return h.skillDodge; }) ? 'ти ухилився 💨' : 'промах';
     else if(opHit.kind==='block') ok=blkWord(opHit, 'ти')+(opHit.dmg ? ' (−'+opHit.dmg+')' : '');
     else ok='−'+opHit.dmg+' тобі';
     rb.className = 'rbig ' + cls;
     var h0 = (meHit.hits || [meHit])[0] || {};
+    if(sk){ var ski = window.SKSKILLS && SKSKILLS.byId(sk.id), ic = ski ? ski.icon+' '+ski.name : '⚡';
+      lbl += ' · ' + ic + ': ' + (sk.kind==='hit' ? '−'+sk.dmg+(sk.knock?' 😵':'') : sk.kind==='block' ? 'блок' : 'не вдалось'); }
     rb.innerHTML = '<span class="rnum">'+num+'</span><span class="rlbl">'+lbl+'</span>'
       + (h0.hitRoll!=null ? '<span class="rdice" id="rdice"></span>' : '')
-      + '<span class="ropp">Суперник'+(opHit.kind==='fear'||opHit.kind==='skip' ? '' : ' → '+ZONE_UA[B.op.atk])+': '+ok+'</span>';
+      + '<span class="ropp">Суперник'+(opHit.kind==='fear'||opHit.kind==='skip'||opHit.kind==='knock' ? '' : ' → '+ZONE_UA[B.op.atk])+': '+ok+'</span>';
     if(h0.hitRoll!=null) rollDice($('rdice'), meHit.hits || [meHit]);
     void rb.offsetWidth;              // перезапуск drop-анімації
     rb.classList.add('show');
@@ -3029,19 +3079,30 @@ window.SKHERO = (function(){
   }
 
   /* спливаюча цифра над карткою бійця, який отримав удар */
-  function floatDmg(side, hit){
+  /* спливаючі цифри над карткою: КОЖЕН удар окремо (кілька ударів — по черзі, віялом),
+     icon — позначка вміння чи свитка перед числом */
+  function floatOne(side, h, i, n, icon){
     var card = $(side==='p' ? 'pScene' : 'oScene'); if(!card) return;
-    var el = document.createElement('div');
-    if(hit.kind==='fear'){ el.className='dmg-float miss'; el.textContent='😱'; }
-    else if(hit.kind==='skip'){ return; }
-    else if(hit.kind==='barrier'){ el.className='dmg-float blk'; el.textContent='🫧'; }
-    else if(hit.kind==='dodge'){ el.className='dmg-float miss'; el.textContent='промах'; }
-    else if(hit.kind==='block'){ var hb = hit.hits||[hit], ev = hb.some(function(h){ return h.evade; }), mg = !ev && hb.some(function(h){ return h.kind==='block' && h.magic; });
-      el.className='dmg-float blk'+(ev?' ev':mg?' mblk':''); el.textContent= hit.dmg ? '−'+hit.dmg : (ev ? 'відскочив 💨' : mg ? 'блок ✨' : 'блок'); }
-    else if(hit.kind==='crit'){ el.className='dmg-float crit'; el.textContent='−'+hit.dmg+'!'; }
-    else { el.className='dmg-float hit'; el.textContent='−'+hit.dmg; }
-    card.appendChild(el);
-    setTimeout(function(){ el.remove(); }, 2900);
+    var el = document.createElement('div'), pre = icon ? icon+' ' : '';
+    if(h.kind==='fear'){ el.className='dmg-float miss'; el.textContent='😱'; }
+    else if(h.kind==='knock'){ el.className='dmg-float miss'; el.textContent='😵'; }
+    else if(h.kind==='skip'){ return; }
+    else if(h.kind==='fail'){ el.className='dmg-float miss'; el.textContent=pre+'не вдалось'; }
+    else if(h.kind==='barrier'){ el.className='dmg-float blk'; el.textContent=pre+'🫧'; }
+    else if(h.kind==='dodge'){ el.className='dmg-float miss'; el.textContent=h.skillDodge ? 'ухилився 💨' : pre+'промах'; }
+    else if(h.kind==='block'){ var ev = !!h.evade, mg = !ev && !!h.magic;
+      el.className='dmg-float blk'+(ev?' ev':mg?' mblk':''); el.textContent= pre+(h.dmg ? '−'+h.dmg : (ev ? 'відскочив 💨' : mg ? 'блок ✨' : 'блок')); }
+    else if(h.kind==='crit'){ el.className='dmg-float crit'; el.textContent=pre+'−'+h.dmg+'!'; }
+    else { el.className='dmg-float hit'+(h.magic?' mblk':''); el.textContent=pre+'−'+h.dmg; }
+    if(n > 1) el.style.left = (50 + (i - (n-1)/2) * 22) + '%';
+    var put = function(){ card.appendChild(el); setTimeout(function(){ el.remove(); }, 2900); };
+    if(i) setTimeout(put, i*380); else put();
+  }
+  function floatDmg(side, hit, from, icon){
+    var hs = (hit && hit.hits && hit.hits.length && hit.kind!=='fear' && hit.kind!=='skip' && hit.kind!=='knock') ? hit.hits : [hit];
+    var n = hs.length + (from||0);
+    hs.forEach(function(h, i){ floatOne(side, h, i + (from||0), n, icon); });
+    return hs.length;
   }
 
   /* додати рядок у журнал ходів */
@@ -3107,6 +3168,8 @@ window.SKHERO = (function(){
     var x = hs.length>1 ? ' ×'+hs.length : '';
     if(hit.kind==='fear') return '<span>'+prefix.split(' →')[0]+': <span class="b">😱 не атакує (страх)</span></span>';
     if(hit.kind==='skip') return '<span>'+prefix.split(' →')[0]+': <span class="b">удару не було</span></span>';
+    if(hit.kind==='knock') return '<span>'+prefix.split(' →')[0]+': <span class="b">😵 збитий з ніг — не атакує</span></span>';
+    if(hit.kind==='dodge' && hs.some(function(h){ return h.skillDodge; })) return '<span title="'+biEsc(hs.map(function(h){ return h.dodgeCalc||''; }).join(' '))+'">'+prefix+': <span class="ev">💨 ухилився вмінням</span>'+x+'</span>';
     if(hit.kind==='barrier') return '<span'+t+'>'+prefix+': <span class="b">🫧 бар\'єр поглинув удар</span>'+x+'</span>';
     if(hit.kind==='dodge') return '<span'+t+'>'+prefix+': <span class="b">промах!</span>'+x+'</span>';
     if(hit.kind==='block' && hs.some(function(h){ return h.evade; })) return '<span'+t+'>'+prefix+': <span class="ev">💨 спритно відскочив — ухилився спритністю</span>'+x+'</span>';
@@ -3155,11 +3218,30 @@ window.SKHERO = (function(){
       if(r && r.arena) setArena(r.arena);
       localDrop(st.bid); markSeen(st.bid);
       showResult(st, r, false);
+      growSkills(st);                // майстерність вмінь — навіть після поразки
       pullHeroStats();               // читає документ Героя → SKHERO, гардероб і хедер оновляться самі
     }, function(e){
       try{ console.error('[арена] підсумок бою не записано:', e); }catch(_){}
       showResult(st, null, true);
     }).then(function(){ UI.finishing = null; UI.resolving = false; });
+  }
+  /* після бою: сервер додає спрацювання вмінь (st.summary.grow) — показуємо «було → стало» */
+  function growSkills(st){
+    var el = $('resSkills'); if(!el) return;
+    el.style.display = 'none'; el.innerHTML = '';
+    var g = (st.summary && st.summary.grow) || {};
+    if(!Object.keys(g).length || !remote() || !SK.growSkills) return;
+    SK.growSkills(st.bid).then(function(r){
+      if(!r || r.already) return;
+      var S = window.SKSKILLS, ids = Object.keys(r.after||{});
+      if(!ids.length) return;
+      el.innerHTML = '📈 Майстерність: ' + ids.map(function(id){
+        var k = S && S.byId(id), b = r.before[id], a = r.after[id];
+        return (k ? k.icon+' '+biEsc(k.name) : id) + ' ' + (a>b ? b+'% → <b>'+a+'%</b>'+(a>=100?' 👑':'') : a+'% <span style="opacity:.7">(+'+(Math.round(g[id]*10)/10)+' '+usesWord(g[id])+')</span>');
+      }).join(' · ');
+      el.style.display = '';
+      if(window.SKBOOK) SKBOOK.refresh();
+    }, function(e){ try{ console.warn('[арена] ріст вмінь не записано:', e); }catch(_){} });
   }
   function showResult(st, r, pending){
     var s = st.summary || {};
@@ -3212,7 +3294,7 @@ window.SKHERO = (function(){
 
   /* ── прив'язки ── */
   function wire(){
-    bindKnight(); bindGuard(); bindBelt();
+    bindKnight(); bindGuard(); bindBelt(); bindSkills();
     $('strikeBtn').addEventListener('click', resolve);
     $('logSimple').addEventListener('click', function(){ setLogMode('simple'); });
     $('logFull').addEventListener('click', function(){ setLogMode('full'); });
@@ -3467,7 +3549,7 @@ window.SKHERO = (function(){
 
 <script src="sk-items.js?v=10"></script>
 <script src="sk-skills.js?v=6"></script>
-<script src="sk-book.js?v=2"></script>
+<script src="sk-book.js?v=3"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
    Дані ЗАРАЗ demo (локально). Крок 2: джерело речей → Firestore (адмінка).
@@ -3866,7 +3948,14 @@ function tap(el){var src=el.getAttribute('data-src');
 document.addEventListener('pointerdown',function(e){if(e.button!==0)return;var el=e.target.closest?e.target.closest('.ek-drag'):null;if(!el)return;down={el:el,x:e.clientX,y:e.clientY,started:false};});
 document.addEventListener('pointermove',function(e){if(!down)return;if(!down.started){if(Math.hypot(e.clientX-down.x,e.clientY-down.y)<7)return;down.started=true;startDrag(down.el,e.clientX,e.clientY);}
  if(drag){moveGhost(e.clientX,e.clientY);highlightOver(targetAt(e.clientX,e.clientY));e.preventDefault();}},{passive:false});
-document.addEventListener('pointerup',function(e){if(lp&&lp.fired){lp=null;down=null;return;}if(down&&down.started)endDrag(e.clientX,e.clientY);else if(down)showCard(down.el);down=null;});   // тап — збільшена картка з кнопками (перетягування вдягає одразу)
+var lastTap={key:null,t:0};
+document.addEventListener('pointerup',function(e){if(lp&&lp.fired){lp=null;down=null;return;}if(down&&down.started)endDrag(e.clientX,e.clientY);else if(down)tapOrDouble(down.el);down=null;});
+/* тап — картка речі з кнопками; подвійний тап по зіллю/свитку — одразу на пояс (з пояса — у сумку) */
+function tapOrDouble(el){var src=el.getAttribute('data-src'),key=src+':'+(el.getAttribute('data-uid')||el.getAttribute('data-belt')),now=Date.now();
+ var dbl=lastTap.key===key&&now-lastTap.t<380;lastTap={key:dbl?null:key,t:now};
+ var it=src==='inv'?findInv(el.getAttribute('data-uid')):null;
+ if(dbl&&(src==='belt'||(it&&it.usable))){hideCard();if(src==='inv'&&firstFreeBelt()<0){if(window.showToast)showToast('Пояс повний','Перетягни зілля на зайняту комірку, щоб замінити');return;}tap(el);return;}
+ showCard(el);}   // тап — збільшена картка з кнопками (перетягування вдягає одразу)
 document.addEventListener('pointercancel',function(){cleanup();down=null;});
 document.addEventListener('pointerover',function(e){if(e.pointerType!=='mouse'||drag)return;var el=e.target.closest?e.target.closest('.ek-chip.ek-drag'):null;if(el)showTip(el,e.clientX,e.clientY);});
 document.addEventListener('pointerout',function(e){var el=e.target.closest?e.target.closest('.ek-chip.ek-drag'):null;if(el&&!(e.relatedTarget&&el.contains(e.relatedTarget)))hideTip();});

@@ -178,20 +178,37 @@ function render(){
 }
 
 /* ── колонка вмінь у бою (arena.html → #btSkills) ──
-   Поки що показ: вміння з панелі з майстерністю. Удари вміннями (урон,
-   ріст майстерності) — наступний крок у рушії бою (sk-battle.js). */
-function paintBattle(){
+   bs — стан бою (SKBATTLE): вміння й майстерність — знімок на старті бою;
+   тап по вмінню (arena.html → bindSkills) обирає його на хід: окремий удар у ту
+   саму зону, що й основний. Без бою — просто показ панелі з книги. */
+var BS = null;
+function paintBattle(bs){
+  if (bs !== undefined) BS = bs;
   var host = $('btSkills'); if (!host) return;
-  var n = SKS.barSlots(ST.lv), h = '<h4>⚡ Вміння</h4>', any = false;
+  var b = (BS && BS.status === 'live' && BS.me && BS.me.sk) ? BS : null;
+  var lv = b ? (b.me.level || ST.lv) : ST.lv, n = SKS.barSlots(lv), h = '<h4>⚡ Вміння</h4>', any = false;
+  var ids = b ? (b.me.bar || []).slice() : ST.bar.slice();
   for (var i = 0; i < SKS.BAR_N; i++){
-    var id = ST.bar[i];
     if (i >= n) { h += '<div class="skb-slot lock" title="Відкриється на ' + SKS.BAR_LEVELS[i] + ' рівні">🔒<br>' + SKS.BAR_LEVELS[i] + ' рів.</div>'; continue; }
-    if (id && sk(id)) any = true;
-    h += '<div class="skb-slot' + (id && sk(id) ? ' full skb-bt' : '') + '"' + (id && sk(id) ? ' data-skb-battle="' + id + '"' : '')
-      + ' title="' + esc(id && sk(id) ? sk(id).name + ' — ' + SKS.effectText(id, pct(id) / 100) : 'Порожній слот: постав вміння в Інвентарі → 📖 Книга вмінь') + '">'
-      + '<span class="k">' + (i + 1) + '</span>' + (id && sk(id) ? tile(id, { inBar: true }) : '') + '</div>';
+    var id = b ? ids[i] : ST.bar[i], s = id && sk(id);
+    if (!s) { h += '<div class="skb-slot" title="Порожній слот: постав вміння в Інвентарі → 📖 Книга вмінь"><span class="k">' + (i + 1) + '</span></div>'; continue; }
+    any = true;
+    var p = b ? Math.round(Number(b.me.sk[id] || 0) * 100) : pct(id);
+    var cls = 'skb-slot full skb-bt', badge = '', tip = s.name + ' — ' + SKS.effectText(id, p / 100);
+    if (b) {
+      var cd = (b.me.cd || {})[id], sel2 = b.me.skill === id && b.me.skillRound === b.round;
+      if (sel2) { cls += ' on'; tip += ' · обрано на цей хід'; }
+      else if (cd && b.round <= cd) { cls += ' cd'; badge = '<span class="skb-cd">' + (cd - b.round + 1) + '</span>'; tip += ' · перезарядка'; }
+      else if (id === 'base.spark' && Number(b.me.mana) < 5) { cls += ' cd'; badge = '<span class="skb-cd">💧</span>'; tip += ' · мало мани'; }
+    }
+    var cls2 = 'skb-sk' + (s.type === 'A' ? ' act' : '') + (p >= 100 ? ' max' : '');
+    h += '<div class="' + cls + '" data-skb-use="' + id + '" title="' + esc(tip) + '"><span class="k">' + (i + 1) + '</span>'
+      + '<div class="' + cls2 + '" style="--p:' + p + '"><div class="in">' + s.icon + '</div></div>' + badge + '</div>';
   }
-  host.innerHTML = h + (any ? '' : '<div class="hint">Постав вміння:<br>Інвентар → 📖</div>');
+  var hint = !any ? 'Постав вміння:<br>Інвентар → 📖'
+    : b ? (b.me.skill ? 'Вміння вдарить<br>у зону атаки' : 'Торкнись — удар<br>вмінням цього ходу') : '';
+  if (b && b.me.sk['base.spark'] != null) hint += '<br>💧 мана: ' + Math.round(Number(b.me.mana) || 0);
+  host.innerHTML = h + (hint ? '<div class="hint">' + hint + '</div>' : '');
 }
 
 /* ── дії ── */
@@ -295,8 +312,6 @@ document.addEventListener('click', function(e){
   if ((b = t.closest('[data-skb-unbar]'))) { closeSheet(); unplace(ST.bar.indexOf(b.getAttribute('data-skb-unbar'))); return; }
   if ((b = t.closest('[data-skb-ret]'))) { unplace(ST.bar.indexOf(b.getAttribute('data-skb-ret'))); return; }
   if ((b = t.closest('[data-skb-info]'))) { info(b.getAttribute('data-skb-info')); return; }
-  if ((b = t.closest('[data-skb-battle]'))) {
-    toast('⚡ ' + sk(b.getAttribute('data-skb-battle')).name, 'Удари вміннями з\'являться в бою з наступного оновлення 🔜'); return; }
   if (t.closest('[data-skb-x]') || t.id === 'skbSheet') { closeSheet(); return; }
 });
 document.addEventListener('keydown', function(e){
