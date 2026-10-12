@@ -345,7 +345,7 @@ var KEY = 'sk_maket_vminnia_v1';
 function fresh(){
   return { lv: 3, bonus: 1, uses: { 'base.weapons': 70, 'base.kick': 12, 'base.spark': 0 },
            bar: ['base.kick', null, null, null, null], cls: null, tab: 1, book: true,
-           bag: freshBag(), belt: [{ id: 'IT-126', q: 4 }, { id: 'IT-119', q: 9 }], beltCap: 2 };
+           bag: freshBag(), belt: [{ id: 'IT-126', q: 1 }, { id: 'IT-119', q: 1 }], beltCap: 2 };
 }
 /* речі макета: справжні картинки й назви з бази; на пояс — лише зілля (IT-119…125) і свитки (IT-126…131) */
 var ITEM_NM = { 'IT-119':'Зілля маг. захисту', 'IT-120':'Зілля здоров\'я', 'IT-121':'Зілля-антидот', 'IT-122':'Кам\'яна шкіра',
@@ -362,6 +362,7 @@ var S;
 try { S = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch(e) { S = null; }
 if (!S || !S.uses) S = fresh();
 if (!S.bag) { var F = fresh(); S.bag = F.bag; S.belt = F.belt; S.beltCap = F.beltCap; }
+S.belt.forEach(function(b){ if (b && b.q > 1) { var extra = b.q - 1; b.q = 1; var x = S.bag.filter(function(y){ return y.id === b.id; })[0]; if (x) x.q += extra; else S.bag.unshift({ id: b.id, q: extra }); } });
 function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} }
 var sel = null;          // обране (піднесене) активне вміння, чекає на слот
 var selIt = null;        // обрана в сумці річ (зілля/свиток), чекає на комірку пояса
@@ -536,9 +537,12 @@ function bagAdd(id, q){
   var b = S.bag.filter(function(x){ return x.id === id; })[0];
   if (b) b.q += q; else S.bag.unshift({ id: id, q: q });
 }
+/* на пояс іде ОДНА штука з купки (як у грі: equipToBelt в arena.html) */
 function bagTake(id){
   var i = -1; S.bag.forEach(function(x, k){ if (x.id === id) i = k; });
-  return i === -1 ? null : S.bag.splice(i, 1)[0];
+  if (i === -1) return null;
+  if (S.bag[i].q > 1) { S.bag[i].q--; return { id: id, q: 1 }; }
+  return S.bag.splice(i, 1)[0];
 }
 function beltPut(id, slot, from){
   var old = S.belt[slot];
