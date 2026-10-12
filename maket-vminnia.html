@@ -102,6 +102,13 @@ button{font:inherit;color:inherit}
 .tab.glow{box-shadow:0 0 0 2px #fff2a8,0 0 12px rgba(255,214,90,.8)}
 .bag{display:grid;grid-template-columns:repeat(auto-fill,var(--cell));gap:var(--gap);justify-content:center;align-content:start;overflow:auto;flex:1;min-height:0;max-height:560px}
 .bag .eslot{border-color:rgba(70,194,111,.55)}
+.it{user-select:none;-webkit-user-select:none}
+.it.drag{cursor:grab;touch-action:none}
+.it.cons{border-color:rgba(126,240,160,.85);box-shadow:0 0 0 1px rgba(126,240,160,.3),inset 0 2px 10px rgba(0,0,0,.45)}
+.it.sel{outline:3px solid #fff2a8;outline-offset:2px;box-shadow:0 0 18px rgba(255,214,90,.9);animation:wob .9s ease-in-out infinite}
+.it .q,.bit .q{position:absolute;right:3px;top:2px;font-size:.62rem;font-weight:900;background:rgba(9,18,38,.85);border:1px solid rgba(224,164,42,.6);border-radius:7px;padding:0 4px;z-index:2}
+.bit{width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.bit img,.it img{width:80%;height:80%;object-fit:contain;filter:drop-shadow(0 2px 3px rgba(0,0,0,.4));pointer-events:none}
 .mini{font-weight:800;font-size:.78rem;cursor:pointer;padding:6px 11px;border-radius:11px;border:1.5px solid rgba(224,164,42,.55);background:rgba(0,0,0,.25);color:var(--ink)}
 .mini:hover{border-color:var(--gold)}
 
@@ -147,9 +154,8 @@ button{font:inherit;color:inherit}
   border-radius:20px;padding:10px 8px;display:flex;flex-direction:column;align-items:center;gap:10px;box-shadow:0 18px 40px rgba(0,0,0,.5)}
 .bbar{background:linear-gradient(180deg,#173a2c,#0c2118)}
 .sbar h4 small,.bbar h4 small{color:var(--mut);font-size:.62rem}
-.bslot.full.belt{border-color:#46c26f;background:rgba(70,194,111,.12)}
-.bslot.belt img{width:80%;height:80%;object-fit:contain;filter:drop-shadow(0 2px 3px rgba(0,0,0,.4))}
-.bslot .q{position:absolute;right:2px;top:2px;font-size:.6rem;font-weight:900;background:rgba(9,18,38,.85);border:1px solid rgba(224,164,42,.6);border-radius:7px;padding:0 4px}
+.bslot.full.belt{border-color:#46c26f;border-style:solid;background:rgba(70,194,111,.12);cursor:pointer}
+.bbar .bslot{border-color:rgba(126,240,160,.4)}
 .sbar h4,.bbar h4{margin:0;font-family:'Nunito';font-weight:900;font-size:.72rem;color:var(--ink);text-align:center;line-height:1.1}
 .bslot{width:66px;height:66px;border-radius:16px;position:relative;display:flex;align-items:center;justify-content:center;
   border:2px dashed rgba(255,214,90,.4);background:rgba(0,0,0,.25);transition:border-color .15s,background .15s,transform .15s}
@@ -263,12 +269,7 @@ button{font:inherit;color:inherit}
 <body>
 <div class="stage">
   <div class="sides">
-    <aside class="bbar" aria-label="Пояс">
-      <h4>🪢 Пояс<br><small>2/2</small></h4>
-      <div class="bslot full belt"><img src="img/items/IT-126.webp" alt="Свиток"><span class="nm">Свиток</span></div>
-      <div class="bslot full belt"><img src="img/items/IT-119.webp" alt="Зілля"><span class="q">×9</span><span class="nm">Зілля</span></div>
-      <div class="hint">Зілля й свитки на бій</div>
-    </aside>
+    <aside class="bbar" id="bbar" aria-label="Пояс"></aside>
     <aside class="sbar" id="sbar" aria-label="Панель вмінь"></aside>
   </div>
 
@@ -309,6 +310,7 @@ button{font:inherit;color:inherit}
   <b data-d="toggle" style="cursor:pointer">🧪 Макет</b>
   <span>рівень <button data-d="lv-">−</button> <span id="dLv"></span> <button data-d="lv+">+</button></span>
   <button data-d="pt">+1 очко (тест)</button>
+  <button data-d="belt">🪢 Пояс на <span id="dBelt"></span></button>
   <button data-d="fight">⚔️ Бій: +20 спрацювань</button>
   <button data-d="reset">↺ Скинути</button>
 </div>
@@ -342,13 +344,27 @@ var FX = {
 var KEY = 'sk_maket_vminnia_v1';
 function fresh(){
   return { lv: 3, bonus: 1, uses: { 'base.weapons': 70, 'base.kick': 12, 'base.spark': 0 },
-           bar: ['base.kick', null, null, null, null], cls: null, tab: 1, book: true };
+           bar: ['base.kick', null, null, null, null], cls: null, tab: 1, book: true,
+           bag: freshBag(), belt: [{ id: 'IT-126', q: 4 }, { id: 'IT-119', q: 9 }], beltCap: 2 };
+}
+/* речі макета: справжні картинки й назви з бази; на пояс — лише зілля (IT-119…125) і свитки (IT-126…131) */
+var ITEM_NM = { 'IT-119':'Зілля маг. захисту', 'IT-120':'Зілля здоров\'я', 'IT-121':'Зілля-антидот', 'IT-122':'Кам\'яна шкіра',
+  'IT-123':'Зілля точності', 'IT-124':'Зілля ухилення', 'IT-125':'Зілля удачі', 'IT-126':'Свиток страху', 'IT-127':'Виклик блискавки',
+  'IT-128':'Вогняна куля', 'IT-129':'Кислотний пар', 'IT-130':'Захисний бар\'єр' };
+function itemNo(id){ return +String(id).slice(3); }
+function isCons(id){ var n = itemNo(id); return n >= 119 && n <= 131; }
+function freshBag(){
+  var b = [{ id:'IT-120', q:4 }, { id:'IT-123', q:2 }, { id:'IT-127', q:3 }, { id:'IT-128', q:2 }, { id:'IT-124', q:1 }, { id:'IT-130', q:1 }];
+  ['IT-002','IT-020','IT-038','IT-050','IT-070','IT-081','IT-084','IT-097','IT-107','IT-114','IT-133','IT-140'].forEach(function(id){ b.push({ id:id, q:1 }); });
+  return b;
 }
 var S;
 try { S = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch(e) { S = null; }
 if (!S || !S.uses) S = fresh();
+if (!S.bag) { var F = fresh(); S.bag = F.bag; S.belt = F.belt; S.beltCap = F.beltCap; }
 function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} }
 var sel = null;          // обране (піднесене) активне вміння, чекає на слот
+var selIt = null;        // обрана в сумці річ (зілля/свиток), чекає на комірку пояса
 var lastTap = { id: null, t: 0 };
 
 /* ── обчислення ── */
@@ -395,9 +411,11 @@ function renderEquip(){
   }).join('') + '<button class="bookbtn' + (S.book ? ' open' : '') + '" id="bookBtn" type="button"><span class="bi">📖</span>'
     + '<span class="bt">Книга вмінь<small>' + (S.book ? 'відкрита →' : 'вміння й заклинання') + '</small></span>'
     + (free() > 0 ? '<span class="badge">✨' + free() + '</span>' : '') + '</button>';
-  var bag = [];
-  for (var i = 0; i < 24; i++) bag.push('<div class="eslot on"><img src="img/items/IT-' + String(2 + i * 6).padStart(3, '0') + '.webp" alt="" onerror="this.remove()"></div>');
-  $('bag').innerHTML = bag.join('');
+  $('bag').innerHTML = S.bag.map(function(b){
+    var c = isCons(b.id);
+    return '<div class="eslot on it' + (c ? ' cons drag' : '') + (selIt === b.id ? ' sel' : '') + '" data-it="' + b.id + '" title="' + esc(ITEM_NM[b.id] || '') + '">'
+      + '<img src="img/items/' + b.id + '.webp" alt="" onerror="this.remove()">' + (b.q > 1 ? '<span class="q">×' + b.q + '</span>' : '') + '</div>';
+  }).join('');
 }
 
 function renderBar(){
@@ -411,6 +429,19 @@ function renderBar(){
   }
   h += '<div class="hint">' + (sel ? 'Торкнись слота, куди поставити «' + esc(BY[sel].name) + '»' : 'Сюди — активні вміння.<br>Торкнись вміння тут — повернеш у книгу') + '</div>';
   $('sbar').innerHTML = h;
+}
+
+function renderBelt(){
+  var used = S.belt.filter(Boolean).length;
+  var h = '<h4>🪢 Пояс<br><small>' + used + '/' + S.beltCap + '</small></h4>';
+  for (var i = 0; i < S.beltCap; i++){
+    var b = S.belt[i];
+    h += '<div class="bslot' + (b ? ' full belt' : '') + (selIt ? ' want' : '') + '" data-bslot="' + i + '"><span class="k">' + (i + 1) + '</span>'
+      + (b ? '<div class="bit" data-bit="' + b.id + '" data-bfrom="' + i + '"><img src="img/items/' + b.id + '.webp" alt="">' + (b.q > 1 ? '<span class="q">×' + b.q + '</span>' : '') + '</div>'
+           + '<span class="nm">' + esc(ITEM_NM[b.id] || '') + '</span>' : '') + '</div>';
+  }
+  h += '<div class="hint">' + (selIt ? 'Торкнись комірки, куди покласти «' + esc(ITEM_NM[selIt]) + '»' : 'Зілля й свитки на бій.<br>Торкнись — повернеш у сумку') + '</div>';
+  $('bbar').innerHTML = h;
 }
 
 function rowHTML(id){
@@ -465,9 +496,9 @@ function renderBook(){
 }
 
 function render(){
-  $('lvl').textContent = S.lv; $('dLv').textContent = S.lv;
+  $('lvl').textContent = S.lv; $('dLv').textContent = S.lv; $('dBelt').textContent = S.beltCap;
   $('flip').classList.toggle('book', !!S.book);
-  renderEquip(); renderBar(); renderBook();
+  renderEquip(); renderBelt(); renderBar(); renderBook();
 }
 
 /* ── дії ── */
@@ -499,8 +530,47 @@ function tapSkill(id){
   var dbl = lastTap.id === id && now - lastTap.t < 380;
   lastTap = { id: id, t: now };
   if (dbl) { sel = null; return autoPlace(id); }
-  sel = (sel === id ? null : id); render();
+  sel = (sel === id ? null : id); selIt = null; render();
 }
+function bagAdd(id, q){
+  var b = S.bag.filter(function(x){ return x.id === id; })[0];
+  if (b) b.q += q; else S.bag.unshift({ id: id, q: q });
+}
+function bagTake(id){
+  var i = -1; S.bag.forEach(function(x, k){ if (x.id === id) i = k; });
+  return i === -1 ? null : S.bag.splice(i, 1)[0];
+}
+function beltPut(id, slot, from){
+  var old = S.belt[slot];
+  if (from != null) {                                   // з комірки в комірку — міняємо місцями
+    S.belt[slot] = S.belt[from]; S.belt[from] = (from !== slot ? old : S.belt[slot]);
+  } else {
+    var st = bagTake(id); if (!st) return;
+    if (old) bagAdd(old.id, old.q);
+    S.belt[slot] = st;
+    if (old) toast('🎒 «' + ITEM_NM[old.id] + '» повернулось у сумку');
+  }
+  selIt = null; lastTap = { id: null, t: 0 }; save(); render();
+}
+function beltAuto(id){
+  for (var i = 0; i < S.beltCap; i++) if (!S.belt[i]) return beltPut(id, i);
+  selIt = id; sel = null; render();
+  toast('Пояс повний — торкнись комірки, щоб замінити');
+}
+function beltBack(slot){
+  var b = S.belt[slot]; if (!b) return;
+  S.belt[slot] = null; bagAdd(b.id, b.q); selIt = null; lastTap = { id: null, t: 0 }; save(); render();
+  toast('🎒 «' + ITEM_NM[b.id] + '» повернулось у сумку');
+}
+function tapItem(id){
+  if (!isCons(id)) return toast('На пояс можна класти лише зілля й свитки');
+  var now = Date.now(), key = 'it:' + id;
+  var dbl = lastTap.id === key && now - lastTap.t < 380;
+  lastTap = { id: key, t: now };
+  if (dbl) { selIt = null; return beltAuto(id); }
+  selIt = (selIt === id ? null : id); sel = null; render();
+}
+
 function learn(id){
   if (free() <= 0 || learned(id) || BY[id].lv > S.lv) return;
   S.uses[id] = 0; save(); closeSheet(); render();
@@ -564,36 +634,45 @@ document.addEventListener('click', function(e){
   if (t.closest('[data-close]') || t === $('sheetBg')) { closeSheet(); return; }
   if ((b = t.closest('[data-d]'))) { demo(b.dataset.d); return; }
 });
-document.addEventListener('keydown', function(e){ if (e.key === 'Escape') { closeSheet(); if (sel) { sel = null; render(); } } });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') { closeSheet(); if (sel || selIt) { sel = null; selIt = null; render(); } } });
 
-/* ── перетягування й торкання плиток (миша і палець) ── */
+/* ── перетягування й торкання (миша і палець) ──
+   Два види: вміння (книга ↔ панель вмінь) і речі (сумка ↔ пояс).
+   Тап — обрати; подвійний тап — у вільну комірку; перетягнути — в будь-яку,
+   зайняту теж (старе повертається); тап по зайнятій комірці — назад. */
 var drag = null;
+var TARGET = { sk: '.sbar .bslot', it: '.bbar .bslot' };
 document.addEventListener('pointerdown', function(e){
-  var tl = e.target.closest('.sk[data-sk]');
-  var slot = e.target.closest('.bslot[data-slot]');
-  if (!tl && slot && !slot.classList.contains('lock')) {        // торкання порожнього/зайнятого слота
-    drag = { kind: 'slot', slot: +slot.dataset.slot, x: e.clientX, y: e.clientY, moved: false };
+  if (e.target.closest('.sheet')) return;
+  var t = e.target;
+  var sk = t.closest('.sk[data-sk]'), it = t.closest('.it[data-it]'), bit = t.closest('.bit[data-bit]');
+  var src = null;
+  if (sk) src = { type: 'sk', id: sk.dataset.sk, from: sk.dataset.from != null ? +sk.dataset.from : null, el: sk, canDrag: sk.classList.contains('drag') };
+  else if (bit) src = { type: 'it', id: bit.dataset.bit, from: +bit.dataset.bfrom, el: bit, canDrag: true };
+  else if (it) src = { type: 'it', id: it.dataset.it, from: null, el: it, canDrag: it.classList.contains('drag') };
+  if (!src) {
+    var slot = t.closest('.bslot[data-slot]:not(.lock), .bslot[data-bslot]');
+    if (slot) drag = { kind: 'slot', type: slot.dataset.bslot != null ? 'it' : 'sk', slot: +(slot.dataset.slot != null ? slot.dataset.slot : slot.dataset.bslot), x: e.clientX, y: e.clientY };
     return;
   }
-  if (!tl) return;
-  if (tl.closest('.sheet')) return;
-  drag = { kind: 'tile', id: tl.dataset.sk, from: tl.dataset.from != null ? +tl.dataset.from : null,
-           x: e.clientX, y: e.clientY, moved: false, el: tl, canDrag: tl.classList.contains('drag') };
-  if (drag.canDrag) tl.setPointerCapture && tl.setPointerCapture(e.pointerId);
+  drag = Object.assign(src, { kind: 'tile', x: e.clientX, y: e.clientY, moved: false });
+  if (src.canDrag && src.el.setPointerCapture) src.el.setPointerCapture(e.pointerId);
 });
 document.addEventListener('pointermove', function(e){
   if (!drag || drag.kind !== 'tile' || !drag.canDrag) return;
   if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 8) return;
   if (!drag.moved) {
     drag.moved = true;
+    var w = drag.el.getBoundingClientRect().width;
     drag.ghost = drag.el.cloneNode(true); drag.ghost.classList.add('ghost'); drag.ghost.classList.remove('sel');
+    drag.ghost.style.width = drag.ghost.style.height = w + 'px';
     document.body.appendChild(drag.ghost);
-    document.querySelectorAll('.bslot:not(.lock)').forEach(function(s){ s.classList.add('want'); });
+    document.querySelectorAll(TARGET[drag.type] + ':not(.lock)').forEach(function(s){ s.classList.add('want'); });
   }
   drag.ghost.style.left = e.clientX + 'px'; drag.ghost.style.top = e.clientY + 'px';
   document.querySelectorAll('.bslot.over').forEach(function(s){ s.classList.remove('over'); });
   var under = document.elementFromPoint(e.clientX, e.clientY);
-  var s = under && under.closest('.bslot:not(.lock)');
+  var s = under && under.closest(TARGET[drag.type] + ':not(.lock)');
   if (s) s.classList.add('over');
   e.preventDefault();
 });
@@ -602,23 +681,35 @@ function endDrag(e){
   var d = drag; drag = null;
   if (d.kind === 'slot') {
     if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 8) return;
-    if (sel) place(sel, d.slot);
+    if (d.type === 'sk' && sel) place(sel, d.slot);
+    if (d.type === 'it' && selIt) beltPut(selIt, d.slot);
     return;
   }
   if (d.ghost) {
     d.ghost.remove();
     var under = document.elementFromPoint(e.clientX, e.clientY);
     var s = under && under.closest('.bslot');
-    if (s && !s.classList.contains('lock')) place(d.id, +s.dataset.slot);
-    else if (s) toast('🔒 Цей слот відкриється на ' + SLOT_LV[+s.dataset.slot] + ' рівні');
-    else if (d.from != null) unplace(d.from);                    // витягнули з панелі назовні — у книгу
-    else render();
+    var mine = s && s.matches(TARGET[d.type]);
+    if (s && !mine) { toast(d.type === 'sk' ? 'Вміння — на панель вмінь ⚡' : 'Зілля й свитки — на пояс 🪢'); render(); return; }
+    if (d.type === 'sk') {
+      if (s && !s.classList.contains('lock')) place(d.id, +s.dataset.slot);
+      else if (s) toast('🔒 Цей слот відкриється на ' + SLOT_LV[+s.dataset.slot] + ' рівні');
+      else if (d.from != null) unplace(d.from);                  // витягнули з панелі назовні — у книгу
+      else render();
+    } else {
+      if (s) beltPut(d.id, +s.dataset.bslot, d.from);
+      else if (d.from != null) beltBack(d.from);                 // витягнули з пояса назовні — у сумку
+      else render();
+    }
     return;
   }
   // просто торкання
-  if (d.from != null) { if (sel && sel !== d.id) place(sel, d.from); else unplace(d.from); return; }
-  if (d.el.closest('.sheet')) return;
-  tapSkill(d.id);
+  if (d.type === 'sk') {
+    if (d.from != null) { if (sel && sel !== d.id) place(sel, d.from); else unplace(d.from); return; }
+    return tapSkill(d.id);
+  }
+  if (d.from != null) { if (selIt && selIt !== d.id) beltPut(selIt, d.from); else beltBack(d.from); return; }
+  tapItem(d.id);
 }
 document.addEventListener('pointerup', endDrag);
 document.addEventListener('pointercancel', function(){ if (drag && drag.ghost) drag.ghost.remove(); drag = null; render(); });
@@ -633,6 +724,12 @@ function demo(a){
     var got = [];
     Object.keys(S.uses).forEach(function(id){ var b = pct(id); S.uses[id] += 20; var n = pct(id); if (n > b) got.push(BY[id].icon + ' ' + BY[id].name + ' ' + b + '→' + n + '%'); });
     toast(got.length ? '⚔️ Після бою: ' + got.join(' · ') : '⚔️ Вивчи щось, щоб воно росло');
+  }
+  if (a === 'belt') {                                   // інший пояс: 2 → 3 → 4 комірки → 2
+    S.beltCap = S.beltCap >= 4 ? 2 : S.beltCap + 1;
+    while (S.belt.length > S.beltCap) { var x = S.belt.pop(); if (x) bagAdd(x.id, x.q); }
+    while (S.belt.length < S.beltCap) S.belt.push(null);
+    toast('🪢 Тепер пояс на ' + S.beltCap + ' комірки');
   }
   if (a === 'reset') { S = fresh(); toast('↺ Макет скинуто'); }
   var n = openSlots(); for (var i = n; i < BAR_N; i++) S.bar[i] = null;   // слоти, що закрились при зниженні рівня
