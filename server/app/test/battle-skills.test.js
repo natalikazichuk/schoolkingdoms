@@ -91,5 +91,42 @@ test('підсумок бою містить ріст вмінь', () => {
   const st = battle({ 'base.weapons': 0.3 }, []);
   SB.turn(ctx, st, { atk: 'head', block: 'legs' }, {}, Date.now());
   SB.surrender(ctx, st, Date.now());
-  assert.ok(st.summary.grow['base.weapons'] >= 1);
+  assert.ok((st.summary.grow['base.weapons'] || 0) + (st.summary.growFail['base.weapons'] || 0) >= 1);
+});
+
+test('вдалі й невдалі рахуються окремо: Пінок у заблоковану зону — невдалий', () => {
+  for (let i = 0; i < 10; i++) {
+    const st = battle({ 'base.kick': 1 }, ['base.kick']); st.bid = 'sep' + i;
+    const bot = SB.botChoice(st);
+    SB.useSkill(ctx, st, 'base.kick');
+    SB.turn(ctx, st, { atk: bot.block, block: 'body' }, {}, Date.now());
+    assert.ok(!st.me.grow['base.kick'], 'заблоковане — не вдале');
+    assert.strictEqual(st.me.growF['base.kick'], 1);
+  }
+});
+
+test('зброя: влучання — вдалі, промахи/блоки — невдалі', () => {
+  let ok = 0, bad = 0, hits = 0, land = 0;
+  for (let i = 0; i < 30; i++) {
+    const st = battle({ 'base.weapons': 0.5 }, []); st.bid = 'w' + i;
+    const e = SB.turn(ctx, st, { atk: 'head', block: 'legs' }, {}, Date.now());
+    ok += st.me.grow['base.weapons'] || 0; bad += st.me.growF['base.weapons'] || 0;
+    (e.meHit.hits || []).forEach(h => { hits++; if (h.kind === 'hit' || h.kind === 'crit') land++; });
+  }
+  assert.strictEqual(ok, land); assert.strictEqual(ok + bad, hits); assert.ok(bad > 0);
+});
+
+test('сервер: 2 невдалі = 1 вдале, решта невдалих зберігається окремо', () => {
+  const { applyGrow, lib: L } = require('../src/skills.js'), lib = L();
+  const r = applyGrow(lib, { 'base.kick': 10, 'base.dodge': 0 }, { 'base.kick': 1 },
+    { played: 10, grow: { 'base.kick': 3 }, growFail: { 'base.kick': 4, 'base.dodge': 3, 'base.spark': 5 } });
+  assert.strictEqual(r.skills['base.kick'], 10 + 3 + 2);   // 1 + 4 = 5 невдалих → +2, лишилась 1
+  assert.strictEqual(r.fails['base.kick'], 1);
+  assert.strictEqual(r.skills['base.dodge'], 1);            // 3 невдалі → +1, лишилась 1
+  assert.strictEqual(r.fails['base.dodge'], 1);
+  assert.ok(!('base.spark' in r.skills), 'невивчене не росте');
+  // 40 невдач = 20 вдалих
+  const a = applyGrow(lib, { 'base.kick': 0 }, {}, { played: 20, grow: { 'base.kick': 20 } });
+  const b = applyGrow(lib, { 'base.kick': 0 }, {}, { played: 20, growFail: { 'base.kick': 40 } });
+  assert.strictEqual(a.skills['base.kick'], b.skills['base.kick']);
 });

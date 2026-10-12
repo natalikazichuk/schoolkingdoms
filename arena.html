@@ -650,6 +650,25 @@ body.scr-battle .wrap{max-width:1500px}
 .result .wearline{margin:6px 0 2px;font-size:.82rem;font-weight:700;opacity:.85}
 .dmg-float.hit{color:#ff9a6b} .dmg-float.crit{color:#ff5a3a;font-size:3.7rem;-webkit-text-stroke:2.5px rgba(32,6,0,.6)}
 .dmg-float.blk{color:#7bd8ff} .dmg-float.miss{color:#eaf2ff;font-size:2rem}
+/* вміння зросло в бою: іконка + «+1» золотом, злітає від твоєї картки */
+.dmg-float.skup{top:52%;font-size:1.7rem;color:#ffd84a;-webkit-text-stroke:1.5px rgba(40,24,0,.6);
+  text-shadow:0 0 14px rgba(255,200,60,.9),0 3px 8px rgba(0,0,0,.8)}
+.dmg-float.skup{white-space:nowrap}
+.dmg-float.skup.half{color:#e9dcae;font-size:1.35rem;text-shadow:0 0 8px rgba(255,220,120,.5),0 3px 8px rgba(0,0,0,.8)}
+.dmg-float.skup small{display:block;font-family:'Nunito',sans-serif;font-weight:900;font-size:.7rem;-webkit-text-stroke:0;color:#fff3c4;letter-spacing:.02em}
+/* оглушений (Пінок збив з ніг): зірочки кружляють над головою */
+
+.stun{position:absolute;top:13%;left:50%;width:0;height:0;z-index:40;pointer-events:none}
+.stun i{position:absolute;left:0;top:0;font-style:normal;font-size:1.5rem;line-height:1;
+  filter:drop-shadow(0 0 6px rgba(255,220,80,.9));animation:stunorb 1.5s linear infinite}
+.stun i:nth-child(2){animation-delay:-.5s}.stun i:nth-child(3){animation-delay:-1s}
+@keyframes stunorb{
+  0%{transform:translate(-50%,-50%) translate(-42px,0) scale(.85);opacity:.9}
+  25%{transform:translate(-50%,-50%) translate(0,10px) scale(1.15);opacity:1}
+  50%{transform:translate(-50%,-50%) translate(42px,0) scale(.85);opacity:.9}
+  75%{transform:translate(-50%,-50%) translate(0,-10px) scale(.6);opacity:.55}
+  100%{transform:translate(-50%,-50%) translate(-42px,0) scale(.85);opacity:.9}}
+@media (max-width:640px){.stun i{font-size:1.15rem}.dmg-float.skup{font-size:1.35rem}.dmg-float.skup small{display:none}}
 @keyframes floatup{
   0%{opacity:0;transform:translate(-50%,16px) scale(.55)}
   11%{opacity:1;transform:translate(-50%,-2px) scale(1.2)}
@@ -1570,7 +1589,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
 <script src="sk-arena-rules.js?v=18"></script>
-<script src="sk-battle.js?v=4"></script>
+<script src="sk-battle.js?v=5"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
    Інвентар, скриня, смітник, продане / куплене сьогодні й монети
@@ -2056,6 +2075,34 @@ window.SKHERO = (function(){
       if(neg) neg.innerHTML = fxHtml(l.filter(function(e){ return e.neg; }));
     });
     var row = document.querySelector('#screen-battle .scene-row'); if(row) row.classList.toggle('nofx', !any);
+    paintStun();
+  }
+  /* збитий з ніг цього ходу — зірочки над головою, доки не мине пропущений хід */
+  function paintStun(){
+    [['p', B.me], ['o', B.op]].forEach(function(x){
+      var card = document.querySelector('#'+x[0]+'Scene .figwrap'); if(!card) return;
+      var f = (x[1] && x[1].fx) || {}, on = B.status!=='over' && !!f.knock && f.knock===B.round;
+      var el = card.querySelector('.stun');
+      if(on && !el){ el = document.createElement('div'); el.className='stun'; el.innerHTML='<i>⭐</i><i>💫</i><i>⭐</i>';
+        el.title = 'Збитий з ніг — цей хід не атакує'; card.appendChild(el); }
+      else if(!on && el) el.remove();
+    });
+  }
+  /* вміння зросли за цей хід: іконка + «+1» злітає від твоєї картки (по черзі) */
+  /* вдале спрацювання — «+1», невдале — «+½» (на невдачах шкала вдвічі довша) */
+  function floatGrow(g0, g1, f0, f1, delay){
+    var card = $('pScene'); if(!card || !window.SKSKILLS) return;
+    g0 = g0||{}; g1 = g1||{}; f0 = f0||{}; f1 = f1||{};
+    var ids = Object.keys(Object.assign({}, g1, f1)).filter(function(id){ return (g1[id]||0) > (g0[id]||0) || (f1[id]||0) > (f0[id]||0); });
+    ids.forEach(function(id, i){
+      var ok = (g1[id]||0) - (g0[id]||0), bad = (f1[id]||0) - (f0[id]||0), S = SKSKILLS.byId(id);
+      var d = ok + bad / 2, txt = d === Math.floor(d) ? String(d) : (Math.floor(d) ? Math.floor(d) : '') + '½';
+      setTimeout(function(){
+        var el = document.createElement('div'); el.className = 'dmg-float skup' + (ok ? '' : ' half');
+        el.innerHTML = (S ? S.icon : '📈') + ' +' + txt + '<small>' + biEsc(S ? S.name : id) + '</small>';
+        card.appendChild(el); setTimeout(function(){ el.remove(); }, 2900);
+      }, delay + i * 450);
+    });
   }
   function useLine(u){
     var who = u.side==='me' ? 'Ти' : B.op.f.name, tgt = u.side==='me' ? B.op.f.name : 'тебе';
@@ -2579,11 +2626,6 @@ window.SKHERO = (function(){
     (e.broke||[]).forEach(function(b){ addBreak(b); });
   }
   /* рядок журналу: удар активним вмінням (у ту саму зону, що й основний) */
-  function usesWord(n){
-    if(n!==Math.floor(n)) return 'спрацювання';
-    var d=n%10, h=n%100;
-    return d===1&&h!==11 ? 'спрацювання' : d>=2&&d<=4&&(h<12||h>14) ? 'спрацювання' : 'спрацювань';
-  }
   function skillLine(e){
     var k = e.skill; if(!k) return '';
     var S = window.SKSKILLS && SKSKILLS.byId(k.id), nm = S ? S.icon+' «'+S.name+'»' : '⚡ вміння';
@@ -2980,6 +3022,7 @@ window.SKHERO = (function(){
     $('strikeBtn').disabled = true;
     if(invOpen()){ BI.sel = null; renderInv(); }
     var choice = (B.me.atk && B.me.block) ? {atk:B.me.atk, block:B.me.block} : null;
+    var grow0 = JSON.parse(JSON.stringify(B.me.grow || {})), growF0 = JSON.parse(JSON.stringify(B.me.growF || {}));
     var e = SB.turn(ctx(), B, choice, {auto: auto===true}, Date.now());
     if(!e){ UI.resolving = false; return; }
     var meHit = e.meHit, opHit = e.opHit, bid = B.bid;
@@ -2995,6 +3038,7 @@ window.SKHERO = (function(){
     if(e.skill){ var ski = window.SKSKILLS && SKSKILLS.byId(e.skill.id);
       floatOne('o', e.skill, nMe, nMe + 1, ski ? ski.icon : '⚡');
       if(e.skill.knock) setTimeout(function(){ floatOne('o', {kind:'knock'}, 0, 1); }, (nMe+1)*380); }
+    floatGrow(grow0, B.me.grow, growF0, B.me.growF, (nMe + (e.skill ? 2 : 1)) * 380 + 500);
 
     renderTurn(e);          // журнал: Хід N (+ поломки)
     (e.uses||[]).forEach(function(u){ (u.fx||[]).forEach(function(r){
@@ -3229,16 +3273,19 @@ window.SKHERO = (function(){
   function growSkills(st){
     var el = $('resSkills'); if(!el) return;
     el.style.display = 'none'; el.innerHTML = '';
-    var g = (st.summary && st.summary.grow) || {};
-    if(!Object.keys(g).length || !remote() || !SK.growSkills) return;
+    var sm = st.summary || {};
+    if(!Object.keys(sm.grow||{}).length && !Object.keys(sm.growFail||{}).length) return;
+    if(!remote() || !SK.growSkills) return;
     SK.growSkills(st.bid).then(function(r){
       if(!r || r.already) return;
       var S = window.SKSKILLS, ids = Object.keys(r.after||{});
       if(!ids.length) return;
+      // ✔ вдалі (+1 кожне) · ✖ невдалі (2 невдалі = +1)
       el.innerHTML = '📈 Майстерність: ' + ids.map(function(id){
-        var k = S && S.byId(id), b = r.before[id], a = r.after[id];
-        return (k ? k.icon+' '+biEsc(k.name) : id) + ' ' + (a>b ? b+'% → <b>'+a+'%</b>'+(a>=100?' 👑':'') : a+'% <span style="opacity:.7">(+'+(Math.round(g[id]*10)/10)+' '+usesWord(g[id])+')</span>');
-      }).join(' · ');
+        var k = S && S.byId(id), b = r.before[id], a = r.after[id], ok = (r.ok||{})[id]||0, bad = (r.fail||{})[id]||0;
+        var cnt = ' <span style="opacity:.75">(' + (ok ? '✔'+ok : '') + (ok && bad ? ' ' : '') + (bad ? '✖'+bad : '') + ')</span>';
+        return (k ? k.icon+' '+biEsc(k.name) : id) + ' ' + (a>b ? b+'% → <b>'+a+'%</b>'+(a>=100?' 👑':'') : a+'%') + cnt;
+      }).join(' · ') + '<div style="opacity:.65;font-size:.72rem;margin-top:2px">✔ вдало — +1 до росту · ✖ не вийшло — +½ (2 невдачі = 1 вдале)</div>';
       el.style.display = '';
       if(window.SKBOOK) SKBOOK.refresh();
     }, function(e){ try{ console.warn('[арена] ріст вмінь не записано:', e); }catch(_){} });
@@ -3548,7 +3595,7 @@ window.SKHERO = (function(){
 </script>
 
 <script src="sk-items.js?v=10"></script>
-<script src="sk-skills.js?v=6"></script>
+<script src="sk-skills.js?v=7"></script>
 <script src="sk-book.js?v=3"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
@@ -4281,7 +4328,7 @@ window.addEventListener('pagehide',function(){if(q('shop')&&!q('shop').hidden)lo
 })();
 </script>
 <script>window.SK_HEADER_SUB='Турнірна арена';</script>
-<script src="sk-header.js?v=6"></script>
+<script src="sk-header.js?v=7"></script>
 </body>
 </html>
 

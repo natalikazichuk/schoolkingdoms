@@ -58,7 +58,7 @@ async function withHero(user, fn) {
     c.release();
   }
 }
-const pick = h => ({ skills: h.skills || {}, skillBar: h.skillBar || null, heroClass: h.heroClass || null, skillBonus: h.skillBonus || 0 });
+const pick = h => ({ skills: h.skills || {}, skillBar: h.skillBar || null, heroClass: h.heroClass || null, skillBonus: h.skillBonus || 0, skillFails: h.skillFails || {} });
 
 /* як SKBATTLE.lockLive: бій триває, якщо його ще не застосовано і від терміну
    ходу минуло менше 30 хв (кинутий бій мітку не тримає) */
@@ -99,10 +99,36 @@ function chooseClass(user, body) {
   });
 }
 
-/* Ріст майстерності після бою: спрацювання зі summary.grow бою
-   heroes/{id}/battles/{bid}. Один раз на бій (skillGrowIds — останні 30),
-   лише вивчені вміння, не більше GROW_CAP спрацювань на хід бою. */
+/* Ріст майстерності після бою — з summary бою heroes/{id}/battles/{bid}.
+   Вдалі й невдалі спрацювання рахуються ОКРЕМО:
+     summary.grow     = {id: вдалих}   → одразу до skills[id];
+     summary.growFail = {id: невдалих} → до skillFails[id]; кожні 2 невдалі = +1
+                        до skills[id] (тобто на невдачах шкала вдвічі довша).
+   Один раз на бій (skillGrowIds — останні 30), лише вивчені вміння,
+   не більше GROW_CAP вдалих (і 2×GROW_CAP невдалих) на хід бою. */
 const GROW_CAP = 4;
+/* чиста частина росту (без бази) — щоб її легко перевірити тестом */
+function applyGrow(S, skills0, fails0, sum) {
+  const played = Math.max(1, Number(sum.played) || 0);
+  const skills = Object.assign({}, skills0), fails = Object.assign({}, fails0 || {});
+  const before = {}, after = {}, ok = {}, bad = {};
+  const okOf = sum.grow || {}, badOf = sum.growFail || {};
+  const clamp = (v, cap) => Math.max(0, Math.min(cap, Math.floor(Number(v) || 0)));
+  Object.keys(Object.assign({}, okOf, badOf)).forEach(id => {
+    if (!Object.prototype.hasOwnProperty.call(skills, id)) return;
+    const a = clamp(okOf[id], played * GROW_CAP), f = clamp(badOf[id], played * GROW_CAP * 2);
+    if (!a && !f) return;
+    const tot = S.growTotal(S.byId(id));
+    before[id] = S.pctFromUses(skills[id], tot);
+    let fl = (Number(fails[id]) || 0) + f;
+    const conv = Math.floor(fl / 2); fl -= conv * 2;
+    skills[id] = Math.round((Number(skills[id]) + a + conv) * 10) / 10;
+    fails[id] = fl;
+    after[id] = S.pctFromUses(skills[id], tot);
+    ok[id] = a; bad[id] = f;
+  });
+  return { skills, fails, before, after, ok, bad };
+}
 async function growAfterBattle(user, body) {
   const bid = String(body.bid || '');
   if (!user) throw new SkillError('unauthenticated');
@@ -115,24 +141,15 @@ async function growAfterBattle(user, body) {
   const res = await withHero(user, (hero, bst) => {
     const done = Array.isArray(hero.skillGrowIds) ? hero.skillGrowIds : [];
     if (done.indexOf(bid) >= 0) { report = { already: true }; return {}; }
-    const S = lib(), cap = Math.max(1, Number(sum.played) || 0) * GROW_CAP;
-    const skills = Object.assign({}, bst.skills), before = {}, after = {};
-    Object.keys(sum.grow || {}).forEach(id => {
-      if (!Object.prototype.hasOwnProperty.call(skills, id)) return;
-      const add = Math.max(0, Math.min(cap, Number(sum.grow[id]) || 0));
-      if (!add) return;
-      const tot = S.growTotal(S.byId(id));
-      before[id] = S.pctFromUses(skills[id], tot);
-      skills[id] = Math.round((Number(skills[id]) + add) * 10) / 10;
-      after[id] = S.pctFromUses(skills[id], tot);
-    });
-    report = { before, after };
-    return { skills, skillGrowIds: done.concat(bid).slice(-30) };
+    const g = applyGrow(lib(), bst.skills, hero.skillFails, sum);
+    const { skills, fails, before, after, ok, bad } = g;
+    report = { before, after, ok, fail: bad };
+    return { skills, skillFails: fails, skillGrowIds: done.concat(bid).slice(-30) };
   });
   return Object.assign(res, report);
 }
 
 /* поля книги, які браузер не може змінювати напряму (rules.js) */
-const PROTECTED = ['skills', 'skillBar', 'heroClass', 'skillBonus', 'skillGrowIds'];
+const PROTECTED = ['skills', 'skillBar', 'heroClass', 'skillBonus', 'skillGrowIds', 'skillFails'];
 
-module.exports = { learn, setBar, chooseClass, growAfterBattle, SkillError, PROTECTED, lib };
+module.exports = { learn, setBar, chooseClass, growAfterBattle, applyGrow, SkillError, PROTECTED, lib };
