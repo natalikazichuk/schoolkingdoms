@@ -238,12 +238,25 @@ function gradeNum(v){ var n=parseInt(v,10); if(isNaN(n)) return 1; return n<0?0:
 function slug(s){ return String(s||'').toLowerCase().normalize('NFKD').replace(/[^\w]+/g,'-').replace(/^-+|-+$/g,'')||'set'; }
 
 /* ---- дефолтні шляхи ---- */
-function imgSrc(v){
-  var u=String((v&&v.img)||'').trim();
-  if(/^https?:\/\//i.test(u)) return u;
-  if(v&&v.id) return 'img/en/'+v.id+'.webp';
-  return '';
+/* Картинку шукаємо так само, як дитячий словник (slovnyk-en.html, wImgList):
+   поле img → img/en/<id>.webp → img/en/EN-<слово>.webp. Раніше тут був лише
+   шлях за id, і слова з кодами EN-0172… (файли названі за словом) стояли
+   в адмінці без картинок, хоч у словнику їх видно. */
+function imgCands(v){
+  var out=[], u=String((v&&v.img)||'').trim();
+  if(u) out.push(u);
+  if(v&&v.id) out.push('img/en/'+String(v.id)+'.webp');
+  var sl=String((v&&v.word)||'').trim().toLowerCase().replace(/[’'`]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+  if(sl) out.push('img/en/EN-'+sl+'.webp');
+  return out.filter(function(x,i,a){ return a.indexOf(x)===i; });
 }
+function imgSrc(v){ return imgCands(v)[0]||''; }
+/* onerror: наступний кандидат із data-fb, закінчились — значок. */
+window.skImgNext=function(el){
+  var fb=String(el.getAttribute('data-fb')||'').split('|').filter(Boolean);
+  if(fb.length){ el.setAttribute('data-fb',fb.slice(1).join('|')); el.src=fb[0]; }
+  else el.replaceWith(document.createTextNode('🖼'));
+};
 function imgPrevHtml(val,id){
   val=String(val==null?'':val).trim(); var src,note;
   if(/^https?:\/\//i.test(val)){ src=val; note='⚠️ Не знайдено за посиланням'; }
@@ -345,9 +358,9 @@ function renderWords(){
     var grp=byKey[k];
     html+='<div class="group-h">'+esc(grp.topic)+' · '+esc(gradeName(grp.grade))+' · '+grp.items.length+'</div>';
     grp.items.forEach(function(w){
-      var src=imgSrc(w);
+      var cands=imgCands(w), src=cands[0];
       html+='<div class="row'+(w.active===false?' off':'')+'">'
-        +'<div class="cv">'+(src?'<img src="'+esc(src)+'" alt="" onerror="this.replaceWith(document.createTextNode(\'🖼\'))">':'<span>🔤</span>')+'</div>'
+        +'<div class="cv">'+(src?'<img src="'+esc(src)+'" alt="" data-fb="'+esc(cands.slice(1).join('|'))+'" onerror="skImgNext(this)">':'<span>🔤</span>')+'</div>'
         +'<div class="meta"><div class="w">'+esc(w.word||'—')+' <span class="ipa">'+esc(w.ipa||'')+'</span></div>'
         +'<div class="tr">'+esc(w.uk||'')+'</div>'
         +'<div class="id">'+esc(w.id||'')+(w.grade?(' · '+w.grade+' кл'):'')+((w.phrases&&w.phrases.length)?(' · '+w.phrases.length+' зв.'):'')
