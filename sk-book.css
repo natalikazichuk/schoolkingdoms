@@ -1,0 +1,167 @@
+/* ════════════════════════════════════════════════════════════════
+   sk-book.css — Книга вмінь і панель вмінь у вікні Інвентарю (arena.html).
+   Логіка — sk-book.js. Префікс skb- — щоб не зачепити стилі арени (ek-*).
+   ════════════════════════════════════════════════════════════════ */
+
+/* вікно з боковими панелями ліворуч */
+.skb-stage{display:flex;gap:10px;align-items:flex-start;width:100%;max-width:calc(min(980px,96vw) + 96px);margin:auto;max-height:100%}
+.skb-stage>.ward-card{flex:1;min-width:0;max-width:none}
+.skb-sides{display:flex;gap:8px;align-items:flex-start;flex:none}
+.ward.skb-look .skb-sides{display:none}
+
+/* ── кнопка «Книга вмінь» під слотами ── */
+.skb-btn{grid-column:1/-1;height:calc(var(--ek-cell) + 14px);border-radius:16px;cursor:pointer;position:relative;
+  border:2px solid var(--gold);background:radial-gradient(120% 140% at 30% 0%,#5a3fa3,#2a1b5c 60%,#1a1240);
+  display:flex;align-items:center;gap:10px;padding:0 12px;color:#fff4d6;font:inherit;text-align:left;
+  box-shadow:0 6px 18px rgba(0,0,0,.35),inset 0 0 22px rgba(160,120,255,.25);transition:transform .15s,box-shadow .2s}
+.skb-btn:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(0,0,0,.4),0 0 18px rgba(242,199,92,.35)}
+.skb-btn.on{border-color:#7ef0a0;box-shadow:0 0 0 3px rgba(126,240,160,.35)}
+.skb-btn .bi{font-size:2rem;flex:none;filter:drop-shadow(0 3px 4px rgba(0,0,0,.5))}
+.skb-btn .bt{font-weight:900;font-size:.9rem;line-height:1.1;min-width:0}
+.skb-btn .bt small{display:block;font-weight:800;font-size:.6rem;color:#cbb8ff;margin-top:3px}
+.skb-badge{position:absolute;top:-9px;right:-7px;min-width:24px;height:24px;border-radius:12px;padding:0 6px;font-size:.72rem;font-weight:900;
+  display:flex;align-items:center;justify-content:center;color:#3b2700;background:linear-gradient(180deg,#fff2a8,#f2b72e);
+  box-shadow:0 0 0 2px #fff,0 0 14px rgba(255,214,90,.9);animation:skb-pulse 1.6s ease-in-out infinite;z-index:2}
+@keyframes skb-pulse{50%{transform:scale(1.12)}}
+
+/* ── права панель: сумка ↔ книга (перегортання) ── */
+.ek-inv.skb-flip{perspective:1600px;padding:0;background:none;border:0}
+.skb-flip-in{position:relative;display:grid;height:100%;min-height:0;transition:transform .55s cubic-bezier(.3,.7,.2,1);transform-style:preserve-3d}
+.skb-flip.book .skb-flip-in{transform:rotateY(-180deg)}
+.skb-face{grid-area:1/1;backface-visibility:hidden;-webkit-backface-visibility:hidden;display:flex;flex-direction:column;min-height:0;min-width:0;
+  background:linear-gradient(180deg,#1c3357,#111f3c);border:2px solid rgba(224,164,42,.5);border-radius:16px;padding:10px}
+.skb-face.back{transform:rotateY(180deg)}
+.skb-flip:not(.book) .skb-face.back,.skb-flip.book .skb-face.front{visibility:hidden;transition:visibility 0s .28s}
+.skb-ph{display:flex;align-items:center;gap:8px;margin-bottom:9px;flex-wrap:wrap}
+.skb-ph b{font-size:1rem;font-weight:900;color:#ffe9b8;flex:1}
+.skb-chip{display:inline-flex;align-items:center;gap:5px;font-weight:900;font-size:.76rem;border-radius:20px;padding:3px 10px;
+  color:#3b2700;background:linear-gradient(180deg,#fff2a8,#f2b72e);border:1.5px solid #fff}
+.skb-chip.zero{color:#9fb0d8;background:rgba(0,0,0,.3);border-color:rgba(224,164,42,.4)}
+.skb-mini{font:inherit;font-weight:800;font-size:.76rem;cursor:pointer;padding:6px 11px;border-radius:11px;
+  border:1.5px solid rgba(224,164,42,.55);background:rgba(0,0,0,.25);color:#ffe9b8}
+.skb-mini:hover{border-color:var(--gold)}
+.skb-mini[disabled]{opacity:.55;cursor:default}
+.skb-tabs{display:flex;gap:6px;margin-bottom:9px;flex-wrap:wrap}
+.skb-tab{font:inherit;display:inline-flex;align-items:center;gap:4px;font-weight:800;font-size:.76rem;cursor:pointer;padding:6px 11px;border-radius:11px;
+  color:#dfe8fb;border:1.5px solid transparent;background:rgba(255,255,255,.06)}
+.skb-tab:hover{background:rgba(255,255,255,.11)}
+.skb-tab.on{background:linear-gradient(180deg,#FFE7A0,#E0A93A);color:#5a3d08;border-color:#C9942F}
+.skb-tab.glow{box-shadow:0 0 0 2px #fff2a8,0 0 12px rgba(255,214,90,.8)}
+.skb-list{display:flex;flex-direction:column;gap:8px;overflow:auto;flex:1 1 auto;min-height:0;padding:2px}
+.skb-msg{padding:12px;border-radius:14px;font-weight:800;font-size:.84rem;color:#fff4d6;
+  background:linear-gradient(90deg,rgba(160,120,255,.3),rgba(255,214,90,.15));border:1.5px solid rgba(255,214,90,.45)}
+
+/* рядок книги: плитка + опис праворуч */
+.skb-row{display:flex;align-items:center;gap:12px;padding:8px 10px 8px 8px;border-radius:16px;
+  background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));border:1.5px solid rgba(255,255,255,.08)}
+.skb-row.can{border-color:rgba(255,214,90,.55);background:linear-gradient(90deg,rgba(255,214,90,.12),rgba(255,255,255,.02))}
+.skb-row.lock{opacity:.55}
+.skb-txt{flex:1;min-width:0;cursor:pointer}
+.skb-nm{font-weight:900;font-size:.95rem;color:#fff;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.skb-tag{font-size:.58rem;font-weight:900;padding:1px 7px;border-radius:8px;letter-spacing:.02em}
+.skb-tag.a{background:#ff8a3d;color:#3a1600}
+.skb-tag.p{background:rgba(159,176,216,.22);color:#c9d6f2}
+.skb-kid{font-size:.78rem;font-weight:700;color:#c9d6f2;line-height:1.3;margin-top:2px}
+.skb-st{font-size:.7rem;font-weight:800;color:var(--gold);margin-top:4px}
+.skb-st.mut{color:#9fb0d8}
+.skb-learn{flex:none;font:inherit;font-weight:900;font-size:.78rem;cursor:pointer;padding:8px 12px;border-radius:12px;border:2px solid #fff;color:#3b2700;
+  background:linear-gradient(180deg,#fff2a8,#f2b72e);box-shadow:0 0 14px rgba(255,214,90,.5)}
+.skb-learn[disabled]{opacity:.6;cursor:wait}
+
+/* плитка вміння: кільце майстерності + емодзі (згодом — картинка) */
+.skb-sk{--p:0;width:60px;height:60px;flex:none;border-radius:16px;position:relative;display:flex;align-items:center;justify-content:center;
+  background:conic-gradient(#5fd2ff calc(var(--p)*1%),rgba(255,255,255,.1) 0);padding:3px;user-select:none;-webkit-user-select:none}
+.skb-sk .in{width:100%;height:100%;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:1.8rem;
+  background:radial-gradient(120% 120% at 50% 15%,#34548c,#172a4f);box-shadow:inset 0 2px 8px rgba(0,0,0,.45)}
+.skb-sk.act .in{background:radial-gradient(120% 120% at 50% 15%,#7a3b2a,#2d1610)}
+.skb-sk.max{background:#ffd75e;box-shadow:0 0 14px rgba(255,214,90,.7)}
+.skb-sk.none{background:rgba(255,255,255,.08)}
+.skb-sk.none .in{filter:grayscale(.7) brightness(.8)}
+.skb-sk .pc{position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);font-size:.58rem;font-weight:900;padding:0 6px;border-radius:8px;
+  background:#0b1630;border:1.5px solid rgba(95,210,255,.7);color:#bfeaff;white-space:nowrap}
+.skb-sk.max .pc{border-color:#ffd75e;color:#ffe9a8}
+.skb-sk .lk{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.2rem;background:rgba(6,12,30,.55);border-radius:16px}
+.skb-sk.drag{cursor:grab;touch-action:none}
+.skb-sk.sel{outline:3px solid #fff2a8;outline-offset:2px;box-shadow:0 0 18px rgba(255,214,90,.9);animation:skb-wob .9s ease-in-out infinite}
+@keyframes skb-wob{50%{transform:translateY(-3px)}}
+.skb-sk.spot{background:none;border:2px dashed rgba(126,240,160,.55);cursor:pointer}
+.skb-sk.spot .in{background:rgba(126,240,160,.08);font-size:.58rem;font-weight:900;color:#9ff0bd;text-align:center;line-height:1.15;box-shadow:none}
+
+/* ── бокова панель вмінь ── */
+.skb-bar{width:86px;flex:none;border:3px solid var(--gold);border-radius:20px;padding:10px 8px;display:flex;flex-direction:column;align-items:center;gap:12px;
+  background:linear-gradient(180deg,#22184a,#120c2e);box-shadow:0 18px 40px rgba(0,0,0,.5)}
+.skb-bar h4{margin:0;font-size:.7rem;font-weight:900;color:#ffe9b8;text-align:center;line-height:1.1}
+.skb-slot{width:62px;height:62px;border-radius:16px;position:relative;display:flex;align-items:center;justify-content:center;
+  border:2px dashed rgba(255,214,90,.4);background:rgba(0,0,0,.25);transition:border-color .15s,background .15s,transform .15s}
+.skb-slot .k{position:absolute;top:-7px;left:-7px;width:19px;height:19px;border-radius:50%;font-size:.6rem;font-weight:900;
+  display:flex;align-items:center;justify-content:center;background:#0b1630;border:1.5px solid rgba(224,164,42,.7);color:#ffe9b8;z-index:2}
+.skb-slot.full{border-style:solid;border-color:#ff8a3d;background:rgba(255,138,61,.12);cursor:pointer}
+.skb-slot.lock{border-style:solid;border-color:rgba(255,255,255,.1);background:rgba(0,0,0,.35);font-size:.54rem;font-weight:900;color:#9fb0d8;text-align:center;line-height:1.15}
+.skb-slot.want{border-color:#7ef0a0;box-shadow:0 0 0 3px rgba(126,240,160,.3)}
+.skb-slot.over{background:rgba(126,240,160,.25);transform:scale(1.07)}
+.skb-slot .skb-sk{width:54px;height:54px;padding:2px}
+.skb-slot .skb-sk .in{font-size:1.5rem}
+.skb-slot .skb-sk .pc{display:none}
+.skb-bar .hint{font-size:.54rem;font-weight:700;color:#9fb0d8;text-align:center;line-height:1.25}
+
+/* ── картка вміння ── */
+.skb-sheet-bg{position:fixed;inset:0;z-index:140;background:rgba(5,10,25,.6);display:flex;align-items:center;justify-content:center;padding:16px}
+.skb-sheet-bg[hidden]{display:none}
+.skb-sheet{width:100%;max-width:440px;max-height:88vh;overflow:auto;background:linear-gradient(180deg,#1f3561,#101e3d);border:3px solid var(--gold);
+  border-radius:22px;padding:16px;box-shadow:0 30px 70px rgba(0,0,0,.6);animation:skb-pop .22s ease-out;color:#eaf1ff}
+@keyframes skb-pop{from{transform:scale(.92);opacity:0}}
+.skb-top{display:flex;gap:14px;align-items:center}
+.skb-top .skb-sk{width:76px;height:76px}
+.skb-top .skb-sk .in{font-size:2.4rem}
+.skb-top h3{margin:0 0 4px;font-size:1.2rem;font-weight:900;color:#fff}
+.skb-sheet .kid{font-size:.92rem;font-weight:700;color:#dbe6ff;margin:12px 0}
+.skb-fx{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.skb-fx div{background:rgba(0,0,0,.25);border:1.5px solid rgba(255,255,255,.1);border-radius:12px;padding:8px 10px;font-size:.78rem;font-weight:800}
+.skb-fx div small{display:block;font-size:.62rem;color:#9fb0d8;font-weight:800;margin-bottom:2px}
+.skb-fx .now{border-color:rgba(95,210,255,.55)}
+.skb-fx .max{border-color:rgba(255,214,90,.55)}
+.skb-prog{margin:12px 0 4px}
+.skb-prog .tr{height:12px;border-radius:7px;background:rgba(0,0,0,.4);overflow:hidden;position:relative}
+.skb-prog .tr i{position:absolute;inset:0 auto 0 0;border-radius:7px;background:linear-gradient(90deg,#5fd2ff,#3b8cff)}
+.skb-prog .tr b{position:absolute;top:0;bottom:0;width:2px;background:rgba(255,255,255,.35)}
+.skb-prog .cap{display:flex;justify-content:space-between;font-size:.64rem;font-weight:800;color:#9fb0d8;margin-top:4px}
+.skb-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.skb-acts .skb-learn{flex:1}
+.skb-note{font-size:.72rem;font-weight:700;color:#9fb0d8;margin-top:10px}
+.skb-mech{margin-top:10px;font-size:.72rem}
+.skb-mech summary{cursor:pointer;font-weight:800;color:#9fb0d8}
+.skb-mech div{display:flex;gap:8px;padding:4px 0;border-bottom:1px dashed rgba(255,255,255,.08)}
+.skb-mech div b{color:#ffe9b8;min-width:40%}
+.skb-cls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.skb-ccard{font:inherit;text-align:left;cursor:pointer;padding:12px;border-radius:16px;border:2px solid rgba(255,255,255,.12);color:#eaf1ff;
+  background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02))}
+.skb-ccard:hover{border-color:var(--gold)}
+.skb-ccard .ci{font-size:1.9rem}
+.skb-ccard b{display:block;font-size:1rem;color:#fff;margin:4px 0}
+.skb-ccard p{margin:0;font-size:.72rem;font-weight:700;color:#c9d6f2;line-height:1.3}
+
+.skb-ghost{position:fixed;z-index:160;pointer-events:none;transform:translate(-50%,-50%) scale(1.1);filter:drop-shadow(0 10px 16px rgba(0,0,0,.6))}
+
+/* ── вузькі екрани: панель — закріплений рядок унизу екрана ── */
+@media (max-width:1060px){
+  .ward:not(.skb-look){align-items:flex-start;padding-bottom:calc(var(--skb-dock,110px) + 16px)}
+  .skb-stage{display:block;max-height:none}
+  .skb-stage>.ward-card{max-height:calc(100dvh - var(--skb-dock,110px) - 40px)}
+  .skb-sides{position:fixed;left:50%;bottom:8px;transform:translateX(-50%);z-index:120;flex-direction:column;gap:6px;max-width:calc(100vw - 12px);align-items:stretch}
+  .skb-bar{width:auto;flex-direction:row;gap:8px;padding:8px 10px 16px;border-radius:18px;justify-content:center;position:relative}
+  .skb-bar h4{writing-mode:vertical-rl;transform:rotate(180deg);font-size:.6rem}
+  .skb-bar h4 br{display:none}
+  .skb-bar .hint{position:absolute;left:0;right:0;bottom:2px;font-size:.5rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 8px}
+  .skb-bar .hint br{display:none}
+  .skb-slot{width:52px;height:52px}
+  .skb-slot .skb-sk{width:46px;height:46px}
+  .skb-slot .skb-sk .in{font-size:1.25rem}
+}
+@media (max-width:520px){
+  .skb-row{gap:10px}
+  .skb-sk{width:52px;height:52px}
+  .skb-sk .in{font-size:1.5rem}
+  .skb-learn{padding:7px 9px;font-size:.72rem}
+  .skb-fx,.skb-cls{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){.skb-flip-in,.skb-sk,.skb-badge,.skb-sheet{animation:none!important;transition:none!important}}

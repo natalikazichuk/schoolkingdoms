@@ -40,8 +40,8 @@ import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword,
   signOut, onAuthStateChanged,
   getFirestore, initializeFirestore, doc, getDoc, setDoc, updateDoc, addDoc, deleteDoc,
-  collection, getDocs, query, where, serverTimestamp, runTransaction, Timestamp
-} from "./sk-fb.js?v=1";
+  collection, getDocs, query, where, serverTimestamp, runTransaction, Timestamp, skApi
+} from "./sk-fb.js?v=2";
 
 // Налаштування старого проєкту Firebase. sk-fb.js їх не використовує,
 // лишаються для initializeApp(...) — як ім'я «застосунку».
@@ -391,6 +391,14 @@ const SK = {
   },
 
   // Повний документ Героя
+  /* ===== КНИГА ВМІНЬ (arena.html) =====
+     Поля skills / skillBar / heroClass / skillBonus змінює лише сервер
+     (server/app/src/skills.js): він перевіряє очки, рівень і панель тими
+     самими правилами з sk-skills.js. Відповідь — оновлені поля книги. */
+  learnSkill(id)      { return skApi('POST', 'skills/learn', { id }); },
+  setSkillBar(bar)    { return skApi('POST', 'skills/bar', { bar }); },
+  chooseClass(cls)    { return skApi('POST', 'skills/class', { cls }); },
+
   async getHero() {
     const heroId = SK._heroUid();
     if (!heroId) return null;

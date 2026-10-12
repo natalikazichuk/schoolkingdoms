@@ -8,7 +8,9 @@
      VERSION, CLASSES, SKILLS, TOPICS, QUESTIONS,
      UNIVERSAL (12 вмінь рівнів 1–3), LEARN_START, CLASS_LEVEL, pointsForLevel(lv),
      GROWTH, growTable(total), pctFromUses(uses,total), usesForPct(pct,total),
-     byId(id), forClass(cls)
+     byId(id), forClass(cls),
+     книга героя: BAR_N, BAR_LEVELS, barSlots(lv), bookState(hero), freePoints(st),
+                  learnBlock(st,id), mastery(st,id), barBlock(st,bar), effectText(id,m)
    }
 
    Вміння (SKILLS[i]):
@@ -665,9 +667,85 @@ function pointsForLevel(lv) {
 
 var BY_ID = {};
 SKILLS.forEach(function(s){ BY_ID[s.id] = s; });
+UNIVERSAL.forEach(function(s){ BY_ID[s.id] = s; });
+
+/* ══ КНИГА ВМІНЬ ГЕРОЯ ══
+   Стан лежить у документі героя heroes/{id}:
+     skills     { 'base.kick': 12, … } — вивчені вміння → кількість спрацювань
+     skillBar   [id|null × 5]          — панель активних вмінь (бій)
+     heroClass  'knight'|…|null        — обирається на CLASS_LEVEL
+     skillBonus число                  — очки за тести (поверх очок за рівні)
+   Ці поля змінює лише сервер (server/app/src/skills.js) — і перевіряє тими
+   самими функціями, що нижче; сторінка (arena.html) — лише показує. */
+var BAR_N = 5;
+var BAR_LEVELS = [1, 1, 5, 10, 15];       // з якого рівня відкривається кожен слот панелі
+function barSlots(lv) {
+  var n = 0;
+  BAR_LEVELS.forEach(function(l){ if ((lv || 1) >= l) n++; });
+  return n;
+}
+/* стан книги з документа героя (порожні поля — порожній стан) */
+function bookState(hero) {
+  hero = hero || {};
+  var bar = Array.isArray(hero.skillBar) ? hero.skillBar.slice(0, BAR_N) : [];
+  while (bar.length < BAR_N) bar.push(null);
+  return {
+    lv: Math.max(1, Math.floor(Number(hero.arena && hero.arena.level) || 1)),
+    skills: (hero.skills && typeof hero.skills === 'object') ? hero.skills : {},
+    bar: bar,
+    cls: hero.heroClass || null,
+    bonus: Math.max(0, Math.floor(Number(hero.skillBonus) || 0))
+  };
+}
+function freePoints(st) { return pointsForLevel(st.lv) + st.bonus - Object.keys(st.skills).length; }
+/* чому не можна вивчити ('' — можна) */
+function learnBlock(st, id) {
+  var s = BY_ID[id];
+  if (!s || !/^base\./.test(id)) return 'unknown';      // вміння класів — наступним кроком
+  if (Object.prototype.hasOwnProperty.call(st.skills, id)) return 'learned';
+  if (s.lv > st.lv) return 'level';
+  if (freePoints(st) <= 0) return 'points';
+  return '';
+}
+function mastery(st, id) {
+  if (!Object.prototype.hasOwnProperty.call(st.skills, id)) return 0;
+  return pctFromUses(st.skills[id], growTotal(BY_ID[id]));
+}
+/* панель: лише вивчені активні, без повторів, у відкритих слотах */
+function barBlock(st, bar) {
+  if (!Array.isArray(bar) || bar.length !== BAR_N) return 'shape';
+  var open = barSlots(st.lv), seen = {};
+  for (var i = 0; i < BAR_N; i++) {
+    var id = bar[i];
+    if (id == null) continue;
+    if (i >= open) return 'locked';
+    if (seen[id]) return 'dup';
+    seen[id] = 1;
+    if (!Object.prototype.hasOwnProperty.call(st.skills, id) || !BY_ID[id] || BY_ID[id].type !== 'A') return 'notactive';
+  }
+  return '';
+}
+
+/* що дає вміння при майстерності m (0…1) — коротко, для дітей */
+function pc(x) { return (x < 10 ? Math.round(x * 10) / 10 : Math.round(x)) + '%'; }
+var FX = {
+  'base.weapons': function(m){ return '+' + pc(25 * m) + ' урону зброєю'; },
+  'base.kick':    function(m){ return 'вдається в ' + pc(50 + 50 * m) + ', збиває з ніг ' + pc(10 * m); },
+  'base.potions': function(m){ return 'зілля сильніші на ' + pc(50 * m); },
+  'base.scrolls': function(m){ return 'свитки сильніші на ' + pc(50 * m) + (m >= 1 ? ', 2 бар\'єри' : ''); },
+  'base.trade':   function(m){ return 'купуєш дешевше на ' + pc(20 * m) + ', продаєш дорожче на ' + pc(20 * m); },
+  'base.magic':   function(m){ return '+' + pc(25 * m) + ' сили заклинань'; },
+  'base.spark':   function(m){ return 'вдається в ' + pc(50 + 50 * m) + ', урон 5–10'; },
+  'base.shield':  function(m){ return '+' + pc(5 * m) + ' шансу блокувати'; },
+  'base.dodge':   function(m){ return 'ухиляєшся в ' + pc(15 * m) + ' ударів у відкрите місце'; },
+  'base.focus':   function(m){ return 'шанс зосередитись ' + pc(40 + 60 * m) + ' за спокійний хід'; },
+  'base.exotic':  function(m){ return '+' + pc(50 * m) + ' урону екзотичною зброєю'; },
+  'base.bond':    function(m){ return '+' + pc(10 * m) + ' урону, поки зброя «твоя»'; }
+};
+function effectText(id, m) { return FX[id] ? FX[id](Math.max(0, Math.min(1, m))) : ''; }
 
 window.SKSKILLS = {
-  VERSION: 5,
+  VERSION: 6,
   CLASSES: CLASSES,
   SKILLS: SKILLS,
   TOPICS: TOPICS,
@@ -682,6 +760,15 @@ window.SKSKILLS = {
   usesForPct: usesForPct,
   QUESTIONS: QUESTIONS,
   byId: function(id){ return BY_ID[id] || null; },
+  BAR_N: BAR_N,
+  BAR_LEVELS: BAR_LEVELS,
+  barSlots: barSlots,
+  bookState: bookState,
+  freePoints: freePoints,
+  learnBlock: learnBlock,
+  mastery: mastery,
+  barBlock: barBlock,
+  effectText: effectText,
   forClass: function(cls){ return SKILLS.filter(function(s){ return s.cls === cls; }); }
 };
 })();

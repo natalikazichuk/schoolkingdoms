@@ -113,3 +113,14 @@ test('невідомі шляхи заборонені', async () => {
   assert.ok(!await can('admin', 'get', 'secret/x', {}));
   assert.ok(!await can('admin', 'get', 'users/admin/sub/x', {}));
 });
+
+test('книга вмінь: поля героя змінює лише сервер', async () => {
+  const hero = { parentUid: 'p1', skills: { 'base.kick': 3 }, skillBonus: 1 };
+  assert.ok(await can('h1', 'update', 'heroes/h1', hero, Object.assign({}, hero, { xp: 10 })), 'інші поля — можна');
+  assert.ok(!await can('h1', 'update', 'heroes/h1', hero, Object.assign({}, hero, { skillBonus: 99 })));
+  assert.ok(!await can('h1', 'update', 'heroes/h1', hero, Object.assign({}, hero, { skills: { 'base.kick': 3, 'base.spark': 0 } })));
+  assert.ok(!await can('h1', 'update', 'heroes/h1', hero, Object.assign({}, hero, { heroClass: 'mage' })));
+  assert.ok(!await can('p1', 'update', 'heroes/h1', hero, Object.assign({}, hero, { skillBar: ['base.kick'] })));
+  assert.ok(await can('p1', 'create', 'heroes/h9', null, { parentUid: 'p1' }));
+  assert.ok(!await can('p1', 'create', 'heroes/h9', null, { parentUid: 'p1', skillBonus: 50 }));
+});

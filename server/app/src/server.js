@@ -20,6 +20,7 @@ const { pool, migrate, splitPath, isCollPath } = require('./db');
 const { allowed } = require('./rules');
 const V = require('./values');
 const passwords = require('./passwords');
+const skills = require('./skills');
 
 const PORT = Number(process.env.PORT || 3000);
 const MAX_BODY = 4 * 1024 * 1024;
@@ -348,6 +349,18 @@ async function adminAccounts(user) {
   return [{ accounts: r.rows }];
 }
 
+/* книга вмінь: помилки SkillError → коди API */
+const SKILL_STATUS = { unauthenticated: 401, 'permission-denied': 403, 'invalid-argument': 400, 'failed-precondition': 409 };
+function skillRoute(fn) {
+  return async (req, user, b) => {
+    try { return [await fn(user, b)]; }
+    catch (e) {
+      if (e instanceof skills.SkillError) throw new ApiError(SKILL_STATUS[e.code] || 400, e.code, e.message);
+      throw e;
+    }
+  };
+}
+
 /* ---------- маршрутизація ---------- */
 const ROUTES = {
   'POST /api/auth/signup': (req, user, b) => signup(req, b),
@@ -357,6 +370,9 @@ const ROUTES = {
   'POST /api/get': (req, user, b) => getDoc(user, b),
   'POST /api/query': (req, user, b) => query(user, b),
   'POST /api/commit': (req, user, b) => commit(user, b),
+  'POST /api/skills/learn': skillRoute(skills.learn),
+  'POST /api/skills/bar': skillRoute(skills.setBar),
+  'POST /api/skills/class': skillRoute(skills.chooseClass),
   'GET /api/admin/collections': (req, user) => adminCollections(user),
   'POST /api/admin/docs': (req, user, b) => adminDocs(user, b),
   'POST /api/admin/doc': (req, user, b) => adminDoc(user, b),

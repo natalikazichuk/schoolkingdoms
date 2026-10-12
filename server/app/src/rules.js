@@ -11,6 +11,18 @@
 const HERO_COLLS_PUBLIC = ['tests', 'books', 'items', 'vocab', 'vocabDecks', 'curriculum', 'meta'];
 
 function pairId(a, b) { return a < b ? a + '__' + b : b + '__' + a; }
+
+/* Поля книги вмінь героя змінює лише сервер (src/skills.js): браузер не може
+   ні записати їх при створенні героя, ні змінити пізніше. */
+const HERO_PROTECTED = ['skills', 'skillBar', 'heroClass', 'skillBonus'];
+function canon(v) {
+  if (Array.isArray(v)) return '[' + v.map(canon).join(',') + ']';
+  if (v && typeof v === 'object') return '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + canon(v[k])).join(',') + '}';
+  return JSON.stringify(v === undefined ? null : v);
+}
+function protectedKept(oldD, newD) {
+  return HERO_PROTECTED.every(k => canon((oldD || {})[k]) === canon((newD || {})[k]));
+}
 function arr(v) { return Array.isArray(v) ? v : []; }
 function sameArr(x, y) {
   x = arr(x); y = arr(y);
@@ -57,8 +69,9 @@ async function allowed(a, op, path, res, next) {
   if (p.length === 2 && p[0] === 'heroes') {
     const hid = p[1];
     if (read) return signedIn && (a.uid === hid || a.uid === r.parentUid || await sameFamily(a, res));
-    if (op === 'create') return signedIn && a.uid === n.parentUid;
-    if (op === 'update') return signedIn && n.parentUid === r.parentUid && (a.uid === hid || a.uid === r.parentUid);
+    if (op === 'create') return signedIn && a.uid === n.parentUid && protectedKept(null, n);
+    if (op === 'update') return signedIn && n.parentUid === r.parentUid && (a.uid === hid || a.uid === r.parentUid)
+      && protectedKept(r, n);
     if (op === 'delete') return signedIn && a.uid === r.parentUid;
     return false;
   }
