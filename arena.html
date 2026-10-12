@@ -650,12 +650,28 @@ body.scr-battle .wrap{max-width:1500px}
 .result .wearline{margin:6px 0 2px;font-size:.82rem;font-weight:700;opacity:.85}
 .dmg-float.hit{color:#ff9a6b} .dmg-float.crit{color:#ff5a3a;font-size:3.7rem;-webkit-text-stroke:2.5px rgba(32,6,0,.6)}
 .dmg-float.blk{color:#7bd8ff} .dmg-float.miss{color:#eaf2ff;font-size:2rem}
-/* вміння зросло в бою: іконка + «+1» золотом, злітає від твоєї картки */
-.dmg-float.skup{top:52%;font-size:1.7rem;color:#ffd84a;-webkit-text-stroke:1.5px rgba(40,24,0,.6);
-  text-shadow:0 0 14px rgba(255,200,60,.9),0 3px 8px rgba(0,0,0,.8)}
-.dmg-float.skup{white-space:nowrap}
-.dmg-float.skup.half{color:#e9dcae;font-size:1.35rem;text-shadow:0 0 8px rgba(255,220,120,.5),0 3px 8px rgba(0,0,0,.8)}
-.dmg-float.skup small{display:block;font-family:'Nunito',sans-serif;font-weight:900;font-size:.7rem;-webkit-text-stroke:0;color:#fff3c4;letter-spacing:.02em}
+/* вміння зросло в бою: велика іконка + «+1» злітає посередині між бійцями,
+   знизу вгору хвилькою, повільно */
+.scene-mid{position:relative}
+.skup{position:absolute;left:50%;top:calc(100% + 50px);z-index:60;pointer-events:none;text-align:center;white-space:nowrap;
+  font-family:'Fredoka';font-weight:700;font-size:3rem;line-height:1;color:#ffd84a;
+  -webkit-text-stroke:2px rgba(40,24,0,.6);
+  text-shadow:0 0 18px rgba(255,200,60,.95),0 4px 10px rgba(0,0,0,.85);
+  animation:skfly 4.6s cubic-bezier(.25,.7,.35,1) forwards}
+.skup small{display:block;margin-top:4px;font-family:'Nunito',sans-serif;font-weight:900;font-size:1rem;
+  -webkit-text-stroke:0;color:#fff3c4;text-shadow:0 2px 6px rgba(0,0,0,.9)}
+.skup.half{color:#f1e3b0;font-size:2.4rem;text-shadow:0 0 10px rgba(255,220,120,.6),0 4px 10px rgba(0,0,0,.85)}
+@keyframes skfly{
+  0%{opacity:0;transform:translate(-50%,0) scale(.4)}
+  8%{opacity:1;transform:translate(-50%,-10px) scale(1.15)}
+  16%{transform:translate(-50%,-30px) scale(1)}
+  35%{transform:translate(calc(-50% + 26px),calc(var(--fly) * -.35)) scale(1)}
+  60%{opacity:1;transform:translate(calc(-50% - 26px),calc(var(--fly) * -.65)) scale(1)}
+  100%{opacity:0;transform:translate(-50%,calc(var(--fly) * -1)) scale(.9)}}
+#screen-battle .scene-mid{--fly:360px}
+@media (max-width:640px){
+  #screen-battle .scene-mid{--fly:230px}
+  .skup{top:calc(100% + 10px);font-size:2.3rem}.skup.half{font-size:1.9rem}.skup small{font-size:.78rem}}
 /* оглушений (Пінок збив з ніг): зірочки кружляють над головою */
 
 .stun{position:absolute;top:13%;left:50%;width:0;height:0;z-index:40;pointer-events:none}
@@ -668,7 +684,7 @@ body.scr-battle .wrap{max-width:1500px}
   50%{transform:translate(-50%,-50%) translate(42px,0) scale(.85);opacity:.9}
   75%{transform:translate(-50%,-50%) translate(0,-10px) scale(.6);opacity:.55}
   100%{transform:translate(-50%,-50%) translate(-42px,0) scale(.85);opacity:.9}}
-@media (max-width:640px){.stun i{font-size:1.15rem}.dmg-float.skup{font-size:1.35rem}.dmg-float.skup small{display:none}}
+@media (max-width:640px){.stun i{font-size:1.15rem}}
 @keyframes floatup{
   0%{opacity:0;transform:translate(-50%,16px) scale(.55)}
   11%{opacity:1;transform:translate(-50%,-2px) scale(1.2)}
@@ -2091,17 +2107,17 @@ window.SKHERO = (function(){
   /* вміння зросли за цей хід: іконка + «+1» злітає від твоєї картки (по черзі) */
   /* вдале спрацювання — «+1», невдале — «+½» (на невдачах шкала вдвічі довша) */
   function floatGrow(g0, g1, f0, f1, delay){
-    var card = $('pScene'); if(!card || !window.SKSKILLS) return;
+    var card = document.querySelector('#screen-battle .scene-mid'); if(!card || !window.SKSKILLS) return;
     g0 = g0||{}; g1 = g1||{}; f0 = f0||{}; f1 = f1||{};
     var ids = Object.keys(Object.assign({}, g1, f1)).filter(function(id){ return (g1[id]||0) > (g0[id]||0) || (f1[id]||0) > (f0[id]||0); });
     ids.forEach(function(id, i){
       var ok = (g1[id]||0) - (g0[id]||0), bad = (f1[id]||0) - (f0[id]||0), S = SKSKILLS.byId(id);
       var d = ok + bad / 2, txt = d === Math.floor(d) ? String(d) : (Math.floor(d) ? Math.floor(d) : '') + '½';
       setTimeout(function(){
-        var el = document.createElement('div'); el.className = 'dmg-float skup' + (ok ? '' : ' half');
+        var el = document.createElement('div'); el.className = 'skup' + (ok ? '' : ' half');
         el.innerHTML = (S ? S.icon : '📈') + ' +' + txt + '<small>' + biEsc(S ? S.name : id) + '</small>';
-        card.appendChild(el); setTimeout(function(){ el.remove(); }, 2900);
-      }, delay + i * 450);
+        card.appendChild(el); setTimeout(function(){ el.remove(); }, 4800);
+      }, delay + i * 900);
     });
   }
   function useLine(u){
