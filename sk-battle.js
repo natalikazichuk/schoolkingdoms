@@ -122,12 +122,14 @@
     if (id === SKILL.spark.id && num(st.me.mana) < SKILL.spark.mana) return 'mana';
     return '';
   }
-  /* обрати активне вміння на цей хід (id) або скасувати (null) */
+  /* обрати активне вміння (id) або скасувати (null). Вибір ЛИШАЄТЬСЯ на наступні ходи:
+     вміння б'є щоходу, коли доступне; на перезарядці чи без мани — чекає, не скидається. */
   function useSkill(ctx, st, id) {
     if (!isLive(st)) return false;
     if (id == null) { if (st.me.skill) { st.me.skill = null; st.rev++; return true; } return false; }
-    if (skillBlock(st, id)) return false;
-    st.me.skill = id; st.me.skillRound = st.round; st.rev++;
+    var why = skillBlock(st, id);
+    if (why && why !== 'cd' && why !== 'mana') return false;
+    st.me.skill = id; st.rev++;
     return true;
   }
   /* удар активним вмінням у зону основної атаки. Повертає запис для журналу. */
@@ -428,11 +430,11 @@
     applyDodge(ctx, st, opHit, rng(st.bid + '|' + st.round + '|dodge'));
     // активне вміння: окремий удар у ту саму зону, що й основний
     var skillRec = null, sid = st.me.skill;
-    if (sid && st.me.skillRound === st.round && !auto && !down && !fm.feared && !skillBlock(st, sid)) {
+    if (sid && !auto && !down && !fm.feared && !skillBlock(st, sid)) {
       skillRec = skillStrike(ctx, st, sid, pm, po, me.atk === op.block, rng(st.bid + '|' + st.round + '|skill'));
       if (sid === SKILL.kick.id) { st.me.cd = st.me.cd || {}; st.me.cd[sid] = st.round + SKILL.kick.cd; }
     }
-    st.me.skill = null;
+    if (sid && (st.me.bar || []).indexOf(sid) < 0) st.me.skill = null;   // вибір лишається на наступний хід
     if (skillRec && skillRec.dmg > 0) { var sh = { dmg: skillRec.dmg, kind: 'hit', hits: [skillRec] }; applyBarrier(fo, sh); skillRec.dmg = sh.dmg; }
     applyBarrier(fo, meHit); applyBarrier(fm, opHit);
     st.op.f.lastPlayerAtk = me.atk;

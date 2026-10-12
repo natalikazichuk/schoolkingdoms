@@ -37,11 +37,30 @@ test('Пінок: удар у зону атаки, перезарядка 2 хо
   assert.ok(['hit', 'block'].includes(e.skill.kind));
   if (e.skill.kind === 'hit') assert.ok(e.skill.dmg >= 1);
   assert.strictEqual(SB.skillBlock(st, 'base.kick'), 'cd');
-  assert.ok(!SB.useSkill(ctx, st, 'base.kick'));
-  assert.ok(st.me.grow['base.kick'] >= 1);
-  SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
-  SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+  assert.strictEqual(st.me.skill, 'base.kick', 'вибір лишається після атаки');
+  assert.ok((st.me.grow['base.kick'] || 0) + (st.me.growF['base.kick'] || 0) >= 1);
+  // на перезарядці вибір не скидається і Пінок не б'є
+  assert.ok(!SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now()).skill);
+  assert.ok(!SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now()).skill);
+  assert.strictEqual(st.me.skill, 'base.kick');
   assert.strictEqual(SB.skillBlock(st, 'base.kick'), '', 'після двох ходів знову можна');
+  // і б'є сам, без повторного натискання
+  assert.ok(SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now()).skill, 'перезарядився — б\'є знову');
+});
+
+test('Вогник обраний — б\'є щоходу, поки є мана; скасування — більше не б\'є', () => {
+  const st = battle({ 'base.spark': 1, 'base.magic': 1 }, ['base.spark']);
+  st.me.mana = 12;
+  SB.useSkill(ctx, st, 'base.spark');
+  assert.ok(SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now()).skill);
+  assert.ok(SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now()).skill);
+  assert.strictEqual(st.me.mana, 2);
+  assert.ok(!SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now()).skill, 'без мани — чекає');
+  assert.strictEqual(st.me.skill, 'base.spark', 'вибір не скинуто');
+  st.me.mana = 10;
+  assert.ok(SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now()).skill, 'мана є — знову б\'є');
+  SB.useSkill(ctx, st, null);
+  assert.ok(!SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now()).skill);
 });
 
 test('Пінок заблоковано, якщо суперник захищає зону атаки', () => {
