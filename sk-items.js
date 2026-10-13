@@ -569,6 +569,32 @@
      (b20 золото, b10 срібло, bm10 сіре). opts.root — шлях до кореня сайту. */
   var CAT_EMO = { 'Шоломи': '⛑️', 'Обладунки': '🥋', 'Рукавиці': '🧤', 'Наручі': '🦾', 'Пояси': '🪢', 'Штани': '👖', 'Взуття': '👢',
     'Зброя': '⚔️', 'Щити': '🛡️', 'Кільце': '💍', 'Амулет': '📿', 'Зелья': '🧪', 'Свиток': '📜' };
+  /* ── ГРУПИ РЕЧЕЙ за місцем на тілі (закладки інвентаря й магазину) ──
+     cats — категорії каталогу в порядку сортування всередині групи. */
+  var GROUPS = [
+    { key: 'weapon', label: 'Зброя',     icon: '⚔️', cats: ['Зброя', 'Щити'] },
+    { key: 'head',   label: 'Голова',    icon: '⛑️', cats: ['Шоломи'] },
+    { key: 'body',   label: 'Тулуб',     icon: '🥋', cats: ['Обладунки', 'Пояси'] },
+    { key: 'arms',   label: 'Руки',      icon: '🧤', cats: ['Рукавиці', 'Наручі'] },
+    { key: 'legs',   label: 'Ноги',      icon: '👢', cats: ['Штани', 'Взуття'] },
+    { key: 'jewel',  label: 'Біжутерія', icon: '💍', cats: ['Кільце', 'Амулет'] },
+    { key: 'other',  label: 'Інше',      icon: '🧪', cats: ['Зелья', 'Свиток'] }
+  ];
+  var CAT_ORDER = {};
+  GROUPS.forEach(function (g, gi) { g.cats.forEach(function (c, ci) { CAT_ORDER[c] = { g: g.key, n: gi * 10 + ci }; }); });
+  /* група речі за категорією; невідома категорія — «Інше» */
+  function groupOf(category) { return (CAT_ORDER[category] && CAT_ORDER[category].g) || 'other'; }
+  /* порядок показу: група → категорія → клас (grade) → ціна → назва */
+  function itemCmp(a, b) {
+    a = a || {}; b = b || {};
+    var ca = CAT_ORDER[a.category] ? CAT_ORDER[a.category].n : 999, cb = CAT_ORDER[b.category] ? CAT_ORDER[b.category].n : 999;
+    if (ca !== cb) return ca - cb;
+    var ga = Number(a.grade) || 0, gb = Number(b.grade) || 0;
+    if (ga !== gb) return ga - gb;
+    var pa = Number(a.price) || 0, pb = Number(b.price) || 0;
+    if (pa !== pb) return pa - pb;
+    return String(a.name || '').localeCompare(String(b.name || ''), 'uk');
+  }
   function bonusCls(b) { b = Number(b == null ? 1 : b); return b > 1.15 ? 'b20' : (b > 1 ? 'b10' : (b < 1 ? 'bm10' : '')); }
   /* картинки, яких немає на сервері: після першого 404 більше не просимо їх
      (до кінця сесії) — інакше кожна перемальовка дає нову червону помилку в Console */
@@ -616,6 +642,9 @@
     scaleStat: scaleStat,
     newUid: newUid,
     CAT_EMO: CAT_EMO,
+    GROUPS: GROUPS,
+    groupOf: groupOf,
+    itemCmp: itemCmp,
     WEAPON_TYPES: WEAPON_TYPES,
     DMG_TYPES: DMG_TYPES,
     weaponType: weaponType,

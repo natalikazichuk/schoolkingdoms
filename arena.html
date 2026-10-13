@@ -230,6 +230,12 @@ button{font-family:inherit}
 .sh-col.store{border-color:#3f6fbf}
 .sh-col h3{margin:0 0 8px;font-family:'Fredoka';font-size:1rem;color:#ffe9b8;display:flex;align-items:center;gap:6px}
 .sh-col h3 small{font-family:inherit;font-size:.72rem;color:#a9c1e4;font-weight:800}
+.sh-grp{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
+.sh-grp button{border:1.5px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#e9f0ff;border-radius:10px;min-width:34px;height:30px;padding:0 6px;font-size:.95rem;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:2px}
+.sh-grp button small{font-size:.62rem;color:inherit;opacity:.8;font-weight:800}
+.sh-grp button.on{background:linear-gradient(180deg,#ffe7a0,#e0a93a);color:#3a2a08;border-color:#e0a93a}
+.sh-grp button.none:not(.on){opacity:.4}
+.sh-grp.store{margin:0 0 8px;justify-content:flex-start}
 .sh-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
 .sh-tab.soon{opacity:.72;border-style:dashed}
 .sh-tab{border:1.5px solid rgba(255,255,255,.18);border-radius:999px;padding:4px 11px;font-size:.74rem;font-weight:900;cursor:pointer;
@@ -1070,6 +1076,9 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 .ek-tab{display:inline-flex;align-items:center;gap:5px;font-weight:800;font-size:.78rem;cursor:pointer;padding:6px 11px;border-radius:11px;color:#dfe8fb;border:1.5px solid transparent;background:rgba(255,255,255,.05)}
 .ek-tab:hover{background:rgba(255,255,255,.1)}
 .ek-tab.ek-on{background:linear-gradient(180deg,#FFE7A0,#E0A93A);color:#5a3d08;border-color:#C9942F}
+.ek-tab small{font-size:.66rem;opacity:.75;margin-left:2px}
+.ek-tab.ek-none:not(.ek-on){opacity:.45}
+@media (max-width:700px){.ek-tab .ek-tl{display:none}.ek-tab{padding:6px 9px;font-size:.9rem}}
 .ek-grid{display:grid;grid-template-columns:repeat(auto-fill,var(--ek-cell));column-gap:var(--ek-gap);row-gap:var(--ek-gap);justify-content:center;align-content:start;overflow:auto;padding:2px;flex:1 1 auto;min-height:0}
 .ek-beltbar{margin-top:10px;background:linear-gradient(180deg,#1c3357,#111f3c);border:2px solid rgba(224,164,42,.5);border-radius:14px;padding:8px 10px}
 .ek-belt-lbl{color:#ffe9b8;font-family:'Fredoka';font-weight:700;margin-bottom:6px}
@@ -1568,7 +1577,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
     <div class="shop-body">
       <section class="sh-col store"><h3>🏪 Товари</h3><div class="sh-tabs" id="shTabs"></div><div id="shStore"></div></section>
       <section class="sh-col counter"><h3>🧾 Прилавок</h3><div id="shCounter"></div></section>
-      <section class="sh-col inv"><h3>🎒 Сумка <small id="shBagCnt"></small></h3><div id="shInv"></div>
+      <section class="sh-col inv"><h3>🎒 Сумка <small id="shBagCnt"></small><span class="sh-grp" id="shBagTabs"></span></h3><div id="shInv"></div>
         <div class="sh-hint">Натисни річ — вона одразу на прилавку для продажу (стопку зілль — по одній штуці за натискання); права кнопка (на телефоні — довге натискання) — роздивитись, продати всю стопку або 🗑 викинути. Продаємо лише речі із сумки — вдягнене спершу зніми.</div></section>
     </div>
   </div>
@@ -1650,7 +1659,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
 <script src="sk-arena-rules.js?v=19"></script>
-<script src="sk-battle.js?v=11"></script>
+<script src="sk-battle.js?v=12"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
    Інвентар, скриня, смітник, продане / куплене сьогодні й монети
@@ -1829,7 +1838,9 @@ window.SKHERO = (function(){
     if(window.SKIT&&SKIT.imgMissing&&SKIT.imgMissing(src)) return fallback;   // немає на сервері — не просимо вдруге
     return '<img src="'+src+'" alt="" onerror="window.SKIT&&SKIT.imgMissed&&SKIT.imgMissed(this.getAttribute(\'src\'));this.replaceWith(document.createTextNode(\''+fallback+'\'))">';
   }
-  function swapsLeft(){ return (live() && !UI.resolving && B.swapRound !== B.round) ? 1 : 0; }
+  /* одна спецдія за хід (sk-battle.js): перевдягання можна, доки цього ходу ще не перевдягався —
+     обране вміння чи річ із пояса воно знімає */
+  function swapsLeft(){ return (live() && !UI.resolving && !SB.swapped(B) && !SB.knockedNow(B, B.me)) ? 1 : 0; }
   function activeIn(slot){ return SB.activeIn(B, slot); }
   function leftDur(e){ return SB.leftDur(ctx(), B, e); }
   function itemWear(e){ return SB.itemWear(ctx(), e, B.wear); }
@@ -2031,7 +2042,7 @@ window.SKHERO = (function(){
       if(!text) return;
       updateForce('p', B.me);
       addSwap(B.round, text);
-      paintBelt();
+      paintBelt(); if(window.SKBOOK) SKBOOK.paintBattle(B);
       BI.sel = null;
       saveBattle();
       renderInv();
@@ -2073,9 +2084,18 @@ window.SKHERO = (function(){
         + '<span class="ic">'+itemIcon(b.id, em)+'</span>'+biEsc((b.base&&b.base.name)||b.id)+(on?' ✓':'')+'</button>';
     }).join('')
       + '<div class="bbhint">'+(belt.every(function(b){ return b.used; }) ? 'Усе з пояса вже використано в цьому бою.' : chosen ? 'Спрацює в цьому ході, перед ударами. Натисни ще раз — скасувати.'
-          : free ? 'Спецвміння ходу: використай одну річ із пояса (або перевдягнись).' : (live() ? 'Спецвміння цього ходу вже використано.' : ''))+'</div>';
+          : free ? 'Одна дія за хід: річ із пояса, вміння або перевдягання.' : (live() ? 'Цього ходу ти вже перевдягнувся.' : ''))+'</div>';
   }
   /* колонка вмінь: тап — обрати вміння на цей хід (ще тап — скасувати) */
+  /* журнал бою заповнює місце до нижнього меню (на великому екрані чи з малим масштабом —
+     більше рядків); не менше 110px, як було */
+  function fitLog(){
+    var el = $('steps'); if(!el || !el.offsetParent) return;
+    var nav = document.querySelector('.botnav'), navH = nav ? nav.getBoundingClientRect().height : 0;
+    var room = window.innerHeight - navH - (el.getBoundingClientRect().top + window.scrollY) - 14;   // від верху сторінки: не стрибає під час прокрутки
+    el.style.maxHeight = Math.max(110, Math.round(room)) + 'px';
+  }
+  window.addEventListener('resize', fitLog);
   function bindSkills(){
     var col = $('btSkills'); if(!col) return;
     col.addEventListener('click', function(e){
@@ -2083,11 +2103,13 @@ window.SKHERO = (function(){
       var id = b.getAttribute('data-skb-use'), why = SB.skillBlock(B, id);
       // вибір лишається, доки гравець його не змінить: вміння б'є щоходу, коли доступне
       if(B.me.skill===id){ SB.useSkill(ctx(), B, null); }
-      else if(!SB.useSkill(ctx(), B, id)){ if(why==='used') showToast('✔ Уже використано', 'Це вміння — раз за бій.'); return; }
+      else if(!SB.useSkill(ctx(), B, id)){ if(why==='used') showToast('✔ Уже використано', 'Це вміння — раз за бій.');
+        else if(why==='swap') showToast('🔁 Ти вже перевдягнувся', 'За хід — одна дія: вміння, пояс або перевдягання.');
+        else if(why==='knock') showToast('😵 Тебе збили з ніг', 'Цей хід — без атаки й без спецдій.'); return; }
       else if(why==='cd') showToast('⏳ Перезарядка', 'Обрано — спрацює, щойно перезарядиться (ще '+((B.me.cd||{})[id]-B.round+1)+' хід.).');
       else if(why==='mana') showToast('💧 Не вистачає мани', 'Обрано — спрацює, коли буде 5 мани.');
       else if(why==='shield') showToast('🛡️ Потрібен щит', 'Обрано — спрацює, коли вдягнеш щит у ліву руку.');
-      saveBattle(); if(window.SKBOOK) SKBOOK.paintBattle(B);
+      saveBattle(); if(window.SKBOOK) SKBOOK.paintBattle(B); paintBelt();
     });
   }
   function bindBelt(){
@@ -2096,7 +2118,7 @@ window.SKHERO = (function(){
       var b = e.target.closest('[data-belt-uid]'); if(!b || b.disabled || !B || !live() || UI.resolving) return;
       var uid = b.getAttribute('data-belt-uid');
       if(!SB.useBelt(ctx(), B, B.me.use===uid ? null : uid)) return;
-      saveBattle(); paintBelt(); if(invOpen()) renderInv();
+      saveBattle(); paintBelt(); if(window.SKBOOK) SKBOOK.paintBattle(B); if(invOpen()) renderInv();
     });
   }
   /* ── значки ефектів: позитивні (зелений стовпчик) і негативні (червоний) ──
@@ -2708,7 +2730,7 @@ window.SKHERO = (function(){
     if(k.kind==='buff') return '<span class="ln use">Ти: '+nm+': <span class="g">лють! +'+k.dmgPct+'% урону, −'+k.armorCut+'% броні на '+k.turns+(k.turns<5?' ходи':' ходів')+'</span><span class="dice">🎲 '+k.roll+' ≤ '+k.need+'%</span></span>';
     var t = k.kind==='fail' ? '<span class="b">не вдалося</span>'
       : k.kind==='block' ? '<span class="b">заблоковано</span>'
-      : '<span class="g">влучив</span> (−'+dmgHtml(k.dmg, k.magDmg||0)+')' + (k.knock ? ' · <span class="crit">збив з ніг 😵</span> — суперник пропустить удар' : '');
+      : '<span class="g">влучив</span> (−'+dmgHtml(k.dmg, k.magDmg||0)+')' + (k.knock ? ' · <span class="crit">збив з ніг 😵</span> — суперник пропустить удар' : k.knockImmune ? ' · <span class="b">не збити з ніг — суперник ще оговтується (імунітет)</span>' : k.knockHalf ? ' · <span class="b">суперник щойно підвівся: шанс збити з ніг навпіл</span>' : '');
     return '<span class="ln use">Ти: '+nm+' → '+ZONE_UA[e.me.atk]+': '+t+(k.mana ? ' <span style="opacity:.75">(−'+k.mana+' мани)</span>' : '')+dice+'</span>';
   }
   /* Кожен удар — окремим рядком журналу: рядок N = мій удар N · удар суперника N.
@@ -3423,6 +3445,8 @@ window.SKHERO = (function(){
   /* ── прив'язки ── */
   function wire(){
     bindKnight(); bindGuard(); bindBelt(); bindSkills();
+    var rl = document.querySelector('.rlog'); if(rl) rl.addEventListener('toggle', fitLog);
+    setInterval(fitLog, 1500);
     $('strikeBtn').addEventListener('click', resolve);
     $('logSimple').addEventListener('click', function(){ setLogMode('simple'); });
     $('logFull').addEventListener('click', function(){ setLogMode('full'); });
@@ -3675,9 +3699,9 @@ window.SKHERO = (function(){
 })();
 </script>
 
-<script src="sk-items.js?v=12"></script>
-<script src="sk-skills.js?v=14"></script>
-<script src="sk-book.js?v=7"></script>
+<script src="sk-items.js?v=13"></script>
+<script src="sk-skills.js?v=15"></script>
+<script src="sk-book.js?v=8"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
    Дані ЗАРАЗ demo (локально). Крок 2: джерело речей → Firestore (адмінка).
@@ -3749,13 +3773,11 @@ function persist(){if(!loaded||!(window.SK&&SK.storeTx)||!ST())return;var d=ST()
  SK.storeTx(function(st){return ST().applyDiff(st,d);},{noBattle:true}).then(function(r){if(window.SKHERO)SKHERO.apply(r);})
  .catch(function(e){var m=(e&&e.message)||String(e);if(window.showToast)showToast('Не збережено',m);if(window.SKHERO)SKHERO.load(true).catch(function(){});});}
 var EQUIP={helmet:null,armor:null,gloves:null,bracers:null,belt:null,pants:null,boots:null,weaponR:null,weaponL:null,ring1:null,ring2:null,amulet:null};
-var TABS=[
- ['all','Усі','🎒',function(){return true;}],
- ['weapon','Зброя','⚔️',function(c){return c==='weapon'||c==='shield';}],
- ['armor','Броня','🛡️',function(c){return ['body','head','gloves','bracers','belt','pants','boots'].indexOf(c)>=0;}],
- ['other','Інше','🧪',function(c){return ['other','ring','amulet'].indexOf(c)>=0;}]
-];
+/* закладки сумки — групи за місцем на тілі (SKIT.GROUPS, ті самі й у магазині) */
+var TABS=[['all','Усі','🎒']].concat(((window.SKIT&&SKIT.GROUPS)||[]).map(function(g){return [g.key,g.label,g.icon];}));
 var curTab='all';
+function grpOf(e){var b=BYID[e.id];return (window.SKIT&&SKIT.groupOf)?SKIT.groupOf(b&&b.category):'other';}
+function byItem(a,b){return (window.SKIT&&SKIT.itemCmp)?SKIT.itemCmp(BYID[a.id],BYID[b.id]):0;}
 
 function isImg(ic){return typeof ic==='string'&&/\.(webp|png|jpe?g|svg|gif)$/i.test(ic);}
 /* спільна плитка речі (SKIT.tile): іконка, колір бонусу, міцність, ×N — як у магазині */
@@ -3935,8 +3957,8 @@ function renderSlots(){q('ek-slots').innerHTML=SLOT_DEFS.map(function(d){var id=
  return '<div class="ek-slot'+(item?' ek-filled':'')+'" data-slot="'+id+'">'+inner+'<span class="ek-lab">'+lab.split('|').join('<br>')+'</span></div>';}).join('')
   +(window.SKBOOK?SKBOOK.btnHtml():'');}   /* під слотами — кнопка «📖 Книга вмінь» (sk-book.js) */
 
-function renderInv(){var f=null;for(var i=0;i<TABS.length;i++)if(TABS[i][0]===curTab)f=TABS[i][3];
- var list=INV.filter(function(x){return x.qty>0&&f(x.cat);});var g=q('ek-invGrid');
+function renderInv(){if(q('ek-tabs'))renderTabs();
+ var list=INV.filter(function(x){return x.qty>0&&(curTab==='all'||grpOf(x)===curTab);}).sort(byItem);var g=q('ek-invGrid');
  if(!list.length){
    var why='Порожньо';
    if(NO_HERO||LOAD_ERR==='permission-denied') why='Увійди як Герой, щоб бачити свої речі';
@@ -3946,7 +3968,8 @@ function renderInv(){var f=null;for(var i=0;i<TABS.length;i++)if(TABS[i][0]===cu
  g.innerHTML=list.map(function(x){return '<div class="ek-cell" data-uid="'+x.uid+'">'+
   chip(x,' data-src="inv" data-uid="'+x.uid+'"').replace('class="ek-chip ','class="ek-chip ek-drag ')+'</div>';}).join('');}
 
-function renderTabs(){q('ek-tabs').innerHTML=TABS.map(function(t){return '<span class="ek-tab'+(t[0]===curTab?' ek-on':'')+'" data-tab="'+t[0]+'">'+t[2]+' '+t[1]+'</span>';}).join('');}
+function renderTabs(){var n={};INV.forEach(function(x){if(x.qty>0){var k=grpOf(x);n[k]=(n[k]||0)+1;n.all=(n.all||0)+1;}});
+ q('ek-tabs').innerHTML=TABS.map(function(t){return '<span class="ek-tab'+(t[0]===curTab?' ek-on':'')+(n[t[0]]?'':' ek-none')+'" data-tab="'+t[0]+'" title="'+t[1]+'">'+t[2]+'<span class="ek-tl"> '+t[1]+'</span>'+(n[t[0]]?'<small>'+n[t[0]]+'</small>':'')+'</span>';}).join('');}
 function renderBelt(){var host=q('ek-belt');if(!host)return;var bc=BELT.length;var cnt=q('ek-beltCount');if(cnt)cnt.textContent=bc?('('+BELT.filter(Boolean).length+'/'+bc+')'):'';
  if(!bc){host.innerHTML='<div class="ek-belt-empty">Вдягни пояс із комірками, щоб класти зілля та свитки.</div>';return;}
  var out='';for(var i=0;i<bc;i++){var e=BELT[i];
@@ -4183,6 +4206,12 @@ function shopBusy(){try{var o=JSON.parse(localStorage.getItem(LOCK_KEY)||'null')
 window.SKSHOP={isOpen:shopBusy,open:openShop};
 /* вкладки магазину: видно всі розділи, навіть порожні (скоро — з поясненням) */
 var SH_TABS=[['gear','🛡️ Екіпіровка'],['cons','🧪 Підсилення'],['back','↩️ Викуп'],['gifts','🎁 Подарунки']];
+/* фільтр за групою речей (SKIT.GROUPS): S.bf — сумка, S.sf — товари */
+function shGroups(){return [{key:'all',label:'Усі',icon:'🎒'}].concat(SKIT.GROUPS||[]);}
+function shGrp(id){var b=S.byId[id];return SKIT.groupOf?SKIT.groupOf(b&&b.category):'other';}
+function shCmp(a,b){return SKIT.itemCmp?SKIT.itemCmp(S.byId[a.id],S.byId[b.id]):0;}
+function grpBtns(attr,cur,list,skip){var n={all:list.length};list.forEach(function(x){var k=shGrp(x.id);n[k]=(n[k]||0)+1;});
+  return shGroups().filter(function(g){return !skip||skip.indexOf(g.key)<0;}).map(function(g){return '<button type="button" '+attr+'="'+g.key+'" class="'+(cur===g.key?'on':'')+(n[g.key]?'':' none')+'" title="'+g.label+'">'+g.icon+(n[g.key]?'<small>'+n[g.key]+'</small>':'')+'</button>';}).join('');}
 var SH_SOON={gifts:'Подарунки — скоро! Тут з’являться подарунки для друзів і сюрпризи.'};
 
 function openShop(tab){
@@ -4293,8 +4322,11 @@ function renderCounter(){
 function renderInv(){
   var b0=bag();q('shBagCnt').textContent=S.st?(ST().bagCount(S.st.inventory)+'/'+ST().BAG_LIMIT):'';
   if(!S.st){q('shInv').innerHTML='<div class="sh-empty">'+(S.err?esc(S.err):'Завантаження…')+'</div>';return;}
-  var worn=wornItems();
-  if(!b0.length&&!worn.length){q('shInv').innerHTML='<div class="sh-empty">Сумка порожня.</div>';return;}
+  var worn=wornItems(),bf=S.bf||'all';
+  q('shBagTabs').innerHTML=grpBtns('data-bf',bf,worn.concat(b0));
+  var inF=function(i){return bf==='all'||shGrp(i.id)===bf;};
+  worn=worn.filter(inF).sort(shCmp);b0=b0.filter(inF).sort(shCmp);
+  if(!b0.length&&!worn.length){q('shInv').innerHTML='<div class="sh-empty">'+(bf==='all'?'Сумка порожня.':'У цій групі речей немає.')+'</div>';return;}
   q('shInv').innerHTML='<div class="sh-grid">'+worn.map(function(i){var b=S.byId[i.id];if(!b)return '';var t=SKIT.tile(b,i);
     return '<button type="button" class="sh-item worn '+t.cls+'" data-worn="'+esc(i.uid)+'" title="'+esc(b.name)+' — надіто на Герої. Щоб продати, спершу зніми в інвентарі">'
      +'<span class="ic">'+t.html+'</span><span class="sh-worn">✔</span><span class="nm">'+esc(b.name)+'</span>'
@@ -4317,11 +4349,13 @@ function renderStore(){
       return '<button type="button" class="sh-item '+tl.cls+(used?' used':'')+'" data-buyback="'+esc(t.inst.uid)+'"'+(used?' title="На прилавку — натисни ще раз, щоб забрати назад"':'')+'>'
        +'<span class="ic">'+tl.html+'</span><span class="nm">'+esc(b.name)+'</span><span class="act buy">викупити</span><span class="pr">↩ '+coinsH(t.price)+'</span></button>';}).join('')+'</div>';
     return;}
-  var list=S.tab==='cons'?st.cons:st.gear;
-  if(!list.length){q('shStore').innerHTML='<div class="sh-empty">Сьогодні тут порожньо.</div>';return;}
+  var list=(S.tab==='cons'?st.cons:st.gear).slice().sort(shCmp),head='';
+  if(S.tab==='gear'){var sf=S.sf||'all';head='<div class="sh-grp store">'+grpBtns('data-sf',sf,list,['other'])+'</div>';
+    list=list.filter(function(b){return sf==='all'||shGrp(b.id)===sf;});}
+  if(!list.length){q('shStore').innerHTML=head+'<div class="sh-empty">Сьогодні тут порожньо.</div>';return;}
   /* у наявності: речі — 1 шт., зілля й свитки — кілька (stock.qty). Куплене сьогодні
      й покладене на прилавок віднімається; нічого не лишилось — товар недоступний */
-  q('shStore').innerHTML='<div class="sh-grid">'+list.map(function(b){
+  q('shStore').innerHTML=head+'<div class="sh-grid">'+list.map(function(b){
     var left=stockLeft(b.id),gone=left<=0,inCt=S.ct.buy.some(function(x){return x.base.id===b.id;});
     return '<button type="button" class="sh-item'+(gone?' used':'')+'" data-buy="'+esc(b.id)+'"'+(gone&&!inCt?' disabled':'')+' title="'+(inCt?'На прилавку — натисни ще раз, щоб повернути в товари · ':'')+esc(b.name+' — '+statLine(b)+(gone?' (сьогодні вже розкуплено)':' · у наявності: '+left+' шт.'))+'"><span class="ic">'+SKIT.tile(b,{bonus:1}).html+'</span>'
      +(stockMax(b.id)>1?'<span class="sh-qty">×'+Math.max(0,left)+'</span>':'')+'<span class="nm">'+esc(b.name)+'</span>'
@@ -4389,6 +4423,8 @@ document.addEventListener('click',function(e){
   if(S.busy||!S.st)return;
   var el;
   if((el=e.target.closest('[data-tab]'))&&el.closest('#shTabs')){S.tab=el.getAttribute('data-tab');renderStore();return;}
+  if((el=e.target.closest('[data-bf]'))){S.bf=el.getAttribute('data-bf');renderInv();return;}
+  if((el=e.target.closest('[data-sf]'))){S.sf=el.getAttribute('data-sf');renderStore();return;}
   /* ліва кнопка — річ одразу на прилавок; права (або довге натискання) — картка речі з дією */
   if(itemAct(e.target,false))return;
   if((el=e.target.closest('[data-back]'))){var k=el.getAttribute('data-back'),key=el.getAttribute('data-key');

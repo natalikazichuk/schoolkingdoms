@@ -190,3 +190,67 @@ test('адмін: скинути клас — вміння класу зника
   assert.strictEqual(JSON.stringify(out.skillFails), JSON.stringify({ 'base.kick': 1 }));
   assert.strictEqual(JSON.stringify(out.skillBar), JSON.stringify(['base.kick', null, null, null, null]));
 });
+
+test('одна дія за хід: вміння ↔ пояс знімають одне одного, перевдягання знімає обидва й блокує', () => {
+  const POT = item({ id: 'P1', name: 'Зілля', category: 'Зелья', addStats: [{ stat: "Відновлення здоров'я", value: 10 }] });
+  const st = SB.create(ctx, {
+    bid: 'one-' + (n++),
+    me: { name: 'Я', stats: { health: 400, accuracy: 60, agility: 50, mana: 50 }, eq: [wear(SWORD, 'weaponR', 'w')],
+      belt: [{ base: POT, inst: { uid: 'p1', id: 'P1', slot: 'belt0', bonus: 1 } }],
+      sk: { 'knight.berserk': 1 }, skv: skvOf({ 'knight.berserk': 1 }), bar: ['knight.berserk'] },
+    op: { f: { name: 'Бот', level: 3 }, p: R.fighter({ health: 400, accuracy: 50, agility: 50, mana: 0 }, [], K) }
+  });
+  assert.ok(SB.useSkill(ctx, st, 'knight.berserk'));
+  assert.ok(SB.useBelt(ctx, st, 'p1'));
+  assert.strictEqual(st.me.skill, null, 'пояс зняв вміння');
+  assert.ok(SB.useSkill(ctx, st, 'knight.berserk'));
+  assert.strictEqual(st.me.use, null, 'вміння зняло пояс');
+  assert.ok(SB.useBelt(ctx, st, 'p1'));
+  assert.ok(SB.swap(ctx, st, 'weaponR', null, null), 'перевдягнутись можна, навіть коли обрано пояс');
+  assert.strictEqual(st.me.use, null); assert.strictEqual(st.me.skill, null);
+  assert.ok(SB.swapped(st));
+  assert.ok(!SB.useBelt(ctx, st, 'p1'), 'після перевдягання пояс не обрати');
+  assert.ok(!SB.useSkill(ctx, st, 'knight.berserk'), 'і вміння теж');
+  assert.strictEqual(SB.skillBlock(st, 'knight.berserk'), 'swap');
+  assert.ok(!SB.swap(ctx, st, 'weaponR', { uid: 'w', id: 'W1', bonus: 1 }, SWORD), 'друге перевдягання — ні');
+  const e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+  assert.ok(!e.skill && !e.uses, 'цього ходу — лише перевдягання');
+  assert.ok(!SB.swapped(st), 'новий хід — знову можна');
+  assert.ok(SB.useSkill(ctx, st, 'knight.berserk'));
+});
+
+test('оглушення: оглушений не атакує й без спецдій; поки оглушений — імунітет до нового', () => {
+  // Пінок, що завжди збиває (knock 100)
+  const sk = { 'base.kick': 1 };
+  const st = battle(sk, ['base.kick']);
+  st.me.skv['base.kick'].knock = 100;
+  let k = 0;
+  while (k < 30 && !(st.op.fx && st.op.fx.knock === st.round)) { SB.useSkill(ctx, st, 'base.kick'); SB.turn(ctx, st, { atk: 'head', block: 'legs' }, {}, Date.now()); k++; }
+  assert.ok(SB.knockedNow(st, st.op), 'суперник оглушений цього ходу');
+  st.me.cd = {};                                     // Пінок знову доступний — спробуємо збити ще раз
+  const e = SB.turn(ctx, st, { atk: 'head', block: 'legs' }, {}, Date.now());
+  assert.strictEqual(e.opHit.kind, 'knock', 'оглушений не атакує');
+  if (e.skill && e.skill.kind === 'hit') assert.ok(e.skill.knockImmune && !e.skill.knock, 'імунітет: двічі поспіль не збити');
+  assert.ok(!SB.knockedNow(st, st.op), 'наступного ходу вже не оглушений');
+  // хід після оглушення — шанс навпіл (100 → 50), ще через хід — повний
+  let half = null, full = null;
+  for (let t = 0; t < 12 && (!half || !full); t++) {
+    st.me.cd = {}; SB.useSkill(ctx, st, 'base.kick');
+    const last = st.op.fx.knock, r = st.round;
+    const x = SB.turn(ctx, st, { atk: 'head', block: 'legs' }, {}, Date.now());
+    if (!x.skill || x.skill.kind !== 'hit') continue;
+    if (r === last + 1) half = x.skill; else if (r >= last + 2) full = x.skill;
+    if (x.skill.knock) break;
+  }
+  if (half) assert.ok(half.knockHalf && half.knockNeed === 50, 'навпіл: ' + JSON.stringify(half));
+  if (full) assert.strictEqual(full.knockNeed, 100);
+  // Герой оглушений: ні вміння, ні пояса, ні перевдягання, ні удару
+  const me = battle({ 'base.kick': 1 }, ['base.kick'], [wear(SWORD, 'weaponR', 'w')]);
+  SB.useSkill(ctx, me, 'base.kick');
+  me.me.fx.knock = me.round;
+  assert.strictEqual(SB.skillBlock(me, 'base.kick'), 'knock');
+  assert.ok(!SB.swap(ctx, me, 'weaponR', null, null), 'оглушений не перевдягається');
+  const e2 = SB.turn(ctx, me, { atk: 'head', block: 'legs' }, {}, Date.now());
+  assert.strictEqual(e2.meHit.kind, 'knock'); assert.ok(!e2.skill && e2.meKnocked);
+  assert.strictEqual(me.me.skill, 'base.kick', 'вибір вміння лишається на наступний хід');
+});
