@@ -263,21 +263,22 @@
   function sameStack(a, b) { return !!(a && b && a.cons && b.cons && a.id === b.id && Number(a.bonus || 1) === Number(b.bonus || 1)); }
   function cloneInst(i) { return JSON.parse(JSON.stringify(i)); }
 
-  /* вміння «Торгівля» (м = майстерність 0…1): купівля × (1 − 0.2·м), продаж × (1 + 0.2·м) */
-  function tradeM(m) { m = Number(m) || 0; return m < 0 ? 0 : m > 1 ? 1 : m; }
-  function buyPrice(base, m) {
+  /* вміння «Торгівля»: pct — знижка/надбавка у % (SKSKILLS.skillValues('base.trade').pct, 0…20):
+     купівля × (1 − pct/100), продаж × (1 + pct/100) */
+  function tradeP(p) { p = Number(p) || 0; return p < 0 ? 0 : p > 90 ? 90 : p; }
+  function buyPrice(base, pct) {
     var p = Math.max(0, Math.round(Number(base && base.price) || 0));
-    return p > 0 ? Math.max(1, Math.round(p * (1 - 0.2 * tradeM(m)))) : 0;
+    return p > 0 ? Math.max(1, Math.round(p * (1 - tradeP(pct) / 100))) : 0;
   }
   /* ціна продажу магазину: 1/10 ціни з бонусом × частка міцності (× Торгівля), не менше 1 сріб (за штуку) */
-  function sellPrice(base, inst, m) {
+  function sellPrice(base, inst, pct) {
     if (!base) return 1;
     var p = priceWithBonus(base, inst && inst.bonus != null ? inst.bonus : 1);
     var r = 1;
     if (inst && inst.durMax) r = Math.max(0, Math.min(1, Number(inst.durCur != null ? inst.durCur : inst.durMax) / inst.durMax));
-    return Math.max(1, floor(p * r / 10 * (1 + 0.2 * tradeM(m))));
+    return Math.max(1, floor(p * r / 10 * (1 + tradeP(pct) / 100)));
   }
-  function sellTotal(base, inst, m) { return sellPrice(base, inst, m) * Math.max(1, Number(inst && inst.qty) || 1); }
+  function sellTotal(base, inst, pct) { return sellPrice(base, inst, pct) * Math.max(1, Number(inst && inst.qty) || 1); }
 
   /* Один слот — одна річ. Старі дані могли мати дві речі з тим самим slot
      (напр. два шоломи): інвентар показував першу, а бій рахував обидві.
@@ -373,7 +374,7 @@
   function deal(st, order, byId, now, opts) {
     st = tidy(st, now); now = now == null ? Date.now() : now;
     order = order || {}; byId = byId || {};
-    var today = kyivDay(now), got = 0, spent = 0, bought = [], m = tradeM(opts && opts.trade);
+    var today = kyivDay(now), got = 0, spent = 0, bought = [], m = tradeP(opts && opts.trade);
     (order.sell || []).forEach(function (e) {
       var uid = (e && typeof e === 'object') ? e.uid : e, n = (e && typeof e === 'object') ? Math.floor(Number(e.qty) || 0) : 0;
       var src = null;

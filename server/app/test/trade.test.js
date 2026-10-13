@@ -9,21 +9,21 @@ vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'sk-items.js'), 'utf8'), box.
 const ST = box.window.SKIT.store;
 const SWORD = { id: 'W1', name: 'Меч', category: 'Зброя', price: 1000, stat: 'Урон', valueMin: 1, valueMax: 2, addStats: [] };
 
-test('купівля дешевша, продаж дорожчий на 20% × майстерність', () => {
+test('купівля дешевша, продаж дорожчий на pct% (з правил вміння)', () => {
   assert.strictEqual(ST.buyPrice(SWORD, 0), 1000);
-  assert.strictEqual(ST.buyPrice(SWORD, 1), 800);
-  assert.strictEqual(ST.buyPrice(SWORD, 0.5), 900);
+  assert.strictEqual(ST.buyPrice(SWORD, 20), 800);
+  assert.strictEqual(ST.buyPrice(SWORD, 10), 900);
   const inst = { id: 'W1', bonus: 1 };
   assert.strictEqual(ST.sellPrice(SWORD, inst), 100);
-  assert.strictEqual(ST.sellPrice(SWORD, inst, 1), 120);
-  assert.strictEqual(ST.sellPrice(SWORD, inst, 0.5), 110);
-  assert.strictEqual(ST.buyPrice({ price: 1 }, 1), 1, 'не дешевше 1');
+  assert.strictEqual(ST.sellPrice(SWORD, inst, 20), 120);
+  assert.strictEqual(ST.sellPrice(SWORD, inst, 10), 110);
+  assert.strictEqual(ST.buyPrice({ price: 1 }, 20), 1, 'не дешевше 1');
 });
 
 test('угода рахує гроші з урахуванням Торгівлі', () => {
   const st = { inventory: [{ uid: 'a', id: 'W1', bonus: 1 }], coins: 1000 };
   const byId = { W1: SWORD };
-  const r = ST.deal(st, { sell: ['a'], buy: [SWORD] }, byId, Date.now(), { trade: 1 });
+  const r = ST.deal(st, { sell: ['a'], buy: [SWORD] }, byId, Date.now(), { trade: 20 });
   assert.strictEqual(r.result.got, 120);
   assert.strictEqual(r.result.spent, 800);
   assert.strictEqual(r.state.coins, 1000 + 120 - 800);
