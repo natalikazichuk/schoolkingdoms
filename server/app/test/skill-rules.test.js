@@ -26,13 +26,16 @@ function battle(pct, o) {
 }
 const hit = (st, c) => SB.turn(ctx, st, c || { atk: 'head', block: 'legs' }, {}, Date.now());
 
-test('правила: активні — шанс 50% на 25% → 100% на 100%; сила × м; урон Пінка й Вогника — стала дія', () => {
+test('правила: активні — шанс 50% на 25% → 100% на 100%; урон × м; збити з ніг 5% → 10%', () => {
   assert.strictEqual(S.skillValues('base.kick', 25).chance, 50);
   assert.strictEqual(S.skillValues('base.kick', 50).chance, 67);
   assert.strictEqual(S.skillValues('base.kick', 100).chance, 100);
-  assert.strictEqual(S.skillValues('base.kick', 25).dmgMin, 5);
-  assert.strictEqual(S.skillValues('base.kick', 25).dmgMax, 10);
-  assert.strictEqual(S.skillValues('base.kick', 25).knock, 8, '30 × 0,25 = 7,5 → 8');
+  assert.strictEqual(S.skillValues('base.kick', 25).dmgMin, 1, '5 × 0,25 = 1,25 → 1');
+  assert.strictEqual(S.skillValues('base.kick', 25).dmgMax, 3, '10 × 0,25 = 2,5 → 3');
+  assert.strictEqual(S.skillValues('base.kick', 100).dmgMax, 10);
+  assert.strictEqual(S.skillValues('base.spark', 25).dmgMax, 3);
+  assert.strictEqual(S.skillValues('base.kick', 25).knock, 5);
+  assert.strictEqual(S.skillValues('base.kick', 100).knock, 10);
   assert.strictEqual(S.skillValues('base.kick', 25).cd, 2, 'перезарядка — стала');
   assert.strictEqual(S.skillValues('base.spark', 25).mana, 5, 'мана — стала');
 });
@@ -92,6 +95,15 @@ test('щит: блокує вмінням лише зі щитом у лівій
   const bare = battle({ 'base.shield': 100 }, { bid: 'sb' });
   for (let t = 0; t < 10; t++) (hit(bare).opHit.hits || []).forEach(h => assert.ok(!h.skillShield));
   assert.ok(!bare.me.grow['base.shield'] && !bare.me.growF['base.shield'], 'без щита — не росте');
+});
+
+test('щит: блок шансом речей зі щитом теж дає вдале очко вміння', () => {
+  const BIG = Object.assign({}, SHIELD, { id: 'S2', addStats: [{ stat: 'Шанс блоку', value: 100 }] });
+  const st = battle({ 'base.shield': 25 }, { bid: 'sbig', eq: [{ base: BIG, inst: { uid: 'sh2', id: 'S2', slot: 'weaponL' } }] });
+  let itemBlocks = 0;
+  for (let t = 0; t < 8; t++) (hit(st).opHit.hits || []).forEach(h => { if (h.kind === 'block' && h.byChance && !h.evade) itemBlocks++; });
+  assert.ok(itemBlocks > 0, 'блоки речами були');
+  assert.ok((st.me.grow['base.shield'] || 0) >= itemBlocks, 'кожен блок речами — вдале очко');
 });
 
 test('концентрація: спокійні ходи → рівні до стелі, +5% урону за рівень; урон скидає', () => {
