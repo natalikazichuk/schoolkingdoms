@@ -76,9 +76,58 @@ function refresh(level){
     var lv = ST.lv;
     ST = SKS.bookState(h || {});
     if (level != null) ST.lv = lv;           // рівень арени — той, що бачить Інвентар
-    LOADED = true; render();
+    LOADED = true; render(); askClass();
   }, function(){ LOADED = true; render(); });
 }
+
+/* ── вікно «Обери свій клас» ──
+   З'являється, коли Герой дійшов до CLASS_LEVEL і ще без класу. Вибір можна
+   відкласти: тоді вікно більше не набридає (sk_cls_later — у прогресі Героя),
+   а обрати клас можна будь-коли в 📖 Книзі вмінь → ✨ Клас. */
+var LATER_KEY = 'sk_cls_later', ASKED = false, PICK = null;
+function later(){ try { return !!localStorage.getItem(LATER_KEY); } catch (e) { return false; } }
+function askClass(force){
+  if (!hero() || ST.cls || ST.lv < SKS.CLASS_LEVEL || inBattle()) return;
+  if (!force && (ASKED || later())) return;
+  var res = $('result'); if (!force && res && !res.hidden) return;   // не поверх підсумку бою
+  ASKED = true; PICK = null; drawAsk();
+}
+function drawAsk(){
+  var w = $('skbAsk');
+  if (!w) { w = document.createElement('div'); w.id = 'skbAsk'; w.className = 'skb-ask'; w.setAttribute('role', 'dialog'); w.setAttribute('aria-modal', 'true'); document.body.appendChild(w); }
+  var cards = Object.keys(SKS.CLASSES).map(function(k){
+    var c = SKS.CLASSES[k], ex = SKS.forClass(k).filter(function(x){ return x.lv <= 2; }).slice(0, 4).map(function(x){ return esc(x.name); }).join(' · ');
+    return '<button class="skb-ccard' + (PICK === k ? ' on' : '') + '" type="button" data-skb-ask="' + k + '"><span class="ci">' + c.icon + '</span><b>' + c.name + '</b>'
+      + '<p>' + esc(c.about) + '</p><p class="ex">⭐ Головне: ' + esc(c.stat) + '<br>📖 ' + ex + '</p></button>';
+  }).join('');
+  var c = PICK && SKS.CLASSES[PICK];
+  w.innerHTML = '<div class="skb-ask-card"><div class="skb-ask-h">✨ Час обрати свій шлях!</div>'
+    + '<p class="skb-ask-t">Ти досяг ' + SKS.CLASS_LEVEL + ' рівня. Обери клас — він дасть нові вміння й власний стиль бою. '
+    + '<b>Клас обирається один раз.</b> Не поспішай: можна відкласти й обрати пізніше в <b>📖 Книзі вмінь → ✨ Клас</b>.</p>'
+    + '<div class="skb-cls">' + cards + '</div>'
+    + '<div class="skb-acts">' + (c ? '<button class="skb-learn" type="button" data-skb-ask-ok="' + PICK + '">' + c.icon + ' Так, я — ' + c.name + '</button>' : '<span class="skb-note">Натисни на клас, щоб обрати</span>')
+    + '<button class="skb-mini" type="button" data-skb-ask-later="1">⏳ Оберу пізніше</button></div></div>';
+  w.hidden = false;
+}
+function closeAsk(){ var w = $('skbAsk'); if (w) w.hidden = true; }
+document.addEventListener('click', function(e){
+  var t = e.target, b;
+  if (!t.closest) return;
+  if ((b = t.closest('[data-skb-ask]'))) { PICK = b.getAttribute('data-skb-ask'); drawAsk(); return; }
+  if ((b = t.closest('[data-skb-ask-ok]'))) { var k = b.getAttribute('data-skb-ask-ok'); closeAsk();
+    send('chooseClass', [k], [SKS.CLASSES[k].icon + ' Тепер ти — ' + SKS.CLASSES[k].name + '!', 'Вміння класу — у 📖 Книзі вмінь → ' + SKS.CLASSES[k].icon + ' Клас']); return; }
+  if (t.closest('[data-skb-ask-later]') || t.id === 'skbAsk') {
+    try { localStorage.setItem(LATER_KEY, String(Date.now())); } catch (e2) {}
+    closeAsk(); toast('⏳ Добре, обереш пізніше', 'Клас чекає в 📖 Книзі вмінь → ✨ Клас'); }
+});
+// арена: книгу (і вибір класу) підтягуємо одразу, а не лише при відкритті Інвентаря
+(function boot(){
+  var n = 0;
+  (function w(){
+    if (window.SK && SK.ready) { (SK.ready || Promise.resolve()).then(function(){ if (hero()) refresh(); }); return; }
+    if (n++ < 100) setTimeout(w, 100);
+  })();
+})();
 
 /* ── плитка вміння ── */
 function tile(id, o){
@@ -381,6 +430,7 @@ window.SKBOOK = {
   paintBattle: paintBattle,
   isOpen: function(){ return OPEN; },
   close: function(){ OPEN = false; sel = null; closeSheet(); render(); },
-  state: function(){ return ST; }
+  state: function(){ return ST; },
+  askClass: askClass
 };
 })();
