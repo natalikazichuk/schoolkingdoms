@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Карта Світу навиворіт — School Kingdoms</title>
+<title>Світ навиворіт — School Kingdoms</title>
 <link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
 <link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="manifest" href="../manifest.webmanifest">
@@ -51,31 +51,41 @@ body.flipped h1{color:var(--nav);}
 #intro b{color:var(--ink);}
 body.flipped #intro b{color:var(--nav);}
 
-/* ═════════ карта ═════════ */
-#map{position:relative; aspect-ratio:941/1672; border-radius:22px; border:3px solid #d9b77c; box-shadow:var(--shadow); overflow:hidden; perspective:1600px; background:#aebbd0;}
+/* ═════════ розділи (хаб) ═════════ */
+.view.hidden{display:none !important;}
+.view{display:flex; flex-direction:column; align-items:center; gap:12px; width:100%;}
+.view > *{width:100%; max-width:480px; flex-shrink:0;}
+.chList{display:flex; flex-direction:column; gap:10px;}
+.chCard{display:flex; align-items:center; gap:12px; background:#fff; border:2px solid var(--line); border-radius:18px; padding:10px; box-shadow:var(--shadow); cursor:pointer; text-align:left; font-family:inherit; color:var(--ink); width:100%;}
+.chCard:active{transform:translateY(2px);}
+.chCard .th{width:64px; height:80px; flex:none; border-radius:12px; background:#cfe3f7 center/cover no-repeat; border:2px solid #e6cfa6; position:relative; display:grid; place-items:center; font-size:28px;}
+.chCard .tx{flex:1; min-width:0;}
+.chCard .cn{font-weight:800; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--nav);}
+.chCard .ct{font-family:'Fredoka'; font-weight:700; font-size:17px; line-height:1.15;}
+.chCard .cs{font-weight:800; font-size:12px; color:var(--soft); margin-top:2px;}
+.chCard .bar{height:7px; border-radius:6px; background:var(--line); margin-top:6px; overflow:hidden;}
+.chCard .bar i{display:block; height:100%; background:var(--good); border-radius:6px;}
+.chCard .st{font-size:22px; flex:none;}
+.chCard.locked{opacity:.72;}
+.chCard.locked .th{filter:grayscale(1);}
+.chCard.cur{border-color:var(--accent); box-shadow:0 6px 0 rgba(77,171,247,.35);}
+
+/* ═════════ карта розділу ═════════ */
+.chHead{display:flex; align-items:center; gap:8px;}
+.backBtn{border:2px solid var(--line); background:#fff; border-radius:14px; padding:8px 12px; font-weight:800; font-size:14px; cursor:pointer; box-shadow:var(--shadow); font-family:inherit; color:var(--ink); flex:none;}
+.chHead .cht{flex:1; min-width:0; font-weight:800; font-size:13px; color:var(--soft); line-height:1.3; background:rgba(255,253,246,.92); border:2px solid #ffe08a; border-radius:14px; padding:6px 10px;}
+.chHead .cht b{color:var(--ink); font-family:'Fredoka'; font-size:15px; display:block;}
+#map{position:relative; border-radius:22px; border:3px solid #d9b77c; box-shadow:var(--shadow); overflow:hidden; perspective:1600px; background:#aebbd0;}
 #world{position:absolute; inset:0; transition:transform 1.3s cubic-bezier(.6,-.2,.3,1.2);}
 body.flipped #world{transform:rotateX(180deg);}
-/* Дивне місто знизу вгору: передмістя (ранок) → річка з мостом → місто → вечір → ніч (замок і будиночок на дереві).
-   Фон — img/map-bg.webp зі своєю стежкою; пункти стоять на ній. Фон усередині #world — перевертається разом із пунктами. */
-.bg{position:absolute; inset:0; background:#7ec4f5 url(img/map-bg.webp) center/cover no-repeat;}
-.zl{position:absolute; left:8px; z-index:2; font-family:'Fredoka',sans-serif; font-weight:700; font-size:12px; color:#fff; background:rgba(20,26,70,.55);
-  border-radius:10px; padding:2px 8px; transition:transform 1.3s cubic-bezier(.6,-.2,.3,1.2); white-space:nowrap;}
-.zl.r{left:auto; right:8px;}
-body.flipped .zl{transform:rotateX(180deg);}
-
-.thing{position:absolute; transform:translate(-50%,-50%); line-height:1; pointer-events:none; transition:left 1.2s ease-in-out, top 1.2s ease-in-out;}
-.thing .badge{position:absolute; right:-10px; top:-10px; font-size:.5em; opacity:0; transition:opacity .5s .6s;}
-body.flipped .thing .badge{opacity:1;}
-.thing.star{opacity:0; transition:opacity .8s;}
-body.flipped .thing.star{opacity:1;}
-.thing.nstar{opacity:1; transition:opacity .8s;}
-body.flipped .thing.nstar{opacity:0;}
-.thing.bird{animation:flap 1.6s ease-in-out infinite;}
-.thing.fish{animation:swim 2.2s ease-in-out infinite;}
-@keyframes flap{50%{margin-top:-4px}}
-@keyframes swim{50%{margin-left:6px}}
-body.flipped .thing.fire{filter:hue-rotate(180deg) saturate(1.4);}
-body.flipped .thing.ice{filter:drop-shadow(0 0 8px #ff922b);}
+/* Карти розділів читаються згори вниз: пункт 1 нагорі. Фон — img/rozdil-N.webp; поки картинки немає — фон серії і намальована стежка. */
+.bg{position:absolute; inset:0; background:#7ec4f5 center/cover no-repeat;}
+.bg.fallback{background-image:linear-gradient(180deg,rgba(255,250,240,.35),rgba(255,250,240,.55)), url(img/bg.webp);}
+#path{position:absolute; inset:0; width:100%; height:100%;}
+#path polyline{fill:none; stroke:#fff8e6; stroke-width:9; stroke-linecap:round; stroke-linejoin:round; vector-effect:non-scaling-stroke;}
+#path polyline.dash{stroke:#c99f5c; stroke-width:3; stroke-dasharray:2 9;}
+.soonNote{position:absolute; left:50%; bottom:3%; transform:translateX(-50%); z-index:2; background:rgba(20,26,70,.6); color:#fff; font-weight:800; font-size:12px; border-radius:12px; padding:4px 10px; white-space:nowrap;}
+body.flipped .soonNote{transform:translateX(-50%) rotateX(180deg);}
 
 /* мітки ігор */
 .pin{position:absolute; transform:translate(-50%,-50%); display:block; border:none; background:none; padding:0; cursor:pointer; font-family:inherit; color:var(--ink); z-index:3;}
@@ -101,6 +111,12 @@ body.flipped .pin.lb-l .lbl, body.flipped .pin.lb-r .lbl{transform:translateY(-5
 .pin.locked .lock{display:block;}
 .pin.locked .lbl{opacity:.75;}
 .pin.locked .no{background:#8a8f99;}
+.pin .no.star{background:var(--gold); color:#6b4a00;}
+/* рівень ще будується */
+.pin.soon .em{background:rgba(255,255,255,.75); border-style:dashed; border-color:#a99bc9; opacity:.85;}
+.pin.soon .lock{display:block;}
+.pin.soon .lbl{opacity:.8; font-style:italic;}
+.pin.soon .no{background:#9b8fc0;}
 
 /* ═════════ кнопка перевороту ═════════ */
 .flipBtn{position:sticky; bottom:6px; z-index:6; border:none; border-radius:18px; padding:15px 20px; cursor:pointer; font-weight:700; font-size:20px; color:#fff;
@@ -160,39 +176,47 @@ body.flipped .rules li .f{display:inline;}
 <body>
 <div id="wrap">
   <div id="top">
-    <h1 id="title">Світ навиворіт<small id="subtitle">🗺️ Дивне місто</small></h1>
-    <div class="pill"><span class="lab">Пройдено</span><span class="val" id="doneCnt">0/11</span></div>
+    <h1 id="title">Світ навиворіт<small id="subtitle">🗺️ 6 розділів · 30 рівнів</small></h1>
+    <div class="pill"><span class="lab">Пройдено</span><span class="val" id="doneCnt">0/0</span></div>
   </div>
 
   <div id="main">
-    <div id="intro">У цьому світі все працює <b>нормально</b>… поки не станеться <b>Переворот</b>. Тоді треба зрозуміти нове правило — і використати його!</div>
+    <!-- ══ хаб: ворота + розділи ══ -->
+    <div class="view" id="hubView">
+      <div id="intro">У цьому світі все працює <b>нормально</b>… поки не станеться <b>Переворот</b>. Тоді треба зрозуміти нове правило — і використати його!</div>
 
-    <div id="map">
-      <div id="world">
-        <div class="bg"></div>
-        <span class="zl r" style="top:1.5%">🌃 Ніч</span>
-        <span class="zl" style="top:31%">🌆 Вечір</span>
-        <span class="zl" style="top:50%">🏙️ Дивне місто · день</span>
-        <span class="zl" style="top:88.5%">🏡 Передмістя · ранок</span>
-        <div id="things"></div>
-        <div id="pins"></div>
+      <div class="gateCard" id="gateCard">
+        <span class="gi">🎟️</span>
+        <div><div class="gt" id="gateTitle">Ворота у Світ навиворіт</div>
+          <div class="gs" id="gateSub">Зроби Переворот і розгадай 6 нових правил біля воріт — отримаєш перепустку.</div></div>
+      </div>
+
+      <div class="chList" id="chList"></div>
+
+      <div class="rules">
+        <div class="rh" id="rulesHead">Правила світу · зараз усе нормально</div>
+        <ul id="rulesList"></ul>
+      </div>
+    </div>
+
+    <!-- ══ карта розділу ══ -->
+    <div class="view hidden" id="chView">
+      <div class="chHead">
+        <button class="backBtn" id="toHub" type="button">← Розділи</button>
+        <div class="cht" id="chTitle"></div>
+      </div>
+      <div id="map">
+        <div id="world">
+          <div class="bg" id="mapBg"></div>
+          <svg id="path" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <div id="pins"></div>
+          <div class="soonNote" id="soonNote" hidden>🎨 Картина цього розділу ще малюється</div>
+        </div>
       </div>
     </div>
 
     <button class="flipBtn" id="flipBtn" type="button">🔄 Переворот!</button>
-
-    <div class="gateCard" id="gateCard">
-      <span class="gi">🎟️</span>
-      <div><div class="gt" id="gateTitle">Ворота у Світ навиворіт</div>
-        <div class="gs" id="gateSub">Зроби Переворот і розгадай 6 нових правил біля воріт — отримаєш перепустку.</div></div>
-    </div>
-
-    <div class="rules">
-      <div class="rh" id="rulesHead">Правила світу · зараз усе нормально</div>
-      <ul id="rulesList"></ul>
-    </div>
   </div>
-
 </div>
 
 <!-- поза #wrap: інакше fixed-обгортка ховає картку під футер -->
@@ -204,49 +228,95 @@ body.flipped .rules li .f{display:inline;}
 (function(){
   "use strict";
 
-  /* ═════════ ігри на карті (у порядку стежки) ═════════ */
-  /* Дивне місто, знизу вгору. Пункти відкриваються по черзі: спершу — 🎟️ перепустка біля воріт,
-     далі кожна гра відкривається, коли пройдено попередню. */
-  var GAMES = [
-    /* 🏡 передмістя (ранок) */
-    {href:"svit-navyvorit.html",        em:"🌳", nm:"Дивне дерево",          x:74, y:85, lb:"l", prize:"sk_navyvorit_prize_v1",
-      d:"У передмісті росте дивне дерево: коріння в небі, крона в землі. Як дістати яблуко?",
-      a:"Яблуко падає вниз — лови знизу.", b:"Яблуко падає вгору — кошик став зверху!"},
-    {href:"avtobus-0.html",             em:"🚌", nm:"Автобус №0",            x:45, y:72, lb:"l", prize:"sk_avtobus_prize_v1",
-      d:"Автобус №0 везе з передмістя через міст у місто: 1 → 3 → 5 → 7 → ? — а наступної зупинки немає на карті.",
-      a:"Маршрут уперед: +2.", b:"🔄 Flip: 7 → 5 → 3 → 1, а в кінці — депо 0."},
-    /* 🏙️ місто (день) */
-    {href:"hodynnykova-vezha.html",     em:"🕰️", nm:"Годинникова вежа",      x:72, y:66, prize:"sk_hodynnyk_prize_v1",
-      d:"Перше, що бачиш на в'їзді в місто: усі годинники на вежі показують різний час.",
-      a:"Час іде вперед.", b:"Час іде назад — віднімай."},
-    {href:"ploshcha.html",              em:"🗿", nm:"Площа з пам'ятниками",  x:50, y:60, lb:"l", prize:"sk_ploshcha_prize_v1",
-      d:"У центрі міста — 5 статуй. Відвернешся — одна змінює положення. Яка?",
-      a:"Змінюється одна статуя.", b:"Змінюються всі, крім однієї."},
-    {href:"dvirnyk.html",               em:"🧹", nm:"Двірник",               x:78, y:54, prize:"sk_dvirnyk_prize_v1",
-      d:"Біля площі двірник прибирає вулицю. Але що більше він підмітає, то більше сміття…",
-      a:"🧹 смітить, 🍌 прибирає.", b:"🧹 прибирає, 🍌 смітить."},
-    {href:"dyvnyi-mahazyn.html",        em:"🏪", nm:"Дивний магазин",        x:52, y:46, lb:"l", prize:"sk_mahazyn_prize_v1",
-      d:"На торговій вулиці ціна — це не те, скільки ти платиш. А в коробці — ключ від будинку №17.",
-      a:"Магазин подвоює витрачене.", b:"Повертає половину… але зілля — баг 🐞"},
-    {href:"bank.html",                  em:"🏦", nm:"Банк",                  x:76, y:40, prize:"sk_bank_prize_v1",
-      d:"Поруч із магазином — банк. На вході: «Не залишайте тут свої гроші». А нагороди дають тим, хто залишає…",
-      a:"Нагорода — тим, хто залишає.", b:"Нагорода — тим, хто НЕ залишає."},
-    /* 🌆 житлова вулиця (вечір) */
-    {href:"budynok-z-dveryma.html",     em:"🚪", nm:"Будинок із дверима",    x:84, y:33, lb:"l", prize:"sk_dveri_prize_v1",
-      d:"Будинок №17 — сюди підходить ключ із магазину. Четверо дверей, троє персонажів — і один бреше.",
-      a:"Правильні двері брешуть.", b:"Правильні двері кажуть правду."},
-    {href:"budynok-yakoho-nemaye.html", em:"🏚️", nm:"Будинок, якого немає",  x:60, y:26, lb:"l", prize:"sk_nemaye_prize_v1",
-      d:"Будинок №17 зникає й з'являється з іншим номером… Чому?",
-      a:"Щохвилини номер меншає.", b:"Час назад — номер росте."},
-    /* 🌃 ніч */
-    {href:"lihtari.html",               em:"🔦", nm:"Ліхтарі",               x:46, y:19, lb:"r", prize:"sk_lihtari_prize_v1",
-      d:"Настала ніч. Вулиця освітлена — але вимкнеш ліхтар, і стає світліше! Знайди прихований прохід.",
-      a:"Вимкнеш ліхтар — світліше.", b:"Увімкнеш — світліше."},
-    {href:"muzychnyi-dim.html",         em:"🎵", nm:"Музичний будинок",      x:32, y:9, lb:"r", prize:"sk_muzdim_prize_v1",
-      d:"Нічний фінал: вікна будинку світяться під музику 🔴🔵🟢🟡. Повтори мелодію!",
-      a:"Грай мелодію як чуєш.", b:"Грай мелодію з кінця."}
+  /* ═════════ 6 розділів · 30 рівнів (план — navyvorit/PLAN.md) ═════════
+     Пункт: lv — номер рівня (null — вбудований пункт без номера), href — файл гри (немає — «🚧 скоро»),
+     x, y — центр кружечка на карті у %, lb — підпис "l"/"r" (збоку) або знизу.
+     Пункти відкриваються по черзі через усі розділи; рівні «скоро» не заважають іти далі. */
+  var CH = [
+    {n:"I", nm:"Дивне місто", img:"img/rozdil-1.webp", mini:"img/rozdil-1-mini.webp", ar:"1024/1536",
+     intro:"Портал відчинено! Стежка веде повз будинок із чотирма дверима, ліхтарі й пошту — до годинникової вежі.",
+     pts:[
+      {lv:1, href:"budynok-yakoho-nemaye.html", em:"🏚️", nm:"Будинок, якого немає", x:36, y:18, prize:"sk_nemaye_prize_v1",
+        d:"Біля порталу мав стояти будинок №17. Він зникає й з'являється з іншим номером… Чому?", a:"Щохвилини номер меншає.", b:"Час назад — номер росте."},
+      {lv:2, href:"budynok-z-dveryma.html", em:"🚪", nm:"Чотири двері", x:40, y:31, prize:"sk_dveri_prize_v1",
+        d:"Будинок із червоними, синіми, зеленими й жовтими дверима. На кожних — напис, а персонажі підказують… і хтось бреше.", a:"Правильні двері брешуть.", b:"Правильні двері кажуть правду."},
+      {lv:3, href:"lihtari.html", em:"🔦", nm:"Ліхтарі навпаки", x:28, y:46, prize:"sk_lihtari_prize_v1",
+        d:"Майданчик із ліхтарями. Вимкнеш ліхтар — і стає світліше! Знайди прихований прохід.", a:"Вимкнеш ліхтар — світліше.", b:"Увімкнеш — світліше."},
+      {lv:4, href:"poshta.html", em:"✉️", nm:"Пошта-перевертень", x:63, y:56, prize:"sk_poshta_prize_v1",
+        d:"Листоноша плутає адреси: лист для №12 приходить у №21. Куди піде лист для №56?", a:"Цифри міняються місцями.", b:"Табличку читають догори дриґом: 16 → 91."},
+      {lv:5, href:"hodynnykova-vezha.html", em:"🕰️", nm:"Годинник без часу", x:37, y:80, prize:"sk_hodynnyk_prize_v1",
+        d:"Годинникова вежа: усі годинники показують різний час. Знайди закономірність.", a:"Час іде вперед.", b:"Час іде назад — віднімай."}
+     ]},
+    {n:"II", nm:"Правила зламаного світу", img:"img/rozdil-2.webp", mini:"img/rozdil-2-mini.webp", ar:"948/1659",
+     intro:"Тут ламаються звичні правила: коти брешуть, цінники міняються, дерева ростуть корінням угору.",
+     pts:[
+      {lv:6, em:"🐈‍⬛", nm:"Кіт, який бреше", x:42, y:12, lb:"r",
+        d:"Кіт завжди бреше й каже: «Скарб не в лівій скрині». Де скарб?", a:"Кіт бреше → скарб у лівій.", b:"Кіт став правдивим, а сова бреше."},
+      {lv:7, href:"dyvnyi-mahazyn.html", em:"🏪", nm:"Магазин навпаки", x:45, y:22, lb:"l", prize:"sk_mahazyn_prize_v1",
+        d:"У магазині ціна — це не те, скільки ти платиш. А в загадковій коробці — щось цікаве.", a:"Магазин подвоює витрачене.", b:"Повертає половину… але зілля — баг 🐞"},
+      {lv:null, href:"ploshcha.html", em:"🗿", nm:"Площа з пам'ятниками", x:34, y:35, prize:"sk_ploshcha_prize_v1",
+        d:"На площі — статуї. Відвернешся — одна змінює положення. Яка?", a:"Змінюється одна статуя.", b:"Змінюються всі, крім однієї."},
+      {lv:8, href:"svit-navyvorit.html", em:"🌳", nm:"Дерево догори ногами", x:63, y:44, prize:"sk_navyvorit_prize_v1",
+        d:"Дерево росте корінням у небо, кроною в землю. Як дістати яблуко?", a:"Яблуко падає вниз — лови знизу.", b:"Яблуко падає вгору — кошик зверху!"},
+      {lv:9, href:"avtobus-0.html", em:"🚌", nm:"Міст · Автобус №0", x:31, y:53, prize:"sk_avtobus_prize_v1",
+        d:"Автобус №0 їде через міст: 1 → 3 → 5 → 7 → ? — а наступної зупинки немає на карті.", a:"Маршрут уперед: +2.", b:"🔄 Flip: 7 → 5 → 3 → 1, а в кінці — депо 0."},
+      {lv:null, href:"dvirnyk.html", em:"🧹", nm:"Двірник", x:62, y:66, lb:"l", prize:"sk_dvirnyk_prize_v1",
+        d:"Двірник прибирає вулицю. Але що більше він підмітає, то більше сміття…", a:"🧹 смітить, 🍌 прибирає.", b:"🧹 прибирає, 🍌 смітить."},
+      {lv:10, em:"🪞", nm:"Дзеркальна кімната", x:55, y:80,
+        d:"У дзеркалі ★ ● ▲. Який порядок насправді?", a:"Дзеркало розвертає порядок.", b:"А ще розвертає стрілки ← →."}
+     ]},
+    {n:"III", nm:"Місто загадок", img:"img/rozdil-3.webp", mini:"img/rozdil-3-mini.webp", ar:"1024/1536",
+     intro:"Замок загадок: бібліотека, лабораторія, шахова зала, скарбниця з ключами й вокзал.",
+     pts:[
+      {lv:11, em:"📚", nm:"Книги міняються місцями", x:52, y:27,
+        d:"Після кожного дзвінка крайні книги міняються місцями. Який порядок після двох дзвінків?", a:"Обмін: 2 дзвінки — як було.", b:"Коло: як було — після 3 дзвінків."},
+      {lv:12, em:"⚗️", nm:"Лабораторія навпаки", x:46, y:40, lb:"r",
+        d:"Червона рідина перетворює синю на жовту. Що додати до синьої, щоб отримати жовту?", a:"Червона + синя → жовта.", b:"Реакції навпаки: жовта + червона → синя."},
+      {lv:13, em:"♟️", nm:"Шахова підлога", x:66, y:50,
+        d:"Клітинка, на яку ступив герой, міняє колір. Якою вона буде після трьох кроків?", a:"Міняє колір та, на яку ступив.", b:"Міняє колір та, з якої зійшов."},
+      {lv:14, em:"🗝️", nm:"Три ключі", x:48, y:60, lb:"l",
+        d:"На скрині: «Підходить не золотий і не бронзовий ключ». Який підійде?", a:"Срібний.", b:"Написи брешуть → бронзовий."},
+      {lv:15, em:"🚂", nm:"Залізниця", x:30, y:72,
+        d:"Потяг тричі повертає ліворуч на 90°. Куди він дивиться?", a:"Праворуч.", b:"Кермо навиворіт → ліворуч."}
+     ]},
+    {n:"IV", nm:"Лабораторія неможливого",
+     intro:"Шестерні, кімната без гравітації, камені зі знаками, лабіринт і портал двох світів.",
+     pts:[
+      {lv:16, em:"⚙️", nm:"Шестерні", d:"8 і 4 зубці: скільки обертів зробить друга шестерня?", a:"2 оберти, в інший бік.", b:"Три шестерні 8–4–8."},
+      {lv:17, em:"🪐", nm:"Кімната без гравітації", d:"Магніт на стелі — що станеться з металевим ключем?", a:"Притягнеться до стелі.", b:"Ключ дерев'яний — лишиться."},
+      {lv:18, em:"🪨", nm:"Камені зі знаками", d:"1, 4, 9, 16, … — яке число далі?", a:"25.", b:"Назад: 25, 16, 9, 4 → 1."},
+      {lv:19, href:"bank.html", em:"🏦", nm:"Лабіринт · Банк", prize:"sk_bank_prize_v1",
+        d:"На вході в банк: «Не залишайте тут свої гроші». А нагороди дають тим, хто залишає… Напис бреше!", a:"Нагорода — тим, хто залишає.", b:"Нагорода — тим, хто НЕ залишає."},
+      {lv:20, em:"🌀", nm:"Портал двох світів", d:"У другому світі час удвічі швидший. 3 години тут — скільки там?", a:"6 годин.", b:"Назад: 6 там → 3 тут."}
+     ]},
+    {n:"V", nm:"Таємниці королівства",
+     intro:"Королівська скарбниця, міст чисел, сад кольорів, зоряна карта й ворота кристалів.",
+     pts:[
+      {lv:21, em:"👑", nm:"Королівський скарб", d:"Три скрині, рівно два написи правдиві. Де скарб?", a:"У третій.", b:"Інші написи — рівно один правдивий."},
+      {lv:22, em:"🌉", nm:"Міст чисел", d:"3, 6, 5, 10, 9, … — яке далі?", a:"18 (×2, −1).", b:"Дії навпаки: −1, ×2."},
+      {lv:23, em:"🌷", nm:"Сад кольорів", d:"Червона → синя → жовта → червона. Якою стане червона після двох переворотів?", a:"Жовтою.", b:"Коло навпаки → синьою."},
+      {lv:24, em:"⭐", nm:"Зоряна карта", d:"1, 3, 6, 10, … — яке далі?", a:"15.", b:"Назад: 15, 10, 6, 3 → 1."},
+      {lv:25, em:"💎", nm:"Ворота трьох кристалів", d:"З 2, 4, 5, 7, 8 вибери три з сумою 15.", a:"2 + 5 + 8.", b:"Ті, що лишились: 4 + 7."}
+     ]},
+    {n:"VI", nm:"Останній переворот",
+     intro:"Пісочний годинник, музичний будинок, важелі, код стародавніх воріт — і Серце Світу навиворіт.",
+     pts:[
+      {lv:26, em:"⏳", nm:"Пісочний годинник", d:"100 піщинок, щохвилини −10. Скільки через 4 хвилини?", a:"60.", b:"Пісок вертається: коли знову 100?"},
+      {lv:27, href:"muzychnyi-dim.html", em:"🎵", nm:"Дзеркало · Музичний будинок", prize:"sk_muzdim_prize_v1",
+        d:"Вікна будинку світяться під музику 🔴🔵🟢🟡. Повтори мелодію!", a:"Грай мелодію як чуєш.", b:"Грай мелодію з кінця."},
+      {lv:28, em:"🎚️", nm:"Чотири важелі", d:"Кожен важіль перемикає дві лампи. Як увімкнути всі?", a:"A + C або B + D.", b:"Важіль — усі, крім своєї → усі 4."},
+      {lv:29, em:"🔐", nm:"Код стародавніх воріт", d:"Код із трьох цифр і п'ять підказок.", a:"042.", b:"Код навпаки → 240."},
+      {lv:30, em:"💜", nm:"Серце Світу навиворіт", d:"Фінал із трьох частин: числа, лампи й хитре твердження.", a:"Три загадки поспіль.", b:"Останній переворот!"}
+     ]}
   ];
-  GAMES.forEach(function(g,i){ g.no = i+1; });
+  /* стежка для розділів без картинки: зигзаг згори вниз */
+  var ZZ = [[30,13],[70,30],[30,48],[70,66],[34,84]];
+  CH.forEach(function(c,ci){
+    c.idx = ci;
+    c.pts.forEach(function(p,k){ p.ch = ci; if(p.x==null){ p.x = ZZ[k][0]; p.y = ZZ[k][1]; p.lb = p.x<50 ? "r" : "l"; } });
+  });
+  var SEQ = []; CH.forEach(function(c){ c.pts.forEach(function(p){ SEQ.push(p); }); });
+  var BUILT = SEQ.filter(function(p){ return !!p.href; });
 
   /* ═════════ правила Світу навиворіт + завдання біля воріт ═════════ */
   var RULES = [
@@ -258,7 +328,7 @@ body.flipped .rules li .f{display:inline;}
       o:[["Іти вниз ⬇️",1],["Іти вгору ⬆️","Вгору тепер — це вниз! Так ти прийдеш до підніжжя."],["Стояти на місці","Так на вершину не потрапити."]]},
     {ic:"💰", n:"Щоб мати більше — накопичуй", f:"Витрачати вигідніше, ніж накопичувати",
       q:"Витрачати вигідніше, ніж накопичувати. Як стати багатшим?",
-      o:[["Витратити монети 💸",1],["Сховати монети в скарбничку","Скарбничка тут не допоможе — вигідно саме витрачати (як у Дивному магазині)!"],["Нічого не робити","Так монет не побільшає."]]},
+      o:[["Витратити монети 💸",1],["Сховати монети в скарбничку","Скарбничка тут не допоможе — вигідно саме витрачати!"],["Нічого не робити","Так монет не побільшає."]]},
     {ic:"🐟", n:"Риби плавають, птахи літають", f:"Риби літають, а птахи плавають",
       q:"Риби літають, а птахи плавають. Де ловити рибу?",
       o:[["У небі ☁️",1],["У річці 🌊","У річці тепер плавають птахи 🐦!"],["У лісі 🌲","Риби тут не ходять — вони літають."]]},
@@ -270,75 +340,134 @@ body.flipped .rules li .f{display:inline;}
       o:[["Сісти біля льоду 🧊",1],["Сісти біля вогнища 🔥","Вогонь тепер заморожує — замерзнеш! 🥶"],["Стрибнути в річку","Брр! Так точно не зігрієшся."]]}
   ];
 
-  /* декор карти: [емодзі, клас, x, y, x навиворіт, y навиворіт, розмір, значок навиворіт] */
-  var THINGS = [
-    ["🪙","",  90, 45, 90, 45, 16, "💸"],
-    ["🐦","bird", 14, 88, 22, 76, 20], ["🐦","bird", 86, 92, 40, 79, 18],
-    ["🐟","fish", 22, 76, 14, 88, 20], ["🐟","fish", 40, 79, 86, 92, 18],
-    ["🔥","fire", 8, 96, 8, 96, 20, "❄️"],
-    ["🧊","ice",  30, 97, 30, 97, 18, "🔥"]
-  ];
-
   var $ = function(id){ return document.getElementById(id); };
-  var flipped = false, gate = load();
+  var flipped = false, gate = load(), cur = -1;
 
   function load(){ try{ return JSON.parse(localStorage.getItem("sk_navyvorit_gate_v1")||"{}") || {}; }catch(e){ return {}; } }
   function save(){ try{ localStorage.setItem("sk_navyvorit_gate_v1", JSON.stringify(gate)); }catch(e){} }
 
-  /* ═════════ малювання ═════════ */
-  function renderThings(){
-    drawThings($("things"), THINGS);
-    placeThings();
+  /* пройдено: позначку ставить сама гра на фініші (sk_navyvorit_done_<файл>); нагорода з адмінки теж зараховується */
+  function isDone(p){
+    if(!p.href) return false;
+    try{ if(localStorage.getItem("sk_navyvorit_done_"+p.href)) return true; }catch(e){}
+    try{ return !!(p.prize && window.SKPRIZE && SKPRIZE.summary(p.prize)); }catch(e){ return false; }
   }
-  function drawThings(box, list){
-    box.innerHTML = "";
-    list.forEach(function(t){
-      var d = document.createElement("div");
-      d.className = "thing" + (t[1] ? " "+t[1] : "");
-      d.style.fontSize = t[6]+"px";
-      d.dataset.x = t[2]; d.dataset.y = t[3]; d.dataset.fx = t[4]; d.dataset.fy = t[5];
-      d.innerHTML = '<span class="e">'+t[0]+'</span>' + (t[7] ? '<span class="badge">'+t[7]+'</span>' : "");
-      box.appendChild(d);
-    });
+  /* попередній готовий (не «скоро») пункт у загальній черзі */
+  function prevBuilt(p){ var i = BUILT.indexOf(p); return i > 0 ? BUILT[i-1] : null; }
+  function isOpen(p){
+    if(!p.href) return false;
+    if(isDone(p)) return true;
+    if(!gate.pass) return false;
+    var pb = prevBuilt(p); return !pb || isDone(pb);
   }
-  function placeThings(){
-    Array.prototype.forEach.call(document.querySelectorAll(".thing"), function(d){
-      d.style.left = (flipped ? d.dataset.fx : d.dataset.x) + "%";
-      d.style.top  = (flipped ? d.dataset.fy : d.dataset.y) + "%";
-      if(d.classList.contains("sun")) d.querySelector(".e").textContent = flipped ? "🌙" : "☀️";
-      if(d.classList.contains("moon")) d.querySelector(".e").textContent = flipped ? "☀️" : "🌙";
+  function chOpen(ci){
+    if(!gate.pass) return false;
+    for(var i=0;i<ci;i++){ if(CH[i].pts.some(function(p){ return p.href && !isDone(p); })) return false; }
+    return true;
+  }
+  function chStats(c){
+    var b = c.pts.filter(function(p){ return p.href; });
+    return {built:b.length, done:b.filter(isDone).length, all:c.pts.length};
+  }
+  function label(p){ return (p.lv ? p.lv+". " : "") + p.nm; }
+
+  /* ═════════ хаб ═════════ */
+  function renderHub(){
+    var box = $("chList"); box.innerHTML = "";
+    var firstOpen = -1;
+    CH.forEach(function(c,ci){
+      var s = chStats(c), open = chOpen(ci), full = s.built && s.done === s.built;
+      if(open && !full && firstOpen<0) firstOpen = ci;
+      var b = document.createElement("button"); b.type = "button";
+      b.className = "chCard" + (open ? "" : " locked");
+      var lvs = c.pts.filter(function(p){ return p.lv; }).map(function(p){ return p.lv; });
+      b.innerHTML = '<span class="th" style="'+(c.mini ? 'background-image:url('+c.mini+')' : '')+'">'+(c.mini ? "" : "🎨")+'</span>'+
+        '<span class="tx"><span class="cn">Розділ '+c.n+' · рівні '+lvs[0]+'–'+lvs[lvs.length-1]+'</span>'+
+        '<span class="ct" style="display:block">'+c.nm+'</span>'+
+        '<span class="cs" style="display:block">'+(s.built ? 'Пройдено '+s.done+' з '+s.built+(s.built<s.all ? ' · ще '+(s.all-s.built)+' 🚧 скоро' : '') : '🚧 Рівні ще будуються')+'</span>'+
+        '<span class="bar" style="display:block"><i style="width:'+(s.built ? Math.round(s.done/s.built*100) : 0)+'%"></i></span></span>'+
+        '<span class="st">'+(full ? "✅" : (open ? "▶" : "🔒"))+'</span>';
+      b.addEventListener("click", function(){ tap(); openChapter(ci); });
+      box.appendChild(b);
     });
+    if(firstOpen>=0) box.children[firstOpen].classList.add("cur");
   }
 
-  /* пройдено: позначку ставить сама гра на фініші (sk_navyvorit_done_<файл>), а якщо Герой отримав нагороду з адмінки — теж зараховуємо */
-  function isDone(g){
-    try{ if(localStorage.getItem("sk_navyvorit_done_"+g.href)) return true; }catch(e){}
-    try{ return !!(window.SKPRIZE && SKPRIZE.summary(g.prize)); }catch(e){ return false; }
+  /* ═════════ карта розділу ═════════ */
+  function openChapter(ci){
+    var c = CH[ci];
+    if(!chOpen(ci)){
+      if(!gate.pass){
+        openSheet('<div class="sb">🔒</div><div class="st">Розділ '+c.n+'. '+c.nm+'</div>'+
+          '<div class="sd">Спершу отримай 🎟️ <b>перепустку біля воріт</b>: зроби 🔄 Переворот і розгадай нові правила світу.</div>'+
+          '<button class="play" type="button" id="toGate" style="border:none;cursor:pointer">🎟️ До воріт ▶</button>');
+        $("toGate").addEventListener("click", function(){ closeSheet(); openGate(); });
+      } else {
+        var pc = CH[ci-1];
+        openSheet('<div class="sb">🔒</div><div class="st">Розділ '+c.n+'. '+c.nm+'</div>'+
+          '<div class="sd">Відкриється, коли пройдеш усі ігри розділу '+pc.n+' «'+pc.nm+'».</div>');
+      }
+      return;
+    }
+    cur = ci;
+    try{ localStorage.setItem("sk_navyvorit_chapter", String(ci)); }catch(e){}
+    $("hubView").classList.add("hidden"); $("chView").classList.remove("hidden");
+    $("chTitle").innerHTML = '<b>Розділ '+c.n+'. '+c.nm+'</b>'+c.intro;
+    $("map").style.aspectRatio = c.ar || "2/3";
+    var bg = $("mapBg");
+    bg.className = "bg" + (c.img ? "" : " fallback");
+    bg.style.backgroundImage = c.img ? "url("+c.img+")" : "";
+    $("soonNote").hidden = !!c.img;
+    var pts = c.pts.map(function(p){ return p.x+","+p.y; }).join(" ");
+    $("path").innerHTML = c.img ? "" : '<polyline points="'+pts+'"/><polyline class="dash" points="'+pts+'"/>';
+    renderPins();
+    $("main").scrollTop = 0;
   }
-  /* доступна: є перепустка, а попередню гру пройдено (пройдені ігри лишаються відкритими) */
-  function isOpen(i){ return isDone(GAMES[i]) || (!!gate.pass && (i===0 || isDone(GAMES[i-1]))); }
+  function toHub(){
+    cur = -1;
+    $("chView").classList.add("hidden"); $("hubView").classList.remove("hidden");
+    renderAll();
+  }
+  $("toHub").addEventListener("click", function(){ tap(); toHub(); });
 
   function renderPins(){
+    if(cur<0) return;
     var box = $("pins"); box.innerHTML = "";
-    var done = 0;
-    var gp = pinEl({em:"🎟️", nm:gate.pass ? "Перепустка ✓" : "Ворота", x:52, y:94, lb:"r"}, "", "gate"+(gate.pass?" done":" next"));
-    gp.addEventListener("click", openGate);
-    box.appendChild(gp);
-    GAMES.forEach(function(g,i){
-      var dn = isDone(g); if(dn) done++;
-      var cls = dn ? "done" : (isOpen(i) ? "next" : "locked");
-      var p = pinEl(g, g.no, cls);
-      p.addEventListener("click", function(){ tap(); openGame(i); });
-      box.appendChild(p);
+    var nextP = BUILT.filter(function(p){ return isOpen(p) && !isDone(p); })[0];
+    CH[cur].pts.forEach(function(p){
+      var cls = !p.href ? "soon" : (isDone(p) ? "done" : (isOpen(p) ? (p===nextP ? "next" : "") : "locked"));
+      var b = document.createElement("button"); b.type = "button";
+      b.className = "pin" + (p.lb ? " lb-"+p.lb : "") + (cls ? " "+cls : "");
+      b.style.left = p.x+"%"; b.style.top = p.y+"%";
+      b.innerHTML = '<span class="em">'+p.em+(p.lv ? '<span class="no">'+p.lv+'</span>' : '<span class="no star">★</span>')+
+        '<span class="ok">✅</span><span class="lock">'+(p.href ? "🔒" : "🚧")+'</span></span><span class="lbl">'+p.nm+'</span>';
+      b.addEventListener("click", function(){ tap(); openPoint(p); });
+      box.appendChild(b);
     });
-    $("doneCnt").textContent = done + "/" + GAMES.length;
   }
-  function pinEl(g, no, cls){
-    var b = document.createElement("button"); b.type = "button";
-    b.className = "pin" + (g.lb ? " lb-"+g.lb : "") + (cls ? " "+cls : "");
-    b.style.left = g.x+"%"; b.style.top = g.y+"%";
-    b.innerHTML = '<span class="em">'+g.em+(no!==""?'<span class="no">'+no+'</span>':"")+'<span class="ok">✅</span><span class="lock">🔒</span></span><span class="lbl">'+g.nm+'</span>';
-    return b;
+
+  function openPoint(p){
+    var head = '<div class="sb">'+p.em+'</div><div class="st">'+label(p)+(isDone(p)?' ✅':'')+'</div>';
+    var pair = '<div class="rulePair"><div class="a"><small>Звичайно</small>'+p.a+'</div><div class="b"><small>🔄 Навиворіт</small>'+p.b+'</div></div>';
+    if(!p.href){
+      openSheet(head+'<div class="sd">'+p.d+'</div>'+pair+'<div class="sd">🚧 Цей рівень ще будується. Поки що можна йти далі — наступні пункти не чекають на нього.</div>');
+      return;
+    }
+    if(!isOpen(p)){
+      if(!gate.pass){
+        openSheet('<div class="sb">🔒</div><div class="st">'+label(p)+'</div>'+
+          '<div class="sd">Поки що зачинено. Спершу отримай 🎟️ <b>перепустку біля воріт</b>.</div>'+
+          '<button class="play" type="button" id="toGate" style="border:none;cursor:pointer">🎟️ До воріт ▶</button>');
+        $("toGate").addEventListener("click", function(){ closeSheet(); toHub(); openGate(); });
+        return;
+      }
+      var pb = prevBuilt(p);
+      openSheet('<div class="sb">🔒</div><div class="st">'+label(p)+'</div>'+
+        '<div class="sd">Поки що зачинено. Цей пункт відкриється, коли пройдеш попередній: '+pb.em+' <b>'+label(pb)+'</b>.</div>'+
+        (isOpen(pb) ? '<a class="play" href="'+pb.href+'">'+pb.em+' До «'+pb.nm+'» ▶</a>' : ''));
+      return;
+    }
+    openSheet(head+'<div class="sd">'+p.d+'</div>'+pair+'<a class="play" href="'+p.href+'">Грати ▶</a>');
   }
 
   function renderRules(){
@@ -355,9 +484,13 @@ body.flipped .rules li .f{display:inline;}
     var n = gate.got ? Object.keys(gate.got).length : 0;
     $("gateTitle").textContent = gate.pass ? "🎟️ Перепустку отримано!" : "Ворота у Світ навиворіт";
     $("gateSub").textContent = gate.pass
-      ? "Ти знаєш усі 6 правил Світу навиворіт. Ігри відкриваються по черзі — почни з 🌳 Дивного дерева!"
-      : (flipped ? "Світ перевернувся! Торкнись воріт 🎟️ на карті й розгадай нові правила ("+n+"/6)."
+      ? "Ти знаєш усі 6 правил Світу навиворіт. Розділи відкриваються по черзі — почни з розділу I «Дивне місто»!"
+      : (flipped ? "Світ перевернувся! Торкнись воріт 🎟️ і розгадай нові правила ("+n+"/6)."
                  : "Зроби Переворот і розгадай 6 нових правил біля воріт — отримаєш перепустку.");
+  }
+  function renderCount(){
+    var d = BUILT.filter(isDone).length;
+    $("doneCnt").textContent = d + "/" + BUILT.length;
   }
 
   /* ═════════ 🔄 Переворот ═════════ */
@@ -365,15 +498,15 @@ body.flipped .rules li .f{display:inline;}
     flipped = on;
     document.body.classList.toggle("flipped", on);
     $("flipBtn").textContent = on ? "🔄 Перевернути назад" : "🔄 Переворот!";
-    $("subtitle").textContent = on ? "🗺️ Дивне місто · 🔄 навиворіт!" : "🗺️ Дивне місто";
-    placeThings(); renderRules(); renderGateCard();
+    $("subtitle").textContent = on ? "🔄 навиворіт!" : "🗺️ 6 розділів · 30 рівнів";
+    renderRules(); renderGateCard();
   }
   $("flipBtn").addEventListener("click", function(){
     whoosh();
     setFlip(!flipped);
-    if(flipped && !gate.pass) setTimeout(function(){
+    if(flipped && !gate.pass && cur<0) setTimeout(function(){
       $("gateCard").scrollIntoView({behavior:"smooth", block:"center"});
-    }, 1300);
+    }, 900);
   });
 
   /* ═════════ картки ═════════ */
@@ -384,29 +517,6 @@ body.flipped .rules li .f{display:inline;}
   }
   function closeSheet(){ $("sheetOv").classList.add("hidden"); }
   $("sheetOv").addEventListener("click", function(e){ if(e.target === $("sheetOv")) closeSheet(); });
-
-  function openGame(i){
-    var g = GAMES[i];
-    if(!isOpen(i)){
-      if(!gate.pass){
-        openSheet('<div class="sb">🔒</div><div class="st">'+g.no+'. '+g.nm+'</div>'+
-          '<div class="sd">Поки що зачинено. Щоб увійти в Дивне місто, спершу отримай 🎟️ <b>перепустку біля воріт</b>: зроби 🔄 Переворот і розгадай нові правила світу.</div>'+
-          '<button class="play" type="button" id="toGate" style="border:none;cursor:pointer">🎟️ До воріт ▶</button>');
-        $("toGate").addEventListener("click", function(){ closeSheet(); openGate(); });
-        return;
-      }
-      var prev = GAMES[i-1];
-      openSheet('<div class="sb">🔒</div><div class="st">'+g.no+'. '+g.nm+'</div>'+
-        '<div class="sd">Поки що зачинено. Цей пункт відкриється, коли пройдеш попередній: '+prev.em+' <b>'+prev.nm+'</b>.</div>'+
-        (isOpen(i-1) ? '<a class="play" href="'+prev.href+'">'+prev.em+' До «'+prev.nm+'» ▶</a>' : ''));
-      return;
-    }
-    openSheet(
-      '<div class="sb">'+g.em+'</div><div class="st">'+g.no+'. '+g.nm+(isDone(g)?' ✅':'')+'</div>'+
-      '<div class="sd">'+g.d+'</div>'+
-      '<div class="rulePair"><div class="a"><small>Звичайно</small>'+g.a+'</div><div class="b"><small>🔄 Навиворіт</small>'+g.b+'</div></div>'+
-      '<a class="play" href="'+g.href+'">Грати ▶</a>');
-  }
 
   /* ── ворота: 6 завдань на нові правила ── */
   var gi = 0;
@@ -420,7 +530,7 @@ body.flipped .rules li .f{display:inline;}
     }
     if(gate.pass){
       openSheet('<div class="sb">🎟️</div><div class="st">Перепустку отримано!</div>'+
-        '<div class="sd">Ти розгадав(-ла) всі 6 правил Світу навиворіт. Тепер — у дорогу: ігри чекають на карті!</div>'+
+        '<div class="sd">Ти розгадав(-ла) всі 6 правил Світу навиворіт. Тепер — у дорогу: розділи чекають!</div>'+
         '<button class="play" type="button" id="regate" style="border:none;cursor:pointer;background:var(--purple);box-shadow:0 6px 0 #8e3fb0">↻ Пройти ворота ще раз</button>');
       $("regate").addEventListener("click", function(){ gate = {}; save(); renderAll(); gi = 0; askGate(); });
       return;
@@ -452,11 +562,15 @@ body.flipped .rules li .f{display:inline;}
   }
   function gatePassed(){
     gate.pass = 1; save(); fanfare(); renderAll();
+    var first = BUILT[0];
     openSheet('<div class="sb">🎟️✨</div><div class="st">Перепустку отримано!</div>'+
       '<div class="sd">Ти зрозумів(-ла) всі нові правила й використав(-ла) їх. Так і грають у Світі навиворіт: '+
-      'спершу помічаєш, що змінилось, — а тоді дієш інакше.<br><br>Ворота відчинено — вирушай у Дивне місто! Перша зупинка — 🌳 <b>Дивне дерево</b> в передмісті. Пункти відкриватимуться по черзі.</div>'+
-      '<a class="play" href="'+GAMES[0].href+'">🌳 До Дивного дерева ▶</a>');
+      'спершу помічаєш, що змінилось, — а тоді дієш інакше.<br><br>Біля воріт тобі дали 🗝️ <b>ключ від будинку №17</b>. '+
+      'Портал відчинено — вирушай у розділ I «Дивне місто»! Перша зупинка — '+first.em+' <b>'+first.nm+'</b>.</div>'+
+      '<button class="play" type="button" id="toCh1" style="border:none;cursor:pointer">🗺️ До розділу I ▶</button>');
+    $("toCh1").addEventListener("click", function(){ closeSheet(); openChapter(0); });
   }
+  $("gateCard").addEventListener("click", openGate);
 
   /* ═════════ звук ═════════ */
   var actx=null;
@@ -475,11 +589,20 @@ body.flipped .rules li .f{display:inline;}
     setTimeout(function(){ tone(784,0.14); },240); setTimeout(function(){ tone(1046,0.18); },380); }
   function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var x=a[i]; a[i]=a[j]; a[j]=x; } return a; }
 
-  function renderAll(){ renderPins(); renderRules(); renderGateCard(); }
-  $("gateCard").addEventListener("click", openGate);
+  function renderAll(){ renderHub(); renderPins(); renderRules(); renderGateCard(); renderCount(); }
 
-  renderThings(); renderAll();
-  window.addEventListener("load", renderPins);   // sk-prize.js підключено нижче — тоді й видно ✅ пройдених ігор
+  /* відкрити потрібний розділ: ?r=N у посиланні, або розділ гри, з якої щойно повернулись */
+  function startChapter(){
+    var m = /[?&]r=(\d)/.exec(location.search);
+    if(m) return +m[1]-1;
+    var ref = (document.referrer || "").split("?")[0].split("#")[0].split("/").pop();
+    var p = SEQ.filter(function(q){ return q.href === ref; })[0];
+    return p ? p.ch : -1;
+  }
+  renderAll();
+  var sc = startChapter();
+  if(sc>=0 && sc<CH.length && chOpen(sc)) openChapter(sc);
+  window.addEventListener("load", renderAll);   // sk-prize.js підключено нижче — тоді й видно ✅ пройдених ігор
 })();
 </script>
 <script type="module" src="../firebase-config.js"></script>
