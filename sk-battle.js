@@ -444,6 +444,8 @@
       if (wpn) bd.n++;
     }
     applyDodge(ctx, st, opHit, rng(st.bid + '|' + st.round + '|dodge'));
+    // щит: блок «шансом блоку» речей (не відскок) зі щитом у руці — теж вдале очко вміння
+    if (shieldOn(st)) (opHit.hits || []).forEach(function (h) { if (h.kind === 'block' && h.byChance && !h.evade) grow(st, 'base.shield', true); });
     applyShield(ctx, st, opHit, rng(st.bid + '|' + st.round + '|shield'));
     // активне вміння: окремий удар у ту саму зону, що й основний
     var skillRec = null, sid = st.me.skill;
