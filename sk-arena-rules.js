@@ -396,6 +396,11 @@
                                       : rollRange(att.wMin, att.wMax, rnd) + num(att.dmgFlat));
     var defV = magic ? num(def.magicResist) : num(def.armor);
     var pctV = magic ? num(att.magPct) : num(att.dmgPct);
+    // 3б) вміння «Сокира»: з шансом pierce броня рахується наполовину (кидок — лише коли шанс є)
+    if (!magic && defV > 0 && num(att.pierce) > 0) {
+      out.pierceNeed = Math.min(100, Math.round(num(att.pierce))); out.pierceRoll = d100(rnd);
+      if (out.pierceRoll <= out.pierceNeed) { defV = Math.round(defV / 2); out.pierce = true; }
+    }
     // 4) крізь захист проходить частка (armorPass), 5) відсотки
     var pass = armorPass(raw, defV);
     var base = raw * pass * (1 + pctV / 100);
@@ -406,7 +411,7 @@
     out.raw = raw; out.armor = defV; out.magic = magic; out.pass = pass;
     out.magDmg = magic ? dmg : 0; out.physDmg = magic ? 0 : dmg;   // журнал фарбує магічний урон фіолетовим
     out.parts = { magic: magic, raw: raw, def: defV, pass: pass, pct: pctV, mult: mult };
-    var calc = (magic ? '✨маг. ' : '') + raw + (defV > 0 ? ' × ' + pctOf(pass) + '% (' + (magic ? 'маг. захист ' : 'броня ') + defV + ')' : '')
+    var calc = (magic ? '✨маг. ' : '') + raw + (defV > 0 ? ' × ' + pctOf(pass) + '% (' + (magic ? 'маг. захист ' : 'броня ') + defV + (out.pierce ? ', 🪓 пів броні' : '') + ')' : '')
       + (pctV ? ' × ' + (100 + pctV) + '%' : '') + (crit ? ' × ' + BATTLE.critMult + ' крит' : '');
     if (blocked) {   // частковий блок (лише якщо blockKeep > 0)
       var kept = Math.round(dmg * BATTLE.blockKeep);

@@ -13,8 +13,8 @@
 <script src="sk-admin.js?v=1"></script>
 <script src="sk-curriculum.js?v=8"></script>
 <script src="sk-items.js?v=12"></script>
-<script src="sk-arena-rules.js?v=18"></script>
-<script src="sk-skills.js?v=10"></script>
+<script src="sk-arena-rules.js?v=19"></script>
+<script src="sk-skills.js?v=11"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -100,6 +100,8 @@
   .pl-src{font-size:.8rem;color:var(--muted);font-weight:600;margin:0 0 8px}
   .pl-form{display:grid;gap:4px;max-width:900px}
   .pl-form label{font-size:.78rem;font-weight:800;color:var(--muted);margin-top:6px}
+  .pl-form input,.pl-form select{font:inherit;font-size:.88rem;color:var(--ink);border:1px solid var(--border);border-radius:10px;padding:7px 10px;background:#fff;max-width:420px}
+  .pl-add{margin-top:12px;padding:12px;border:1px dashed var(--border);border-radius:12px}
   .pl-form textarea{font:inherit;font-size:.88rem;color:var(--ink);border:1px solid var(--border);border-radius:10px;padding:8px 10px;resize:vertical;background:#fff;width:100%}
   .pl-acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
   .pl-msg{font-size:.8rem;color:var(--muted);font-weight:600}
@@ -646,7 +648,7 @@ function loadPlan(){
 function pdoc(id){return PLAN[id]||{};}
 function pstat(id){var s=pdoc(id).status;return ST_KEYS.indexOf(s)>=0?s:'todo';}
 function ptext(sk,f){var t=pdoc(sk.id).text;return (t&&t[f]!=null)?t[f]:sk[f];}
-function pedited(sk){var t=pdoc(sk.id).text;return !!(t&&(t.desc!=null||t.formula!=null||t.kid!=null));}
+function pedited(sk){if(sk.added)return false;var t=pdoc(sk.id).text;return !!(t&&(t.desc!=null||t.formula!=null||t.kid!=null));}
 function pwhen(d){
   var t=d&&d.updatedAt;if(!t)return '';
   var dt=t.toDate?t.toDate():(t instanceof Date?t:null);if(!dt)return '';
@@ -657,7 +659,7 @@ function stBtn(id,kind){var s=pstat(id);
   return '<button type="button" class="stbtn st-'+s+'" data-act="cycle" data-id="'+esc(id)+'" data-kind="'+kind+'" title="Змінити статус">'+ST_UK[kind][s]+'</button>';}
 
 function planCounts(){
-  var c={todo:0,doing:0,done:0},all=SKSKILLS.SKILLS.concat(SKSKILLS.TOPICS);
+  var c={todo:0,doing:0,done:0},all=SKSKILLS.SKILLS.concat(addedSkills(),SKSKILLS.TOPICS);
   all.forEach(function(x){c[pstat(x.id)]++;});c.total=all.length;return c;
 }
 function skillMatch(sk){
@@ -679,25 +681,56 @@ function detForm(id,fields,commentLabel){
     +(fields.length?'<button type="button" class="btn-ghost" data-act="reset" data-id="'+esc(id)+'" title="Повернути тексти з sk-skills.js">↺ Стандартні тексти</button>':'')
     +'<span class="pl-msg" id="pm-'+esc(id)+'">'+esc(pwhen(d))+'</span></div></div>';
 }
+/* вміння, додані в адмінці: arenaPlan/add.<клас>.<ключ> {added:{cls,lv,name,type,cost}, text:{desc,formula,kid}} */
+function addedSkills(cls){
+  return Object.keys(PLAN).filter(function(id){var d=PLAN[id];return d&&d.added&&!d.removed&&(!cls||d.added.cls===cls);}).map(function(id){
+    var a=PLAN[id].added;
+    return {id:id,cls:a.cls,lv:+a.lv||1,start:null,name:a.name||'(без назви)',type:a.type||'P',cost:a.cost||'',desc:'',formula:'',kid:'',src:'★ додано в адмінці',shared:false,added:true};
+  });
+}
+function planSkill(id){return SKSKILLS.byId(id)||addedSkills().filter(function(x){return x.id===id;})[0]||null;}
+function classSkills(cls){
+  return SKSKILLS.forClass(cls).concat(addedSkills(cls)).map(function(x,i){return [x,i];})
+    .sort(function(a,b){return (a[0].lv-b[0].lv)||(a[1]-b[1]);}).map(function(x){return x[0];});
+}
+/* «оброблено нами»: у вміння є правила бою (RULES у sk-skills.js) — воно вже діє в грі */
+function doneBadge(sk){return sk.ready?'<span class="tag yes" title="Є правила бою: вміння діє в грі, його можна вивчити">✅ оброблено</span>':'<span class="tag no" title="Ще не опрацьоване: у бою не діє">⏳ ні</span>';}
+function addForm(cls){
+  var c=SKSKILLS.CLASSES[cls],f=function(k){return 'pa-'+k+'-'+cls;};
+  return '<div class="pl-form pl-add"><b>＋ Нове вміння: '+c.icon+' '+esc(c.name)+'</b>'
+    +'<label for="'+f('name')+'">Назва</label><input type="text" id="'+f('name')+'" maxlength="40">'
+    +'<label for="'+f('lv')+'">Рівень (1–30)</label><input type="number" id="'+f('lv')+'" min="1" max="30" value="1">'
+    +'<label for="'+f('type')+'">Тип</label><select id="'+f('type')+'"><option value="P">Пасивне</option><option value="A">Активне</option><option value="U">Ультимейт</option></select>'
+    +'<label for="'+f('cost')+'">Ціна (мана / перезарядка / «мирне»)</label><input type="text" id="'+f('cost')+'" maxlength="30">'
+    +'<label for="'+f('desc')+'">Опис (для адміна)</label><textarea id="'+f('desc')+'" rows="2"></textarea>'
+    +'<label for="'+f('formula')+'">Формула: як працює</label><textarea id="'+f('formula')+'" rows="2"></textarea>'
+    +'<label for="'+f('kid')+'">Підказка для дітей</label><textarea id="'+f('kid')+'" rows="2"></textarea>'
+    +'<div class="pl-acts"><button type="button" class="btn-save" data-act="addsave" data-id="'+cls+'">💾 Додати</button>'
+    +'<button type="button" class="btn-ghost" data-act="addform" data-id="'+cls+'">Скасувати</button><span class="pl-msg" id="pa-msg-'+cls+'"></span></div></div>';
+}
 function skillRows(cls){
-  var list=SKSKILLS.forClass(cls).filter(skillMatch);
-  if(!list.length)return '';
-  var c=SKSKILLS.CLASSES[cls];
+  var list=classSkills(cls).filter(skillMatch);
+  var c=SKSKILLS.CLASSES[cls],addOpen=!!POPEN['add:'+cls];
+  var all=classSkills(cls),nDone=all.filter(function(x){return x.ready;}).length;
+  if(!list.length&&!addOpen)return PF.cls===cls?'<section class="sec pl-cls"><h2>'+c.icon+' '+esc(c.name)+'</h2><button type="button" class="btn-ghost" data-act="addform" data-id="'+cls+'">＋ Додати вміння</button></section>':'';
   var rows=list.map(function(sk){
     var d=pdoc(sk.id),open=!!POPEN[sk.id];
-    var badges=(sk.shared?'<span class="tag">спільне</span>':'')+(pedited(sk)?'<span class="tag item">✎ змінено</span>':'')+(d.comment?'<span class="tag pct">💬</span>':'');
+    var badges=(sk.added?'<span class="tag pct">＋ додане</span>':'')+(sk.shared?'<span class="tag">спільне</span>':'')+(pedited(sk)?'<span class="tag item">✎ змінено</span>':'')+(d.comment?'<span class="tag pct">💬</span>':'');
     var r='<tr class="pl-row" id="pr-'+esc(sk.id)+'"><td class="pl-lv">'+(sk.lv===1?'<span class="pl-start">'+sk.start+'%</span>':sk.lv)+'</td>'
       +'<td><span class="nm">'+esc(sk.name)+'</span> <span class="pl-badges">'+badges+'</span><div class="pl-kid">'+esc(ptext(sk,'kid'))+'</div></td>'
       +'<td><span class="tag ty-'+sk.type+'">'+TY_UK[sk.type]+'</span></td>'
       +'<td class="pl-cost">'+esc(sk.cost||'—')+'</td>'
+      +'<td>'+doneBadge(sk)+'</td>'
       +'<td>'+stBtn(sk.id,'skill')+'</td>'
       +'<td><button type="button" class="btn-ghost" data-act="open" data-id="'+esc(sk.id)+'" aria-expanded="'+open+'">'+(open?'▾ Згорнути':'▸ Деталі')+'</button></td></tr>';
-    if(open)r+='<tr class="pl-det"><td colspan="6"><div class="pl-src">Звідки: '+esc(sk.src==='★'?'★ власна ідея':sk.src)+' · ключ <span class="key">'+esc(sk.id)+'</span></div>'
+    if(open)r+='<tr class="pl-det"><td colspan="7"><div class="pl-src">Звідки: '+esc(sk.src==='★'?'★ власна ідея':sk.src)+' · ключ <span class="key">'+esc(sk.id)+'</span>'
+      +(sk.added?' · <button type="button" class="btn-ghost" data-act="addrm" data-id="'+esc(sk.id)+'">🗑 Прибрати додане</button>':'')+'</div>'
       +detForm(sk.id,[{k:'desc',l:'Опис (для адміна)',v:ptext(sk,'desc')},{k:'formula',l:'Формула: як працює (м — майстерність 0…1, K — концентрація)',v:ptext(sk,'formula')},{k:'kid',l:'Підказка для дітей (без чисел)',v:ptext(sk,'kid')}],'Коментар / завдання')+'</td></tr>';
     return r;
   }).join('');
-  return '<section class="sec pl-cls"><h2>'+c.icon+' '+esc(c.name)+'</h2><p class="hint">'+esc(c.about)+' Концентрація: «'+esc(c.conc)+'». Число в першій колонці — рівень; на 1 рівні — стартова майстерність.</p>'
-    +'<div class="tblwrap"><table class="st pl-tbl"><thead><tr><th>Рів.</th><th>Вміння</th><th>Тип</th><th>'+(c.res==='мана'?'Мана / перезар.':'Перезарядка')+'</th><th>Статус</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></section>';
+  return '<section class="sec pl-cls"><h2>'+c.icon+' '+esc(c.name)+' <span class="tag yes">✅ оброблено '+nDone+' з '+all.length+'</span></h2><p class="hint">'+esc(c.about)+' Концентрація: «'+esc(c.conc)+'». Число в першій колонці — рівень; на 1 рівні — стартова майстерність (у грі вивчене вміння починає з '+SKSKILLS.LEARN_START+'%). <b>Оброблено</b> — у вміння вже є правила бою: воно діє в грі й вивчається в книзі. Опрацьовуємо по одному.</p>'
+    +'<div class="tblwrap"><table class="st pl-tbl"><thead><tr><th>Рів.</th><th>Вміння</th><th>Тип</th><th>'+(c.res==='мана'?'Мана / перезар.':'Перезарядка')+'</th><th>Оброблено</th><th>Статус</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+    +(addOpen?addForm(cls):'<div class="pl-acts"><button type="button" class="btn-ghost" data-act="addform" data-id="'+cls+'">＋ Додати вміння</button></div>')+'</section>';
 }
 function topicsHTML(){
   if(PF.cls!=='all')return '';
@@ -796,14 +829,31 @@ function bindPlan(){
           var sp=top.querySelectorAll('.pl-bar span');sp[0].style.width=(c.done/c.total*100)+'%';sp[1].style.width=(c.doing/c.total*100)+'%';}}});
       return;
     }
+    if(act==='addform'){POPEN['add:'+id]=!POPEN['add:'+id];planRefreshList();var nm=document.getElementById('pa-name-'+id);if(nm)nm.focus();return;}
+    if(act==='addsave'){
+      var g=function(k){var el=document.getElementById('pa-'+k+'-'+id);return el?String(el.value||'').trim():'';};
+      var am=document.getElementById('pa-msg-'+id);
+      if(!g('name')){if(am)am.textContent='Напиши назву';return;}
+      var lvN=Math.max(1,Math.min(30,Math.round(+g('lv')||1)));
+      var nid='add.'+id+'.'+Date.now().toString(36);
+      b.disabled=true;
+      planSave(nid,{added:{cls:id,lv:lvN,name:g('name'),type:g('type')||'P',cost:g('cost')},text:{desc:g('desc'),formula:g('formula'),kid:g('kid')},status:'todo'},am).then(function(ok){
+        b.disabled=false;if(!ok)return;POPEN['add:'+id]=false;planRefreshList();});
+      return;
+    }
+    if(act==='addrm'){
+      if(!confirm('Прибрати додане вміння «'+((planSkill(id)||{}).name||id)+'»?'))return;
+      b.disabled=true;planSave(id,{removed:true}).then(function(ok){b.disabled=false;if(ok)planRefreshList();});
+      return;
+    }
     if(act==='save'||act==='reset'){
-      var msg=document.getElementById('pm-'+id),sk=SKSKILLS.byId(id),patch={};
+      var msg=document.getElementById('pm-'+id),sk=planSkill(id),patch={};
       var cf='pf-comment-'+id,cel=document.getElementById(cf);
       patch.comment=cel?cel.value.trim():(pdoc(id).comment||'');
       if(sk){
         if(act==='reset'){patch.text=null;['desc','formula','kid'].forEach(function(f){delete PDRAFT['pf-'+f+'-'+id];});}
         else{var tx={},diff=false;['desc','formula','kid'].forEach(function(f){var el=document.getElementById('pf-'+f+'-'+id);var v=el?el.value.trim():ptext(sk,f);
-            if(v!==sk[f]){tx[f]=v;diff=true;}else tx[f]=null;});
+            if(v!==sk[f]||sk.added){tx[f]=v;diff=true;}else tx[f]=null;});
           patch.text=diff?tx:null;}
       }
       b.disabled=true;
@@ -886,23 +936,75 @@ function skmHTML(){
     var cards=SKSKILLS.UNIVERSAL.filter(function(s){return s.lv===l;}).map(skmCard).join('');
     return '<section class="sec"><h2>'+esc(lv[l])+'</h2><div class="skm-grid">'+cards+'</div></section>';
   }).join('');
+  body+=Object.keys(SKSKILLS.CLASSES).map(function(k){
+    var c=SKSKILLS.CLASSES[k],list=SKSKILLS.readyFor?SKSKILLS.readyFor(k):[];
+    if(!list.length)return '';
+    return '<section class="sec"><h2>'+c.icon+' '+esc(c.name)+' · оброблені вміння ('+list.length+' з '+SKSKILLS.forClass(k).length+')</h2><p class="hint">Лише вміння з правилами бою — вони вже діють у грі. Решта — у «📋 План».</p><div class="skm-grid">'+list.map(skmCard).join('')+'</div></section>';
+  }).join('')+heroAdminHTML();
   return err+'<section class="sec"><h2>🧠 Механіка вмінь</h2><p class="hint">Що дає майстерність кожного вміння — для балансу. «м» = майстерність / 100. Рядки можна змінити, додати чи прибрати; «💾 Зберегти» пише в базу, «↺ Стандартні» повертає рядки з sk-skills.js.</p>'
     +'<ul class="exl"><li>Вміння <b>вивчають за очко</b>: після вивчення — <b>'+SKSKILLS.LEARN_START+'%</b>, далі росте в бою (і від невдалих спроб).</li>'
     +'<li>Очки за рівні арени: по 1 на рівнях 1–4, далі по 1 кожні два. Разом: '+esc(pts)+'. Плюс очки за позначені тести.</li>'
     +'<li>Клас обирається на <b>'+SKSKILLS.CLASS_LEVEL+' рівні</b>.</li></ul>'+skmGrowTable()+'</section>'+body;
 }
+function skmSkill(id){var sk=SKSKILLS.byId(id);return sk&&sk.mech?sk:null;}
+/* ══ ГЕРОЇ: клас і вміння (тест) — /api/admin/heroes, /api/admin/hero/* ══ */
+var HADM={list:null,err:null,busy:false,loading:false};
+function hadmApi(method,path,body){
+  return fetch('api/admin/'+path,{method:method,credentials:'same-origin',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined})
+    .then(function(r){return r.json().catch(function(){return {};}).then(function(j){if(!r.ok)throw new Error((j.error&&(j.error.message||j.error.code))||('HTTP '+r.status));return j;});});
+}
+function hadmLoad(){
+  if(HADM.loading)return;HADM.loading=true;
+  hadmApi('GET','heroes').then(function(j){HADM.list=(j.heroes)||[];HADM.err=null;},function(e){HADM.err=e.message||String(e);})
+    .then(function(){HADM.loading=false;if(TAB==='skmech')render();});
+}
+function heroAdminHTML(){
+  if(!HADM.list&&!HADM.err)hadmLoad();
+  var opts=Object.keys(SKSKILLS.CLASSES).filter(function(k){return SKSKILLS.readyFor(k).length;}).map(function(k){var c=SKSKILLS.CLASSES[k];return '<option value="'+k+'">'+c.icon+' '+esc(c.name)+'</option>';}).join('');
+  var rows=(HADM.list||[]).map(function(h){
+    var c=h.cls&&SKSKILLS.CLASSES[h.cls];
+    var sk=h.skills.map(function(x){var s=SKSKILLS.byId(x.id);return (s?s.icon+' ':'')+esc(s?s.name:x.id)+' '+x.pct+'%';}).join(' · ');
+    return '<tr><td><b>'+esc(h.name||'—')+'</b><br><span class="key">'+esc(h.id)+'</span></td><td class="num">'+h.lv+'</td>'
+      +'<td>'+(c?c.icon+' '+esc(c.name):'—')+'</td><td style="font-size:.8rem">'+(sk||'—')+'</td>'
+      +'<td><button type="button" class="btn-ghost" data-hadm="reset" data-id="'+esc(h.id)+'"'+(h.cls?'':' disabled')+'>↺ Скинути клас</button>'
+      +'<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap"><select id="hadm-cls-'+esc(h.id)+'" aria-label="Клас">'+opts+'</select>'
+      +'<input type="number" id="hadm-pct-'+esc(h.id)+'" value="50" min="25" max="100" style="width:64px" aria-label="Майстерність %">'
+      +'<button type="button" class="btn-ghost" data-hadm="test" data-id="'+esc(h.id)+'">🧪 Клас + вміння</button></div></td></tr>';
+  }).join('');
+  return '<section class="sec" id="hadm"><h2>🧪 Герої: клас і вміння (тест)</h2>'
+    +'<p class="hint"><b>↺ Скинути клас</b> — Герой знову обирає клас; вміння класу зникають (і з панелі), очки повертаються, базові вміння лишаються. '
+    +'<b>🧪 Клас + вміння</b> — дати клас і всі оброблені вміння цього класу на вказаний % (для перевірки в бою; очки не витрачаються).</p>'
+    +(HADM.err?'<p class="hint" style="color:#a8322f">Не вдалося: '+esc(HADM.err)+'</p>':'')
+    +(HADM.list?'<div class="tblwrap"><table class="st"><thead><tr><th>Герой</th><th>Рів.</th><th>Клас</th><th>Вміння</th><th>Дії</th></tr></thead><tbody>'+rows+'</tbody></table></div>':(HADM.err?'':'<div class="empty">Завантаження…</div>'))
+    +'</section>';
+}
+root.addEventListener('click',function(e){
+  var b=e.target.closest('[data-hadm]');if(!b||TAB!=='skmech'||HADM.busy)return;
+  var id=b.dataset.id,h=(HADM.list||[]).filter(function(x){return x.id===id;})[0]||{},p;
+  if(b.dataset.hadm==='reset'){
+    if(!confirm('Скинути клас Героя «'+(h.name||id)+'»? Вміння класу зникнуть.'))return;
+    p=hadmApi('POST','hero/reset-class',{id:id});
+  } else {
+    var cls=document.getElementById('hadm-cls-'+id).value,pct=+document.getElementById('hadm-pct-'+id).value||50;
+    if(!confirm('Дати Героєві «'+(h.name||id)+'» клас '+SKSKILLS.CLASSES[cls].name+' і всі його оброблені вміння на '+pct+'%?'))return;
+    p=hadmApi('POST','hero/test-class',{id:id,cls:cls,pct:pct});
+  }
+  HADM.busy=true;b.disabled=true;
+  p.then(function(){HADM.list=null;HADM.err=null;},function(err){alert('Не вдалося: '+(err.message||err));})
+   .then(function(){HADM.busy=false;render();});
+});
 var skmBound=false;
 function bindSkm(){
   if(skmBound)return;skmBound=true;
   root.addEventListener('input',function(e){
     var t=e.target;if(TAB!=='skmech'||!t.dataset||!t.dataset.skm)return;
-    var sk=null;SKSKILLS.UNIVERSAL.forEach(function(x){if(x.id===t.dataset.skm)sk=x;});if(!sk)return;
+    var sk=skmSkill(t.dataset.skm);if(!sk)return;
     skmRows(sk)[+t.dataset.i][+t.dataset.f]=t.value;SKM_DIRTY[sk.id]=true;
     var m=document.getElementById('skmm-'+sk.id);if(m)m.textContent='● не збережено';
   });
   root.addEventListener('click',function(e){
     var b=e.target.closest('[data-skact]');if(!b||TAB!=='skmech')return;
-    var sk=null;SKSKILLS.UNIVERSAL.forEach(function(x){if(x.id===b.dataset.sk)sk=x;});if(!sk)return;
+    var sk=skmSkill(b.dataset.sk);if(!sk)return;
     var act=b.dataset.skact,rows=skmRows(sk),card=function(){var el=document.getElementById('skm-'+sk.id);if(el)el.outerHTML=skmCard(sk);};
     if(act==='add'){rows.push(['','']);SKM_DIRTY[sk.id]=true;card();var n=document.getElementById('skm-k-'+sk.id+'-'+(rows.length-1));if(n)n.focus();return;}
     if(act==='del'){rows.splice(+b.dataset.i,1);SKM_DIRTY[sk.id]=true;card();return;}

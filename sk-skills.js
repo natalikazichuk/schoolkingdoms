@@ -54,38 +54,32 @@ function S(cls, lv, start, key, name, type, cost, desc, formula, kid, src, share
 
 /* ══════════ 🛡️ ЛИЦАР ══════════ */
 S('knight',1,25,'sword','Меч','P','','+влучність і +урон мечем',
-  'з мечем у руці: точність +(2 + 8·м), урон удару +(1 + 4·м)',
+  'з мечем у руці: точність +20%·м, урон +10%·м',
   'Чим краще володієш мечем, тим частіше влучаєш і сильніше б\'єш.','Аладон: меч');
 S('knight',1,5,'axe','Сокира','P','','+урон сокирою, шанс пробити броню',
-  'з сокирою: урон +(1 + 5·м); шанс (5 + 15·м)% рахувати лише половину броні ворога',
+  'з сокирою: урон +15%·м; шанс 20%·м рахувати лише половину броні ворога',
   'Сокира б\'є важко й іноді пробиває броню.','Аладон: топор');
-S('knight',1,5,'spear','Спис','P','','+урон списом, дворучний',
-  'зі списом (дворучний): урон +(2 + 6·м)',
-  'Спис б\'є сильно, але тримаєш його двома руками.','Аладон: копье',true);
-S('knight',1,20,'shield','Блок щитом','P','','шанс блоку в незахищену зону, відбиття удару',
-  'зі щитом: шанс блоку +(3 + 12·м)%; після блоку шанс (10·м)% повернути ворогу 30% урону',
+S('knight',1,5,'spear','Спис','P','','+урон списом',
+  'зі списом: урон +20%·м',
+  'Спис б\'є сильно й далеко.','Аладон: копье',true);
+S('knight',1,20,'shield','Блок щитом','P','','+шанс блоку щитом у незахищену зону',
+  'зі щитом у лівій руці: шанс блоку фізичних ударів +15%·м (додається до «шансу блоку» речей)',
   'Щит рятує, навіть коли не вгадав, куди вдарять.','Аладон: блок щитом',true);
-S('knight',1,5,'bash','Поштовх щитом','A','перезар. 3','ворог втрачає хід',
-  'потрібен щит. Шанс (20 + 40·м)%: ворог пропускає наступний хід. Урон удару ×0.5',
+S('knight',1,5,'bash','Поштовх щитом','A','перезар. 3','удар щитом, ворог може пропустити хід',
+  'потрібен щит. Шанс спрацювати 50% → 100%; урон 3–6 × м; збити з ніг 30% → 60%',
   'Штовхни ворога щитом — він може пропустити хід.','Аладон: мощный толчок');
-S('knight',1,1,'berserk','Берсерк','A','раз за бій','+урон / −броня',
-  '3 ходи: урон +(10 + 40·м)%, броня −30%',
+S('knight',1,1,'berserk','Берсерк','A','раз за бій','+урон / −броня на 3 ходи',
+  'шанс спрацювати 50% → 100% (не вдалося — можна знову наступного ходу); 3 ходи: урон +40%·м, броня −30%',
   'Бойова лють: б\'єш сильніше, але захищаєшся гірше.','Аладон: берсерк',true);
-S('knight',1,10,'fists','Голі руки','P','','б\'є кулаками, коли зброя зламалась',
-  'без зброї в руці: урон удару +(1 + 4·м). Спрацьовує й тоді, коли зброя зламалась від зносу',
+S('knight',1,10,'fists','Голі руки','P','','б\'є кулаками, коли зброї немає',
+  'без зброї в правій руці (або зламалась): урон удару +5·м',
   'Зброя зламалась? Не біда — б\'єш кулаками!','Аладон: голые руки',true);
 S('knight',1,10,'brave','Хоробрість','P','','опір свитку страху',
-  'шанс, що свиток страху подіє на тебе: ×(1 − 0.6·м)',
+  'шанс, що свиток страху подіє на тебе: −60%·м',
   'Тебе важко налякати.','Аладон: храбрость',true);
-S('knight',1,5,'care','Догляд за зброєю','P','мирне','речі зношуються повільніше',
-  'знос усіх речей у бою ×(1 − 0.5·м)',
+S('knight',1,5,'care','Догляд за зброєю','P','','речі зношуються повільніше',
+  'кожен знос речі в бою скасовується з шансом 50%·м',
   'Ти дбаєш про свої речі, і вони довше не ламаються.','★');
-S('knight',1,5,'potions','Зілля','P','','зілля з пояса лікують сильніше',
-  'лікування й підсилення від зілля ×(1 + 0.3·м)',
-  'Зілля допомагає тобі трохи краще.','★',true);
-S('knight',1,1,'scrolls','Свитки','P','','свитки з пояса сильніші',
-  'сила свитків (бар\'єр, страх, урон) ×(1 + 0.2·м)',
-  'Свитки працюють у тебе трохи краще.','Аладон: свитки',true);
 S('knight',5,null,'lunge','Випад','A','перезар. 2','сильний удар, пробиває частину броні',
   'урон ×(1.2 + 0.3·м); броня ворога рахується на 80%',
   'Різкий випад уперед — сильний удар.','Аладон: выпад',true);
@@ -655,7 +649,32 @@ var RULES = {
     { k: 'dmgPct', v: 50, grow: true, u: '%', t: 'урону екзотичною зброєю' }] },
   'base.bond':    { kind: 'const', perBattle: 15, p: [
     { k: 'dmgPct', v: 10, grow: true, u: '%', t: 'урону, поки зв\'язок є' },
-    { k: 'turns', v: 5, t: 'ходів поспіль однією зброєю, щоб зв\'язок з\'явився' }] }
+    { k: 'turns', v: 5, t: 'ходів поспіль однією зброєю, щоб зв\'язок з\'явився' }] },
+  /* ── 🛡️ Лицар, вміння 1 рівня класу ── */
+  'knight.sword':   { kind: 'const', perBattle: 30, on: 'удар мечем: влучив — ✔, промах чи блок — ✖', p: [
+    { k: 'accPct', v: 20, grow: true, u: '%', t: 'точності з мечем' },
+    { k: 'dmgPct', v: 10, grow: true, u: '%', t: 'урону мечем' }] },
+  'knight.axe':     { kind: 'const', perBattle: 30, on: 'удар сокирою: влучив — ✔, промах чи блок — ✖', p: [
+    { k: 'dmgPct', v: 15, grow: true, u: '%', t: 'урону сокирою' },
+    { k: 'pierce', v: 20, grow: true, u: '%', t: 'шанс рахувати лише половину броні ворога' }] },
+  'knight.spear':   { kind: 'const', perBattle: 30, on: 'удар списом: влучив — ✔, промах чи блок — ✖', p: [
+    { k: 'dmgPct', v: 20, grow: true, u: '%', t: 'урону списом' }] },
+  'knight.shield':  { kind: 'const', perBattle: 6, on: 'удар ворога в незахищену зону зі щитом у руці: заблоковано шансом — ✔, влучив — ✖', p: [
+    { k: 'blockPct', v: 15, grow: true, u: '%', t: 'шансу блоку фізичних ударів (зі щитом)' }] },
+  'knight.bash':    { kind: 'active', perBattle: 3, p: [
+    { k: 'dmgMin', v: 3, grow: true, t: 'урон від' }, { k: 'dmgMax', v: 6, grow: true, t: 'урон до' },
+    { k: 'cd', v: 3, t: 'ходів перезарядки' },
+    { k: 'knock', v: 60, from: 30, u: '%', t: 'шанс збити з ніг (суперник пропускає хід)' }] },
+  'knight.berserk': { kind: 'active', perBattle: 1, p: [
+    { k: 'dmgPct', v: 40, grow: true, u: '%', t: 'урону, поки триває лють' },
+    { k: 'armorCut', v: 30, u: '%', t: 'менше броні, поки триває лють' },
+    { k: 'turns', v: 3, t: 'ходів люті (раз за бій)' }] },
+  'knight.fists':   { kind: 'const', perBattle: 30, on: 'удар без зброї: влучив — ✔, промах чи блок — ✖', p: [
+    { k: 'dmg', v: 5, grow: true, t: 'до урону удару без зброї' }] },
+  'knight.brave':   { kind: 'const', perBattle: 1, on: 'свиток страху проти тебе: встояв — ✔, злякався — ✖', p: [
+    { k: 'resPct', v: 60, grow: true, u: '%', t: 'менше шансу, що страх подіє' }] },
+  'knight.care':    { kind: 'const', perBattle: 10, on: 'знос речі в бою: зберіг — ✔, ні — ✖', p: [
+    { k: 'savePct', v: 50, grow: true, u: '%', t: 'шанс, що знос речі не зарахується' }] }
 };
 var KIND_UK = { active: 'активне', const: 'пасивне стале', trigger: 'пасивне з кидком' };
 function rnd5(x) { return Math.round(x); }       // 0,5 і більше — вгору
@@ -734,6 +753,20 @@ function pointsForLevel(lv) {
   return n;
 }
 
+/* значки класових вмінь (у книзі й у бою) */
+var ICONS = {
+  'knight.sword': '⚔️', 'knight.axe': '🪓', 'knight.spear': '🔱', 'knight.shield': '🛡️', 'knight.bash': '💥',
+  'knight.berserk': '😡', 'knight.fists': '👊', 'knight.brave': '🦁', 'knight.care': '🧰'
+};
+/* класове вміння готове до бою, коли має правила (RULES): лише такі можна вивчити.
+   Рядки «Механіки вмінь» для них — з формули й правил. */
+SKILLS.forEach(function(s){
+  s.icon = ICONS[s.id] || CLASSES[s.cls].icon;
+  var r = RULES[s.id];
+  s.ready = !!r;
+  if (r) s.mech = [['Що робить', s.formula]].concat(r.on ? [['Як росте', r.on]] : s.type === 'A' ? [['Як росте', GROW_HIT]] : []);
+});
+
 var BY_ID = {};
 SKILLS.forEach(function(s){ BY_ID[s.id] = s; });
 UNIVERSAL.forEach(function(s){ BY_ID[s.id] = s; });
@@ -770,7 +803,11 @@ function freePoints(st) { return pointsForLevel(st.lv) + st.bonus - Object.keys(
 /* чому не можна вивчити ('' — можна) */
 function learnBlock(st, id) {
   var s = BY_ID[id];
-  if (!s || !/^base\./.test(id)) return 'unknown';      // вміння класів — наступним кроком
+  if (!s) return 'unknown';
+  if (!/^base\./.test(id)) {                              // вміння класу: лише свого й лише готові до бою
+    if (!s.ready) return 'unknown';
+    if (st.cls !== s.cls) return 'class';
+  }
   if (Object.prototype.hasOwnProperty.call(st.skills, id)) return 'learned';
   if (s.lv > st.lv) return 'level';
   if (freePoints(st) <= 0) return 'points';
@@ -809,12 +846,21 @@ var FX = {
   'base.dodge':   function(v){ return 'прокидається в ' + v.engage + '% ударів у відкрите, тоді ухиляєшся в ' + v.chance + '%'; },
   'base.focus':   function(v){ return 'прокидається в ' + v.engage + '% ходів: спокійний хід — +1 рівень (до ' + v.cap + ', по +' + v.perLevel + '%)'; },
   'base.exotic':  function(v){ return '+' + v.dmgPct + '% урону екзотичною зброєю'; },
-  'base.bond':    function(v){ return '+' + v.dmgPct + '% урону після ' + v.turns + ' ходів однією зброєю'; }
+  'base.bond':    function(v){ return '+' + v.dmgPct + '% урону після ' + v.turns + ' ходів однією зброєю'; },
+  'knight.sword':   function(v){ return 'з мечем: +' + v.accPct + '% точності, +' + v.dmgPct + '% урону'; },
+  'knight.axe':     function(v){ return 'з сокирою: +' + v.dmgPct + '% урону, ' + v.pierce + '% — пів броні ворога'; },
+  'knight.spear':   function(v){ return 'зі списом: +' + v.dmgPct + '% урону'; },
+  'knight.shield':  function(v){ return 'зі щитом: +' + v.blockPct + '% шансу блоку'; },
+  'knight.bash':    function(v){ return 'потрібен щит · вдається в ' + v.chance + '%, урон ' + v.dmgMin + '–' + v.dmgMax + ', збиває з ніг ' + v.knock + '%'; },
+  'knight.berserk': function(v){ return 'вдається в ' + v.chance + '%: ' + v.turns + ' ходи +' + v.dmgPct + '% урону, −' + v.armorCut + '% броні'; },
+  'knight.fists':   function(v){ return 'без зброї: +' + v.dmg + ' до урону'; },
+  'knight.brave':   function(v){ return 'страх діє на ' + v.resPct + '% рідше'; },
+  'knight.care':    function(v){ return v.savePct + '% зносу речей у бою не рахується'; }
 };
 function effectText(id, m) { return FX[id] ? FX[id](skillValues(id, Math.round(Math.max(0, Math.min(1, m)) * 100))) : ''; }
 
 window.SKSKILLS = {
-  VERSION: 10,
+  VERSION: 11,
   RULES: RULES,
   KIND_UK: KIND_UK,
   skillValues: skillValues,
@@ -841,6 +887,7 @@ window.SKSKILLS = {
   mastery: mastery,
   barBlock: barBlock,
   effectText: effectText,
-  forClass: function(cls){ return SKILLS.filter(function(s){ return s.cls === cls; }); }
+  forClass: function(cls){ return SKILLS.filter(function(s){ return s.cls === cls; }); },
+  readyFor: function(cls){ return SKILLS.filter(function(s){ return s.cls === cls && s.ready; }); }
 };
 })();

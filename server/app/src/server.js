@@ -379,6 +379,9 @@ const ROUTES = {
   'POST /api/admin/docs': (req, user, b) => adminDocs(user, b),
   'POST /api/admin/doc': (req, user, b) => adminDoc(user, b),
   'GET /api/admin/accounts': (req, user) => adminAccounts(user),
+  'GET /api/admin/heroes': async (req, user) => { await requireAdmin(user); return [{ heroes: await skills.heroList() }]; },
+  'POST /api/admin/hero/reset-class': async (req, user, b) => { await requireAdmin(user); return skillRoute(() => skills.resetClass(b.id))(req, user, b); },
+  'POST /api/admin/hero/test-class': async (req, user, b) => { await requireAdmin(user); return skillRoute(() => skills.testClass(b.id, b))(req, user, b); },
   'GET /api/health': async () => {
     await pool.query('select 1');
     return [{ ok: true, version: process.env.APP_VERSION || 'dev' }];
