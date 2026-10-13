@@ -196,10 +196,12 @@ function paintBattle(bs){
     var p = b ? Math.round(Number(b.me.sk[id] || 0) * 100) : pct(id);
     var cls = 'skb-slot full skb-bt', badge = '', tip = s.name + ' — ' + SKS.effectText(id, p / 100);
     if (b) {
+      // обране вміння на перезарядці / без мани — теж сіре: цього ходу не спрацює, але вибір лишається
       var cd = (b.me.cd || {})[id], sel2 = b.me.skill === id;
-      if (sel2) { cls += ' on'; tip += ' · обрано на цей хід'; }
-      else if (cd && b.round <= cd) { cls += ' cd'; badge = '<span class="skb-cd">' + (cd - b.round + 1) + '</span>'; tip += ' · перезарядка'; }
-      else if (id === 'base.spark' && Number(b.me.mana) < 5) { cls += ' cd'; badge = '<span class="skb-cd">💧</span>'; tip += ' · мало мани'; }
+      if (sel2) cls += ' on';
+      if (cd && b.round <= cd) { cls += ' cd'; badge = '<span class="skb-cd">' + (cd - b.round + 1) + '</span>'; tip += sel2 ? ' · обрано, спрацює після перезарядки' : ' · перезарядка'; }
+      else if (id === 'base.spark' && Number(b.me.mana) < 5) { cls += ' cd'; badge = '<span class="skb-cd">💧</span>'; tip += sel2 ? ' · обрано, спрацює, коли буде мана' : ' · мало мани'; }
+      else if (sel2) tip += ' · спрацює цього ходу';
     }
     var cls2 = 'skb-sk' + (s.type === 'A' ? ' act' : '') + (p >= 100 ? ' max' : '');
     h += '<div class="' + cls + '" data-skb-use="' + id + '" title="' + esc(tip) + '"><span class="k">' + (i + 1) + '</span>'
