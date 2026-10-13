@@ -1532,7 +1532,7 @@ const SK = {
       if (opts && opts.noBattle && window.SKBATTLE && window.SKBATTLE.lockLive(d, Date.now())) {
         const e = new Error('Герой у бою — спершу заверши бій'); e.code = 'battle'; throw e;
       }
-      const r = fn(ST.tidy(d, Date.now()));
+      const r = fn(ST.tidy(d, Date.now()), d);
       const st = r.state;
       out = { state: st, result: r.result };
       tx.set(ref, { inventory: st.inventory, chest: st.chest, trash: st.trash, shopSold: st.shopSold, shopBought: st.shopBought,
@@ -1564,7 +1564,18 @@ const SK = {
   async trashItem(uid)    { return SK.storeTx(st => window.SKIT.store.trashItem(st, uid, Date.now()), { noBattle: true }); },
   async restoreTrash(uid) { return SK.storeTx(st => window.SKIT.store.restoreTrash(st, uid, Date.now())); },
   // угода магазину: {sell:[uid], buy:[base], buyback:[uid]}, byId — каталог {id: base}
-  async shopDeal(order, byId) { return SK.storeTx(st => window.SKIT.store.deal(st, order, byId, Date.now()), { noBattle: true }); },
+  // вміння «Торгівля» знижує ціну купівлі й підвищує ціну продажу (майстерність — з документа Героя)
+  async shopDeal(order, byId) {
+    return SK.storeTx((st, d) => window.SKIT.store.deal(st, order, byId, Date.now(), { trade: SK.tradeMastery(d) }), { noBattle: true });
+  },
+  // майстерність Торгівлі 0…1 (0 — не вивчено або книга вмінь не завантажена)
+  tradeMastery(hero) {
+    const S = window.SKSKILLS;
+    if (!S || !hero || !hero.skills || hero.skills['base.trade'] == null) return 0;
+    try { return S.mastery(S.bookState(hero), 'base.trade') / 100; } catch (e) { return 0; }
+  },
+  // після угоди: сервер рахує сьогоднішні угоди й додає спрацювання Торгівлі
+  growTrade() { return skApi('POST', 'skills/trade', {}); },
 
   /* ===== БІЙ В ОКРЕМОМУ ПРОСТОРІ =====================================
      Стан бою — heroes/{id}/battles/{bid} (логіка — чисті функції SKBATTLE,

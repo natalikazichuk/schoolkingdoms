@@ -149,7 +149,38 @@ async function growAfterBattle(user, body) {
   return Object.assign(res, report);
 }
 
-/* поля книги, які браузер не може змінювати напряму (rules.js) */
-const PROTECTED = ['skills', 'skillBar', 'heroClass', 'skillBonus', 'skillGrowIds', 'skillFails'];
+/* Ріст «Торгівлі»: кожна сьогоднішня покупка чи продаж у магазині — одне
+   вдале спрацювання. Сервер сам рахує угоди з документа Героя (shopBought /
+   shopSold за сьогодні, Київ), тож браузер не може «накрутити» число; уже
+   зараховані — у skillTrade {day, n}. Не більше TRADE_DAY_CAP за добу. */
+const TRADE_DAY_CAP = 40;
+function kyivDay(ts) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Kyiv', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ts));
+}
+function tradeDeals(hero, day) {
+  const n = a => (Array.isArray(a) ? a : []).filter(t => t && t.day === day).length;
+  return n(hero.shopBought) + n(hero.shopSold);
+}
+async function growTrade(user) {
+  let report = null;
+  const res = await withHero(user, (hero, bst) => {
+    if (!Object.prototype.hasOwnProperty.call(bst.skills, 'base.trade')) { report = { added: 0 }; return {}; }
+    const day = kyivDay(Date.now());
+    const seen = hero.skillTrade && hero.skillTrade.day === day ? Number(hero.skillTrade.n) || 0 : 0;
+    const total = Math.min(TRADE_DAY_CAP, tradeDeals(hero, day));
+    const add = Math.max(0, total - seen);
+    if (!add) { report = { added: 0 }; return {}; }
+    const S = lib(), tot = S.growTotal(S.byId('base.trade'));
+    const skills = Object.assign({}, bst.skills);
+    const before = S.pctFromUses(skills['base.trade'], tot);
+    skills['base.trade'] = Math.round((Number(skills['base.trade']) || 0) + add);
+    report = { added: add, before: { 'base.trade': before }, after: { 'base.trade': S.pctFromUses(skills['base.trade'], tot) } };
+    return { skills, skillTrade: { day, n: seen + add } };
+  });
+  return Object.assign(res, report);
+}
 
-module.exports = { learn, setBar, chooseClass, growAfterBattle, applyGrow, SkillError, PROTECTED, lib };
+/* поля книги, які браузер не може змінювати напряму (rules.js) */
+const PROTECTED = ['skills', 'skillBar', 'heroClass', 'skillBonus', 'skillGrowIds', 'skillFails', 'skillTrade'];
+
+module.exports = { learn, setBar, chooseClass, growAfterBattle, applyGrow, growTrade, tradeDeals, SkillError, PROTECTED, lib };

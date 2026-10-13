@@ -263,15 +263,21 @@
   function sameStack(a, b) { return !!(a && b && a.cons && b.cons && a.id === b.id && Number(a.bonus || 1) === Number(b.bonus || 1)); }
   function cloneInst(i) { return JSON.parse(JSON.stringify(i)); }
 
-  /* ціна продажу магазину: 1/10 ціни з бонусом × частка міцності, не менше 1 сріб (за штуку) */
-  function sellPrice(base, inst) {
+  /* вміння «Торгівля» (м = майстерність 0…1): купівля × (1 − 0.2·м), продаж × (1 + 0.2·м) */
+  function tradeM(m) { m = Number(m) || 0; return m < 0 ? 0 : m > 1 ? 1 : m; }
+  function buyPrice(base, m) {
+    var p = Math.max(0, Math.round(Number(base && base.price) || 0));
+    return p > 0 ? Math.max(1, Math.round(p * (1 - 0.2 * tradeM(m)))) : 0;
+  }
+  /* ціна продажу магазину: 1/10 ціни з бонусом × частка міцності (× Торгівля), не менше 1 сріб (за штуку) */
+  function sellPrice(base, inst, m) {
     if (!base) return 1;
     var p = priceWithBonus(base, inst && inst.bonus != null ? inst.bonus : 1);
     var r = 1;
     if (inst && inst.durMax) r = Math.max(0, Math.min(1, Number(inst.durCur != null ? inst.durCur : inst.durMax) / inst.durMax));
-    return Math.max(1, floor(p * r / 10));
+    return Math.max(1, floor(p * r / 10 * (1 + 0.2 * tradeM(m))));
   }
-  function sellTotal(base, inst) { return sellPrice(base, inst) * Math.max(1, Number(inst && inst.qty) || 1); }
+  function sellTotal(base, inst, m) { return sellPrice(base, inst, m) * Math.max(1, Number(inst && inst.qty) || 1); }
 
   /* Один слот — одна річ. Старі дані могли мати дві речі з тим самим slot
      (напр. два шоломи): інвентар показував першу, а бій рахував обидві.
@@ -364,10 +370,10 @@
      sell {uid, qty} — продати qty штук зі стопки (решта лишається в сумці); просто uid — усю річ / стопку.
      Один товар можна купити кілька разів, доки є в наявності (limit; немає — 1 шт.).
      Спершу продаж, далі купівля й викуп; не вистачає грошей або місця — угода не відбувається. */
-  function deal(st, order, byId, now) {
+  function deal(st, order, byId, now, opts) {
     st = tidy(st, now); now = now == null ? Date.now() : now;
     order = order || {}; byId = byId || {};
-    var today = kyivDay(now), got = 0, spent = 0, bought = [];
+    var today = kyivDay(now), got = 0, spent = 0, bought = [], m = tradeM(opts && opts.trade);
     (order.sell || []).forEach(function (e) {
       var uid = (e && typeof e === 'object') ? e.uid : e, n = (e && typeof e === 'object') ? Math.floor(Number(e.qty) || 0) : 0;
       var src = null;
@@ -378,7 +384,7 @@
       if (n > have) fail('gone', 'У стопці вже менше речей, ніж на прилавку');
       if (n > 0 && n < have) { src.qty = have - n; i = cloneInst(src); i.uid = newUid(); i.qty = n; }   // частина стопки
       else i = takeFrom(st.inventory, uid, function (x) { return x; });
-      var price = sellTotal(byId[i.id], i);
+      var price = sellTotal(byId[i.id], i, m);
       got += price; st.coins += price;
       st.shopSold.push({ inst: i, price: price, day: today });
     });
@@ -394,7 +400,7 @@
       var lim = (order.limit && order.limit[base.id]) || 1;
       if (boughtToday(st, base.id, lim)) fail('sold', '«' + (base.name || base.id) + '» сьогодні вже розкуплено — новий товар з’явиться опівночі');
       st.shopBought.push({ id: base.id, day: today });
-      var price = Math.max(0, Math.round(Number(base.price) || 0));
+      var price = buyPrice(base, m);
       spent += price; st.coins -= price;
       var inst = makeInstance(base, { bonus: 1, identified: true });
       if (!putBag(st, inst)) fail('full', 'Сумка повна (' + BAG_LIMIT + ')');
@@ -587,7 +593,7 @@
 
   var STORE = {
     BAG_LIMIT: BAG_LIMIT, SHOP_SOLD_LIMIT: SHOP_SOLD_LIMIT, CHEST_LIMIT: CHEST_LIMIT, CHEST_DAYS: CHEST_DAYS, SHOP_GEAR: SHOP_GEAR, SHOP_CONS: SHOP_CONS,
-    kyivDay: kyivDay, bagCount: bagCount, sameStack: sameStack, sellPrice: sellPrice, sellTotal: sellTotal,
+    kyivDay: kyivDay, bagCount: bagCount, sameStack: sameStack, sellPrice: sellPrice, sellTotal: sellTotal, buyPrice: buyPrice,
     normState: normState, normSlots: normSlots, tidy: tidy, addItems: addItems, claimChest: claimChest, trashItem: trashItem,
     restoreTrash: restoreTrash, deal: deal, boughtToday: boughtToday, boughtCount: boughtCount, SHOP_QTY: SHOP_QTY, isManaPotion: isManaPotion,
     SLOT_CATS: SLOT_CATS, slotFits: slotFits, bagView: bagView, applyView: applyView, diffInv: diffInv, applyDiff: applyDiff, shopStock: shopStock, isHealthPotion: isHealthPotion

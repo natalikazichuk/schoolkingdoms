@@ -1077,6 +1077,10 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 .ek-cell.ek-ins-after{transform:translateX(-10px)}
 .ek-bagc{font-family:inherit;font-size:.72rem;color:#9fb0d8;font-weight:800;margin-left:4px}
 .ek-store{display:flex;flex-direction:column;gap:10px}
+.sh-trade{margin:-2px 0 10px;padding:6px 10px;border-radius:10px;font-size:.78rem;font-weight:800;color:#ffe9b8;
+  background:linear-gradient(90deg,rgba(242,199,92,.18),rgba(242,199,92,.05));border:1px solid rgba(242,199,92,.45)}
+.sh-trade b{color:#9ff0b4}
+.sh-old{opacity:.55;font-size:.85em}
 /* сумка + стовпчик кубиків (скриня, смітник) праворуч */
 .ek-bagrow{display:flex;gap:var(--ek-gap);flex:1 1 auto;min-height:0}
 .ek-bagrow>.ek-grid{flex:1 1 auto;justify-content:start}
@@ -3650,7 +3654,7 @@ window.SKHERO = (function(){
 })();
 </script>
 
-<script src="sk-items.js?v=10"></script>
+<script src="sk-items.js?v=11"></script>
 <script src="sk-skills.js?v=8"></script>
 <script src="sk-book.js?v=4"></script>
 <script>
@@ -4172,6 +4176,7 @@ function showShop(tab){
   render();load();}
 function closeShop(){q('shop').hidden=true;clearInterval(S.hb);S.hb=null;lockOff();}   // гардероб і хедер уже мають новий стан (SKHERO)
 function load(force){var my=++S.seq;
+  loadTrade();
   return Promise.all([SK.listItems(),window.SKHERO?SKHERO.load(force):SK.getStore()]).then(function(r){if(my!==S.seq)return;
     S.cat=r[0]||[];S.byId={};S.cat.forEach(function(b){S.byId[b.id]=b;});S.st=r[1]||ST().normState({});
     // у сумці є речі поза каталогом — каталог неповний: перечитуємо його з бази один раз
@@ -4182,6 +4187,22 @@ function load(force){var my=++S.seq;
   .catch(function(e){if(my!==S.seq)return;try{console.error('[магазин]',e);}catch(_){}
     S.err=(e&&e.code==='permission-denied')?'Немає доступу до речей. Увійди як Герой.':'Не вдалося завантажити магазин: '+((e&&e.message)||String(e));
     render();});}
+
+/* ── вміння «Торгівля»: купівля дешевша, продаж дорожчий (ціни — SKIT.store.buyPrice / sellPrice з м) ── */
+function loadTrade(){if(!(SK.getHero&&SK.tradeMastery))return;
+  SK.getHero().then(function(h){S.trade=SK.tradeMastery(h);S.tradeOn=!!(h&&h.skills&&h.skills['base.trade']!=null);S.tradePct=Math.round(S.trade*100);render();}).catch(function(){});}
+function bPrice(b){return ST().buyPrice(b,S.trade||0);}
+/* ціна товару: зі знижкою Торгівлі — стара закреслена */
+function bPriceH(b){var p=bPrice(b),o=Math.round(Number(b.price)||0);
+  return p<o?'<s class="sh-old">'+coinsH(o)+'</s> '+coinsH(p):coinsH(p);}
+function tradeLine(){if(!S.tradeOn)return '';var d=Math.round(20*(S.trade||0));
+  return '<div class="sh-trade" title="Вміння «Торгівля»: росте з кожною покупкою й продажем">🪙 Торгівля '+(S.tradePct||0)+'%'
+   +(d?' · купуєш на <b>−'+d+'%</b> · продаєш на <b>+'+d+'%</b>':' · торгуйся — і ціни стануть кращими')+'</div>';}
+/* після угоди: сервер рахує угоди й додає спрацювання; виросла майстерність — радісне повідомлення */
+function growTrade(){if(!S.tradeOn||!SK.growTrade)return;
+  SK.growTrade().then(function(r){var a=r&&r.after&&r.after['base.trade'],b=r&&r.before&&r.before['base.trade'];
+    if(a!=null&&b!=null&&a>b){toast('🪙 Торгівля +'+(a-b)+'%','Тепер '+a+'% — ціни в магазині ще кращі');}
+    if(r&&r.added){loadTrade();if(window.SKBOOK)SKBOOK.refresh();}}).catch(function(){});}
 
 /* ── прилавок ── */
 /* сумка — те саме правило, що й у гардеробі (SKIT.store.bagView) */
@@ -4196,7 +4217,7 @@ if(window.SKHERO)SKHERO.on(function(st){if(q('shop')&&!q('shop').hidden&&!S.busy
 function bag(){return S._bag||(S._bag=bagItems());}
 function bagItem(u){var b=bag();for(var k=0;k<b.length;k++)if(b[k].uid===u)return b[k];return null;}
 function qtyOf(i){return Math.max(1,Number(i&&i.qty)||1);}
-function unitPrice(i){return ST().sellPrice(S.byId[i.id],i);}
+function unitPrice(i){return ST().sellPrice(S.byId[i.id],i,S.trade||0);}
 /* продаж: S.ct.sell = [{uid, n}] — n штук цієї речі (стопку зілль кладемо по одній) */
 function sellEntry(u){for(var k=0;k<S.ct.sell.length;k++)if(S.ct.sell[k].uid===u)return S.ct.sell[k];return null;}
 function sellN(u){var e=sellEntry(u);return e?e.n:0;}
@@ -4210,7 +4231,7 @@ function ctEmpty(){return !sellLive().length&&!S.ct.buy.length&&!S.ct.buyback.le
 function totals(){
   var got=0,spent=0,sells=sellLive();
   sells.forEach(function(e){got+=unitPrice(bagItem(e.uid))*e.n;});
-  S.ct.buy.forEach(function(b){spent+=Math.round(Number(b.base.price)||0);});
+  S.ct.buy.forEach(function(b){spent+=bPrice(b.base);});
   S.ct.buyback.forEach(function(u){var t=soldRec(u);if(t)spent+=t.price;});
   var have=S.st?S.st.coins:0,bagNow=ST().bagCount(S.st?S.st.inventory:[]);
   /* комірки сумки: стопка звільняє місце лише коли продана вся; зілля лягає в наявну стопку */
@@ -4233,7 +4254,7 @@ function renderCounter(){
     return '<button type="button" class="sh-row" data-back="sell" data-key="'+esc(g.last)+'"'+(g.n>1?' title="Натисни — забрати одну штуку"':'')+'><span class="ic">'+icon(g.base)+'</span><span class="nm">'+esc(g.base.name)+(g.n>1?' ×'+g.n:'')+'</span><span class="pr plus">+'+coinsH(g.price*g.n)+'</span></button>';}).join('')+'</div>';}
   /* купівля: однакові товари — одним рядком-стопкою «×N»; натискання забирає одну штуку (останню покладену) */
   var grp=[],gi={};S.ct.buy.forEach(function(e){var id=e.base.id;if(gi[id]==null){gi[id]=grp.length;grp.push({base:e.base,keys:[]});}grp[gi[id]].keys.push(e.key);});
-  var buys=grp.map(function(g){var n=g.keys.length;return '<button type="button" class="sh-row" data-back="buy" data-key="'+esc(g.keys[n-1])+'"'+(n>1?' title="Натисни — забрати одну штуку"':'')+'><span class="ic">'+icon(g.base)+'</span><span class="nm">'+esc(g.base.name)+(n>1?' ×'+n:'')+'</span><span class="pr minus">−'+coinsH((Number(g.base.price)||0)*n)+'</span></button>';})
+  var buys=grp.map(function(g){var n=g.keys.length;return '<button type="button" class="sh-row" data-back="buy" data-key="'+esc(g.keys[n-1])+'"'+(n>1?' title="Натисни — забрати одну штуку"':'')+'><span class="ic">'+icon(g.base)+'</span><span class="nm">'+esc(g.base.name)+(n>1?' ×'+n:'')+'</span><span class="pr minus">−'+coinsH(bPrice(g.base)*n)+'</span></button>';})
    .concat(S.ct.buyback.map(function(u){var t=soldRec(u);if(!t)return '';var b=S.byId[t.inst.id];
     return '<button type="button" class="sh-row" data-back="buyback" data-key="'+esc(u)+'"><span class="ic">'+icon(b)+'</span><span class="nm">↩ '+esc(b?b.name:t.inst.id)+(qtyOf(t.inst)>1?' ×'+qtyOf(t.inst):'')+'</span><span class="pr minus">−'+coinsH(t.price)+'</span></button>';}));
   if(buys.length)h+='<div class="sh-lbl buy">🛍 Купую</div><div class="sh-list">'+buys.join('')+'</div>';
@@ -4246,7 +4267,7 @@ function renderCounter(){
     +'<div class="sh-btns"><button type="button" class="go" id="shDeal"'+((empty||poor||full||S.busy)?' disabled':'')+'>🤝 Укласти угоду</button>'
     +'<button type="button" class="cl" id="shClear"'+(empty?' disabled':'')+'>Очистити</button></div>'
     +'<div class="sh-how"><span class="s">🎒 Річ у сумці → натисни, щоб <b>продати</b></span><span class="b">🏪 Товар → натисни, щоб <b>купити</b></span></div>';
-  q('shCounter').innerHTML=h;}
+  q('shCounter').innerHTML=tradeLine()+h;}
 function renderInv(){
   var b0=bag();q('shBagCnt').textContent=S.st?(ST().bagCount(S.st.inventory)+'/'+ST().BAG_LIMIT):'';
   if(!S.st){q('shInv').innerHTML='<div class="sh-empty">'+(S.err?esc(S.err):'Завантаження…')+'</div>';return;}
@@ -4282,7 +4303,7 @@ function renderStore(){
     var left=stockLeft(b.id),gone=left<=0,inCt=S.ct.buy.some(function(x){return x.base.id===b.id;});
     return '<button type="button" class="sh-item'+(gone?' used':'')+'" data-buy="'+esc(b.id)+'"'+(gone&&!inCt?' disabled':'')+' title="'+(inCt?'На прилавку — натисни ще раз, щоб повернути в товари · ':'')+esc(b.name+' — '+statLine(b)+(gone?' (сьогодні вже розкуплено)':' · у наявності: '+left+' шт.'))+'"><span class="ic">'+SKIT.tile(b,{bonus:1}).html+'</span>'
      +(stockMax(b.id)>1?'<span class="sh-qty">×'+Math.max(0,left)+'</span>':'')+'<span class="nm">'+esc(b.name)+'</span>'
-     +'<span class="st">'+esc(statLine(b))+'</span>'+(gone?'':'<span class="act buy">купити</span>')+'<span class="pr">'+(gone?(inCt?'✔ на прилавку':'✔ розкуплено'):coinsH(b.price))+'</span></button>';}).join('')+'</div>';}
+     +'<span class="st">'+esc(statLine(b))+'</span>'+(gone?'':'<span class="act buy">купити</span>')+'<span class="pr">'+(gone?(inCt?'✔ на прилавку':'✔ розкуплено'):bPriceH(b))+'</span></button>';}).join('')+'</div>';}
 function stockMax(id){return (S.stock&&S.stock.qty&&S.stock.qty[id])||1;}
 /* скільки ще можна покласти на прилавок: наявність − куплене сьогодні − уже на прилавку */
 function stockLeft(id){var bought=S.st&&ST().boughtCount?ST().boughtCount(S.st,id):0;
@@ -4327,7 +4348,8 @@ function doDeal(){
     SK.shopDeal({sell:sell,buy:S.ct.buy.map(function(e){return e.base;}),buyback:S.ct.buyback.slice(),limit:(S.stock&&S.stock.qty)||{}},S.byId)
      .then(function(r){S.ct={sell:[],buy:[],buyback:[]};if(r&&r.state)S.st=r.state;S.busy=false;render();
        if(window.SKHERO)SKHERO.apply(r);   // гардероб і хедер — з того самого стану, без читання
-       toast('Угоду укладено 🤝','Тепер у тебе '+coins(S.st.coins));})
+       toast('Угоду укладено 🤝','Тепер у тебе '+coins(S.st.coins));
+       growTrade();})
      .catch(function(e){S.busy=false;try{console.warn('[магазин] угода',e);}catch(_){}toast('Угода не відбулась',errText(e));load(true);});});}
 /* викинути річ просто з магазину (у смітник; повернути — в інвентарі до півночі) */
 function shopTrash(u){
@@ -4383,7 +4405,7 @@ function itemAct(t,view){
     var inCt=S.ct.buy.some(function(x){return x.base.id===b.id;}),back=inCt&&stockLeft(b.id)<=0;
     var bAdd=function(){if(stockLeft(b.id)>0)S.ct.buy.push({key:'k'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),base:b});render();};
     var bBack=function(){S.ct.buy=S.ct.buy.filter(function(x){return x.base.id!==b.id;});render();};
-    if(card)SKCARD.show(b,{bonus:1,identified:true},[back?{label:'↩ Повернути в товари',fn:bBack}:{label:'🛒 На прилавок — купити за '+coins(b.price),fn:bAdd}]);else (back?bBack:bAdd)();return true;}
+    if(card)SKCARD.show(b,{bonus:1,identified:true},[back?{label:'↩ Повернути в товари',fn:bBack}:{label:'🛒 На прилавок — купити за '+coins(bPrice(b)),fn:bAdd}]);else (back?bBack:bAdd)();return true;}
   if((el=t.closest('[data-buyback]'))&&!el.disabled){var bu=el.getAttribute('data-buyback'),bt=soldRec(bu);
     var onB=S.ct.buyback.indexOf(bu)>=0;
     var bbAdd=function(){if(S.ct.buyback.indexOf(bu)<0)S.ct.buyback.push(bu);render();};
