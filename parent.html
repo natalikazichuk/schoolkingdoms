@@ -239,6 +239,24 @@
     font-family:'Nunito',sans-serif;font-weight:800;font-size:.98rem;color:#fff;
     padding:5px 2px;border-bottom:1.5px solid rgba(242,199,92,.28)}
   .st-subj-stat{font-size:.76rem;font-weight:800;color:#ffe7a0;white-space:nowrap}
+  /* ── Активність: час на сайті ── */
+  .ac-last{font-weight:800;font-size:.92rem;color:#cdd9ef;margin:0 0 12px}
+  .ac-last b{color:#fff}
+  .ac-chart{display:flex;align-items:flex-end;gap:4px;height:150px;padding:8px 6px 0;
+    border:1.5px solid rgba(140,175,235,.28);border-radius:14px;background:rgba(8,20,42,.45)}
+  .ac-col{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;height:100%}
+  .ac-stack{flex:1;width:100%;max-width:34px;display:flex;flex-direction:column-reverse;justify-content:flex-start}
+  .ac-stack span{display:block;width:100%}
+  .ac-stack span:last-child{border-radius:5px 5px 0 0}
+  .ac-day{font-size:.66rem;font-weight:800;color:#a9bcd8;padding:4px 0 6px;white-space:nowrap}
+  .ac-col.today .ac-day{color:#ffe7a0}
+  .ac-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;font-size:.78rem;font-weight:800;color:#cdd9ef}
+  .ac-legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  .ac-t{background:#5aa9f0}.ac-g{background:#5ad18d}.ac-a{background:#f2786e}.ac-o{background:#b9a6f2}
+  .ac-share{display:flex;height:12px;border-radius:99px;overflow:hidden;margin:2px 0 12px;background:rgba(8,20,42,.72)}
+  .ac-share span{display:block;height:100%}
+  .ac-period{max-width:420px;margin-bottom:12px}
+  .ac-period .seg-btn{min-width:80px;padding:8px 6px}
 
   /* ── Огляд (дашборд) ── */
   .ov-greet{font-family:'Playfair Display',serif;font-weight:800;font-size:clamp(1.45rem,3vw,2rem);
@@ -386,6 +404,25 @@
         <div id="stBody"><div class="fr-empty">Оберіть Героя…</div></div>
       </section>
 
+      <!-- ═══════════ АКТИВНІСТЬ ═══════════ -->
+      <section class="panel" id="tab-activity">
+        <div class="panel-head">⏱️ Активність</div>
+        <div class="fr-sub">Скільки часу Герой провів на сайті: тести й навчання, ігри, арена — та останні відвідування.</div>
+        <div class="field" style="margin-bottom:6px;max-width:420px">
+          <label for="acHero">Герой</label>
+          <select id="acHero" onchange="renderActivity()"><option value="">—</option></select>
+        </div>
+        <div class="seg ac-period" id="acPeriod">
+          <button type="button" class="seg-btn" data-p="1">Сьогодні</button>
+          <button type="button" class="seg-btn active" data-p="7">7 днів</button>
+          <button type="button" class="seg-btn" data-p="30">30 днів</button>
+        </div>
+        <div style="max-width:420px;text-align:right;margin-bottom:10px">
+          <button class="btn btn-ghost" style="width:auto;margin:0;padding:7px 14px;font-size:.85rem" onclick="loadActivityTab()">↻ Оновити</button>
+        </div>
+        <div id="acBody"><div class="fr-empty">Оберіть Героя…</div></div>
+      </section>
+
       <!-- ═══════════ ГЕРОЇ ═══════════ -->
       <section class="panel" id="tab-heroes">
         <div class="panel-head">🛡️ Герої</div>
@@ -519,6 +556,7 @@
     <button data-nav="create"   onclick="showTab('create')"><span class="ic">📝</span>Завдання</button>
     <button data-nav="review"   onclick="showTab('review')"><span class="ic ic-wrap">✅<span class="nav-badge" id="reviewBadge" hidden>0</span></span>Перевірка</button>
     <button data-nav="stats"    onclick="showTab('stats')"><span class="ic">📊</span>Статистика</button>
+    <button data-nav="activity" onclick="showTab('activity')"><span class="ic">⏱️</span>Час</button>
     <button data-nav="heroes"   onclick="showTab('heroes')"><span class="ic">🛡️</span>Герої</button>
     <button data-nav="friends"  onclick="showTab('friends')"><span class="ic">🤝</span>Друзі</button>
     <button id="logoutBtn"><span class="ic">🚪</span>Вийти</button>
@@ -579,7 +617,7 @@
     // розділів: overview·create·review·stats·heroes·friends. showSub(...) лишено
     // як тонкий псевдонім для зворотної сумісності зі старими викликами.
     function showTab(id){
-      var VALID = ['overview','create','review','stats','heroes','friends'];
+      var VALID = ['overview','create','review','stats','activity','heroes','friends'];
       if (VALID.indexOf(id) === -1) id = 'overview';
       document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
       var panel = document.getElementById('tab-' + id);
@@ -591,6 +629,7 @@
       else if (id === 'create')   loadCreateTab();
       else if (id === 'review')   loadReviewTab();
       else if (id === 'stats')    loadStatsTab();
+      else if (id === 'activity') loadActivityTab();
       else if (id === 'friends')  loadFriendsTab();
       window.scrollTo(0, 0);
     }
@@ -1512,6 +1551,195 @@
         return '<div class="st-grp">'+head+rows+'</div>';
       }).join('');
       return stSec('📚 Тести', cards + body);
+    }
+
+    /* ═══════════ АКТИВНІСТЬ ═══════════
+       Час на сайті пише сам Герой (sk-activity.js) у progress.sk_activity_v1:
+       { d:{'YYYY-MM-DD':{t,g,a,o}} (секунди за добу, Київ), s:[{c,n,at,s}] — візити, last }.
+       Арена — з heroes/{id}.arena і lastBattle. */
+    const AC_CATS = [
+      { k:'t', ic:'📚', name:'Тести й навчання' },
+      { k:'g', ic:'🎮', name:'Ігри' },
+      { k:'a', ic:'⚔️', name:'Арена' },
+      { k:'o', ic:'🗺️', name:'Інше' }
+    ];
+    let AC_HEROES = null;
+    let AC_PERIOD = 7;
+
+    async function loadActivityTab(){
+      const sel = $('acHero'), body = $('acBody');
+      if (!sel || !body) return;
+      bindActivityOnce();
+      body.innerHTML = '<div class="fr-empty">Завантаження…</div>';
+      let heroes = {};
+      try { heroes = await SK.getHeroes() || {}; }
+      catch(e){ console.warn('[parent] activity getHeroes:', e); }
+      AC_HEROES = heroes;
+      const ids = Object.keys(heroes);
+      if (!ids.length){
+        sel.innerHTML = '<option value="">—</option>';
+        body.innerHTML = '<div class="empty-block">'
+          + '<span class="eb-ic">🛡️</span>'
+          + '<span class="eb-title">Ще немає Героїв</span>'
+          + '<span class="eb-text">Додайте Героя у вкладці «Герої» — і тут зʼявиться його активність.</span></div>';
+        return;
+      }
+      const prev = sel.value;
+      sel.innerHTML = ids.map(id =>
+        '<option value="'+escapeHtml(id)+'">'+escapeHtml(heroes[id].name || 'Герой')
+        +' (@'+escapeHtml(heroes[id].login || '')+')</option>').join('');
+      if (prev && heroes[prev]) sel.value = prev;
+      renderActivity();
+    }
+
+    let acBound = false;
+    function bindActivityOnce(){
+      if (acBound) return; acBound = true;
+      document.querySelectorAll('#acPeriod .seg-btn').forEach(b => b.addEventListener('click', () => {
+        document.querySelectorAll('#acPeriod .seg-btn').forEach(x => x.classList.toggle('active', x === b));
+        AC_PERIOD = Number(b.getAttribute('data-p')) || 7;
+        renderActivity();
+      }));
+    }
+
+    function acKyivDay(ts){
+      try { return new Intl.DateTimeFormat('en-CA', { timeZone:'Europe/Kyiv', year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date(ts)); }
+      catch(e){ return new Date(ts).toISOString().slice(0,10); }
+    }
+    // останні n діб (за Києвом), від найстарішої до сьогодні
+    function acDays(n){
+      const out = [], now = Date.now();
+      for (let i = n - 1; i >= 0; i--){
+        const d = acKyivDay(now - i*86400000);
+        if (out[out.length-1] !== d) out.push(d);
+      }
+      return out;
+    }
+    function acData(hero){
+      let o = null;
+      try { o = JSON.parse((hero.progress || {}).sk_activity_v1 || 'null'); } catch(e){}
+      if (!o || typeof o !== 'object') o = {};
+      return { d: (o.d && typeof o.d === 'object') ? o.d : {}, s: Array.isArray(o.s) ? o.s : [], last: Number(o.last) || 0 };
+    }
+    function acMs(v){
+      if (!v) return 0;
+      if (typeof v === 'number') return v;
+      if (typeof v.toMillis === 'function') return v.toMillis();
+      if (v.seconds != null) return v.seconds * 1000;
+      if (v.$ts != null) return Number(v.$ts) || 0;
+      const t = Date.parse(v); return isNaN(t) ? 0 : t;
+    }
+    function acDur(sec){
+      sec = Math.round(Number(sec) || 0);
+      if (sec < 60) return sec > 0 ? '< 1 хв' : '0 хв';
+      const m = Math.round(sec / 60), h = Math.floor(m / 60), mm = m % 60;
+      return h ? (h + ' год' + (mm ? ' ' + mm + ' хв' : '')) : (m + ' хв');
+    }
+    function acWhen(ts){
+      if (!ts) return '—';
+      const d = new Date(ts), today = acKyivDay(Date.now()), day = acKyivDay(ts);
+      const time = d.toLocaleTimeString('uk-UA', { timeZone:'Europe/Kyiv', hour:'2-digit', minute:'2-digit' });
+      if (day === today) return 'сьогодні о ' + time;
+      if (day === acKyivDay(Date.now() - 86400000)) return 'вчора о ' + time;
+      return d.toLocaleDateString('uk-UA', { timeZone:'Europe/Kyiv', day:'numeric', month:'long' }) + ' о ' + time;
+    }
+    function acDayLabel(day, short){
+      const d = new Date(day + 'T12:00:00');
+      return short
+        ? d.toLocaleDateString('uk-UA', { weekday:'short' })
+        : d.toLocaleDateString('uk-UA', { day:'numeric', month:'numeric' });
+    }
+
+    function renderActivity(){
+      const body = $('acBody');
+      if (!body) return;
+      const id = $('acHero') ? $('acHero').value : '';
+      const hero = AC_HEROES && AC_HEROES[id];
+      if (!hero){ body.innerHTML = '<div class="fr-empty">Оберіть Героя…</div>'; return; }
+      const A = acData(hero);
+      const lastTs = Math.max(A.last, acMs(hero.lastBattle && hero.lastBattle.at));
+      const last = '<p class="ac-last">🕒 Востаннє активний: <b>'+escapeHtml(lastTs ? acWhen(lastTs) : 'ще немає даних')+'</b></p>';
+      body.innerHTML = last + acTimeSec(A) + acChartSec(A) + acVisitsSec(A) + acArenaSec(hero);
+    }
+
+    // ── Час за період: картки + частки розділів ──
+    function acTimeSec(A){
+      const days = acDays(AC_PERIOD);
+      const sum = { t:0, g:0, a:0, o:0 };
+      days.forEach(d => { const r = A.d[d] || {}; AC_CATS.forEach(c => { sum[c.k] += Number(r[c.k]) || 0; }); });
+      const total = sum.t + sum.g + sum.a + sum.o;
+      const activeDays = days.filter(d => { const r = A.d[d] || {}; return AC_CATS.some(c => (Number(r[c.k]) || 0) > 0); }).length;
+      const title = AC_PERIOD === 1 ? '⏱️ Час сьогодні' : '⏱️ Час за ' + AC_PERIOD + ' днів';
+      if (!total && !Object.keys(A.d).length){
+        return stSec(title, '<div class="fr-empty">Даних про час ще немає. Облік почнеться, щойно Герой зайде на сайт зі свого акаунта.</div>');
+      }
+      let cards = '<div class="st-mini-row">' + stMini('⏱️', acDur(total), 'усього');
+      AC_CATS.forEach(c => { cards += stMini(c.ic, acDur(sum[c.k]), c.name.toLowerCase()); });
+      if (AC_PERIOD > 1){
+        cards += stMini('📅', activeDays + ' з ' + days.length, 'днів на сайті');
+        cards += stMini('⌀', acDur(activeDays ? total / activeDays : 0), 'у середньому за день');
+      }
+      cards += '</div>';
+      const share = total ? '<div class="ac-share">' + AC_CATS.map(c => sum[c.k]
+        ? '<span class="ac-'+c.k+'" style="width:'+(sum[c.k]/total*100).toFixed(1)+'%" title="'+escapeHtml(c.name+': '+acDur(sum[c.k]))+'"></span>' : '').join('') + '</div>' : '';
+      return stSec(title, cards + share);
+    }
+
+    // ── Стовпчики по днях (сьогодні → останній тиждень) ──
+    function acChartSec(A){
+      const n = AC_PERIOD === 30 ? 30 : 7;
+      const days = acDays(n), today = acKyivDay(Date.now());
+      const tot = d => { const r = A.d[d] || {}; return AC_CATS.reduce((s,c) => s + (Number(r[c.k]) || 0), 0); };
+      const max = Math.max(60, ...days.map(tot));
+      const cols = days.map(d => {
+        const r = A.d[d] || {}, t = tot(d);
+        const segs = AC_CATS.map(c => { const v = Number(r[c.k]) || 0;
+          return v ? '<span class="ac-'+c.k+'" style="height:'+(v/max*100).toFixed(1)+'%"></span>' : ''; }).join('');
+        const lbl = n === 7 ? acDayLabel(d, true) : (days.indexOf(d) % 5 === 4 || d === today ? acDayLabel(d, false) : '');
+        return '<div class="ac-col'+(d === today ? ' today' : '')+'" title="'+escapeHtml(acDayLabel(d,false)+': '+acDur(t))+'">'
+          + '<div class="ac-stack">'+segs+'</div><div class="ac-day">'+escapeHtml(lbl || ' ')+'</div></div>';
+      }).join('');
+      const legend = '<div class="ac-legend">' + AC_CATS.map(c => '<span><i class="ac-'+c.k+'"></i>'+escapeHtml(c.name)+'</span>').join('') + '</div>';
+      return stSec(n === 7 ? '📅 Останні 7 днів' : '📅 Останні 30 днів', '<div class="ac-chart">'+cols+'</div>' + legend);
+    }
+
+    // ── Останні відвідування ──
+    function acVisitsSec(A){
+      const ic = {}; AC_CATS.forEach(c => { ic[c.k] = c; });
+      const list = A.s.filter(v => v && v.at).sort((a,b) => b.at - a.at).slice(0, 20);
+      if (!list.length) return stSec('🧭 Останні відвідування', '<div class="fr-empty">Відвідувань ще немає.</div>');
+      const rows = list.map(v => {
+        const c = ic[v.c] || ic.o;
+        return '<div class="ta-item"><span class="ta-ic">'+c.ic+'</span>'
+          + '<span class="ta-w">'+escapeHtml(v.n || c.name)+'<small>'+escapeHtml(c.name+' · '+acWhen(v.at))+'</small></span>'
+          + '<span class="ta-rw">⏱️ '+escapeHtml(acDur(v.s))+'</span></div>';
+      }).join('');
+      return stSec('🧭 Останні відвідування', rows);
+    }
+
+    // ── Арена: рівень, бої, останній бій ──
+    function acArenaSec(hero){
+      const a = hero.arena || {}, lb = hero.lastBattle;
+      const wins = Number(a.wins) || 0, losses = Number(a.losses) || 0, draws = Number(a.draws) || 0;
+      const fights = wins + losses + draws;
+      if (!fights && !lb) return stSec('⚔️ Арена', '<div class="fr-empty">Боїв на арені ще не було.</div>');
+      const cards = '<div class="st-mini-row">'
+        + stMini('🎖️', Number(a.level) || 1, 'рівень арени')
+        + stMini('⚔️', fights, 'боїв')
+        + stMini('🏆', wins, 'перемог')
+        + stMini('💔', losses, 'поразок')
+        + stMini('🤝', draws, 'нічиїх')
+        + stMini('📈', fights ? Math.round(wins/fights*100) + '%' : '—', 'перемог у %') + '</div>';
+      let lastRow = '';
+      if (lb){
+        const res = lb.surrender ? ['🏳️','Здався'] : lb.afk ? ['💤','Бій без участі'] : lb.result === 'win' ? ['🏆','Перемога'] : lb.result === 'draw' ? ['🤝','Нічия'] : ['💔','Поразка'];
+        const ok = lb.result === 'win' && !lb.afk && !lb.surrender;
+        lastRow = '<div class="ta-item"><span class="ta-ic">'+res[0]+'</span>'
+          + '<span class="ta-w">Останній бій: '+escapeHtml(res[1])+(lb.op ? ' · суперник '+escapeHtml(lb.op) : '')
+          + '<small>'+escapeHtml(acWhen(acMs(lb.at)))+'</small></span>'
+          + '<span class="ta-res '+(ok?'ok':'bad')+'">⭐ '+escapeHtml(String(Number(lb.xp) || 0))+' XP</span></div>';
+      }
+      return stSec('⚔️ Арена', cards + lastRow);
     }
 
     // Вихід: завершуємо сесію Firebase, тоді ведемо на сторінку входу

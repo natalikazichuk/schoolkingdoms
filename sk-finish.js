@@ -92,6 +92,13 @@
     (document.body || document.head || document.documentElement).appendChild(rep);
   }
 
+  /* облік часу на сайті (sk-activity.js) — для ігор і тренажерів без бази */
+  if(BASE && !window.__skActivityMounted){
+    var act = document.createElement('script');
+    act.src = BASE + 'sk-activity.js?v=1';
+    (document.head || document.documentElement).appendChild(act);
+  }
+
   var raw = param('skdone');
   if(!raw){ window.skFinishRecord = function(){}; window.skReportProgress = function(){}; return; }
 
