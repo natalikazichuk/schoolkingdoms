@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Генератор завдань з математики — 1 клас · School Kingdoms</title>
+<title>Генератор завдань з математики — 1–4 клас · School Kingdoms</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800;900&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
@@ -229,12 +229,19 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
   font-family:"Fredoka",sans-serif;font-weight:700;font-size:.92rem;color:var(--blue);background:#fff}
 .btn-gen:active,.btn-add:active{transform:translateY(1px)}
 .tpldd{margin-bottom:8px}
+.klasrow{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
+.kbtn{border:2px solid var(--line);background:#fff;border-radius:11px;padding:7px 4px;cursor:pointer;
+  font-family:inherit;font-weight:800;font-size:.84rem;color:#41527a;white-space:nowrap}
+.kbtn.on{background:linear-gradient(180deg,#4a8ae6,#2f6fd0);border-color:#2f6fd0;color:#fff;box-shadow:0 3px 8px rgba(47,111,208,.3)}
+.dd:disabled{opacity:.75;cursor:default}
 .warn{margin-top:6px;font-size:.78rem;color:#d4485f;font-weight:800;min-height:0}
 .warn:empty{display:none}
 @media screen and (min-width:1000px){
   .genrow{margin-top:6px;gap:6px}
   .btn-gen,.btn-add{padding:6px 8px;font-size:.8rem;border-radius:10px}
   .tpldd{margin-bottom:6px}
+  .klasrow{gap:4px;margin-bottom:6px}
+  .kbtn{padding:4px 2px;font-size:.74rem;border-radius:9px}
   .edsec .tip{flex:none}
 }
 
@@ -259,7 +266,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
       <svg class="plane" viewBox="0 0 40 30" width="46" height="34"><polygon points="2,4 38,9 18,15" fill="#a9d1f7"/><polygon points="2,4 18,15 12,24" fill="#6aa9ee"/><polygon points="18,15 38,9 22,20" fill="#3f86d8"/></svg>
       <div class="htext">
         <h1>Математика</h1>
-        <div class="subpill">1 клас · Генератор завдань</div>
+        <div class="subpill">1–4 клас · Генератор завдань</div>
       </div>
       <div class="sticky"><span class="clip"></span>Рахуй<br>уважно!<span class="hh">♥</span></div>
     </div>
@@ -268,10 +275,13 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
 
       <div class="sec">
         <div class="sechead"><span class="badge">1</span>Обери завдання</div>
+        <div class="klasrow" id="klasRow" role="group" aria-label="Клас">
+          <button type="button" class="kbtn on" data-k="1">1 клас</button><button type="button" class="kbtn" data-k="2">2 клас</button><button type="button" class="kbtn" data-k="3">3 клас</button><button type="button" class="kbtn" data-k="4">4 клас</button>
+        </div>
         <select class="dd tpldd" id="typeSel" aria-label="Тип завдань"></select>
         <div class="params">
           <div class="pcard"><div class="plabel">Числа</div>
-            <select class="dd" id="segLim"><option value="5">до 5</option><option value="10" selected>до 10</option><option value="20">до 20</option><option value="100">до 100</option></select></div>
+            <select class="dd" id="segLim"></select></div>
           <div class="pcard"><div class="plabel">Кількість</div>
             <select class="dd" id="segCount"><option>6</option><option>9</option><option>12</option><option>15</option><option selected>18</option><option>24</option><option>30</option></select></div>
         </div>
@@ -328,9 +338,9 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
   <section class="editor" id="editor">
       <div class="sec edsec">
         <div class="sechead"><span class="badge">3</span>Завдання на аркуші</div>
-        <textarea id="txt" spellcheck="false" placeholder="# Обчисли.&#10;3 + 4 = [7]&#10;9 − 2 = [7]&#10;5 [&gt;] 3&#10;[4] 5 [6]"></textarea>
+        <textarea id="txt" spellcheck="false" placeholder="# Обчисли.&#10;3 + 4 = [7]&#10;6 · 7 = [42]&#10;17 : 5 = [3] (ост. [2])&#10;5 [&gt;] 3"></textarea>
         <div class="warn" id="warn"></div>
-        <div class="tip">💡 Можна редагувати: рядок з «#» — заголовок розділу, у [дужках] — відповідь, на аркуші це віконце.</div>
+        <div class="tip">💡 Параметри змінюють останній розділ, «＋ Додати розділ» — додає новий. Текст можна редагувати: рядок з «#» — заголовок, у [дужках] — відповідь (на аркуші — віконце).</div>
       </div>
   </section>
 
@@ -356,7 +366,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
   var chkDecor=document.getElementById('chkDecor');
   var chkSelf=document.getElementById('chkSelf');
 
-  var state={ type:'add', lim:10, count:18, size:'8', cols:3, mode:'solve', font:'hand' };
+  var state={ cls:1, type:'add', lim:10, count:18, size:'8', cols:3, mode:'solve', font:'hand' };
 
   /* ================= ГЕНЕРАТОРИ ЗАВДАНЬ ================= */
   function ri(a,b){ return a+Math.floor(Math.random()*(b-a+1)); }
@@ -451,9 +461,150 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
         if(v===0) return t+' + '+u+' = ['+(t+u)+']';
         if(v===1) return (t+u)+' '+MINUS+' '+u+' = ['+t+']';
         return (t+u)+' '+MINUS+' '+t+' = ['+u+']';
+      }},
+
+    /* ===== 2 клас: у межах 100 ===== */
+    {id:'c2add', cls:2, g:'Додавання і віднімання', k:'Додавання до 100', h:'Обчисли.', lims:[100],
+      f:function(){ var s=ri(11,100), a=ri(1,s-1); return a+' + '+(s-a)+' = ['+s+']'; }},
+    {id:'c2sub', cls:2, k:'Віднімання до 100', h:'Обчисли.', lims:[100],
+      f:function(){ var a=ri(11,100), b=ri(1,a-1); return a+' '+MINUS+' '+b+' = ['+(a-b)+']'; }},
+    {id:'c2mix', cls:2, k:'Додавання і віднімання до 100', h:'Обчисли.', lims:[100],
+      f:function(L){ return pick([TYPES_BY.c2add, TYPES_BY.c2sub]).f(L); }},
+    {id:'c2noc', cls:2, k:'Без переходу через розряд', h:'Обчисли.', lims:[100],
+      f:function(){ if(Math.random()<0.5){ var p=addPair(100); return p[0]+' + '+p[1]+' = ['+(p[0]+p[1])+']'; }
+        var q=subPair(100); return q[0]+' '+MINUS+' '+q[1]+' = ['+(q[0]-q[1])+']'; }},
+    {id:'c2three', cls:2, k:'Три числа', h:'Обчисли.', lims:[100],
+      f:function(L){ return TYPES_BY.three.f(L); }},
+    {id:'c2brk', cls:2, g:'Вирази', k:'Вирази з дужками', h:'Обчисли. Спочатку — дія в дужках.', lims:[100],
+      f:function(){
+        var v=ri(0,2), a, b, c;
+        if(v===0){ b=ri(2,40); c=ri(2,40); a=ri(b+c,100); return a+' '+MINUS+' ('+b+' + '+c+') = ['+(a-b-c)+']'; }
+        if(v===1){ a=ri(2,60); b=ri(2,100-a); c=ri(1,a+b); return '('+a+' + '+b+') '+MINUS+' '+c+' = ['+(a+b-c)+']'; }
+        b=ri(5,60); c=ri(1,b-1); a=ri(1,100-(b-c)); return a+' + ('+b+' '+MINUS+' '+c+') = ['+(a+b-c)+']';
+      }},
+    {id:'c2miss', cls:2, k:'Пропущене число', h:'Встав пропущене число.', lims:[100],
+      f:function(){
+        var v=ri(0,3), s=ri(11,100), a=ri(1,s-1), b=s-a;
+        if(v===0) return a+' + ['+b+'] = '+s;
+        if(v===1) return '['+a+'] + '+b+' = '+s;
+        if(v===2) return s+' '+MINUS+' ['+b+'] = '+a;
+        return '['+s+'] '+MINUS+' '+b+' = '+a;
+      }},
+    {id:'c2cmp', cls:2, g:'Порівняння', k:'Порівняння виразів', h:'Порівняй. Постав знак >, < або =.', lims:[100],
+      f:function(){
+        var plus=Math.random()<0.5, a, b, v;
+        if(plus){ v=ri(11,100); a=ri(1,v-1); b=v-a; } else { a=ri(11,100); b=ri(1,a-1); v=a-b; }
+        var c=Math.random()<0.25 ? v : Math.max(0,Math.min(100, v+pick([-3,-2,-1,1,2,3])));
+        var e=a+' '+(plus?'+':MINUS)+' '+b;
+        return Math.random()<0.5 ? e+' ['+cmpSign(v,c)+'] '+c : c+' ['+cmpSign(c,v)+'] '+e;
+      }},
+
+    /* ===== 3 клас: множення і ділення, числа до 1000 ===== */
+    {id:'c3mul', cls:3, g:'Множення і ділення', k:'Таблиця множення', h:'Обчисли.', lims:[5,9,10], ll:['×2 … ×5','×2 … ×9','×1 … ×10'],
+      f:function(L){ var p=tablePair(L); return p[0]+' · '+p[1]+' = ['+(p[0]*p[1])+']'; }},
+    {id:'c3div', cls:3, k:'Табличне ділення', h:'Обчисли.', lims:[5,9,10], ll:[':2 … :5',':2 … :9',':1 … :10'],
+      f:function(L){ var p=tablePair(L); return (p[0]*p[1])+' : '+p[0]+' = ['+p[1]+']'; }},
+    {id:'c3md', cls:3, k:'Множення і ділення (табличні)', h:'Обчисли.', lims:[5,9,10], ll:['до 5','до 9','до 10'],
+      f:function(L){ return pick([TYPES_BY.c3mul, TYPES_BY.c3div]).f(L); }},
+    {id:'c3miss', cls:3, k:'Невідомий множник, ділене, дільник', h:'Встав пропущене число.', lims:[9,10], ll:['до ×9','до ×10'],
+      f:function(L){
+        var p=tablePair(L), a=p[0], b=p[1], m=a*b, v=ri(0,3);
+        if(v===0) return '['+a+'] · '+b+' = '+m;
+        if(v===1) return a+' · ['+b+'] = '+m;
+        if(v===2) return '['+m+'] : '+a+' = '+b;
+        return m+' : ['+a+'] = '+b;
+      }},
+    {id:'c3rem', cls:3, k:'Ділення з остачею', h:'Виконай ділення з остачею.', lims:[100],
+      f:function(){ var b=ri(2,9), q=ri(1,9), r=ri(1,b-1), a=b*q+r; return a+' : '+b+' = ['+q+'] (ост. ['+r+'])'; }},
+    {id:'c3ext', cls:3, k:'Позатабличне множення і ділення', h:'Обчисли.', lims:[100],
+      f:function(){
+        var b=ri(2,9), q=ri(11,Math.max(11,Math.floor(99/b))), a=b*q;
+        if(a>99) return null;
+        return Math.random()<0.5 ? q+' · '+b+' = ['+a+']' : a+' : '+b+' = ['+q+']';
+      }},
+    {id:'c3x10', cls:3, k:'Множення і ділення на 10 і 100', h:'Обчисли.', lims:[1000],
+      f:function(){
+        var v=ri(0,3), a;
+        if(v===0){ a=ri(2,99); return a+' · 10 = ['+(a*10)+']'; }
+        if(v===1){ a=ri(2,9); return a+' · 100 = ['+(a*100)+']'; }
+        if(v===2){ a=ri(2,99); return (a*10)+' : 10 = ['+a+']'; }
+        a=ri(2,9); return (a*100)+' : 100 = ['+a+']';
+      }},
+    {id:'c3add', cls:3, g:'Додавання і віднімання', k:'Додавання і віднімання до 1000', h:'Обчисли.', lims:[1000],
+      f:function(){
+        if(Math.random()<0.5){ var s=ri(120,1000), a=ri(Math.floor(s*0.15),Math.floor(s*0.85)); return a+' + '+(s-a)+' = ['+s+']'; }
+        var m=ri(120,1000), n=ri(Math.floor(m*0.15),Math.floor(m*0.85)); return m+' '+MINUS+' '+n+' = ['+(m-n)+']';
+      }},
+    {id:'c3order', cls:3, g:'Вирази', k:'Порядок дій', h:'Обчисли, дотримуючись порядку дій.', lims:[100],
+      f:function(){
+        var v=ri(0,4), a, b, c, q, s;
+        if(v===0){ b=ri(2,9); c=ri(2,9); a=ri(1,100-b*c); return a+' + '+b+' · '+c+' = ['+(a+b*c)+']'; }
+        if(v===1){ b=ri(2,9); c=ri(2,9); a=ri(b*c,100); return a+' '+MINUS+' '+b+' · '+c+' = ['+(a-b*c)+']'; }
+        if(v===2){ c=ri(2,9); s=ri(2,Math.min(10,Math.floor(100/c))); a=ri(1,s-1); return '('+a+' + '+(s-a)+') · '+c+' = ['+(s*c)+']'; }
+        if(v===3){ c=ri(2,9); q=ri(2,9); a=ri(1,100-q); return a+' + '+(c*q)+' : '+c+' = ['+(a+q)+']'; }
+        c=ri(2,9); q=ri(1,9); b=ri(1,100-c*q); return '('+(b+c*q)+' '+MINUS+' '+b+') : '+c+' = ['+q+']';
+      }},
+    {id:'c3cmp', cls:3, g:'Порівняння', k:'Порівняння виразів', h:'Порівняй. Постав знак >, < або =.', lims:[10],
+      f:function(){
+        var p=tablePair(10), v=p[0]*p[1], e=p[0]+' · '+p[1], c, w;
+        if(Math.random()<0.5){ var r=tablePair(10); w=r[0]*r[1]; c=r[0]+' · '+r[1]; }
+        else { w=Math.random()<0.25 ? v : Math.max(1, v+pick([-5,-2,-1,1,2,5])); c=String(w); }
+        return e+' ['+cmpSign(v,w)+'] '+c;
+      }},
+
+    /* ===== 4 клас: багатоцифрові числа ===== */
+    {id:'c4add', cls:4, g:'Додавання і віднімання', k:'Додавання і віднімання багатоцифрових', h:'Обчисли.', lims:[10000,100000,1000000],
+      f:function(L){
+        if(Math.random()<0.5){ var s=ri(Math.floor(L/10),L), a=ri(Math.floor(s*0.1),Math.floor(s*0.9)); return a+' + '+(s-a)+' = ['+s+']'; }
+        var m=ri(Math.floor(L/10),L), n=ri(Math.floor(m*0.1),Math.floor(m*0.9)); return m+' '+MINUS+' '+n+' = ['+(m-n)+']';
+      }},
+    {id:'c4mul1', cls:4, g:'Множення і ділення', k:'Множення на одноцифрове число', h:'Обчисли.', lims:[1000,10000,100000],
+      f:function(L){ var a=ri(Math.floor(L/10)+1,L-1), b=ri(2,9); return a+' · '+b+' = ['+(a*b)+']'; }},
+    {id:'c4div1', cls:4, k:'Ділення на одноцифрове число', h:'Обчисли.', lims:[1000,10000,100000],
+      f:function(L){ var b=ri(2,9), q=ri(Math.max(11,Math.floor(L/100)),Math.floor((L-1)/b)); return (q*b)+' : '+b+' = ['+q+']'; }},
+    {id:'c4mul2', cls:4, k:'Множення на двоцифрове число', h:'Обчисли.', lims:[100,1000], ll:['двоцифрове × двоцифрове','трицифрове × двоцифрове'],
+      f:function(L){ var a=ri(Math.max(12,Math.floor(L/10)),L-1), b=ri(11,99); return a+' · '+b+' = ['+(a*b)+']'; }},
+    {id:'c4div2', cls:4, k:'Ділення на двоцифрове число', h:'Обчисли.', lims:[1000,10000],
+      f:function(L){ var b=ri(11,99), q=ri(2,Math.floor((L-1)/b)); return (q*b)+' : '+b+' = ['+q+']'; }},
+    {id:'c4x10', cls:4, k:'Множення і ділення на 10, 100, 1000', h:'Обчисли.', lims:[1000000],
+      f:function(){
+        var m=pick([10,100,1000]), a=ri(2,999);
+        return Math.random()<0.5 ? a+' · '+m+' = ['+(a*m)+']' : (a*m)+' : '+m+' = ['+a+']';
+      }},
+    {id:'c4order', cls:4, g:'Вирази', k:'Порядок дій', h:'Обчисли, дотримуючись порядку дій.', lims:[1000],
+      f:function(){
+        var v=ri(0,4), a, b, c, d, q;
+        if(v===0){ a=ri(11,99); b=ri(2,9); c=ri(11,99); d=ri(2,9); return a+' · '+b+' + '+c+' · '+d+' = ['+(a*b+c*d)+']'; }
+        if(v===1){ a=ri(11,99); b=ri(11,99); c=ri(2,9); return '('+a+' + '+b+') · '+c+' = ['+((a+b)*c)+']'; }
+        if(v===2){ b=ri(2,9); q=ri(11,99); c=ri(10,500); return (b*q)+' : '+b+' + '+c+' = ['+(q+c)+']'; }
+        if(v===3){ b=ri(11,99); c=ri(2,9); a=ri(b*c,b*c+500); return a+' '+MINUS+' '+b+' · '+c+' = ['+(a-b*c)+']'; }
+        c=ri(2,9); q=ri(11,99); b=ri(10,400); return '('+(b+c*q)+' '+MINUS+' '+b+') : '+c+' = ['+q+']';
+      }},
+    {id:'c4miss', cls:4, k:'Пропущене число (рівняння)', h:'Знайди пропущене число.', lims:[1000],
+      f:function(){
+        var v=ri(0,3), a, b, s;
+        if(v===0){ s=ri(200,1000); a=ri(50,s-50); return '['+a+'] + '+(s-a)+' = '+s; }
+        if(v===1){ a=ri(200,1000); b=ri(50,a-50); return a+' '+MINUS+' ['+b+'] = '+(a-b); }
+        if(v===2){ a=ri(11,99); b=ri(2,9); return '['+a+'] · '+b+' = '+(a*b); }
+        b=ri(2,9); a=ri(11,99); return (a*b)+' : ['+b+'] = '+a;
+      }},
+    {id:'c4cmp', cls:4, g:'Порівняння', k:'Порівняння багатоцифрових чисел', h:'Порівняй. Постав знак >, < або =.', lims:[10000,100000,1000000],
+      f:function(L){
+        var a=ri(Math.floor(L/10),L-1), r=Math.random(), b;
+        if(r<0.12) b=a;
+        else if(r<0.55){ var s=String(a), i=ri(0,s.length-2), arr=s.split(''); var t=arr[i]; arr[i]=arr[i+1]; arr[i+1]=t; b=+arr.join(''); if(arr[0]==='0') b=a+ri(1,99); }
+        else b=a+pick([-1,1])*ri(1,Math.floor(L/50));
+        if(b<0) b=a+1;
+        return a+' ['+cmpSign(a,b)+'] '+b;
       }}
   ];
-  var TYPES_BY={}; TYPES.forEach(function(t){ TYPES_BY[t.id]=t; });
+  /* пара для таблиці множення: перший множник до L, другий 2…9 (1…10 для ×10) */
+  function tablePair(L){
+    var lo=L>=10?1:2, hi=L>=10?10:9, a=ri(2,Math.min(L,9)), b=ri(lo,hi);
+    if(L>=10) a=ri(1,10);
+    return Math.random()<0.5 ? [a,b] : [b,a];
+  }
+  var TYPES_BY={}; TYPES.forEach(function(t){ if(!t.cls) t.cls=1; TYPES_BY[t.id]=t; });
 
   function effLim(t){
     if(t.lims.indexOf(state.lim)>=0) return state.lim;
@@ -473,14 +624,16 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
   /* ================= РОЗБІР ТЕКСТУ ================= */
   /* токени: число, знак дії, віконце [відповідь] */
   function parseLine(str){
-    var toks=[], m, re=/\[([^\]]*)\]|(\d+)|([+\-−–=<>])/g;
+    var toks=[], m, re=/\[([^\]]*)\]|(\d+)|([+\-−–=<>:·×*()])|([A-Za-zА-Яа-яІіЇїЄєҐґ'’.]+)/g;
     while((m=re.exec(str))){
-      if(m[1]!==undefined){ var v=m[1].trim().replace(/[-–]/g,MINUS); toks.push({k:'box', v:v, n:Math.max(1,v.length)}); }
+      if(m[1]!==undefined){ var v=normOps(m[1].trim()); toks.push({k:'box', v:v, n:Math.max(1,v.length)}); }
       else if(m[2]!==undefined) toks.push({k:'num', v:m[2], n:m[2].length});
-      else { var o=m[3]; if(o==='-'||o==='–') o=MINUS; toks.push({k:'op', v:o, n:1}); }
+      else if(m[3]!==undefined) toks.push({k:'op', v:normOps(m[3]), n:1});
+      else toks.push({k:'word', v:m[4], n:Math.max(1,Math.ceil(m[4].length*0.6))});
     }
     return toks;
   }
+  function normOps(v){ return v.replace(/[-–]/g,MINUS).replace(/[×*]/g,'·'); }
   function parseText(){
     var secs=[], cur=null;
     txt.value.replace(/\r/g,'').split('\n').forEach(function(raw){
@@ -550,6 +703,13 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     else if(o==='=') d="M"+(cx-a)+","+(cy-a*0.42)+" H"+(cx+a)+" M"+(cx-a)+","+(cy+a*0.42)+" H"+(cx+a);
     else if(o==='<') d="M"+(cx+a*0.8)+","+(cy-a)+" L"+(cx-a*0.8)+","+cy+" L"+(cx+a*0.8)+","+(cy+a);
     else if(o==='>') d="M"+(cx-a*0.8)+","+(cy-a)+" L"+(cx+a*0.8)+","+cy+" L"+(cx-a*0.8)+","+(cy+a);
+    else if(o==='(') d="M"+(cx+a*0.5)+","+(cy-a*1.45)+" Q"+(cx-a*0.75)+","+cy+" "+(cx+a*0.5)+","+(cy+a*1.45);
+    else if(o===')') d="M"+(cx-a*0.5)+","+(cy-a*1.45)+" Q"+(cx+a*0.75)+","+cy+" "+(cx-a*0.5)+","+(cy+a*1.45);
+    else if(o==='·'||o===':'){
+      var g=el("g",{}), r=Math.max(0.32,S*0.055), col=kind==='key'?KEY_INK:(kind==='dash'?DASH_INK:INK);
+      (o==='·'?[0]:[-a*0.6,a*0.6]).forEach(function(dy){ g.appendChild(el("circle",{cx:cx, cy:cy+dy, r:r, fill:col})); });
+      return g;
+    }
     else return null;
     return paint(el("path",{d:d}), kind, Math.max(0.3,S*0.055));
   }
@@ -704,6 +864,14 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
           for(var i=0;i<t.v.length;i++,col++) if(col<cols) SVG.appendChild(digit(t.v[i], cx(col), y, h, 'ink'));
           return;
         }
+        if(t.k==='word'){
+          if(col<cols){
+            var wt=el("text",{x:M.left+(col+t.n/2)*S, y:y, "font-family":"Nunito, sans-serif", "font-size":Math.min(S*0.82,5.2),
+              "font-weight":800, fill:INK, "text-anchor":"middle", "dominant-baseline":"central"});
+            wt.textContent=t.v; SVG.appendChild(wt);
+          }
+          col+=t.n; return;
+        }
         if(t.k==='op'){ if(col<cols){ var o=opMark(t.v, cx(col), y, S, 'ink'); if(o) SVG.appendChild(o); } col++; return; }
         /* віконце для відповіді */
         var n=Math.min(t.n, cols-col); if(n<=0){ col+=t.n; return; }
@@ -727,7 +895,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     secs.forEach(function(sec){
       var n=sec.tasks.length; total+=n;
       if(sec.head){
-        if(r>=rows){ dropped+=n; return; }
+        if(r+2>=rows){ dropped+=n; return; }
         num++; drawHead((numbered?num+'. ':'')+sec.head, r); r+=2;
       }
       if(!n) return;
@@ -774,20 +942,45 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
 
   /* ================= ІНТЕРФЕЙС ================= */
   var typeSel=document.getElementById('typeSel'), segLim=document.getElementById('segLim'), segCount=document.getElementById('segCount');
-  var grp=typeSel;
-  TYPES.forEach(function(t){
-    if(t.g){ grp=document.createElement('optgroup'); grp.label=t.g; typeSel.appendChild(grp); }
-    var o=document.createElement('option'); o.value=t.id; o.textContent=t.k; grp.appendChild(o);
-  });
+  var klasRow=document.getElementById('klasRow');
+  function fillTypes(){
+    typeSel.innerHTML='';
+    var grp=typeSel;
+    TYPES.forEach(function(t){
+      if(t.cls!==state.cls) return;
+      if(t.g){ grp=document.createElement('optgroup'); grp.label=t.g; typeSel.appendChild(grp); }
+      var o=document.createElement('option'); o.value=t.id; o.textContent=t.k; grp.appendChild(o);
+    });
+    if(!TYPES_BY[state.type] || TYPES_BY[state.type].cls!==state.cls)
+      state.type=TYPES.filter(function(t){ return t.cls===state.cls; })[0].id;
+    typeSel.value=state.type;
+    Array.prototype.forEach.call(klasRow.children, function(b){ b.classList.toggle('on', +b.dataset.k===state.cls); });
+  }
+  /* старшим класам — дрібніша клітинка, щоб довгі вирази вміщувались */
+  function fitCell(){ state.size=({1:'8',2:'6'})[state.cls]||'5'; document.getElementById('segSize').value=state.size; }
+  function fmtN(n){ return String(n).replace(/\B(?=(\d{3})+(?!\d))/g,'\u00a0'); }
   function syncLim(){
     var t=TYPES_BY[state.type];
-    Array.prototype.forEach.call(segLim.options, function(o){ o.disabled = t.lims.indexOf(+o.value)<0; });
-    state.lim=effLim(t); segLim.value=String(state.lim);
+    state.lim=effLim(t);
+    segLim.innerHTML='';
+    t.lims.forEach(function(l,i){
+      var o=document.createElement('option'); o.value=l; o.textContent=t.ll ? t.ll[i] : 'до '+fmtN(l); segLim.appendChild(o);
+    });
+    segLim.value=String(state.lim); segLim.disabled=t.lims.length<2;
   }
+  Array.prototype.forEach.call(klasRow.children, function(b){
+    b.onclick=function(){ var k=+b.dataset.k; if(k===state.cls) return; state.cls=k; fitCell(); fillTypes(); syncLim(); txt.value=''; regen(false); };
+  });
+  /* append — додати новий розділ; інакше перегенерувати лише останній розділ (попередні лишаються) */
   function regen(append){
     var s=generateSection();
-    var cur=txt.value.replace(/\s+$/,'');
-    txt.value = (append && cur) ? cur+'\n\n'+s : s;
+    var lines=txt.value.replace(/\r/g,'').replace(/\s+$/,'').split('\n');
+    if(!append){
+      var last=-1; lines.forEach(function(l,i){ if(/^\s*#/.test(l)) last=i; });
+      lines = last>0 ? lines.slice(0,last) : [];
+    }
+    var cur=lines.join('\n').replace(/\s+$/,'');
+    txt.value = cur ? cur+'\n\n'+s : s;
     render();
   }
   typeSel.addEventListener('change', function(){ state.type=typeSel.value; syncLim(); regen(false); });
@@ -816,7 +1009,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     txt.value=t.v||'';
     ['type','lim','count','size','cols','mode','font'].forEach(function(k){ if(t[k]!=null) state[k]=t[k]; });
     if(!TYPES_BY[state.type]) state.type='add';
-    typeSel.value=state.type; syncLim(); segCount.value=String(state.count);
+    state.cls=TYPES_BY[state.type].cls; fillTypes(); syncLim(); segCount.value=String(state.count);
     document.getElementById('segSize').value=state.size; document.getElementById('segCols').value=String(state.cols);
     document.getElementById('segMode').value=state.mode; document.getElementById('segFont').value=state.font;
     if(typeof t.name==='boolean') chkName.checked=t.name;
@@ -841,7 +1034,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
       var ic=document.createElement('span'); ic.className='tico'; ic.style.background='#fff6d6'; ic.style.color='#d99a1e'; ic.textContent=(i+1);
       var box=document.createElement('span');
       var l=document.createElement('span'); l.className='tlbl'; l.textContent=t.title||'Аркуш '+(i+1);
-      var sub=document.createElement('span'); sub.className='tsub'; sub.textContent=((TYPES_BY[t.type]||{}).k||'')+' · '+(MODE_LBL[t.mode]||'');
+      var sub=document.createElement('span'); sub.className='tsub'; sub.textContent=((TYPES_BY[t.type]||{}).cls||1)+' кл. · '+((TYPES_BY[t.type]||{}).k||'')+' · '+(MODE_LBL[t.mode]||'');
       box.appendChild(l); box.appendChild(sub);
       var del=document.createElement('button'); del.className='tdel'; del.type='button'; del.textContent='✕'; del.title='Видалити';
       del.onclick=function(ev){ ev.stopPropagation(); if(!confirm('Видалити «'+(t.title||'аркуш')+'»?')) return; var arr=loadMy(); arr.splice(i,1); storeMy(arr); renderMy(); };
@@ -853,7 +1046,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
   }
   btnSave.onclick=function(){
     var a=loadMy(); if(a.length>=MY_MAX) return;
-    var def=TYPES_BY[state.type].k+' до '+state.lim;
+    var tt=TYPES_BY[state.type], def=state.cls+' кл. · '+tt.k;
     var title=prompt('Назва шаблону:', def); if(title===null) return;
     title=title.trim()||def;
     a.push({title:title, v:txt.value, type:state.type, lim:state.lim, count:state.count, size:state.size, cols:state.cols,
@@ -868,7 +1061,9 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
   var btnPrint=document.getElementById('btnPrint'); if(btnPrint){ btnPrint.onclick=function(){ printPaper(printFmt); }; }
   var btnPrev=document.getElementById('btnPrev'); if(btnPrev){ btnPrev.onclick=function(){ var pv=document.getElementById('preview'); if(pv) pv.scrollIntoView({behavior:'smooth',block:'start'}); }; }
 
-  typeSel.value=state.type; syncLim();
+  var qk=+(new URLSearchParams(location.search).get('klas')||0);
+  if(qk>=1 && qk<=4){ state.cls=qk; fitCell(); }
+  fillTypes(); syncLim();
   txt.value=generateSection();
   render();
   if(document.fonts && document.fonts.ready) document.fonts.ready.then(render);
