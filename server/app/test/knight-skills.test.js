@@ -112,19 +112,20 @@ test('Поштовх щитом: без щита чекає, зі щитом б\
   assert.ok(hits > 10 && knocked > 0 && knocked < hits, 'збиває з ніг ~60% влучань: ' + knocked + '/' + hits);
 });
 
-test('Берсерк: лють на 🎲 3–6 ходів (на будь-якій майстерності), шанс і урон ростуть', () => {
+test('Берсерк: лють на 🎲 3–4 (25%) → 3–5 → 3–6 → 4–7 (100%), шанс і урон ростуть', () => {
+  const rng = p => { const v = S.skillValues('knight.berserk', p); return v.turnsMin + '–' + v.turnsMax; };
+  assert.strictEqual([25, 50, 75, 100].map(rng).join(' '), '3–4 3–5 3–6 4–7');
   const seen = {};
   for (let k = 0; k < 60; k++) {
     const st = battle({ 'knight.berserk': 1 }, ['knight.berserk']);
     SB.useSkill(ctx, st, 'knight.berserk');
     const e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
-    assert.ok(e.skill.turns >= 3 && e.skill.turns <= 6, String(e.skill.turns));
+    assert.ok(e.skill.turns >= 4 && e.skill.turns <= 7, String(e.skill.turns));
     assert.strictEqual(st.me.fx.berserk, 1 + e.skill.turns - 1);
     seen[e.skill.turns] = 1;
   }
-  assert.strictEqual(Object.keys(seen).length, 4, 'випадають 3, 4, 5 і 6');
+  assert.strictEqual(Object.keys(seen).length, 4, 'на 100% випадають 4, 5, 6 і 7');
   const a = S.skillValues('knight.berserk', 25), b = S.skillValues('knight.berserk', 100);
-  assert.ok(a.turnsMin === 3 && a.turnsMax === 6 && b.turnsMin === 3 && b.turnsMax === 6);
   assert.ok(a.chance < b.chance && a.dmgPct < b.dmgPct);
 });
 
