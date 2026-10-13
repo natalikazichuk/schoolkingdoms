@@ -644,6 +644,7 @@ body.scr-battle .wrap{max-width:1500px}
 .result .logsave button{font:inherit;font-size:.78rem;font-weight:800;color:#cfe0f5;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.2);border-radius:999px;padding:6px 12px;cursor:pointer}
 /* журнал: простий режим ховає кидки й розрахунки; поломки речей видно завжди */
 .rsteps.simple .dice{display:none}
+.rsteps .grw{color:#7fe3a0}.rsteps .ln.grw b{color:#b6ffcb}
 .step.brk .txt{font-weight:900}
 .step.brk.lost .txt{color:#ff5a5a}          /* твою річ вивели з ладу — червоним */
 .step.brk.won .txt{color:#ffe14d}           /* ти вивів з ладу річ суперника — яскраво жовтим */
@@ -1659,7 +1660,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
 <script src="sk-arena-rules.js?v=19"></script>
-<script src="sk-battle.js?v=12"></script>
+<script src="sk-battle.js?v=13"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
    Інвентар, скриня, смітник, продане / куплене сьогодні й монети
@@ -2713,12 +2714,26 @@ window.SKHERO = (function(){
       else if(e.t==='swap') addSwap(e.r, e.text);
     });
   }
+  /* рядок журналу: ріст вмінь за хід. Простий журнал — лише коли майстерність зросла
+     («Меч 50% → 51%»); детальний — ще й спрацювання: ✔ вдале, ✖ невдале (2 ✖ = 1 ✔) */
+  function growLine(e){
+    var g = e.grow; if(!g || !window.SKSKILLS) return '';
+    var ups = [], pts = [];
+    Object.keys(g).forEach(function(id){
+      var v = g[id], S = SKSKILLS.byId(id), nm = S ? S.icon+' '+S.name : id;
+      var was = masteryNow(id, v[2]-v[0], v[3]-v[1]), now = masteryNow(id, v[2], v[3]);
+      if(was!=null && now>was) ups.push(biEsc(nm)+' <b>'+was+'% → '+now+'%</b>'+(now>=100?' 👑':''));
+      pts.push(biEsc(nm)+' '+(v[0]?'✔'+v[0]:'')+(v[0]&&v[1]?' ':'')+(v[1]?'✖'+v[1]:''));
+    });
+    return (ups.length ? '<span class="ln grw">📈 Вміння зросло: '+ups.join(' · ')+'</span>' : '')
+      + '<span class="dice grw">📈 Спрацювання вмінь: '+pts.join(' · ')+'</span>';
+  }
   function renderTurn(e){
     addStep(e.r,
       (e.first ? '<span class="use">🎲 Хто перший з поясом: ти '+e.first.me+' · '+biEsc(B.op.f.name)+' '+e.first.op+'</span>' : '')
       + (e.uses||[]).map(useLine).join('')
       + (e.auto ? '<span class="b" title="Хід без тебе: ті самі зони, що минулого разу">⏳ авто</span> ' : '')
-      + strikeLines(e) + skillLine(e));
+      + strikeLines(e) + skillLine(e) + growLine(e));
     (e.broke||[]).forEach(function(b){ addBreak(b); });
   }
   /* рядок журналу: удар активним вмінням (у ту саму зону, що й основний) */
@@ -3297,8 +3312,9 @@ window.SKHERO = (function(){
     return '<span class="dice">'+who+': '+hs.map(function(h,i){
       if(h.hitRoll==null) return '';
       var t = (hs.length>1 ? (i+1)+') ' : '')
-        + '🎲 <b>'+h.hitRoll+'</b> '+(h.hitRoll<=h.hitNeed?'≤':'>')+' '+h.hitNeed+'% '+(h.kind==='dodge'?'— промах':'— влучив');
-      if(h.kind==='block' && h.skillShield) t += ' · <span class="ev">'+biEsc(h.blockCalc||'')+'</span>';
+        + '🎲 <b>'+h.hitRoll+'</b> '+(h.hitRoll<=h.hitNeed?'≤':'>')+' '+h.hitNeed+'% '+(h.kind==='dodge'&&!h.skillDodge?'— промах':'— влучив');
+      if(h.skillDodge) t += ' · <span class="ev">'+biEsc(h.dodgeCalc||'')+'</span>';   // влучив, але ухилився вмінням
+      else if(h.kind==='block' && h.skillShield) t += ' · <span class="ev">'+biEsc(h.blockCalc||'')+'</span>';
       else if(h.kind==='block') t += ' · '+(h.evade ? '<span class="ev">'+h.calc+'</span>' : h.magic ? '<span class="mblk">'+h.calc+'</span>' : h.calc);   // блок: крит — для зносу щита
       else if(h.kind==='barrier') t += ' · '+calcHtml(h)+' = '+h.absorbed+' → 🫧 бар\'єр поглинув';
       else if(h.kind!=='dodge') t += (h.blockRoll!=null ? (h.evadeTry ? ' · відскок 🎲 <b>' : ' · блок шансом 🎲 <b>')+h.blockRoll+'</b> > '+h.blockNeed+'%' : '')

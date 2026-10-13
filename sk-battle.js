@@ -468,6 +468,7 @@
     var me = (choice && choice.atk && choice.block) ? { atk: choice.atk, block: choice.block } : autoChoice(st);
     var op = botChoice(st);
     var R = ctx.R, fm = fxOf(st.me), fo = fxOf(st.op);
+    var g0 = clone(st.me.grow || {}), f0 = clone(st.me.growF || {});   // для журналу: ріст вмінь за цей хід
     // 1) пояс — до ударів. Обидва щось використали — 🎲 хто перший (свиток страху першого
     //    може зірвати дію другого). Бот поясом не користується (st.op.use завжди порожній).
     var acts = [], ur = rng(st.bid + '|' + st.round + '|use');
@@ -558,6 +559,13 @@
     if (skillRec) e.skill = skillRec;
     if (knocked) e.knocked = true;
     if (meKnocked) e.meKnocked = true;
+    // ріст вмінь цього ходу: {id: [вдалих, невдалих, разом вдалих за бій, разом невдалих за бій]}
+    var gr = {}, g1 = st.me.grow || {}, f1 = st.me.growF || {};
+    Object.keys(Object.assign({}, g1, f1)).forEach(function (id) {
+      var a = num(g1[id]) - num(g0[id]), b = num(f1[id]) - num(f0[id]);
+      if (a || b) gr[id] = [a, b, num(g1[id]), num(f1[id])];
+    });
+    if (Object.keys(gr).length) e.grow = gr;
     if (first) e.first = first;
     st.log.push(e);
     st.rev++;
