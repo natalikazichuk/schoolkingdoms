@@ -230,7 +230,8 @@ button{font-family:inherit}
 .sh-col.store{border-color:#3f6fbf}
 .sh-col h3{margin:0 0 8px;font-family:'Fredoka';font-size:1rem;color:#ffe9b8;display:flex;align-items:center;gap:6px}
 .sh-col h3 small{font-family:inherit;font-size:.72rem;color:#a9c1e4;font-weight:800}
-.sh-grp{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
+.sh-grp{display:flex;gap:4px;flex-wrap:wrap}
+.sh-bagt{margin-left:auto;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 .sh-grp button{border:1.5px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#e9f0ff;border-radius:10px;min-width:34px;height:30px;padding:0 6px;font-size:.95rem;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:2px}
 .sh-grp button small{font-size:.62rem;color:inherit;opacity:.8;font-weight:800}
 .sh-grp button.on{background:linear-gradient(180deg,#ffe7a0,#e0a93a);color:#3a2a08;border-color:#e0a93a}
@@ -1078,8 +1079,12 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 .ek-tab:hover{background:rgba(255,255,255,.1)}
 .ek-tab.ek-on{background:linear-gradient(180deg,#FFE7A0,#E0A93A);color:#5a3d08;border-color:#C9942F}
 .ek-tab small{font-size:.66rem;opacity:.75;margin-left:2px}
+#ek-tabs{flex-wrap:nowrap;gap:4px}
+#ek-tabs .ek-tab{padding:6px 8px;white-space:nowrap;flex:none}
+#ek-tabs.ico .ek-tl{display:none}
+#ek-tabs.wrap{flex-wrap:wrap}
 .ek-tab.ek-none:not(.ek-on){opacity:.45}
-@media (max-width:700px){.ek-tab .ek-tl{display:none}.ek-tab{padding:6px 9px;font-size:.9rem}}
+@media (max-width:700px){.ek-tab{font-size:.9rem}}
 .ek-grid{display:grid;grid-template-columns:repeat(auto-fill,var(--ek-cell));column-gap:var(--ek-gap);row-gap:var(--ek-gap);justify-content:center;align-content:start;overflow:auto;padding:2px;flex:1 1 auto;min-height:0}
 .ek-beltbar{margin-top:10px;background:linear-gradient(180deg,#1c3357,#111f3c);border:2px solid rgba(224,164,42,.5);border-radius:14px;padding:8px 10px}
 .ek-belt-lbl{color:#ffe9b8;font-family:'Fredoka';font-weight:700;margin-bottom:6px}
@@ -1578,7 +1583,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
     <div class="shop-body">
       <section class="sh-col store"><h3>🏪 Товари</h3><div class="sh-tabs" id="shTabs"></div><div id="shStore"></div></section>
       <section class="sh-col counter"><h3>🧾 Прилавок</h3><div id="shCounter"></div></section>
-      <section class="sh-col inv"><h3>🎒 Сумка <small id="shBagCnt"></small><span class="sh-grp" id="shBagTabs"></span></h3><div id="shInv"></div>
+      <section class="sh-col inv"><h3><span class="sh-grp" id="shBagTabs"></span><span class="sh-bagt">🎒 Сумка <small id="shBagCnt"></small></span></h3><div id="shInv"></div>
         <div class="sh-hint">Натисни річ — вона одразу на прилавку для продажу (стопку зілль — по одній штуці за натискання); права кнопка (на телефоні — довге натискання) — роздивитись, продати всю стопку або 🗑 викинути. Продаємо лише речі із сумки — вдягнене спершу зніми.</div></section>
     </div>
   </div>
@@ -3984,8 +3989,15 @@ function renderInv(){if(q('ek-tabs'))renderTabs();
  g.innerHTML=list.map(function(x){return '<div class="ek-cell" data-uid="'+x.uid+'">'+
   chip(x,' data-src="inv" data-uid="'+x.uid+'"').replace('class="ek-chip ','class="ek-chip ek-drag ')+'</div>';}).join('');}
 
+/* закладки в один ряд: якщо з підписами не влазять — лише значки (як у магазині) */
+function fitTabs(){var t=q('ek-tabs');if(!t||!t.clientWidth)return;t.classList.remove('ico','wrap');
+ if(t.scrollWidth>t.clientWidth+1)t.classList.add('ico');
+ if(t.scrollWidth>t.clientWidth+1)t.classList.add('wrap');}   /* вузький телефон: значки в два ряди */
+window.addEventListener('resize',fitTabs);
+/* інвентар відкрили (був схований — ширини не знали) — перемірити */
+setTimeout(function(){var t=q('ek-tabs');if(t&&window.ResizeObserver)new ResizeObserver(function(){fitTabs();}).observe(t);},0);
 function renderTabs(){var n={};INV.forEach(function(x){if(x.qty>0){var k=grpOf(x);n[k]=(n[k]||0)+1;n.all=(n.all||0)+1;}});
- q('ek-tabs').innerHTML=TABS.map(function(t){return '<span class="ek-tab'+(t[0]===curTab?' ek-on':'')+(n[t[0]]?'':' ek-none')+'" data-tab="'+t[0]+'" title="'+t[1]+'">'+t[2]+'<span class="ek-tl"> '+t[1]+'</span>'+(n[t[0]]?'<small>'+n[t[0]]+'</small>':'')+'</span>';}).join('');}
+ q('ek-tabs').innerHTML=TABS.map(function(t){return '<span class="ek-tab'+(t[0]===curTab?' ek-on':'')+(n[t[0]]?'':' ek-none')+'" data-tab="'+t[0]+'" title="'+t[1]+'">'+t[2]+'<span class="ek-tl"> '+t[1]+'</span>'+(n[t[0]]?'<small>'+n[t[0]]+'</small>':'')+'</span>';}).join('');fitTabs();}
 function renderBelt(){var host=q('ek-belt');if(!host)return;var bc=BELT.length;var cnt=q('ek-beltCount');if(cnt)cnt.textContent=bc?('('+BELT.filter(Boolean).length+'/'+bc+')'):'';
  if(!bc){host.innerHTML='<div class="ek-belt-empty">Вдягни пояс із комірками, щоб класти зілля та свитки.</div>';return;}
  var out='';for(var i=0;i<bc;i++){var e=BELT[i];
