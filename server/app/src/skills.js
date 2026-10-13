@@ -29,6 +29,7 @@ const BLOCK_UA = {
   unknown: 'Такого вміння немає',
   learned: 'Це вміння вже вивчене',
   level: 'Рівень ще замалий',
+  class: 'Це вміння іншого класу',
   points: 'Немає вільних очок вмінь',
   shape: 'Неправильна панель',
   locked: 'Цей слот ще закритий',
@@ -37,18 +38,21 @@ const BLOCK_UA = {
 };
 
 /* Читає героя під блокуванням, дає змінити, пише. Лише сам герой. */
-async function withHero(user, fn) {
+function withHero(user, fn) {
   if (!user) throw new SkillError('unauthenticated');
+  return withHeroId(user.uid, fn);
+}
+async function withHeroId(uid, fn) {
   const c = await pool.connect();
   try {
     await c.query('begin');
-    const r = await c.query('select data from docs where path = $1 for update', ['heroes/' + user.uid]);
+    const r = await c.query('select data from docs where path = $1 for update', ['heroes/' + uid]);
     if (!r.rows.length) throw new SkillError('permission-denied', 'Книга вмінь — лише для Героя');
     const hero = r.rows[0].data;
     const patch = fn(hero, lib().bookState(hero));
     const next = Object.assign({}, hero, patch, { updatedAt: { $ts: Date.now() } });
     await c.query(`update docs set data = $2, version = version + 1, updated_at = now() where path = $1`,
-      ['heroes/' + user.uid, JSON.stringify(next)]);
+      ['heroes/' + uid, JSON.stringify(next)]);
     await c.query('commit');
     return pick(next);
   } catch (e) {
@@ -180,7 +184,44 @@ async function growTrade(user) {
   return Object.assign(res, report);
 }
 
+/* ══ АДМІН (перевірка ролі — у server.js) ══
+   Скинути клас: heroClass = null, вміння класу зникають (і з панелі, і невдачі) —
+   очки повертаються самі (вільні = за рівні + бонус − вивчені). Базові лишаються. */
+const isClassSkill = id => !/^base\./.test(id);
+function stripClass(hero, st) {
+  const skills = {}, fails = {};
+  Object.keys(st.skills).forEach(id => { if (!isClassSkill(id)) skills[id] = st.skills[id]; });
+  Object.keys(hero.skillFails || {}).forEach(id => { if (!isClassSkill(id)) fails[id] = hero.skillFails[id]; });
+  return { heroClass: null, skills, skillFails: fails, skillBar: st.bar.map(id => (id && isClassSkill(id) ? null : id)) };
+}
+function resetClass(heroId) {
+  return withHeroId(String(heroId || ''), (hero, st) => stripClass(hero, st));
+}
+/* Тест: дати Героєві клас і ВСІ готові вміння цього класу на pct% (уже вивчені — теж
+   на pct%). Очки за це не витрачаються: різниця йде в skillBonus, щоб книга не пішла в мінус. */
+function testClass(heroId, body) {
+  const cls = String(body.cls || ''), pct = Math.max(25, Math.min(100, Math.round(Number(body.pct) || 50)));
+  return withHeroId(String(heroId || ''), (hero, st) => {
+    const S = lib();
+    if (!S.CLASSES[cls]) throw new SkillError('invalid-argument', 'Такого класу немає');
+    const base = stripClass(hero, st), skills = Object.assign({}, base.skills);
+    S.readyFor(cls).forEach(s => { skills[s.id] = Math.round(S.usesForPct(pct, S.growTotal(s)) * 10) / 10; });
+    const need = Object.keys(skills).length - S.pointsForLevel(st.lv);
+    return { heroClass: cls, skills, skillFails: base.skillFails, skillBar: base.skillBar, skillBonus: Math.max(st.bonus, need) };
+  });
+}
+/* Список Героїв для адмінки: ім'я, рівень, клас, вміння */
+async function heroList() {
+  const r = await pool.query(`select id, data from docs where parent = 'heroes' order by data->>'name'`);
+  const S = lib();
+  return r.rows.map(x => {
+    const st = S.bookState(x.data);
+    return { id: x.id, name: x.data.name || '', lv: st.lv, cls: st.cls, bonus: st.bonus,
+      skills: Object.keys(st.skills).map(id => ({ id, pct: S.mastery(st, id) })) };
+  });
+}
+
 /* поля книги, які браузер не може змінювати напряму (rules.js) */
 const PROTECTED = ['skills', 'skillBar', 'heroClass', 'skillBonus', 'skillGrowIds', 'skillFails', 'skillTrade'];
 
-module.exports = { learn, setBar, chooseClass, growAfterBattle, applyGrow, growTrade, tradeDeals, SkillError, PROTECTED, lib };
+module.exports = { learn, setBar, chooseClass, growAfterBattle, applyGrow, growTrade, tradeDeals, resetClass, testClass, heroList, stripClass, SkillError, PROTECTED, lib };
