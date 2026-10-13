@@ -14,7 +14,7 @@ const SWORD = item({ id: 'W1', name: 'Меч', category: 'Зброя', stat: 'У
 const AXE = item({ id: 'W2', name: 'Сокира', category: 'Зброя', stat: 'Урон', valueMin: 4, valueMax: 6, weaponType: 'axe' });
 const SPEAR = item({ id: 'W3', name: 'Спис', category: 'Зброя', stat: 'Урон', valueMin: 4, valueMax: 6, weaponType: 'spear' });
 const ARMOR = item({ id: 'A1', name: 'Броня', category: 'Обладунки', stat: 'Броня', valueMin: 40, valueMax: 40 });
-const wear = (base, slot, uid) => ({ base, inst: { uid: uid || base.id + slot, id: base.id, slot, bonus: 1 } });
+const wear = (base, slot, uid) => ({ base, inst: { uid: uid || base.id + slot, id: base.id, slot, bonus: 1, durMax: 500, durCur: 500 } });
 
 function skvOf(sk) { const o = {}; Object.keys(sk || {}).forEach(id => { o[id] = S.skillValues(id, Math.round(sk[id] * 100)); }); return o; }
 let n = 0;
@@ -264,4 +264,15 @@ test('журнал: запис ходу містить ріст вмінь за 
   const e2 = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
   const g2 = e2.grow['knight.sword'];
   assert.strictEqual(g2[2] + g2[3], e.meHit.hits.length + e2.meHit.hits.length, 'разом за бій');
+});
+
+test('журнал: знос речей за хід з назвами (і збережене Доглядом) та здоров\'я після ходу', () => {
+  const st = battle({ 'knight.care': 1 }, [], [wear(SWORD, 'weaponR', 'w'), wear(ARMOR, 'armor', 'a')]);
+  let seen = { lost: 0, saved: 0 };
+  for (let i = 0; i < 15; i++) {
+    const e = SB.turn(ctx, st, { atk: 'head', block: 'legs' }, {}, Date.now());
+    assert.ok(e.hp && e.hp.length === 4 && e.hp[1] > 0, 'є здоров\'я після ходу');
+    (e.wear || []).forEach(x => { assert.ok(x.who && x.n > 0); if (x.saved) seen.saved++; else seen.lost++; });
+  }
+  assert.ok(seen.lost > 0 && seen.saved > 0, JSON.stringify(seen));
 });

@@ -674,7 +674,7 @@ var RULES = {
     { k: 'dmg', v: 5, grow: true, t: 'до урону удару без зброї' }] },
   'knight.brave':   { kind: 'const', perBattle: 1, on: 'свиток страху проти тебе: встояв — ✔, злякався — ✖', p: [
     { k: 'resPct', v: 60, grow: true, u: '%', t: 'менше шансу, що страх подіє' }] },
-  'knight.care':    { kind: 'const', perBattle: 10, on: 'знос речі в бою: зберіг — ✔, ні — ✖', p: [
+  'knight.care':    { kind: 'const', perBattle: 40, on: 'знос речі в бою: зберіг — ✔, ні — ✖', p: [
     { k: 'savePct', v: 50, grow: true, u: '%', t: 'шанс, що знос речі не зарахується' }] }
 };
 var KIND_UK = { active: 'активне', const: 'пасивне стале', trigger: 'пасивне з кидком' };
@@ -861,7 +861,7 @@ var FX = {
 function effectText(id, m) { return FX[id] ? FX[id](skillValues(id, Math.round(Math.max(0, Math.min(1, m)) * 100))) : ''; }
 
 window.SKSKILLS = {
-  VERSION: 15,
+  VERSION: 16,
   RULES: RULES,
   KIND_UK: KIND_UK,
   skillValues: skillValues,

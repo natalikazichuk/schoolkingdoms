@@ -1671,7 +1671,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
 <script src="sk-arena-rules.js?v=19"></script>
-<script src="sk-battle.js?v=13"></script>
+<script src="sk-battle.js?v=14"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
    Інвентар, скриня, смітник, продане / куплене сьогодні й монети
@@ -2739,12 +2739,20 @@ window.SKHERO = (function(){
     return (ups.length ? '<span class="ln grw">📈 Вміння зросло: '+ups.join(' · ')+'</span>' : '')
       + '<span class="dice grw">📈 Спрацювання вмінь: '+pts.join(' · ')+'</span>';
   }
+  /* детальний журнал: знос речей за хід (і що зберіг «Догляд за зброєю») та здоров'я після ходу */
+  function wearLine(e){
+    var w = e.wear || [], lost = w.filter(function(x){ return !x.saved; }), kept = w.filter(function(x){ return x.saved; });
+    var f = function(x){ return biEsc(x.who)+' −'+x.n; };
+    return (w.length ? '<span class="dice">🔧 Знос: '+(lost.length ? lost.map(f).join(' · ') : 'нічого')
+        + (kept.length ? ' · <span class="g">🧰 Догляд зберіг: '+kept.map(f).join(' · ')+'</span>' : '')+'</span>' : '')
+      + (e.hp ? '<span class="dice">❤️ Після ходу: ти '+e.hp[0]+'/'+e.hp[1]+' · '+biEsc(B.op.f.name)+' '+e.hp[2]+'/'+e.hp[3]+'</span>' : '');
+  }
   function renderTurn(e){
     addStep(e.r,
       (e.first ? '<span class="use">🎲 Хто перший з поясом: ти '+e.first.me+' · '+biEsc(B.op.f.name)+' '+e.first.op+'</span>' : '')
       + (e.uses||[]).map(useLine).join('')
       + (e.auto ? '<span class="b" title="Хід без тебе: ті самі зони, що минулого разу">⏳ авто</span> ' : '')
-      + strikeLines(e) + skillLine(e) + growLine(e));
+      + strikeLines(e) + skillLine(e) + growLine(e) + wearLine(e));
     (e.broke||[]).forEach(function(b){ addBreak(b); });
   }
   /* рядок журналу: удар активним вмінням (у ту саму зону, що й основний) */
@@ -3015,11 +3023,14 @@ window.SKHERO = (function(){
         +' · маг. захист '+(p.magicResist||0)+' · зброя '+(RULES.isMagic && RULES.isMagic(p) ? (p.magMin+'–'+p.magMax+' маг.') : ((p.wMin||0)+'–'+(p.wMax||0)))
         +' · крит +'+(p.critPct||0)+'%';
     };
+    var S = window.SKSKILLS, sk = (B.me && B.me.sk) || {};
+    var skl = Object.keys(sk).map(function(id){ var s = S && S.byId(id); return (s ? s.name : id)+' '+Math.round(sk[id]*100)+'%'; });
     return ['Характеристики:',
       '  '+row(hero.name||'Ти', B.me.p),
       '  '+row(B.op.f.name, B.op.p),
       '  Шанс влучити: '+(hero.name||'Ти')+' → '+pc(B.me.p, B.op.p)+' · '+B.op.f.name+' → '+pc(B.op.p, B.me.p)
-        +'  (межі '+Math.round(CFG.hitMin*100)+'–'+Math.round(CFG.hitMax*100)+'%)'];
+        +'  (межі '+Math.round(CFG.hitMin*100)+'–'+Math.round(CFG.hitMax*100)+'%)']
+      .concat(skl.length ? ['  Вміння на початку бою: '+skl.join(' · ')] : []);
   }
   /* Для збереження/копіювання: спершу простий журнал, далі — детальний (з кидками). */
   function logTextBoth(){
@@ -3727,7 +3738,7 @@ window.SKHERO = (function(){
 </script>
 
 <script src="sk-items.js?v=13"></script>
-<script src="sk-skills.js?v=15"></script>
+<script src="sk-skills.js?v=16"></script>
 <script src="sk-book.js?v=8"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════

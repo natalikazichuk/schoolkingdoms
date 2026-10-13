@@ -423,10 +423,13 @@
   /* «Догляд за зброєю»: кожен знос — кидок, з шансом savePct він не рахується */
   function addWear(ctx, st, meHit, opHit, opAtk) {
     var W = ctx.R.WEAR || {}, w = st.wear, care = V(st, 'knight.care', 'savePct'), rnd = care ? rng(st.bid + '|' + st.round + '|care') : null;
+    var wl = st._wlog;                                             // для журналу: що зносилось цього ходу
     var put = function (key, n) {
       if (!(n > 0)) return;
-      if (care) { var ok = ctx.R.d100(rnd) <= care; grow(st, 'knight.care', ok); if (ok) { st.saved = (st.saved || 0) + n; return; } }
+      if (!wearItems(ctx, st, key).length) { w[key] = (w[key] || 0) + n; return; }   // зношувати нічого — ні кидка Догляду, ні рядка в журналі
+      if (care) { var ok = ctx.R.d100(rnd) <= care; grow(st, 'knight.care', ok); if (ok) { st.saved = (st.saved || 0) + n; if (wl) wl.push({ k: key, n: n, saved: true }); return; } }
       w[key] = (w[key] || 0) + n;
+      if (wl) wl.push({ k: key, n: n });
     };
     (opHit.hits || [opHit]).forEach(function (h) {
       if (h.kind === 'hit' || h.kind === 'crit') put(opAtk, h.kind === 'crit' ? W.zoneCrit : W.zoneHit);
@@ -435,6 +438,20 @@
     (meHit.hits || [meHit]).forEach(function (h) {
       if (h.kind === 'hit' || h.kind === 'crit') put('weapon', h.kind === 'crit' ? W.weaponCrit : W.weaponHit);
     });
+  }
+  /* чиї речі за ключем зносу: зона (усе вдягнене в ній), зброя, щит чи окрема річ (u:uid) */
+  function wearItems(ctx, st, key) {
+    var R = ctx.R, on = (st.me.eq || []).filter(function (e) { return !e.off && !e.broken && e.dur != null; });
+    return key.indexOf('u:') === 0 ? on.filter(function (e) { return e.uid === key.slice(2); })
+      : key === 'weapon' ? on.filter(function (e) { return e.slot === 'weaponR'; })
+      : key === 'shield' ? on.filter(function (e) { return e.slot === 'weaponL'; })
+      : on.filter(function (e) { return R.zoneOfSlot && R.zoneOfSlot(e.slot) === key; });
+  }
+  function wearWho(ctx, st, key) {
+    var R = ctx.R, list = wearItems(ctx, st, key);
+    if (list.length) return list.map(function (e) { return itemName(ctx, e); }).join(', ');
+    var z = (R.ZONES || []).filter(function (x) { return x.key === key; })[0];
+    return z ? z.label + ' (нічого не вдягнено)' : key;
   }
   /* блок зношує щит; блок «Шансом блоку» — саме ту річ, що заблокувала */
   function blockWear(ctx, st, h, put) {
@@ -534,7 +551,9 @@
     if (skillRec && skillRec.dmg > 0) { var sh = { dmg: skillRec.dmg, kind: 'hit', hits: [skillRec] }; applyBarrier(fo, sh); skillRec.dmg = sh.dmg; }
     applyBarrier(fo, meHit); applyBarrier(fm, opHit);
     st.op.f.lastPlayerAtk = me.atk;
+    st._wlog = [];
     addWear(ctx, st, meHit, opHit, op.atk);
+    var wlog = st._wlog; delete st._wlog;
     var broke = checkBreaks(ctx, st);
     st.op.force -= meHit.dmg + (skillRec ? skillRec.dmg : 0);
     st.me.force -= opHit.dmg;
@@ -566,6 +585,9 @@
       if (a || b) gr[id] = [a, b, num(g1[id]), num(f1[id])];
     });
     if (Object.keys(gr).length) e.grow = gr;
+    // для детального журналу: знос речей цього ходу (з назвами) і здоров'я після ходу
+    if (wlog.length) e.wear = wlog.map(function (x) { return { who: wearWho(ctx, st, x.k), n: x.n, saved: !!x.saved }; });
+    e.hp = [Math.max(0, Math.round(st.me.force)), st.me.max, Math.max(0, Math.round(st.op.force)), st.op.max];
     if (first) e.first = first;
     st.log.push(e);
     st.rev++;
