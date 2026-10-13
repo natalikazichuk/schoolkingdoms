@@ -14,7 +14,7 @@
 <script src="sk-curriculum.js?v=8"></script>
 <script src="sk-items.js?v=12"></script>
 <script src="sk-arena-rules.js?v=19"></script>
-<script src="sk-skills.js?v=11"></script>
+<script src="sk-skills.js?v=14"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -716,7 +716,7 @@ function skillRows(cls){
   var rows=list.map(function(sk){
     var d=pdoc(sk.id),open=!!POPEN[sk.id];
     var badges=(sk.added?'<span class="tag pct">＋ додане</span>':'')+(sk.shared?'<span class="tag">спільне</span>':'')+(pedited(sk)?'<span class="tag item">✎ змінено</span>':'')+(d.comment?'<span class="tag pct">💬</span>':'');
-    var r='<tr class="pl-row" id="pr-'+esc(sk.id)+'"><td class="pl-lv">'+(sk.lv===1?'<span class="pl-start">'+sk.start+'%</span>':sk.lv)+'</td>'
+    var r='<tr class="pl-row" id="pr-'+esc(sk.id)+'"><td class="pl-lv">'+sk.lv+'</td>'
       +'<td><span class="nm">'+esc(sk.name)+'</span> <span class="pl-badges">'+badges+'</span><div class="pl-kid">'+esc(ptext(sk,'kid'))+'</div></td>'
       +'<td><span class="tag ty-'+sk.type+'">'+TY_UK[sk.type]+'</span></td>'
       +'<td class="pl-cost">'+esc(sk.cost||'—')+'</td>'
@@ -728,7 +728,7 @@ function skillRows(cls){
       +detForm(sk.id,[{k:'desc',l:'Опис (для адміна)',v:ptext(sk,'desc')},{k:'formula',l:'Формула: як працює (м — майстерність 0…1, K — концентрація)',v:ptext(sk,'formula')},{k:'kid',l:'Підказка для дітей (без чисел)',v:ptext(sk,'kid')}],'Коментар / завдання')+'</td></tr>';
     return r;
   }).join('');
-  return '<section class="sec pl-cls"><h2>'+c.icon+' '+esc(c.name)+' <span class="tag yes">✅ оброблено '+nDone+' з '+all.length+'</span></h2><p class="hint">'+esc(c.about)+' Концентрація: «'+esc(c.conc)+'». Число в першій колонці — рівень; на 1 рівні — стартова майстерність (у грі вивчене вміння починає з '+SKSKILLS.LEARN_START+'%). <b>Оброблено</b> — у вміння вже є правила бою: воно діє в грі й вивчається в книзі. Опрацьовуємо по одному.</p>'
+  return '<section class="sec pl-cls"><h2>'+c.icon+' '+esc(c.name)+' <span class="tag yes">✅ оброблено '+nDone+' з '+all.length+'</span></h2><p class="hint">'+esc(c.about)+' Концентрація: «'+esc(c.conc)+'». Перша колонка — рівень класу, з якого вміння відкривається (1 = одразу після вибору класу). Вивчене вміння починає з '+SKSKILLS.LEARN_START+'%. <b>Оброблено</b> — у вміння вже є правила бою: воно діє в грі й вивчається в книзі. Опрацьовуємо по одному.</p>'
     +'<div class="tblwrap"><table class="st pl-tbl"><thead><tr><th>Рів.</th><th>Вміння</th><th>Тип</th><th>'+(c.res==='мана'?'Мана / перезар.':'Перезарядка')+'</th><th>Оброблено</th><th>Статус</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'
     +(addOpen?addForm(cls):'<div class="pl-acts"><button type="button" class="btn-ghost" data-act="addform" data-id="'+cls+'">＋ Додати вміння</button></div>')+'</section>';
 }
@@ -930,22 +930,39 @@ function skmHTML(){
   if(!window.SKSKILLS||!SKSKILLS.UNIVERSAL)return '<section class="sec"><p class="hint">Не завантажився sk-skills.js.</p></section>';
   if(!PLAN_LOADED){loadPlan();return '<div class="empty">Завантаження…</div>';}
   var err=PLAN_ERR?'<section class="sec pl-err"><h2>⚠ Не читається з бази</h2><p class="hint">Помилка: '+esc(PLAN_ERR)+'. Опублікуй firestore.rules (колекція <span class="key">arenaPlan</span>) у консолі Firebase. До того видно стандартні рядки, але зберегти зміни не вийде.</p></section>':'';
-  var pts=[1,2,3,4,5,7,9].map(function(l){return l+' рів. → '+SKSKILLS.pointsForLevel(l);}).join(' · ');
-  var lv={1:'Рівень 1 · перший бій',2:'Рівень 2 · магія й оборона',3:'Рівень 3 · майстерність (і вибір класу)'};
-  var body=[1,2,3].map(function(l){
-    var cards=SKSKILLS.UNIVERSAL.filter(function(s){return s.lv===l;}).map(skmCard).join('');
-    return '<section class="sec"><h2>'+esc(lv[l])+'</h2><div class="skm-grid">'+cards+'</div></section>';
-  }).join('');
-  body+=Object.keys(SKSKILLS.CLASSES).map(function(k){
-    var c=SKSKILLS.CLASSES[k],list=SKSKILLS.readyFor?SKSKILLS.readyFor(k):[];
-    if(!list.length)return '';
-    return '<section class="sec"><h2>'+c.icon+' '+esc(c.name)+' · оброблені вміння ('+list.length+' з '+SKSKILLS.forClass(k).length+')</h2><p class="hint">Лише вміння з правилами бою — вони вже діють у грі. Решта — у «📋 План».</p><div class="skm-grid">'+list.map(skmCard).join('')+'</div></section>';
-  }).join('')+heroAdminHTML();
-  return err+'<section class="sec"><h2>🧠 Механіка вмінь</h2><p class="hint">Що дає майстерність кожного вміння — для балансу. «м» = майстерність / 100. Рядки можна змінити, додати чи прибрати; «💾 Зберегти» пише в базу, «↺ Стандартні» повертає рядки з sk-skills.js.</p>'
-    +'<ul class="exl"><li>Вміння <b>вивчають за очко</b>: після вивчення — <b>'+SKSKILLS.LEARN_START+'%</b>, далі росте в бою (і від невдалих спроб).</li>'
-    +'<li>Очки за рівні арени: по 1 на рівнях 1–4, далі по 1 кожні два. Разом: '+esc(pts)+'. Плюс очки за позначені тести.</li>'
-    +'<li>Клас обирається на <b>'+SKSKILLS.CLASS_LEVEL+' рівні</b>.</li></ul>'+skmGrowTable()+'</section>'+body;
+  var sub=skmSub(),body;
+  if(sub==='base'){
+    var pts=[1,2,3,4,5,7,9].map(function(l){return l+' рів. → '+SKSKILLS.pointsForLevel(l);}).join(' · ');
+    var lv={1:'Рівень 1 · перший бій',2:'Рівень 2 · магія й оборона',3:'Рівень 3 · майстерність (і вибір класу)'};
+    body='<section class="sec"><p class="hint">Що дає майстерність кожного вміння — для балансу. «м» = майстерність / 100. Рядки можна змінити, додати чи прибрати; «💾 Зберегти» пише в базу, «↺ Стандартні» повертає рядки з sk-skills.js.</p>'
+      +'<ul class="exl"><li>Вміння <b>вивчають за очко</b>: після вивчення — <b>'+SKSKILLS.LEARN_START+'%</b>, далі росте в бою (і від невдалих спроб). Так само й вміння класів.</li>'
+      +'<li>Очки за рівні арени: по 1 на рівнях 1–4, далі по 1 кожні два. Разом: '+esc(pts)+'. Плюс очки за позначені тести.</li>'
+      +'<li>Клас обирається на <b>'+SKSKILLS.CLASS_LEVEL+' рівні</b>.</li></ul>'+skmGrowTable()+'</section>'
+      +[1,2,3].map(function(l){
+        var cards=SKSKILLS.UNIVERSAL.filter(function(s){return s.lv===l;}).map(skmCard).join('');
+        return '<section class="sec"><h2>'+esc(lv[l])+'</h2><div class="skm-grid">'+cards+'</div></section>';
+      }).join('');
+  } else if(sub==='heroes') body=heroAdminHTML();
+  else {
+    var c=SKSKILLS.CLASSES[sub],list=SKSKILLS.readyFor(sub),all=SKSKILLS.forClass(sub).length;
+    body='<section class="sec"><h2>'+c.icon+' '+esc(c.name)+' · оброблені вміння ('+list.length+' з '+all+')</h2><p class="hint">'+esc(c.about)+' Тут — лише вміння з правилами бою: вони вже діють у грі й вивчаються в книзі (вкладка «Клас»). Решта й нові ідеї — у «📋 План».</p>'
+      +(list.length?'<div class="skm-grid">'+list.map(skmCard).join('')+'</div>':'<p class="hint">Ще жодне вміння цього класу не оброблене.</p>')+'</section>';
+  }
+  return err+'<div class="tabs pl-f skm-sub">'+skmSubTabs()+'</div>'+body;
 }
+/* підвкладки «Механіки вмінь»: базові · класи · герої (вибір пам'ятає браузер) */
+function skmSub(){var v='base';try{v=localStorage.getItem('skm_sub')||'base';}catch(e){}
+  return (v==='base'||v==='heroes'||SKSKILLS.CLASSES[v])?v:'base';}
+function skmSubTabs(){
+  var cur=skmSub(),b=function(v,l){return '<button type="button" class="tab'+(cur===v?' on':'')+'" data-skmsub="'+v+'">'+l+'</button>';};
+  return b('base','📘 Базові вміння')+Object.keys(SKSKILLS.CLASSES).map(function(k){var c=SKSKILLS.CLASSES[k],n=SKSKILLS.readyFor(k).length;
+    return b(k,c.icon+' '+esc(c.name)+' <small>'+n+'/'+SKSKILLS.forClass(k).length+'</small>');}).join('')+b('heroes','🧪 Герої');
+}
+root.addEventListener('click',function(e){
+  var t=e.target.closest('[data-skmsub]');if(!t||TAB!=='skmech')return;
+  try{localStorage.setItem('skm_sub',t.dataset.skmsub);}catch(er){}
+  render();
+});
 function skmSkill(id){var sk=SKSKILLS.byId(id);return sk&&sk.mech?sk:null;}
 /* ══ ГЕРОЇ: клас і вміння (тест) — /api/admin/heroes, /api/admin/hero/* ══ */
 var HADM={list:null,err:null,busy:false,loading:false};

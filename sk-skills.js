@@ -68,8 +68,8 @@ S('knight',1,20,'shield','Блок щитом','P','','+шанс блоку щи
 S('knight',1,5,'bash','Поштовх щитом','A','перезар. 3','удар щитом, ворог може пропустити хід',
   'потрібен щит. Шанс спрацювати 50% → 100%; урон 3–6 × м; збити з ніг 30% → 60%',
   'Штовхни ворога щитом — він може пропустити хід.','Аладон: мощный толчок');
-S('knight',1,1,'berserk','Берсерк','A','раз за бій','+урон / −броня на 3 ходи',
-  'шанс спрацювати 50% → 100% (не вдалося — можна знову наступного ходу); 3 ходи: урон +40%·м, броня −30%',
+S('knight',1,1,'berserk','Берсерк','A','раз за бій','+урон / −броня на 3–6 ходів',
+  'шанс спрацювати 50% → 100% (не вдалося — можна знову наступного ходу); лють на 🎲 3–4 ходи (25%) → 3–5 (50%) → 3–6 (75%) → 4–7 (100%): урон +40%·м, броня −30%',
   'Бойова лють: б\'єш сильніше, але захищаєшся гірше.','Аладон: берсерк',true);
 S('knight',1,10,'fists','Голі руки','P','','б\'є кулаками, коли зброї немає',
   'без зброї в правій руці (або зламалась): урон удару +5·м',
@@ -668,7 +668,8 @@ var RULES = {
   'knight.berserk': { kind: 'active', perBattle: 1, p: [
     { k: 'dmgPct', v: 40, grow: true, u: '%', t: 'урону, поки триває лють' },
     { k: 'armorCut', v: 30, u: '%', t: 'менше броні, поки триває лють' },
-    { k: 'turns', v: 3, t: 'ходів люті (раз за бій)' }] },
+    { k: 'turnsMin', v: 4, calc: function (pct) { return pct >= 100 ? 4 : 3; }, t: 'ходів люті щонайменше (🎲, раз за бій): 3, на 100% — 4' },
+    { k: 'turnsMax', v: 7, calc: function (pct) { return pct >= 100 ? 7 : pct >= 75 ? 6 : pct >= 50 ? 5 : 4; }, t: 'ходів люті щонайбільше: 4 → 5 (з 50%) → 6 (з 75%) → 7 (на 100%)' }] },
   'knight.fists':   { kind: 'const', perBattle: 30, on: 'удар без зброї: влучив — ✔, промах чи блок — ✖', p: [
     { k: 'dmg', v: 5, grow: true, t: 'до урону удару без зброї' }] },
   'knight.brave':   { kind: 'const', perBattle: 1, on: 'свиток страху проти тебе: встояв — ✔, злякався — ✖', p: [
@@ -852,7 +853,7 @@ var FX = {
   'knight.spear':   function(v){ return 'зі списом: +' + v.dmgPct + '% урону'; },
   'knight.shield':  function(v){ return 'зі щитом: +' + v.blockPct + '% шансу блоку'; },
   'knight.bash':    function(v){ return 'потрібен щит · вдається в ' + v.chance + '%, урон ' + v.dmgMin + '–' + v.dmgMax + ', збиває з ніг ' + v.knock + '%'; },
-  'knight.berserk': function(v){ return 'вдається в ' + v.chance + '%: ' + v.turns + ' ходи +' + v.dmgPct + '% урону, −' + v.armorCut + '% броні'; },
+  'knight.berserk': function(v){ return 'вдається в ' + v.chance + '%: ' + v.turnsMin + '–' + v.turnsMax + (v.turnsMax < 5 ? ' ходи +' : ' ходів +') + v.dmgPct + '% урону, −' + v.armorCut + '% броні'; },
   'knight.fists':   function(v){ return 'без зброї: +' + v.dmg + ' до урону'; },
   'knight.brave':   function(v){ return 'страх діє на ' + v.resPct + '% рідше'; },
   'knight.care':    function(v){ return v.savePct + '% зносу речей у бою не рахується'; }
@@ -860,7 +861,7 @@ var FX = {
 function effectText(id, m) { return FX[id] ? FX[id](skillValues(id, Math.round(Math.max(0, Math.min(1, m)) * 100))) : ''; }
 
 window.SKSKILLS = {
-  VERSION: 11,
+  VERSION: 14,
   RULES: RULES,
   KIND_UK: KIND_UK,
   skillValues: skillValues,
