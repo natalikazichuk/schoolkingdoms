@@ -1763,3 +1763,12 @@ window.addEventListener('pagehide', () => { flushProgress(true).catch(() => {});
 
 window.SK = SK;
 
+/* Облік часу Героя на сайті (для кабінету батьків) — див. sk-activity.js. */
+if (!window.__skActivityMounted) {
+  try {
+    const a = document.createElement('script');
+    a.src = new URL('sk-activity.js?v=1', import.meta.url).href;
+    (document.head || document.documentElement).appendChild(a);
+  } catch (e) {}
+}
+
