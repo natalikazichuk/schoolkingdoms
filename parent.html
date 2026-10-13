@@ -239,6 +239,14 @@
     font-family:'Nunito',sans-serif;font-weight:800;font-size:.98rem;color:#fff;
     padding:5px 2px;border-bottom:1.5px solid rgba(242,199,92,.28)}
   .st-subj-stat{font-size:.76rem;font-weight:800;color:#ffe7a0;white-space:nowrap}
+  /* ── Рядок тесту у «Статистиці»: усе в один рядок + чек-бокс «Призначити» ── */
+  .ta-item.st-test{flex-wrap:nowrap;gap:10px;padding-top:10px;padding-bottom:10px}
+  .ta-item.st-test .ta-w{min-width:0;overflow-wrap:anywhere;font-size:.9rem;line-height:1.25}
+  .ta-item.st-test .ta-res{flex-shrink:0}
+  .st-assign{flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;
+    font-size:.62rem;font-weight:800;color:#cdd9ef;text-align:center;line-height:1.1;max-width:62px}
+  .st-assign input{width:20px;height:20px;margin:0;accent-color:#e0a83a;cursor:pointer}
+  .st-assign input:checked + span{color:#ffe7a0}
   /* ── Прогрес за класами ── */
   .gp-grade{border:1.5px solid rgba(140,175,235,.28);border-radius:14px;background:rgba(8,20,42,.45);margin-bottom:10px;overflow:hidden}
   .gp-grade>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:12px 14px;font-weight:800;color:#fff}
@@ -1607,10 +1615,57 @@
       const r = e.score;
       const ok = !!(e.hundred || e.passed || (r && r.pct != null && +r.pct >= 55));
       const parts = [];
-      if (r && r.levels){ parts.push('рівні '+(+r.correct||0)+'/'+(+r.total||0)); if (r.pct != null) parts.push((+r.pct)+'%'); }
+      if (r && r.levels){ parts.push((+r.correct||0)+'/'+(+r.total||0)); if (r.pct != null) parts.push((+r.pct)+'%'); }
       else if (r){ if (r.pct != null) parts.push((+r.pct)+'%'); if (r.correct != null && r.total != null) parts.push((+r.correct)+'/'+(+r.total)); }
       if (!parts.length) parts.push(e.hundred ? '100%' : e.passed ? 'складено' : 'спроба');
       return '<span class="ta-res '+(ok?'ok':'bad')+'">📊 '+escapeHtml(parts.join(' · '))+'</span>';
+    }
+
+    /* Відкрите (ще не зараховане) завдання з цим тестом → {id, st} або null */
+    function stOpenTask(hero, testId){
+      const tasks = Array.isArray(hero.tasks) ? hero.tasks : [];
+      const state = hero.taskState || {}, claims = hero.taskClaims || {};
+      for (let i = tasks.length - 1; i >= 0; i--){
+        const t = tasks[i];
+        if (!t || t.type !== 'test' || t.testId !== testId) continue;
+        const st = (state[t.id] && state[t.id].status) || (claims[t.id] ? 'approved' : 'assigned');
+        if (st !== 'approved') return { id: t.id, st };
+      }
+      return null;
+    }
+
+    /* Чек-бокс «Призначити» в рядку тесту: увімкнули — призначаємо тест як
+       завдання, вимкнули — прибираємо відкрите завдання з цим тестом. */
+    async function stToggleAssign(cb){
+      const hid = $('stHero').value, hero = ST_HEROES && ST_HEROES[hid];
+      const testId = cb.getAttribute('data-test');
+      if (!hero || !testId){ cb.checked = !cb.checked; return; }
+      const label = cb.nextElementSibling;
+      cb.disabled = true;
+      try {
+        if (cb.checked){
+          const meta = (ST_TESTS || []).find(t => t.id === testId) || {};
+          const task = { type:'test', title: meta.title || 'Тест', subject: meta.subject || '', testId, icon:'📝' };
+          const id = await SK.assignTask(hid, task);
+          hero.tasks = (Array.isArray(hero.tasks) ? hero.tasks : []).concat([Object.assign({ id }, task)]);
+          if (label) label.textContent = 'Призначено';
+          toast('🎉 Тест призначено дитині');
+        } else {
+          const open = stOpenTask(hero, testId);
+          if (open){
+            if (open.st === 'pending' && !confirm('Дитина вже здала це завдання на перевірку. Прибрати його?')){ cb.checked = true; return; }
+            await SK.removeHeroTask(hid, open.id);
+            hero.tasks = (hero.tasks || []).filter(t => t.id !== open.id);
+            if (hero.taskState) delete hero.taskState[open.id];
+          }
+          if (label) label.textContent = 'Призначити';
+          toast('🗑 Завдання прибрано');
+        }
+      } catch(e){
+        console.warn('[parent] stats assign:', e);
+        cb.checked = !cb.checked;
+        toast('❌ Не вдалося змінити завдання');
+      } finally { cb.disabled = false; }
     }
 
     function stTests(hero){
@@ -1640,11 +1695,17 @@
         const g = groups[k];
         const head = '<div class="st-subj"><span>'+escapeHtml(g.cur.icon+' '+g.cur.name)+'</span>'
           + (g.cur.stat ? '<span class="st-subj-stat">'+escapeHtml(g.cur.stat)+'</span>' : '') + '</div>';
-        const rows = g.rows.map(r =>
-          '<div class="ta-item">'
+        const rows = g.rows.map(r => {
+          const task = stOpenTask(hero, r.e.id);
+          return '<div class="ta-item st-test">'
           + '<span class="ta-ic">'+(r.e.hundred ? '💯' : r.e.passed ? '✅' : '📝')+'</span>'
           + '<span class="ta-w">'+escapeHtml(r.title)+'</span>'
-          + stTestChip(r.e) + '</div>').join('');
+          + stTestChip(r.e)
+          + '<label class="st-assign" title="Призначити дитині як завдання">'
+          + '<input type="checkbox" data-test="'+escapeHtml(r.e.id)+'"'+(task ? ' checked' : '')
+          + ' onchange="stToggleAssign(this)"><span>'+(task ? (task.st === 'pending' ? 'на перевірці' : 'Призначено') : 'Призначити')+'</span></label>'
+          + '</div>';
+        }).join('');
         return '<div class="st-grp">'+head+rows+'</div>';
       }).join('');
       return stSec('📚 Тести', cards + body);
