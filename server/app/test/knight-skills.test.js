@@ -254,3 +254,14 @@ test('оглушення: оглушений не атакує й без спе�
   assert.strictEqual(e2.meHit.kind, 'knock'); assert.ok(!e2.skill && e2.meKnocked);
   assert.strictEqual(me.me.skill, 'base.kick', 'вибір вміння лишається на наступний хід');
 });
+
+test('журнал: запис ходу містить ріст вмінь за хід (вдалі, невдалі, разом)', () => {
+  const st = battle({ 'knight.sword': 0.5 }, [], [wear(SWORD, 'weaponR', 'w')]);
+  const e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+  const g = e.grow && e.grow['knight.sword'];
+  assert.ok(g, 'є запис про Меч');
+  assert.strictEqual(g[0] + g[1], e.meHit.hits.length, 'скільки ударів — стільки спрацювань');
+  const e2 = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+  const g2 = e2.grow['knight.sword'];
+  assert.strictEqual(g2[2] + g2[3], e.meHit.hits.length + e2.meHit.hits.length, 'разом за бій');
+});
