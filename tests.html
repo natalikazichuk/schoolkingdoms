@@ -99,6 +99,14 @@
   .tcard .cprog{width:100%;margin-top:auto}
   /* словник — довгий рядок на всю ширину: значок ліворуч, назва й прогрес праворуч */
   .grid.wide-grid{grid-template-columns:1fr!important}
+  .grid.wide-grid.wide-2{grid-template-columns:1fr 1fr!important}
+  @media(max-width:560px){
+    .grid.wide-2 .tcard.wide{grid-template-columns:52px 1fr;column-gap:10px;padding:10px 12px}
+    .grid.wide-2 .tcard.wide .thumb,.grid.wide-2 .tcard.wide .emoji{width:52px}
+    .grid.wide-2 .tcard.wide .emoji{font-size:2rem}
+    .grid.wide-2 .tcard.wide .tname{font-size:1rem}
+    .grid.wide-2 .tcard.wide .tsub{display:none}
+  }
   .tcard.wide{display:grid;grid-template-columns:76px 1fr;grid-template-rows:auto auto auto;
     column-gap:14px;row-gap:4px;align-items:center;padding:12px 16px}
   .tcard.wide .thumb,.tcard.wide .emoji{grid-row:1 / span 3;width:76px}
@@ -283,7 +291,7 @@
   /* пройдено = прапорець проходження / 100% АБО (тести-рівні) ≥ PASS_RATIO рівнів —
      точно ті самі правила, що були на старій сторінці */
   function isPassed(t){
-    if(t.std){ var ep=enProg(t.gkey); if(ep) return ep[0]>=ep[1]; }
+    if(t.words){ var ep=enProg(t.gkey); if(ep) return ep[0]>=ep[1]; }
     if(truthy(lsGet('sk_testpass_'+t.id)) || truthy(pgGet('sk_testpass_'+t.id))) return true;
     if(truthy(lsGet('sk_test100_'+t.id)) || truthy(pgGet('sk_test100_'+t.id))) return true;
     if(t.isLevels && t.levelCount>0) return (doneLevels(t.id)/t.levelCount) >= SKCUR.PASS_RATIO;
@@ -317,19 +325,22 @@
   /* дріб для смужки на КАРТЦІ ТЕСТУ (гранулярно): рівні, словник, тренажер або 0/1 */
   function testFrac(t){
     if(t.isLevels && t.levelCount>0){ var d=doneLevels(t.id); if(d>t.levelCount)d=t.levelCount; return d/t.levelCount; }
-    if(t.std){ var ep=enProg(t.gkey); if(ep) return ep[0]/ep[1]; }
+    if(t.words){ var ep=enProg(t.gkey); if(ep) return ep[0]/ep[1]; }
     if(isPassed(t)) return 1;
     if(t.isLink){ var lp=linkProg(t.id); if(lp) return lp[0]/lp[1]; }
     return 0;
   }
   /* Прогрес теми: середнє часткових прогресів тестів (рівні, кроки), а не лише пройдені. */
+  /* Генератори аркушів (noProg) пройти не можна — у прогрес їх не рахуємо. */
+  function progList(list){ return list.filter(function(t){ return !t.noProg; }); }
   function topicFrac(list){
+    list = progList(list);
     if(!list.length) return 0;
     var sum=0; list.forEach(function(t){ sum+=Math.max(0,Math.min(1,testFrac(t))); });
     return sum/list.length;
   }
-  function subjProg(s){ var passed=0; s.tests.forEach(function(t){ if(isPassed(t)) passed++; }); return {total:s.tests.length, passed:passed}; }
-  function gradeProg(gr){ var total=0,passed=0; if(gr) gr.order.forEach(function(sid){ gr.subs[sid].tests.forEach(function(t){ total++; if(isPassed(t)) passed++; }); }); return {total:total,passed:passed}; }
+  function subjProg(s){ var l=progList(s.tests), passed=0; l.forEach(function(t){ if(isPassed(t)) passed++; }); return {total:l.length, passed:passed, any:s.tests.length>0}; }
+  function gradeProg(gr){ var total=0,passed=0,any=false; if(gr) gr.order.forEach(function(sid){ var l=gr.subs[sid].tests; if(l.length) any=true; progList(l).forEach(function(t){ total++; if(isPassed(t)) passed++; }); }); return {total:total,passed:passed,any:any}; }
 
   /* ── смужка прогресу унизу картки ── */
   function bar(frac, label, cls){
@@ -449,11 +460,13 @@
     }
     return { grades:G };
   }
-  /* ── стандартні вбудовані картки: WORDS (English-словник) у КОЖНОМУ класі ── */
-  /* Предмет English цього класу так, як він описаний у карті: щоб у класі,
-     де англійська ще без тестів, картка словника лягла під справжню назву,
+  /* ── стандартні вбудовані картки у КОЖНОМУ класі ──
+     English: WORDS (словник) і TASKS (генератор граматики) — в одному рядку;
+     Математика: генератор завдань (1–4 клас). */
+  /* Предмет цього класу так, як він описаний у карті: щоб у класі,
+     де предмет ще без тестів, картка лягла під справжню назву,
      іконку й колір предмета, а не під підставні. */
-  function mapEngSubj(key){
+  function mapSubj(key, id, re){
     var found = null;
     CURRICULUM.forEach(function(t){
       (t.grades||[]).forEach(function(g){
@@ -461,47 +474,82 @@
         if(found || k !== String(key)) return;
         (g.subjects||[]).forEach(function(s){
           if(found) return;
-          if(s.id === 'eng' || /english|англ/i.test(String(s.name||''))) found = s;
+          if(s.id === id || re.test(String(s.name||''))) found = s;
         });
       });
     });
     return found;
   }
+  /* Предмет класу в індексі (або новий — з карти чи підставний). */
+  function stdSubj(gr, key, id, re, def){
+    var sj = gr.subs[id];
+    if(!sj){ for(var sid in gr.subs){ if(gr.subs[sid] && re.test(gr.subs[sid].name||'')){ sj=gr.subs[sid]; break; } } }
+    if(!sj){
+      var ms = mapSubj(key, id, re) || {};
+      sj = { id: ms.id||id, name: ms.name||def.name, icon: ms.icon||def.icon,
+             accent: ms.accent||def.accent, stat: ms.stat||def.stat,
+             tests:[], _seen:{}, groups:[], _gseen:{} };
+      gr.subs[sj.id]=sj; gr.order.push(sj.id);
+    }
+    if(!sj._seen) sj._seen={};
+    return sj;
+  }
+  /* Сторінка вже додана в адмінці тестом-посиланням — другої картки не треба. */
+  function hasPage(sj, page){ return sj.tests.some(function(t){ return t.isLink && String(t.href||'').indexOf(page)>=0; }); }
   function injectStdCards(){
     if(!IDX) return;
     if(!IDX.grades) IDX.grades = {};
-    /* Тільки класи, які справді є в карті: у заплановані («Скоро») вбудовану
-       картку словника підставляти не можна — інакше порожній клас виглядав
+    /* Тільки класи, які справді є в карті: у заплановані («Скоро») вбудовані
+       картки підставляти не можна — інакше порожній клас виглядав
        би так, ніби в ньому вже є контент. */
     var keys = (ALL_GRADES && ALL_GRADES.length)
       ? ALL_GRADES.filter(function(g){ return !g.soon; }).map(function(g){ return g.key; })
       : Object.keys(IDX.grades);
+    var ENG_RE=/english|англ/i, MATH_RE=/матем|math/i;
     keys.forEach(function(key){
       var gr = IDX.grades[key];
       if(!gr){ gr = IDX.grades[key] = { num:(key==='p'?0:(Number(key)||0)), order:[], subs:{} }; }
-      var eng = gr.subs['eng'];
-      if(!eng){ for(var sid in gr.subs){ if(gr.subs[sid] && /english|англ/i.test(gr.subs[sid].name||'')){ eng=gr.subs[sid]; break; } } }
-      if(!eng){
-        var ms = mapEngSubj(key) || {};
-        eng = { id: ms.id||'eng', name: ms.name||'English', icon: ms.icon||'🔤',
-                accent: ms.accent||'#3FB6A8', stat: ms.stat||'Мана 🔮',
-                tests:[], _seen:{}, groups:[], _gseen:{} };
-        gr.subs[eng.id]=eng; gr.order.push(eng.id);
+      var n = Number(key)||0, gen = n>=1 && n<=4;   // генератори — для 1–4 класу
+      /* std:true — картки не належать жодному розділу карти. renderTests малює
+         їх окремо, над розділами: інакше в класі, де в предмета вже є
+         розділи з тестами, вони лежали б лише в s.tests і на екран
+         не потрапляли (малюються тільки тести з розділів). */
+      var eng = stdSubj(gr, key, 'eng', ENG_RE, { name:'English', icon:'🔤', accent:'#3FB6A8', stat:'Мана 🔮' });
+      var add = [];
+      if(!eng._seen['std-words-en']){
+        eng._seen['std-words-en']=1;
+        add.push({
+          id:'std-words-en', title:'WORDS', std:true, words:true, gkey:key,   // клас — для прогресу словника
+          sub:'Словник English · картки, перевірка, збери слово',
+          href:'slovnyk-en.html?skdone=t:std-words-en&skback=tests.html',
+          isLink:true, isLevels:false, levelCount:0, icon:'🔤',
+          imgCard:'img/tr/slovnyk-en.webp'   // немає файлу → лишиться емодзі
+        });
       }
-      if(!eng._seen) eng._seen={};
-      if(eng._seen['std-words-en']) return;
-      eng._seen['std-words-en']=1;
-      /* std:true — картка не належить жодному розділу карти. renderTests малює
-         такі картки окремо, над розділами: інакше в класі, де в англійської
-         вже є розділи з тестами, словник лежав би лише в s.tests і на екран
-         не потрапляв (малюються тільки тести з розділів). */
-      eng.tests.unshift({
-        id:'std-words-en', title:'WORDS', std:true, gkey:key,   // клас — для прогресу словника
-        sub:'Словник English · картки, перевірка, збери слово',
-        href:'slovnyk-en.html?skdone=t:std-words-en&skback=tests.html',
-        isLink:true, isLevels:false, levelCount:0, icon:'🔤',
-        imgCard:'img/tr/slovnyk-en.webp'   // немає файлу → лишиться емодзі
-      });
+      if(gen && !eng._seen['std-tasks-en'] && !hasPage(eng, 'english-grammar-generator')){
+        eng._seen['std-tasks-en']=1;
+        add.push({
+          id:'std-tasks-en', title:'TASKS', std:true, noProg:true,
+          sub:'Граматика English · аркуші із завданнями для друку',
+          href:'klas-1/english-grammar-generator.html?klas='+n+'&skback=tests.html',
+          isLink:true, isLevels:false, levelCount:0, icon:'📝',
+          imgCard:'img/tr/english-grammar-generator.webp'
+        });
+      }
+      eng.tests.unshift.apply(eng.tests, add);
+      if(gen){
+        var math = stdSubj(gr, key, 'math', MATH_RE, { name:'Математика', icon:'🧮', accent:'#5C6BC0', stat:'Точність 🎯' });
+        if(!math._seen['std-tasks-math'] && !hasPage(math, 'matematyka-generator')){
+          math._seen['std-tasks-math']=1;
+          math.tests.unshift({
+            id:'std-tasks-math', title:'Генератор завдань', std:true, noProg:true,
+            sub:'Приклади для друку · '+n+' клас',
+            href:'klas-1/matematyka-generator.html?klas='+n+'&skback=tests.html',
+            isLink:true, isLevels:false, levelCount:0, icon:'🧮',
+            imgCard:'img/tr/matematyka-generator.webp'
+          });
+        }
+      }
     });
   }
   function buildGradeMeta(){
@@ -669,11 +717,11 @@
       q('screen').innerHTML=loadNote()+'<div class="empty">Класів ще немає. Додай їх у адмінці → «🗺 Структура».</div>'; return;
     }
     q('screen').innerHTML=loadNote()+'<div class="lvgrid">'+list.map(function(g){
-      var gr=IDX.grades[g.key]; var p=gradeProg(gr); var has=p.total>0;
+      var gr=IDX.grades[g.key]; var p=gradeProg(gr); var has=p.any;
       var pre = !!g.preschool;
       return lvTile({
         name: pre ? (g.label||'Дошкільнятко') : (g.num+' клас'),
-        sub:  has ? (p.total+' тест.') : (g.soon ? 'Готуємо' : 'Поки порожньо'),
+        sub:  has ? (p.total ? p.total+' тест.' : '🖨 Генератор завдань') : (g.soon ? 'Готуємо' : 'Поки порожньо'),
         icon: pre ? (g.icon||'🌱') : '📖',
         imgs: gradeImgs(g),
         g1:'#3a5aa0', g2:'#1c356b',
@@ -689,11 +737,11 @@
     var html='';
     if(!gr || !gr.order.length){ html+='<div class="empty">У цьому класі ще немає предметів із тестами.</div>'; q('screen').innerHTML=html; return; }
     html+='<div class="lvgrid">'+gr.order.map(function(sid){
-      var sj=gr.subs[sid]; var p=subjProg(sj); var has=p.total>0;
+      var sj=gr.subs[sid]; var p=subjProg(sj); var has=p.any;
       var ac=accentPair(sj.accent);
       return lvTile({
         name: sj.name,
-        sub:  has ? (p.total+' тест.') : 'Поки порожньо',
+        sub:  has ? (p.total ? p.total+' тест.' : '🖨 Генератор завдань') : 'Поки порожньо',
         icon: sj.icon,
         imgs: subjImgs(sj),
         g1: ac.g1, g2: ac.g2,
@@ -711,8 +759,9 @@
     if(!s || !s.tests.length){ html+='<div class="empty">Тестів поки немає — додай їх в адмін-панелі.</div>'; q('screen').innerHTML=html; return; }
     function cardHtml(t){
       var label, cls='';
-      var ep = t.std ? enProg(t.gkey) : null;
+      var ep = t.words ? enProg(t.gkey) : null;
       if(ep){ label = (ep[0]>=ep[1]) ? '✅ пройдено' : ('📖 '+ep[0]+' / '+ep[1]); if(ep[0]>=ep[1]) cls='done'; }
+      else if(t.noProg){ label='🖨 створити аркуш'; }
       else if(t.isLink){ var pdl=isPassed(t), lp=pdl?null:linkProg(t.id);
         label=pdl?'✅ пройдено':((lp && lp[0]>0)?('▶ '+lp[0]+' / '+lp[1]):'▶ відкрити'); if(pdl) cls='done'; }
       else if(t.isLevels){ var d=doneLevels(t.id); if(d>t.levelCount)d=t.levelCount;
@@ -728,7 +777,8 @@
     /* Розділ, де лише вбудовані картки (словник), — у одну колонку: довгий рядок. */
     function gridHtml(list){
       var wide = list.length && list.every(function(t){ return t.std; });
-      return '<div class="grid'+(wide?' wide-grid':'')+'">'+list.map(cardHtml).join('')+'</div>';
+      /* дві вбудовані картки (WORDS і TASKS) — в одному рядку */
+      return '<div class="grid'+(wide?' wide-grid'+(list.length===2?' wide-2':''):'')+'">'+list.map(cardHtml).join('')+'</div>';
     }
     /* Вбудовані картки (словник) не лежать у розділах карти — малюємо їх
        окремим розділом «Словник» першим, над усіма розділами, у кожному
@@ -743,7 +793,10 @@
     /* Кілька розділів → теми йдуть у смужку над плитками; натискання гортає
        до обраної теми («Усі теми» — на початок). */
     var side = [];
-    if(std.length) side.push({ name:'Словник', tests: std });
+    /* WORDS + TASKS → «Words · Tasks»; лише словник → «Словник»; інакше — генератор */
+    var stdName = std.some(function(t){ return t.words; })
+      ? (std.length>1 ? 'Words · Tasks' : 'Словник') : 'Генератор завдань';
+    if(std.length) side.push({ name:stdName, tests: std });
     groups.forEach(function(g){ side.push({ name: g.name || 'Інші', tests: g.tests }); });
     var useSide = titled > 0 && side.length > 1;
     document.body.classList.toggle('has-side', useSide);
@@ -758,7 +811,7 @@
       var sideBtn = function(key, name, list, ic){
         var pct = Math.round(topicFrac(list)*100), full = pct>=100 ? ' done' : '';
         return '<button type="button" data-topic="'+esc(key)+'"'
-          + ' title="Пройдено '+list.filter(isPassed).length+' з '+list.length+'">'
+          + ' title="Пройдено '+progList(list).filter(isPassed).length+' з '+progList(list).length+'">'
           + '<span class="ts-ic">'+ic+'</span>'
           + '<span class="ts-nm">'+esc(name)+'</span>'
           + '<span class="ts-cnt'+full+'">'+pct+'%</span>'
@@ -771,7 +824,7 @@
       var body = '';
       side.forEach(function(x){
         body += '<div class="tgroup" data-tsec="'+esc(x.name)+'"><span class="tg-name">'+esc(x.name)+'</span>'
-              + '<span class="tg-cnt">'+x.tests.filter(isPassed).length+' / '+x.tests.length
+              + '<span class="tg-cnt">'+progList(x.tests).filter(isPassed).length+' / '+progList(x.tests).length
               + ' · '+Math.round(topicFrac(x.tests)*100)+'%</span></div>'
               + gridHtml(x.tests);
       });
@@ -781,8 +834,9 @@
       return;
     }
     if(std.length){
-      html += '<div class="tgroup"><span class="tg-name">Словник</span>'
-            + '<span class="tg-cnt">'+std.filter(isPassed).length+' / '+std.length+'</span></div>'
+      var stdP = progList(std);
+      html += '<div class="tgroup"><span class="tg-name">'+esc(stdName)+'</span>'
+            + (stdP.length ? '<span class="tg-cnt">'+stdP.filter(isPassed).length+' / '+stdP.length+'</span>' : '')+'</div>'
             + gridHtml(std);
     }
     groups.forEach(function(g){
