@@ -190,12 +190,13 @@
     return rec;
   }
   /* Берсерк: не удар, а лють на кілька ходів — кидається ДО ударів цього ходу.
-     Вдалося — раз за бій (більше не обирається); не вдалося — можна знову наступного ходу. */
+     Тривалість — 🎲 turnsMin…turnsMax ходів. Вдалося — раз за бій (більше не обирається); не вдалося — можна знову наступного ходу. */
   function berserkTry(ctx, st, id, rnd) {
     var need = V(st, id, 'chance'), roll = ctx.R.d100(rnd), rec = { id: id, need: need, roll: roll, ok: roll <= need, dmg: 0 };
     grow(st, id, rec.ok);
     if (!rec.ok) { rec.kind = 'fail'; rec.calc = 'не вдалося: 🎲 ' + roll + ' > ' + need + '%'; return rec; }
-    var n = Math.max(1, V(st, id, 'turns') || 3);
+    var lo = Math.max(1, V(st, id, 'turnsMin') || 3), hi = Math.max(lo, V(st, id, 'turnsMax') || lo);
+    var n = lo + Math.floor(rnd() * (hi - lo + 1));               // 🎲 скільки ходів триває лють
     fxOf(st.me).berserk = st.round + n - 1;
     (st.me.once || (st.me.once = {}))[id] = true;
     rec.kind = 'buff'; rec.turns = n; rec.dmgPct = V(st, id, 'dmgPct'); rec.armorCut = V(st, id, 'armorCut');

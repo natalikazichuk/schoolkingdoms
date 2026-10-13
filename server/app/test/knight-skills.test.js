@@ -112,11 +112,20 @@ test('Поштовх щитом: без щита чекає, зі щитом б\
   assert.ok(hits > 10 && knocked > 0 && knocked < hits, 'збиває з ніг ~60% влучань: ' + knocked + '/' + hits);
 });
 
-test('Берсерк: лють 3 ходи на 25% → 6 на 100%', () => {
-  assert.strictEqual(S.skillValues('knight.berserk', 25).turns, 3);
-  assert.strictEqual(S.skillValues('knight.berserk', 50).turns, 4);
-  assert.strictEqual(S.skillValues('knight.berserk', 75).turns, 5);
-  assert.strictEqual(S.skillValues('knight.berserk', 100).turns, 6);
+test('Берсерк: лють на 🎲 3–6 ходів (на будь-якій майстерності), шанс і урон ростуть', () => {
+  const seen = {};
+  for (let k = 0; k < 60; k++) {
+    const st = battle({ 'knight.berserk': 1 }, ['knight.berserk']);
+    SB.useSkill(ctx, st, 'knight.berserk');
+    const e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+    assert.ok(e.skill.turns >= 3 && e.skill.turns <= 6, String(e.skill.turns));
+    assert.strictEqual(st.me.fx.berserk, 1 + e.skill.turns - 1);
+    seen[e.skill.turns] = 1;
+  }
+  assert.strictEqual(Object.keys(seen).length, 4, 'випадають 3, 4, 5 і 6');
+  const a = S.skillValues('knight.berserk', 25), b = S.skillValues('knight.berserk', 100);
+  assert.ok(a.turnsMin === 3 && a.turnsMax === 6 && b.turnsMin === 3 && b.turnsMax === 6);
+  assert.ok(a.chance < b.chance && a.dmgPct < b.dmgPct);
 });
 
 test('Берсерк: раз за бій, +урон і −броня; невдача — можна знову', () => {
@@ -129,9 +138,9 @@ test('Берсерк: раз за бій, +урон і −броня; невда
   assert.strictEqual(st.me.skill, null, 'вибір знято');
   assert.strictEqual(SB.skillBlock(st, 'knight.berserk'), 'used');
   assert.ok(!SB.useSkill(ctx, st, 'knight.berserk'));
-  for (let r = 3; r <= 6; r++) { SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now()); assert.ok(SB.berserkOn(st), 'хід ' + r + ' — ще лють'); }
+  for (let r = 3; r <= e.skill.turns; r++) { SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now()); assert.ok(SB.berserkOn(st), 'хід ' + r + ' — ще лють'); }
   SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
-  assert.ok(!SB.berserkOn(st), 'хід 7 — минула (на 100% — 6 ходів)');
+  assert.ok(!SB.berserkOn(st), 'після ' + e.skill.turns + ' ходів — минула');
   assert.strictEqual(st.me.grow['knight.berserk'], 1);
   // на 25% (шанс 50%) невдача лишає вибір
   let fail = null;
