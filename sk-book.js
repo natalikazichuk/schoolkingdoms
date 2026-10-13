@@ -35,7 +35,11 @@ var $ = function(id){ return document.getElementById(id); };
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function toast(a, b){ if (window.showToast) window.showToast(a, b || ''); }
 function hero(){ return !!(window.SK && SK.isHeroSession && SK.isHeroSession()); }
-function inBattle(){ return !!(window.SKARENA_LIVE && window.SKARENA_LIVE()); }
+function inBattle(){
+  if (window.SKARENA_LIVE && window.SKARENA_LIVE()) return true;
+  var sc = document.getElementById('screen-battle');               // екран бою вже відкрито (бій щойно стартує)
+  return !!(sc && !sc.classList.contains('hidden'));
+}
 
 function sk(id){ return SKS.byId(id); }
 function learned(id){ return Object.prototype.hasOwnProperty.call(ST.skills, id); }
@@ -236,6 +240,8 @@ function render(){
 var BS = null;
 function paintBattle(bs){
   if (bs !== undefined) BS = bs;
+  var aw = $('skbAsk');
+  if (BS && BS.status === 'live' && aw && !aw.hidden) { closeAsk(); ASKED = false; }   // вибір класу — не посеред бою; спитаємо після
   var host = $('btSkills'); if (!host) return;
   var b = (BS && BS.status === 'live' && BS.me && BS.me.sk) ? BS : null;
   var lv = b ? (b.me.level || ST.lv) : ST.lv, n = SKS.barSlots(lv), h = '<h4>⚡ Вміння</h4>', any = false;
@@ -256,6 +262,8 @@ function paintBattle(bs){
       else if (why === 'mana') { cls += ' cd'; badge = '<span class="skb-cd">💧</span>'; tip += sel2 ? ' · обрано, спрацює, коли буде мана' : ' · мало мани'; }
       else if (why === 'shield') { cls += ' cd'; badge = '<span class="skb-cd">🛡️</span>'; tip += ' · потрібен щит у лівій руці'; }
       else if (why === 'used') { cls += ' cd'; badge = '<span class="skb-cd">✔</span>'; tip += ' · уже використано в цьому бою'; }
+      else if (why === 'knock') { cls += ' cd'; badge = '<span class="skb-cd">😵</span>'; tip += ' · тебе збили з ніг: цей хід без дій'; }
+      else if (why === 'swap') { cls += ' cd'; badge = '<span class="skb-cd">🔁</span>'; tip += ' · цього ходу ти вже перевдягнувся'; }
       else if (sel2) tip += ' · спрацює цього ходу';
     }
     var cls2 = 'skb-sk' + (s.type === 'A' ? ' act' : '') + (p >= 100 ? ' max' : '');

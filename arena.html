@@ -1659,7 +1659,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
 <script src="sk-arena-rules.js?v=19"></script>
-<script src="sk-battle.js?v=11"></script>
+<script src="sk-battle.js?v=12"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
    Інвентар, скриня, смітник, продане / куплене сьогодні й монети
@@ -1838,7 +1838,9 @@ window.SKHERO = (function(){
     if(window.SKIT&&SKIT.imgMissing&&SKIT.imgMissing(src)) return fallback;   // немає на сервері — не просимо вдруге
     return '<img src="'+src+'" alt="" onerror="window.SKIT&&SKIT.imgMissed&&SKIT.imgMissed(this.getAttribute(\'src\'));this.replaceWith(document.createTextNode(\''+fallback+'\'))">';
   }
-  function swapsLeft(){ return (live() && !UI.resolving && B.swapRound !== B.round) ? 1 : 0; }
+  /* одна спецдія за хід (sk-battle.js): перевдягання можна, доки цього ходу ще не перевдягався —
+     обране вміння чи річ із пояса воно знімає */
+  function swapsLeft(){ return (live() && !UI.resolving && !SB.swapped(B) && !SB.knockedNow(B, B.me)) ? 1 : 0; }
   function activeIn(slot){ return SB.activeIn(B, slot); }
   function leftDur(e){ return SB.leftDur(ctx(), B, e); }
   function itemWear(e){ return SB.itemWear(ctx(), e, B.wear); }
@@ -2040,7 +2042,7 @@ window.SKHERO = (function(){
       if(!text) return;
       updateForce('p', B.me);
       addSwap(B.round, text);
-      paintBelt();
+      paintBelt(); if(window.SKBOOK) SKBOOK.paintBattle(B);
       BI.sel = null;
       saveBattle();
       renderInv();
@@ -2082,9 +2084,18 @@ window.SKHERO = (function(){
         + '<span class="ic">'+itemIcon(b.id, em)+'</span>'+biEsc((b.base&&b.base.name)||b.id)+(on?' ✓':'')+'</button>';
     }).join('')
       + '<div class="bbhint">'+(belt.every(function(b){ return b.used; }) ? 'Усе з пояса вже використано в цьому бою.' : chosen ? 'Спрацює в цьому ході, перед ударами. Натисни ще раз — скасувати.'
-          : free ? 'Спецвміння ходу: використай одну річ із пояса (або перевдягнись).' : (live() ? 'Спецвміння цього ходу вже використано.' : ''))+'</div>';
+          : free ? 'Одна дія за хід: річ із пояса, вміння або перевдягання.' : (live() ? 'Цього ходу ти вже перевдягнувся.' : ''))+'</div>';
   }
   /* колонка вмінь: тап — обрати вміння на цей хід (ще тап — скасувати) */
+  /* журнал бою заповнює місце до нижнього меню (на великому екрані чи з малим масштабом —
+     більше рядків); не менше 110px, як було */
+  function fitLog(){
+    var el = $('steps'); if(!el || !el.offsetParent) return;
+    var nav = document.querySelector('.botnav'), navH = nav ? nav.getBoundingClientRect().height : 0;
+    var room = window.innerHeight - navH - (el.getBoundingClientRect().top + window.scrollY) - 14;   // від верху сторінки: не стрибає під час прокрутки
+    el.style.maxHeight = Math.max(110, Math.round(room)) + 'px';
+  }
+  window.addEventListener('resize', fitLog);
   function bindSkills(){
     var col = $('btSkills'); if(!col) return;
     col.addEventListener('click', function(e){
@@ -2092,11 +2103,13 @@ window.SKHERO = (function(){
       var id = b.getAttribute('data-skb-use'), why = SB.skillBlock(B, id);
       // вибір лишається, доки гравець його не змінить: вміння б'є щоходу, коли доступне
       if(B.me.skill===id){ SB.useSkill(ctx(), B, null); }
-      else if(!SB.useSkill(ctx(), B, id)){ if(why==='used') showToast('✔ Уже використано', 'Це вміння — раз за бій.'); return; }
+      else if(!SB.useSkill(ctx(), B, id)){ if(why==='used') showToast('✔ Уже використано', 'Це вміння — раз за бій.');
+        else if(why==='swap') showToast('🔁 Ти вже перевдягнувся', 'За хід — одна дія: вміння, пояс або перевдягання.');
+        else if(why==='knock') showToast('😵 Тебе збили з ніг', 'Цей хід — без атаки й без спецдій.'); return; }
       else if(why==='cd') showToast('⏳ Перезарядка', 'Обрано — спрацює, щойно перезарядиться (ще '+((B.me.cd||{})[id]-B.round+1)+' хід.).');
       else if(why==='mana') showToast('💧 Не вистачає мани', 'Обрано — спрацює, коли буде 5 мани.');
       else if(why==='shield') showToast('🛡️ Потрібен щит', 'Обрано — спрацює, коли вдягнеш щит у ліву руку.');
-      saveBattle(); if(window.SKBOOK) SKBOOK.paintBattle(B);
+      saveBattle(); if(window.SKBOOK) SKBOOK.paintBattle(B); paintBelt();
     });
   }
   function bindBelt(){
@@ -2105,7 +2118,7 @@ window.SKHERO = (function(){
       var b = e.target.closest('[data-belt-uid]'); if(!b || b.disabled || !B || !live() || UI.resolving) return;
       var uid = b.getAttribute('data-belt-uid');
       if(!SB.useBelt(ctx(), B, B.me.use===uid ? null : uid)) return;
-      saveBattle(); paintBelt(); if(invOpen()) renderInv();
+      saveBattle(); paintBelt(); if(window.SKBOOK) SKBOOK.paintBattle(B); if(invOpen()) renderInv();
     });
   }
   /* ── значки ефектів: позитивні (зелений стовпчик) і негативні (червоний) ──
@@ -2717,7 +2730,7 @@ window.SKHERO = (function(){
     if(k.kind==='buff') return '<span class="ln use">Ти: '+nm+': <span class="g">лють! +'+k.dmgPct+'% урону, −'+k.armorCut+'% броні на '+k.turns+(k.turns<5?' ходи':' ходів')+'</span><span class="dice">🎲 '+k.roll+' ≤ '+k.need+'%</span></span>';
     var t = k.kind==='fail' ? '<span class="b">не вдалося</span>'
       : k.kind==='block' ? '<span class="b">заблоковано</span>'
-      : '<span class="g">влучив</span> (−'+dmgHtml(k.dmg, k.magDmg||0)+')' + (k.knock ? ' · <span class="crit">збив з ніг 😵</span> — суперник пропустить удар' : '');
+      : '<span class="g">влучив</span> (−'+dmgHtml(k.dmg, k.magDmg||0)+')' + (k.knock ? ' · <span class="crit">збив з ніг 😵</span> — суперник пропустить удар' : k.knockImmune ? ' · <span class="b">не збити з ніг — суперник ще оговтується (імунітет)</span>' : k.knockHalf ? ' · <span class="b">суперник щойно підвівся: шанс збити з ніг навпіл</span>' : '');
     return '<span class="ln use">Ти: '+nm+' → '+ZONE_UA[e.me.atk]+': '+t+(k.mana ? ' <span style="opacity:.75">(−'+k.mana+' мани)</span>' : '')+dice+'</span>';
   }
   /* Кожен удар — окремим рядком журналу: рядок N = мій удар N · удар суперника N.
@@ -3432,6 +3445,8 @@ window.SKHERO = (function(){
   /* ── прив'язки ── */
   function wire(){
     bindKnight(); bindGuard(); bindBelt(); bindSkills();
+    var rl = document.querySelector('.rlog'); if(rl) rl.addEventListener('toggle', fitLog);
+    setInterval(fitLog, 1500);
     $('strikeBtn').addEventListener('click', resolve);
     $('logSimple').addEventListener('click', function(){ setLogMode('simple'); });
     $('logFull').addEventListener('click', function(){ setLogMode('full'); });
@@ -3685,8 +3700,8 @@ window.SKHERO = (function(){
 </script>
 
 <script src="sk-items.js?v=13"></script>
-<script src="sk-skills.js?v=14"></script>
-<script src="sk-book.js?v=7"></script>
+<script src="sk-skills.js?v=15"></script>
+<script src="sk-book.js?v=8"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
    Дані ЗАРАЗ demo (локально). Крок 2: джерело речей → Firestore (адмінка).

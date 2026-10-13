@@ -132,10 +132,21 @@
     if (bz) o.armor = Math.round(num(o.armor) * (1 - V(st, 'knight.berserk', 'armorCut') / 100));
     return o;
   }
+  /* ── ОДНА СПЕЦДІЯ ЗА ХІД: вміння, АБО річ із пояса, АБО перевдягання ──
+     Вибір вміння знімає вибір пояса й навпаки; перевдягання знімає обидва,
+     і після нього цього ходу ні вміння, ні пояс уже не обрати. */
+  /* ОГЛУШЕННЯ (збити з ніг): оглушений цього ходу не атакує й не робить спецдії
+     (ні вміння, ні пояс, ні перевдягання). Імунітет: поки лежить — нового оглушення немає,
+     ходом пізніше — шанс навпіл, ще ходом пізніше — як завжди (skillStrike) */
+  function knockedNow(st, u) { return !!(u && u.fx && u.fx.knock === st.round); }
+  function beltChosen(st) { return !!(st.me.use && st.me.useRound === st.round); }
+  function swapped(st) { return st.swapRound === st.round && !beltChosen(st); }   // старі бої: пояс теж ставив swapRound
   /* чому активне вміння зараз не можна ('' — можна) */
   function skillBlock(st, id) {
     if (!isLive(st)) return 'over';
     if ((st.me.bar || []).indexOf(id) < 0 || !hasSk(st, id)) return 'none';
+    if (knockedNow(st, st.me)) return 'knock';                   // оглушений — спецдій немає
+    if (swapped(st)) return 'swap';                              // цього ходу вже перевдягнувся
     var cd = (st.me.cd || {})[id];
     if (cd && st.round <= cd) return 'cd';
     if ((st.me.once || {})[id]) return 'used';                    // раз за бій (Берсерк) — уже було
@@ -150,6 +161,7 @@
     if (id == null) { if (st.me.skill) { st.me.skill = null; st.rev++; return true; } return false; }
     var why = skillBlock(st, id);
     if (why && why !== 'cd' && why !== 'mana' && why !== 'shield') return false;
+    if (beltChosen(st)) { st.me.use = null; st.swapRound = 0; }   // вміння замість речі з пояса
     st.me.skill = id; st.rev++;
     return true;
   }
@@ -183,9 +195,17 @@
     rec.calc = (magic ? '✨маг. ' : '') + raw + (defV > 0 ? ' × ' + Math.round(pass * 100) + '% (' + (magic ? 'маг. захист ' : 'броня ') + defV + ')' : '')
       + (pctV ? ' × ' + Math.round(100 + pctV) + '%' : '');
     if (!magic) {                                                 // Пінок / Поштовх щитом можуть збити з ніг: суперник пропустить наступний хід
-      var kn = V(st, id, 'knock'), kr = R.d100(rnd);
-      rec.knockNeed = kn; rec.knockRoll = kr;
-      if (kn > 0 && kr <= kn) { rec.knock = true; fxOf(st.op).knock = st.round + 1; }
+      // імунітет після оглушення (fx.knock — хід, коли суперник лежав): поки лежить — збити не можна
+      // (він пропустив би й наступний хід), наступного ходу — шанс навпіл, далі — як завжди
+      var last = num(fxOf(st.op).knock);
+      if (last && last === st.round) rec.knockImmune = true;
+      else {
+        var kn = V(st, id, 'knock');
+        if (last && last === st.round - 1) { kn = Math.round(kn / 2); rec.knockHalf = true; }
+        var kr = R.d100(rnd);
+        rec.knockNeed = kn; rec.knockRoll = kr;
+        if (kn > 0 && kr <= kn) { rec.knock = true; fxOf(st.op).knock = st.round + 1; }
+      }
     }
     return rec;
   }
@@ -255,12 +275,13 @@
   function useBelt(ctx, st, uid) {
     if (!isLive(st)) return false;
     if (uid == null) {
-      if (st.me.use && st.me.useRound === st.round) { st.me.use = null; st.swapRound = 0; st.rev++; return true; }
+      if (beltChosen(st)) { st.me.use = null; st.swapRound = 0; st.rev++; return true; }
       return false;
     }
     var b = beltItem(st, uid);
-    if (!b || b.used || st.swapRound === st.round) return false;
-    st.me.use = uid; st.me.useRound = st.round; st.swapRound = st.round; st.rev++;
+    if (!b || b.used || swapped(st) || knockedNow(st, st.me)) return false;
+    st.me.skill = null;                                            // річ із пояса замість вміння
+    st.me.use = uid; st.me.useRound = st.round; st.swapRound = 0; st.rev++;
     return true;
   }
   /* одна дія з пояса: actor використовує item проти target. Повертає запис для журналу. */
@@ -450,7 +471,8 @@
     // 1) пояс — до ударів. Обидва щось використали — 🎲 хто перший (свиток страху першого
     //    може зірвати дію другого). Бот поясом не користується (st.op.use завжди порожній).
     var acts = [], ur = rng(st.bid + '|' + st.round + '|use');
-    var mi = st.me.use ? beltItem(st, st.me.use) : null;
+    var meKnocked = knockedNow(st, st.me);                         // Героя оглушили — ні пояса, ні вміння, ні удару
+    var mi = st.me.use && !meKnocked ? beltItem(st, st.me.use) : null;
     if (mi && !mi.used) acts.push({ side: 'me', item: mi });
     var oi = st.op.use ? ((st.op.belt || []).filter(function (b) { return b.uid === st.op.use; })[0] || null) : null;
     if (oi && !oi.used) acts.push({ side: 'op', item: oi });
@@ -481,10 +503,10 @@
     var pm = R.buffed ? R.buffed(st.me.p, fm.buffs) : st.me.p, po = R.buffed ? R.buffed(st.op.p, fo.buffs) : st.op.p;
     pm = turnBoost(st, pm);
     var knocked = fo.knock === st.round;                  // Пінок збив з ніг минулого ходу — суперник не атакує
-    var meHit = down ? none('skip') : fm.feared ? none('fear') : R.attack(pm, po, me.atk === op.block, rng(st.bid + '|' + st.round + '|me'));
+    var meHit = down ? none('skip') : fm.feared ? none('fear') : meKnocked ? none('knock') : R.attack(pm, po, me.atk === op.block, rng(st.bid + '|' + st.round + '|me'));
     var opHit = down ? none('skip') : fo.feared ? none('fear') : knocked ? none('knock') : R.attack(po, pm, op.atk === me.block, rng(st.bid + '|' + st.round + '|op'));
     // вміння, що ростуть від ударів
-    if (!down && !fm.feared) {
+    if (!down && !fm.feared && !meKnocked) {
       // удар зброєю: влучив — вдале, промах / блок / ухилення — невдале
       var wsk = weaponSkill(st);
       (meHit.hits || []).forEach(function (h) {
@@ -535,6 +557,7 @@
     if (uses.length) e.uses = uses;
     if (skillRec) e.skill = skillRec;
     if (knocked) e.knocked = true;
+    if (meKnocked) e.meKnocked = true;
     if (first) e.first = first;
     st.log.push(e);
     st.rev++;
@@ -562,7 +585,7 @@
      Повертає текст для журналу або null. Здоров'я від речі — лише максимум. */
   function activeIn(st, slot) { return (st.me.eq || []).filter(function (e) { return !e.off && e.slot === slot; })[0] || null; }
   function swap(ctx, st, slot, inst, base) {
-    if (!isLive(st) || st.swapRound === st.round || !slot) return null;
+    if (!isLive(st) || swapped(st) || knockedNow(st, st.me) || !slot) return null;
     var R = ctx.R, w = st.wear, cur = activeIn(st, slot);
     if (!cur && !inst) return null;
     if (cur) { cur.w1 = wearOf(ctx, cur, w); cur.off = true; }
@@ -587,6 +610,7 @@
     var np = profile(ctx, st);
     st.me.p = np; st.me.max = np.hp; st.me.force = Math.min(st.me.force, np.hp);
     st.swapRound = st.round;
+    st.me.use = null; st.me.skill = null;                          // перевдягання — і є дія ходу: пояс і вміння знято
     var nm = function (x) { return (x && x.base && x.base.name) || ''; };
     var text = (cur ? (inst ? '«' + nm(cur) + '» → «' + base.name + '»' : 'зняв «' + nm(cur) + '»') : 'вдягнув «' + base.name + '»')
       + (also ? ' (знято «' + nm(also) + '»)' : '');
@@ -716,7 +740,7 @@
     create: create, botChoice: botChoice, autoChoice: autoChoice, turn: turn, catchUp: catchUp,
     swap: swap, useBelt: useBelt, beltItem: beltItem, beltLite: beltLite, applyUse: applyUse, fxOf: fxOf,
     surrender: surrender, finish: finish, applyToHero: applyToHero, lockLive: lockLive, noticeText: noticeText,
-    SKILL: SKILL, useSkill: useSkill, skillBlock: skillBlock, berserkOn: berserkOn
+    SKILL: SKILL, useSkill: useSkill, skillBlock: skillBlock, berserkOn: berserkOn, swapped: swapped, beltChosen: beltChosen, knockedNow: knockedNow
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   root.SKBATTLE = API;

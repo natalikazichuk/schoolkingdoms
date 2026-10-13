@@ -107,7 +107,7 @@ test('щит: блок шансом речей зі щитом теж дає в�
 });
 
 test('концентрація: спокійні ходи → рівні до стелі, +5% урону за рівень; урон скидає', () => {
-  const st = battle({ 'base.focus': 100 }, { opAcc: 1 });   // суперник майже не влучає
+  const st = battle({ 'base.focus': 100 }, { opAcc: 1, bid: 'f100' });   // суперник майже не влучає; сталий бій — без випадкових падінь тесту
   for (let t = 0; t < 10; t++) hit(st);
   assert.ok(st.me.fx.focus >= 3 && st.me.fx.focus <= 5, 'рівень ' + st.me.fx.focus);
   const low = battle({ 'base.focus': 25 }, { opAcc: 1, bid: 'f25' });
