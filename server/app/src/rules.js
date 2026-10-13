@@ -14,7 +14,7 @@ function pairId(a, b) { return a < b ? a + '__' + b : b + '__' + a; }
 
 /* Поля книги вмінь героя змінює лише сервер (src/skills.js): браузер не може
    ні записати їх при створенні героя, ні змінити пізніше. */
-const HERO_PROTECTED = ['skills', 'skillBar', 'heroClass', 'skillBonus', 'skillGrowIds', 'skillFails'];
+const HERO_PROTECTED = ['skills', 'skillBar', 'heroClass', 'skillBonus', 'skillGrowIds', 'skillFails', 'skillTrade'];
 function canon(v) {
   if (Array.isArray(v)) return '[' + v.map(canon).join(',') + ']';
   if (v && typeof v === 'object') return '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + canon(v[k])).join(',') + '}';

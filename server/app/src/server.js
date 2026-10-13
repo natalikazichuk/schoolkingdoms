@@ -374,6 +374,7 @@ const ROUTES = {
   'POST /api/skills/bar': skillRoute(skills.setBar),
   'POST /api/skills/class': skillRoute(skills.chooseClass),
   'POST /api/skills/grow': skillRoute(skills.growAfterBattle),
+  'POST /api/skills/trade': skillRoute(skills.growTrade),
   'GET /api/admin/collections': (req, user) => adminCollections(user),
   'POST /api/admin/docs': (req, user, b) => adminDocs(user, b),
   'POST /api/admin/doc': (req, user, b) => adminDoc(user, b),
