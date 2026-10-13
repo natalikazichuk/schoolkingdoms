@@ -340,7 +340,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
         <div class="sechead"><span class="badge">3</span>Завдання на аркуші</div>
         <textarea id="txt" spellcheck="false" placeholder="# Обчисли.&#10;3 + 4 = [7]&#10;6 · 7 = [42]&#10;17 : 5 = [3] (ост. [2])&#10;5 [&gt;] 3"></textarea>
         <div class="warn" id="warn"></div>
-        <div class="tip">💡 Параметри змінюють останній розділ, «＋ Додати розділ» — додає новий. Текст можна редагувати: рядок з «#» — заголовок, у [дужках] — відповідь (на аркуші — віконце).</div>
+        <div class="tip">💡 Параметри змінюють останній розділ, «＋ Додати розділ» — додає новий. Текст можна редагувати: рядок з «#» — заголовок, у [дужках] — відповідь (на аркуші — віконце), «стовп:» на початку — приклад у стовпчик.</div>
       </div>
   </section>
 
@@ -597,7 +597,41 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
         if(b<0) b=a+1;
         return a+' ['+cmpSign(a,b)+'] '+b;
       }}
+,
+
+    /* ===== В стовпчик (рядок «стовп: …») ===== */
+    {id:'c2colA', cls:2, col:true, g:'В стовпчик', k:'Додавання в стовпчик', h:'Обчисли в стовпчик.', lims:[100],
+      f:function(){ var a=ri(10,89), b=ri(10,Math.max(10,100-a)); if(a+b>100) return null; return colLine(a,'+',b); }},
+    {id:'c2colS', cls:2, col:true, k:'Віднімання в стовпчик', h:'Обчисли в стовпчик.', lims:[100],
+      f:function(){ var a=ri(21,99), b=ri(10,a-1); return colLine(a,MINUS,b); }},
+    {id:'c3colA', cls:3, col:true, g:'В стовпчик', k:'Додавання і віднімання в стовпчик', h:'Обчисли в стовпчик.', lims:[1000],
+      f:function(){
+        if(Math.random()<0.5){ var a=ri(100,899), b=ri(Math.min(100,1000-a),1000-a); return colLine(a,'+',b); }
+        var m=ri(200,999), n=ri(100,m-1); return colLine(m,MINUS,n);
+      }},
+    {id:'c3colM', cls:3, col:true, k:'Множення в стовпчик', h:'Обчисли в стовпчик.', lims:[1000],
+      f:function(){ var b=ri(2,9), a=ri(12,Math.floor(999/b)); return colLine(a,'·',b); }},
+    {id:'c3colD', cls:3, col:true, k:'Ділення кутом', h:'Виконай ділення кутом.', lims:[1000],
+      f:function(){ var b=ri(2,9), q=ri(12,Math.floor(999/b)); return colLine(q*b,':',b); }},
+    {id:'c4colA', cls:4, col:true, g:'В стовпчик', k:'Додавання і віднімання в стовпчик', h:'Обчисли в стовпчик.', lims:[10000,100000,1000000],
+      f:function(L){
+        if(Math.random()<0.5){ var s=ri(Math.floor(L/10),L), a=ri(Math.floor(s*0.1),Math.floor(s*0.9)); return colLine(a,'+',s-a); }
+        var m=ri(Math.floor(L/10),L), n=ri(Math.floor(m*0.1),Math.floor(m*0.9)); return colLine(m,MINUS,n);
+      }},
+    {id:'c4colM1', cls:4, col:true, k:'Множення на одноцифрове в стовпчик', h:'Обчисли в стовпчик.', lims:[1000,10000,100000],
+      f:function(L){ return colLine(ri(Math.floor(L/10)+1,L-1),'·',ri(2,9)); }},
+    {id:'c4colM2', cls:4, col:true, k:'Множення на двоцифрове в стовпчик', h:'Обчисли в стовпчик.', lims:[100,1000], ll:['двоцифрове × двоцифрове','трицифрове × двоцифрове'],
+      f:function(L){ var b=ri(11,99); if(b%10===0) return null; return colLine(ri(Math.max(12,Math.floor(L/10)),L-1),'·',b); }},
+    {id:'c4colD1', cls:4, col:true, k:'Ділення кутом на одноцифрове', h:'Виконай ділення кутом.', lims:[1000,10000],
+      f:function(L){ var b=ri(2,9), q=ri(Math.max(12,Math.floor(L/100)),Math.floor((L-1)/b)); return colLine(q*b,':',b); }},
+    {id:'c4colD2', cls:4, col:true, k:'Ділення кутом на двоцифрове', h:'Виконай ділення кутом.', lims:[1000,10000],
+      f:function(L){ var b=ri(11,99), hi=Math.floor((L-1)/b), q=ri(hi>=11?11:2,hi); return colLine(q*b,':',b); }}
   ];
+  /* рядок прикладу в стовпчик: «стовп: 456 + 278 = [734]» */
+  function colLine(a,op,b){
+    var r = op==='+'?a+b : op===MINUS?a-b : op==='·'?a*b : a/b;
+    return 'стовп: '+a+' '+op+' '+b+' = ['+r+']';
+  }
   /* пара для таблиці множення: перший множник до L, другий 2…9 (1…10 для ×10) */
   function tablePair(L){
     var lo=L>=10?1:2, hi=L>=10?10:9, a=ri(2,Math.min(L,9)), b=ri(lo,hi);
@@ -612,7 +646,8 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
   }
   function generateSection(){
     var t=TYPES_BY[state.type], L=effLim(t), out=[], seen={}, tries=0;
-    while(out.length<state.count && tries<600){
+    var cnt = t.col ? Math.min(state.count, 12) : state.count;   /* приклади в стовпчик займають більше місця */
+    while(out.length<cnt && tries<600){
       tries++;
       var s=t.f(L); if(!s) continue;
       if(seen[s] && tries<400) continue;
@@ -639,11 +674,25 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     txt.value.replace(/\r/g,'').split('\n').forEach(function(raw){
       var s=raw.trim(); if(!s) return;
       if(s[0]==='#'){ cur={head:s.replace(/^#+\s*/,''), tasks:[]}; secs.push(cur); return; }
-      var toks=parseLine(s); if(!toks.length) return;
+      var cm=s.match(/^стовп(?:чик)?\s*:\s*(.*)$/i), ct=cm && parseCol(cm[1]);
+      var toks=ct || parseLine(cm?cm[1]:s); if(!toks.length && !ct) return;
       if(!cur){ cur={head:'', tasks:[]}; secs.push(cur); }
       cur.tasks.push(toks);
     });
     return secs;
+  }
+  /* приклад у стовпчик: a op b = [r]; відповідь без дужок рахуємо самі */
+  function parseCol(str){
+    var t=parseLine(str);
+    if(t.length<3 || t[0].k!=='num' || t[1].k!=='op' || t[2].k!=='num') return null;
+    var a=t[0].v, op=t[1].v, b=t[2].v, A=+a, B=+b, r=null;
+    if('+−·:'.indexOf(op)<0) return null;
+    for(var i=3;i<t.length;i++) if(t[i].k==='box' && /^\d+$/.test(t[i].v)) r=t[i].v;
+    if(r===null){
+      var v = op==='+'?A+B : op===MINUS?A-B : op==='·'?A*B : A/B;
+      if(v<0 || v!==Math.floor(v)) return null; r=String(v);
+    }
+    return {col:true, a:a, op:op, b:b, r:r};
   }
   function tlen(toks){ var n=0; toks.forEach(function(t){ n+=t.n; }); return n; }
 
@@ -703,6 +752,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     else if(o==='=') d="M"+(cx-a)+","+(cy-a*0.42)+" H"+(cx+a)+" M"+(cx-a)+","+(cy+a*0.42)+" H"+(cx+a);
     else if(o==='<') d="M"+(cx+a*0.8)+","+(cy-a)+" L"+(cx-a*0.8)+","+cy+" L"+(cx+a*0.8)+","+(cy+a);
     else if(o==='>') d="M"+(cx-a*0.8)+","+(cy-a)+" L"+(cx+a*0.8)+","+cy+" L"+(cx-a*0.8)+","+(cy+a);
+    else if(o==='×') d="M"+(cx-a*0.75)+","+(cy-a*0.75)+" L"+(cx+a*0.75)+","+(cy+a*0.75)+" M"+(cx+a*0.75)+","+(cy-a*0.75)+" L"+(cx-a*0.75)+","+(cy+a*0.75);
     else if(o==='(') d="M"+(cx+a*0.5)+","+(cy-a*1.45)+" Q"+(cx-a*0.75)+","+cy+" "+(cx+a*0.5)+","+(cy+a*1.45);
     else if(o===')') d="M"+(cx-a*0.5)+","+(cy-a*1.45)+" Q"+(cx+a*0.75)+","+cy+" "+(cx-a*0.5)+","+(cy+a*1.45);
     else if(o==='·'||o===':'){
@@ -876,19 +926,69 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
         if(t.k==='op'){ if(col<cols){ var o=opMark(t.v, cx(col), y, S, 'ink'); if(o) SVG.appendChild(o); } col++; return; }
         /* віконце для відповіді */
         var n=Math.min(t.n, cols-col); if(n<=0){ col+=t.n; return; }
-        var pad=S*0.08;
-        SVG.appendChild(el("rect",{x:M.left+col*S+pad, y:blockTop+row*S+pad, width:n*S-2*pad, height:S-2*pad,
-          rx:S*0.14, fill:decor?"#f6faff":"#ffffff", stroke:BOX_INK, "stroke-width":0.3}));
-        if(state.mode!=='solve' && t.v){
-          var kind=state.mode==='trace'?'dash':'key';
-          for(var j=0;j<t.v.length && j<n;j++){
-            var ch=t.v[j], m;
-            if(HD.hasOwnProperty(ch)) m=digit(ch, cx(col+j), y, h, kind); else m=opMark(ch, cx(col+j), y, S, kind);
-            if(m) SVG.appendChild(m);
-          }
-        }
+        drawBox(col, row, n, t.v, false);
         col+=t.n;
       });
+    }
+    /* віконце рівно по клітинках: по одній клітинці на кожну цифру, межі клітинок видно;
+       right — відповідь притиснута до правого краю (для стовпчика) */
+    function drawBox(col, row, n, v, right){
+      var bx=M.left+col*S, by=blockTop+row*S, y=cy(row);
+      SVG.appendChild(el("rect",{x:bx, y:by, width:n*S, height:S, fill:decor?"#eef5ff":"#ffffff"}));
+      for(var d=1; d<n; d++) SVG.appendChild(line(bx+d*S, by, bx+d*S, by+S, "#9dbbe8", 0.2));
+      SVG.appendChild(el("rect",{x:bx, y:by, width:n*S, height:S, rx:S*0.08, fill:"none", stroke:BOX_INK, "stroke-width":0.4}));
+      if(state.mode==='solve' || !v) return;
+      var kind=state.mode==='trace'?'dash':'key', off=right?Math.max(0,n-v.length):0;
+      for(var j=0;j<v.length && off+j<n;j++){
+        var ch=v[j], m;
+        if(HD.hasOwnProperty(ch)) m=digit(ch, cx(col+off+j), y, h, kind); else m=opMark(ch, cx(col+off+j), y, S, kind);
+        if(m) SVG.appendChild(m);
+      }
+    }
+    function numAt(str, rightCol, row){
+      for(var i=0;i<str.length;i++){ var c=rightCol-(str.length-1-i); if(c>=0&&c<cols) SVG.appendChild(digit(str[i], cx(c), cy(row), h, 'ink')); }
+    }
+    function hrule(c0, c1, rowB){ SVG.appendChild(line(M.left+c0*S, blockTop+rowB*S, M.left+c1*S, blockTop+rowB*S, INK, 0.45)); }
+    /* розміри прикладу в стовпчик (у клітинках) */
+    function colDims(t){
+      var la=t.a.length, lb=t.b.length, lr=t.r.length;
+      if(t.op===':') return {w:la+Math.max(lb,lr)+1, h:Math.max(3,1+2*lr)};
+      var w=Math.max(la,lb,lr)+1;
+      if(t.op==='·' && lb>1) return {w:w, h:3+lb};
+      return {w:w, h:3};
+    }
+    function drawCol(t, c0, r0){
+      var D=colDims(t);
+      if(t.op===':'){
+        /* ділення кутом: ділене | дільник, під дільником — частка */
+        var la=t.a.length, wq=Math.max(t.b.length, t.r.length);
+        numAt(t.a, c0+la-1, r0);
+        numAt(t.b, c0+la+t.b.length-1, r0);
+        drawBox(c0+la, r0+1, t.r.length, t.r, false);
+        /* кут — поверх віконця частки */
+        SVG.appendChild(line(M.left+(c0+la)*S, blockTop+r0*S, M.left+(c0+la)*S, blockTop+(r0+2)*S, INK, 0.4));
+        hrule(c0+la, c0+la+wq, r0+1);
+        return;
+      }
+      var R=c0+D.w-1;                      /* права колонка розрядів */
+      numAt(t.a, R, r0);
+      numAt(t.b, R, r0+1);
+      var o=opMark(t.op==='·'?'×':t.op, cx(c0), cy(r0)+S*0.5, S, 'ink'); if(o) SVG.appendChild(o);
+      if(t.op==='·' && t.b.length>1){
+        /* неповні добутки зі зсувом, потім сума */
+        var A=+t.a;
+        for(var i=0;i<t.b.length;i++){
+          var p=String(A*(+t.b[t.b.length-1-i]));
+          drawBox(R-i-p.length+1, r0+2+i, p.length, p, true);
+        }
+        var pl=opMark('+', cx(c0), cy(r0+2)+S*0.5, S, 'ink'); if(pl) SVG.appendChild(pl);
+        drawBox(c0+1, r0+2+t.b.length, D.w-1, t.r, true);
+        /* риски — поверх віконець, щоб їх було видно */
+        hrule(c0+1, R+1, r0+2); hrule(c0+1, R+1, r0+2+t.b.length);
+        return;
+      }
+      drawBox(c0+1, r0+2, D.w-1, t.r, true);
+      hrule(c0+1, R+1, r0+2);
     }
 
     var secs=parseText(), r=1, dropped=0, total=0, num=0;
@@ -900,7 +1000,25 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
         num++; drawHead((numbered?num+'. ':'')+sec.head, r); r+=2;
       }
       if(!n) return;
-      var maxLen=0; sec.tasks.forEach(function(t){ maxLen=Math.max(maxLen, tlen(t)); });
+      var colT=sec.tasks.filter(function(t){ return t.col; });
+      var inl=sec.tasks.filter(function(t){ return !t.col; });
+      if(inl.length) layInline(inl);
+      if(colT.length) layCols(colT);
+    });
+    function layCols(list){
+      var mw=0, mh=0; list.forEach(function(t){ var d=colDims(t); mw=Math.max(mw,d.w); mh=Math.max(mh,d.h); });
+      var bw=mw+2, bh=mh+1;
+      var C=Math.max(1, Math.min(Math.max(state.cols,2), Math.floor((cols-1)/bw)));
+      for(var i=0;i<list.length;i++){
+        var k=Math.floor(i/C), c=i%C, rr=r+k*bh;
+        if(rr+mh>rows){ dropped++; continue; }
+        drawCol(list[i], 1+c*bw, rr);
+      }
+      r+=Math.ceil(list.length/C)*bh;
+    }
+    function layInline(list){
+      var n=list.length;
+      var maxLen=0; list.forEach(function(t){ maxLen=Math.max(maxLen, tlen(t)); });
       var C=Math.max(1, Math.min(state.cols, Math.floor((cols-1)/(maxLen+1))));
       var colW=Math.floor((cols-1)/C);
       var perCol=Math.ceil(n/C), avail=Math.floor((rows-r+1)/2);
@@ -909,10 +1027,10 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
       for(var i=0;i<n;i++){
         var ci=Math.floor(i/perCol), j=i%perCol;
         if(ci>=C){ dropped++; continue; }
-        drawTask(sec.tasks[i], 1+ci*colW, r+2*j);
+        drawTask(list[i], 1+ci*colW, r+2*j);
       }
       r+=2*perCol+1;
-    });
+    }
     warn.textContent = dropped>0 ? '⚠️ Не вмістилось прикладів: '+dropped+'. Зменш кількість, клітинку або додай стовпчик.' : '';
 
     if(chkSelf.checked) drawSelf(gridBottom+3.5, total-dropped);
