@@ -119,6 +119,20 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.2px;ma
 .tile.lit{outline:4px solid #fff;outline-offset:-4px;transform:scale(1.06)}
 .c0{background:var(--red)}.c1{background:var(--orange)}.c2{background:var(--green)}
 .c3{background:var(--blue)}.c4{background:var(--purple)}.c5{background:#d98cb3}
+@media(max-width:520px){
+  /* телефон: компактна сітка 6×6, щоб уся абетка й кнопки влазили на один екран */
+  #board .hero-h1{font-size:clamp(22px,6.6vw,28px);padding:0 46px}
+  #board .hero-p{font-size:13px;margin:2px 0 10px;line-height:1.3}
+  .abc{grid-template-columns:repeat(6,1fr);gap:7px}
+  .tile{border-radius:12px;font-size:clamp(20px,6vw,28px);box-shadow:0 4px 0 rgba(0,0,0,.16)}
+  #board .listen-row{margin:12px 0 0}
+  #board .listen-row + .listen-row{margin-top:10px}
+  #board .pill{padding:11px;font-size:15px}
+}
+@media(max-width:340px){
+  .abc{gap:5px}
+  .tile{border-radius:10px}
+}
 
 .listen-row{display:flex;gap:10px;margin:16px 0 6px}
 .pill{flex:1;border:none;border-radius:16px;padding:13px;font-family:'Fredoka';font-size:16px;color:#fff;
@@ -173,6 +187,20 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.2px;ma
 .hud{display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-weight:800;color:var(--ink-soft);font-size:14px}
 .hud .streak{color:var(--orange)}
 .hud .best{color:var(--purple)}
+/* серія з 5 прикладів: крапки прогресу */
+.steps{display:flex;gap:7px;justify-content:center;margin:0 0 12px}
+.steps i{width:30px;height:10px;border-radius:999px;background:#e9e0d0;display:block;transition:background .2s}
+.steps i.cur{background:#cdbfa6;box-shadow:0 0 0 2px var(--blue)}
+.steps i.ok{background:var(--good)}
+.steps i.no{background:var(--bad)}
+.res{background:#fff;border:2px solid var(--line);border-radius:20px;padding:22px 16px;box-shadow:var(--shadow);
+  text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px}
+.res .r-ic{font-size:54px;line-height:1}
+.res h2{font-size:24px;color:var(--ink)}
+.res p{margin:0;color:var(--ink-soft);font-weight:700;font-size:15px}
+.res .steps{margin:4px 0}
+.res .next-btn{margin-top:6px}
+.res .next-btn.blue{background:var(--blue);box-shadow:0 5px 0 #3a72a6}
 
 .next-btn{margin-top:16px;width:100%;border:none;border-radius:16px;background:var(--green);color:#fff;
   font-family:'Fredoka';font-size:17px;padding:14px;cursor:pointer;box-shadow:0 5px 0 #37876a}
@@ -249,12 +277,13 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.2px;ma
   <!-- ================= РОЗДІЛ 2: ІГРИ ================= -->
   <section id="games" class="screen">
     <h1 class="hero-h1">Ігри на порядок букв</h1>
-    <p class="hero-p">У кожній грі дай <b>5 правильних відповідей поспіль</b> — і отримаєш нагороду!</p>
+    <p class="hero-p">У кожній грі <b>5 прикладів</b>. Розв'яжи всі 5 без помилок — гру пройдено! Пройди всі ігри — отримаєш нагороду 🏆</p>
     <div class="games" id="gamesList"></div>
   </section>
 
   <!-- ================= ГРА: спільний шаблон ================= -->
   <section id="game" class="screen">
+    <div class="steps" id="gSteps"></div>
     <div class="q">
       <div class="q-lbl" id="qLbl"></div>
       <div class="big" id="qBig"></div>
@@ -266,7 +295,8 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.2px;ma
       <span class="streak" id="hudStreak">🔥 0</span>
       <span class="best" id="hudBest"></span>
     </div>
-    <button class="next-btn" id="nextBtn" style="display:none" onclick="G.next()">Далі →</button>
+    <button class="next-btn" id="nextBtn" style="display:none" onclick="nextExample()">Далі →</button>
+    <div class="res" id="gRes" style="display:none"></div>
   </section>
 
 </div>
@@ -323,7 +353,9 @@ function distractors(n,exclude){
   var pool=ALPHA.filter(function(l){ return exclude.indexOf(l)<0; });
   return shuffle(pool).slice(0,n);
 }
-/* Гра пройдена — GOAL правильних поспіль; усі ігри пройдено → тренажер пройдено. */
+/* Кожна гра — серія з GOAL обов'язкових прикладів. Гру пройдено, коли всі GOAL
+   розв'язано з першої спроби; усі ігри пройдено → тренажер пройдено (нагорода).
+   bestKey зберігає найкращий результат серії (0..GOAL), GOAL = пройдено. */
 var GOAL=5;
 var PRIZE_KEY="sk_abetka_prize_v1";     // нагороду отримано (і що саме)
 var TR_HREF="vchymo-abetku.html";       // за цим іменем sk-rewards шукає нагороду з адмінки
@@ -373,14 +405,16 @@ function buildGamesList(){
     el.className="gcard";
     el.innerHTML='<span class="em" style="background:'+g.color+'">'+g.em+'</span>'+
       '<span class="gt"><b>'+g.name+'</b><span>'+g.desc+'</span></span>'+
-      (best>=GOAL?'<span class="ok">✓ ★ '+best+'</span>':best?'<span class="star">★ '+best+'</span>':'<span class="arw">→</span>');
+      (best>=GOAL?'<span class="ok">✓ '+GOAL+'/'+GOAL+'</span>':best?'<span class="star">★ '+best+'/'+GOAL+'</span>':'<span class="arw">→</span>');
     el.onclick=function(){ startGame(g.id); };
     host.appendChild(el);
   });
 }
 
 /* ============ ДВИГУН ГРИ ============ */
-var G={ id:null, streak:0, next:function(){} };
+/* n — номер прикладу (0..GOAL-1), res — результати прикладів (true/false),
+   err — у поточному прикладі була помилка, answered — приклад уже розв'язано */
+var G={ id:null, n:0, res:[], err:false, answered:false };
 
 function showScreen(id){
   document.querySelectorAll(".screen").forEach(function(s){ s.classList.toggle("on", s.id===id); });
@@ -432,30 +466,77 @@ function checkPrize(){
 
 function startGame(id){
   var g=GAMES.find(function(x){return x.id===id;});
-  G.id=id; G.streak=0; setTitle(g.name);
-  paintBest();
-  updateHud(); showScreen("game");
+  G.id=id; G.n=0; G.res=[]; setTitle(g.name);
+  ["gSteps","fb"].forEach(function(k){ document.getElementById(k).style.display=""; });
+  document.querySelector("#game .q").style.display="";
+  document.querySelector("#game .hud").style.display="";
+  document.getElementById("gRes").style.display="none";
+  paintBest(); updateHud(); showScreen("game");
   rounds[id]();
 }
 function paintBest(){
   var b=getBest(G.id);
-  document.getElementById("hudBest").textContent = b>=GOAL ? ("✓ Рекорд: "+b) : ("Рекорд: "+b+" · ціль "+GOAL);
+  document.getElementById("hudBest").textContent = b>=GOAL ? "✓ Гру пройдено" : ("Рекорд: "+b+" з "+GOAL);
 }
-function updateHud(){ document.getElementById("hudStreak").textContent="🔥 "+G.streak; }
+function stepsHtml(res, cur){
+  var h="";
+  for(var k=0;k<GOAL;k++){
+    var c = k<res.length ? (res[k]?"ok":"no") : (k===cur?"cur":"");
+    h+='<i class="'+c+'"></i>';
+  }
+  return h;
+}
+function updateHud(){
+  document.getElementById("hudStreak").textContent="Приклад "+Math.min(G.n+1,GOAL)+" з "+GOAL;
+  document.getElementById("gSteps").innerHTML=stepsHtml(G.res, G.n);
+}
 function win(msg){
-  G.streak++; if(G.streak>getBest(G.id)) setBest(G.id,G.streak);
-  paintBest();
+  if(G.answered) return;                    // повторний дотик не рахується двічі
+  G.answered=true;
+  G.res.push(!G.err);
   updateHud();
-  if(window.skReportProgress) skReportProgress(passedCount(), GAMES.length);
-  checkPrize();
-  var fb=document.getElementById("fb"); fb.className="fb good"; fb.textContent=msg||"Правильно! 🎉";
-  document.getElementById("nextBtn").style.display="block";
+  var fb=document.getElementById("fb"); fb.className="fb good";
+  fb.textContent = G.err ? "Тепер правильно! Але з помилкою — цей приклад не зараховано." : (msg||"Правильно! 🎉");
+  var nb=document.getElementById("nextBtn");
+  nb.textContent = G.n+1>=GOAL ? "Результат ✓" : "Далі →";
+  nb.style.display="block";
 }
 function miss(){
-  G.streak=0; updateHud();
+  G.err=true;
   var fb=document.getElementById("fb"); fb.className="fb bad"; fb.textContent="Спробуй ще раз 🙂";
 }
+function nextExample(){
+  if(!G.answered) return;
+  G.n++;
+  if(G.n>=GOAL){ finishGame(); return; }
+  updateHud(); rounds[G.id]();
+}
+/* кінець серії: усі GOAL без помилок → гру пройдено */
+function finishGame(){
+  stopAll();
+  var ok=G.res.filter(Boolean).length, perfect=ok>=GOAL;
+  setBest(G.id, ok);
+  if(window.skReportProgress) skReportProgress(passedCount(), GAMES.length);
+  ["gSteps","fb","nextBtn"].forEach(function(k){ document.getElementById(k).style.display="none"; });
+  document.querySelector("#game .q").style.display="none";
+  document.querySelector("#game .hud").style.display="none";
+  var left=GAMES.length-passedCount();
+  var box=document.getElementById("gRes");
+  box.innerHTML = perfect
+    ? '<div class="r-ic">🏅</div><h2>Гру пройдено!</h2><div class="steps">'+stepsHtml(G.res,-1)+'</div>'+
+      '<p>Усі '+GOAL+' прикладів правильно — молодець!</p>'+
+      '<p>'+(left>0 ? "Залишилось ігор: "+left+" — пройди всі, щоб отримати нагороду 🏆" : "🎉 Усі ігри пройдено!")+'</p>'+
+      '<button class="next-btn" onclick="goGames()">🎮 До ігор</button>'
+    : '<div class="r-ic">💪</div><h2>Правильно '+ok+' з '+GOAL+'</h2><div class="steps">'+stepsHtml(G.res,-1)+'</div>'+
+      '<p>Щоб пройти гру, розв\'яжи всі '+GOAL+' прикладів без помилок.</p>'+
+      '<button class="next-btn" onclick="startGame(G.id)">🔄 Спробувати ще раз</button>'+
+      '<button class="next-btn blue" onclick="goGames()">🎮 До ігор</button>';
+  box.style.display="flex";
+  window.scrollTo(0,0);
+  if(perfect) checkPrize();
+}
 function clearGameUI(){
+  G.err=false; G.answered=false;
   document.getElementById("fb").textContent=""; document.getElementById("fb").className="fb";
   document.getElementById("nextBtn").style.display="none";
   document.getElementById("qBig").innerHTML="";
@@ -474,7 +555,7 @@ rounds.next=function(){
   document.getElementById("qBig").innerHTML='<div class="cell fix">'+cur+'</div><div class="cell">?</div>';
   speakLetter(cur);
   var opts=shuffle([ans].concat(distractors(3,[cur,ans])));
-  renderOpts(opts, ans, function(){ G.next=rounds.next; win("Так! Після "+cur+" — "+ans+" 🎉"); });
+  renderOpts(opts, ans, function(){ win("Так! Після "+cur+" — "+ans+" 🎉"); });
 };
 
 /* --- 2. РОЗКЛАДИ ПО ПОРЯДКУ --- */
@@ -494,7 +575,7 @@ rounds.order=function(){
       if(l===run[need]){
         speakLetter(l); b.classList.add("done");
         var cell=big.children[need]; cell.className="cell filled"; cell.textContent=l; need++;
-        if(need===run.length){ G.next=rounds.order; win("Абетка складена! 🎉"); }
+        if(need===run.length){ win("Абетка складена! 🎉"); }
       } else { b.classList.remove("wrong"); void b.offsetWidth; b.classList.add("wrong"); miss(); }
     };
     sc.appendChild(b);
@@ -519,7 +600,7 @@ rounds.lost=function(){
   var opts=shuffle([ans].concat(distractors(3,run)));
   renderOpts(opts, ans, function(){
     big.children[gpos].className="cell filled"; big.children[gpos].textContent=ans;
-    G.next=rounds.lost; win("Знайшлась! Це буква "+ans+" 🎉");
+    win("Знайшлась! Це буква "+ans+" 🎉");
   });
 };
 
@@ -541,7 +622,7 @@ rounds.neigh=function(){
     renderOpts(opts, target, function(){
       if(phase===0){ var c=document.getElementById("cBef"); c.className="cell filled"; c.textContent=bef; phase=1; ask(); }
       else { var c2=document.getElementById("cAft"); c2.className="cell filled"; c2.textContent=aft;
-             G.next=rounds.neigh; win("Сусіди на місцях: "+bef+" "+mid+" "+aft+" 🎉"); }
+             win("Сусіди на місцях: "+bef+" "+mid+" "+aft+" 🎉"); }
     });
   }
   ask();
@@ -564,7 +645,7 @@ rounds.race=function(){
         speakLetter(l); b.classList.add("done"); need++;
         if(need===seg.length){
           var secs=((Date.now()-t0)/1000).toFixed(1);
-          G.next=rounds.race; win("Готово за "+secs+" с! 🏁 ("+seg[0]+"…"+seg[seg.length-1]+")");
+          win("Готово за "+secs+" с! 🏁 ("+seg[0]+"…"+seg[seg.length-1]+")");
         }
       } else { b.classList.remove("wrong"); void b.offsetWidth; b.classList.add("wrong"); miss(); }
     };
