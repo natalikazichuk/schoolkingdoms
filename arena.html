@@ -238,6 +238,12 @@ button{font-family:inherit}
 .sh-grp button.none:not(.on){opacity:.4}
 .sh-grp.store{margin:0 0 8px;justify-content:flex-start}
 .sh-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.sh-sth{flex-wrap:wrap;row-gap:6px}
+.sh-sth .sh-stt{white-space:nowrap;margin-right:4px}
+.sh-sth .sh-tabs{margin:0}
+.sh-sth .sh-tab{font-family:'Nunito',sans-serif;padding:4px 9px}
+.sh-sth .sh-tab small{font-size:.66rem;opacity:.8;color:inherit;font-family:inherit}
+.sh-sth.ico .shl{display:none}
 .sh-tab.soon{opacity:.72;border-style:dashed}
 .sh-tab{border:1.5px solid rgba(255,255,255,.18);border-radius:999px;padding:4px 11px;font-size:.74rem;font-weight:900;cursor:pointer;
   background:rgba(255,255,255,.06);color:#eaf2ff;font-family:inherit}
@@ -1581,7 +1587,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
       <span class="sh-note">Товари оновлюються щодня опівночі (Київ) · речі — по 1 шт., зілля й свитки — кілька · викуп — останні 20 проданих</span>
       <button class="ward-x" id="shopX" aria-label="Вийти з магазину">✕</button></div>
     <div class="shop-body">
-      <section class="sh-col store"><h3>🏪 Товари</h3><div class="sh-tabs" id="shTabs"></div><div id="shStore"></div></section>
+      <section class="sh-col store"><h3 class="sh-sth"><span class="sh-stt">🏪 Товари</span><span class="sh-tabs" id="shTabs"></span></h3><div id="shStore"></div></section>
       <section class="sh-col counter"><h3>🧾 Прилавок</h3><div id="shCounter"></div></section>
       <section class="sh-col inv"><h3><span class="sh-grp" id="shBagTabs"></span><span class="sh-bagt">🎒 Сумка <small id="shBagCnt"></small></span></h3><div id="shInv"></div>
         <div class="sh-hint">Натисни річ — вона одразу на прилавку для продажу (стопку зілль — по одній штуці за натискання); права кнопка (на телефоні — довге натискання) — роздивитись, продати всю стопку або 🗑 викинути. Продаємо лише речі із сумки — вдягнене спершу зніми.</div></section>
@@ -4363,10 +4369,16 @@ function renderInv(){
     return '<button type="button" class="sh-item '+t.cls+(used?' used':'')+'" data-sell="'+esc(i.uid)+'" title="'+(used?'На прилавку — натисни ще раз, щоб забрати назад · ':(part?'На прилавку '+n+' з '+qn+' — натисни, щоб додати ще одну · ':''))+esc(b.name+' — '+statLine(b,i))+'">'
      +'<span class="ic">'+t.html+'</span>'+(part?'<span class="sh-on">🧾 '+n+'</span>':'')+'<span class="nm">'+esc(b.name)+'</span>'
      +'<span class="act sell">продати</span><span class="pr sell">+'+coinsH(unitPrice(i))+(qn>1?'<small> /шт</small>':'')+'</span></button>';}).join('')+'</div>';}
+/* вкладки товарів — у рядку із заголовком «Товари»; не влазять — лише значки з числами */
+function fitShTabs(){var t=q('shTabs'),h=t&&t.parentNode;if(!h||!h.clientWidth)return;h.classList.remove('ico');
+  if(t.offsetTop>h.firstChild.offsetTop+4)h.classList.add('ico');}
+window.addEventListener('resize',fitShTabs);
 function renderStore(){
   var st=S.stock,sold=S.st?(S.st.shopSold||[]):[];
   var cnt={gear:st?st.gear.length:0,cons:st?st.cons.length:0,back:sold.length};
-  q('shTabs').innerHTML=SH_TABS.map(function(t){return '<button type="button" class="sh-tab'+(S.tab===t[0]?' on':'')+(SH_SOON[t[0]]?' soon':'')+'" data-tab="'+t[0]+'">'+t[1]+(cnt[t[0]]!=null?' ('+cnt[t[0]]+')':'')+'</button>';}).join('');
+  q('shTabs').innerHTML=SH_TABS.map(function(t){var ic=t[1].split(' ')[0],lb=t[1].slice(ic.length+1);
+    return '<button type="button" class="sh-tab'+(S.tab===t[0]?' on':'')+(SH_SOON[t[0]]?' soon':'')+'" data-tab="'+t[0]+'" title="'+lb+'">'+ic+'<span class="shl"> '+lb+'</span>'+(cnt[t[0]]!=null?' <small>'+cnt[t[0]]+'</small>':'')+'</button>';}).join('');
+  fitShTabs();
   if(SH_SOON[S.tab]){q('shStore').innerHTML='<div class="sh-empty">'+esc(SH_SOON[S.tab])+'</div>';return;}
   if(!st){q('shStore').innerHTML='<div class="sh-empty">'+(S.err?esc(S.err):'Завантаження…')+'</div>';return;}
   if(S.tab==='back'){
