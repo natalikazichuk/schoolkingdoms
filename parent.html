@@ -239,6 +239,21 @@
     font-family:'Nunito',sans-serif;font-weight:800;font-size:.98rem;color:#fff;
     padding:5px 2px;border-bottom:1.5px solid rgba(242,199,92,.28)}
   .st-subj-stat{font-size:.76rem;font-weight:800;color:#ffe7a0;white-space:nowrap}
+  /* ── Прогрес за класами ── */
+  .gp-grade{border:1.5px solid rgba(140,175,235,.28);border-radius:14px;background:rgba(8,20,42,.45);margin-bottom:10px;overflow:hidden}
+  .gp-grade>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:12px 14px;font-weight:800;color:#fff}
+  .gp-grade>summary::-webkit-details-marker{display:none}
+  .gp-grade>summary::after{content:'▾';color:#a9bcd8;transition:transform .15s}
+  .gp-grade[open]>summary::after{transform:rotate(180deg)}
+  .gp-name{flex:1;min-width:0}
+  .gp-name small{display:block;font-size:.74rem;color:#a9bcd8;font-weight:700}
+  .gp-pct{font-family:'Playfair Display',serif;font-weight:800;font-size:1.15rem;color:#ffe7a0}
+  .gp-body{padding:0 14px 12px}
+  .gp-subj{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;padding:9px 0;border-top:1px solid rgba(140,175,235,.18)}
+  .gp-subj-n{font-weight:800;color:#fff;font-size:.92rem}
+  .gp-subj-v{font-weight:800;font-size:.8rem;color:#cdd9ef;white-space:nowrap}
+  .gp-subj .st-bar{grid-column:1 / -1;height:9px}
+  .gp-subj .st-bar.full span{background:linear-gradient(90deg,#f5c542,#e0a83a)}
   /* ── Активність: час на сайті ── */
   .ac-last{font-weight:800;font-size:.92rem;color:#cdd9ef;margin:0 0 12px}
   .ac-last b{color:#fff}
@@ -393,7 +408,7 @@
       <!-- ═══════════ СТАТИСТИКА ═══════════ -->
       <section class="panel" id="tab-stats">
         <div class="panel-head">📊 Статистика</div>
-        <div class="fr-sub">Загальний прогрес Героя: характеристики, виконані завдання та результати тестів.</div>
+        <div class="fr-sub">Загальний прогрес Героя: характеристики, прогрес за класами й предметами, виконані завдання та результати тестів.</div>
         <div class="field" style="margin-bottom:6px;max-width:420px">
           <label for="stHero">Герой</label>
           <select id="stHero" onchange="loadStatsFor()"><option value="">—</option></select>
@@ -1413,7 +1428,7 @@
       const hid = $('stHero').value;
       const hero = ST_HEROES && ST_HEROES[hid];
       if (!hero){ body.innerHTML = '<div class="fr-empty">Оберіть Героя…</div>'; return; }
-      body.innerHTML = stOverview(hero) + stTasks(hero) + stTests(hero);
+      body.innerHTML = stOverview(hero) + stGrades(hero) + stTasks(hero) + stTests(hero);
     }
 
     function stSec(title, inner){
@@ -1469,6 +1484,88 @@
         + '<div class="st-bar-l">Виконано '+approved+' з '+total+' ('+pct+'%)</div>'
         + '<div class="st-earn">Зароблено із завдань: ⭐ '+xp+' · 🪙 '+coins+'</div>';
       return stSec('📋 Завдання', cards + bar);
+    }
+
+    /* ── Прогрес за класами: клас → предмет → % ──
+       Ті самі правила, що в tests.html: тести розкладає SKCUR.placeTests,
+       прогрес тесту — частка рівнів / прапорець проходження / крок тренажера,
+       прогрес предмета — середнє по тестах. Плюс картка WORDS (словник English)
+       у кожному класі, як на сторінці тестів. */
+    function stProgObj(hero){ return hero.progress || {}; }
+    function stJson(v){ if (typeof v !== 'string') return v; try { return JSON.parse(v); } catch(e){ return null; } }
+    function stCountLv(v){ const o = stJson(v); return Array.isArray(o) ? o.length : (o && typeof o === 'object') ? Object.keys(o).length : 0; }
+    function stPair(v){ const o = stJson(v); return (o && o.length === 2 && Number(o[1]) > 0) ? [Math.min(Number(o[0]) || 0, Number(o[1])), Number(o[1])] : null; }
+    // → [частка 0..1, чи пройдено] — як testFrac/isPassed у tests.html
+    function stTestFrac(t, P){
+      const on = k => P[k] === '1' || P[k] === 1 || P[k] === true;
+      const lv = Array.isArray(t.levels) ? t.levels.length : 0;
+      const isLink = !!((t.format === 'link' || t.format === 'html' || t.format === 'video') && t.linkHref);
+      const flag = on('sk_testpass_'+t.id) || on('sk_test100_'+t.id);
+      if (!isLink && lv > 0){
+        const d = Math.min(lv, Math.max(stCountLv(P['sk_lvtest_'+t.id+'_done']), stCountLv(P['sk_lvtest_'+t.id+'_ever'])));
+        return [d / lv, flag || d / lv >= ((window.SKCUR && SKCUR.PASS_RATIO) || 0.55)];
+      }
+      if (flag) return [1, true];
+      if (isLink){ const p = stPair(P['sk_testprog_'+t.id]); if (p) return [p[0] / p[1], false]; }
+      return [0, false];
+    }
+    function stIsPreTier(t){ const s = (String(t.id || '')+' '+String(t.name || '')).toLowerCase(); return s.indexOf('preschool') >= 0 || s.indexOf('дошкіл') >= 0; }
+    function stGrades(hero){
+      const cur = ST_CUR || (window.SKCUR ? SKCUR.map : null);
+      if (!cur || !Array.isArray(cur.tiers) || !window.SKCUR || !SKCUR.placeTests) return '';
+      const P = stProgObj(hero);
+      const tests = (ST_TESTS || []).filter(t => t && t.active !== false && !t.hidden);
+      const placed = SKCUR.placeTests(cur, tests);
+      // клас → предмет → {tests}
+      const G = {}, gOrder = [];
+      function slot(tier, grade, subj){
+        const key = stIsPreTier(tier) ? 'p' : String(Number(grade.gradeNum) || 0);
+        let g = G[key];
+        if (!g){ g = G[key] = { key, name: key === 'p' ? 'Дошкільнятко' : (grade.name || (key+' клас')), icon: key === 'p' ? (tier.icon || '🌱') : '🏫', subs: {}, order: [] }; gOrder.push(key); }
+        const sid = subj.id || subj.name;
+        let s = g.subs[sid];
+        if (!s){ s = g.subs[sid] = { name: subj.name || 'Предмет', icon: subj.icon || '📘', fr: [], seen: {} }; g.order.push(sid); }
+        return s;
+      }
+      // порядок класів і предметів — як у карті
+      cur.tiers.forEach(tier => (tier.grades || []).forEach(grade => (grade.subjects || []).forEach(subj => slot(tier, grade, subj))));
+      placed.topics.concat(placed.subjects).forEach(b => {
+        const s = slot(b.tier, b.grade, b.subj);
+        (b.tests || []).forEach(t => { if (s.seen[t.id]) return; s.seen[t.id] = 1; s.fr.push(stTestFrac(t, P)); });
+      });
+      // WORDS — словник English у кожному класі, де вже є тести
+      const en = stJson(P.sk_en_prog) || {};
+      gOrder.forEach(k => {
+        const g = G[k];
+        if (!g.order.some(id => g.subs[id].fr.length)) return;
+        let sid = g.order.find(id => /english|англ/i.test(g.subs[id].name));
+        if (!sid){ sid = 'eng'; g.subs[sid] = { name:'English', icon:'🔤', fr:[], seen:{} }; g.order.push(sid); }
+        const p = stPair(en[k === 'p' ? '0' : k]);
+        g.subs[sid].fr.unshift(p ? [p[0] / p[1], p[0] >= p[1]] : [0, false]);
+      });
+      const pct = f => Math.round(Math.max(0, Math.min(1, f)) * 100);
+      const avg = a => a.length ? a.reduce((x, y) => x + Math.max(0, Math.min(1, y[0])), 0) / a.length : 0;
+      const hg = hero.grade != null && hero.grade !== '' ? (Number(hero.grade) === 0 ? 'p' : String(Number(hero.grade))) : '';
+      const html = gOrder.map(k => {
+        const g = G[k];
+        const subs = g.order.map(id => g.subs[id]).filter(s => s.fr.length);
+        if (!subs.length) return '';
+        const all = [].concat(...subs.map(s => s.fr));
+        const done = all.filter(f => f[1]).length;
+        const gp = pct(avg(all));
+        const rows = subs.map(s => {
+          const sp = pct(avg(s.fr)), sd = s.fr.filter(f => f[1]).length;
+          return '<div class="gp-subj"><span class="gp-subj-n">'+escapeHtml(s.icon+' '+s.name)+'</span>'
+            + '<span class="gp-subj-v">'+sd+' з '+s.fr.length+' · '+sp+'%</span>'
+            + '<div class="st-bar'+(sp >= 100 ? ' full' : '')+'"><span style="width:'+sp+'%"></span></div></div>';
+        }).join('');
+        const open = (k === hg || (!hg && gp > 0)) ? ' open' : '';
+        return '<details class="gp-grade"'+open+'><summary><span>'+g.icon+'</span>'
+          + '<span class="gp-name">'+escapeHtml(g.name)+(k === hg ? ' · клас Героя' : '')
+          + '<small>пройдено '+done+' з '+all.length+' тестів</small></span>'
+          + '<span class="gp-pct">'+gp+'%</span></summary><div class="gp-body">'+rows+'</div></details>';
+      }).join('');
+      return stSec('🏫 Прогрес за класами', html || '<div class="fr-empty">У програмі ще немає тестів.</div>');
     }
 
     // ── Тести: збираємо результати з progress{} ──
