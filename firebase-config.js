@@ -1566,13 +1566,13 @@ const SK = {
   // угода магазину: {sell:[uid], buy:[base], buyback:[uid]}, byId — каталог {id: base}
   // вміння «Торгівля» знижує ціну купівлі й підвищує ціну продажу (майстерність — з документа Героя)
   async shopDeal(order, byId) {
-    return SK.storeTx((st, d) => window.SKIT.store.deal(st, order, byId, Date.now(), { trade: SK.tradeMastery(d) }), { noBattle: true });
+    return SK.storeTx((st, d) => window.SKIT.store.deal(st, order, byId, Date.now(), { trade: SK.tradePct(d) }), { noBattle: true });
   },
-  // майстерність Торгівлі 0…1 (0 — не вивчено або книга вмінь не завантажена)
-  tradeMastery(hero) {
+  // Торгівля: знижка/надбавка у % за правилами вмінь (0 — не вивчено або книга вмінь не завантажена)
+  tradePct(hero) {
     const S = window.SKSKILLS;
-    if (!S || !hero || !hero.skills || hero.skills['base.trade'] == null) return 0;
-    try { return S.mastery(S.bookState(hero), 'base.trade') / 100; } catch (e) { return 0; }
+    if (!S || !S.skillValues || !hero || !hero.skills || hero.skills['base.trade'] == null) return 0;
+    try { return S.skillValues('base.trade', S.mastery(S.bookState(hero), 'base.trade')).pct || 0; } catch (e) { return 0; }
   },
   // після угоди: сервер рахує сьогоднішні угоди й додає спрацювання Торгівлі
   growTrade() { return skApi('POST', 'skills/trade', {}); },

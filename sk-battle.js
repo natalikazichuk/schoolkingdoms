@@ -82,11 +82,11 @@
      Пасивні діють самі; активні (Пінок, Вогник) — гравець обирає на хід
      (useSkill): окремий удар у ту саму зону, що й основний, — його можна
      заблокувати. Бот вмінь не має. */
-  var SKILL = {
-    kick:  { id: 'base.kick',  min: 5, max: 10, cd: 2, knock: 10, knockM: 20 },
-    spark: { id: 'base.spark', min: 5, max: 10, mana: 5 }
-  };
-  function mOf(st, id) { var s = st.me && st.me.sk; return s && s[id] != null ? num(s[id]) : 0; }
+  /* Числа вмінь — не тут: на старті бою arena.html кладе в st.me.skv готові
+     значення з sk-skills.js (SKSKILLS.skillValues — правила, типи, округлення),
+     тож бій однаковий на будь-якій сторінці й не залежить від sk-skills.js. */
+  var SKILL = { kick: { id: 'base.kick' }, spark: { id: 'base.spark' } };
+  function V(st, id, k) { var v = st.me && st.me.skv && st.me.skv[id]; return v && v[k] != null ? num(v[k]) : 0; }
   function hasSk(st, id) { var s = st.me && st.me.sk; return !!(s && s[id] != null); }
   function grow(st, id, ok) {
     if (!hasSk(st, id)) return;
@@ -99,15 +99,14 @@
   /* сталі пасивні — у профіль (перераховується при перевдяганні й поломці) */
   function skillProfile(st, p) {
     if (!st.me || !st.me.sk) return p;
-    var pct = function (id, v) { return v * mOf(st, id); };
-    p.dmgPct = num(p.dmgPct) + pct('base.weapons', 25) + (exoticOn(st) ? pct('base.exotic', 50) : 0);
-    p.magPct = num(p.magPct) + pct('base.magic', 25) + (exoticOn(st) ? pct('base.exotic', 50) : 0);
-    if (shieldOn(st) && hasSk(st, 'base.shield')) { p.blockPhys = num(p.blockPhys) + pct('base.shield', 5); p.blockMag = num(p.blockMag) + pct('base.shield', 5); }
+    var ex = exoticOn(st) ? V(st, 'base.exotic', 'dmgPct') : 0;
+    p.dmgPct = num(p.dmgPct) + V(st, 'base.weapons', 'dmgPct') + ex;
+    p.magPct = num(p.magPct) + V(st, 'base.magic', 'magPct') + ex;
     return p;
   }
   /* змінні пасивні цього ходу: концентрація (+5% урону за рівень) і зв'язок зі зброєю */
   function turnBoost(st, p) {
-    var f = fxOf(st.me), add = 5 * num(f.focus) + (f.bond ? 10 * mOf(st, 'base.bond') : 0);
+    var f = fxOf(st.me), add = V(st, 'base.focus', 'perLevel') * num(f.focus) + (f.bond ? V(st, 'base.bond', 'dmgPct') : 0);
     if (!add) return p;
     var o = {}, k; for (k in p) o[k] = p[k];
     o.dmgPct = num(o.dmgPct) + add; o.magPct = num(o.magPct) + add;
@@ -119,7 +118,7 @@
     if ((st.me.bar || []).indexOf(id) < 0 || !hasSk(st, id)) return 'none';
     var cd = (st.me.cd || {})[id];
     if (cd && st.round <= cd) return 'cd';
-    if (id === SKILL.spark.id && num(st.me.mana) < SKILL.spark.mana) return 'mana';
+    if (id === SKILL.spark.id && num(st.me.mana) < (V(st, id, 'mana') || 5)) return 'mana';
     return '';
   }
   /* обрати активне вміння (id) або скасувати (null). Вибір ЛИШАЄТЬСЯ на наступні ходи:
@@ -134,14 +133,14 @@
   }
   /* удар активним вмінням у зону основної атаки. Повертає запис для журналу. */
   function skillStrike(ctx, st, id, pm, po, blocked, rnd) {
-    var R = ctx.R, m = mOf(st, id), rec = { id: id, ok: false, dmg: 0, kind: 'fail' };
-    var need = Math.round(50 + 50 * m), roll = R.d100(rnd);
+    var R = ctx.R, rec = { id: id, ok: false, dmg: 0, kind: 'fail' };
+    var need = V(st, id, 'chance'), roll = R.d100(rnd);         // 50% на 25% → 100% на 100%
     rec.need = need; rec.roll = roll;
     if (id === SKILL.spark.id) {
-      var cost = SKILL.spark.mana;                               // мана витрачається повністю, навіть якщо не вдалося
+      var cost = V(st, id, 'mana') || 5;                         // мана витрачається повністю, навіть якщо не вдалося
       st.me.mana = Math.max(0, num(st.me.mana) - cost); rec.mana = cost;
     }
-    var magic = id === SKILL.spark.id, cfg = magic ? SKILL.spark : SKILL.kick;
+    var magic = id === SKILL.spark.id, cfg = { min: V(st, id, 'dmgMin'), max: Math.max(V(st, id, 'dmgMin'), V(st, id, 'dmgMax')) };
     if (roll > need) { grow(st, id, false); if (magic) grow(st, 'base.magic', false); rec.calc = 'не вдалося: 🎲 ' + roll + ' > ' + need + '%'; return rec; }
     rec.ok = true;
     // вдале — лише коли вміння влучило; не вийшло чи заблоковано — невдале
@@ -162,24 +161,25 @@
     rec.calc = (magic ? '✨маг. ' : '') + raw + (defV > 0 ? ' × ' + Math.round(pass * 100) + '% (' + (magic ? 'маг. захист ' : 'броня ') + defV + ')' : '')
       + (pctV ? ' × ' + Math.round(100 + pctV) + '%' : '');
     if (!magic) {                                                 // Пінок може збити з ніг: суперник пропустить наступний хід
-      var kn = Math.round((SKILL.kick.knock + SKILL.kick.knockM * m) * 10) / 10, kr = R.d100(rnd);
+      var kn = V(st, id, 'knock'), kr = R.d100(rnd);
       rec.knockNeed = kn; rec.knockRoll = kr;
       if (kn > 0 && kr <= kn) { rec.knock = true; fxOf(st.op).knock = st.round + 1; }
     }
     return rec;
   }
-  /* ухилення: удар у НЕзахищену зону — шанс 15% × м повністю уникнути */
-  function applyDodge(ctx, st, opHit, rnd) {
-    if (!hasSk(st, 'base.dodge')) return 0;
-    var need = Math.round(15 * mOf(st, 'base.dodge') * 10) / 10, n = 0;
+  /* пасивне з кидком (ухилення, щит): на кожен удар, що влучив, — кидок «прокинулось»
+     (шанс = майстерність %). Прокинулось — очко росту і кидок ефекту (chance):
+     вдалося — удар скасовано, вдале очко; ні — навчання на помилках. */
+  function triggerHits(ctx, st, id, opHit, rnd, mark) {
+    if (!hasSk(st, id)) return 0;
+    var eng = V(st, id, 'engage'), need = V(st, id, 'chance'), n = 0;
     (opHit.hits || []).forEach(function (h) {
       if (h.kind !== 'hit' && h.kind !== 'crit') return;
+      var er = ctx.R.d100(rnd);
+      if (!(eng > 0 && er <= eng)) return;                       // не прокинулось — без очка
       var r = ctx.R.d100(rnd), ok = need > 0 && r <= need;
-      grow(st, 'base.dodge', ok);
-      if (ok) {
-        n++; h.skillDodge = true; h.dodgeCalc = 'ухилився вмінням 💨 🎲 ' + r + ' ≤ ' + need + '%';
-        h.kind = 'dodge'; h.dmg = 0; h.magDmg = 0; h.physDmg = 0;
-      }
+      grow(st, id, ok);
+      if (ok) { n++; mark(h, '🎲 ' + er + ' ≤ ' + eng + '% прокинулось · 🎲 ' + r + ' ≤ ' + need + '%'); h.dmg = 0; h.magDmg = 0; h.physDmg = 0; }
     });
     if (n) {
       opHit.dmg = (opHit.hits || []).reduce(function (a, h) { return a + (h.dmg || 0); }, 0);
@@ -187,6 +187,17 @@
       opHit.kind = ks.indexOf('crit') >= 0 ? 'crit' : ks.indexOf('hit') >= 0 ? 'hit' : ks.indexOf('block') >= 0 ? 'block' : 'dodge';
     }
     return n;
+  }
+  /* ухилення: удар у НЕзахищену зону (лише такі й влучають) */
+  function applyDodge(ctx, st, opHit, rnd) {
+    return triggerHits(ctx, st, 'base.dodge', opHit, rnd, function (h, calc) {
+      h.kind = 'dodge'; h.skillDodge = true; h.dodgeCalc = 'ухилився вмінням 💨 ' + calc; });
+  }
+  /* щит: блок вмінням удару, що влучив, — лише зі щитом у лівій руці */
+  function applyShield(ctx, st, opHit, rnd) {
+    if (!shieldOn(st)) return 0;
+    return triggerHits(ctx, st, 'base.shield', opHit, rnd, function (h, calc) {
+      h.kind = 'block'; h.skillShield = true; h.blockCalc = 'заблокував щитом 🛡️ ' + calc; });
   }
   function itemName(ctx, e) { return (e.base && e.base.name) || ((ctx.R.SLOT_UK || {})[e.slot]) || e.slot; }
 
@@ -226,19 +237,19 @@
     var effs = R.useEffects ? R.useEffects(item.base, { bonus: item.bonus || 1 }, ctx.K) : [];
     // вміння «Зілля» / «Свитки» (лише Герой): сила × (1 + 0.5 × м)
     var isScroll = !!(item.base && item.base.category === 'Свиток');
-    var skId = isScroll ? 'base.scrolls' : 'base.potions', skM = side === 'me' ? mOf(st, skId) : 0;
+    var skId = isScroll ? 'base.scrolls' : 'base.potions', skP = side === 'me' ? V(st, skId, 'powerPct') : 0;
     if (side === 'me') grow(st, skId, true);
-    if (skM > 0) {
-      var k = 1 + 0.5 * skM;
+    if (skP > 0) {
+      var k = 1 + skP / 100;
       effs = effs.map(function (ef) {
         var o = {}; for (var q in ef) o[q] = ef[q];
         if (o.type === 'heal' || o.type === 'buff') o.pct = Math.round(num(o.pct) * k);
         if (o.type === 'scroll') { o.min = Math.round(num(o.min) * k); o.max = Math.round(num(o.max) * k); }
-        if (o.type === 'barrier' && rnd() < skM) o.n = num(o.n) + 1;   // на 100% — два бар'єри
-        if (o.type === 'fear') o.bonus = 20 * skM;
+        if (o.type === 'barrier' && rnd() * 100 < V(st, 'base.scrolls', 'barrier2')) o.n = num(o.n) + 1;   // на 100% — два бар'єри
+        if (o.type === 'fear') o.bonus = V(st, 'base.scrolls', 'fearPct');
         return o;
       });
-      rec.skill = { id: skId, m: skM };
+      rec.skill = { id: skId, pct: skP };
     }
     effs.forEach(function (ef) {
       var r = { type: ef.type };
@@ -304,6 +315,12 @@
     Object.keys(sk || {}).forEach(function (id) { var m = num(sk[id]); out[id] = Math.max(0, Math.min(1, m)); });
     return out;
   }
+  /* готові значення вмінь (SKSKILLS.skillValues) — лише вивчених */
+  function skillVals(sk, skv) {
+    var out = {};
+    Object.keys(sk || {}).forEach(function (id) { if (skv && skv[id]) out[id] = clone(skv[id]); });
+    return out;
+  }
   function create(ctx, o) {
     var now = o.now || Date.now();
     var st = {
@@ -314,7 +331,7 @@
         eq: eqLite(o.me.eq), belt: beltLite(o.me.belt), use: null, fx: { buffs: {}, barrier: 0, fear: 0 },
         last: null, atk: null, block: null,
         // вміння: {id: м 0…1} лише вивчені; панель — лише вивчені активні
-        sk: skillSnap(o.me.sk), bar: (o.me.bar || []).filter(function (id) { return id && o.me.sk && o.me.sk[id] != null; }),
+        sk: skillSnap(o.me.sk), skv: skillVals(o.me.sk, o.me.skv), bar: (o.me.bar || []).filter(function (id) { return id && o.me.sk && o.me.sk[id] != null; }),
         skill: null, cd: {}, grow: {}, growF: {}, bond: { uid: null, n: 0 } },
       op: { f: o.op.f, p: o.op.p, atk: null, block: null, fx: { buffs: {}, barrier: 0, fear: 0 } },
       wear: newWear(), swapRound: 0, played: 0, missed: 0, log: [], summary: null
@@ -410,7 +427,7 @@
     // зв'язок зі зброєю: 5 ходів поспіль однією зброєю → діє, доки її не змінено
     var wpn = weaponOn(st), bd = st.me.bond || (st.me.bond = { uid: null, n: 0 });
     if (!wpn || bd.uid !== wpn.uid) { bd.uid = wpn ? wpn.uid : null; bd.n = 0; }
-    fm.bond = !!(hasSk(st, 'base.bond') && wpn && bd.n >= 5);
+    fm.bond = !!(hasSk(st, 'base.bond') && wpn && bd.n >= (V(st, 'base.bond', 'turns') || 5));
     var pm = R.buffed ? R.buffed(st.me.p, fm.buffs) : st.me.p, po = R.buffed ? R.buffed(st.op.p, fo.buffs) : st.op.p;
     pm = turnBoost(st, pm);
     var knocked = fo.knock === st.round;                  // Пінок збив з ніг минулого ходу — суперник не атакує
@@ -426,13 +443,13 @@
       if (fm.bond) grow(st, 'base.bond', meHit.dmg > 0);
       if (wpn) bd.n++;
     }
-    if (shieldOn(st)) (opHit.hits || []).forEach(function (h) { grow(st, 'base.shield', h.kind === 'block'); });
     applyDodge(ctx, st, opHit, rng(st.bid + '|' + st.round + '|dodge'));
+    applyShield(ctx, st, opHit, rng(st.bid + '|' + st.round + '|shield'));
     // активне вміння: окремий удар у ту саму зону, що й основний
     var skillRec = null, sid = st.me.skill;
     if (sid && !auto && !down && !fm.feared && !skillBlock(st, sid)) {
       skillRec = skillStrike(ctx, st, sid, pm, po, me.atk === op.block, rng(st.bid + '|' + st.round + '|skill'));
-      if (sid === SKILL.kick.id) { st.me.cd = st.me.cd || {}; st.me.cd[sid] = st.round + SKILL.kick.cd; }
+      var cdN = V(st, sid, 'cd'); if (cdN > 0) { st.me.cd = st.me.cd || {}; st.me.cd[sid] = st.round + cdN; }
     }
     if (sid && (st.me.bar || []).indexOf(sid) < 0) st.me.skill = null;   // вибір лишається на наступний хід
     if (skillRec && skillRec.dmg > 0) { var sh = { dmg: skillRec.dmg, kind: 'hit', hits: [skillRec] }; applyBarrier(fo, sh); skillRec.dmg = sh.dmg; }
@@ -442,13 +459,15 @@
     var broke = checkBreaks(ctx, st);
     st.op.force -= meHit.dmg + (skillRec ? skillRec.dmg : 0);
     st.me.force -= opHit.dmg;
-    // концентрація: хід без урону → шанс +1 рівень (стеля 3 / 4 з 50% / 5 на 100%); урон — скидає
+    // концентрація (пасивне з кидком): кожен хід — кидок «прокинулось» (шанс = майстерність %);
+    // прокинулось і хід без урону — +1 рівень (до стелі) і вдале очко; з уроном — очко на помилках.
+    // Урон завжди скидає концентрацію.
     if (hasSk(st, 'base.focus')) {
-      if (opHit.dmg > 0) { fm.focus = 0; if (!down) grow(st, 'base.focus', false); }
-      else if (!down) {
-        var fmM = mOf(st, 'base.focus'), cap = fmM >= 1 ? 5 : fmM >= 0.5 ? 4 : 3;
+      var feng = !down && R.d100(rng(st.bid + '|' + st.round + '|focus')) <= V(st, 'base.focus', 'engage');
+      if (opHit.dmg > 0) { fm.focus = 0; if (feng) grow(st, 'base.focus', false); }
+      else if (feng) {
         grow(st, 'base.focus', true);
-        if (num(fm.focus) < cap && R.d100(rng(st.bid + '|' + st.round + '|focus')) <= Math.round(40 + 60 * fmM)) fm.focus = num(fm.focus) + 1;
+        if (num(fm.focus) < (V(st, 'base.focus', 'cap') || 3)) fm.focus = num(fm.focus) + 1;
       }
     }
     tickBuffs(st.me); tickBuffs(st.op);

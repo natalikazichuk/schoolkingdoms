@@ -5,26 +5,28 @@ const path = require('path'), fs = require('fs'), vm = require('vm');
 const ROOT = path.join(__dirname, '../../..');
 const box = { window: {}, console };
 box.window.window = box.window;
-['sk-items.js', 'sk-arena-rules.js', 'sk-battle.js'].forEach(f => vm.runInNewContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), box.window, { filename: f }));
-const R = box.window.SKARENA, K = box.window.SKIT, SB = box.window.SKBATTLE;
+['sk-items.js', 'sk-arena-rules.js', 'sk-skills.js', 'sk-battle.js'].forEach(f => vm.runInNewContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), box.window, { filename: f }));
+const R = box.window.SKARENA, K = box.window.SKIT, SB = box.window.SKBATTLE, S = box.window.SKSKILLS;
 const ctx = { R, K };
 const SHIELD = { id: 'S1', name: 'Щит', category: 'Щити', stat: 'Броня', valueMin: 2, valueMax: 2, addStats: [] };
 
+// як arena.html: м 0…1 і готові значення з правил (SKSKILLS.skillValues)
+function skvOf(sk) { const o = {}; Object.keys(sk || {}).forEach(id => { o[id] = S.skillValues(id, Math.round(sk[id] * 100)); }); return o; }
 function battle(sk, bar, eq) {
   return SB.create(ctx, {
     bid: 'test-' + JSON.stringify(sk).length + (bar || []).join(),
-    me: { name: 'Я', stats: { health: 400, accuracy: 60, agility: 50, mana: 50 }, eq: eq || [], sk, bar },
+    me: { name: 'Я', stats: { health: 400, accuracy: 60, agility: 50, mana: 50 }, eq: eq || [], sk, skv: skvOf(sk), bar },
     op: { f: { name: 'Бот', level: 3 }, p: R.fighter({ health: 400, accuracy: 50, agility: 50, mana: 0 }, [], K) }
   });
 }
 
-test('пасивні: зброя, магія, щит — у профілі', () => {
+test('пасивні сталі: зброя, магія — у профілі, ефект × м з округленням', () => {
   const none = battle({}, []);
-  const st = battle({ 'base.weapons': 1, 'base.magic': 0.5, 'base.shield': 1 }, [],
-    [{ base: SHIELD, inst: { uid: 'u1', id: 'S1', slot: 'weaponL' } }]);
+  const st = battle({ 'base.weapons': 1, 'base.magic': 0.5 }, []);
   assert.strictEqual(st.me.p.dmgPct - none.me.p.dmgPct, 25);
-  assert.strictEqual(st.me.p.magPct - none.me.p.magPct, 12.5);
-  assert.ok(st.me.p.blockPhys >= 5);
+  assert.strictEqual(st.me.p.magPct - none.me.p.magPct, 13, '12,5 → 13');
+  const low = battle({ 'base.weapons': 0.25 }, []);
+  assert.strictEqual(low.me.p.dmgPct - none.me.p.dmgPct, 6, '6,25 → 6');
 });
 
 test('Пінок: удар у зону атаки, перезарядка 2 ходи, ріст майстерності', () => {

@@ -12,9 +12,9 @@
 <link rel="stylesheet" href="sk-admin.css?v=2">
 <script src="sk-admin.js?v=1"></script>
 <script src="sk-curriculum.js?v=8"></script>
-<script src="sk-items.js?v=11"></script>
+<script src="sk-items.js?v=12"></script>
 <script src="sk-arena-rules.js?v=18"></script>
-<script src="sk-skills.js?v=8"></script>
+<script src="sk-skills.js?v=9"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -827,16 +827,28 @@ function skmRows(sk){
 }
 function skmEdited(sk){var d=pdoc(skmDocId(sk));return !!(d.rows&&d.rows.length);}
 function skmNum(n){return (Math.round(n*10)/10).toString().replace('.',',');}
+/* числа, з якими працює бій (sk-skills.js → RULES / skillValues): тип, параметри на 25/50/75/100% */
+function skmRulesTable(sk){
+  var r=SKSKILLS.RULES&&SKSKILLS.RULES[sk.id];if(!r)return '';
+  var lv=[25,50,75,100],vals=lv.map(function(p){return SKSKILLS.skillValues(sk.id,p);});
+  var row=function(name,key,unit,how){return '<tr><td>'+name+'</td>'+vals.map(function(v){return '<td class="num">'+v[key]+(unit||'')+'</td>';}).join('')+'<td>'+how+'</td></tr>';};
+  var rows='';
+  if(r.kind==='active')rows+=row('Шанс спрацювати','chance','%','50% на 25% → 100% на 100% (усі активні)');
+  if(r.kind==='trigger')rows+=row('Прокидається','engage','%','шанс = майстерність; нагода: '+esc(r.on||''));
+  r.p.forEach(function(q){rows+=row(esc(q.t),q.k,q.u,q.calc?'за рівнем майстерності':q.grow?'росте: '+q.v+(q.u||'')+' × м':'<b>стала дія</b>');});
+  return '<div class="tblwrap"><table class="st skm-tbl skm-num"><thead><tr><th>⚙️ Числа бою · <span class="tag">'+esc(SKSKILLS.KIND_UK[r.kind]||r.kind)+'</span></th><th>25%</th><th>50%</th><th>75%</th><th>100%</th><th>Як рахується</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
 function skmGrowLine(sk){
-  var tot=SKSKILLS.growTotal(sk);
-  return '<div class="skm-grow">📈 <b>'+tot+'</b> спрацювань до 100%: '+SKSKILLS.growTable(tot).map(function(r){
+  var tot=SKSKILLS.growTotal(sk),r=SKSKILLS.RULES&&SKSKILLS.RULES[sk.id];
+  return '<div class="skm-grow">📈 '+(r&&!sk.grow?SKSKILLS.GROWTH.battles+' боїв × '+r.perBattle+' спрацювань за бій = ':'')+'<b>'+tot+'</b> спрацювань до 100%: '+SKSKILLS.growTable(tot).map(function(r){
     return r.from+'→'+r.to+'%: <b>'+skmNum(r.uses)+'</b>';}).join(' · ')+'</div>';
 }
 function skmGrowTable(){
   var G=SKSKILLS.GROWTH,t=SKSKILLS.growTable(G.total);
   var rows=t.map(function(r){return '<tr><td><b>'+r.from+'% → '+r.to+'%</b></td><td>'+Math.round(r.share*100)+'%</td><td>'+skmNum(r.uses)+'</td><td>'+skmNum(r.perPct)+'</td><td>'+skmNum(r.upTo)+'</td><td>'+skmNum(r.uses*50)+'</td></tr>';}).join('');
   return '<h3 class="skm-h3">📈 Шкала росту майстерності</h3>'
-    +'<p class="hint">Майстерність рахується з кількості спрацювань, без випадковості. Невдала спроба — '+String(G.failWeight).replace('.',',')+' спрацювання. Зараз для тесту — <b>'+G.total+'</b> спрацювань до 100% (у коді: GROWTH у sk-skills.js; у вміння може бути своє значення).</p>'
+    +'<p class="hint">Майстерність рахується з кількості спрацювань, без випадковості. Невдала спроба — '+String(G.failWeight).replace('.',',')+' спрацювання. Кожне вміння доростає до 100% приблизно за <b>'+G.battles+'</b> боїв (тест; у коді GROWTH.battles у sk-skills.js): спрацювань до 100% = боїв × скільки разів вміння зазвичай спрацьовує за бій (RULES.perBattle). Тому «Основи зброї» (кожен удар) потребують більше спрацювань, ніж Пінок (раз на 3 ходи). Таблиця нижче — для '+G.total+' спрацювань.</p>'
+    +'<p class="hint"><b>Типи вмінь.</b> <b>Активне</b>: шанс спрацювати 50% на 25% → 100% на 100%; параметри «росте» × м, «стала дія» — незмінні. <b>Пасивне стале</b>: діє завжди, ефект = значення на 100% × м. <b>Пасивне з кидком</b>: на нагоду спершу кидок «прокинулось» (шанс = майстерність %), лише тоді очко росту; далі кидок ефекту — вдалося → вдале очко, ні → навчання на помилках. Округлення: 0,5 і більше — вгору. Числа — у RULES (sk-skills.js); таблиця «⚙️ Числа бою» в кожній картці — саме те, з чим іде бій.</p>'
     +'<div class="tblwrap"><table class="st"><thead><tr><th>Етап</th><th>Частка</th><th>Спрацювань</th><th>На 1%</th><th>Разом від вивчення</th><th>Якби 10000</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 function skmCard(sk){
@@ -852,6 +864,7 @@ function skmCard(sk){
     +' <span class="tag ty-'+sk.type+'">'+TY_UK[sk.type]+'</span>'+(sk.cost?' <span class="tag">'+esc(sk.cost)+'</span>':'')
     +(skmEdited(sk)?' <span class="tag item">✎ змінено</span>':'')+(d.comment?' <span class="tag pct">💬</span>':'')
     +'<div class="pl-kid">🧒 '+esc(sk.kid)+'</div></div></div>'
+    +skmRulesTable(sk)
     +'<div class="tblwrap"><table class="st skm-tbl"><thead><tr><th>Параметр</th><th>Значення / як працює</th><th></th></tr></thead><tbody>'+tr+'</tbody></table></div>'
     +skmGrowLine(sk)
     +'<div class="pl-acts"><button type="button" class="btn-ghost" data-skact="add" data-sk="'+esc(sk.id)+'">＋ рядок</button>'
