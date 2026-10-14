@@ -169,13 +169,24 @@ h1{font-size:1.5rem;text-align:center}
     return prev[n];
   }
   var SAME = {'й':'і', 'у':'в'};   // розпізнавач плутає й/і, у/в
+  /* Звуки, які розпізнавач (особливо на дитячому голосі) часто плутає:
+     и/і, е/є, ї/і, ґ/г, мʼякий знак — для порівняння вважаємо однаковими. */
+  function sound(w){
+    return w.replace(/[иї]/g, 'і').replace(/є/g, 'е').replace(/ґ/g, 'г').replace(/ь/g, '');
+  }
   function match(heard, expected){
     if(!heard || !expected) return false;
     if(heard === expected) return true;
     if((SAME[heard] || heard) === (SAME[expected] || expected)) return true;
-    var len = expected.length;
-    var tol = len <= 3 ? 0 : len <= 6 ? 1 : 2;
-    return lev(heard, expected) <= tol;
+    var h = sound(heard), x = sound(expected);
+    if(h === x) return true;
+    var len = x.length;
+    if(len <= 2) return false;
+    // коротке слово: одна помилка, але перша літера має збігтися (ній/ні, літ/літ)
+    if(len === 3) return h[0] === x[0] && lev(h, x) <= 1;
+    // однаковий початок довгого слова: інше закінчення (минулих/минувших)
+    if(len >= 5 && h.length >= 4 && h.slice(0, 4) === x.slice(0, 4)) return true;
+    return lev(h, x) <= (len <= 6 ? 1 : 2);
   }
 
   /* ── побудова тексту ── */
@@ -249,8 +260,10 @@ h1{font-size:1.5rem;text-align:center}
         if(match(hw, words[p + k].norm)){
           if(p + k + 1 > pos){
             for(var s = Math.max(p, pos); s < p + k; s++){
-              // однолітерні слова (й, в, я) розпізнавач часто ковтає — не карати
-              markRead(s, words[s].norm.length <= 1 ? 'read' : 'skip');
+              /* Слово між двома почутими розпізнавач часто просто не віддає
+                 (дитячий голос, швидке читання). Пропуск одного-двох слів
+                 зараховуємо; помаранчевим — лише коли пропущено три поспіль. */
+              markRead(s, k >= LOOKAHEAD && words[s].norm.length > 1 ? 'skip' : 'read');
             }
             markRead(p + k, 'read');
           }
@@ -283,8 +296,18 @@ h1{font-size:1.5rem;text-align:center}
     r.maxAlternatives = 1;
     r.onresult = function(e){
       if(done) return;   // хвилина минула — запізнілі результати вже не рахуємо
+      /* Chrome на Android у безперервному режимі повторює в кожному
+         наступному результаті весь попередній текст — склеювати підряд
+         не можна, інакше почуте подвоюється й слова «перестрибують». */
       var text = '';
-      for(var i = 0; i < e.results.length; i++) text += ' ' + e.results[i][0].transcript;
+      for(var i = 0; i < e.results.length; i++){
+        var t = String(e.results[i][0].transcript || '').trim();
+        if(!t) continue;
+        var tn = t.toLowerCase(), cur = text.trim().toLowerCase();
+        // новий результат уже містить попередні (від двох слів — щоб не сплутати з повтором «мова»)
+        if(cur.indexOf(' ') > 0 && tn.indexOf(cur) === 0) text = t;
+        else text += ' ' + t;
+      }
       $('heard').textContent = text.trim().split(/\s+/).slice(-6).join(' ');
       advance(text.split(/\s+/).map(norm).filter(Boolean));
     };
