@@ -539,9 +539,10 @@
       eng.tests.unshift.apply(eng.tests, add);
       if(gen){
         var ukr = stdSubj(gr, key, 'ukr', /україн|укр/i, { name:'Українська мова', icon:'🌺', accent:'#D6577A', stat:'Здоровʼя ❤️' });
+        var ukrAdd = [];
         if(!ukr._seen['std-tasks-ukr'] && !hasPage(ukr, 'spysuvannya')){
           ukr._seen['std-tasks-ukr']=1;
-          ukr.tests.unshift({
+          ukrAdd.push({
             id:'std-tasks-ukr', title:'Генератор завдань', std:true, noProg:true,
             sub:'Списування і прописи для друку',
             href:'klas-1/spysuvannya.html?skback=tests.html',
@@ -549,6 +550,18 @@
             imgCard:'img/tr/spysuvannya-generator.webp'
           });
         }
+        /* Читання вголос — поруч із генератором (той самий рядок карток) */
+        if(!ukr._seen['std-read-ukr'] && !hasPage(ukr, 'chytannia-vgolos')){
+          ukr._seen['std-read-ukr']=1;
+          ukrAdd.push({
+            id:'std-read-ukr', title:'Читання', std:true, noProg:true, read:true,
+            sub:'Читай уголос — прочитані слова загоряються зеленим',
+            href:'klas-1/chytannia-vgolos.html?skback=tests.html',
+            isLink:true, isLevels:false, levelCount:0, icon:'🎤',
+            imgCard:'img/tr/chytannia-vgolos.webp'   // немає файлу → лишиться емодзі
+          });
+        }
+        ukr.tests.unshift.apply(ukr.tests, ukrAdd);
         var math = stdSubj(gr, key, 'math', MATH_RE, { name:'Математика', icon:'🧮', accent:'#5C6BC0', stat:'Точність 🎯' });
         if(!math._seen['std-tasks-math'] && !hasPage(math, 'matematyka-generator')){
           math._seen['std-tasks-math']=1;
@@ -772,6 +785,7 @@
       var label, cls='';
       var ep = t.words ? enProg(t.gkey) : null;
       if(ep){ label = (ep[0]>=ep[1]) ? '✅ пройдено' : ('📖 '+ep[0]+' / '+ep[1]); if(ep[0]>=ep[1]) cls='done'; }
+      else if(t.read){ label='🎤 читати вголос'; }
       else if(t.noProg){ label='🖨 створити аркуш'; }
       else if(t.isLink){ var pdl=isPassed(t), lp=pdl?null:linkProg(t.id);
         label=pdl?'✅ пройдено':((lp && lp[0]>0)?('▶ '+lp[0]+' / '+lp[1]):'▶ відкрити'); if(pdl) cls='done'; }
@@ -804,9 +818,11 @@
     /* Кілька розділів → теми йдуть у смужку над плитками; натискання гортає
        до обраної теми («Усі теми» — на початок). */
     var side = [];
-    /* WORDS + TASKS → «Words · Tasks»; лише словник → «Словник»; інакше — генератор */
+    /* WORDS + TASKS → «Words · Tasks»; лише словник → «Словник»; генератор + читання → «Генератор · Читання»; інакше — генератор */
     var stdName = std.some(function(t){ return t.words; })
-      ? (std.length>1 ? 'Words · Tasks' : 'Словник') : 'Генератор завдань';
+      ? (std.length>1 ? 'Words · Tasks' : 'Словник')
+      : std.some(function(t){ return t.read; })
+        ? (std.length>1 ? 'Генератор · Читання' : 'Читання') : 'Генератор завдань';
     if(std.length) side.push({ name:stdName, tests: std });
     groups.forEach(function(g){ side.push({ name: g.name || 'Інші', tests: g.tests }); });
     var useSide = titled > 0 && side.length > 1;
