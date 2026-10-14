@@ -62,6 +62,14 @@ h1{font-size:1.5rem;text-align:center}
   vertical-align:middle;animation:blink 1s infinite}
 @keyframes blink{50%{opacity:.25}}
 
+.top{position:sticky;top:0;z-index:5;display:flex;flex-direction:column;gap:8px;
+  padding:8px 0;background:var(--paper)}
+.meter{display:flex;gap:10px;justify-content:center}
+.meter>div{flex:1;max-width:200px;background:var(--card);border:2px solid var(--line);border-radius:16px;
+  padding:6px 10px;text-align:center;box-shadow:0 4px 0 rgba(44,43,58,.08)}
+.meter b{display:block;font-family:'Fredoka',sans-serif;font-size:1.7rem;line-height:1.1}
+.meter span{font-size:.78rem;color:var(--soft);font-weight:700}
+.meter .low b{color:var(--bad)}
 .bar{height:12px;border-radius:8px;background:var(--line);overflow:hidden}
 .bar i{display:block;height:100%;width:0;background:var(--green);transition:width .3s}
 
@@ -79,14 +87,21 @@ h1{font-size:1.5rem;text-align:center}
 <body>
 <div class="wrap">
   <h1>🎤 Читаю вголос</h1>
-  <p class="sub">Читай вірш уголос — прочитані слова загоряться зеленим</p>
+  <p class="sub">Читай уголос 1 хвилину — прочитані слова загоряться зеленим</p>
+
+  <div class="top">
+    <div class="meter">
+      <div id="timerBox"><b id="timer">1:00</b><span>⏱ залишилось</span></div>
+      <div><b id="count">0</b><span>📖 прочитано слів</span></div>
+    </div>
+    <div class="bar"><i id="barFill"></i></div>
+  </div>
 
   <div class="card" id="textCard">
     <h2 class="poem-title" id="poemTitle"></h2>
     <div id="poem"></div>
   </div>
 
-  <div class="bar"><i id="barFill"></i></div>
 
   <div class="ctrl">
     <button class="btn mic" id="micBtn" type="button">🎤 Почати читати</button>
@@ -98,8 +113,9 @@ h1{font-size:1.5rem;text-align:center}
 
   <div class="card result" id="result">
     <div class="big">🌟</div>
-    <h2>Молодець! Вірш прочитано!</h2>
+    <h2 id="resTitle">Молодець! Вірш прочитано!</h2>
     <div class="stats">
+      <div class="stat"><b id="stRead">0</b><span>прочитано слів</span></div>
       <div class="stat"><b id="stTime">0</b><span>секунд</span></div>
       <div class="stat"><b id="stWpm">0</b><span>слів за хвилину</span></div>
       <div class="stat"><b id="stSkip">0</b><span>пропущено</span></div>
@@ -122,12 +138,15 @@ h1{font-size:1.5rem;text-align:center}
   };
 
   var LOOKAHEAD = 3;     // на скільки слів уперед шукаємо збіг (пропущені слова)
+  var LIMIT = 60000;     // перевірка техніки читання — 1 хвилина
 
   var $ = function(id){ return document.getElementById(id); };
   var words = [];        // [{el, norm}]
   var pos = 0;           // індекс слова, яке дитина має прочитати наступним
   var sessionStart = 0;  // pos на початку поточної сесії розпізнавання
-  var listening = false, rec = null, startedAt = 0, skipped = 0;
+  var listening = false, rec = null, skipped = 0, readCount = 0, done = false;
+  /* Таймер: час рахуємо лише поки слухаємо; «Зупинити» ставить на паузу. */
+  var elapsed = 0, runFrom = 0, tickId = 0;
 
   /* ── нормалізація й нечітке порівняння ── */
   function norm(s){
@@ -194,7 +213,7 @@ h1{font-size:1.5rem;text-align:center}
     var cur = words[pos];
     if(cur && listening){
       var r = cur.el.getBoundingClientRect();
-      if(r.top < 60 || r.bottom > innerHeight - 160) cur.el.scrollIntoView({block: 'center', behavior: 'smooth'});
+      if(r.top < 150 || r.bottom > innerHeight - 160) cur.el.scrollIntoView({block: 'center', behavior: 'smooth'});
     }
   }
 
@@ -202,12 +221,27 @@ h1{font-size:1.5rem;text-align:center}
     var el = words[i].el;
     if(el.classList.contains('read') || el.classList.contains('skip')) return;
     el.classList.add(cls, 'pop');
-    if(cls === 'skip') skipped++;
+    if(cls === 'skip') skipped++; else readCount++;
+    $('count').textContent = readCount;
+  }
+
+  function usedMs(){ return elapsed + (runFrom ? Date.now() - runFrom : 0); }
+  function showTimer(){
+    var left = Math.max(0, LIMIT - usedMs()), sec = Math.ceil(left / 1000);
+    $('timer').textContent = Math.floor(sec / 60) + ':' + ('0' + sec % 60).slice(-2);
+    $('timerBox').classList.toggle('low', sec <= 10);
+    return left;
+  }
+  function tick(){ if(showTimer() <= 0) finish(true); }
+  function pauseTimer(){
+    if(runFrom){ elapsed += Date.now() - runFrom; runFrom = 0; }
+    clearInterval(tickId); tickId = 0;
   }
 
   /* Пройти почутими словами від sessionStart. Позиція лише росте —
      проміжні (interim) результати можуть мінятися, але зелене не гасне. */
   function advance(heardWords){
+    if(done) return;   // хвилина минула — запізнілі результати вже не рахуємо
     var p = sessionStart;
     for(var h = 0; h < heardWords.length && p < words.length; h++){
       var hw = heardWords[h];
@@ -228,7 +262,7 @@ h1{font-size:1.5rem;text-align:center}
     if(p > pos){
       pos = p;
       paint();
-      if(pos >= words.length) finish();
+      if(pos >= words.length) finish(false);
     }
   }
 
@@ -248,6 +282,7 @@ h1{font-size:1.5rem;text-align:center}
     r.interimResults = true;
     r.maxAlternatives = 1;
     r.onresult = function(e){
+      if(done) return;   // хвилина минула — запізнілі результати вже не рахуємо
       var text = '';
       for(var i = 0; i < e.results.length; i++) text += ' ' + e.results[i][0].transcript;
       $('heard').textContent = text.trim().split(/\s+/).slice(-6).join(' ');
@@ -277,10 +312,11 @@ h1{font-size:1.5rem;text-align:center}
 
   function start(){
     if(!SR) return;
-    if(pos >= words.length) reset();
+    if(done) reset();
     listening = true;
     sessionStart = pos;
-    if(!startedAt) startedAt = Date.now();
+    runFrom = Date.now();
+    if(!tickId) tickId = setInterval(tick, 250);
     rec = rec || makeRec();
     try{ rec.start(); }catch(e){}
     $('micBtn').classList.add('on');
@@ -290,6 +326,7 @@ h1{font-size:1.5rem;text-align:center}
   }
 
   function stop(){
+    pauseTimer();
     listening = false;
     if(rec) try{ rec.abort(); }catch(e){}
     $('micBtn').classList.remove('on');
@@ -298,13 +335,19 @@ h1{font-size:1.5rem;text-align:center}
     paint();
   }
 
-  function finish(){
-    var sec = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
+  /* timeUp — минула хвилина; інакше дитина дочитала текст раніше */
+  function finish(timeUp){
+    if(done) return;
     stop();
+    done = true;
+    var sec = Math.max(1, Math.round(Math.min(usedMs(), LIMIT) / 1000));
+    showTimer();
     $('micBtn').textContent = '🎤 Ще раз';
     $('heard').textContent = '';
+    $('resTitle').textContent = timeUp ? '⏱ Хвилина минула!' : 'Молодець! Вірш прочитано!';
+    $('stRead').textContent = readCount;
     $('stTime').textContent = sec;
-    $('stWpm').textContent = Math.round(words.length / sec * 60);
+    $('stWpm').textContent = Math.round(readCount / sec * 60);
     $('stSkip').textContent = skipped;
     $('result').classList.add('on');
     $('result').scrollIntoView({block: 'center', behavior: 'smooth'});
@@ -312,7 +355,10 @@ h1{font-size:1.5rem;text-align:center}
 
   function reset(){
     if(listening) stop();
-    pos = 0; sessionStart = 0; skipped = 0; startedAt = 0;
+    pauseTimer();
+    pos = 0; sessionStart = 0; skipped = 0; readCount = 0; done = false; elapsed = 0;
+    $('count').textContent = 0;
+    showTimer();
     words.forEach(function(w){ w.el.className = 'w'; });
     $('result').classList.remove('on');
     $('heard').textContent = '';
@@ -325,7 +371,7 @@ h1{font-size:1.5rem;text-align:center}
   /* натискання на слово: «я вже тут» — попередні слова зараховуємо */
   $('poem').addEventListener('click', function(e){
     var el = e.target.closest('.w');
-    if(!el) return;
+    if(!el || done) return;
     var i = +el.dataset.i;
     if(i <= pos) return;
     for(var s = pos; s < i; s++) markRead(s, 'skip');
