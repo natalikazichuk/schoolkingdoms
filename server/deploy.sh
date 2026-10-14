@@ -6,12 +6,11 @@
 #   /srv/sk/.env             — пароль PostgreSQL
 #   /srv/sk/tunnel_path      — секретна адреса SSH-тунелю
 #   /srv/sk/data/hash-config.json — параметри паролів Firebase (для старих акаунтів)
-#   /srv/sk/deploy_key       — ключ доступу до приватного репо (див. git-access.sh)
 set -euo pipefail
 
 BRANCH="${1:-${SK_BRANCH:-main}}"
+REPO_URL="https://github.com/natalikazichuk/schoolkingdoms.git"
 SK=/srv/sk
-source "$(dirname "$(readlink -f "$0")")/git-access.sh"
 
 install -d -m 755 "$SK" "$SK/backups"
 install -d -m 700 "$SK/data" "$SK/migration"
@@ -21,7 +20,6 @@ chown 1000:1000 "$SK/data" "$SK/migration"
 if [ ! -d "$SK/repo/.git" ]; then
   git clone -q "$REPO_URL" "$SK/repo"
 fi
-git -C "$SK/repo" remote set-url origin "$REPO_URL"
 git -C "$SK/repo" fetch -q origin "$BRANCH"
 git -C "$SK/repo" checkout -q -B "$BRANCH" "origin/$BRANCH"
 git -C "$SK/repo" reset -q --hard "origin/$BRANCH"
