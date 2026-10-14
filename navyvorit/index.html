@@ -137,7 +137,7 @@ body.flipped .rules li .f{display:inline;}
 .rules li .ck{margin-left:auto; flex:none;}
 .rules li.got{background:var(--good-bg);}
 
-.gateCard{display:flex; align-items:center; gap:12px; background:linear-gradient(180deg,#fffdf4,#fff3cf); border:2px solid var(--gold); border-radius:18px; padding:10px 14px;}
+.gateCard{cursor:pointer; display:flex; align-items:center; gap:12px; background:linear-gradient(180deg,#fffdf4,#fff3cf); border:2px solid var(--gold); border-radius:18px; padding:10px 14px;}
 .gateCard .gi{font-size:34px; flex:none;}
 .gateCard .gt{font-weight:700; font-size:16px;}
 .gateCard .gs{font-weight:800; font-size:12px; color:var(--soft); line-height:1.3;}
@@ -193,10 +193,6 @@ body.flipped .rules li .f{display:inline;}
 
       <div class="chList" id="chList"></div>
 
-      <div class="rules">
-        <div class="rh" id="rulesHead">Правила світу · зараз усе нормально</div>
-        <ul id="rulesList"></ul>
-      </div>
     </div>
 
     <!-- ══ карта розділу ══ -->
@@ -470,23 +466,21 @@ body.flipped .rules li .f{display:inline;}
     openSheet(head+'<div class="sd">'+p.d+'</div>'+pair+'<a class="play" href="'+p.href+'">Грати ▶</a>');
   }
 
-  function renderRules(){
-    var ul = $("rulesList"); ul.innerHTML = "";
-    RULES.forEach(function(r,i){
-      var li = document.createElement("li");
-      if(gate.got && gate.got[i]) li.className = "got";
-      li.innerHTML = '<span class="ic">'+r.ic+'</span><span><span class="n">'+r.n+'</span><span class="f">🔄 '+r.f+'</span></span><span class="ck">'+(gate.got && gate.got[i] ? "✅" : "")+'</span>';
-      ul.appendChild(li);
-    });
-    $("rulesHead").textContent = flipped ? "Правила світу · 🔄 після перевороту" : "Правила світу · зараз усе нормально";
+  /* правила світу — у картці воріт (попап), а не окремим блоком на хабі */
+  function rulesHtml(){
+    return '<div class="rules"><div class="rh">'+(flipped ? "Правила світу · 🔄 після перевороту" : "Правила світу · зараз усе нормально")+'</div><ul>'+
+      RULES.map(function(r,i){
+        var got = gate.got && gate.got[i];
+        return '<li'+(got ? ' class="got"' : '')+'><span class="ic">'+r.ic+'</span><span><span class="n">'+r.n+'</span><span class="f">🔄 '+r.f+'</span></span><span class="ck">'+(got ? "✅" : "")+'</span></li>';
+      }).join("")+'</ul></div>';
   }
   function renderGateCard(){
     var n = gate.got ? Object.keys(gate.got).length : 0;
     $("gateTitle").textContent = gate.pass ? "🎟️ Перепустку отримано!" : "Ворота у Світ навиворіт";
     $("gateSub").textContent = gate.pass
-      ? "Ти знаєш усі 6 правил Світу навиворіт. Розділи відкриваються по черзі — почни з розділу I «Дивне місто»!"
+      ? "Ти знаєш усі 6 правил Світу навиворіт. Торкнись, щоб переглянути правила."
       : (flipped ? "Світ перевернувся! Торкнись воріт 🎟️ і розгадай нові правила ("+n+"/6)."
-                 : "Зроби Переворот і розгадай 6 нових правил біля воріт — отримаєш перепустку.");
+                 : "Торкнись, щоб побачити правила світу. Зроби Переворот і розгадай 6 нових правил — отримаєш перепустку.");
   }
   function renderCount(){
     var d = BUILT.filter(isDone).length;
@@ -499,7 +493,7 @@ body.flipped .rules li .f{display:inline;}
     document.body.classList.toggle("flipped", on);
     $("flipBtn").textContent = on ? "🔄 Перевернути назад" : "🔄 Переворот!";
     $("subtitle").textContent = on ? "🔄 навиворіт!" : "🗺️ 6 розділів · 30 рівнів";
-    renderRules(); renderGateCard();
+    renderGateCard();
   }
   $("flipBtn").addEventListener("click", function(){
     whoosh();
@@ -525,12 +519,12 @@ body.flipped .rules li .f{display:inline;}
     if(!flipped){
       openSheet('<div class="sb">🎟️</div><div class="st">Ворота у Світ навиворіт</div>'+
         '<div class="sd">Поки що тут усе працює нормально: сонце світить удень, риби плавають, а вогонь гріє.<br><br>'+
-        'Натисни <b>🔄 Переворот</b> — і повертайся до воріт. Подивимось, чи зрозумієш ти нові правила!</div>');
+        'Натисни <b>🔄 Переворот</b> — і повертайся до воріт. Подивимось, чи зрозумієш ти нові правила!</div>'+rulesHtml());
       return;
     }
     if(gate.pass){
       openSheet('<div class="sb">🎟️</div><div class="st">Перепустку отримано!</div>'+
-        '<div class="sd">Ти розгадав(-ла) всі 6 правил Світу навиворіт. Тепер — у дорогу: розділи чекають!</div>'+
+        '<div class="sd">Ти розгадав(-ла) всі 6 правил Світу навиворіт. Тепер — у дорогу: розділи чекають!</div>'+rulesHtml()+
         '<button class="play" type="button" id="regate" style="border:none;cursor:pointer;background:var(--purple);box-shadow:0 6px 0 #8e3fb0">↻ Пройти ворота ще раз</button>');
       $("regate").addEventListener("click", function(){ gate = {}; save(); renderAll(); gi = 0; askGate(); });
       return;
@@ -554,7 +548,7 @@ body.flipped .rules li .f{display:inline;}
         b.classList.add("good"); chime();
         Array.prototype.forEach.call(box.children, function(x){ x.disabled = true; });
         $("gFb").className = "fb good"; $("gFb").textContent = "Так! "+r.f+" — і ти цим скористався(-лася)!";
-        gate.got[gi] = 1; save(); renderRules(); renderGateCard();
+        gate.got[gi] = 1; save(); renderGateCard();
         setTimeout(function(){ gi++; askGate(); }, 1300);
       });
       box.appendChild(b);
@@ -589,7 +583,7 @@ body.flipped .rules li .f{display:inline;}
     setTimeout(function(){ tone(784,0.14); },240); setTimeout(function(){ tone(1046,0.18); },380); }
   function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var x=a[i]; a[i]=a[j]; a[j]=x; } return a; }
 
-  function renderAll(){ renderHub(); renderPins(); renderRules(); renderGateCard(); renderCount(); }
+  function renderAll(){ renderHub(); renderPins(); renderGateCard(); renderCount(); }
 
   /* відкрити потрібний розділ: ?r=N у посиланні, або розділ гри, з якої щойно повернулись */
   function startChapter(){
