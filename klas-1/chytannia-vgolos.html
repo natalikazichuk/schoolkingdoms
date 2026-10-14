@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Читаю вголос — тренажер</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<style>
+:root{
+  --ink:#2c2b3a;--soft:#6b6a7d;--paper:#fff9ef;--line:#ece3d2;--card:#fff;
+  --green:#51cf66;--green-d:#2f9e4a;--blue:#4dabf7;--blue-d:#2f8fd6;--red:#ff6b6b;
+  --yellow:#ffd43b;--orange:#f08c00;--good-bg:#e4f7ec;--bad:#e06666;--bad-bg:#fbe7e7;
+  --shadow:0 6px 0 rgba(44,43,58,.13);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  font-family:'Nunito',system-ui,sans-serif;color:var(--ink);
+  background:
+    radial-gradient(circle at 12% 8%,rgba(255,212,59,.28),transparent 42%),
+    radial-gradient(circle at 88% 14%,rgba(77,171,247,.26),transparent 44%),
+    radial-gradient(circle at 8% 86%,rgba(81,207,102,.24),transparent 44%),
+    var(--paper);
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  padding:14px;padding-bottom:calc(82px + env(safe-area-inset-bottom));
+}
+.wrap{width:100%;max-width:560px;flex:1;display:flex;flex-direction:column;gap:12px}
+h1,h2,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px;margin:0}
+h1{font-size:1.5rem;text-align:center}
+.sub{text-align:center;color:var(--soft);margin:-6px 0 0;font-size:.95rem}
+
+/* ── текст ── */
+.card{background:var(--card);border:2px solid var(--line);border-radius:22px;box-shadow:var(--shadow);padding:18px 16px}
+.poem-title{font-family:'Fredoka',sans-serif;font-size:1.3rem;text-align:center;margin:0 0 12px;color:var(--blue-d)}
+.stanza{margin:0 0 14px}
+.stanza:last-child{margin-bottom:0}
+.ln{font-size:1.55rem;line-height:1.55;font-weight:800;text-align:center}
+.w{display:inline-block;padding:0 3px;margin:0 1px;border-radius:8px;cursor:pointer;
+  transition:color .25s,background-color .25s;color:var(--ink)}
+.w.cur{background:#fff3bf;box-shadow:inset 0 -3px 0 var(--yellow)}
+.w.read{color:var(--green-d);background:var(--good-bg)}
+.w.skip{color:var(--orange);background:#fff4e0}
+.w.pop{animation:pop .35s ease}
+@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.18)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ── панель керування ── */
+.ctrl{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.btn{font-family:'Fredoka',sans-serif;font-weight:600;font-size:1.1rem;border:0;border-radius:16px;
+  padding:12px 20px;cursor:pointer;color:#fff;background:var(--blue);box-shadow:0 5px 0 var(--blue-d)}
+.btn:active{transform:translateY(3px);box-shadow:0 2px 0 var(--blue-d)}
+.btn.mic{background:var(--green);box-shadow:0 5px 0 var(--green-d);min-width:210px}
+.btn.mic.on{background:var(--red);box-shadow:0 5px 0 #c94b4b}
+.btn.ghost{background:#fff;color:var(--ink);border:2px solid var(--line);box-shadow:0 5px 0 var(--line)}
+.btn:disabled{opacity:.5;cursor:default}
+.status{min-height:1.4em;text-align:center;color:var(--soft);font-weight:700}
+.status.err{color:var(--bad)}
+.heard{min-height:1.3em;text-align:center;color:var(--soft);font-size:.9rem;font-style:italic}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--red);margin-right:6px;
+  vertical-align:middle;animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.25}}
+
+.bar{height:12px;border-radius:8px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--green);transition:width .3s}
+
+/* ── підсумок ── */
+.result{display:none;text-align:center}
+.result.on{display:block}
+.result .big{font-size:2.6rem}
+.stats{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:10px 0 4px}
+.stat{background:var(--paper);border:2px solid var(--line);border-radius:14px;padding:8px 12px;min-width:96px}
+.stat b{display:block;font-family:'Fredoka',sans-serif;font-size:1.4rem}
+.stat span{font-size:.8rem;color:var(--soft)}
+.hint{font-size:.85rem;color:var(--soft);text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎤 Читаю вголос</h1>
+  <p class="sub">Читай вірш уголос — прочитані слова загоряться зеленим</p>
+
+  <div class="card" id="textCard">
+    <h2 class="poem-title" id="poemTitle"></h2>
+    <div id="poem"></div>
+  </div>
+
+  <div class="bar"><i id="barFill"></i></div>
+
+  <div class="ctrl">
+    <button class="btn mic" id="micBtn" type="button">🎤 Почати читати</button>
+    <button class="btn ghost" id="resetBtn" type="button">↺ Спочатку</button>
+  </div>
+  <div class="status" id="status"></div>
+  <div class="heard" id="heard"></div>
+  <p class="hint">Застряг? Натисни на слово, з якого читаєш далі.</p>
+
+  <div class="card result" id="result">
+    <div class="big">🌟</div>
+    <h2>Молодець! Вірш прочитано!</h2>
+    <div class="stats">
+      <div class="stat"><b id="stTime">0</b><span>секунд</span></div>
+      <div class="stat"><b id="stWpm">0</b><span>слів за хвилину</span></div>
+      <div class="stat"><b id="stSkip">0</b><span>пропущено</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* Текст: строфи → рядки. Пізніше можна брати з бази. */
+  var TEXT = {
+    title: 'Мова наша, мова',
+    stanzas: [
+      ['Мова наша, мова —', 'мова кольорова.', 'В ній гроза травнева', 'й тиша вечорова.'],
+      ['Мова наша, мова...', 'Літ минувших повість,', 'вічна наша мудрість,', 'сива наша совість.'],
+      ['Я без тебе, мово,', 'без зерна полова,', 'соняшник без сонця,', 'без птахів діброва.']
+    ]
+  };
+
+  var LOOKAHEAD = 3;     // на скільки слів уперед шукаємо збіг (пропущені слова)
+
+  var $ = function(id){ return document.getElementById(id); };
+  var words = [];        // [{el, norm}]
+  var pos = 0;           // індекс слова, яке дитина має прочитати наступним
+  var sessionStart = 0;  // pos на початку поточної сесії розпізнавання
+  var listening = false, rec = null, startedAt = 0, skipped = 0;
+
+  /* ── нормалізація й нечітке порівняння ── */
+  function norm(s){
+    return String(s).toLowerCase()
+      .replace(/[’ʼ'`]/g, '')
+      .replace(/ё/g, 'е')
+      .replace(/[^a-zа-яіїєґ]/g, '');
+  }
+  function lev(a, b){
+    if(a === b) return 0;
+    var m = a.length, n = b.length, prev = [], cur, i, j;
+    for(j = 0; j <= n; j++) prev[j] = j;
+    for(i = 1; i <= m; i++){
+      cur = [i];
+      for(j = 1; j <= n; j++){
+        cur[j] = Math.min(prev[j] + 1, cur[j-1] + 1, prev[j-1] + (a[i-1] === b[j-1] ? 0 : 1));
+      }
+      prev = cur;
+    }
+    return prev[n];
+  }
+  var SAME = {'й':'і', 'у':'в'};   // розпізнавач плутає й/і, у/в
+  function match(heard, expected){
+    if(!heard || !expected) return false;
+    if(heard === expected) return true;
+    if((SAME[heard] || heard) === (SAME[expected] || expected)) return true;
+    var len = expected.length;
+    var tol = len <= 3 ? 0 : len <= 6 ? 1 : 2;
+    return lev(heard, expected) <= tol;
+  }
+
+  /* ── побудова тексту ── */
+  function render(){
+    $('poemTitle').textContent = TEXT.title;
+    var box = $('poem');
+    box.innerHTML = '';
+    words = [];
+    TEXT.stanzas.forEach(function(lines){
+      var st = document.createElement('div');
+      st.className = 'stanza';
+      lines.forEach(function(line){
+        var ln = document.createElement('div');
+        ln.className = 'ln';
+        line.split(/\s+/).forEach(function(tok, k){
+          var n = norm(tok);
+          if(k) ln.appendChild(document.createTextNode(' '));
+          if(!n){ ln.appendChild(document.createTextNode(tok)); return; }  // «—» тощо
+          var sp = document.createElement('span');
+          sp.className = 'w';
+          sp.textContent = tok;
+          sp.dataset.i = words.length;
+          words.push({el: sp, norm: n});
+          ln.appendChild(sp);
+        });
+        st.appendChild(ln);
+      });
+      box.appendChild(st);
+    });
+  }
+
+  function paint(){
+    words.forEach(function(w, i){ w.el.classList.toggle('cur', i === pos && pos < words.length); });
+    $('barFill').style.width = (words.length ? pos / words.length * 100 : 0) + '%';
+    var cur = words[pos];
+    if(cur && listening){
+      var r = cur.el.getBoundingClientRect();
+      if(r.top < 60 || r.bottom > innerHeight - 160) cur.el.scrollIntoView({block: 'center', behavior: 'smooth'});
+    }
+  }
+
+  function markRead(i, cls){
+    var el = words[i].el;
+    if(el.classList.contains('read') || el.classList.contains('skip')) return;
+    el.classList.add(cls, 'pop');
+    if(cls === 'skip') skipped++;
+  }
+
+  /* Пройти почутими словами від sessionStart. Позиція лише росте —
+     проміжні (interim) результати можуть мінятися, але зелене не гасне. */
+  function advance(heardWords){
+    var p = sessionStart;
+    for(var h = 0; h < heardWords.length && p < words.length; h++){
+      var hw = heardWords[h];
+      for(var k = 0; k <= LOOKAHEAD && p + k < words.length; k++){
+        if(match(hw, words[p + k].norm)){
+          if(p + k + 1 > pos){
+            for(var s = Math.max(p, pos); s < p + k; s++){
+              // однолітерні слова (й, в, я) розпізнавач часто ковтає — не карати
+              markRead(s, words[s].norm.length <= 1 ? 'read' : 'skip');
+            }
+            markRead(p + k, 'read');
+          }
+          p = p + k + 1;
+          break;
+        }
+      }
+    }
+    if(p > pos){
+      pos = p;
+      paint();
+      if(pos >= words.length) finish();
+    }
+  }
+
+  /* ── розпізнавання мовлення ── */
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  function setStatus(txt, err){
+    var s = $('status');
+    s.innerHTML = txt;
+    s.classList.toggle('err', !!err);
+  }
+
+  function makeRec(){
+    var r = new SR();
+    r.lang = 'uk-UA';
+    r.continuous = true;
+    r.interimResults = true;
+    r.maxAlternatives = 1;
+    r.onresult = function(e){
+      var text = '';
+      for(var i = 0; i < e.results.length; i++) text += ' ' + e.results[i][0].transcript;
+      $('heard').textContent = text.trim().split(/\s+/).slice(-6).join(' ');
+      advance(text.split(/\s+/).map(norm).filter(Boolean));
+    };
+    r.onerror = function(e){
+      if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+        stop();
+        setStatus('Немає доступу до мікрофона. Дозволь мікрофон у налаштуваннях браузера.', true);
+      } else if(e.error === 'network'){
+        stop();
+        setStatus('Потрібен інтернет для розпізнавання голосу.', true);
+      } else if(e.error === 'audio-capture'){
+        stop();
+        setStatus('Мікрофон не знайдено.', true);
+      }
+      // no-speech / aborted — onend перезапустить
+    };
+    r.onend = function(){
+      // браузер закінчує сесію після паузи — тихо починаємо нову з поточного слова
+      if(!listening) return;
+      sessionStart = pos;
+      try{ r.start(); }catch(err){ setTimeout(function(){ if(listening) try{ r.start(); }catch(e2){} }, 300); }
+    };
+    return r;
+  }
+
+  function start(){
+    if(!SR) return;
+    if(pos >= words.length) reset();
+    listening = true;
+    sessionStart = pos;
+    if(!startedAt) startedAt = Date.now();
+    rec = rec || makeRec();
+    try{ rec.start(); }catch(e){}
+    $('micBtn').classList.add('on');
+    $('micBtn').textContent = '⏹ Зупинити';
+    setStatus('<span class="dot"></span>Слухаю… читай уголос');
+    paint();
+  }
+
+  function stop(){
+    listening = false;
+    if(rec) try{ rec.abort(); }catch(e){}
+    $('micBtn').classList.remove('on');
+    $('micBtn').textContent = '🎤 Читати далі';
+    setStatus('');
+    paint();
+  }
+
+  function finish(){
+    var sec = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
+    stop();
+    $('micBtn').textContent = '🎤 Ще раз';
+    $('heard').textContent = '';
+    $('stTime').textContent = sec;
+    $('stWpm').textContent = Math.round(words.length / sec * 60);
+    $('stSkip').textContent = skipped;
+    $('result').classList.add('on');
+    $('result').scrollIntoView({block: 'center', behavior: 'smooth'});
+  }
+
+  function reset(){
+    if(listening) stop();
+    pos = 0; sessionStart = 0; skipped = 0; startedAt = 0;
+    words.forEach(function(w){ w.el.className = 'w'; });
+    $('result').classList.remove('on');
+    $('heard').textContent = '';
+    $('micBtn').textContent = '🎤 Почати читати';
+    setStatus('');
+    paint();
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  }
+
+  /* натискання на слово: «я вже тут» — попередні слова зараховуємо */
+  $('poem').addEventListener('click', function(e){
+    var el = e.target.closest('.w');
+    if(!el) return;
+    var i = +el.dataset.i;
+    if(i <= pos) return;
+    for(var s = pos; s < i; s++) markRead(s, 'skip');
+    pos = i;
+    sessionStart = pos;
+    if(listening && rec){ try{ rec.abort(); }catch(err){} }  // нова сесія з цього місця (onend перезапустить)
+    paint();
+  });
+
+  $('micBtn').addEventListener('click', function(){ listening ? stop() : start(); });
+  $('resetBtn').addEventListener('click', reset);
+
+  render();
+  paint();
+  if(!SR){
+    $('micBtn').disabled = true;
+    setStatus('Цей браузер не вміє розпізнавати голос. Відкрий сторінку в Chrome.', true);
+  }
+})();
+</script>
+<script src="../sk-footer.js?v=5" data-base="../" data-back="tests.html"></script>
+</body>
+</html>
