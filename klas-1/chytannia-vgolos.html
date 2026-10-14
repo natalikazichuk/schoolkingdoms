@@ -107,28 +107,54 @@ h1{font-size:1.5rem;text-align:center}
 .tile{position:relative}
 .tile::after{content:'🔊';position:absolute;top:3px;right:4px;font-size:.7rem;opacity:.75}
 
-/* Усе вміщається на один екран над футером: сітка забирає решту висоти. */
-body.learn{min-height:0;padding-top:10px}
-body.learn .wrap{flex:none;gap:7px;height:calc(100dvh - 10px - 82px - env(safe-area-inset-bottom))}
-body.learn .sub,body.learn #textCard,body.learn .meter,body.learn .read-only,
-body.learn .heard,body.learn .hint{display:none}
-body.learn .learn-grid{display:grid}
-body.learn .levels{display:flex}
-body:not(.learn) .learn-only{display:none}
-body.learn h1{font-size:1.15rem}
-body.learn .levels{flex-wrap:nowrap}
-@media (max-height:700px){ body.learn h1{display:none} }
-body.learn .tab{padding:6px 12px;font-size:.92rem}
-body.learn .top{position:static;padding:0}
-body.learn .bar{height:8px}
-body.learn .ctrl{flex-wrap:nowrap}
-body.learn .btn{padding:9px 14px;font-size:1rem}
-body.learn .btn.mic{min-width:0;flex:1}
-body.learn .status{min-height:0;font-size:.85rem}
-body.learn .status:empty{display:none}
-/* підсумок — поверх сітки, щоб не гортати */
-body.learn .result.on{position:fixed;left:16px;right:16px;top:50%;transform:translateY(-50%);z-index:30;
+/* Усе вміщається на один екран над футером, без гортання сторінки:
+   середній блок (строфа або сітка карток) забирає решту висоти. */
+body{min-height:0;padding-top:10px}
+.wrap{flex:none;gap:7px;height:calc(100dvh - 10px - 82px - env(safe-area-inset-bottom))}
+.sub,.heard,.hint{display:none}
+h1{font-size:1.15rem}
+@media (max-height:700px){ h1{display:none} }
+.tab{padding:6px 12px;font-size:.92rem}
+.top{position:static;padding:0}
+.bar{height:8px}
+.ctrl{flex-wrap:nowrap}
+.btn{padding:9px 14px;font-size:1rem}
+.btn.mic,.btn.listen{min-width:0;flex:1}
+.status{min-height:0;font-size:.85rem}
+.status:empty{display:none}
+/* підсумок — поверх, щоб не гортати */
+.result.on{position:fixed;left:16px;right:16px;top:50%;transform:translateY(-50%);z-index:30;
   max-width:520px;margin:0 auto;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+
+/* «Читати»: компактний таймер і лічильник в один рядок */
+.meter>div{display:flex;align-items:baseline;justify-content:center;gap:6px;padding:4px 8px;box-shadow:none}
+.meter b{display:inline;font-size:1.25rem}
+/* «Читати»: строфа (4 рядки) великими літерами, сторінки гортаються */
+#textCard{flex:1 1 0;min-height:0;display:flex;flex-direction:column;padding:10px 12px}
+.poem-title{font-size:1.05rem;margin:0 0 4px}
+#poem{flex:1 1 0;min-height:0;display:flex;flex-direction:column;justify-content:center;overflow:hidden}
+#poem .stanza{display:none;margin:0}
+#poem .stanza.on{display:block}
+#poem .ln{font-size:1em;line-height:1.25;margin:0 0 .35em}
+#poem .ln:last-child{margin-bottom:0}
+#poem .w{padding:0 2px;margin:0}
+.pager button:not(:disabled):active{transform:translateY(2px)}
+.pager{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:4px}
+.pager button{width:46px;height:40px;border:2px solid var(--line);background:#fff;border-radius:12px;
+  font-size:1.1rem;cursor:pointer;color:var(--ink)}
+.pager button:disabled{opacity:.35;cursor:default}
+.pager span{font-weight:800;color:var(--soft);min-width:48px;text-align:center}
+
+/* «Вчити» / «Розказати» — сітка карток замість строфи */
+body.learn #textCard,body.learn .meter,body.learn .read-only{display:none}
+body.learn .learn-grid{display:grid}
+body.m-learn .levels{display:flex}
+body.learn .levels{flex-wrap:nowrap}
+body:not(.learn) .learn-only{display:none}
+/* «Вчити» — слухаємо вірш (без мікрофона); «Розказати» — мікрофон, лише картинки */
+body.m-learn #micBtn,body:not(.m-learn) #listenBtn{display:none}
+.btn.listen{background:#7c5cd0;box-shadow:0 5px 0 #5b3fa8}
+.btn.listen.on{background:var(--red);box-shadow:0 5px 0 #c94b4b}
 </style>
 </head>
 <body>
@@ -137,7 +163,8 @@ body.learn .result.on{position:fixed;left:16px;right:16px;top:50%;transform:tran
   <p class="sub">Читай уголос 1 хвилину — прочитані слова загоряться зеленим</p>
   <div class="tabs">
     <button class="tab on" type="button" data-mode="read">📖 Читати</button>
-    <button class="tab" type="button" data-mode="learn">🧠 Вивчити вірш</button>
+    <button class="tab" type="button" data-mode="learn">🧠 Вчити</button>
+    <button class="tab" type="button" data-mode="tell">🎤 Розказати</button>
   </div>
   <div class="levels">
     <button class="lvl on" type="button" data-level="all" title="Весь текст">📝 Текст</button>
@@ -147,7 +174,7 @@ body.learn .result.on{position:fixed;left:16px;right:16px;top:50%;transform:tran
 
   <div class="top">
     <div class="meter">
-      <div id="timerBox"><b id="timer">1:00</b><span>⏱ залишилось</span></div>
+      <div id="timerBox"><span>⏱</span><b id="timer">1:00</b></div>
       <div><b id="count">0</b><span id="countLbl">📖 прочитано слів</span></div>
     </div>
     <div class="bar"><i id="barFill"></i></div>
@@ -158,11 +185,17 @@ body.learn .result.on{position:fixed;left:16px;right:16px;top:50%;transform:tran
   <div class="card" id="textCard">
     <h2 class="poem-title" id="poemTitle"></h2>
     <div id="poem"></div>
+    <div class="pager">
+      <button type="button" id="pgPrev" aria-label="Попередня строфа">◀</button>
+      <span id="pgNo">1 / 1</span>
+      <button type="button" id="pgNext" aria-label="Наступна строфа">▶</button>
+    </div>
   </div>
 
 
   <div class="ctrl">
     <button class="btn mic" id="micBtn" type="button">🎤 Почати читати</button>
+    <button class="btn listen" id="listenBtn" type="button">🔊 Слухати вірш</button>
     <button class="btn ghost" id="resetBtn" type="button">↺ Спочатку</button>
   </div>
   <div class="status" id="status"></div>
@@ -202,8 +235,13 @@ body.learn .result.on{position:fixed;left:16px;right:16px;top:50%;transform:tran
 
   var LOOKAHEAD = 3;     // на скільки слів уперед шукаємо збіг (пропущені слова)
   var LIMIT = 60000;     // перевірка техніки читання — 1 хвилина
-  var mode = 'read';     // read — читання з таймером; learn — вивчити вірш напамʼять
+  var mode = 'read';     // read — читання з таймером; learn — вчити вірш; tell — розказати напамʼять
+  function grid(){ return mode !== 'read'; }   // learn і tell — сітка карток із картинками
+  function lvl(){ return mode === 'tell' ? 'none' : level; }   // «Розказати» — лише картинки
   var level = 'all';     // learn: all — весь текст, first — перші літери, none — лише картинки
+  var playing = false;   // learn: «Слухати вірш» — озвучуємо рядки по черзі
+  var pages = [], pageCount = 0, page = 0;   // read: строфи — сторінки по 4 рядки
+  var autoPos = -1, flipTimer = 0;
   var tiles = [];        // learn: [{el, from, to}] — картка рядка й діапазон його слів
 
   var $ = function(id){ return document.getElementById(id); };
@@ -265,7 +303,7 @@ body.learn .result.on{position:fixed;left:16px;right:16px;top:50%;transform:tran
       sp.className = 'w';
       sp.textContent = tok;
       sp.dataset.i = words.length;
-      words.push({el: sp, norm: n, full: tok});
+      words.push({el: sp, norm: n, full: tok, pg: pageCount});
       ln.appendChild(sp);
     });
   }
@@ -273,15 +311,17 @@ body.learn .result.on{position:fixed;left:16px;right:16px;top:50%;transform:tran
      вірша або в картках «Вивчити вірш». Рушій розпізнавання той самий. */
   function render(){
     $('poemTitle').textContent = TEXT.title;
-    var box = $('poem'), grid = $('grid');
-    box.innerHTML = ''; grid.innerHTML = '';
-    words = []; tiles = [];
+    var box = $('poem'), gridEl = $('grid');
+    box.innerHTML = ''; gridEl.innerHTML = '';
+    words = []; tiles = []; pages = [];
     var lineNo = 0;
+    pageCount = 0;
     TEXT.stanzas.forEach(function(lines){
       var st = document.createElement('div');
       st.className = 'stanza';
+      pages.push(st);
       lines.forEach(function(line){
-        if(mode === 'learn'){
+        if(grid()){
           var tile = document.createElement('div');
           tile.className = 'tile';
           tile.dataset.line = lineNo;
@@ -294,7 +334,7 @@ body.learn .result.on{position:fixed;left:16px;right:16px;top:50%;transform:tran
           var from = words.length;
           fillLine(cap, line);
           tile.appendChild(img); tile.appendChild(cap);
-          grid.appendChild(tile);
+          gridEl.appendChild(tile);
           tiles.push({el: tile, from: from, to: words.length, text: line});
         } else {
           var ln = document.createElement('div');
@@ -304,30 +344,67 @@ body.learn .result.on{position:fixed;left:16px;right:16px;top:50%;transform:tran
         }
         lineNo++;
       });
-      if(mode !== 'learn') box.appendChild(st);
+      if(!grid()) box.appendChild(st);
+      pageCount++;
     });
     applyLevel();
+    autoPos = -1;
+    if(!grid()) showPage(0);
   }
   /* Рівень підказки у «Вивчити вірш»: ще не сказані слова показуємо повністю,
      першою літерою або ховаємо; сказане — завжди повністю й зеленим. */
   function applyLevel(){
     words.forEach(function(w){
       var shown = w.el.classList.contains('read') || w.el.classList.contains('skip');
-      w.el.textContent = (mode !== 'learn' || level === 'all' || shown) ? w.full
-        : level === 'first' ? w.full.charAt(0) + '…' : '…';
+      w.el.textContent = (!grid() || lvl() === 'all' || shown) ? w.full
+        : lvl() === 'first' ? w.full.charAt(0) + '…' : '…';
     });
   }
 
   function paint(){
-    words.forEach(function(w, i){ w.el.classList.toggle('cur', mode !== 'learn' && i === pos && pos < words.length); });
-    tiles.forEach(function(t){ t.el.classList.toggle('now', listening && pos >= t.from && pos < t.to); });
+    words.forEach(function(w, i){ w.el.classList.toggle('cur', !grid() && i === pos && pos < words.length); });
+    if(!playing) tiles.forEach(function(t){ t.el.classList.toggle('now', listening && pos >= t.from && pos < t.to); });
     $('barFill').style.width = (words.length ? pos / words.length * 100 : 0) + '%';
-    var cur = words[pos];
-    if(cur && listening && mode !== 'learn'){
-      var r = cur.el.getBoundingClientRect();
-      if(r.top < 150 || r.bottom > innerHeight - 160) cur.el.scrollIntoView({block: 'center', behavior: 'smooth'});
+    /* Дочитав строфу — сторінка сама перегортається на наступну
+       (з короткою паузою, щоб дитина побачила останнє зелене слово). */
+    if(!grid() && pos !== autoPos){
+      var first = autoPos < 0;
+      autoPos = pos;
+      clearTimeout(flipTimer);
+      if(words[pos] && words[pos].pg !== page){
+        var to = words[pos].pg;
+        if(first) showPage(to); else flipTimer = setTimeout(function(){ showPage(to); }, 700);
+      }
     }
   }
+
+  function showPage(n){
+    page = Math.max(0, Math.min(pages.length - 1, n));
+    pages.forEach(function(st, k){ st.classList.toggle('on', k === page); });
+    $('pgNo').textContent = (page + 1) + ' / ' + pages.length;
+    $('pgPrev').disabled = page === 0;
+    $('pgNext').disabled = page === pages.length - 1;
+    fitText();
+  }
+  /* Найбільший шрифт, з яким строфа вміщається на сторінку без гортання.
+     Довгий рядок може перенестися (слово ціле), тому між рядками вірша —
+     відступ, щоб перенесене не сплутати з наступним рядком. */
+  function fitText(){
+    var box = $('poem'), st = pages[page];
+    if(grid() || !st || !box.clientHeight) return;
+    var size = 56;
+    st.style.fontSize = size + 'px';
+    while(size > 16){
+      var wide = false;
+      st.querySelectorAll('.w').forEach(function(w){ if(w.offsetWidth > box.clientWidth) wide = true; });
+      if(!wide && st.scrollHeight <= box.clientHeight) break;
+      size -= 2;
+      st.style.fontSize = size + 'px';
+    }
+  }
+  window.addEventListener('resize', fitText);
+  // вебшрифт підвантажується пізніше й міняє ширину літер — підбираємо ще раз
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(fitText);
 
   function markRead(i, cls){
     var el = words[i].el;
@@ -335,7 +412,7 @@ body.learn .result.on{position:fixed;left:16px;right:16px;top:50%;transform:tran
     el.classList.add(cls, 'pop');
     if(cls === 'skip') skipped++; else readCount++;
     $('count').textContent = readCount;
-    if(mode === 'learn'){
+    if(grid()){
       el.textContent = words[i].full;
       tiles.forEach(function(t){
         if(i === t.to - 1) t.el.classList.add('done');
@@ -451,7 +528,7 @@ body.learn .result.on{position:fixed;left:16px;right:16px;top:50%;transform:tran
     try{ rec.start(); }catch(e){}
     $('micBtn').classList.add('on');
     $('micBtn').textContent = '⏹ Зупинити';
-    setStatus('<span class="dot"></span>' + (mode === 'learn' ? 'Слухаю… розказуй вірш' : 'Слухаю… читай уголос'));
+    setStatus('<span class="dot"></span>' + (mode === 'tell' ? 'Слухаю… розказуй вірш' : 'Слухаю… читай уголос'));
     paint();
   }
 
@@ -460,7 +537,7 @@ body.learn .result.on{position:fixed;left:16px;right:16px;top:50%;transform:tran
     listening = false;
     if(rec) try{ rec.abort(); }catch(e){}
     $('micBtn').classList.remove('on');
-    $('micBtn').textContent = mode === 'learn' ? '🎤 Розказувати далі' : '🎤 Читати далі';
+    $('micBtn').textContent = mode === 'tell' ? '🎤 Розказувати далі' : '🎤 Читати далі';
     setStatus('');
     paint();
   }
@@ -475,13 +552,12 @@ body.learn .result.on{position:fixed;left:16px;right:16px;top:50%;transform:tran
     $('micBtn').textContent = '🎤 Ще раз';
     $('heard').textContent = '';
     $('resTitle').textContent = timeUp ? '⏱ Хвилина минула!'
-      : mode === 'learn' ? 'Молодець! Вірш розказано напамʼять!' : 'Молодець! Вірш прочитано!';
+      : mode === 'tell' ? 'Молодець! Вірш розказано напамʼять!' : 'Молодець! Вірш прочитано!';
     $('stRead').textContent = readCount;
     $('stTime').textContent = sec;
     $('stWpm').textContent = Math.round(readCount / sec * 60);
     $('stSkip').textContent = skipped;
     $('result').classList.add('on');
-    if(mode !== 'learn') $('result').scrollIntoView({block: 'center', behavior: 'smooth'});
   }
 
   function reset(){
@@ -495,10 +571,10 @@ body.learn .result.on{position:fixed;left:16px;right:16px;top:50%;transform:tran
     applyLevel();
     $('result').classList.remove('on');
     $('heard').textContent = '';
-    $('micBtn').textContent = mode === 'learn' ? '🎤 Розказати вірш' : '🎤 Почати читати';
+    $('micBtn').textContent = mode === 'tell' ? '🎤 Розказати вірш' : '🎤 Почати читати';
     setStatus('');
+    autoPos = -1;
     paint();
-    window.scrollTo({top: 0, behavior: 'smooth'});
   }
 
   /* натискання на слово: «я вже тут» — попередні слова зараховуємо */
@@ -522,19 +598,53 @@ body.learn .result.on{position:fixed;left:16px;right:16px;top:50%;transform:tran
     var ss = window.speechSynthesis;
     if(!t || !ss || !window.SpeechSynthesisUtterance) return;
     if(listening) stop();   // інакше мікрофон почує озвучку й зарахує слова
+    stopPlay();
     var u = new SpeechSynthesisUtterance(t.text);
     u.lang = 'uk-UA'; u.rate = 0.85;
     ss.cancel(); ss.speak(u);
     el.classList.remove('say'); void el.offsetWidth; el.classList.add('say');
   });
 
+  /* «Вчити»: «Слухати вірш» — рядки по черзі, картка рядка підсвічується. */
+  function stopPlay(){
+    if(!playing) return;
+    playing = false;
+    try{ window.speechSynthesis.cancel(); }catch(e){}
+    tiles.forEach(function(t){ t.el.classList.remove('now'); });
+    $('listenBtn').classList.remove('on');
+    $('listenBtn').textContent = '🔊 Слухати вірш';
+  }
+  function playLine(i){
+    if(!playing) return;
+    if(i >= tiles.length){ stopPlay(); return; }
+    tiles.forEach(function(t, k){ t.el.classList.toggle('now', k === i); });
+    var u = new SpeechSynthesisUtterance(tiles[i].text);
+    u.lang = 'uk-UA'; u.rate = 0.85;
+    var next = function(){ setTimeout(function(){ playLine(i + 1); }, 350); };
+    u.onend = next;
+    u.onerror = function(){ if(playing) next(); };
+    window.speechSynthesis.speak(u);
+  }
+  $('listenBtn').addEventListener('click', function(){
+    if(playing){ stopPlay(); return; }
+    if(!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
+    playing = true;
+    this.classList.add('on');
+    this.textContent = '⏹ Зупинити';
+    window.speechSynthesis.cancel();
+    playLine(0);
+  });
+
   function setMode(m){
     if(m === mode) return;
     if(listening) stop();
+    stopPlay();
     mode = m;
-    document.body.classList.toggle('learn', mode === 'learn');
+    document.body.classList.toggle('learn', grid());
+    document.body.classList.toggle('m-learn', mode === 'learn');
+    document.body.classList.toggle('m-tell', mode === 'tell');
     document.querySelectorAll('.tab').forEach(function(b){ b.classList.toggle('on', b.dataset.mode === mode); });
-    $('countLbl').textContent = mode === 'learn' ? '🧠 розказано слів' : '📖 прочитано слів';
+    $('countLbl').textContent = mode === 'tell' ? '🎤 розказано слів' : '📖 прочитано слів';
     render();
     reset();
   }
@@ -550,7 +660,10 @@ body.learn .result.on{position:fixed;left:16px;right:16px;top:50%;transform:tran
   });
 
   // підсумок поверх сітки «Вивчити вірш» — закривається дотиком
-  $('result').addEventListener('click', function(){ if(mode === 'learn') this.classList.remove('on'); });
+  // підсумок поверх сторінки — закривається дотиком
+  $('result').addEventListener('click', function(){ this.classList.remove('on'); });
+  $('pgPrev').addEventListener('click', function(){ showPage(page - 1); });
+  $('pgNext').addEventListener('click', function(){ showPage(page + 1); });
   $('micBtn').addEventListener('click', function(){ listening ? stop() : start(); });
   $('resetBtn').addEventListener('click', reset);
 
