@@ -29,6 +29,7 @@
     font-size:.82rem;background:rgba(255,255,255,.1);border:1.5px solid rgba(242,199,92,.5);
     border-radius:11px;padding:8px 13px;transition:.15s;white-space:nowrap}
   .logout:hover{background:rgba(255,255,255,.2)}
+  button.logout{font-family:inherit;cursor:pointer}
   .topbar-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
   .admin-link{background:linear-gradient(180deg,#f5c542,#e0a83a);color:#2a1e06;
     border-color:#e0a83a;box-shadow:0 4px 12px rgba(245,197,66,.25)}
@@ -323,7 +324,9 @@
     <div class="topbar-actions">
       <!-- Показується лише адмінам (users/{uid}.role === 'admin') -->
       <a class="logout admin-link" href="admin.html" id="adminLink" hidden>⚙️ Адмінка</a>
-      <!-- Кнопку «Вийти» перенесено вниз, у нижню навігацію (.botnav) -->
+      <!-- «Вийти» — і тут, і внизу (.botnav): нижнє меню на телефоні ширше за
+           екран, і кнопка в його кінці ховалась за край -->
+      <button type="button" class="logout" id="logoutTop">🚪 Вийти</button>
     </div>
   </header>
 
@@ -1901,11 +1904,13 @@
     }
 
     // Вихід: завершуємо сесію Firebase, тоді ведемо на сторінку входу
-    document.getElementById('logoutBtn').addEventListener('click', async function(e){
-      e.preventDefault();
+    async function doLogout(e){
+      if (e) e.preventDefault();
       try { if (window.SK && SK.logout) await SK.logout(); } catch(_){}
       location.href = 'login.html';
-    });
+    }
+    document.getElementById('logoutBtn').addEventListener('click', doLogout);
+    document.getElementById('logoutTop').addEventListener('click', doLogout);
   </script>
 
   <!-- Віджет «Повідомити про помилку»: у кабінеті батьків БЕЗ плаваючої кнопки —
