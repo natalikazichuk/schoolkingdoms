@@ -33,6 +33,8 @@
 | `/srv/sk/tunnel_path` | секретна адреса SSH-тунелю |
 | `/srv/sk/data/hash-config.json` | параметри паролів Firebase |
 | `/srv/sk/migration` | вивантаження з Firebase (`firestore.json`, `users.json`) |
+| `/srv/sk/deploy_key` | deploy key для читання приватного репозиторію з GitHub |
+| `/srv/sk/known_hosts` | відбиток github.com для SSH |
 
 ## Команди
 
@@ -46,6 +48,36 @@ sudo docker compose -p sk --env-file /srv/sk/.env exec db psql -U sk sk # кон
 
 Коли сайт працює з `main`, cron кожні 2 хвилини перевіряє GitHub і сам
 запускає `deploy.sh`, якщо з'явився новий коміт (`/var/log/sk-deploy.log`).
+
+## Доступ до приватного репозиторію
+
+Репозиторій приватний, тому сервер читає його по SSH через deploy key
+(лише читання, лише цей репо). `git-access.sh` сам вибирає спосіб: є
+`/srv/sk/deploy_key` — SSH, немає — анонімний HTTPS (працює тільки для
+публічного репо). Без ключа автооновлення мовчки зупиняється, а в
+`/var/log/sk-deploy.log` з'являються помилки доступу.
+
+Налаштування (раз на VM):
+
+```sh
+sudo ssh-keygen -t ed25519 -N "" -C "sk-vm-deploy" -f /srv/sk/deploy_key
+sudo chmod 600 /srv/sk/deploy_key
+sudo cat /srv/sk/deploy_key.pub
+```
+
+1. GitHub → репозиторій → **Settings → Deploy keys → Add deploy key**:
+   вставити `deploy_key.pub`, галочку «Allow write access» **не** ставити.
+2. Перевірити: `sudo /srv/sk/repo/server/deploy.sh main` → `OK: main@…`.
+   Скрипт сам перемкне `origin` у `/srv/sk/repo` на SSH-адресу.
+
+Нова VM: спершу створити ключ і додати його на GitHub, потім склонувати
+репо тим самим ключем і запустити деплой:
+
+```sh
+sudo GIT_SSH_COMMAND="ssh -i /srv/sk/deploy_key -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/srv/sk/known_hosts" \
+  git clone git@github.com:natalikazichuk/schoolkingdoms.git /srv/sk/repo
+sudo /srv/sk/repo/server/deploy.sh main
+```
 
 ## Перенос з Firebase
 
