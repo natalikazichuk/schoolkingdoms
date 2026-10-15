@@ -4268,7 +4268,7 @@ var SH_TABS=[['gear','🛡️ Екіпіровка'],['cons','🧪 Підсил�
 function shGroups(){return [{key:'all',label:'Усі',icon:'🎒'}].concat(SKIT.GROUPS||[]);}
 function shGrp(id){var b=S.byId[id];return SKIT.groupOf?SKIT.groupOf(b&&b.category):'other';}
 function shCmp(a,b){return SKIT.itemCmp?SKIT.itemCmp(S.byId[a.id],S.byId[b.id]):0;}
-function grpBtns(attr,cur,list,skip){var n={all:list.length};list.forEach(function(x){var k=shGrp(x.id);n[k]=(n[k]||0)+1;});
+function grpBtns(attr,cur,list,skip,has){var n={all:0};list.forEach(function(x){if(has&&!has(x))return;var k=shGrp(x.id);n.all++;n[k]=(n[k]||0)+1;});   /* has — що рахувати (магазин: лише те, що ще можна купити) */
   return shGroups().filter(function(g){return !skip||skip.indexOf(g.key)<0;}).map(function(g){return '<button type="button" '+attr+'="'+g.key+'" class="'+(cur===g.key?'on':'')+(n[g.key]?'':' none')+'" title="'+g.label+'">'+g.icon+(n[g.key]?'<small>'+n[g.key]+'</small>':'')+'</button>';}).join('');}
 var SH_SOON={gifts:'Подарунки — скоро! Тут з’являться подарунки для друзів і сюрпризи.'};
 
@@ -4399,7 +4399,9 @@ function fitShTabs(){var t=q('shTabs'),h=t&&t.parentNode;if(!h||!h.clientWidth)r
 window.addEventListener('resize',fitShTabs);
 function renderStore(){
   var st=S.stock,sold=S.st?(S.st.shopSold||[]):[];
-  var cnt={gear:st?st.gear.length:0,cons:st?st.cons.length:0,back:sold.length};
+  /* числа на вкладках — скільки товарів ще можна купити (розкуплене й покладене на прилавок не рахується) */
+  var avail=function(b){return stockLeft(b.id)>0;};
+  var cnt={gear:st?st.gear.filter(avail).length:0,cons:st?st.cons.filter(avail).length:0,back:sold.length};
   q('shTabs').innerHTML=SH_TABS.map(function(t){var ic=t[1].split(' ')[0],lb=t[1].slice(ic.length+1);
     return '<button type="button" class="sh-tab'+(S.tab===t[0]?' on':'')+(SH_SOON[t[0]]?' soon':'')+'" data-tab="'+t[0]+'" title="'+lb+'">'+ic+'<span class="shl"> '+lb+'</span>'+(cnt[t[0]]!=null?' <small>'+cnt[t[0]]+'</small>':'')+'</button>';}).join('');
   fitShTabs();
@@ -4414,7 +4416,7 @@ function renderStore(){
        +'<span class="ic">'+tl.html+'</span><span class="nm">'+esc(b.name)+'</span><span class="act buy">викупити</span><span class="pr">↩ '+coinsH(t.price)+'</span></button>';}).join('')+'</div>';
     return;}
   var list=(S.tab==='cons'?st.cons:st.gear).slice().sort(shCmp),head='';
-  if(S.tab==='gear'){var sf=S.sf||'all';head='<div class="sh-grp store">'+grpBtns('data-sf',sf,list,['other'])+'</div>';
+  if(S.tab==='gear'){var sf=S.sf||'all';head='<div class="sh-grp store">'+grpBtns('data-sf',sf,list,['other'],avail)+'</div>';
     list=list.filter(function(b){return sf==='all'||shGrp(b.id)===sf;});}
   if(!list.length){q('shStore').innerHTML=head+'<div class="sh-empty">Сьогодні тут порожньо.</div>';return;}
   /* у наявності: речі — 1 шт., зілля й свитки — кілька (stock.qty). Куплене сьогодні
