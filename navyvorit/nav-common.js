@@ -54,9 +54,9 @@
         '<div id="dirBadge">'+(c.badgeOff||"⏩ звичайний світ")+'</div><div id="spacer"></div><button id="menuBtn" type="button">☰ Меню</button></div>'+
       '<div id="barWrap"><div id="bar"><div id="barFill"></div></div></div>'+
       '<div id="main"><div id="scene">'+(c.scene||"")+'</div><div id="hint"></div>'+(c.afterScene||"")+'<div id="panel"></div></div>'+
-      '<div class="screen" id="startScreen">'+
+      '<div class="screen'+(c.startBg ? ' picbg' : '')+'" id="startScreen"'+(c.startBg ? ' style="background-image:url('+c.startBg+')"' : '')+'>'+
         '<div class="start-top"><button class="iconbtn backbtn" type="button" title="Назад" aria-label="Назад">←</button><a class="maplink" href="index.html?g='+c.href+'">🗺️ На карту</a></div>'+
-        (c.startImg ? '<div class="start-pic" role="img" aria-label="'+c.title+'" style="background-image:url('+c.startImg+')"></div>' : '<div class="big-emoji">'+c.emoji+'</div>')+'<h1>'+c.title+'</h1><p class="start-sub">'+c.sub+'</p>'+
+        (c.startBg ? '' : c.startImg ? '<div class="start-pic" role="img" aria-label="'+c.title+'" style="background-image:url('+c.startImg+')"></div>' : '<div class="big-emoji">'+c.emoji+'</div>')+'<div class="titlebox"><h1>'+c.title+'</h1><p class="start-sub">'+c.sub+'</p></div>'+
         '<div class="riddle">'+c.riddle+'</div>'+
         '<div class="done-card" id="startDone"><span class="dc-ic">🏆</span><div><div class="dc-got" id="doneGot">Пройдено!</div><div class="dc-go" id="doneGo">Вирушай за новими досягненнями!</div></div></div>'+
         '<button class="big-btn" id="playBtn" type="button">'+(c.play||"Грати ▶")+'</button></div>'+
