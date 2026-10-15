@@ -188,7 +188,7 @@
     $("winScreen").classList.remove("hidden");
     try{ localStorage.setItem("sk_navyvorit_done_"+cfg.href, "1"); }catch(e){}   // позначка для карти: наступний пункт відкривається
     if(window.SKPRIZE && !SKPRIZE.summary(cfg.prizeKey))
-      SKPRIZE.claim({ key: cfg.prizeKey, href: cfg.href, title: cfg.winTitle || "Пройдено!", onClose: refreshStart });
+      SKPRIZE.claim({ doneText: "Ура, пригоду пройдено! 🎉 На карті вже чекає нова загадка Світу навиворіт 🗺️", alreadyText: "Нагорода за цю пригоду вже в тебе 🏅 Грай ще — для слави!", key: cfg.prizeKey, href: cfg.href, title: cfg.winTitle || "Пройдено!", onClose: refreshStart });
   };
 
   window.NAV = NAV;

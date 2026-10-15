@@ -139,7 +139,7 @@
       res = res || { skipped: true };
       var html = '';
       if (res.skipped) {
-        html = '<div class="skp-got">Молодець! Ти пройшов увесь тренажер 🎉</div>' +
+        html = '<div class="skp-got">' + esc(opt.doneText || 'Молодець! Ти пройшов увесь тренажер 🎉') + '</div>' +   // doneText — свій текст гри
           (res.reason === 'not-hero'
             ? '<div class="skp-note">Увійди як Герой — і отримаєш за це нагороду в інвентар!</div>'
             : '');
@@ -150,7 +150,7 @@
         if (!summary(opt.key)) store(opt.key, { at: Date.now() });   // забрано раніше (напр. на іншому пристрої)
         html = (res.restored && res.items && res.items.length)
           ? '<div class="skp-got">Ось твоя нагорода: ' + esc(res.items.map(function (x) { return x.name; }).join(', ')) + '!</div>' + itemsHtml(res.items)
-          : '<div class="skp-got">Нагороду за цей тренажер ти вже отримав 🏅</div>';
+          : '<div class="skp-got">' + esc(opt.alreadyText || 'Нагороду за цей тренажер ти вже отримав 🏅') + '</div>';
       } else {
         var names = (res.items || []).map(function (x) { return x.name; });
         html = '<div class="skp-got">' + (names.length ? '🎁 Ти отримав: ' + esc(names.join(', ')) + '!' : '🎁 Ти отримав нагороду!') + '</div>';
