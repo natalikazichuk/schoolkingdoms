@@ -77,7 +77,7 @@
     { key: 'whip',     label: 'Кнут',         icon: '➰', dmg: 'slash',  hint: 'кнути, батоги, плетки' },
     { key: 'staff',    label: 'Посох',        icon: '🦯', dmg: 'bash',   hint: 'посохи, палиці' },
     { key: 'wand',     label: 'Жезл',         icon: '🪄', dmg: 'magic',  hint: 'жезли, чарівні палички, указки' },
-    { key: 'knuckles', label: 'Кастет',       icon: '👊', dmg: 'bash',   hint: 'кастети, бойові рукавиці' },
+    { key: 'knuckles', label: 'Кастети',      icon: '🥊', dmg: 'bash',   hint: 'кастети, бойові рукавиці — пара на обидві руки, щит у лівій можна' },
     { key: 'bow',      label: 'Лук',          icon: '🏹', dmg: 'pierce', hint: 'луки, рогатки, пращі', ranged: true },
     { key: 'exotic',   label: 'Екзотична',    icon: '🌀', dmg: 'bash',   hint: 'незвичайна зброя: ложка, парасолька…' }
   ];

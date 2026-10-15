@@ -1670,8 +1670,8 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script type="module" src="firebase-config.js"></script>
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
-<script src="sk-arena-rules.js?v=19"></script>
-<script src="sk-battle.js?v=15"></script>
+<script src="sk-arena-rules.js?v=20"></script>
+<script src="sk-battle.js?v=16"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
    Інвентар, скриня, смітник, продане / куплене сьогодні й монети
@@ -2781,7 +2781,8 @@ window.SKHERO = (function(){
     var tag = function(arr, i){ return arr.length>1 ? ' <span class="sno">удар '+(i+1)+'/'+arr.length+'</span>' : ''; };
     for(var i=0;i<n;i++){
       var parts = [];
-      if(mh[i]) parts.push(phrase('Ти → '+ZONE_UA[e.me.atk]+tag(mh,i), mh[i]));
+      var mz = mh[i] && mh[i].hits && mh[i].hits[0] && mh[i].hits[0].combo ? mh[i].hits[0] : null;   // «Двійка» — своя зона
+      if(mh[i]) parts.push(phrase('Ти → '+ZONE_UA[mz ? mz.zone : e.me.atk]+(mz ? ' <span class="sno">👊👊 Двійка</span>' : tag(mh,i)), mh[i]));
       if(oh[i]) parts.push(phrase(B.op.f.name+' → '+ZONE_UA[e.op.atk]+tag(oh,i), oh[i]));
       out += '<span class="ln">'+parts.join(' <span style="opacity:.5">·</span> ')
         + (mh[i] ? diceLine('Ти', mh[i]) : '') + (oh[i] ? diceLine(B.op.f.name, oh[i]) : '') + '</span>';
@@ -3324,7 +3325,7 @@ window.SKHERO = (function(){
     var q = h.parts; if(!q) return h.calc || '';
     var t = q.magic
       ? '<span class="mag">✨маг. ' + defPart(q, 'маг. захист') + (q.pct ? ' × ' + (100+q.pct) + '%' : '') + '</span>'
-      : defPart(q, 'броня') + (q.pct ? ' × ' + (100+q.pct) + '%' : '');
+      : defPart(q, 'броня') + (h.pierce ? ' <span class="g">🪓 Сокира: пів броні (🎲 '+h.pierceRoll+' ≤ '+h.pierceNeed+'%)</span>' : '') + (q.pct ? ' × ' + (100+q.pct) + '%' : '') + (q.half ? ' × ½ <span class="g">👊👊 двійка</span>' : '');
     if(h.crit) t += ' <span class="crit">× ' + q.mult + ' — Критичний урон !!!</span>';
     return t;
   }
@@ -3335,6 +3336,7 @@ window.SKHERO = (function(){
     return '<span class="dice">'+who+': '+hs.map(function(h,i){
       if(h.hitRoll==null) return '';
       var t = (hs.length>1 ? (i+1)+') ' : '')
+        + (h.combo ? '👊👊 двійка 🎲 <b>'+h.combo[0]+'</b> ≤ '+h.combo[1]+'% · ' : '')
         + '🎲 <b>'+h.hitRoll+'</b> '+(h.hitRoll<=h.hitNeed?'≤':'>')+' '+h.hitNeed+'% '+(h.kind==='dodge'&&!h.skillDodge?'— промах':'— влучив');
       if(h.skillDodge) t += ' · <span class="ev">'+biEsc(h.dodgeCalc||'')+'</span>';   // влучив, але ухилився вмінням
       else if(h.kind==='block' && h.skillShield) t += ' · <span class="ev">'+biEsc(h.blockCalc||'')+'</span>';
@@ -3343,6 +3345,7 @@ window.SKHERO = (function(){
       else if(h.kind!=='dodge') t += (h.blockRoll!=null ? (h.evadeTry ? ' · відскок 🎲 <b>' : ' · блок шансом 🎲 <b>')+h.blockRoll+'</b> > '+h.blockNeed+'%' : '')
         + ' · крит 🎲 <b>'+h.critRoll+'</b> '+(h.crit?'≤':'>')+' '+h.critNeed+'%'
         + ' · '+calcHtml(h)+' = <b>'+dmgHtml(h.dmg, h.magDmg)+'</b>';
+      if(h.comboMiss) t += ' · <span style="opacity:.7">👊👊 двійка 🎲 '+h.comboMiss[0]+' > '+h.comboMiss[1]+'% — ні</span>';
       return t;
     }).join(' &nbsp;|&nbsp; ')+'</span>';
   }
@@ -3738,8 +3741,8 @@ window.SKHERO = (function(){
 })();
 </script>
 
-<script src="sk-items.js?v=14"></script>
-<script src="sk-skills.js?v=17"></script>
+<script src="sk-items.js?v=15"></script>
+<script src="sk-skills.js?v=19"></script>
 <script src="sk-book.js?v=8"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════

@@ -139,13 +139,15 @@
      Права рука — зброя («Зброя»). Ліва — щит («Щити»); друга зброя в ліву руку
      лише з BATTLE.dualWield. Дворучна зброя (прапорець «Дворучний») займає обидві
      руки: вдягнув дворучну — щит (будь-яка річ у лівій руці) знімається; вдягнув
-     щит до дворучної — знімається дворучна. */
+     щит до дворучної — знімається дворучна. Кастети — пара на обидві руки, але
+     НЕ дворучні: щит у ліву можна (кулак + щит), навіть якщо стоїть прапорець. */
   function handCats(slot) {
     if (slot === 'weaponR') return ['Зброя'];
     if (slot === 'weaponL') return BATTLE.dualWield ? ['Зброя', 'Щити'] : ['Щити'];
     return null;
   }
   function isTwoHanded(base) {
+    if (base && base.weaponType === 'knuckles') return false;
     return !!(base && (base.addStats || []).some(function (e) { return e && e.stat === 'Дворучний' && (e.flag || e.value == null); }));
   }
   function fitsHand(base, slot) { var c = handCats(slot); return !!(c && base && c.indexOf(base.category) >= 0); }
@@ -403,16 +405,18 @@
     }
     // 4) крізь захист проходить частка (armorPass), 5) відсотки
     var pass = armorPass(raw, defV);
-    var base = raw * pass * (1 + pctV / 100);
+    var half = num(att.dmgMul) > 0 && num(att.dmgMul) !== 1;      // «Двійка» лівим кулаком — пів урону
+    var base = raw * pass * (1 + pctV / 100) * (half ? num(att.dmgMul) : 1);
+    if (half) out.half = true;
     // 6) крит
     var crit = critCheck();
     var mult = crit ? BATTLE.critMult : 1;
     var dmg = Math.max(BATTLE.minDmg, Math.round(base * mult));
     out.raw = raw; out.armor = defV; out.magic = magic; out.pass = pass;
     out.magDmg = magic ? dmg : 0; out.physDmg = magic ? 0 : dmg;   // журнал фарбує магічний урон фіолетовим
-    out.parts = { magic: magic, raw: raw, def: defV, pass: pass, pct: pctV, mult: mult };
+    out.parts = { magic: magic, raw: raw, def: defV, pass: pass, pct: pctV, mult: mult, half: half };
     var calc = (magic ? '✨маг. ' : '') + raw + (defV > 0 ? ' × ' + pctOf(pass) + '% (' + (magic ? 'маг. захист ' : 'броня ') + defV + (out.pierce ? ', 🪓 пів броні' : '') + ')' : '')
-      + (pctV ? ' × ' + (100 + pctV) + '%' : '') + (crit ? ' × ' + BATTLE.critMult + ' крит' : '');
+      + (pctV ? ' × ' + (100 + pctV) + '%' : '') + (half ? ' × ½' : '') + (crit ? ' × ' + BATTLE.critMult + ' крит' : '');
     if (blocked) {   // частковий блок (лише якщо blockKeep > 0)
       var kept = Math.round(dmg * BATTLE.blockKeep);
       return ret({ dmg: kept, kind: 'block', crit: crit, calc: 'блок: ' + calc + ' = ' + dmg + ' → проходить ' + Math.round(BATTLE.blockKeep * 100) + '%' });

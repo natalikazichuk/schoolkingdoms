@@ -96,8 +96,10 @@
   function shieldOn(st) { return (st.me.eq || []).some(function (e) { return !e.off && !e.broken && e.slot === 'weaponL' && e.base && e.base.category === 'Щити'; }); }
   function weaponOn(st) { return (st.me.eq || []).filter(function (e) { return !e.off && !e.broken && e.slot === 'weaponR'; })[0] || null; }
   function exoticOn(st) { var w = weaponOn(st); return !!(w && w.base && w.base.weaponType === 'exotic'); }
-  /* вміння зброї Лицаря: вид зброї в правій руці → id вміння (без зброї — «Голі руки») */
-  var WEAPON_SKILL = { sword: 'knight.sword', axe: 'knight.axe', spear: 'knight.spear' };
+  /* вміння зброї Лицаря: вид зброї в правій руці → id вміння (без зброї чи з кастетами — «Голі руки») */
+  var WEAPON_SKILL = { sword: 'knight.sword', axe: 'knight.axe', spear: 'knight.spear', knuckles: 'knight.fists' };
+  /* ліва рука вільна: ні щита, ні другої речі (зламане не рахується) */
+  function leftFree(st) { return !(st.me.eq || []).some(function (e) { return !e.off && !e.broken && e.slot === 'weaponL'; }); }
   function weaponSkill(st) {
     var w = weaponOn(st);
     if (!w) return 'knight.fists';
@@ -112,7 +114,11 @@
     p.magPct = num(p.magPct) + V(st, 'base.magic', 'magPct') + ex;
     if (ws === 'knight.sword' && V(st, ws, 'accPct')) p.accuracy = Math.round(num(p.accuracy) * (1 + V(st, ws, 'accPct') / 100));
     if (ws === 'knight.axe' && V(st, ws, 'pierce')) p.pierce = V(st, ws, 'pierce');
-    if (ws === 'knight.fists') p.dmgFlat = num(p.dmgFlat) + V(st, ws, 'dmg');
+    if (ws === 'knight.fists' && hasSk(st, ws)) {
+      // Голі руки: без зброї — свій урон 3–8 (до бази 8 → 11–16); з кастетами — урон кастетів
+      if (!weaponOn(st)) { p.wMin = num(p.wMin) + V(st, ws, 'dmgMin'); p.wMax = num(p.wMax) + Math.max(V(st, ws, 'dmgMin'), V(st, ws, 'dmgMax')); }
+      if (shieldOn(st) && V(st, ws, 'accPct')) p.accuracy = Math.round(num(p.accuracy) * (1 + V(st, ws, 'accPct') / 100));   // кулак + щит
+    }
     var bp = shieldOn(st) ? V(st, 'knight.shield', 'blockPct') : 0;      // Блок щитом: + до «шансу блоку» щита
     if (bp) {
       if (p.evade) { p.blockPhys = num(p.blockPhys) + bp / 2; p.blockMag = num(p.blockMag) + bp / 2; }
@@ -200,6 +206,27 @@
       + (pctV ? ' × ' + Math.round(100 + pctV) + '%' : '');
     if (!magic) knockTry(st, id, rec, R, rnd);                    // Пінок може збити з ніг
     return rec;
+  }
+  /* «Двійка» (Голі руки): без зброї чи з кастетами і з ВІЛЬНОЮ лівою рукою — з шансом combo
+     лівий кулак б'є вдруге цього ходу: пів урону, свій кидок влучання, зона — 🎲 випадкова
+     (суперник блокує її, лише якщо випадково захистив саме її). Дописується в meHit.hits. */
+  function comboTry(ctx, st, meHit, pm, po, opBlock, rnd) {
+    var id = 'knight.fists';
+    if (weaponSkill(st) !== id || !hasSk(st, id) || !leftFree(st)) return;
+    var need = V(st, id, 'combo'); if (!(need > 0)) return;
+    var roll = ctx.R.d100(rnd), c = { need: need, roll: roll, ok: roll <= need };
+    meHit.combo = c;
+    if (!c.ok) { if (meHit.hits[0]) meHit.hits[0].comboMiss = [roll, need]; return; }   // для журналу: кидок «Двійки» не вдався
+    var zone = pick(ZONES, rnd), att = {}, k;
+    for (k in pm) att[k] = pm[k];
+    att.dmgMul = 0.5;
+    var h = ctx.R.strike(att, po, zone === opBlock, rnd);
+    h.combo = [roll, need]; h.zone = zone; c.zone = zone;
+    meHit.hits.push(h);
+    meHit.dmg = meHit.hits.reduce(function (a, x) { return a + (x.dmg || 0); }, 0);
+    var ks = meHit.hits.map(function (x) { return x.kind; });
+    meHit.kind = ks.indexOf('crit') >= 0 ? 'crit' : ks.indexOf('hit') >= 0 ? 'hit' : ks.indexOf('block') >= 0 ? 'block' : 'dodge';
+    meHit.crit = meHit.hits.some(function (x) { return x.crit; });
   }
   /* Берсерк: не удар, а лють на кілька ходів — кидається ДО ударів цього ходу.
      Тривалість — 🎲 turnsMin…turnsMax ходів. Вдалося — раз за бій (більше не обирається); не вдалося — можна знову наступного ходу. */
@@ -527,6 +554,7 @@
     var knocked = fo.knock === st.round;                  // Пінок збив з ніг минулого ходу — суперник не атакує
     var meHit = down ? none('skip') : fm.feared ? none('fear') : meKnocked ? none('knock') : R.attack(pm, po, me.atk === op.block, rng(st.bid + '|' + st.round + '|me'));
     var opHit = down ? none('skip') : fo.feared ? none('fear') : knocked ? none('knock') : R.attack(po, pm, op.atk === me.block, rng(st.bid + '|' + st.round + '|op'));
+    if (!down && !fm.feared && !meKnocked) comboTry(ctx, st, meHit, pm, po, op.block, rng(st.bid + '|' + st.round + '|combo'));
     // вміння, що ростуть від ударів
     if (!down && !fm.feared && !meKnocked) {
       // удар зброєю: влучив — вдале, промах / блок / ухилення — невдале
