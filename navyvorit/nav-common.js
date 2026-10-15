@@ -3,7 +3,7 @@
 
    Підключення (після sk-footer.js, до власного скрипта гри):
      <link rel="stylesheet" href="nav-common.css">
-     <script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
+     <script src="../sk-footer.js?v=6" data-base="../" data-back="self"></script>
      <script src="nav-common.js"></script>
 
    NAV.mount({ ... }) будує сторінку: верхня панель (крок, значок
@@ -54,7 +54,7 @@
         '<div id="dirBadge">'+(c.badgeOff||"⏩ звичайний світ")+'</div><div id="spacer"></div><button id="menuBtn" type="button">☰ Меню</button></div>'+
       '<div id="barWrap"><div id="bar"><div id="barFill"></div></div></div>'+
       '<div id="main"><div id="scene">'+(c.scene||"")+'</div><div id="hint"></div>'+(c.afterScene||"")+'<div id="panel"></div></div>'+
-      '<div class="screen'+(c.startBg ? ' picbg' : '')+'" id="startScreen"'+(c.startBg ? ' style="background-image:url('+c.startBg+')"' : '')+'>'+
+      '<div class="screen'+(c.startBg ? ' picbg' : '')+'" id="startScreen"'+(c.startBg ? ' style="background-image:url('+c.startBg+'), linear-gradient(180deg,#7cc0ff 0 45%,#c9a376 45% 100%)"' : '')+'>'+
         '<div class="start-top"><button class="iconbtn backbtn" type="button" title="Назад" aria-label="Назад">←</button><a class="maplink" href="index.html?g='+c.href+'">🗺️ На карту</a></div>'+
         (c.startBg ? '' : c.startImg ? '<div class="start-pic" role="img" aria-label="'+c.title+'" style="background-image:url('+c.startImg+')"></div>' : '<div class="big-emoji">'+c.emoji+'</div>')+'<div class="titlebox"><h1>'+c.title+'</h1><p class="start-sub">'+c.sub+'</p></div>'+
         '<div class="riddle">'+c.riddle+'</div>'+
@@ -85,7 +85,36 @@
     });
     refreshStart();
     window.addEventListener("load", refreshStart);   // sk-prize.js підключено нижче
+    if(c.startBg && c.startFocus){
+      var im = new Image(); im.onload = function(){ fitStartBg.img = im; fitStartBg(); }; im.src = c.startBg;
+      window.addEventListener("resize", fitStartBg);
+      if(document.fonts && document.fonts.ready) document.fonts.ready.then(fitStartBg);
+    }
   };
+
+  /* Стартова картинка на весь екран (startBg): смугу cfg.startFocus = [від, до] (частки висоти картинки —
+     напр. статуї й діти) ставимо рівно між банером із назвою і пергаментом, на будь-якому екрані й шрифті.
+     Порожнє місце над/під картинкою заповнює градієнт «небо / бруківка». */
+  function fitStartBg(){
+    var s = $("startScreen"), img = fitStartBg.img;
+    if(!s || !img || !img.naturalWidth || s.classList.contains("hidden")) return;
+    var tb = s.querySelector(".titlebox"), rd = s.querySelector(".riddle");
+    if(!tb || !rd) return;
+    var sr = s.getBoundingClientRect(), W = s.clientWidth, ar = img.naturalWidth / img.naturalHeight;
+    /* мало місця (низький екран, великий шрифт) — пергамент нижчий і прокручується, щоб картинку було видно */
+    var NEED = 190;
+    rd.style.maxHeight = "";
+    var gap = rd.getBoundingClientRect().top - tb.getBoundingClientRect().bottom - 8;
+    if(gap < NEED) rd.style.maxHeight = Math.max(96, rd.getBoundingClientRect().height - (NEED - gap)) + "px";
+    var top = tb.getBoundingClientRect().bottom - sr.top + 4, bot = rd.getBoundingClientRect().top - sr.top - 4;
+    var V = Math.max(80, bot - top), f1 = cfg.startFocus[0], f2 = cfg.startFocus[1];
+    var h = V / (f2 - f1), w = h * ar;
+    if(w < W){ w = W; h = W / ar; }                       // ширину екрана завжди покриваємо
+    var y = top - f1*h + (V - (f2 - f1)*h) / 2, x = (W - w) / 2;
+    s.style.backgroundSize = Math.round(w)+"px "+Math.round(h)+"px, 100% 100%";
+    s.style.backgroundPosition = Math.round(x)+"px "+Math.round(y)+"px, 0 0";
+  }
+  NAV.fitStartBg = fitStartBg;
 
   function goBack(){
     if(window.skGoBackSmart){ skGoBackSmart("navyvorit/index.html"); return; }
@@ -97,6 +126,7 @@
     $("modal").classList.add("hidden");
     $("winScreen").classList.add("hidden");
     $("startScreen").classList.remove("hidden");
+    fitStartBg();
   }
   function start(){
     NAV.mistakes = 0; NAV.busy = false; NAV.setFlip(false);
