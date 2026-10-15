@@ -56,7 +56,7 @@
       '<div id="main"><div id="hint"></div><div id="scene">'+(c.scene||"")+'</div>'+(c.afterScene||"")+'<div id="panel"></div></div>'+
       '<div class="screen" id="startScreen">'+
         '<div class="start-top"><button class="iconbtn backbtn" type="button" title="Назад" aria-label="Назад">←</button><a class="maplink" href="index.html?g='+c.href+'">🗺️ На карту</a></div>'+
-        '<div class="big-emoji">'+c.emoji+'</div><h1>'+c.title+'</h1><p class="start-sub">'+c.sub+'</p>'+
+        (c.startImg ? '<div class="start-pic" role="img" aria-label="'+c.title+'" style="background-image:url('+c.startImg+')"></div>' : '<div class="big-emoji">'+c.emoji+'</div>')+'<h1>'+c.title+'</h1><p class="start-sub">'+c.sub+'</p>'+
         '<div class="riddle">'+c.riddle+'</div>'+
         '<div class="done-card" id="startDone"><span class="dc-ic">🏆</span><div><div class="dc-got" id="doneGot">Пройдено!</div><div class="dc-go" id="doneGo">Вирушай за новими досягненнями!</div></div></div>'+
         '<button class="big-btn" id="playBtn" type="button">'+(c.play||"Грати ▶")+'</button></div>'+
