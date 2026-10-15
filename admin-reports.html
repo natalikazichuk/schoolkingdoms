@@ -109,7 +109,10 @@
              : '<div class="rmsg empty">(без опису)</div>';
     var meta = [];
     if(r.page)     meta.push('<b>Сторінка:</b> '+esc(r.page));
-    if(r.url)      meta.push('<b>URL:</b> <a href="'+esc(r.url)+'" target="_blank" rel="noopener">'+esc(r.url)+'</a>');
+    // посилання — лише http(s): скаргу може записати будь-хто, а javascript:-URL виконався б у сесії адміна
+    if(r.url)      meta.push('<b>URL:</b> '+(/^https?:\/\//i.test(String(r.url))
+                     ? '<a href="'+esc(r.url)+'" target="_blank" rel="noopener">'+esc(r.url)+'</a>'
+                     : esc(r.url)));
     if(r.heroName) meta.push('<b>Герой:</b> '+esc(r.heroName));
     if(r.heroId)   meta.push('<b>ID героя:</b> '+esc(r.heroId));
     if(r.reporterEmail) meta.push('<b>Акаунт:</b> '+esc(r.reporterEmail));
@@ -161,7 +164,10 @@
       img.addEventListener('click', function(){
         var lb = document.createElement('div');
         lb.className = 'lightbox';
-        lb.innerHTML = '<img src="'+img.getAttribute('data-full')+'" alt="скрін">';
+        // через DOM, не innerHTML: getAttribute повертає вже розекрановане значення
+        var big = document.createElement('img');
+        big.src = img.getAttribute('data-full'); big.alt = 'скрін';
+        lb.appendChild(big);
         lb.addEventListener('click', function(){ lb.remove(); });
         document.body.appendChild(lb);
       });

@@ -61,12 +61,18 @@ function cookies(req) {
   const out = {};
   String(req.headers.cookie || '').split(';').forEach(p => {
     const i = p.indexOf('=');
-    if (i > 0) out[p.slice(0, i).trim()] = decodeURIComponent(p.slice(i + 1).trim());
+    if (i <= 0) return;
+    // зіпсований cookie (напр. «%E0%A4%A») не має валити запит у 500 — пропускаємо його
+    try { out[p.slice(0, i).trim()] = decodeURIComponent(p.slice(i + 1).trim()); } catch (e) {}
   });
   return out;
 }
 function sessionCookie(token, maxAge) {
   return `${COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
+}
+// Origin: null (sandbox-iframe, file://) або сміття → null, тобто «чужий»
+function originHost(origin) {
+  try { return new URL(origin).host; } catch (e) { return null; }
 }
 const sha = t => crypto.createHash('sha256').update(t).digest('hex');
 function clientIp(req) {
@@ -397,7 +403,7 @@ const server = http.createServer(async (req, res) => {
       // захист від підробки запитів з чужих сайтів: лише JSON і лише зі свого домену
       if (!String(req.headers['content-type'] || '').startsWith('application/json')) throw new ApiError(415, 'invalid-argument', 'json only');
       const origin = req.headers.origin;
-      if (origin && new URL(origin).host !== req.headers.host) throw new ApiError(403, 'permission-denied', 'bad origin');
+      if (origin && originHost(origin) !== req.headers.host) throw new ApiError(403, 'permission-denied', 'bad origin');
     }
     const body = req.method === 'POST' ? await readBody(req) : {};
     const user = await currentUser(req);

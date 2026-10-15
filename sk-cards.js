@@ -2,7 +2,7 @@
    sk-cards.js — однакове гортання карток у всіх тренажерах.
 
    Підключення (після скрипта сторінки, де вже є функція гортання):
-     <script src="../sk-cards.js?v=1"></script>
+     <script src="../sk-cards.js?v=2"></script>
      <script>
        SKCards.attach({
          card:   '#letterCard',   // картка, яку тягнемо пальцем
