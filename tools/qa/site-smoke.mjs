@@ -10,15 +10,22 @@
    Сторінки, що вимагають входу, перекидають на login.html — це норма;
    їхню логіку після входу цей тест не перевіряє.
 
-   Потрібен playwright:  npm i -D playwright   (або глобально)
-   Запуск:  node tools/qa/site-smoke.mjs
+   Падіння (код виходу 1): помилка JS або відсутній код/стиль/сторінка.
+   Відсутні картинки й звуки — лише попередження (прогалина контенту,
+   сторінки показують запасний варіант); --strict робить і їх падінням.
+
+   Потрібен playwright:  npm install   (з кореня; або глобально)
+   Запуск:  node tools/qa/site-smoke.mjs [--strict]
    ============================================================ */
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
 
-const DIR = path.resolve(process.argv[2] || '.');
+const ARGS = process.argv.slice(2);
+const STRICT = ARGS.includes('--strict');
+const DIR = path.resolve(ARGS.find(a => !a.startsWith('--')) || '.');
+const MEDIA = /\.(png|jpe?g|webp|gif|svg|ico|mp3|wav|ogg)$/i;
 const PORT = 8765;
 const SKIP = new Set(['.git', 'docs', 'node_modules', 'dist-demo', 'server', 'demo', 'tools']);
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css',
@@ -50,7 +57,7 @@ const pages = [];
 })(DIR);
 
 const browser = await chromium.launch();
-let bad = 0;
+let bad = 0, warned = 0;
 for (const pg of pages.sort()) {
   const ctx = await browser.newContext({ serviceWorkers: 'block' });
   const page = await ctx.newPage();
@@ -64,15 +71,22 @@ for (const pg of pages.sort()) {
     await page.goto(`http://localhost:${PORT}/${pg}`, { waitUntil: 'load', timeout: 20000 });
     await page.waitForTimeout(1200);
   } catch (e) { errors.push('навігація: ' + e.message.slice(0, 120)); }
-  if (errors.length || missing.size) {
+  const media = [...missing].filter(m => !STRICT && MEDIA.test(m));
+  const broken = [...missing].filter(m => !media.includes(m));
+  if (errors.length || broken.length) {
     bad++;
     console.log('✗ ' + pg);
     errors.forEach(e => console.log('    JS  ' + e));
-    [...missing].forEach(m => console.log('    ' + m));
+    broken.forEach(m => console.log('    ' + m));
+    media.forEach(m => console.log('    ⚠ ' + m));
+  } else if (media.length) {
+    warned++;
+    console.log('⚠ ' + pg + ' — немає ' + media.length + ' медіафайл(ів):');
+    media.forEach(m => console.log('    ' + m));
   }
   await ctx.close();
 }
 await browser.close();
 server.close();
-console.log(`\n${pages.length - bad}/${pages.length} сторінок без помилок`);
+console.log(`\n${pages.length - bad}/${pages.length} сторінок без помилок` + (warned ? ` (з них ${warned} — без частини картинок/звуків)` : ''));
 process.exitCode = bad ? 1 : 0;

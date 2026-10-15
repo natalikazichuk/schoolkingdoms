@@ -1,0 +1,62 @@
+# CI: перевірки на кожен PR і на кожен пуш у main.
+# main одразу розкатується на прод (сервер сам тягне його раз на 2 хв),
+# тож мерж — лише при зелених перевірках (Settings → Branches → main →
+# «Require status checks to pass»: audit, server, smoke).
+# Локально те саме: npm install && npm run check
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # синтаксис JS, дужки CSS, розбіжні ?v=N
+      - run: node tools/qa/static-audit.mjs
+
+  server:
+    name: server
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+        working-directory: server/app
+      - run: npm test
+        working-directory: server/app
+
+  smoke:
+    name: smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      # усі сторінки повної версії в Chromium (без входу)
+      - run: npm run smoke
+      # демо для портфоліо
+      - run: npm run smoke:demo

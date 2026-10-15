@@ -11,7 +11,9 @@
      • <html lang>, <title>, viewport.
 
    Запуск:  node tools/qa/static-audit.mjs          (з кореня репозиторію)
-   Код виходу 1 — якщо є синтаксичні помилки або дисбаланс дужок.
+   Код виходу 1 — синтаксичні помилки, дисбаланс дужок або розбіжні ?v=N
+   (виправляє tools/bump-version.mjs). Відсутні локальні файли — попередження:
+   частина з них — свідомі заглушки з запасним варіантом (splash.jpg тощо).
    ============================================================ */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -84,9 +86,10 @@ fs.rmSync(tmp, { recursive: true, force: true });
 const sect = (title, arr) => { console.log(`\n${arr.length ? '✗' : '✓'} ${title}: ${arr.length}`); arr.forEach(x => console.log('    ' + x)); };
 sect('Синтаксичні помилки JS', R.syntax);
 sect('Дисбаланс дужок CSS', R.css);
-sect('Локальні файли, яких немає', R.missing);
+console.log(`\n${R.missing.length ? '⚠' : '✓'} Локальні файли, яких немає: ${R.missing.length}`);
+R.missing.forEach(x => console.log('    ' + x));
 sect('Мета-теги', R.meta);
 const vk = Object.keys(R.versions);
-console.log(`\n${vk.length ? '⚠' : '✓'} Різні ?v=N одного файлу: ${vk.length}`);
+console.log(`\n${vk.length ? '✗' : '✓'} Різні ?v=N одного файлу: ${vk.length}` + (vk.length ? '  → node tools/bump-version.mjs <файл>' : ''));
 for (const k of vk) { console.log('    ' + k); for (const [v, w] of Object.entries(R.versions[k])) console.log(`        v=${v}: ${w}`); }
-process.exit(R.syntax.length || R.css.length ? 1 : 0);
+process.exit(R.syntax.length || R.css.length || vk.length ? 1 : 0);
