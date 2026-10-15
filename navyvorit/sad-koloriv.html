@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Сад кольорів — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<link rel="stylesheet" href="nav-common.css">
+<style>
+/* ── чарівний сад ── */
+#scene{height:220px; background:linear-gradient(180deg,#d3f9d8 0%,#ebfbee 62%,#8ce99a 62%,#51cf66 100%);}
+body.flipped #scene{background:linear-gradient(180deg,#e5dbff 0%,#f3f0ff 62%,#b197fc 62%,#9775fa 100%);}
+#cycle{position:absolute; top:10px; left:10px; background:#fff; border:2px solid var(--line); border-radius:12px; padding:3px 10px; font-weight:800; font-size:14px;}
+#drops{position:absolute; top:10px; right:10px; background:#fff; border:2px solid var(--line); border-radius:12px; padding:3px 10px; font-weight:800; font-size:14px;}
+#flower{position:absolute; left:50%; bottom:22%; transform:translateX(-50%); width:110px; height:150px;}
+#flower .stem{position:absolute; left:50%; bottom:0; width:8px; height:80px; margin-left:-4px; background:#2b8a3e; border-radius:4px;}
+#flower .leaf{position:absolute; bottom:24px; left:50%; width:30px; height:14px; background:#37b24d; border-radius:0 50% 0 50%;}
+#flower .head{position:absolute; left:50%; top:0; width:96px; height:96px; margin-left:-48px; transition:transform .5s;}
+#flower .head.spin{transform:rotate(120deg) scale(1.08);}
+#flower .pt{position:absolute; left:34px; top:2px; width:28px; height:44px; border-radius:50%; background:var(--fc); transform-origin:14px 46px; transition:background .5s; box-shadow:inset 0 -6px 0 rgba(0,0,0,.08);}
+#flower .core{position:absolute; left:34px; top:34px; width:28px; height:28px; border-radius:50%; background:#fff3bf; border:3px solid #fab005;}
+#drop{position:absolute; left:50%; top:-10px; font-size:26px; opacity:0; transform:translateX(-50%);}
+#drop.fall{animation:fall .55s ease-in;}
+@keyframes fall{0%{opacity:1; top:-10px}100%{opacity:0; top:40px}}
+.opts .opt{white-space:nowrap; padding:11px 6px; text-align:center;}
+.opts .dot{display:inline-block; width:18px; height:18px; border-radius:50%; vertical-align:-3px; margin-right:6px; border:2px solid rgba(0,0,0,.15);}
+</style>
+</head>
+<body>
+<script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
+<script src="nav-common.js"></script>
+<script>
+(function(){
+  "use strict";
+  var TOTAL = 5, log, cur;
+  var C = [{nm:"Червона", g:"червоною", col:"#ff6b6b", em:"🔴"}, {nm:"Синя", g:"синьою", col:"#4dabf7", em:"🔵"}, {nm:"Жовта", g:"жовтою", col:"#ffd43b", em:"🟡"}];
+  function md(x){ return ((x%3)+3)%3; }
+  function after(start, k, dir){ return md(start + k*dir); }
+  function cyc(dir){ return dir>0 ? "🔴 → 🔵 → 🟡 → 🔴" : "🔴 → 🟡 → 🔵 → 🔴"; }
+  function drops(n){ return n===1 ? "1 краплина" : (n>=2 && n<=4 ? n+" краплини" : n+" краплин"); }
+
+  NAV.mount({
+    next: "zoryana-karta.html",   // «Вирушай далі! ›» — наступний пункт карти
+    title:"Сад кольорів", emoji:"🌷🌼", sub:"Логіка · Світ навиворіт · 5 кроків",
+    riddle:"У королівському саду росте чарівна квітка. Кожна краплина роси 💧 змінює її колір по колу:<span class='seq'>🔴 → 🔵 → 🟡 → 🔴</span>Якою стане червона квітка після двох краплин? А потім — 🔄 переворот, і коло закрутиться в інший бік…",
+    play:"У сад ▶", steps:TOTAL, crown:"🌷✨",
+    badgeOff:"🔴→🔵→🟡", badgeOn:"🔄 🔴→🟡→🔵",
+    prizeKey:"sk_sad_prize_v1", href:"sad-koloriv.html", doneText:"Сад розквітнув — нагороду отримано!",
+    winTitle:"Сад розквітнув!", winPerfect:"Жодної помилки з кольорами!",
+    lesson:[
+      "Кольори йдуть <b>по колу</b>: 🔴 → 🔵 → 🟡 → 🔴. Червона після 2 краплин — <b>жовта</b>.",
+      "Кожні <b>3 краплини</b> — повне коло, колір повертається. Тож 4 краплини — те саме, що 1, а 5 — що 2.",
+      "🔄 Навиворіт коло йде в інший бік: 🔴 → 🟡 → 🔵. Червона після 2 краплин — уже <b>синя</b>!"
+    ],
+    scene:'<div id="cycle"></div><div id="drops">💧 × <b id="dropN">0</b></div><div id="flower"><span id="drop">💧</span><div class="stem"></div><div class="leaf"></div><div class="head" id="head"></div></div>',
+    afterScene:'<div class="log" id="log"></div>',
+    onStart:startGame
+  });
+  (function petals(){ var h = NAV.$("head"), html = ""; for(var i=0;i<6;i++) html += '<span class="pt" style="transform:rotate('+(i*60)+'deg)"></span>'; h.innerHTML = html+'<span class="core"></span>'; })();
+
+  function renderLog(){
+    var box = NAV.$("log"); box.innerHTML = '<div class="lh">📒 Записник садівника</div>';
+    if(!log.length){ box.appendChild(NAV.el("div","empty","Поки нічого.")); return; }
+    var rows = NAV.el("div","rows"); log.slice(-3).forEach(function(r){ rows.appendChild(NAV.el("div","r",r)); }); box.appendChild(rows);
+  }
+  function paint(c){ cur = c; NAV.$("flower").style.setProperty("--fc", C[c].col); }
+  function setDrops(n){ NAV.$("dropN").textContent = n; }
+  function rain(k, dir, cb){
+    var n = 0;
+    (function go(){
+      if(n>=k){ setTimeout(cb, 500); return; }
+      var d = NAV.$("drop"); d.classList.remove("fall"); void d.offsetWidth; d.classList.add("fall");
+      setTimeout(function(){
+        n++; setDrops(n); paint(md(cur + dir));
+        var h = NAV.$("head"); h.classList.remove("spin"); void h.offsetWidth; h.classList.add("spin");
+        NAV.snd.tone(600 + n*50, 0.1, "sine");
+        setTimeout(function(){ h.classList.remove("spin"); go(); }, 450);
+      }, 500);
+    })();
+  }
+  function colOpts(right, why){
+    return C.map(function(c, i){ var t = '<span class="dot" style="background:'+c.col+'"></span>'+c.nm; return i===right ? {tx:t, ok:true} : {tx:t, why:why(i)}; });
+  }
+  function round(start, k, dir, trapWhy, done){
+    paint(start); setDrops(0); NAV.$("cycle").textContent = cyc(dir);
+    var right = after(start, k, dir), trap = after(start, k, -dir);
+    NAV.question("Якою буде "+C[start].nm.toLowerCase()+" квітка після "+(k===1 ? "1 краплини" : k+" краплин")+"?", colOpts(right, function(i){
+      if(i===trap && trapWhy) return trapWhy;
+      if(i===start) return "Колір повертається лише після кожних 3 краплин. "+k+" — не ділиться на 3!";
+      return "Рахуй по колу: "+cyc(dir)+" — по одному кроку на краплину.";
+    }), function(){
+      rain(k, dir, function(){
+        log.push(C[start].em+" + 💧×"+k+" → <b>"+C[right].em+" "+C[right].nm.toLowerCase()+"</b>"); renderLog();
+        done();
+      });
+    }, {cols:3, keepOrder:true});
+  }
+
+  function startGame(){
+    log = []; NAV.step(0,TOTAL); renderLog();
+    NAV.hint("Квітка червона. Упаде <b>"+drops(2)+"</b> роси.");
+    round(0, 2, 1, null, function(){
+      NAV.hint("Так! 🔴 → 🔵 → 🟡: дві краплини — жовта.","good");
+      setTimeout(step2, 1000);
+    });
+  }
+  function step2(){
+    NAV.step(1,TOTAL);
+    var s = NAV.rnd(0,2), k = NAV.rnd(4,5);
+    NAV.hint("Нова квітка — "+C[s].nm.toLowerCase()+". Буде <b>"+drops(k)+"</b>…");
+    round(s, k, 1, null, function(){
+      NAV.hint("Правильно! Кожні 3 краплини — повне коло.","good");
+      setTimeout(step3, 1000);
+    });
+  }
+  function step3(){
+    NAV.step(2,TOTAL);
+    NAV.hint("Подивись у записник 📒 — коли колір повертається?");
+    NAV.question("Після скількох краплин квітка знову стає такою, як була?", [
+      {tx:"Після кожних 3 краплин", ok:true},
+      {tx:"Після 2 краплин", why:"Після 2 червона стає жовтою — ще не коло. Кольорів три!"},
+      {tx:"Ніколи не повертається", why:"Повертається! Кольори йдуть по колу."}
+    ], function(){ setTimeout(flip, 900); });
+  }
+  function flip(){
+    NAV.modal("🔄","Навиворіт!","Над садом пройшов дощ навпаки — і коло кольорів <b>закрутилося в інший бік</b>: 🔴 → 🟡 → 🔵 → 🔴.",{nav:true, btn:"🔄 Перевернути"}, function(){
+      NAV.snd.whoosh(); NAV.flipAnim();
+      setTimeout(function(){
+        NAV.setFlip(true); NAV.step(3,TOTAL);
+        log.push("🔄 <b>Коло в інший бік: 🔴 → 🟡 → 🔵</b>"); renderLog();
+        NAV.hint("Знову червона квітка і <b>"+drops(2)+"</b>. Але коло — навиворіт!");
+        round(0, 2, -1, "Це за старим колом! Тепер після 🔴 іде 🟡, а потім 🔵.", function(){
+          NAV.hint("Так! 🔴 → 🟡 → 🔵: тепер дві краплини — синя.","good");
+          setTimeout(step5, 1000);
+        });
+      }, 500);
+    });
+  }
+  function step5(){
+    NAV.step(4,TOTAL);
+    var s = NAV.rnd(0,2), k = NAV.pick([4,5,7]);
+    NAV.hint("Остання квітка — "+C[s].nm.toLowerCase()+", <b>"+drops(k)+"</b>, коло навиворіт.");
+    round(s, k, -1, "Так було б за старим колом. Тепер кольори йдуть у зворотному напрямку!", function(){
+      NAV.hint("Чудово! Сад кольорів розквітнув 🌷","good");
+      setTimeout(NAV.finish, 1300);
+    });
+  }
+})();
+</script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=12"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=4"></script>
+<script src="../sk-prize.js?v=2"></script>
+<script src="../sk-finish.js?v=6"></script>
+</body>
+</html>

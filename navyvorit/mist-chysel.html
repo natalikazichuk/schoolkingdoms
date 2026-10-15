@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Міст чисел — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<link rel="stylesheet" href="nav-common.css">
+<style>
+/* ── міст над річкою ── */
+#scene{height:200px; background:linear-gradient(180deg,#bfe3ff 0%,#e7f5ff 46%,#74c0fc 46%,#4dabf7 100%);}
+body.flipped #scene{background:linear-gradient(180deg,#cdb8ff 0%,#efe6ff 46%,#b197fc 46%,#9775fa 100%);}
+.bank{position:absolute; top:40%; width:16px; height:60%; background:#8ce99a; border-radius:6px;}
+#planks{position:absolute; left:20px; right:20px; top:44%; display:grid; grid-template-columns:repeat(6,1fr); gap:4px;}
+.pl{height:46px; border-radius:8px; background:linear-gradient(180deg,#e0b07a,#b5763c); border:3px solid #7d4e22; display:grid; place-items:center;
+  font-family:'Fredoka'; font-weight:700; font-size:20px; color:#fff; text-shadow:0 1px 0 rgba(0,0,0,.35); box-shadow:0 4px 0 rgba(0,0,0,.2); position:relative;}
+.pl.q{background:repeating-linear-gradient(45deg,#ffe8cc 0 6px,#ffd8a8 6px 12px); color:#d9480f; text-shadow:none; border-style:dashed;}
+.pl.pop{animation:pop .45s;}
+@keyframes pop{0%{transform:scale(.6)}70%{transform:scale(1.15)}}
+.pl .op{position:absolute; top:-22px; right:-14px; font-size:12px; font-weight:800; color:#2f5d8a; background:#fff; border-radius:8px; padding:0 4px; text-shadow:none; z-index:1;}
+#walker{position:absolute; top:calc(44% - 42px); font-size:30px; transition:left .45s ease-in-out; z-index:2; transform:translateX(-50%);}
+</style>
+</head>
+<body>
+<script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
+<script src="nav-common.js"></script>
+<script>
+(function(){
+  "use strict";
+  var TOTAL = 5, log;
+  /* послідовність: старт a, дії по черзі (ops) */
+  function seq(a, ops, n){ var r = [a]; for(var i=1;i<n;i++){ var o = ops[(i-1)%2]; r.push(o==="x2" ? r[i-1]*2 : r[i-1]-1); } return r; }
+  var FWD = ["x2","m1"], BACK = ["m1","x2"];
+  function opTx(o){ return o==="x2" ? "×2" : "−1"; }
+
+  NAV.mount({
+    next: "sad-koloriv.html",   // «Вирушай далі! ›» — наступний пункт карти
+    title:"Міст чисел", emoji:"🌉🔢", sub:"Числа · Світ навиворіт · 5 кроків",
+    riddle:"Через річку веде чарівний міст. На кожній дошці — число, і йти можна лише по правильних!<span class='seq'>3 · 6 · 5 · 10 · 9 · ?</span>Яке число на останній дошці? Знайди правило. А потім — 🔄 переворот, і правило зміниться…",
+    play:"На міст ▶", steps:TOTAL, crown:"🌉✨",
+    badgeOff:"×2, −1 по черзі", badgeOn:"🔄 −1, ×2 по черзі",
+    prizeKey:"sk_mist_prize_v1", href:"mist-chysel.html", doneText:"Міст пройдено — нагороду отримано!",
+    winTitle:"Міст пройдено!", winPerfect:"Жодної хибної дошки!",
+    lesson:[
+      "Дві дії <b>чергуються</b>: ×2, потім −1, знову ×2, знову −1… 3 → 6 → 5 → 10 → 9 → <b>18</b>.",
+      "Щоб знайти правило з двох дій, дивись на <b>кожну пару</b> сусідів окремо: що сталося між ними?",
+      "🔄 Дії помінялись місцями: спершу −1, потім ×2. 3 → 2 → 4 → 3 → 6 → <b>5</b> — та сама ідея, інше число!"
+    ],
+    scene:'<div class="bank" style="left:0"></div><div class="bank" style="right:0"></div><div id="planks"></div><span id="walker">🧒</span>',
+    afterScene:'<div class="log" id="log"></div>',
+    onStart:startGame
+  });
+
+  function renderLog(){
+    var box = NAV.$("log"); box.innerHTML = '<div class="lh">📒 Записник мандрівника</div>';
+    if(!log.length){ box.appendChild(NAV.el("div","empty","Поки нічого.")); return; }
+    var rows = NAV.el("div","rows"); log.slice(-3).forEach(function(r){ rows.appendChild(NAV.el("div","r",r)); }); box.appendChild(rows);
+  }
+  function planks(s, hide, ops){
+    var box = NAV.$("planks"); box.innerHTML = "";
+    s.forEach(function(n, i){
+      var d = NAV.el("div","pl"+(i===hide?" q":""), i===hide ? "?" : String(n)); d.id = "pl"+i;
+      if(ops && i>0 && i!==hide && i-1!==hide) d.appendChild(NAV.el("span","op",opTx(ops[(i-1)%2])));
+      box.appendChild(d);
+    });
+    walkTo(0, true);
+  }
+  function walkTo(i, now){
+    var p = NAV.$("pl"+i), w = NAV.$("walker");
+    if(!p) return;
+    if(now) w.style.transition = "none";
+    w.style.left = (p.offsetLeft + p.offsetWidth/2 + NAV.$("planks").offsetLeft) + "px";
+    if(now){ void w.offsetWidth; w.style.transition = ""; }
+  }
+  function cross(s, hide, cb){
+    var d = NAV.$("pl"+hide); d.className = "pl pop"; d.textContent = s[hide]; NAV.snd.chime();
+    var i = 0;
+    (function go(){ if(i>=s.length){ setTimeout(cb, 400); return; } walkTo(i); NAV.snd.tone(400+i*60,0.06); i++; setTimeout(go, 420); })();
+  }
+  function numOpts(right, list, why){
+    var seen = {}, o = [];
+    list.forEach(function(n){ if(n>0 && !seen[n]){ seen[n] = 1; o.push(n===right ? {tx:String(n), ok:true} : {tx:String(n), why:why(n)}); } });
+    return o;
+  }
+  function txt(s, hide){ return s.map(function(n, i){ return i===hide ? "?" : n; }).join(" · "); }
+
+  function startGame(){
+    log = []; NAV.step(0,TOTAL); renderLog();
+    var s = seq(3, FWD, 6); planks(s, 5);
+    NAV.hint("Подивись, як змінюється число від дошки до дошки.");
+    NAV.question("Яке число на останній дошці?", numOpts(18, [18, 8, 12, 13], function(n){
+      return ({8:"Після 10 → 9 було −1. А тепер черга ×2!", 12:"+3? Глянь: 3 → 6 — це ×2, а 6 → 5 — це −1. Дії чергуються!", 13:"Число не просто росте. Чергуються дві дії: ×2 і −1."})[n];
+    }), function(){
+      cross(s, 5, function(){
+        log.push("3 → 6 → 5 → 10 → 9 → <b>18</b> (×2, −1, ×2, −1, ×2)"); renderLog();
+        NAV.hint("Так! ×2 і −1 чергуються.","good");
+        setTimeout(step2, 900);
+      });
+    }, {cols:4, big:true});
+  }
+
+  function step2(){
+    NAV.step(1,TOTAL);
+    var a = NAV.rnd(4,6), s = seq(a, FWD, 6), h = NAV.rnd(2,5), right = s[h];
+    var wrongOp = FWD[(h-1)%2]==="x2" ? s[h-1]-1 : s[h-1]*2;
+    planks(s, h);
+    NAV.hint("Нова дошка загубила число: <b>"+txt(s, h)+"</b>");
+    NAV.question("Яке число на дошці з «?»", numOpts(right, [right, wrongOp, right+1, right-2], function(n){
+      return n===wrongOp ? "Ти зробив(-ла) не ту дію! Порахуй: перед цією дошкою черга <b>"+opTx(FWD[(h-1)%2])+"</b>." : "Перевір дії по черзі: ×2, −1, ×2, −1…";
+    }), function(){
+      cross(s, h, function(){
+        log.push(txt(s, -1).replace(new RegExp("(^| )"+right+"( |$)"), "$1<b>"+right+"</b>$2")); renderLog();
+        NAV.hint("Правильно!","good");
+        setTimeout(step3, 900);
+      });
+    }, {cols:4, big:true});
+  }
+
+  function step3(){
+    NAV.step(2,TOTAL);
+    NAV.hint("Подивись у записник 📒 — яке правило мосту?");
+    NAV.question("Яке правило?", [
+      {tx:"По черзі: ×2, потім −1", ok:true},
+      {tx:"Щоразу +3", why:"3 + 3 = 6, але 6 + 3 ≠ 5. Тут дві різні дії."},
+      {tx:"Щоразу ×2", why:"6 × 2 ≠ 5. Між ×2 є ще одна дія — −1."}
+    ], function(){ setTimeout(flip, 900); });
+  }
+
+  function flip(){
+    NAV.modal("🔄","Навиворіт!","Міст перевернувся! Тепер дії йдуть <b>у зворотному порядку</b>: спершу −1, а потім ×2.",{nav:true, btn:"🔄 Перевернути"}, function(){
+      NAV.snd.whoosh(); NAV.flipAnim();
+      setTimeout(function(){
+        NAV.setFlip(true); NAV.step(3,TOTAL);
+        log.push("🔄 <b>Тепер −1, потім ×2!</b>"); renderLog();
+        var s = seq(3, BACK, 6); planks(s, 5, BACK);
+        NAV.hint("<b>3 · 2 · 4 · 3 · 6 · ?</b> — дії помінялись місцями.");
+        NAV.question("Яке число на останній дошці?", numOpts(5, [5, 12, 7, 4], function(n){
+          return n===12 ? "Після 3 → 6 (×2) тепер черга <b>−1</b>! ×2 було б за старим правилом." : "Порахуй по черзі: −1, ×2, −1, ×2, а тепер — −1.";
+        }), function(){
+          cross(s, 5, function(){
+            log.push("3 → 2 → 4 → 3 → 6 → <b>5</b> (−1, ×2…)"); renderLog();
+            NAV.hint("Так! Ті самі дії — інший порядок.","good");
+            setTimeout(step5, 900);
+          });
+        }, {cols:4, big:true});
+      }, 500);
+    });
+  }
+
+  function step5(){
+    NAV.step(4,TOTAL);
+    var a = NAV.rnd(4,8), s = seq(a, BACK, 6), right = s[5], old = s[4]*2;
+    planks(s, 5, BACK);
+    NAV.hint("Останній міст: <b>"+txt(s, 5)+"</b>");
+    NAV.question("Яке число на останній дошці?", numOpts(right, [right, old, s[4]+1, right-1], function(n){
+      return n===old ? "Це ×2 — а після ×2 тепер черга −1!" : "Дії йдуть по черзі: −1, ×2, −1, ×2, −1.";
+    }), function(){
+      cross(s, 5, function(){
+        log.push(txt(s, -1).replace(new RegExp(" "+right+"$"), " <b>"+right+"</b>")); renderLog();
+        NAV.hint("Чудово! Міст чисел пройдено 🌉","good");
+        setTimeout(NAV.finish, 1400);
+      });
+    }, {cols:4, big:true});
+  }
+})();
+</script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=12"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=4"></script>
+<script src="../sk-prize.js?v=2"></script>
+<script src="../sk-finish.js?v=6"></script>
+</body>
+</html>
