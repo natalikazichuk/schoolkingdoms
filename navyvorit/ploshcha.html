@@ -12,18 +12,22 @@
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
 <link rel="stylesheet" href="nav-common.css">
 <style>
-/* ── площа ── */
-#scene{height:230px; background:linear-gradient(180deg,#bfe3ff 0%,#e7f5ff 48%,#e9dcc4 48%,#d9c6a5 100%);}
-body.flipped #scene{background:linear-gradient(180deg,#cdb8ff 0%,#efe6ff 48%,#e2d4f0 48%,#cbb6e6 100%);}
-.tiles{position:absolute; left:0; right:0; top:48%; bottom:0; background:repeating-linear-gradient(90deg,rgba(0,0,0,.05) 0 1px,transparent 1px 34px),repeating-linear-gradient(0deg,rgba(0,0,0,.05) 0 1px,transparent 1px 24px);}
-#statues{position:absolute; left:6px; right:6px; bottom:22px; display:flex; justify-content:space-around; align-items:flex-end; z-index:2;}
-.st{position:relative; width:18%; display:flex; flex-direction:column; align-items:center; border:none; background:none; cursor:pointer; font-family:inherit;}
-.st .fig{font-size:44px; line-height:1; transition:transform .25s; display:inline-block; transform-origin:50% 90%;}
-.st .ped{width:84%; height:22px; margin-top:-2px; background:linear-gradient(180deg,#cfc6b8,#a99d8c); border-radius:4px 4px 2px 2px; box-shadow:0 3px 0 rgba(0,0,0,.18);}
-.st .no{position:absolute; bottom:3px; font-family:'Fredoka'; font-weight:700; font-size:12px; color:#4a4136;}
-.st.pick .ped{background:linear-gradient(180deg,#ffe066,#e0a92e);}
-.st.good .ped{background:linear-gradient(180deg,#8ce99a,#37b26f);}
-.st.bad .ped{background:linear-gradient(180deg,#ffa8a8,#e06666);}
+/* ── площа: фон із 5 постаментами (img/ploshcha/scene-bg.webp, 1586×992), статуї стають на них ── */
+#scene{aspect-ratio:1586/992; background:#9fd2ff url(img/ploshcha/scene-bg.webp) center/100% 100% no-repeat;}
+#scene:after{content:""; position:absolute; inset:0; pointer-events:none; background:rgba(150,100,255,.30); opacity:0; transition:opacity .5s; z-index:1;}   /* під статуями: кольори номерів лишаються яскравими */
+body.flipped #scene:after{opacity:1;}
+#statues{position:absolute; inset:0; z-index:2;}
+/* кнопка-статуя: від верху сцени до низу постаменту (28.9% знизу); центр — центр постаменту */
+.st{position:absolute; top:0; bottom:28.9%; width:16%; transform:translateX(-50%); border:none; background:none; cursor:pointer; padding:0; font-family:inherit; -webkit-tap-highlight-color:transparent;}
+/* верх постаменту — 42.8% знизу сцени = 19.5% висоти кнопки */
+.st .fig{position:absolute; bottom:19.5%; left:50%; transform-origin:50% 96%; transition:transform .25s, filter .25s; filter:drop-shadow(0 2px 2px rgba(0,0,0,.25));}
+.st .no{position:absolute; bottom:3%; left:50%; transform:translateX(-50%); min-width:24px; height:24px; padding:0 5px; border-radius:12px; display:grid; place-items:center;
+  font-family:'Fredoka'; font-weight:700; font-size:13px; color:#4a4136; background:rgba(255,253,246,.92); border:2px solid #d9b77c; box-shadow:0 2px 0 rgba(0,0,0,.18);}
+.st.pick .no{background:#ffe066; border-color:#e0a92e;}
+.st.good .no{background:#8ce99a; border-color:#37b26f; color:#0b5a2a;}
+.st.bad .no{background:#ffa8a8; border-color:#e06666; color:#7a1414;}
+.st.good .fig{filter:drop-shadow(0 0 6px #51cf66) drop-shadow(0 0 10px #51cf66);}
+.st.bad .fig{filter:drop-shadow(0 0 6px #ff6b6b) drop-shadow(0 0 10px #ff6b6b);}
 .st:active .fig{filter:brightness(1.1);}
 #curtain{position:absolute; inset:0; z-index:5; display:grid; place-items:center; background:rgba(44,43,58,.82); color:#fff; font-family:'Fredoka'; font-weight:700; font-size:20px;
   opacity:0; pointer-events:none; transition:opacity .35s; text-align:center; line-height:1.3;}
@@ -31,8 +35,6 @@ body.flipped #scene{background:linear-gradient(180deg,#cdb8ff 0%,#efe6ff 48%,#e2
 #curtain .em{font-size:52px; display:block;}
 #timer{position:absolute; left:10px; right:10px; top:10px; height:8px; background:rgba(255,255,255,.6); border-radius:6px; overflow:hidden; z-index:3;}
 #timer i{display:block; height:100%; width:100%; background:linear-gradient(90deg,#ffd43b,#ffa94d); transition:width linear;}
-.sun{position:absolute; right:14px; top:22px; font-size:26px;}
-body.flipped .sun{transform:rotate(180deg);}
 </style>
 </head>
 <body>
@@ -43,6 +45,9 @@ body.flipped .sun{transform:rotate(180deg);}
   "use strict";
   /* фігури статуй і можливі положення: дзеркально (обличчям в інший бік) і нахил */
   var FIGS = ["🗿","🦁","🐎","🦉","🐘","🦒","🐻"];
+  /* картинки статуй (img/ploshcha/st-*.webp) і їхня ширина у % ширини сцени — у масштабі фону */
+  var IMG = {"🗿":["moai",12.86],"🦁":["lion",12.8],"🐎":["horse",13.75],"🦉":["owl",12.55],"🐘":["elephant",18.03],"🦒":["giraffe",13.49],"🐻":["bear",15.26]};
+  var PED = [13.6, 32.2, 50.2, 68.2, 86.5];   // центри постаментів на фоні, % ширини
   var TILTS = [-18, 0, 18];
   var PLAN = [
     {same:true,  kind:"face"},          // 🗿 🗿 🗿 🗿 🗿 — одна повернулась
@@ -67,15 +72,18 @@ body.flipped .sun{transform:rotate(180deg);}
       "Звичайно змінюється <b>одна</b> статуя — шукай ту, що стоїть інакше.",
       "🔄 Навиворіт: змінюються <b>всі, крім однієї</b> — тепер шукай ту, що стоїть <b>так само</b>!"
     ],
-    scene:'<span class="sun">☀️</span><div class="tiles"></div><div id="timer"><i id="timerBar"></i></div><div id="statues"></div><div id="curtain"></div>',
+    scene:'<div id="timer"><i id="timerBar"></i></div><div id="statues"></div><div id="curtain"></div>',
     onStart:function(){ qi = 0; next(); }
   });
 
+  Object.keys(IMG).forEach(function(k){ new Image().src = "img/ploshcha/st-"+IMG[k][0]+".webp"; });   // заздалегідь, щоб не блимало
   function pose(f){ return "scaleX("+f.face+") rotate("+f.tilt+"deg)"; }
   function render(state, clickable){
     var box = NAV.$("statues"); box.innerHTML = "";
     state.forEach(function(f,i){
-      var b = NAV.el("button","st",'<span class="fig" style="transform:'+pose(f)+'">'+f.em+'</span><span class="ped"></span><span class="no">'+(i+1)+'</span>');
+      var im = IMG[f.em], w = im[1] / 16 * 100;   // ширина картинки у % ширини кнопки (кнопка — 16% сцени)
+      var b = NAV.el("button","st",'<img class="fig" src="img/ploshcha/st-'+im[0]+'.webp" alt="'+f.em+'" draggable="false" style="width:'+w+'%; margin-left:'+(-w/2)+'%; transform:'+pose(f)+'"><span class="no">'+(i+1)+'</span>');
+      b.style.left = PED[i] + "%";
       b.type = "button"; b.setAttribute("aria-label","Статуя "+(i+1));
       if(clickable) b.addEventListener("click", function(){ pickStatue(i, b); });
       box.appendChild(b);
