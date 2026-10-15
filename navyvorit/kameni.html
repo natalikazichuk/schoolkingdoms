@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Камені зі знаками — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<link rel="stylesheet" href="nav-common.css">
+<style>
+/* ── стежка з каменів ── */
+#scene{height:190px; background:linear-gradient(180deg,#d3f9d8 0%,#ebfbee 55%,#c9b28a 55%,#b89b6e 100%); display:flex; align-items:center; justify-content:center; gap:5px; padding:0 6px 18px;}
+body.flipped #scene{background:linear-gradient(180deg,#e5dbff 0%,#f3f0ff 55%,#c3b2dc 55%,#ae9bcc 100%);}
+.stone{width:52px; min-height:74px; border-radius:46% 46% 40% 40%; background:radial-gradient(circle at 35% 30%,#ced4da,#868e96); border:3px solid #6c757d;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; box-shadow:0 5px 0 rgba(0,0,0,.18); transition:transform .3s;}
+.stone .n{font-family:'Fredoka'; font-weight:700; font-size:20px; color:#fff; text-shadow:0 1px 0 rgba(0,0,0,.35);}
+.stone .dots{display:grid; gap:2px;}
+.stone .dots i{width:5px; height:5px; border-radius:50%; background:#ffe066; box-shadow:0 0 3px #ffd43b;}
+.stone.q{background:radial-gradient(circle at 35% 30%,#fff3bf,#fab005); border-color:#e67700;}
+.stone.q .n{color:#7a4a00; text-shadow:none;}
+.stone.pop{animation:pop .45s;}
+@keyframes pop{0%{transform:scale(.5)}70%{transform:scale(1.15)}}
+</style>
+</head>
+<body>
+<script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
+<script src="nav-common.js"></script>
+<script>
+(function(){
+  "use strict";
+  var TOTAL = 5, log;
+  function sq(k){ return k*k; }
+
+  NAV.mount({
+    next: "bank.html",   // «Вирушай далі! ›» — наступний пункт карти
+    title:"Камені зі знаками", emoji:"🪨✨", sub:"Числа · Світ навиворіт · 5 кроків",
+    riddle:"Стежку в лабораторії вимощено чарівними каменями. На кожному — число й крапки, що світяться.<span class='seq'>1 · 4 · 9 · 16 · ?</span>Яке число на наступному камені? А потім — 🔄 переворот, і стежка поведе назад…",
+    play:"На стежку ▶", steps:TOTAL, crown:"🪨✨",
+    badgeOff:"➡️ стежка вперед", badgeOn:"🔄 стежка назад",
+    prizeKey:"sk_kameni_prize_v1", href:"kameni.html", doneText:"Стежку пройдено — нагороду отримано!",
+    winTitle:"Стежку пройдено!", winPerfect:"Жодного хибного каменя!",
+    lesson:[
+      "На кожному камені — <b>квадрат</b> із крапок: 1×1 = 1, 2×2 = 4, 3×3 = 9, 4×4 = 16, 5×5 = 25.",
+      "Різниця між каменями <b>росте на 2</b>: +3, +5, +7, +9…",
+      "🔄 Назад числа меншають, а різниця <b>зменшується на 2</b>: −9, −7, −5, −3 — 25, 16, 9, 4, <b>1</b>."
+    ],
+    scene:'',
+    afterScene:'<div class="log" id="log"></div>',
+    onStart:startGame
+  });
+
+  function renderLog(){
+    var box = NAV.$("log"); box.innerHTML = '<div class="lh">📒 Записник стежки</div>';
+    if(!log.length){ box.appendChild(NAV.el("div","empty","Поки нічого.")); return; }
+    var rows = NAV.el("div","rows"); log.slice(-3).forEach(function(r){ rows.appendChild(NAV.el("div","r",r)); }); box.appendChild(rows);
+  }
+  /* камені: список k (число k×k); hide — індекс каменя з «?» */
+  function stones(ks, hide){
+    var sc = NAV.$("scene"); sc.innerHTML = "";
+    ks.forEach(function(k, i){
+      var q = i===hide, d = NAV.el("div","stone"+(q?" q":"")); d.id = "st"+i;
+      d.innerHTML = '<span class="n">'+(q ? "?" : sq(k))+'</span>'+(!q && k<=5 ? dots(k) : "");
+      sc.appendChild(d);
+    });
+  }
+  function dots(k){ var h = '<span class="dots" style="grid-template-columns:repeat('+k+',5px)">'; for(var i=0;i<k*k;i++) h += "<i></i>"; return h+"</span>"; }
+  function reveal(ks, i){
+    var d = NAV.$("st"+i), k = ks[i]; d.className = "stone pop";
+    d.innerHTML = '<span class="n">'+sq(k)+'</span>'+(k<=5 ? dots(k) : "");
+    NAV.snd.chime();
+  }
+  function numOpts(right, list, why){
+    var seen = {}, o = [];
+    list.forEach(function(n){ if(n>=0 && !seen[n]){ seen[n] = 1; o.push(n===right ? {tx:String(n), ok:true} : {tx:String(n), why:why(n)}); } });
+    return o.sort(function(a,b){ return +a.tx - +b.tx; });
+  }
+  function seqTxt(ks, hide){ return ks.map(function(k, i){ return i===hide ? "?" : sq(k); }).join(" · "); }
+
+  function startGame(){
+    log = []; NAV.step(0,TOTAL); renderLog();
+    var ks = [1,2,3,4,5]; stones(ks, 4);
+    NAV.hint("Подивись на крапки на каменях 👀");
+    NAV.question("Яке число на п'ятому камені?", numOpts(25, [20,23,25,32], function(n){
+      return ({20:"+4 щоразу? Глянь: 1 → 4 це +3, 4 → 9 це +5. Різниця росте!",
+               23:"+7 — це попередній крок (9 → 16). А різниця щоразу більшає на 2.",
+               32:"16 × 2 = 32, але 4 × 2 ≠ 9. Тут не множать на 2 — подивись на крапки!"})[n];
+    }), function(){
+      reveal(ks, 4);
+      log.push("1 · 4 · 9 · 16 · <b>25</b> — 5 × 5 крапок"); renderLog();
+      NAV.hint("Так! Крапки складаються в квадрат 5 × 5.","good");
+      setTimeout(step2, 1200);
+    }, {cols:4, big:true});
+  }
+
+  function step2(){
+    NAV.step(1,TOTAL);
+    var ks = [1,2,3,4,5,6], h = NAV.rnd(2,5), right = sq(ks[h]);
+    stones(ks, h);
+    NAV.hint("Один камінь загубив число: <b>"+seqTxt(ks, h)+"</b>");
+    NAV.question("Яке число на камені з «?»", numOpts(right, [right-2, right, right+1, right+2], function(){
+      return "Це квадрат: "+ks[h]+" × "+ks[h]+". Або порахуй різниці: +3, +5, +7, +9, +11.";
+    }), function(){
+      reveal(ks, h);
+      log.push(seqTxt(ks, -1).replace(String(right), "<b>"+right+"</b>")); renderLog();
+      NAV.hint("Правильно! "+ks[h]+" × "+ks[h]+" = "+right+".","good");
+      setTimeout(step3, 1200);
+    }, {cols:4, big:true});
+  }
+
+  function step3(){
+    NAV.step(2,TOTAL);
+    NAV.hint("Подивись у записник 📒 — яке правило каменів?");
+    NAV.question("Яке правило?", [
+      {tx:"Кожне число — квадрат: 1×1, 2×2, 3×3…", ok:true},
+      {tx:"До кожного числа додають 3", why:"1 + 3 = 4, але 4 + 3 ≠ 9. Різниця росте!"},
+      {tx:"Кожне число множать на 2", why:"1 × 2 ≠ 4. Подивись на крапки — вони складаються в квадрати."}
+    ], function(){ setTimeout(flip, 900); });
+  }
+
+  function flip(){
+    NAV.modal("🔄","Навиворіт!","Стежка повернула <b>назад</b>! Камені тепер ідуть від більшого до меншого.",{nav:true, btn:"🔄 Перевернути"}, function(){
+      NAV.snd.whoosh(); NAV.flipAnim();
+      setTimeout(function(){
+        NAV.setFlip(true); NAV.step(3,TOTAL);
+        log.push("🔄 <b>Стежка йде назад!</b>"); renderLog();
+        var ks = [5,4,3,2,1]; stones(ks, 4);
+        NAV.hint("Назад: <b>25 · 16 · 9 · 4 · ?</b>");
+        NAV.question("Яке число на останньому камені?", numOpts(1, [0,1,2,3], function(n){
+          return n===0 ? "4 − 4 = 0? Але різниці: −9, −7, −5… далі <b>−3</b>." : "Подивись на крапки: який квадрат найменший? 1 × 1!";
+        }), function(){
+          reveal(ks, 4);
+          log.push("25 · 16 · 9 · 4 · <b>1</b> — назад"); renderLog();
+          NAV.hint("Так! Назад: 5×5, 4×4, 3×3, 2×2, <b>1×1</b>.","good");
+          setTimeout(step5, 1200);
+        }, {cols:4, big:true, keepOrder:true});
+      }, 500);
+    });
+  }
+
+  function step5(){
+    NAV.step(4,TOTAL);
+    var k = NAV.rnd(6,8), ks = [k, k-1, k-2, k-3], right = sq(k-3), rep = sq(k-2) - (sq(k-1) - sq(k-2));
+    stones(ks, 3);
+    NAV.hint("Остання стежка назад: <b>"+seqTxt(ks, 3)+"</b>");
+    NAV.question("Яке число на камені з «?»", numOpts(right, [right, rep, right+1, right-1], function(n){
+      return n===rep ? "Ти відняв(-ла) ту саму різницю, що й минулого разу. Але назад вона щоразу <b>менша на 2</b>!" : "Це квадрат: "+(k-3)+" × "+(k-3)+".";
+    }), function(){
+      reveal(ks, 3);
+      log.push(seqTxt(ks, -1).replace(new RegExp("· "+right+"$"), "· <b>"+right+"</b>")); renderLog();
+      NAV.hint("Чудово! Стежку пройдено.","good");
+      setTimeout(NAV.finish, 1500);
+    }, {cols:4, big:true});
+  }
+})();
+</script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=12"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=4"></script>
+<script src="../sk-prize.js?v=2"></script>
+<script src="../sk-finish.js?v=6"></script>
+</body>
+</html>

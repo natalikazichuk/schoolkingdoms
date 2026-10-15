@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Портал двох світів — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<link rel="stylesheet" href="nav-common.css">
+<style>
+/* ── два світи й портал ── */
+#scene{height:210px; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:6px; padding:12px 10px;
+  background:linear-gradient(90deg,#d3f9d8 0%,#ebfbee 42%,#e5dbff 58%,#d0bfff 100%);}
+body.flipped #scene{background:linear-gradient(90deg,#d0bfff 0%,#e5dbff 42%,#ebfbee 58%,#d3f9d8 100%);}
+.world{display:flex; flex-direction:column; align-items:center; gap:6px; background:rgba(255,255,255,.75); border:2px solid var(--line); border-radius:16px; padding:8px 6px;}
+.world .wn{font-weight:800; font-size:12px; color:var(--soft); text-align:center; line-height:1.2;}
+.world .clk{font-size:34px; line-height:1;}
+.world .h{font-family:'Fredoka'; font-weight:700; font-size:26px; color:#2f5d8a; min-width:60px; text-align:center;}
+.world .h.q{color:#c9b28a;}
+.world.fast .h{color:#7048e8;}
+.world .h.tick{animation:tick .3s;}
+@keyframes tick{50%{transform:scale(1.2)}}
+#portal{font-size:46px; animation:spin 4s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+#hero{font-size:24px; text-align:center;}
+</style>
+</head>
+<body>
+<script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
+<script src="nav-common.js"></script>
+<script>
+(function(){
+  "use strict";
+  var TOTAL = 5, log;
+  function hrs(n){ var a = n%10, b = n%100; return n+" "+((a===1 && b!==11) ? "година" : (a>=2 && a<=4 && (b<12 || b>14)) ? "години" : "годин"); }
+
+  NAV.mount({
+    next: "skarb.html",   // «Вирушай далі! ›» — наступний пункт карти
+    title:"Портал двох світів", emoji:"🌍🌀", sub:"Числа · Світ навиворіт · 5 кроків",
+    riddle:"Портал з'єднує наш світ і <b>швидкий світ</b>. Там час іде <b>удвічі швидше</b>, ніж у нас!<span class='seq'>🌍 3 год → 🌀 ?</span>Скільки годин мине у швидкому світі? А потім — 🔄 переворот, і ти повертатимешся назад…",
+    play:"До порталу ▶", steps:TOTAL, crown:"🌀✨",
+    badgeOff:"🌍 → 🌀 туди", badgeOn:"🔄 🌀 → 🌍 назад",
+    prizeKey:"sk_portal_prize_v1", href:"portal.html", doneText:"Портал розгадано — нагороду отримано!",
+    winTitle:"Портал розгадано!", winPerfect:"Жодна година не загубилась!",
+    lesson:[
+      "У швидкому світі час іде <b>удвічі швидше</b>: 1 година в нас — 2 години там. Тож годин там — <b>× 2</b>.",
+      "🔄 Назад — <b>зворотна дія</b>: щоб дізнатися, скільки минуло в нас, годин швидкого світу <b>ділимо на 2</b>.",
+      "Множення і ділення — пара навиворіт: 3 × 2 = 6, а 6 : 2 = 3."
+    ],
+    scene:'<div class="world"><span class="wn">🌍 Наш світ</span><span class="clk">🕰️</span><span class="h" id="hA">0</span></div>'+
+          '<div><div id="portal">🌀</div><div id="hero">🧒</div></div>'+
+          '<div class="world fast"><span class="wn">🌀 Швидкий світ</span><span class="clk">⏰</span><span class="h" id="hB">0</span></div>',
+    afterScene:'<div class="log" id="log"></div>',
+    onStart:startGame
+  });
+
+  function renderLog(){
+    var box = NAV.$("log"); box.innerHTML = '<div class="lh">📒 Журнал мандрівника</div>';
+    if(!log.length){ box.appendChild(NAV.el("div","empty","Поки нічого.")); return; }
+    var rows = NAV.el("div","rows"); log.slice(-3).forEach(function(r){ rows.appendChild(NAV.el("div","r",r)); }); box.appendChild(rows);
+  }
+  function set(id, v){ var e = NAV.$(id); e.textContent = v==="?" ? "?" : v+" год"; e.classList.toggle("q", v==="?"); }
+  function bump(id, v){ var e = NAV.$(id); set(id, v); e.classList.remove("tick"); void e.offsetWidth; e.classList.add("tick"); }
+  /* годинники йдуть разом: за 1 годину в нас — 2 години там */
+  function run(here, cb){
+    var a = 0;
+    set("hA", 0); set("hB", 0);
+    (function go(){
+      if(a>=here){ setTimeout(cb, 500); return; }
+      a++; bump("hA", a); NAV.snd.tone(600,0.05,"square",0.03);
+      setTimeout(function(){ bump("hB", 2*a - 1); NAV.snd.tone(900,0.04,"square",0.03); }, 160);
+      setTimeout(function(){ bump("hB", 2*a); NAV.snd.tone(900,0.04,"square",0.03); }, 330);
+      setTimeout(go, 520);
+    })();
+  }
+  function numOpts(right, list, why){
+    var seen = {}, o = [];
+    list.forEach(function(n){ if(n>0 && !seen[n]){ seen[n] = 1; o.push(n===right ? {tx:String(n), ok:true} : {tx:String(n), why:why(n)}); } });
+    return o.sort(function(a,b){ return +a.tx - +b.tx; });
+  }
+
+  function startGame(){
+    log = []; NAV.step(0,TOTAL); renderLog();
+    set("hA", 3); set("hB", "?");
+    NAV.hint("У нашому світі мине <b>3 години</b>. А в швидкому?");
+    NAV.question("Скільки годин мине у швидкому світі?", numOpts(6, [3,5,6,9], function(n){
+      return ({3:"Так було б, якби час ішов однаково. А там він швидший — удвічі!",
+               5:"Не додавай 2 — «удвічі» означає <b>помножити на 2</b>.",
+               9:"Це втричі швидше. А там — удвічі: 3 × 2."})[n];
+    }), function(){
+      run(3, function(){
+        log.push("🌍 3 год → 🌀 <b>6 год</b>"); renderLog();
+        NAV.hint("Так! Щогодини в нас — 2 години там: 3 × 2 = 6.","good");
+        setTimeout(step2, 1000);
+      });
+    }, {cols:4, big:true});
+  }
+
+  function step2(){
+    NAV.step(1,TOTAL);
+    var h = NAV.rnd(4,8), right = 2*h;
+    set("hA", h); set("hB", "?");
+    NAV.hint("Мандрівник пробуде в порталі <b>"+hrs(h)+"</b> нашого часу.");
+    NAV.question("Скільки годин мине у швидкому світі?", numOpts(right, [h, h+2, right, 3*h], function(n){
+      return n===h ? "Час там швидший — годин буде більше!" : "Удвічі швидше — це "+h+" × 2.";
+    }), function(){
+      run(h, function(){
+        log.push("🌍 "+h+" год → 🌀 <b>"+right+" год</b>"); renderLog();
+        NAV.hint("Правильно! "+h+" × 2 = "+right+".","good");
+        setTimeout(step3, 1000);
+      });
+    }, {cols:4, big:true});
+  }
+
+  function step3(){
+    NAV.step(2,TOTAL);
+    NAV.hint("Подивись у журнал 📒 — яке правило порталу?");
+    NAV.question("Як порахувати годин у швидкому світі?", [
+      {tx:"Помножити наші години на 2", ok:true},
+      {tx:"Додати до наших годин 2", why:"3 + 2 = 5, а в журналі — 6. Удвічі — це × 2."},
+      {tx:"Там стільки ж годин", why:"Тоді б світ не був швидким! Глянь у журнал."}
+    ], function(){ setTimeout(flip, 900); });
+  }
+
+  function flip(){
+    NAV.modal("🔄","Навиворіт!","Тепер мандрівник <b>повертається</b> зі швидкого світу! Ми знаємо, скільки годин минуло <b>там</b>, — а скільки минуло вдома?",{nav:true, btn:"🔄 Перевернути"}, function(){
+      NAV.snd.whoosh(); NAV.flipAnim();
+      setTimeout(function(){
+        NAV.setFlip(true); NAV.step(3,TOTAL);
+        log.push("🔄 <b>Повертаємось назад!</b>"); renderLog();
+        set("hA", "?"); set("hB", 6);
+        NAV.hint("У швидкому світі минуло <b>6 годин</b>. А вдома?");
+        NAV.question("Скільки годин минуло в нашому світі?", numOpts(3, [3,4,6,12], function(n){
+          return n===12 ? "× 2 — це шлях туди. Назад робимо <b>зворотну дію</b> — ділимо на 2!" :
+                 n===6 ? "Удома час повільніший — годин минуло менше." : "Не віднімай 2 — «удвічі» назад означає <b>поділити на 2</b>.";
+        }), function(){
+          run(3, function(){
+            log.push("🌀 6 год → 🌍 <b>3 год</b> (: 2)"); renderLog();
+            NAV.hint("Так! 6 : 2 = 3. Перевірка: 3 × 2 = 6 ✔","good");
+            setTimeout(step5, 1000);
+          });
+        }, {cols:4, big:true});
+      }, 500);
+    });
+  }
+
+  function step5(){
+    NAV.step(4,TOTAL);
+    var h = NAV.rnd(4,9), there = 2*h;
+    set("hA", "?"); set("hB", there);
+    NAV.hint("Останній мандрівник пробув у швидкому світі <b>"+hrs(there)+"</b>.");
+    NAV.question("Скільки годин минуло вдома?", numOpts(h, [h, h+1, there-2, 2*there], function(n){
+      return n===2*there ? "Це × 2 — шлях туди. Назад ділимо на 2!" : "Поділи "+there+" на 2. Перевір: відповідь × 2 має дати "+there+".";
+    }), function(){
+      run(h, function(){
+        log.push("🌀 "+there+" год → 🌍 <b>"+h+" год</b>"); renderLog();
+        NAV.hint("Чудово! Портал двох світів розгадано 🌀","good");
+        setTimeout(NAV.finish, 1400);
+      });
+    }, {cols:4, big:true});
+  }
+})();
+</script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=12"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=4"></script>
+<script src="../sk-prize.js?v=2"></script>
+<script src="../sk-finish.js?v=6"></script>
+</body>
+</html>

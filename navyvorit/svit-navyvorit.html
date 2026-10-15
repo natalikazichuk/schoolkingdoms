@@ -58,6 +58,8 @@ body{
   -webkit-text-stroke:2px #5a3208; paint-order:stroke fill;
   text-shadow:0 3px 0 #5a3208, 0 5px 0 #5a3208, 0 8px 10px rgba(0,0,0,.25);}
 #hint{font-weight:900; font-size:15px; text-align:center; line-height:1.3; min-height:40px; max-width:440px; padding:2px 6px; color:var(--ink);}
+#hint{padding:6px 12px; border-radius:14px; background:rgba(255,253,246,.88);}   /* підказка — під сценою, на світлій картці, щоб добре читалась */
+#hint:empty{background:none; min-height:0; padding:0;}
 #hint.bad{color:var(--bad);} #hint.good{color:var(--good);}
 #hint b{color:var(--accent-d);}
 
@@ -114,7 +116,12 @@ body{
   padding:calc(env(safe-area-inset-top) + 16px) 22px 18px; text-align:center; overflow-y:auto;
   background:linear-gradient(180deg,#63b3f5 0%,#a8d8fb 35%,#eaf6ff 65%,#fff7ea 100%);}
 .screen.hidden{display:none;}
-.start-top{position:absolute; top:calc(env(safe-area-inset-top) + 16px); left:16px;}
+.start-top{position:absolute; top:calc(env(safe-area-inset-top) + 16px); left:16px; display:flex; gap:8px; align-items:center;}
+/* 🗺️ повернення на карту Світу навиворіт — на стартовому екрані кожної гри */
+.maplink{height:44px; display:inline-flex; align-items:center; gap:4px; padding:0 14px; border:2px solid var(--line); background:#fff; border-radius:14px;
+  font-weight:800; font-size:15px; color:var(--ink); text-decoration:none; box-shadow:0 1px 3px rgba(44,43,58,.14);}
+.maplink:active{transform:translateY(2px);}
+.winrow a.linkbtn{text-decoration:none; color:var(--ink);}
 .iconbtn{width:44px; height:44px; border:3px solid var(--gold); background:#fffdf6; border-radius:14px; font-family:inherit; font-weight:700; font-size:20px; color:var(--ink); cursor:pointer; box-shadow:0 3px 0 var(--gold-d);}
 .hero{position:relative; width:min(230px,52vw); aspect-ratio:1;}
 .hero .t{position:absolute; inset:0; width:100%; height:100%; object-fit:contain; transform:scaleY(-1); filter:drop-shadow(0 8px 10px rgba(0,0,0,.2));}
@@ -170,7 +177,6 @@ h1{font-family:'Fredoka'; font-weight:700; font-size:34px; color:#ffcf33; -webki
   <div id="main">
     <div id="kicker">Світ навиворіт · Логіка</div>
     <div id="title">Спіймай яблуко!</div>
-    <div id="hint">У цьому світі все навпаки — обери правильний інструмент.</div>
     <div id="stage">
       <div id="scene" aria-label="Дивне дерево на площі">
         <div id="treeBox">
@@ -183,6 +189,7 @@ h1{font-family:'Fredoka'; font-weight:700; font-size:34px; color:#ffcf33; -webki
         <button class="zone" type="button" data-z="down" style="left:73%; top:63%"><span>під яблуком</span></button>
       </div>
     </div>
+    <div id="hint">У цьому світі все навпаки — обери правильний інструмент.</div>
   </div>
 
   <div id="tools">
@@ -193,7 +200,7 @@ h1{font-family:'Fredoka'; font-weight:700; font-size:34px; color:#ffcf33; -webki
   </div>
 
   <div class="screen" id="startScreen">
-    <div class="start-top"><button class="iconbtn backbtn" type="button" title="Назад" aria-label="Назад">←</button></div>
+    <div class="start-top"><button class="iconbtn backbtn" type="button" title="Назад" aria-label="Назад">←</button><a class="maplink" href="index.html?g=svit-navyvorit.html">🗺️ На карту</a></div>
     <div class="hero"><img class="t" src="img/svit-navyvorit/tree.webp" alt=""><img class="b" src="img/svit-navyvorit/basket.webp" alt=""><img class="a" src="img/svit-navyvorit/apple.webp" alt=""></div>
     <h1>Дивне дерево</h1>
     <p class="start-sub">Світ навиворіт · Логіка</p>
@@ -227,7 +234,7 @@ h1{font-family:'Fredoka'; font-weight:700; font-size:34px; color:#ffcf33; -webki
     </div>
     <div class="winrow"><a class="cta" id="nextBtn" href="avtobus-0.html">Вирушай далі! ›</a></div>
     <div class="winrow">
-      <a class="linkbtn" href="index.html">🗺️ На карту</a>
+      <a class="linkbtn" href="index.html?g=svit-navyvorit.html">🗺️ На карту</a>
       <button class="linkbtn" id="toMenuBtn" type="button">☰ У меню</button>
     </div>
   </div>
@@ -436,7 +443,7 @@ h1{font-family:'Fredoka'; font-weight:700; font-size:34px; color:#ffcf33; -webki
     $("winScreen").classList.remove("hidden");
     try{ localStorage.setItem("sk_navyvorit_done_"+TR_HREF, "1"); }catch(e){}   // позначка для карти: наступний пункт відкривається
     if(window.SKPRIZE && !SKPRIZE.summary(PRIZE_KEY))
-      SKPRIZE.claim({ key: PRIZE_KEY, href: TR_HREF, title: "Загадку розгадано!", onClose: refreshStart });
+      SKPRIZE.claim({ doneText: "Ура, пригоду пройдено! 🎉 На карті вже чекає нова загадка Світу навиворіт 🗺️", alreadyText: "Нагорода за цю пригоду вже в тебе 🏅 Грай ще — для слави!", key: PRIZE_KEY, href: TR_HREF, title: "Загадку розгадано!", onClose: refreshStart });
   }
 
   function startGame(){
@@ -464,7 +471,7 @@ h1{font-family:'Fredoka'; font-weight:700; font-size:34px; color:#ffcf33; -webki
 <script src="../sk-items.js?v=15"></script>
 <script src="../sk-curriculum.js?v=8"></script>
 <script src="../sk-rewards.js?v=4"></script>
-<script src="../sk-prize.js?v=1"></script>
+<script src="../sk-prize.js?v=2"></script>
 <script src="../sk-finish.js?v=6"></script>
 </body>
 </html>

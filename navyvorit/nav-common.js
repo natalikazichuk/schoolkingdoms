@@ -53,10 +53,10 @@
       '<div id="top"><div class="pill"><span class="lab">'+(c.stepLabel||"Крок")+'</span><span class="val" id="qNum">1/'+(c.steps||1)+'</span></div>'+
         '<div id="dirBadge">'+(c.badgeOff||"⏩ звичайний світ")+'</div><div id="spacer"></div><button id="menuBtn" type="button">☰ Меню</button></div>'+
       '<div id="barWrap"><div id="bar"><div id="barFill"></div></div></div>'+
-      '<div id="main"><div id="hint"></div><div id="scene">'+(c.scene||"")+'</div>'+(c.afterScene||"")+'<div id="panel"></div></div>'+
+      '<div id="main"><div id="scene">'+(c.scene||"")+'</div><div id="hint"></div>'+(c.afterScene||"")+'<div id="panel"></div></div>'+
       '<div class="screen" id="startScreen">'+
-        '<div class="start-top"><button class="iconbtn backbtn" type="button" title="Назад" aria-label="Назад">←</button></div>'+
-        '<div class="big-emoji">'+c.emoji+'</div><h1>'+c.title+'</h1><p class="start-sub">'+c.sub+'</p>'+
+        '<div class="start-top"><button class="iconbtn backbtn" type="button" title="Назад" aria-label="Назад">←</button><a class="maplink" href="index.html?g='+c.href+'">🗺️ На карту</a></div>'+
+        (c.startImg ? '<div class="start-pic" role="img" aria-label="'+c.title+'" style="background-image:url('+c.startImg+')"></div>' : '<div class="big-emoji">'+c.emoji+'</div>')+'<h1>'+c.title+'</h1><p class="start-sub">'+c.sub+'</p>'+
         '<div class="riddle">'+c.riddle+'</div>'+
         '<div class="done-card" id="startDone"><span class="dc-ic">🏆</span><div><div class="dc-got" id="doneGot">Пройдено!</div><div class="dc-go" id="doneGo">Вирушай за новими досягненнями!</div></div></div>'+
         '<button class="big-btn" id="playBtn" type="button">'+(c.play||"Грати ▶")+'</button></div>'+
@@ -65,7 +65,7 @@
         '<div class="lesson">'+(c.lessonHead||"Що ти дізнався(-лася):")+'<ol>'+c.lesson.map(function(x){ return "<li>"+x+"</li>"; }).join("")+'</ol></div>'+
         '<div class="winrow">'+(c.next ? '<a class="cta" id="nextBtn" href="'+c.next+'">'+(c.nextText||"Вирушай далі! ›")+'</a>'
           : '<button class="cta" id="againBtn" type="button">↻ Ще раз</button>')+'</div>'+
-        '<div class="winrow"><a class="linkbtn" href="index.html">🗺️ На карту</a><button class="linkbtn" id="toMenuBtn" type="button">☰ У меню</button></div></div>';
+        '<div class="winrow"><a class="linkbtn" href="index.html?g='+c.href+'">🗺️ На карту</a><button class="linkbtn" id="toMenuBtn" type="button">☰ У меню</button></div></div>';
     var footer = document.querySelector('script[src*="sk-footer.js"]');
     document.body.insertBefore(wrap, footer || document.body.firstChild);
     var modal = el("div","modal hidden"); modal.id = "modal";
@@ -188,7 +188,7 @@
     $("winScreen").classList.remove("hidden");
     try{ localStorage.setItem("sk_navyvorit_done_"+cfg.href, "1"); }catch(e){}   // позначка для карти: наступний пункт відкривається
     if(window.SKPRIZE && !SKPRIZE.summary(cfg.prizeKey))
-      SKPRIZE.claim({ key: cfg.prizeKey, href: cfg.href, title: cfg.winTitle || "Пройдено!", onClose: refreshStart });
+      SKPRIZE.claim({ doneText: "Ура, пригоду пройдено! 🎉 На карті вже чекає нова загадка Світу навиворіт 🗺️", alreadyText: "Нагорода за цю пригоду вже в тебе 🏅 Грай ще — для слави!", key: cfg.prizeKey, href: cfg.href, title: cfg.winTitle || "Пройдено!", onClose: refreshStart });
   };
 
   window.NAV = NAV;

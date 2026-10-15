@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Ворота трьох кристалів — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<link rel="stylesheet" href="nav-common.css">
+<style>
+/* ── ворота з кристалами ── */
+#scene{height:230px; background:linear-gradient(180deg,#c5f6fa 0%,#e3fafc 55%,#c9b28a 55%,#b89b6e 100%);}
+body.flipped #scene{background:linear-gradient(180deg,#e5dbff 0%,#f3f0ff 55%,#c3b2dc 55%,#ae9bcc 100%);}
+#gate{position:absolute; left:50%; top:10px; transform:translateX(-50%); width:200px; height:96px; border-radius:100px 100px 8px 8px; background:linear-gradient(180deg,#868e96,#495057); border:4px solid #343a40; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; transition:filter .4s;}
+#gate.open{filter:brightness(1.4) drop-shadow(0 0 14px #fff3bf);}
+#gate .t{font-family:'Fredoka'; font-weight:700; font-size:22px; color:#ffe066;}
+#gate .slots{display:flex; gap:6px;}
+#gate .slots span{width:30px; height:30px; border-radius:8px; border:2px dashed #ced4da; display:grid; place-items:center; font-family:'Fredoka'; font-weight:700; color:#fff; font-size:15px;}
+#gate .slots span.f{border-style:solid; border-color:#66d9e8; background:rgba(102,217,232,.35);}
+#gems{position:absolute; left:8px; right:8px; bottom:16px; display:grid; grid-template-columns:repeat(5,1fr); gap:6px;}
+.gem{border:none; background:none; cursor:pointer; display:flex; flex-direction:column; align-items:center; padding:0; font-family:inherit;}
+.gem .g{width:52px; height:52px; clip-path:polygon(50% 0,100% 38%,80% 100%,20% 100%,0 38%); background:linear-gradient(160deg,#99e9f2,#15aabf 60%,#0b7285); display:grid; place-items:center;
+  font-family:'Fredoka'; font-weight:700; font-size:22px; color:#fff; text-shadow:0 1px 0 rgba(0,0,0,.4); transition:transform .2s, filter .2s;}
+.gem.sel .g{transform:translateY(-8px) scale(1.08); filter:drop-shadow(0 0 6px #fff3bf) brightness(1.15);}
+body.flipped .gem .g{background:linear-gradient(160deg,#eebefa,#ae3ec9 60%,#862e9c);}
+.gem.used{visibility:hidden;}
+.gem .lb{font-weight:800; font-size:11px; color:#4a4136; margin-top:2px;}
+.gem.sel .lb{color:#0b7285;}
+#sum{font-weight:800; font-size:14px; text-align:center;}
+</style>
+</head>
+<body>
+<script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
+<script src="nav-common.js"></script>
+<script>
+(function(){
+  "use strict";
+  var TOTAL = 5, log, set, need, target, sel, mode, onWin;
+  function sum(a){ return a.reduce(function(s, x){ return s+x; }, 0); }
+  function combos(arr, k){ var r = []; (function go(st, acc){ if(acc.length===k){ r.push(acc.slice()); return; } for(var i=st;i<arr.length;i++){ acc.push(arr[i]); go(i+1, acc); acc.pop(); } })(0, []); return r; }
+  /* набір із 5 різних чисел, де лише одна трійка дає target */
+  function gen(){
+    var s, t, c;
+    do{
+      s = NAV.shuffle([1,2,3,4,5,6,7,8,9]).slice(0,5).sort(function(a,b){ return a-b; });
+      t = NAV.rnd(12,18);
+      c = combos(s, 3).filter(function(x){ return sum(x)===t; });
+    }while(c.length!==1);
+    return {set:s, t:t, three:c[0]};
+  }
+
+  NAV.mount({
+    next: "muzychnyi-dim.html",   // «Вирушай далі! ›» — наступний пункт карти
+    title:"Ворота трьох кристалів", emoji:"💎🏰", sub:"Числа · Світ навиворіт · 5 кроків",
+    riddle:"Старі ворота королівства відчиняються, лише коли в них вставити <b>три кристали</b> з сумою <b>15</b>.<span class='seq'>💎 2 · 4 · 5 · 7 · 8</span>Які три кристали вставити? А потім — 🔄 переворот, і ворота попросять інакше…",
+    play:"До воріт ▶", steps:TOTAL, crown:"💎🏰",
+    badgeOff:"💎 вставити 3", badgeOn:"🔄 забрати 2",
+    prizeKey:"sk_vorota_prize_v1", href:"vorota-krystaliv.html", doneText:"Ворота відчинено — нагороду отримано!",
+    winTitle:"Ворота відчинено!", winPerfect:"Жодного зайвого кристала!",
+    lesson:[
+      "Шукай три числа з потрібною сумою <b>перебором</b>: почни з найбільшого й добирай менші. 8 + 5 + 2 = 15.",
+      "Сума всіх п'яти кристалів — 26. Якщо три дають 15, то два, що лишились, дають <b>26 − 15 = 11</b>.",
+      "🔄 Навиворіт простіше шукати <b>два</b> кристали, які треба забрати: їхня сума — усе мінус 15. 4 + 7 = 11."
+    ],
+    scene:'<div id="gate"><span class="t" id="gateT">15</span><div class="slots" id="slots"></div></div><div id="gems"></div>',
+    afterScene:'<div class="log" id="log"></div>',
+    onStart:startGame
+  });
+
+  function renderLog(){
+    var box = NAV.$("log"); box.innerHTML = '<div class="lh">📒 Записник хранителя воріт</div>';
+    if(!log.length){ box.appendChild(NAV.el("div","empty","Поки нічого.")); return; }
+    var rows = NAV.el("div","rows"); log.slice(-3).forEach(function(r){ rows.appendChild(NAV.el("div","r",r)); }); box.appendChild(rows);
+  }
+  /* pick: need кристалів; mode "put" — вставити трійку з сумою target, "take" — забрати пару так, щоб лишилось target */
+  function pick(s, t, m, done){
+    set = s; target = t; mode = m; need = m==="put" ? 3 : 2; sel = []; onWin = done;
+    NAV.$("gate").classList.remove("open");
+    NAV.$("gateT").textContent = (m==="put" ? "Σ " : "лишити Σ ")+t;
+    var g = NAV.$("gems"); g.innerHTML = "";
+    s.forEach(function(n, i){
+      var b = NAV.el("button","gem",'<span class="g">'+n+'</span><span class="lb">'+(m==="put" ? "кристал" : "у воротах")+'</span>'); b.type = "button"; b.id = "gm"+i;
+      b.addEventListener("click", function(){ toggle(i); });
+      g.appendChild(b);
+    });
+    slots(); panel();
+  }
+  function slots(){
+    var sl = NAV.$("slots"); sl.innerHTML = "";
+    var vals = mode==="put" ? sel.map(function(i){ return set[i]; }) : set.filter(function(_, i){ return sel.indexOf(i)<0; });
+    var n = mode==="put" ? 3 : set.length;
+    for(var k=0;k<n;k++){ var v = vals[k]; sl.appendChild(NAV.el("span", v!=null ? "f" : "", v!=null ? String(v) : "")); }
+  }
+  function toggle(i){
+    if(NAV.busy) return;
+    var k = sel.indexOf(i);
+    if(k>=0) sel.splice(k,1); else { if(sel.length>=need) return; sel.push(i); }
+    NAV.snd.tap();
+    NAV.$("gm"+i).classList.toggle("sel", sel.indexOf(i)>=0);
+    slots(); panel();
+  }
+  function panel(){
+    var vals = sel.map(function(i){ return set[i]; }), s = sum(vals);
+    var p = NAV.$("panel"); p.innerHTML = "";
+    var info = mode==="put"
+      ? (vals.length ? "Вибрано: "+vals.join(" + ")+" = <b>"+s+"</b>" : "Торкнись трьох кристалів")
+      : (vals.length ? "Забрати: "+vals.join(" + ")+" = "+s+" → у воротах лишиться <b>"+(sum(set)-s)+"</b>" : "Торкнись двох кристалів, які треба <b>забрати</b>");
+    p.appendChild(NAV.el("div","q",info));
+    NAV.actions([{id:"go", ic:mode==="put" ? "🗝️" : "✋", tx:mode==="put" ? "Вставити у ворота" : "Забрати з воріт", cls:"gold", fn:check}], 1, true);
+    var b = p.querySelector(".act"); b.disabled = sel.length!==need;
+    NAV.busy = false;
+  }
+  function check(){
+    var vals = sel.map(function(i){ return set[i]; }), s = sum(vals), left = sum(set) - s;
+    var ok = mode==="put" ? s===target : left===target;
+    if(!ok){
+      NAV.miss(mode==="put"
+        ? vals.join(" + ")+" = "+s+", а треба "+target+". "+(s>target ? "Забагато — візьми менший кристал." : "Замало — візьми більший кристал.")
+        : "Лишиться "+left+", а треба "+target+". Порахуй: усі разом — "+sum(set)+", тож забрати треба кристали із сумою "+(sum(set)-target)+".");
+      sel.forEach(function(i){ NAV.$("gm"+i).classList.remove("sel"); }); sel = []; slots(); panel();
+      return;
+    }
+    NAV.busy = true; NAV.snd.fanfare();
+    if(mode==="take") sel.forEach(function(i){ NAV.$("gm"+i).classList.add("used"); });
+    else sel.forEach(function(i){ NAV.$("gm"+i).classList.add("used"); });
+    NAV.$("gate").classList.add("open");
+    NAV.$("panel").innerHTML = "";
+    setTimeout(function(){ onWin(vals); }, 1300);
+  }
+
+  function startGame(){
+    log = []; NAV.step(0,TOTAL); renderLog();
+    NAV.hint("Вибери <b>три</b> кристали, щоб разом було <b>15</b>.");
+    pick([2,4,5,7,8], 15, "put", function(v){
+      log.push("💎 "+v.slice().sort(function(a,b){return a-b;}).join(" + ")+" = <b>15</b> — ворота відчинились!"); renderLog();
+      NAV.hint("Так! 2 + 5 + 8 = 15.","good");
+      setTimeout(step2, 900);
+    });
+  }
+  function step2(){
+    NAV.step(1,TOTAL);
+    var g = gen();
+    NAV.hint("Інші ворота — інші кристали. Потрібна сума <b>"+g.t+"</b>.");
+    pick(g.set, g.t, "put", function(v){
+      log.push("💎 "+v.slice().sort(function(a,b){return a-b;}).join(" + ")+" = <b>"+g.t+"</b>"); renderLog();
+      NAV.hint("Правильно! Ворота відчинено.","good");
+      setTimeout(step3, 900);
+    });
+  }
+  function step3(){
+    NAV.step(2,TOTAL);
+    NAV.$("panel").innerHTML = "";
+    NAV.hint("Хитра задачка хранителя воріт 🤔");
+    NAV.question("Усі п'ять кристалів 2, 4, 5, 7, 8 разом — <b>26</b>. Три з них дали 15. Скільки разом у <b>двох</b>, що лишились?", [
+      {tx:"11", ok:true}, {tx:"15", why:"15 — у трьох вибраних. А решта — це 26 − 15."}, {tx:"41", why:"Не додавай! Решта — це те, що лишається: 26 − 15."}, {tx:"9", why:"Порахуй: 26 − 15 = ?"}
+    ], function(){
+      NAV.hint("Так! 26 − 15 = 11: це 4 + 7.","good");
+      setTimeout(flip, 1100);
+    }, {cols:4, big:true});
+  }
+  function flip(){
+    NAV.modal("🔄","Навиворіт!","Ворота перевернулись! Тепер усі кристали <b>уже стоять у воротах</b>, а щоб відчинити, треба <b>забрати два</b> — так, щоб у воротах лишилась сума 15.",{nav:true, btn:"🔄 Перевернути"}, function(){
+      NAV.snd.whoosh(); NAV.flipAnim();
+      setTimeout(function(){
+        NAV.setFlip(true); NAV.step(3,TOTAL);
+        log.push("🔄 <b>Тепер — забрати два кристали!</b>"); renderLog();
+        NAV.hint("Забери <b>два</b> кристали — у воротах має лишитись <b>15</b>.");
+        pick([2,4,5,7,8], 15, "take", function(v){
+          log.push("✋ забрали "+v.slice().sort(function(a,b){return a-b;}).join(" + ")+" = 11 → лишилось <b>15</b>"); renderLog();
+          NAV.hint("Так! Забрали 4 і 7 — лишилось 2 + 5 + 8 = 15.","good");
+          setTimeout(step5, 900);
+        });
+      }, 500);
+    });
+  }
+  function step5(){
+    NAV.step(4,TOTAL);
+    var g = gen();
+    NAV.hint("Останні ворота: забери <b>два</b> кристали, щоб лишилось <b>"+g.t+"</b>. Підказка: усі разом — "+sum(g.set)+".");
+    pick(g.set, g.t, "take", function(v){
+      log.push("✋ "+sum(g.set)+" − "+sum(v)+" = <b>"+g.t+"</b>"); renderLog();
+      NAV.hint("Чудово! Ворота трьох кристалів відчинено 💎","good");
+      setTimeout(NAV.finish, 1300);
+    });
+  }
+})();
+</script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=12"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=4"></script>
+<script src="../sk-prize.js?v=2"></script>
+<script src="../sk-finish.js?v=6"></script>
+</body>
+</html>

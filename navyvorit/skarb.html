@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Королівський скарб — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<link rel="stylesheet" href="nav-common.css">
+<style>
+/* ── королівська скарбниця ── */
+#scene{height:230px; background:linear-gradient(180deg,#5f3dc4 0%,#7950f2 30%,#e5dbff 30.5%,#fff4e6 100%);}
+body.flipped #scene{background:linear-gradient(180deg,#862e9c 0%,#ae3ec9 30%,#f3d9fa 30.5%,#fff0f6 100%);}
+#crown{position:absolute; top:8px; left:50%; transform:translateX(-50%); font-size:30px;}
+#rule{position:absolute; top:44px; left:50%; transform:translateX(-50%); background:#fff; border:2px solid var(--gold); border-radius:12px; padding:2px 10px; font-weight:800; font-size:13px; white-space:nowrap;}
+#chests{position:absolute; left:6px; right:6px; bottom:12px; display:grid; grid-template-columns:repeat(3,1fr); gap:6px;}
+.ch{display:flex; flex-direction:column; align-items:center; gap:4px;}
+.ch .say{background:#fff; border:2px solid var(--line); border-radius:10px; padding:3px 6px; font-weight:800; font-size:12px; line-height:1.25; text-align:center; min-height:44px; display:grid; place-items:center; width:100%;}
+.ch .say.t{border-color:var(--good); background:var(--good-bg);}
+.ch .say.f{border-color:var(--bad); background:var(--bad-bg);}
+.ch .box{width:70px; height:52px; border-radius:10px 10px 6px 6px; position:relative; border:3px solid rgba(0,0,0,.25); box-shadow:0 4px 0 rgba(0,0,0,.18); display:grid; place-items:center; font-size:18px;}
+.ch .box:before{content:""; position:absolute; left:-3px; right:-3px; top:-3px; height:18px; border-radius:10px 10px 4px 4px; background:inherit; border:3px solid rgba(0,0,0,.25); filter:brightness(1.12); transform-origin:50% 0; transition:transform .45s;}
+.ch .box .in{position:absolute; top:-26px; font-size:26px; opacity:0; transition:opacity .3s .2s;}
+.ch.open .box:before{transform:rotateX(70deg) translateY(-12px);}
+.ch.open .box .in{opacity:1;}
+.ch .nm{font-weight:800; font-size:12px; color:#5c4426;}
+.c-g .box{background:#ffd43b;} .c-s .box{background:#ced4da;} .c-b .box{background:#d9a066;}
+</style>
+</head>
+<body>
+<script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
+<script src="nav-common.js"></script>
+<script>
+(function(){
+  "use strict";
+  var TOTAL = 5, log;
+  var CH = [{id:"g", nm:"Золота", loc:"золотій"}, {id:"s", nm:"Срібна", loc:"срібній"}, {id:"b", nm:"Бронзова", loc:"бронзовій"}];
+  /* напис: {k:"here"|"nothere"|"in"|"notin", c:номер скрині} — правдивий, якщо скарб у t */
+  function truth(st, own, t){
+    if(st.k==="here") return t===own;
+    if(st.k==="nothere") return t!==own;
+    if(st.k==="in") return t===st.c;
+    return t!==st.c;
+  }
+  function txt(st){
+    if(st.k==="here") return "Скарб тут";
+    if(st.k==="nothere") return "Скарб не тут";
+    if(st.k==="in") return "Скарб у "+CH[st.c].loc;
+    return "Скарб не в "+CH[st.c].loc;
+  }
+  function count(sts, t){ return sts.filter(function(st, i){ return truth(st, i, t); }).length; }
+  function sols(sts, K){ return [0,1,2].filter(function(t){ return count(sts, t)===K; }); }
+  /* генератор: три написи, рівно один розв'язок для K правдивих (перебір) */
+  function gen(K){
+    var kinds = ["here","nothere","in","notin"], sts, s, guard = 0;
+    do{
+      sts = [0,1,2].map(function(i){
+        var k = NAV.pick(kinds), c = NAV.pick([0,1,2].filter(function(x){ return x!==i; }));
+        return {k:k, c:c};
+      });
+      s = sols(sts, K); guard++;
+    }while((s.length!==1 || sts.every(function(x){ return x.k===sts[0].k; })) && guard<500);
+    return {sts:sts, t:s[0]};
+  }
+
+  NAV.mount({
+    next: "mist-chysel.html",   // «Вирушай далі! ›» — наступний пункт карти
+    title:"Королівський скарб", emoji:"👑🧰", sub:"Логіка · Світ навиворіт · 5 кроків",
+    riddle:"У скарбниці короля — три скрині: золота, срібна й бронзова. На кожній — напис. Король каже:<span class='seq'>👑 «Рівно 2 написи — правдиві»</span>У якій скрині скарб? Перевір кожну! А потім — 🔄 переворот, і король скаже інше…",
+    play:"До скарбниці ▶", steps:TOTAL, crown:"👑💎",
+    badgeOff:"✅✅ 2 правдиві", badgeOn:"🔄 лише 1 правдивий",
+    prizeKey:"sk_skarb_prize_v1", href:"skarb.html", doneText:"Скарб короля знайдено — нагороду отримано!",
+    winTitle:"Скарб короля знайдено!", winPerfect:"Жодної хибної скрині!",
+    lesson:[
+      "Перевіряй <b>кожну</b> скриню: «Якщо скарб тут — які написи правдиві?» Порахуй ✅.",
+      "Підходить лише та скриня, для якої кількість правдивих написів <b>така, як сказав король</b>.",
+      "🔄 Ті самі написи, але інше число правдивих — і скарб опиняється в іншій скрині!"
+    ],
+    scene:'<span id="crown">👑</span><div id="rule"></div><div id="chests"></div>',
+    afterScene:'<div class="log" id="log"></div>',
+    onStart:startGame
+  });
+
+  function renderLog(){
+    var box = NAV.$("log"); box.innerHTML = '<div class="lh">📒 Записник шукача скарбів</div>';
+    if(!log.length){ box.appendChild(NAV.el("div","empty","Поки нічого.")); return; }
+    var rows = NAV.el("div","rows"); log.slice(-3).forEach(function(r){ rows.appendChild(NAV.el("div","r",r)); }); box.appendChild(rows);
+  }
+  function show(sts, K){
+    NAV.$("rule").textContent = "👑 Правдивих написів: рівно "+K;
+    var box = NAV.$("chests"); box.innerHTML = "";
+    CH.forEach(function(c, i){
+      var d = NAV.el("div","ch c-"+c.id,'<div class="say" id="say'+i+'">«'+txt(sts[i])+'»</div><div class="box">🔒<span class="in"></span></div><span class="nm">'+c.nm+'</span>');
+      d.id = "ch"+i; box.appendChild(d);
+    });
+  }
+  /* розкрити: позначити правдиві/хибні написи для правильної скрині й відчинити її */
+  function reveal(sts, t, cb){
+    sts.forEach(function(st, i){ NAV.$("say"+i).classList.add(truth(st, i, t) ? "t" : "f"); });
+    setTimeout(function(){
+      CH.forEach(function(c, i){ var d = NAV.$("ch"+i); d.querySelector(".in").textContent = i===t ? "💎" : "🕸️"; d.classList.add("open"); });
+      NAV.snd.fanfare(); setTimeout(cb, 1300);
+    }, 700);
+  }
+  function ask(p, K, done){
+    show(p.sts, K);
+    NAV.question("У якій скрині скарб?", CH.map(function(c, i){
+      var n = count(p.sts, i);
+      return i===p.t ? {tx:c.nm, ok:true} : {tx:c.nm, why:"Якщо скарб у "+c.loc+" — правдивих написів "+n+", а король сказав: рівно "+K+"."};
+    }), function(){
+      reveal(p.sts, p.t, function(){
+        log.push("👑 "+K+" правд. → <b>у "+CH[p.t].loc+"</b> 💎 ("+p.sts.map(function(st,i){ return truth(st,i,p.t) ? "✅" : "❌"; }).join("")+")"); renderLog();
+        done();
+      });
+    }, {cols:3, keepOrder:true});
+  }
+
+  function startGame(){
+    log = []; NAV.step(0,TOTAL); renderLog();
+    NAV.hint("Уяви, що скарб у <b>золотій</b>. Скільки написів тоді правдиві? А якщо в срібній?");
+    ask(gen(2), 2, function(){
+      NAV.hint("Так! Лише для цієї скрині правдивих написів рівно 2.","good");
+      setTimeout(step2, 1000);
+    });
+  }
+  function step2(){
+    NAV.step(1,TOTAL);
+    NAV.hint("Нові скрині — нові написи. Знову рівно 2 правдиві.");
+    ask(gen(2), 2, function(){
+      NAV.hint("Правильно! Перевірка кожної скрині не підводить.","good");
+      setTimeout(step3, 1000);
+    });
+  }
+  function step3(){
+    NAV.step(2,TOTAL);
+    NAV.hint("Подивись у записник 📒 — як шукати скарб?");
+    NAV.question("Як знайти правильну скриню?", [
+      {tx:"Для кожної скрині порахувати правдиві написи — і взяти ту, де їх стільки, скільки сказав король", ok:true},
+      {tx:"Відкрити скриню з найкрасивішим написом", why:"Напис може бути й брехливим! Перевір усі три."},
+      {tx:"Повірити першій скрині", why:"Перший напис теж може бути хибним — рахуй усі."}
+    ], function(){ setTimeout(flip, 900); });
+  }
+  function flip(){
+    NAV.modal("🔄","Навиворіт!","Король перевернув корону й каже: «Тепер на скринях <b>лише один</b> напис правдивий!» Написи інші — і скарб теж може бути деінде.",{nav:true, btn:"🔄 Перевернути"}, function(){
+      NAV.snd.whoosh(); NAV.flipAnim();
+      setTimeout(function(){
+        NAV.setFlip(true); NAV.step(3,TOTAL);
+        log.push("🔄 <b>Тепер правдивий лише 1 напис!</b>"); renderLog();
+        NAV.hint("Тепер шукай скриню, для якої правдивий <b>рівно один</b> напис.");
+        ask(gen(1), 1, function(){
+          NAV.hint("Так! Лише для цієї скрині правдивий рівно один напис.","good");
+          setTimeout(step5, 1000);
+        });
+      }, 500);
+    });
+  }
+  function step5(){
+    NAV.step(4,TOTAL);
+    NAV.hint("Остання скарбниця. Рівно <b>один</b> напис правдивий.");
+    ask(gen(1), 1, function(){
+      NAV.hint("Чудово! Скарб короля знайдено 👑","good");
+      setTimeout(NAV.finish, 1300);
+    });
+  }
+})();
+</script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=12"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=4"></script>
+<script src="../sk-prize.js?v=2"></script>
+<script src="../sk-finish.js?v=6"></script>
+</body>
+</html>
