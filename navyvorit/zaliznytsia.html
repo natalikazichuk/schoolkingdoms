@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Залізниця — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<link rel="stylesheet" href="nav-common.css">
+<style>
+/* ── залізничне коло ── */
+#scene{height:220px; background:radial-gradient(circle at 50% 55%,#e9f7df 0 34%,#cfe8bd 35%,#bfe3ff 100%); display:flex; align-items:center; justify-content:center; gap:16px;}
+body.flipped #scene{background:radial-gradient(circle at 50% 55%,#efe6ff 0 34%,#d9c9f5 35%,#cdb8ff 100%);}
+#dial{position:relative; width:150px; height:150px; border-radius:50%; background:#fff; border:6px solid #8d6e4c; box-shadow:0 5px 0 rgba(0,0,0,.15), inset 0 0 0 10px #f3e6d0;}
+body.flipped #dial{border-color:#8e5bd0;}
+#dial .d{position:absolute; font-weight:800; font-size:11px; color:var(--soft);}
+#dial .n{top:12px; left:50%; transform:translateX(-50%);} #dial .s{bottom:12px; left:50%; transform:translateX(-50%);}
+#dial .w{left:12px; top:50%; transform:translateY(-50%);} #dial .e{right:12px; top:50%; transform:translateY(-50%);}
+#needle{position:absolute; left:50%; top:50%; width:0; height:0; transition:transform .6s cubic-bezier(.5,-.3,.4,1.3);}
+#needle:before{content:""; position:absolute; left:-9px; top:-52px; border-left:9px solid transparent; border-right:9px solid transparent; border-bottom:22px solid #e03131;}
+#needle:after{content:""; position:absolute; left:-4px; top:-32px; width:8px; height:34px; border-radius:4px; background:#e03131;}
+#train{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-size:34px; z-index:1;}
+#cmds{display:flex; flex-direction:column; gap:6px; min-width:96px;}
+.cmd{background:#fff; border:2px solid var(--line); border-radius:12px; padding:4px 8px; font-weight:800; font-size:14px; white-space:nowrap; transition:background .3s, transform .3s;}
+.cmd.now{background:#fff3bf; border-color:var(--gold); transform:scale(1.06);}
+.cmd.done{opacity:.5;}
+</style>
+</head>
+<body>
+<script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
+<script src="nav-common.js"></script>
+<script>
+(function(){
+  "use strict";
+  var TOTAL = 5, log, dir, ang;
+  var D = [{a:"⬆️", nm:"вгору"}, {a:"➡️", nm:"праворуч"}, {a:"⬇️", nm:"вниз"}, {a:"⬅️", nm:"ліворуч"}];
+  function md(x){ return ((x % 4) + 4) % 4; }
+  /* команда L = −1 (проти годинникової), R = +1; на кермі-навиворіт — навпаки */
+  function apply(start, cmds, flip){ var d = start; cmds.forEach(function(c){ d = md(d + (c==="L" ? -1 : 1) * (flip ? -1 : 1)); }); return d; }
+  function cmdName(c){ return c==="L" ? "↺ ліворуч" : "↻ праворуч"; }
+
+  NAV.mount({
+    next: "bank.html",   // «Вирушай далі! ›» — наступний пункт карти
+    title:"Залізниця", emoji:"🚂🧭", sub:"Логіка · Світ навиворіт · 5 кроків",
+    riddle:"Потяг стоїть на поворотному колі вокзалу й дивиться вгору ⬆️. Машиніст тричі повертає його <b>ліворуч</b> на чверть кола.<span class='seq'>⬆️ ↺ ↺ ↺ → ?</span>Куди дивиться потяг? А потім — 🔄 переворот, і кермо почне плутати сторони…",
+    play:"На вокзал ▶", steps:TOTAL, crown:"🚂✨",
+    badgeOff:"🧭 кермо звичайне", badgeOn:"🔄 кермо навиворіт",
+    prizeKey:"sk_zaliznytsia_prize_v1", href:"zaliznytsia.html", doneText:"Потяг на правильній колії — нагороду отримано!",
+    winTitle:"Потяг вирушає!", winPerfect:"Жодного хибного повороту!",
+    lesson:[
+      "Чотири повороти в один бік — <b>повне коло</b>, потяг знову дивиться туди ж.",
+      "Тому <b>3 повороти ліворуч = 1 поворот праворуч</b>: ⬆️ ↺↺↺ → ➡️.",
+      "🔄 На кермі-навиворіт «ліворуч» повертає праворуч. Ті самі команди — і потяг дивиться в інший бік: ⬆️ ↺↺↺ → ⬅️."
+    ],
+    scene:'<div id="dial"><span class="d n">Пн</span><span class="d s">Пд</span><span class="d w">Зх</span><span class="d e">Сх</span><div id="needle"></div><span id="train">🚂</span></div><div id="cmds"></div>',
+    afterScene:'<div class="log" id="log"></div>',
+    onStart:startGame
+  });
+
+  function renderLog(){
+    var box = NAV.$("log"); box.innerHTML = '<div class="lh">📒 Журнал машиніста</div>';
+    if(!log.length){ box.appendChild(NAV.el("div","empty","Поки нічого.")); return; }
+    var rows = NAV.el("div","rows"); log.slice(-3).forEach(function(r){ rows.appendChild(NAV.el("div","r",r)); }); box.appendChild(rows);
+  }
+  function setDir(d){ dir = d; ang = d*90; NAV.$("needle").style.transition = "none"; NAV.$("needle").style.transform = "rotate("+ang+"deg)"; void NAV.$("needle").offsetWidth; NAV.$("needle").style.transition = ""; }
+  function showCmds(cmds){
+    var box = NAV.$("cmds"); box.innerHTML = "";
+    cmds.forEach(function(c, i){ var d = NAV.el("div","cmd", (i+1)+". "+cmdName(c)); d.id = "cm"+i; box.appendChild(d); });
+  }
+  /* виконати команди одна за одною */
+  function drive(cmds, cb, i){
+    i = i || 0;
+    if(i>=cmds.length){ setTimeout(cb, 500); return; }
+    var s = (cmds[i]==="L" ? -1 : 1) * (NAV.flipped ? -1 : 1);
+    NAV.$("cm"+i).classList.add("now");
+    ang += s*90; dir = md(dir + s); NAV.$("needle").style.transform = "rotate("+ang+"deg)";
+    NAV.snd.tone(s<0 ? 440 : 560, 0.1, "square", 0.03);
+    setTimeout(function(){ NAV.$("cm"+i).classList.remove("now"); NAV.$("cm"+i).classList.add("done"); drive(cmds, cb, i+1); }, 750);
+  }
+  function dirOpts(right, why){
+    return D.map(function(x, i){ return i===right ? {tx:x.a, ok:true} : {tx:x.a, why:why(i)}; });
+  }
+  function seq(start, cmds){ return D[start].a+" "+cmds.map(function(c){ return c==="L" ? "↺" : "↻"; }).join(""); }
+
+  function startGame(){
+    log = []; NAV.step(0,TOTAL); renderLog();
+    var cmds = ["L","L","L"]; setDir(0); showCmds(cmds);
+    NAV.hint("Потяг дивиться ⬆️ вгору. Три повороти <b>ліворуч</b> ↺…");
+    NAV.question("Куди дивитиметься потяг?", dirOpts(1, function(i){
+      return ({3:"Так буде після <b>одного</b> повороту ліворуч. А їх три!", 2:"Це після двох поворотів. Ще один ↺!", 0:"Вгору потяг дивився б після чотирьох поворотів — повного кола."})[i];
+    }), function(){
+      drive(cmds, function(){
+        log.push("🚂 "+seq(0, cmds)+" → <b>➡️ праворуч</b>"); renderLog();
+        NAV.hint("Так! Три чверті кола ліворуч — те саме, що одна праворуч.","good");
+        setTimeout(step2, 1000);
+      });
+    }, {cols:4, big:true, keepOrder:true});
+  }
+
+  function step2(){
+    NAV.step(1,TOTAL);
+    var start = NAV.rnd(0,3), cmds;
+    do{ cmds = [0,0,0].map(function(){ return NAV.pick(["L","R"]); }); }while(cmds.indexOf("L")<0 || cmds.indexOf("R")<0);
+    var right = apply(start, cmds, false);
+    setDir(start); showCmds(cmds);
+    NAV.hint("Новий потяг дивиться "+D[start].a+" "+D[start].nm+". Виконай команди подумки!");
+    NAV.question("Куди дивитиметься потяг?", dirOpts(right, function(){
+      return "Повертай по одній команді: ↺ ліворуч — проти годинникової стрілки, ↻ праворуч — за нею.";
+    }), function(){
+      drive(cmds, function(){
+        log.push("🚂 "+seq(start, cmds)+" → <b>"+D[right].a+" "+D[right].nm+"</b>"); renderLog();
+        NAV.hint("Правильно! Поворот ліворуч і праворуч скасовують один одного.","good");
+        setTimeout(step3, 1000);
+      });
+    }, {cols:4, big:true, keepOrder:true});
+  }
+
+  function step3(){
+    NAV.step(2,TOTAL);
+    NAV.hint("Подивись у журнал 📒 — що дають три повороти ліворуч?");
+    NAV.question("Яке правило поворотного кола?", [
+      {tx:"3 повороти ліворуч = 1 поворот праворуч", ok:true},
+      {tx:"3 повороти ліворуч = 1 поворот ліворуч", why:"Глянь у журнал: ⬆️ ↺↺↺ дало ➡️ праворуч, а не ⬅️."},
+      {tx:"Після 3 поворотів потяг дивиться назад", why:"Назад (⬇️) — це після двох поворотів."}
+    ], function(){ setTimeout(flip, 900); });
+  }
+
+  function flip(){
+    NAV.modal("🔄","Навиворіт!","Хтось переставив кермо догори дриґом! Тепер команда <b>«ліворуч» повертає праворуч</b>, а «праворуч» — ліворуч.",{nav:true, btn:"🔄 Перевернути"}, function(){
+      NAV.snd.whoosh(); NAV.flipAnim();
+      setTimeout(function(){
+        NAV.setFlip(true); NAV.step(3,TOTAL);
+        log.push("🔄 <b>Кермо навиворіт: ↺ = ↻</b>"); renderLog();
+        var cmds = ["L","L","L"]; setDir(0); showCmds(cmds);
+        NAV.hint("Знову ⬆️ і три команди «ліворуч» ↺. Але кермо — навиворіт!");
+        NAV.question("Куди тепер дивитиметься потяг?", dirOpts(3, function(i){
+          return i===1 ? "Це за старим кермом! Тепер «ліворуч» повертає праворуч — три повороти праворуч." : "Порахуй: кожна команда «ліворуч» тепер — поворот <b>праворуч</b> ↻. Три таких повороти.";
+        }), function(){
+          drive(cmds, function(){
+            log.push("🔄 🚂 "+seq(0, cmds)+" → <b>⬅️ ліворуч</b>"); renderLog();
+            NAV.hint("Так! Три повороти праворуч — це одна чверть ліворуч.","good");
+            setTimeout(step5, 1200);
+          });
+        }, {cols:4, big:true, keepOrder:true});
+      }, 500);
+    });
+  }
+
+  function step5(){
+    NAV.step(4,TOTAL);
+    var start, cmds, right, old;
+    do{
+      start = NAV.rnd(0,3); cmds = [0,0,0].map(function(){ return NAV.pick(["L","R"]); });   // непарна кількість команд — інакше обидва керма приводять в одне місце
+      right = apply(start, cmds, true); old = apply(start, cmds, false);
+    }while(right === old);
+    setDir(start); showCmds(cmds);
+    NAV.hint("Останній рейс! Потяг дивиться "+D[start].a+" "+D[start].nm+", кермо — навиворіт.");
+    NAV.question("Куди дивитиметься потяг?", dirOpts(right, function(i){
+      return i===old ? "Так було б на звичайному кермі. Тепер кожна команда повертає в <b>інший</b> бік!" : "Виконай команди по черзі: «ліворуч» ↺ тепер — поворот праворуч, «праворуч» ↻ — ліворуч.";
+    }), function(){
+      drive(cmds, function(){
+        log.push("🔄 🚂 "+seq(start, cmds)+" → <b>"+D[right].a+" "+D[right].nm+"</b>"); renderLog();
+        NAV.hint("Чудово! Потяг вирушає на правильну колію 🚂","good");
+        setTimeout(NAV.finish, 1400);
+      });
+    }, {cols:4, big:true, keepOrder:true});
+  }
+})();
+</script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=12"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=4"></script>
+<script src="../sk-prize.js?v=1"></script>
+<script src="../sk-finish.js?v=6"></script>
+</body>
+</html>
