@@ -176,8 +176,8 @@ test('Хоробрість: страх діє рідше, ріст за коже
   const r = SB.applyUse(ctx, st, st.op, st.me, 'op', { uid: 'f', id: 'F', base: FEAR }, () => 0.5);
   const f = r.fx.filter(x => x.type === 'fear')[0];
   if (f) {
-    assert.strictEqual(f.brave, 60);
-    assert.strictEqual(f.need, Math.round(90 * 0.4));
+    assert.strictEqual(f.brave, 90);
+    assert.strictEqual(f.need, Math.round(90 * 0.1), 'на 100% перший страх — лише 9%');
     assert.strictEqual((st.me.grow['knight.brave'] || 0) + (st.me.growF['knight.brave'] || 0), 1);
   }
 });
