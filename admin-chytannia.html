@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Тексти для читання — Школа Королівство</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<!-- Спільна дизайн-система адмінки (та сама, що в admin.html) -->
+<link rel="stylesheet" href="sk-styles.css">
+<!-- Спільна оболонка адмінки: ПІСЛЯ sk-styles.css і ДО локальних стилів нижче. -->
+<link rel="stylesheet" href="sk-admin.css?v=2">
+<script src="sk-admin.js?v=1"></script>
+<!-- Розбір тексту на строфи/сторінки — той самий, що в тренажері -->
+<script src="sk-readtext.js?v=1"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* Дизайн, шрифт і фон — спільні (sk-admin.css). Тут лише своє. */
+  *{-webkit-tap-highlight-color:transparent}
+  body{line-height:1.5}
+  #wrap{padding:0 0 80px}
+  .wrap-in{max-width:920px;margin:0 auto;padding:16px 16px 0}
+  h1{font-size:1.6rem}
+  #root > h1{color:var(--ink)}
+  .sub{color:var(--muted);font-weight:600;font-size:.92rem;margin:0 0 16px}
+  .panel .sub{margin:0}
+
+  /* Список текстів */
+  .tlist{display:flex;flex-direction:column;gap:8px}
+  .trow{display:flex;align-items:center;gap:12px;background:var(--card);
+    border:1px solid var(--border);border-radius:14px;padding:10px 12px;box-shadow:var(--shadow)}
+  .trow.off{opacity:.6}
+  .trow .ic{font-size:1.6rem;width:44px;text-align:center;flex:0 0 44px}
+  .trow .info{flex:1;min-width:0}
+  .trow .tt{font-weight:800;font-size:1.02rem;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .trow .tm{font-size:.76rem;color:var(--muted);margin-top:2px}
+  .trow .acts{display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+
+  /* Форма */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;align-items:end}
+  .chk{display:flex;align-items:center;gap:8px;font-weight:800;color:var(--ink);cursor:pointer;margin-bottom:10px}
+  .chk input{width:auto}
+  textarea#fText{min-height:260px;font-size:1rem}
+  textarea#fPics{min-height:120px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.82rem}
+
+  /* Попередній перегляд */
+  .prev-stats{font-weight:800;color:var(--muted);font-size:.85rem;margin-bottom:8px}
+  .prev-page{background:#faf7ef;border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+  .prev-page .pn{font-weight:800;color:var(--gold-ink);font-size:.8rem;margin-bottom:4px}
+  .prev-ln{display:flex;align-items:center;gap:10px;padding:3px 0;font-weight:700}
+  .prev-ln img,.prev-ln .noimg{width:46px;height:34px;flex:0 0 46px;border-radius:6px;object-fit:cover;
+    background:#f0ece0;border:1px solid var(--border)}
+  .prev-ln .noimg{display:grid;place-items:center;font-size:.7rem;color:var(--muted)}
+
+  @media(max-width:620px){
+    .grid,.grid4{grid-template-columns:1fr 1fr}
+    .trow{flex-wrap:wrap}
+    .trow .info{flex:1 1 calc(100% - 60px)}
+    .trow .acts{width:100%;justify-content:flex-start}
+  }
+</style>
+</head>
+<body>
+<!-- Вміст малює SKADMIN.header() наприкінці файлу. -->
+<header class="topbar"></header>
+<div id="wrap">
+  <div class="wrap-in" id="root">
+    <div class="gate"><div class="spinner"></div><p class="sub" style="margin:0">Перевіряємо доступ…</p></div>
+  </div>
+</div>
+
+<script type="module" src="firebase-config.js"></script>
+<script>
+/* ============================================================
+   ТЕКСТИ ДЛЯ ЧИТАННЯ (admin-only). Колекція readTexts:
+   { title, author, kind:'poem'|'text', grade, order, active, text, pics:[] }
+   Їх читає тренажер klas-1/chytannia-vgolos.html (вибір тексту вгорі).
+   Розбір на строфи/сторінки — спільний SKREAD (sk-readtext.js), тож
+   попередній перегляд тут збігається з тим, що побачить дитина.
+   ============================================================ */
+'use strict';
+var root = document.getElementById('root');
+var esc = SKADMIN.esc;
+var el = SKADMIN.qs;
+var TEXTS = [];
+var M = null;   // запис у редакторі
+
+function blank(){ return { id:'', title:'', author:'', kind:'poem', grade:0, order:0, active:true, text:'', pics:[] }; }
+
+function renderUI(){
+  root.innerHTML =
+    '<h1>📜 Тексти для читання</h1>'
+    +'<p class="sub">Вірші й тексти для тренажера «Читаю вголос». Дитина обирає їх у списку вгорі тренажера.</p>'
+    +'<div class="panel"><h2>📚 Усі тексти</h2>'
+    +  '<div class="savebar" style="margin:0 0 12px"><button class="btn gold" id="btnNew" type="button">＋ Новий текст</button>'
+    +  '<a class="btn ghost" href="klas-1/chytannia-vgolos.html" target="_blank" rel="noopener">🎤 Відкрити тренажер</a></div>'
+    +  '<div class="tlist" id="list"></div></div>'
+    +'<div class="panel" id="editor"></div>';
+  renderList();
+  renderEditor();
+  el('#btnNew').addEventListener('click', function(){ M = blank(); renderEditor(); el('#editor').scrollIntoView({behavior:'smooth'}); });
+  el('#list').addEventListener('click', listClick);
+}
+
+function meta(t){
+  var p = SKREAD.parse(t);
+  return (t.kind === 'text' ? 'текст' : 'вірш')
+    + (t.author ? ' · ' + t.author : '')
+    + ' · ' + (Number(t.grade) ? t.grade + ' клас' : 'усі класи')
+    + ' · ' + p.stanzas.length + ' стор. · ' + SKREAD.words(p) + ' слів'
+    + ((t.pics || []).filter(Boolean).length ? ' · 🖼 ' + t.pics.filter(Boolean).length : '');
+}
+function renderList(){
+  var box = el('#list');
+  if(!TEXTS.length){
+    box.innerHTML = '<div class="empty">Ще немає текстів. У тренажері поки лише вбудований вірш «Мова наша, мова».</div>';
+    return;
+  }
+  box.innerHTML = TEXTS.map(function(t){
+    var on = t.active !== false;
+    return '<div class="trow' + (on ? '' : ' off') + '" data-id="' + esc(t.id) + '">'
+      + '<div class="ic">' + (t.kind === 'text' ? '📄' : '📜') + '</div>'
+      + '<div class="info"><div class="tt">' + esc(t.title || 'Без назви') + '</div>'
+      + '<div class="tm">' + esc(meta(t)) + '</div></div>'
+      + '<div class="acts">'
+      +   '<button class="mini" data-act="edit" type="button">✏️ Редагувати</button>'
+      +   '<button class="mini ' + (on ? 'on' : 'off') + '" data-act="toggle" type="button">' + (on ? '✅ Показується' : '⏸ Приховано') + '</button>'
+      +   '<a class="mini" href="klas-1/chytannia-vgolos.html?t=' + encodeURIComponent(t.id) + '" target="_blank" rel="noopener">👁 Відкрити</a>'
+      +   '<button class="mini danger" data-act="del" type="button">🗑</button>'
+      + '</div></div>';
+  }).join('');
+}
+
+function gradeOpts(cur){
+  return [0,1,2,3,4].map(function(g){
+    return '<option value="' + g + '"' + (Number(cur) === g ? ' selected' : '') + '>' + (g ? g + ' клас' : 'Усі класи') + '</option>';
+  }).join('');
+}
+function renderEditor(){
+  var box = el('#editor');
+  if(!M){
+    box.innerHTML = '<h2>✏️ Редактор</h2><p class="sub">Натисни «＋ Новий текст» або «✏️ Редагувати» біля тексту.</p>';
+    return;
+  }
+  box.innerHTML =
+    '<h2>' + (M.id ? '✏️ Редагувати текст' : '＋ Новий текст') + '</h2>'
+    +'<div class="grid">'
+    +  '<div class="field"><label for="fTitle">Назва *</label><input id="fTitle" value="' + esc(M.title) + '" placeholder="Мова наша, мова"></div>'
+    +  '<div class="field"><label for="fAuthor">Автор</label><input id="fAuthor" value="' + esc(M.author) + '" placeholder="необовʼязково"></div>'
+    +'</div>'
+    +'<div class="grid4">'
+    +  '<div class="field"><label for="fKind">Що це</label><select id="fKind">'
+    +    '<option value="poem"' + (M.kind !== 'text' ? ' selected' : '') + '>📜 Вірш</option>'
+    +    '<option value="text"' + (M.kind === 'text' ? ' selected' : '') + '>📄 Текст</option></select></div>'
+    +  '<div class="field"><label for="fGrade">Клас</label><select id="fGrade">' + gradeOpts(M.grade) + '</select></div>'
+    +  '<div class="field"><label for="fOrder">Порядок</label><input id="fOrder" type="number" value="' + (Number(M.order) || 0) + '"></div>'
+    +  '<label class="chk"><input id="fActive" type="checkbox"' + (M.active !== false ? ' checked' : '') + '> Показувати дітям</label>'
+    +'</div>'
+    +'<div class="field"><label for="fText">Текст *</label>'
+    +  '<textarea id="fText" placeholder="Вірш: кожен рядок — з нового рядка, строфи — через порожній рядок.&#10;Текст: абзаци — через порожній рядок.">' + esc(M.text) + '</textarea>'
+    +  '<div class="note">Вірш: строфа = сторінка в тренажері. Текст: абзац ділиться на речення й сторінки приблизно по 30 слів.</div></div>'
+    +'<div class="field"><label for="fPics">Картинки до рядків (для «Вчити» / «Розказати»)</label>'
+    +  '<textarea id="fPics" placeholder="img/chytannia/mova-01.webp&#10;img/chytannia/mova-02.webp">' + esc((M.pics || []).join('\n')) + '</textarea>'
+    +  '<div class="note">Один рядок тут — картинка до одного рядка вірша (у тексті — до речення), по черзі. Шлях у репо або URL. Порожній рядок — без картинки. Можна залишити порожнім.</div></div>'
+    +'<div class="savebar"><button class="btn pri" id="btnSave" type="button">💾 Зберегти</button>'
+    +  '<button class="btn ghost" id="btnCancel" type="button">Скасувати</button></div>'
+    +'<div class="msg" id="msg"></div>'
+    +'<h2 style="margin-top:18px">👁 Як побачить дитина</h2><div id="preview"></div>';
+  el('#btnSave').addEventListener('click', save);
+  el('#btnCancel').addEventListener('click', function(){ M = null; renderEditor(); });
+  ['#fTitle','#fAuthor','#fKind','#fText','#fPics'].forEach(function(s){
+    el(s).addEventListener('input', function(){ readForm(); renderPreview(); });
+  });
+  renderPreview();
+}
+
+function readForm(){
+  M.title = el('#fTitle').value.trim();
+  M.author = el('#fAuthor').value.trim();
+  M.kind = el('#fKind').value === 'text' ? 'text' : 'poem';
+  M.grade = Number(el('#fGrade').value) || 0;
+  M.order = Number(el('#fOrder').value) || 0;
+  M.active = el('#fActive').checked;
+  M.text = el('#fText').value.replace(/\r/g, '').trim();
+  // кінцеві порожні рядки відкидаємо; порожні всередині — «без картинки»
+  var pics = el('#fPics').value.replace(/\r/g, '').split('\n').map(function(x){ return x.trim(); });
+  while(pics.length && !pics[pics.length - 1]) pics.pop();
+  M.pics = pics;
+}
+
+function renderPreview(){
+  var box = el('#preview');
+  if(!box) return;
+  var t = SKREAD.parse(M);
+  if(!t.stanzas.length){ box.innerHTML = '<div class="empty" style="padding:16px">Тут зʼявиться текст, поділений на сторінки.</div>'; return; }
+  var n = SKREAD.lineCount(t), line = 0;
+  var html = '<div class="prev-stats">' + t.stanzas.length + ' стор. · ' + n + (t.kind === 'text' ? ' речень' : ' рядків')
+    + ' · ' + SKREAD.words(t) + ' слів'
+    + (t.pics.length && t.pics.length !== n ? ' · ⚠ картинок ' + t.pics.length + ', а рядків ' + n : '') + '</div>';
+  t.stanzas.forEach(function(st, k){
+    html += '<div class="prev-page"><div class="pn">Сторінка ' + (k + 1) + '</div>';
+    st.forEach(function(l){
+      var src = SKREAD.picUrl(t.pics[line], '');
+      html += '<div class="prev-ln">' + (src ? '<img src="' + esc(src) + '" alt="" loading="lazy">' : '<span class="noimg">—</span>')
+        + '<span>' + esc(l) + '</span></div>';
+      line++;
+    });
+    html += '</div>';
+  });
+  box.innerHTML = html;
+}
+
+function setMsg(t, ok){ var m = el('#msg'); if(m){ m.textContent = t; m.className = 'msg ' + (ok ? 'ok' : 'err'); } }
+
+function save(){
+  readForm();
+  if(!M.title){ setMsg('Вкажи назву.'); return; }
+  if(!SKREAD.parse(M).stanzas.length){ setMsg('Додай текст.'); return; }
+  var btn = el('#btnSave'); btn.disabled = true;
+  var data = { title:M.title, author:M.author, kind:M.kind, grade:M.grade, order:M.order,
+               active:M.active, text:M.text, pics:M.pics };
+  if(M.id) data.id = M.id;
+  window.SK.saveReadText(data).then(function(id){
+    M.id = id;
+    SKADMIN.toast('Збережено ✅');
+    return reload();
+  }).then(function(){ renderEditor(); setMsg('Збережено. Дитина побачить текст у списку тренажера.', true); })
+    .catch(function(e){ console.error(e); setMsg('Не вдалося зберегти: ' + (e && e.message || e)); })
+    .then(function(){ var b = el('#btnSave'); if(b) b.disabled = false; });
+}
+
+function byId(id){ for(var i = 0; i < TEXTS.length; i++) if(TEXTS[i].id === id) return TEXTS[i]; return null; }
+function listClick(e){
+  var b = e.target.closest('[data-act]'); if(!b) return;
+  var row = b.closest('.trow'), t = byId(row.dataset.id); if(!t) return;
+  var act = b.dataset.act;
+  if(act === 'edit'){
+    M = Object.assign(blank(), t, { pics: (t.pics || []).slice() });
+    renderEditor();
+    el('#editor').scrollIntoView({behavior:'smooth'});
+  } else if(act === 'toggle'){
+    window.SK.saveReadText({ id:t.id, active: t.active === false }).then(reload)
+      .catch(function(err){ SKADMIN.toast('Не вдалося: ' + (err && err.message || err), true); });
+  } else if(act === 'del'){
+    if(!confirm('Видалити «' + (t.title || 'Без назви') + '»? Це не можна скасувати.')) return;
+    window.SK.deleteReadText(t.id).then(function(){
+      if(M && M.id === t.id){ M = null; renderEditor(); }
+      return reload();
+    }).catch(function(err){ SKADMIN.toast('Не вдалося видалити: ' + (err && err.message || err), true); });
+  }
+}
+
+function reload(){
+  return window.SK.listReadTexts().then(function(list){ TEXTS = list || []; renderList(); });
+}
+
+/* Шапка й гейт доступу — спільні (sk-admin.js). */
+SKADMIN.header({
+  name:'Тексти для читання',
+  sub:'School Kingdom · тренажер «Читаю вголос»',
+  nav:[ { href:'admin.html', label:'🏠 Головна (Адмінка)' },
+        { href:'klas-1/chytannia-vgolos.html', label:'🎤 Тренажер' } ]
+});
+
+SKADMIN.guard({
+  denyMsg:'Увійди адміністратором, щоб редагувати тексти.',
+  onOk:function(SK){
+    SK.listReadTexts().catch(function(){ return []; })
+      .then(function(list){ TEXTS = list || []; renderUI(); });
+  }
+});
+</script>
+</body>
+</html>

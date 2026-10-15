@@ -101,6 +101,13 @@ h1{font-size:1.5rem;text-align:center}
 .tile img{flex:1;min-height:0;width:100%;object-fit:cover;display:block}
 .tile .cap{font-size:.74rem;line-height:1.15;font-weight:800;padding:3px 2px 4px;text-align:center}
 .tile .w{padding:0 1px;margin:0;border-radius:4px}
+.tile.nopic .cap{flex:1;display:flex;flex-wrap:wrap;align-content:center;justify-content:center;font-size:.95rem;padding:6px}
+.tile.nopic::after{content:none}
+
+/* вибір тексту */
+.pick{display:flex;justify-content:center}
+.pick select{font-family:'Nunito',sans-serif;font-weight:800;font-size:.95rem;color:var(--ink);max-width:100%;
+  border:2px solid var(--line);border-radius:12px;padding:6px 10px;background:#fff}
 .tile.now{border-color:var(--yellow);box-shadow:0 0 0 2px var(--yellow)}
 .tile.done{border-color:var(--green);box-shadow:0 0 0 2px var(--green)}
 .tile.say{animation:pop .5s ease}
@@ -160,6 +167,7 @@ body.m-learn #micBtn,body:not(.m-learn) #listenBtn{display:none}
 <body>
 <div class="wrap">
   <h1>🎤 Читаю вголос</h1>
+  <div class="pick"><select id="textSel" aria-label="Обрати текст"></select></div>
   <p class="sub">Читай уголос 1 хвилину — прочитані слова загоряться зеленим</p>
   <div class="tabs">
     <button class="tab on" type="button" data-mode="read">📖 Читати</button>
@@ -215,23 +223,20 @@ body.m-learn #micBtn,body:not(.m-learn) #listenBtn{display:none}
   </div>
 </div>
 
+<script src="../sk-readtext.js?v=1"></script>
 <script>
 (function(){
   'use strict';
 
-  /* Текст: строфи → рядки. Пізніше можна брати з бази. */
-  var TEXT = {
-    title: 'Мова наша, мова',
-    stanzas: [
-      ['Мова наша, мова —', 'мова кольорова.', 'В ній гроза травнева', 'й тиша вечорова.'],
-      ['Мова наша, мова...', 'Літ минувших повість,', 'вічна наша мудрість,', 'сива наша совість.'],
-      ['Я без тебе, мово,', 'без зерна полова,', 'соняшник без сонця,', 'без птахів діброва.']
-    ],
-    /* Картинка до кожного рядка — для режиму «Вивчити вірш» (рядки підряд,
-       через усі строфи). */
-    pics: ['01','02','03','04','05','06','07','12','08','09','10','11']
-      .map(function(n){ return '../img/chytannia/mova-' + n + '.webp'; })
-  };
+  /* Текст: строфи → рядки. Вбудований вірш і тексти з бази (адмінка
+     admin-chytannia.html) розбирає SKREAD (../sk-readtext.js). */
+  function prepare(entry){
+    var t = SKREAD.parse(entry);
+    t.pics = t.pics.map(function(p){ return SKREAD.picUrl(p, '../'); });
+    return t;
+  }
+  var ALL = SKREAD.BUILTIN.slice();   // вбудовані + з бази (коли підвантажаться)
+  var TEXT = prepare(ALL[0]);
 
   var LOOKAHEAD = 3;     // на скільки слів уперед шукаємо збіг (пропущені слова)
   var LIMIT = 60000;     // перевірка техніки читання — 1 хвилина
@@ -310,7 +315,7 @@ body.m-learn #micBtn,body:not(.m-learn) #listenBtn{display:none}
   /* Слова будуємо лише в одному місці — там, де зараз режим: у тексті
      вірша або в картках «Вивчити вірш». Рушій розпізнавання той самий. */
   function render(){
-    $('poemTitle').textContent = TEXT.title;
+    $('poemTitle').textContent = TEXT.title + (TEXT.author ? ' · ' + TEXT.author : '');
     var box = $('poem'), gridEl = $('grid');
     box.innerHTML = ''; gridEl.innerHTML = '';
     words = []; tiles = []; pages = [];
@@ -325,15 +330,18 @@ body.m-learn #micBtn,body:not(.m-learn) #listenBtn{display:none}
           var tile = document.createElement('div');
           tile.className = 'tile';
           tile.dataset.line = lineNo;
-          var img = document.createElement('img');
-          img.src = TEXT.pics[lineNo] || '';
-          img.alt = line;
-          img.onerror = function(){ this.style.visibility = 'hidden'; };
           var cap = document.createElement('div');
           cap.className = 'cap';
           var from = words.length;
           fillLine(cap, line);
-          tile.appendChild(img); tile.appendChild(cap);
+          if(TEXT.pics[lineNo]){
+            var img = document.createElement('img');
+            img.src = TEXT.pics[lineNo];
+            img.alt = line;
+            img.onerror = function(){ this.style.visibility = 'hidden'; };
+            tile.appendChild(img);
+          } else tile.classList.add('nopic');   // без картинки — сам рядок, крупніше
+          tile.appendChild(cap);
           gridEl.appendChild(tile);
           tiles.push({el: tile, from: from, to: words.length, text: line});
         } else {
@@ -347,6 +355,13 @@ body.m-learn #micBtn,body:not(.m-learn) #listenBtn{display:none}
       if(!grid()) box.appendChild(st);
       pageCount++;
     });
+    /* Сітка: до 15 рядків — усі на одному екрані; довший текст — гортається. */
+    if(grid()){
+      var rows = Math.ceil(tiles.length / 3);
+      gridEl.style.gridTemplateRows = tiles.length <= 15 ? 'repeat(' + rows + ',minmax(0,1fr))' : 'none';
+      gridEl.style.gridAutoRows = tiles.length <= 15 ? '' : 'minmax(120px,auto)';
+      gridEl.style.overflowY = tiles.length <= 15 ? '' : 'auto';
+    }
     applyLevel();
     autoPos = -1;
     if(!grid()) showPage(0);
@@ -552,7 +567,8 @@ body.m-learn #micBtn,body:not(.m-learn) #listenBtn{display:none}
     $('micBtn').textContent = '🎤 Ще раз';
     $('heard').textContent = '';
     $('resTitle').textContent = timeUp ? '⏱ Хвилина минула!'
-      : mode === 'tell' ? 'Молодець! Вірш розказано напамʼять!' : 'Молодець! Вірш прочитано!';
+      : mode === 'tell' ? 'Молодець! Розказано напамʼять!'
+      : TEXT.kind === 'text' ? 'Молодець! Текст прочитано!' : 'Молодець! Вірш прочитано!';
     $('stRead').textContent = readCount;
     $('stTime').textContent = sec;
     $('stWpm').textContent = Math.round(readCount / sec * 60);
@@ -667,6 +683,58 @@ body.m-learn #micBtn,body:not(.m-learn) #listenBtn{display:none}
   $('micBtn').addEventListener('click', function(){ listening ? stop() : start(); });
   $('resetBtn').addEventListener('click', reset);
 
+  /* ── вибір тексту ── */
+  function fillSelect(){
+    var sel = $('textSel');
+    sel.innerHTML = '';
+    ALL.forEach(function(e, k){
+      var o = document.createElement('option');
+      o.value = k;
+      o.textContent = (e.kind === 'text' ? '📄 ' : '📜 ') + (e.title || 'Без назви')
+        + (Number(e.grade) ? ' · ' + e.grade + ' клас' : '');
+      sel.appendChild(o);
+    });
+    var cur = 0;
+    ALL.forEach(function(e, k){ if(e.id === TEXT.id) cur = k; });
+    sel.value = cur;
+  }
+  function loadText(entry){
+    if(listening) stop();
+    stopPlay();
+    TEXT = prepare(entry);
+    try{ localStorage.setItem('sk_read_text', TEXT.id); }catch(e){}
+    render();
+    reset();
+    fillSelect();
+  }
+  $('textSel').addEventListener('change', function(){ loadText(ALL[+this.value]); });
+
+  /* Тексти з бази: потрібна сесія (Герой або батьки). Немає бази чи входу —
+     лишається вбудований вірш. ?t=<id> або останній обраний — одразу. */
+  function wantedId(){
+    var m = /[?&]t=([^&]+)/.exec(location.search);
+    if(m) return decodeURIComponent(m[1]);
+    try{ return localStorage.getItem('sk_read_text') || ''; }catch(e){ return ''; }
+  }
+  (function whenSK(){
+    var tries = 0;
+    (function tick(){
+      if(window.SK && window.SK.ready && window.SK.listActiveReadTexts){
+        window.SK.ready.then(function(){ return window.SK.listActiveReadTexts(); })
+          .then(function(list){
+            ALL = SKREAD.BUILTIN.concat((list || []).filter(function(e){ return e && e.text; }));
+            var want = wantedId(), hit = null;
+            ALL.forEach(function(e){ if(want && e.id === want) hit = e; });
+            if(hit && hit.id !== TEXT.id && !listening && !pos) loadText(hit); else fillSelect();
+          })
+          .catch(function(){ /* немає входу чи бази — лишається вбудоване */ });
+        return;
+      }
+      if(tries++ < 120) setTimeout(tick, 50);
+    })();
+  })();
+
+  fillSelect();
   render();
   paint();
   if(!SR){
@@ -675,6 +743,8 @@ body.m-learn #micBtn,body:not(.m-learn) #listenBtn{display:none}
   }
 })();
 </script>
+<!-- тексти з бази (SK.listActiveReadTexts); вбудований вірш працює й без неї -->
+<script type="module" src="../firebase-config.js"></script>
 <!-- надійна озвучка рядків на Android (синтезатор мовлення) -->
 <script src="../sk-voice.js?v=1"></script>
 <script src="../sk-footer.js?v=5" data-base="../" data-back="tests.html"></script>

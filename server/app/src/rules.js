@@ -8,7 +8,7 @@
    поведінку Firestore, де помилка в одній гілці `||` не валить інші.
    Немає правила — доступу немає. */
 
-const HERO_COLLS_PUBLIC = ['tests', 'books', 'items', 'vocab', 'vocabDecks', 'curriculum', 'meta'];
+const HERO_COLLS_PUBLIC = ['tests', 'books', 'items', 'vocab', 'vocabDecks', 'readTexts', 'curriculum', 'meta'];
 
 function pairId(a, b) { return a < b ? a + '__' + b : b + '__' + a; }
 

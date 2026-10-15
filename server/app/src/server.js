@@ -125,7 +125,7 @@ const docOut = row => row
 
 /* ---------- обробники ---------- */
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const FLAT_RULE_COLLS = ['tests', 'books', 'items', 'vocab', 'vocabDecks', 'curriculum', 'meta', 'arenaPlan', 'reports'];
+const FLAT_RULE_COLLS = ['tests', 'books', 'items', 'vocab', 'vocabDecks', 'readTexts', 'curriculum', 'meta', 'arenaPlan', 'reports'];
 
 async function signup(req, body) {
   const email = String(body.email || '').trim().toLowerCase();

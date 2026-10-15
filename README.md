@@ -103,6 +103,7 @@ admin.html ─┬─ admin-books.html · admin-items.html · admin-vocab.html ·
 | `sk-report.js` | — | Плаваюча 🐞-кнопка «Повідомити про помилку» |
 | `sk-finish.js` | — | Зарахування HTML-сторінки як пройденого запису (`?skdone=t:<testId>`) |
 | `sk-zadachi.js` | `ZAD` | Генератор текстових задач (із відмінками) для ігор «Задачі» |
+| `sk-readtext.js` | `SKREAD` | Тексти для «Читаю вголос»: вбудований вірш і розбір тексту на строфи/сторінки (тренажер і `admin-chytannia.html`) |
 | `sk-styles.css` | — | Спільні стилі: фон, плитки, шапка, футер, адмінка |
 | `sk-game.css`, `sk-game-chalk.css` | — | Стилі ігор |
 
@@ -125,6 +126,7 @@ admin.html ─┬─ admin-books.html · admin-items.html · admin-vocab.html ·
 | `books` | Бібліотека |
 | `items` | Каталог предметів (IT-XXX) |
 | `vocab`, `vocabDecks` | Слова й набори словника English |
+| `readTexts` | Вірші й тексти для тренажера «Читаю вголос» (`admin-chytannia.html`) |
 | `friendships`, `inviteCodes` | Друзі: запрошення з подвійним підтвердженням |
 | `reports` | Повідомлення про помилки |
 | `meta` | Службові документи |
@@ -146,7 +148,7 @@ admin.html ─┬─ admin-books.html · admin-items.html · admin-vocab.html ·
 - **🎒 Items** — `admin-items.html`: каталог предметів і базові значення.
 - **⚔️ Арена** — заділ на майбутнє.
 
-Поруч: **📖 Книги** — `admin-books.html`, **🔤 Словник English** — `admin-vocab.html`.
+Поруч: **📖 Книги** — `admin-books.html`, **🔤 Словник English** — `admin-vocab.html`, **📜 Тексти для читання** — `admin-chytannia.html`.
 
 ---
 
@@ -183,6 +185,7 @@ schoolkingdoms/
 ├── admin-items.html              # Предмети
 ├── admin-vocab.html              # Словник English
 ├── admin-reports.html            # Повідомлення про помилки
+├── admin-chytannia.html          # Тексти й вірші для «Читаю вголос»
 │
 ├── firebase-config.js            # Спільний шар (див. вище)
 ├── sk-*.js · sk-*.css
