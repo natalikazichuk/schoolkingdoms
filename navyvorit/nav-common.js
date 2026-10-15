@@ -53,7 +53,7 @@
       '<div id="top"><div class="pill"><span class="lab">'+(c.stepLabel||"Крок")+'</span><span class="val" id="qNum">1/'+(c.steps||1)+'</span></div>'+
         '<div id="dirBadge">'+(c.badgeOff||"⏩ звичайний світ")+'</div><div id="spacer"></div><button id="menuBtn" type="button">☰ Меню</button></div>'+
       '<div id="barWrap"><div id="bar"><div id="barFill"></div></div></div>'+
-      '<div id="main"><div id="hint"></div><div id="scene">'+(c.scene||"")+'</div>'+(c.afterScene||"")+'<div id="panel"></div></div>'+
+      '<div id="main"><div id="scene">'+(c.scene||"")+'</div><div id="hint"></div>'+(c.afterScene||"")+'<div id="panel"></div></div>'+
       '<div class="screen" id="startScreen">'+
         '<div class="start-top"><button class="iconbtn backbtn" type="button" title="Назад" aria-label="Назад">←</button><a class="maplink" href="index.html?g='+c.href+'">🗺️ На карту</a></div>'+
         (c.startImg ? '<div class="start-pic" role="img" aria-label="'+c.title+'" style="background-image:url('+c.startImg+')"></div>' : '<div class="big-emoji">'+c.emoji+'</div>')+'<h1>'+c.title+'</h1><p class="start-sub">'+c.sub+'</p>'+
