@@ -74,6 +74,9 @@
     fearFirst: 0.90,   // шанс, що перший свиток страху спрацює
     fearNext: 0.50,    // шанс кожного наступного (після першого спрацювання — опір 50%)
     fearImmune: 2,     // після стількох спрацювань страху — імунітет до кінця бою
+    botBeltSlots: 5,   // пояс суперника: комірок (за замовчуванням порожній)
+    botBeltTest: true, // ТЕСТ: класти боту в пояс свитки з каталогу (спершу — страх); false — пояс порожній
+    botBeltUse: 25,    // шанс за хід, що бот використає річ із пояса (якщо є)
     dualWield: false,  // дві зброї одночасно (поки ні: ліва рука — лише щит)
     xpWin: 50,         // досвід за перемогу (× коефіцієнт сили суперника)
     xpDraw: 25,        // досвід за нічию (× той самий коефіцієнт)
@@ -354,6 +357,28 @@
     return out;
   }
 
+  /* ── пояс суперника ──
+     botBelt(catalog, skit) → [{base, inst}] до botBeltSlots речей. За замовчуванням
+     порожній; у тесті (botBeltTest) — свитки з каталогу: спершу до 2 свитків страху
+     (після 2 спрацювань — імунітет, більше не треба), решта — випадкові свитки. */
+  function hasFear(base, skit) {
+    return useEffects(base, { bonus: 1 }, skit).some(function (f) { return f.type === 'fear'; });
+  }
+  function botBelt(catalog, skit, rnd) {
+    rnd = rnd || Math.random;
+    var n = Math.max(0, Math.floor(num(BATTLE.botBeltSlots)));
+    if (!BATTLE.botBeltTest || !n || !skit) return [];
+    var pool = (catalog || []).filter(function (b) { return b && b.category === 'Свиток' && b.active !== false; });
+    if (!pool.length) return [];
+    var fear = pool.filter(function (b) { return hasFear(b, skit); }), other = pool.filter(function (b) { return !hasFear(b, skit); });
+    var out = [], pickOf = function (arr) { return arr[Math.floor(rnd() * arr.length)]; };
+    for (var i = 0; i < 2 && fear.length && out.length < n; i++) out.push(pickOf(fear));
+    while (out.length < n) out.push(pickOf(other.length ? other : pool));
+    return out.map(function (base, i) {
+      return { base: base, inst: { uid: 'bot' + i, id: base.id, slot: 'belt' + i, bonus: 1 } };
+    });
+  }
+
   /* Кидок кубика d100: 1..100. Подія спрацьовує, якщо випало ≤ шансу у відсотках
      (шанс 49% → треба 1..49). Так кидок видно в журналі: «🎲 37 ≤ 49». */
   function d100(rnd) { return 1 + Math.floor(rnd() * 100); }
@@ -504,7 +529,7 @@
     SLOT_UK: SLOT_UK, zoneOfSlot: zoneOfSlot,
     handCats: handCats, isTwoHanded: isTwoHanded, fitsHand: fitsHand, handsFix: handsFix,
     HERO_STATS: HERO_STATS, BUFF_KEYS: BUFF_KEYS, attrInfo: attrInfo,
-    blockKind: blockKind, blockBy: blockBy, useEffects: useEffects, buffed: buffed, scrollStrike: scrollStrike,
+    blockKind: blockKind, blockBy: blockBy, useEffects: useEffects, botBelt: botBelt, buffed: buffed, scrollStrike: scrollStrike,
     fighter: fighter, varyFighter: varyFighter, hitChance: hitChance, critChance: critChance, isMagic: isMagic,
     strike: strike, attack: attack, d100: d100, armorPass: armorPass,
     power: power, xpCoef: xpCoef, xpNeed: xpNeed, itemPower: itemPower, botItems: botItems
