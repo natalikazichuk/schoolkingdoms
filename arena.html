@@ -1671,7 +1671,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
 <script src="sk-arena-rules.js?v=19"></script>
-<script src="sk-battle.js?v=14"></script>
+<script src="sk-battle.js?v=15"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
    Інвентар, скриня, смітник, продане / куплене сьогодні й монети
@@ -2764,7 +2764,7 @@ window.SKHERO = (function(){
     if(k.kind==='buff') return '<span class="ln use">Ти: '+nm+': <span class="g">лють! +'+k.dmgPct+'% урону, −'+k.armorCut+'% броні на '+k.turns+(k.turns<5?' ходи':' ходів')+'</span><span class="dice">🎲 '+k.roll+' ≤ '+k.need+'%</span></span>';
     var t = k.kind==='fail' ? '<span class="b">не вдалося</span>'
       : k.kind==='block' ? '<span class="b">заблоковано</span>'
-      : '<span class="g">влучив</span> (−'+dmgHtml(k.dmg, k.magDmg||0)+')' + (k.knock ? ' · <span class="crit">збив з ніг 😵</span> — суперник пропустить удар' : k.knockImmune ? ' · <span class="b">не збити з ніг — суперник ще оговтується (імунітет)</span>' : k.knockHalf ? ' · <span class="b">суперник щойно підвівся: шанс збити з ніг навпіл</span>' : '');
+      : (k.noDmg ? '<span class="g">штовхнув</span>' : '<span class="g">влучив</span> (−'+dmgHtml(k.dmg, k.magDmg||0)+')') + (k.knock ? ' · <span class="crit">збив з ніг 😵</span> — суперник пропустить удар' : k.knockImmune ? ' · <span class="b">не збити з ніг — суперник ще оговтується (імунітет)</span>' : k.knockHalf ? ' · <span class="b">суперник щойно підвівся: шанс збити з ніг навпіл</span>' : '');
     return '<span class="ln use">Ти: '+nm+' → '+ZONE_UA[e.me.atk]+': '+t+(k.mana ? ' <span style="opacity:.75">(−'+k.mana+' мани)</span>' : '')+dice+'</span>';
   }
   /* Кожен удар — окремим рядком журналу: рядок N = мій удар N · удар суперника N.
@@ -3232,7 +3232,7 @@ window.SKHERO = (function(){
     rb.className = 'rbig ' + cls;
     var h0 = (meHit.hits || [meHit])[0] || {};
     if(sk){ var ski = window.SKSKILLS && SKSKILLS.byId(sk.id), ic = ski ? ski.icon+' '+ski.name : '⚡';
-      lbl += ' · ' + ic + ': ' + (sk.kind==='hit' ? '−'+sk.dmg+(sk.knock?' 😵':'') : sk.kind==='buff' ? 'лють!' : sk.kind==='block' ? 'блок' : 'не вдалось'); }
+      lbl += ' · ' + ic + ': ' + (sk.kind==='hit' ? (sk.noDmg ? (sk.knock ? '😵' : 'штовхнув') : '−'+sk.dmg+(sk.knock?' 😵':'')) : sk.kind==='buff' ? 'лють!' : sk.kind==='block' ? 'блок' : 'не вдалось'); }
     rb.innerHTML = '<span class="rnum">'+num+'</span><span class="rlbl">'+lbl+'</span>'
       + (h0.hitRoll!=null ? '<span class="rdice" id="rdice"></span>' : '')
       + '<span class="ropp">Суперник'+(opHit.kind==='fear'||opHit.kind==='skip'||opHit.kind==='knock' ? '' : ' → '+ZONE_UA[B.op.atk])+': '+ok+'</span>';
@@ -3270,6 +3270,7 @@ window.SKHERO = (function(){
     else if(h.kind==='skip'){ return; }
     else if(h.kind==='fail'){ el.className='dmg-float miss'; el.textContent=pre+'не вдалось'; }
     else if(h.kind==='buff'){ el.className='dmg-float crit'; el.textContent=pre+'лють!'; }
+    else if(h.noDmg){ el.className='dmg-float miss'; el.textContent=pre+(h.knock?'😵':'штовх'); }
     else if(h.kind==='barrier'){ el.className='dmg-float blk'; el.textContent=pre+'🫧'; }
     else if(h.kind==='dodge'){ el.className='dmg-float miss'; el.textContent=h.skillDodge ? 'ухилився 💨' : pre+'промах'; }
     else if(h.kind==='block' && h.skillShield){ el.className='dmg-float blk'; el.textContent='🛡️ блок'; }
@@ -3738,7 +3739,7 @@ window.SKHERO = (function(){
 </script>
 
 <script src="sk-items.js?v=13"></script>
-<script src="sk-skills.js?v=16"></script>
+<script src="sk-skills.js?v=17"></script>
 <script src="sk-book.js?v=8"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
