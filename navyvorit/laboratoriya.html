@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Лабораторія навпаки — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<link rel="stylesheet" href="nav-common.css">
+<style>
+/* ── лабораторія ── */
+#scene{height:210px; background:linear-gradient(180deg,#e3f6f1 0%,#f3fbf8 66%,#cfd8dc 66%,#b9c4c9 100%); display:flex; align-items:center; justify-content:center; gap:8px; padding:0 10px 20px;}
+body.flipped #scene{background:linear-gradient(180deg,#e7dbff 0%,#f4eeff 66%,#d6cbe6 66%,#c2b5d8 100%);}
+.grp{display:flex; align-items:flex-end; gap:6px; min-width:50px; justify-content:center;}
+.op{font-family:'Fredoka'; font-weight:700; font-size:26px; color:#5c6b73;}
+#machine{width:70px; height:78px; border-radius:16px; background:linear-gradient(180deg,#adb5bd,#868e96); border:3px solid #6c757d; display:grid; place-items:center; font-size:30px; box-shadow:0 5px 0 rgba(0,0,0,.18); position:relative;}
+#machine.work{animation:buzz .15s 6;}
+@keyframes buzz{50%{transform:translateX(2px) rotate(2deg)}}
+body.flipped #machine{background:linear-gradient(180deg,#b197fc,#845ef7); border-color:#7048e8;}
+#machine:after{content:attr(data-t); position:absolute; bottom:-20px; left:50%; transform:translateX(-50%); font-weight:800; font-size:11px; color:var(--soft); white-space:nowrap;}
+.fl{width:40px; height:58px; position:relative; border:3px solid #6c7a89; border-top:none; border-radius:4px 4px 18px 18px; background:rgba(255,255,255,.6); overflow:hidden;}
+.fl:before{content:""; position:absolute; top:0; left:-3px; right:-3px; height:4px; background:#6c7a89;}
+.fl i{position:absolute; left:0; right:0; bottom:0; height:62%; transition:background .4s, height .4s;}
+.fl.q i{background:repeating-linear-gradient(45deg,#e9ecef 0 6px,#dee2e6 6px 12px);}
+.fl.q:after{content:"?"; position:absolute; inset:0; display:grid; place-items:center; font-family:'Fredoka'; font-weight:700; font-size:22px; color:#868e96;}
+.fl.pop{animation:pop .45s;}
+@keyframes pop{0%{transform:scale(.4)}70%{transform:scale(1.15)}}
+.l-r{background:#ff6b6b;} .l-b{background:#4dabf7;} .l-y{background:#ffd43b;}
+</style>
+</head>
+<body>
+<script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
+<script src="nav-common.js"></script>
+<script>
+(function(){
+  "use strict";
+  var TOTAL = 5, log;
+  var COL = {r:{nm:"червона", acc:"червону", em:"🔴"}, b:{nm:"синя", acc:"синю", em:"🔵"}, y:{nm:"жовта", acc:"жовту", em:"🟡"}};
+  var ALL = ["r","b","y"];
+  function third(a, b){ return ALL.filter(function(x){ return x!==a && x!==b; })[0]; }
+  function others(a){ return ALL.filter(function(x){ return x!==a; }); }
+  function em(c){ return COL[c].em; }
+  function cap(t){ return t.charAt(0).toUpperCase()+t.slice(1); }
+
+  NAV.mount({
+    next: "shakhova-pidloha.html",   // «Вирушай далі! ›» — наступний пункт карти
+    title:"Лабораторія навпаки", emoji:"⚗️🧪", sub:"Логіка · Світ навиворіт · 5 кроків",
+    riddle:"У лабораторії замку стоїть машина для змішування рідин. Але кольори тут змішуються дивно:<span class='seq'>🔴 + 🔵 → 🟡</span>Знайди правило машини. А потім — 🔄 переворот, і машина запрацює навпаки…",
+    play:"У лабораторію ▶", steps:TOTAL, crown:"⚗️✨",
+    badgeOff:"⚗️ змішує", badgeOn:"🔄 розділяє",
+    prizeKey:"sk_laboratoriya_prize_v1", href:"laboratoriya.html", doneText:"Досліди вдалися — нагороду отримано!",
+    winTitle:"Досліди вдалися!", winPerfect:"Справжній науковець — без жодної помилки!",
+    lesson:[
+      "Машина змішує <b>дві різні</b> рідини — і виходить <b>третій</b> колір: 🔴 + 🔵 → 🟡, 🔵 + 🟡 → 🔴, 🔴 + 🟡 → 🔵.",
+      "🔄 Машина-навпаки робить <b>зворотну дію</b>: одна рідина розділяється на дві інші — 🟡 → 🔴 + 🔵.",
+      "Зворотна дія повертає назад: якщо розділити одну з частин, знову з'явиться перша рідина."
+    ],
+    scene:'<div class="grp" id="inp"></div><span class="op">→</span><div id="machine" data-t="змішувач">⚙️</div><span class="op">→</span><div class="grp" id="out"></div>',
+    afterScene:'<div class="log" id="log"></div>',
+    onStart:startGame
+  });
+
+  function renderLog(){
+    var box = NAV.$("log"); box.innerHTML = '<div class="lh">📒 Журнал дослідів</div>';
+    if(!log.length){ box.appendChild(NAV.el("div","empty","Поки нічого.")); return; }
+    var rows = NAV.el("div","rows"); log.slice(-3).forEach(function(r){ rows.appendChild(NAV.el("div","r",r)); }); box.appendChild(rows);
+  }
+  /* колби: list = ["r","b"] або ["?"] */
+  function flasks(id, list){
+    var g = NAV.$(id); g.innerHTML = "";
+    list.forEach(function(c, i){
+      if(i) g.appendChild(NAV.el("span","op","+"));
+      var f = NAV.el("div","fl"+(c==="?"?" q":""), c==="?" ? "<i></i>" : '<i class="l-'+c+'"></i>');
+      g.appendChild(f);
+    });
+  }
+  function run(inp, out, cb){
+    flasks("inp", inp); flasks("out", out.map(function(){ return "?"; }));
+    setTimeout(function(){
+      var m = NAV.$("machine"); m.classList.remove("work"); void m.offsetWidth; m.classList.add("work");
+      NAV.snd.tone(300,0.25,"sawtooth",0.03);
+      setTimeout(function(){
+        flasks("out", out); NAV.$("out").querySelectorAll(".fl").forEach(function(f){ f.classList.add("pop"); });
+        NAV.snd.chime(); setTimeout(cb, 700);
+      }, 900);
+    }, 400);
+  }
+  function colOpts(right, why){
+    return ALL.map(function(c){ var t = em(c)+" "+cap(COL[c].acc); return c===right ? {tx:t, ok:true} : {tx:t, why:why(c)}; });
+  }
+  function pair(a){ return em(a[0])+" + "+em(a[1]); }
+
+  function startGame(){
+    log = []; NAV.step(0,TOTAL); renderLog(); NAV.$("machine").setAttribute("data-t","змішувач");
+    flasks("inp", []); flasks("out", []);
+    NAV.hint("Дивись на перший дослід…");
+    run(["r","b"], ["y"], function(){
+      log.push("🔴 + 🔵 → <b>🟡</b>"); renderLog();
+      flasks("inp", ["b","?"]); flasks("out", ["y"]);
+      NAV.hint("У тебе є 🔵 синя. Треба отримати 🟡 жовту.");
+      NAV.question("Що додати до синьої?", colOpts("r", function(c){
+        return c==="b" ? "Синя + синя — це просто більше синьої. Подивись у журнал: яка пара дала жовту?"
+                       : "Жовту ми й хочемо отримати! Подивись у журнал: 🔴 + 🔵 → 🟡.";
+      }), function(){
+        run(["b","r"], ["y"], function(){
+          NAV.hint("Так! Синя + червона → жовта.","good");
+          setTimeout(step2, 900);
+        });
+      }, {cols:3, keepOrder:true});
+    });
+  }
+
+  function step2(){
+    NAV.step(1,TOTAL);
+    NAV.hint("Другий дослід…");
+    run(["b","y"], ["r"], function(){
+      log.push("🔵 + 🟡 → <b>🔴</b>"); renderLog();
+      flasks("inp", ["r","y"]); flasks("out", ["?"]);
+      NAV.hint("А що вийде з 🔴 червоної і 🟡 жовтої?");
+      NAV.question("🔴 + 🟡 → ?", colOpts("b", function(c){
+        return "Подивись у журнал: дві різні рідини дають <b>третій</b> колір — той, якого немає серед них.";
+      }), function(){
+        run(["r","y"], ["b"], function(){
+          log.push("🔴 + 🟡 → <b>🔵</b>"); renderLog();
+          NAV.hint("Правильно! Виходить колір, якого бракує.","good");
+          setTimeout(step3, 900);
+        });
+      }, {cols:3, keepOrder:true});
+    });
+  }
+
+  function step3(){
+    NAV.step(2,TOTAL);
+    NAV.hint("Подивись у журнал 📒 — яке правило машини?");
+    NAV.question("Як змішує машина?", [
+      {tx:"Дві різні рідини дають третій колір", ok:true},
+      {tx:"Перемагає колір, який налили першим", why:"Тоді 🔴 + 🔵 дало б 🔴, а вийшло 🟡."},
+      {tx:"Кольори змішуються як фарби", why:"Фарби 🔴 + 🔵 дали б фіолетовий, а тут — 🟡. Правило інше!"}
+    ], function(){ setTimeout(flip, 900); });
+  }
+
+  function flip(){
+    NAV.modal("🔄","Навиворіт!","Машину перемкнули на <b>зворотний хід</b>. Тепер вона не змішує, а <b>розділяє</b>: наливаєш одну рідину — виходять дві!",{nav:true, btn:"🔄 Перевернути"}, function(){
+      NAV.snd.whoosh(); NAV.flipAnim();
+      setTimeout(function(){
+        NAV.setFlip(true); NAV.step(3,TOTAL); NAV.$("machine").setAttribute("data-t","розділювач");
+        log.push("🔄 <b>Машина тепер розділяє!</b>"); renderLog();
+        NAV.hint("Дивись, що робить машина-навпаки…");
+        run(["y"], ["r","b"], function(){
+          log.push("🟡 → <b>🔴 + 🔵</b>"); renderLog();
+          flasks("inp", ["?"]); flasks("out", ["b","y"]);
+          NAV.hint("Машина-навпаки дала 🔵 і 🟡. Що в неї налили?");
+          NAV.question("Яку рідину налили?", colOpts("r", function(c){
+            return "Якщо налити "+COL[c].acc+", вийдуть "+pair(others(c))+". А тут вийшли 🔵 + 🟡 — значить, налили третій колір!";
+          }), function(){
+            run(["r"], ["b","y"], function(){
+              NAV.hint("Так! Розділяємо 🔴 → 🔵 + 🟡 — навпаки до змішування.","good");
+              setTimeout(step5, 1100);
+            });
+          }, {cols:3, keepOrder:true});
+        });
+      }, 500);
+    });
+  }
+
+  function step5(){
+    NAV.step(4,TOTAL);
+    var x = NAV.pick(ALL), parts = others(x), a = NAV.pick(parts), b = third(x, a);   // a розділиться на x і b
+    flasks("inp", [x]); flasks("out", parts);
+    NAV.hint("Розділимо "+em(x)+" "+COL[x].acc+": вийшли "+pair(parts)+". А тепер у машину наллємо "+em(a)+" "+COL[a].acc+"…");
+    var right = pair([x, b]);
+    var o = [{tx:right, ok:true},
+      {tx:pair([a, b]), why:em(a)+" налили в машину — вона розділяється на <b>два інші</b> кольори, без себе."},
+      {tx:pair([a, x]), why:em(a)+" не може вийти сама з себе. Розділення дає два <b>інші</b> кольори."}];
+    NAV.question("Що вийде з "+em(a)+"?", o, function(){
+      run([a], [x, b], function(){
+        log.push(em(x)+" → "+pair(parts)+", потім "+em(a)+" → <b>"+right+"</b>"); renderLog();
+        NAV.hint("Чудово! Знову з'явилась "+em(x)+" "+COL[x].nm+" — зворотна дія повертає назад.","good");
+        setTimeout(NAV.finish, 1500);
+      });
+    }, {cols:1, big:true});
+  }
+})();
+</script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=12"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=4"></script>
+<script src="../sk-prize.js?v=1"></script>
+<script src="../sk-finish.js?v=6"></script>
+</body>
+</html>

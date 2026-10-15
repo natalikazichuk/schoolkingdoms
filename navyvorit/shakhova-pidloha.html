@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Шахова підлога — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<link rel="stylesheet" href="nav-common.css">
+<style>
+/* ── шахова зала ── */
+#scene{height:200px; background:linear-gradient(180deg,#f1e3c8 0%,#fbf3e4 100%);}
+body.flipped #scene{background:linear-gradient(180deg,#e2d6fa 0%,#f3eeff 100%);}
+#floor{position:absolute; left:50%; bottom:30px; transform:translateX(-50%); display:flex; gap:6px;}
+.tile{width:62px; height:62px; border-radius:10px; border:3px solid #b08a57; background:#fffdf7; position:relative; transition:background .35s, transform .35s; box-shadow:0 4px 0 rgba(0,0,0,.15);}
+.tile.blk{background:#343a40;}
+.tile.blink{transform:scale(1.12);}
+.tile .no{position:absolute; bottom:-22px; left:50%; transform:translateX(-50%); font-weight:800; font-size:13px; color:var(--soft);}
+#hero{position:absolute; bottom:60px; font-size:42px; line-height:1; transition:left .55s ease-in-out; z-index:2; transform:translateX(-50%);}
+#hero.hop{animation:hop .55s;}
+@keyframes hop{50%{transform:translate(-50%,-14px)}}
+#path{position:absolute; top:10px; left:50%; transform:translateX(-50%); background:#fff; border:2px solid var(--line); border-radius:12px; padding:3px 12px; font-family:'Fredoka'; font-weight:700; font-size:20px; white-space:nowrap; letter-spacing:2px;}
+#path .done{color:#c9b28a;}
+#path:empty{display:none;}
+</style>
+</head>
+<body>
+<script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
+<script src="nav-common.js"></script>
+<script>
+(function(){
+  "use strict";
+  var TOTAL = 5, log, col, pos;
+  var N = 4, W = 68;   // клітинок і крок між ними (px)
+
+  NAV.mount({
+    next: "try-klyuchi.html",   // «Вирушай далі! ›» — наступний пункт карти
+    title:"Шахова підлога", emoji:"♟️⬛⬜", sub:"Логіка · Світ навиворіт · 5 кроків",
+    riddle:"У шаховій залі замку підлога чарівна: варто героєві ступити на клітинку — і вона <b>міняє колір</b>!<span class='seq'>⬜ → 🚶 → ⬛</span>Порахуй, якою стане підлога. А потім — 🔄 переворот, і чари зміняться…",
+    play:"У шахову залу ▶", steps:TOTAL, crown:"♟️✨",
+    badgeOff:"⬇️ міняє, куди ступив", badgeOn:"🔄 міняє, звідки зійшов",
+    prizeKey:"sk_shakhy_prize_v1", href:"shakhova-pidloha.html", doneText:"Підлогу розгадано — нагороду отримано!",
+    winTitle:"Підлогу розгадано!", winPerfect:"Жодного хибного кроку!",
+    lesson:[
+      "Колір міняє клітинка, <b>на яку ступив</b> герой. Ступив двічі — колір повернувся.",
+      "Щоб знайти колір, <b>порахуй</b>, скільки разів клітинка змінювалась: непарно — чорна, парно — біла.",
+      "🔄 Навиворіт колір міняє клітинка, <b>з якої зійшов</b> герой. Доріжка та сама — а підлога зовсім інша!"
+    ],
+    scene:'<div id="path"></div><div id="floor"></div><span id="hero">🧒</span>',
+    afterScene:'<div class="log" id="log"></div>',
+    onStart:startGame
+  });
+
+  function renderLog(){
+    var box = NAV.$("log"); box.innerHTML = '<div class="lh">📒 Записник кроків</div>';
+    if(!log.length){ box.appendChild(NAV.el("div","empty","Поки нічого.")); return; }
+    var rows = NAV.el("div","rows"); log.slice(-3).forEach(function(r){ rows.appendChild(NAV.el("div","r",r)); }); box.appendChild(rows);
+  }
+  function build(){
+    var f = NAV.$("floor"); f.innerHTML = "";
+    for(var i=0;i<N;i++){ var t = NAV.el("div","tile",'<span class="no">'+(i+1)+'</span>'); t.id = "t"+i; f.appendChild(t); }
+  }
+  function paint(){ for(var i=0;i<N;i++) NAV.$("t"+i).classList.toggle("blk", col[i]); }
+  function heroAt(p){
+    var f = NAV.$("floor");
+    var x = f.offsetLeft - f.offsetWidth/2 + 31 + p*W;   // #floor центрований через translateX(-50%)
+    NAV.$("hero").style.left = x + "px";
+  }
+  function reset(p){ col = [false,false,false,false]; pos = p; build(); paint(); heroAt(pos); }
+  function blackCount(c){ return c.filter(Boolean).length; }
+  /* модель: rule "on" — міняє, куди ступив; "off" — звідки зійшов */
+  function sim(start, moves, rule){
+    var c = [false,false,false,false], p = start;
+    moves.forEach(function(m){ var q = p + m; if(rule==="off") c[p] = !c[p]; else c[q] = !c[q]; p = q; });
+    return {c:c, p:p};
+  }
+  function randPath(start, len){
+    var m = [], p = start;
+    for(var i=0;i<len;i++){ var d = (p===0) ? 1 : (p===N-1) ? -1 : NAV.pick([1,-1]); m.push(d); p += d; }
+    return m;
+  }
+  function arrows(m){ return m.map(function(d){ return d>0 ? "→" : "←"; }); }
+  function showPath(m, done){ NAV.$("path").innerHTML = arrows(m).map(function(a,i){ return i<done ? '<span class="done">'+a+'</span>' : a; }).join(""); }
+  /* пройти доріжку з анімацією */
+  function walk(moves, cb, i){
+    i = i || 0;
+    if(i>=moves.length){ setTimeout(cb, 500); return; }
+    var from = pos, to = pos + moves[i], t = NAV.flipped ? from : to;
+    var h = NAV.$("hero"); h.classList.remove("hop"); void h.offsetWidth; h.classList.add("hop");
+    pos = to; heroAt(pos);
+    setTimeout(function(){
+      col[t] = !col[t]; paint();
+      var el = NAV.$("t"+t); el.classList.add("blink"); NAV.snd.tone(col[t] ? 330 : 660, 0.1);
+      setTimeout(function(){ el.classList.remove("blink"); }, 250);
+      showPath(moves, i+1);
+      setTimeout(function(){ walk(moves, cb, i+1); }, 350);
+    }, 450);
+  }
+  function countOpts(right, trap, trapWhy){
+    var o = [];
+    for(var k=0;k<=N;k++){
+      if(k===right) o.push({tx:String(k), ok:true});
+      else o.push({tx:String(k), why: k===trap ? trapWhy : "Порахуй ще раз: пройди доріжку крок за кроком і перевіряй кожну клітинку."});
+    }
+    return o;
+  }
+
+  function startGame(){
+    log = []; NAV.step(0,TOTAL); renderLog(); NAV.$("path").innerHTML = "";
+    reset(0);
+    NAV.hint("Дивись: герой робить крок уперед…");
+    setTimeout(function(){
+      walk([1], function(){
+        log.push("🚶 → на клітинку 2 — <b>клітинка 2 стала ⬛</b>"); renderLog();
+        NAV.hint("Тепер герой ступить <b>назад ←</b> на клітинку 1.");
+        NAV.question("Яка клітинка змінить колір?", [
+          {tx:"Клітинка 1 — на неї ступить герой", ok:true},
+          {tx:"Клітинка 2 — з неї зійде герой", why:"Подивись у записник: колір змінила клітинка, <b>на яку</b> герой ступив."},
+          {tx:"Жодна", why:"Кожен крок міняє колір якоїсь клітинки!"}
+        ], function(){
+          walk([-1], function(){
+            log.push("🚶 ← на клітинку 1 — <b>клітинка 1 стала ⬛</b>"); renderLog();
+            NAV.hint("Так! Колір міняє клітинка, на яку ступив герой.","good");
+            setTimeout(step2, 1000);
+          });
+        });
+      });
+    }, 600);
+  }
+
+  function step2(){
+    NAV.step(1,TOTAL);
+    reset(0);
+    var m, r;
+    do{ m = randPath(0, 4); r = sim(0, m, "on"); }while(blackCount(r.c) === blackCount(sim(0, m, "off").c));
+    showPath(m, 0);
+    NAV.hint("Підлога знову біла. Герой піде доріжкою <b>"+arrows(m).join(" ")+"</b>.");
+    NAV.question("Скільки клітинок стануть ⬛ чорними?", countOpts(blackCount(r.c), -1), function(){
+      walk(m, function(){
+        log.push("🚶 "+arrows(m).join(" ")+" → <b>"+blackCount(col)+" ⬛</b>"); renderLog();
+        NAV.hint("Правильно! Кожен крок перемикає одну клітинку — двічі ступив, і колір повернувся.","good");
+        setTimeout(step3, 1000);
+      });
+    }, {cols:5, big:true, keepOrder:true});
+  }
+
+  function step3(){
+    NAV.step(2,TOTAL);
+    NAV.hint("Подивись у записник 📒 — яке правило підлоги?");
+    NAV.question("Як працює чарівна підлога?", [
+      {tx:"Клітинка, на яку ступив герой, міняє колір", ok:true},
+      {tx:"Усі клітинки міняють колір разом", why:"Ні — щоразу змінюється лише одна клітинка."},
+      {tx:"Клітинка стає чорною назавжди", why:"Глянь: на клітинку ступили вдруге — і вона знову побіліла."}
+    ], function(){ setTimeout(flip, 900); });
+  }
+
+  function flip(){
+    NAV.modal("🔄","Навиворіт!","Чари підлоги перевернулись! Тепер колір міняє клітинка, <b>з якої герой зійшов</b>, а та, на яку ступив, — не змінюється.",{nav:true, btn:"🔄 Перевернути"}, function(){
+      NAV.snd.whoosh(); NAV.flipAnim();
+      setTimeout(function(){
+        NAV.setFlip(true); NAV.step(3,TOTAL);
+        log.push("🔄 <b>Міняє колір клітинка, з якої зійшов!</b>"); renderLog();
+        reset(0);
+        var m = [1,1,-1], on = blackCount(sim(0, m, "on").c), off = blackCount(sim(0, m, "off").c);
+        showPath(m, 0);
+        NAV.hint("Підлога біла. Герой піде <b>→ → ←</b>.");
+        NAV.question("Скільки клітинок тепер стануть ⬛ чорними?", countOpts(off, on, "Це за старим правилом («куди ступив»). Тепер міняє колір клітинка, <b>з якої</b> герой сходить!"), function(){
+          walk(m, function(){
+            log.push("🔄 🚶 → → ← → <b>"+blackCount(col)+" ⬛</b>"); renderLog();
+            NAV.hint("Так! Герой зійшов з 1, з 2 і з 3 — три клітинки почорніли.","good");
+            setTimeout(step5, 1200);
+          });
+        }, {cols:5, big:true, keepOrder:true});
+      }, 500);
+    });
+  }
+
+  function step5(){
+    NAV.step(4,TOTAL);
+    reset(0);
+    var m, a, b;
+    do{ m = randPath(0, 4); a = sim(0, m, "off"); b = sim(0, m, "on"); }while(a.c[a.p] === b.c[b.p]);
+    var right = a.c[a.p];
+    showPath(m, 0);
+    NAV.hint("Остання доріжка: <b>"+arrows(m).join(" ")+"</b>. Порахуй уважно!");
+    var trap = "Так було б за старим правилом. Тепер клітинка міняє колір, лише коли герой з неї <b>сходить</b>!";
+    NAV.question("Якого кольору буде клітинка, на якій герой зупиниться?", [
+      {tx:"⬛ Чорного", ok:right, why:right ? "" : trap},
+      {tx:"⬜ Білого", ok:!right, why:right ? trap : ""},
+      {tx:"🤷 Не можна визначити", why:"Можна! Пройди доріжку подумки й порахуй, скільки разів герой сходив із цієї клітинки."}
+    ], function(){
+      walk(m, function(){
+        log.push("🔄 🚶 "+arrows(m).join(" ")+" → під героєм <b>"+(col[pos] ? "⬛" : "⬜")+"</b>"); renderLog();
+        NAV.hint("Чудово! Шахову підлогу розгадано.","good");
+        setTimeout(NAV.finish, 1500);
+      });
+    }, {cols:1, keepOrder:true});
+  }
+})();
+</script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=12"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=4"></script>
+<script src="../sk-prize.js?v=1"></script>
+<script src="../sk-finish.js?v=6"></script>
+</body>
+</html>
