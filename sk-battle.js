@@ -184,6 +184,10 @@
       var bn = Math.min(100, Math.round(num(po.blockMag))), br = R.d100(rnd);
       if (br <= bn) { miss(); rec.kind = 'block'; rec.byChance = true; rec.calc = 'вдалося · заблоковано шансом 🎲 ' + br + ' ≤ ' + bn + '% (маг.)'; return rec; }
     }
+    if (!magic && cfg.max <= 0) {                                 // лише контроль (Поштовх щитом): дійшов — без урону, далі кидок збити з ніг
+      grow(st, id, true); rec.kind = 'hit'; rec.dmg = 0; rec.physDmg = 0; rec.noDmg = true; rec.calc = 'вдалося 🎲 ' + roll + ' ≤ ' + need + '% · без урону';
+      knockTry(st, id, rec, R, rnd); return rec;
+    }
     var raw = cfg.min + Math.floor(rnd() * (cfg.max - cfg.min + 1));
     var defV = magic ? num(po.magicResist) : num(po.armor);
     var pass = R.armorPass ? R.armorPass(raw, defV) : 1;
@@ -194,19 +198,7 @@
     if (magic) rec.magDmg = dmg; else rec.physDmg = dmg;
     rec.calc = (magic ? '✨маг. ' : '') + raw + (defV > 0 ? ' × ' + Math.round(pass * 100) + '% (' + (magic ? 'маг. захист ' : 'броня ') + defV + ')' : '')
       + (pctV ? ' × ' + Math.round(100 + pctV) + '%' : '');
-    if (!magic) {                                                 // Пінок / Поштовх щитом можуть збити з ніг: суперник пропустить наступний хід
-      // імунітет після оглушення (fx.knock — хід, коли суперник лежав): поки лежить — збити не можна
-      // (він пропустив би й наступний хід), наступного ходу — шанс навпіл, далі — як завжди
-      var last = num(fxOf(st.op).knock);
-      if (last && last === st.round) rec.knockImmune = true;
-      else {
-        var kn = V(st, id, 'knock');
-        if (last && last === st.round - 1) { kn = Math.round(kn / 2); rec.knockHalf = true; }
-        var kr = R.d100(rnd);
-        rec.knockNeed = kn; rec.knockRoll = kr;
-        if (kn > 0 && kr <= kn) { rec.knock = true; fxOf(st.op).knock = st.round + 1; }
-      }
-    }
+    if (!magic) knockTry(st, id, rec, R, rnd);                    // Пінок може збити з ніг
     return rec;
   }
   /* Берсерк: не удар, а лють на кілька ходів — кидається ДО ударів цього ходу.
@@ -221,6 +213,18 @@
     (st.me.once || (st.me.once = {}))[id] = true;
     rec.kind = 'buff'; rec.turns = n; rec.dmgPct = V(st, id, 'dmgPct'); rec.armorCut = V(st, id, 'armorCut');
     return rec;
+  }
+  /* збити з ніг (Пінок, Поштовх щитом): суперник пропустить наступний хід.
+     Імунітет після оглушення (fx.knock — хід, коли суперник лежав): поки лежить — збити не можна
+     (він пропустив би й наступний хід), наступного ходу — шанс навпіл, далі — як завжди */
+  function knockTry(st, id, rec, R, rnd) {
+    var last = num(fxOf(st.op).knock);
+    if (last && last === st.round) { rec.knockImmune = true; return; }
+    var kn = V(st, id, 'knock');
+    if (last && last === st.round - 1) { kn = Math.round(kn / 2); rec.knockHalf = true; }
+    var kr = R.d100(rnd);
+    rec.knockNeed = kn; rec.knockRoll = kr;
+    if (kn > 0 && kr <= kn) { rec.knock = true; fxOf(st.op).knock = st.round + 1; }
   }
   /* пасивне з кидком (ухилення, щит): на кожен удар, що влучив, — кидок «прокинулось»
      (шанс = майстерність %). Прокинулось — очко росту і кидок ефекту (chance):
