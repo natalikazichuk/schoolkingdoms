@@ -3738,7 +3738,7 @@ window.SKHERO = (function(){
 })();
 </script>
 
-<script src="sk-items.js?v=13"></script>
+<script src="sk-items.js?v=14"></script>
 <script src="sk-skills.js?v=17"></script>
 <script src="sk-book.js?v=8"></script>
 <script>
@@ -3833,6 +3833,7 @@ function totals(){var baseHero={health:HERO.health||0,mana:HERO.mana||0,agility:
 function bonusClass(b){b=Number(b);return b>1.15?'b20':(b>1?'b10':(b<1?'bm10':'b0'));}
 function tipHTML(x){var base=BYID[x.id];var bc=bonusClass(x.bonus!=null?x.bonus:1);
  var h='<div class="tp-name '+bc+'">'+esc(x.name||'')+'</div>';if(!base)return h;
+ var kl=(window.SKIT&&SKIT.kindLabel)?SKIT.kindLabel(base):'';if(kl)h+='<div class="tp-row">'+esc(kl)+'</div>';   /* вид зброї — для вмінь (Меч, Сокира…) */
  var eff=(window.SKIT&&SKIT.effective)?SKIT.effective(base,x._inst||{bonus:1}):null;if(!eff)return h;var p=[];
  if(eff.stat&&eff.valueMax!=null){var vt=(eff.valueMin==null||eff.valueMin===eff.valueMax)?eff.valueMax:(eff.valueMin+'–'+eff.valueMax);p.push(cap(STAT_UK[SKIT.canon(eff.stat)]||eff.stat)+' '+vt);}
  var see=SKIT.canSeeAddStats?SKIT.canSeeAddStats(x._inst||{},HERO):false;
@@ -3889,7 +3890,7 @@ function cardBox(x,acts,opts){opts=opts||{};
  var bc=bonusClass(x.bonus!=null?x.bonus:1);
  var emo=(base&&window.SKIT&&SKIT.CAT_EMO&&SKIT.CAT_EMO[base.category])||'🎒';   // як на плитці речі
  var img=(isImg(x.icon)&&!(SKIT.imgMissing&&SKIT.imgMissing(x.icon)))?'<img src="'+x.icon+'" alt="" onerror="this.onerror=null;window.SKIT&&SKIT.imgMissed&&SKIT.imgMissed(this.getAttribute(\'src\'));this.outerHTML=\'<span class=ic-emo>'+emo+'</span>\'">':'<span class="ic-emo">'+(isImg(x.icon)?emo:(x.icon||emo))+'</span>';
- var meta=[];if(base&&base.category)meta.push(base.category);if(base&&base.grade)meta.push(base.grade+' клас');if(x.qty>1)meta.push('×'+x.qty);
+ var meta=[],kl=(window.SKIT&&SKIT.kindLabel)?SKIT.kindLabel(base):'';if(kl)meta.push(kl);else if(base&&base.category)meta.push(base.category);if(base&&base.grade)meta.push(base.grade+' клас');if(x.qty>1)meta.push('×'+x.qty);
  var dur='';if(eff&&eff.durMax){var r=Math.max(0,Math.min(1,eff.durCur/eff.durMax));
    dur='<div class="ic-durrow"><span class="ic-si">⚒️</span><span>Міцність</span><b>'+eff.durCur+' / '+eff.durMax+'</b></div>'
     +'<div class="ic-dur'+(r<=0?' zero':(r<=0.2?' low':''))+'"><i style="width:'+Math.round(r*100)+'%"></i></div>';}
@@ -4239,7 +4240,8 @@ function icon(base){var em=CAT_EMO[base&&base.category]||'🎒',src='img/items/'
   return '<img src="'+src+'" alt="" onerror="window.SKIT&&SKIT.imgMissed&&SKIT.imgMissed(this.getAttribute(\'src\'));this.replaceWith(document.createTextNode(\''+em+'\'))">';}
 function statLine(base,inst){
   if(!base||!window.SKIT)return '';
-  var e=SKIT.effective(base,inst||{bonus:1}),p=[];
+  var e=SKIT.effective(base,inst||{bonus:1}),p=[],kl=SKIT.kindLabel?SKIT.kindLabel(base):'';
+  if(kl)p.push(kl);
   if(e.stat&&e.valueMax!=null){var k=SKIT.canon(e.stat);p.push((STAT_UK[k]||e.stat)+' '+(e.valueMin!=null&&e.valueMin!==e.valueMax?e.valueMin+'–':'')+e.valueMax);}
   (e.addStats||[]).forEach(function(a){if(a.flag||a.value==null)return;var k=SKIT.canon(a.stat);p.push((STAT_UK[k]||a.stat)+' +'+a.value+(a.pct?'%':''));});
   return p.slice(0,3).join(' · ');}

@@ -92,6 +92,11 @@
     { key: 'light',  label: 'Світло',   icon: '☀️' },
     { key: 'dark',   label: 'Темрява',  icon: '🌑' }
   ];
+  /* вид зброї речі для показу («🪓 Сокира»); не зброя чи вид не вказано — '' */
+  function kindLabel(base) {
+    var w = base && base.category === 'Зброя' && base.weaponType ? weaponType(base.weaponType) : null;
+    return w ? w.icon + ' ' + w.label : '';
+  }
   function weaponType(key) { for (var i = 0; i < WEAPON_TYPES.length; i++) if (WEAPON_TYPES[i].key === key) return WEAPON_TYPES[i]; return null; }
   function dmgType(key) { for (var i = 0; i < DMG_TYPES.length; i++) if (DMG_TYPES[i].key === key) return DMG_TYPES[i]; return null; }
   /* тип урону за замовчуванням для виду; зброя з головною «Магічний урон» — магічна */
@@ -648,6 +653,7 @@
     WEAPON_TYPES: WEAPON_TYPES,
     DMG_TYPES: DMG_TYPES,
     weaponType: weaponType,
+    kindLabel: kindLabel,
     dmgType: dmgType,
     defaultDmgType: defaultDmgType,
     bonusCls: bonusCls,
