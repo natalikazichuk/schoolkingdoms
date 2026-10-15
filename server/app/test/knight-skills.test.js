@@ -79,11 +79,50 @@ test('Сокира: шанс рахувати пів броні (кидок ли
   assert.ok(h1.pierce && h1.armor === 20, 'броня 40 → 20');
 });
 
-test('Голі руки: +урон лише без зброї', () => {
-  const a = battle({ 'knight.fists': 1 }, []).me.p, b = battle({}, []).me.p;
-  assert.strictEqual(a.dmgFlat - b.dmgFlat, 5);
-  const c = battle({ 'knight.fists': 1 }, [], [wear(SWORD, 'weaponR')]).me.p;
-  assert.strictEqual(c.dmgFlat, battle({}, [], [wear(SWORD, 'weaponR')]).me.p.dmgFlat);
+const KNUCK = item({ id: 'K1', name: 'Кастети', category: 'Зброя', stat: 'Урон', valueMin: 4, valueMax: 9, weaponType: 'knuckles', addStats: [{ stat: 'Дворучний', flag: true }] });
+test('Голі руки: без зброї урон 3–8 (з базою 11–16); з кастетами — урон кастетів; зі мечем — нічого', () => {
+  const a = battle({ 'knight.fists': 0.25 }, []).me.p, b = battle({}, []).me.p;
+  assert.strictEqual(a.wMin - b.wMin, 3); assert.strictEqual(a.wMax - b.wMax, 8, 'урон 3–8 не залежить від майстерності');
+  const k = battle({ 'knight.fists': 1 }, [], [wear(KNUCK, 'weaponR')]).me.p, k0 = battle({}, [], [wear(KNUCK, 'weaponR')]).me.p;
+  assert.strictEqual(k.wMin, k0.wMin); assert.strictEqual(k.wMax, k0.wMax);
+  const c = battle({ 'knight.fists': 1 }, [], [wear(SWORD, 'weaponR')]).me.p, c0 = battle({}, [], [wear(SWORD, 'weaponR')]).me.p;
+  assert.strictEqual(c.wMax, c0.wMax); assert.strictEqual(c.accuracy, c0.accuracy);
+  // кулак + щит: +10% точності на 100%
+  const s = battle({ 'knight.fists': 1 }, [], [wear(KNUCK, 'weaponR'), wear(SHIELD, 'weaponL')]).me.p;
+  assert.strictEqual(s.accuracy, Math.round(k0.accuracy * 1.1));
+});
+
+test('Кастети: не дворучні — щит у ліву можна, навіть з прапорцем «Дворучний»', () => {
+  assert.ok(!R.isTwoHanded(KNUCK));
+  const eq = R.handsFix([wear(KNUCK, 'weaponR'), wear(SHIELD, 'weaponL')]);
+  assert.strictEqual(eq.length, 2);
+  assert.strictEqual(K.kindLabel(KNUCK), '🥊 Кастети');
+});
+
+test('«Двійка»: лише з вільною лівою рукою, пів урону, ріст «Голих рук»', () => {
+  let combos = 0, turns = 0;
+  for (let k = 0; k < 40; k++) {
+    const st = battle({ 'knight.fists': 1 }, [], [wear(KNUCK, 'weaponR')]);
+    for (let i = 0; i < 5; i++) {
+      const e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now()); turns++;
+      assert.ok(e.meHit.combo && e.meHit.combo.need === 25);
+      const c = e.meHit.hits.filter(h => h.combo);
+      if (e.meHit.combo.ok) { combos++; assert.strictEqual(c.length, 1); if (c[0].parts) assert.ok(c[0].half); }
+      else assert.strictEqual(c.length, 0);
+      if (!st.status || st.status !== 'live') break;
+    }
+  }
+  assert.ok(combos > turns * 0.12 && combos < turns * 0.4, combos + '/' + turns);
+  const sh = battle({ 'knight.fists': 1 }, [], [wear(KNUCK, 'weaponR'), wear(SHIELD, 'weaponL')]);
+  const e = SB.turn(ctx, sh, { atk: 'head', block: 'body' }, {}, Date.now());
+  assert.ok(!e.meHit.combo, 'зі щитом двійки немає');
+  const g = SB.turn(ctx, battle({ 'knight.fists': 0.5 }, []), { atk: 'head', block: 'body' }, {}, Date.now());
+  assert.strictEqual(g.grow['knight.fists'][0] + g.grow['knight.fists'][1], g.meHit.hits.length);
+  // пів урону: той самий кидок — удвічі менше
+  const att = R.fighter({ health: 100, accuracy: 900, agility: 10 }, [], K), def = R.fighter({ health: 100, accuracy: 10, agility: 1 }, [], K);
+  const fix = () => { let i = 0; return () => [0, 0.5, 0.99][i++ % 3]; };
+  const full = R.strike(att, def, false, fix()), half = R.strike(Object.assign({}, att, { dmgMul: 0.5 }), def, false, fix());
+  assert.strictEqual(half.dmg, Math.round(full.dmg / 2));
 });
 
 test('Блок щитом: + до шансу блоку лише зі щитом; ріст від ударів у незахищене', () => {
@@ -176,8 +215,8 @@ test('Хоробрість: страх діє рідше, ріст за коже
   const r = SB.applyUse(ctx, st, st.op, st.me, 'op', { uid: 'f', id: 'F', base: FEAR }, () => 0.5);
   const f = r.fx.filter(x => x.type === 'fear')[0];
   if (f) {
-    assert.strictEqual(f.brave, 60);
-    assert.strictEqual(f.need, Math.round(90 * 0.4));
+    assert.strictEqual(f.brave, 90);
+    assert.strictEqual(f.need, Math.round(90 * 0.1), 'на 100% перший страх — лише 9%');
     assert.strictEqual((st.me.grow['knight.brave'] || 0) + (st.me.growF['knight.brave'] || 0), 1);
   }
 });

@@ -427,7 +427,7 @@
     if(window.SKIT) return Promise.resolve(window.SKIT);
     if(!skitP) skitP = new Promise(function(res){
       var s = document.createElement('script');
-      s.src = BASE + 'sk-items.js?v=14';
+      s.src = BASE + 'sk-items.js?v=15';
       s.onload = function(){ res(window.SKIT || null); };
       s.onerror = function(){ res(null); };
       document.head.appendChild(s);
@@ -494,8 +494,8 @@
   }
   function battleDeps(){
     return Promise.all([
-      window.SKARENA  ? true : loadScript('sk-arena-rules.js?v=19'),
-      window.SKBATTLE ? true : loadScript('sk-battle.js?v=15'),
+      window.SKARENA  ? true : loadScript('sk-arena-rules.js?v=20'),
+      window.SKBATTLE ? true : loadScript('sk-battle.js?v=16'),
       needSKIT()
     ]).then(function(){ return !!(window.SKARENA && window.SKBATTLE && window.SKIT); });
   }
