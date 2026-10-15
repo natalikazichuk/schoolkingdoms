@@ -317,3 +317,28 @@ test('журнал: знос речей за хід з назвами (і збе
   }
   assert.ok(seen.lost > 0 && seen.saved > 0, JSON.stringify(seen));
 });
+
+test('пояс бота: 5 комірок, у тесті — свитки (спершу страх); бот кидає страх → росте Хоробрість', () => {
+  const FEAR = item({ id: 'F', name: 'Свиток страху', category: 'Свиток', addStats: [{ stat: 'Страх', value: 1 }] });
+  const FIRE = item({ id: 'FS', name: 'Вогняний свиток', category: 'Свиток', stat: 'Магічний урон', valueMin: 5, valueMax: 9 });
+  const cat = [SWORD, FEAR, FIRE];
+  const belt = R.botBelt(cat, K);
+  assert.strictEqual(belt.length, 5);
+  assert.strictEqual(belt.filter(b => b.base.id === 'F').length, 2, 'два свитки страху');
+  assert.ok(belt.every(b => b.base.category === 'Свиток'));
+  R.BATTLE.botBeltTest = false; assert.strictEqual(R.botBelt(cat, K).length, 0, 'за замовчуванням — порожній'); R.BATTLE.botBeltTest = true;
+  let fears = 0, brave = 0;
+  for (let k = 0; k < 20; k++) {
+    const st = SB.create(ctx, { bid: 'bb-' + (n++),
+      me: { name: 'Я', stats: { health: 4000, accuracy: 60, agility: 50, mana: 0 }, eq: [], sk: { 'knight.brave': 0.5 }, skv: skvOf({ 'knight.brave': 0.5 }), bar: [] },
+      op: { f: { name: 'Бот', level: 3 }, p: R.fighter({ health: 4000, accuracy: 50, agility: 50, mana: 0 }, [], K), belt: R.botBelt(cat, K) } });
+    for (let i = 0; i < 30; i++) {
+      const e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+      (e.uses || []).forEach(u => { assert.strictEqual(u.side, 'op'); if (u.fx.some(x => x.type === 'fear' && !x.immune)) fears++; });
+    }
+    assert.ok(st.op.belt.filter(b => b.used).length <= 5);
+    brave += (st.me.grow['knight.brave'] || 0) + (st.me.growF['knight.brave'] || 0);
+  }
+  assert.ok(fears > 10, 'бот кидає страх: ' + fears);
+  assert.strictEqual(brave, fears, 'кожен страх — спрацювання Хоробрості');
+});

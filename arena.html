@@ -1670,8 +1670,8 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script type="module" src="firebase-config.js"></script>
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
-<script src="sk-arena-rules.js?v=20"></script>
-<script src="sk-battle.js?v=16"></script>
+<script src="sk-arena-rules.js?v=21"></script>
+<script src="sk-battle.js?v=17"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
    Інвентар, скриня, смітник, продане / куплене сьогодні й монети
@@ -1985,6 +1985,13 @@ window.SKHERO = (function(){
       }
     });
     html += '</div></div>';
+    if(!isP){   // пояс суперника: комірки botBeltSlots (порожні — «порожньо»), використане — прозоре
+      var ob = (B.op.belt||[]), nb = Math.max(ob.length, (CFG.botBeltSlots||5)), bh = '';
+      for(var bi=0; bi<nb; bi++){ var it = ob.filter(function(x){ return x.idx===bi; })[0];
+        bh += '<div class="bslot'+(it?' worn':' empty')+'" style="cursor:default'+(it&&it.used?';opacity:.4':'')+'"'+(it?' title="'+biEsc(((it.base&&it.base.name)||it.id)+(it.used?' (використано)':''))+'"':'')+'>'
+          + '<span class="ic">'+(it ? itemIcon(it.id, '📜') : '🪢')+'</span><span class="sl">'+(it ? biEsc((it.base&&it.base.name)||it.id)+(it.used?' ✓':'') : 'порожньо')+'</span></div>'; }
+      html += '<div><h4>🪢 Пояс суперника</h4><div class="bislots">'+bh+'</div></div>';
+    }
     if(isP){
       html += '<div><h4>Сумка</h4>';
       if(BI.inv == null) html += '<div class="biempty">Завантаження речей…</div>';
@@ -2839,7 +2846,7 @@ window.SKHERO = (function(){
           me: { name: hero.name, avatar: hero.avatar, level: arena.level,
                 stats: {health:hero.health, accuracy:hero.accuracy, agility:hero.agility, mana:hero.mana}, eq: r.eq, belt: r.belt||[],
                 sk: r.sk||{}, skv: r.skv||{}, bar: r.bar||[] },
-          op: { f: bot, p: bp }
+          op: { f: bot, p: bp, belt: RULES.botBelt ? RULES.botBelt(r.catalog, window.SKIT) : [] }
         });
         // для «+1%» у бою: скільки спрацювань і невдач було на старті (як рахує сервер)
         st.me.use0 = r.use0 || {}; st.me.fail0 = r.fail0 || {};

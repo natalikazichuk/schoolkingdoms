@@ -315,6 +315,15 @@
     st.me.use = uid; st.me.useRound = st.round; st.swapRound = 0; st.rev++;
     return true;
   }
+  /* бот і пояс: з шансом botBeltUse за хід бере випадкову невикористану річ
+     (не коли лежить оглушений і не коли бій уже вирішено) */
+  function botUse(ctx, st) {
+    var B = ctx.R.BATTLE || {}, left = (st.op.belt || []).filter(function (b) { return !b.used; });
+    if (st.op.use || !left.length || knockedNow(st, st.op) || st.me.force <= 0 || st.op.force <= 0) return;
+    var r = rng(st.bid + '|' + st.round + '|botuse');
+    if (ctx.R.d100(r) > num(B.botBeltUse)) return;
+    st.op.use = pick(left, r).uid;
+  }
   /* одна дія з пояса: actor використовує item проти target. Повертає запис для журналу. */
   function applyUse(ctx, st, actor, target, side, item, rnd) {
     var R = ctx.R, B = R.BATTLE || {}, fa = fxOf(actor), ft = fxOf(target);
@@ -423,7 +432,7 @@
         // вміння: {id: м 0…1} лише вивчені; панель — лише вивчені активні
         sk: skillSnap(o.me.sk), skv: skillVals(o.me.sk, o.me.skv), bar: (o.me.bar || []).filter(function (id) { return id && o.me.sk && o.me.sk[id] != null; }),
         skill: null, cd: {}, once: {}, grow: {}, growF: {}, bond: { uid: null, n: 0 } },
-      op: { f: o.op.f, p: o.op.p, atk: null, block: null, fx: { buffs: {}, barrier: 0, fear: 0 } },
+      op: { f: o.op.f, p: o.op.p, atk: null, block: null, fx: { buffs: {}, barrier: 0, fear: 0 }, belt: beltLite(o.op.belt), use: null },
       wear: newWear(), swapRound: 0, played: 0, missed: 0, log: [], summary: null
     };
     st.me.p = profile(ctx, st);
@@ -518,12 +527,13 @@
     var R = ctx.R, fm = fxOf(st.me), fo = fxOf(st.op);
     var g0 = clone(st.me.grow || {}), f0 = clone(st.me.growF || {});   // для журналу: ріст вмінь за цей хід
     // 1) пояс — до ударів. Обидва щось використали — 🎲 хто перший (свиток страху першого
-    //    може зірвати дію другого). Бот поясом не користується (st.op.use завжди порожній).
+    //    може зірвати дію другого). Бот бере річ із пояса сам (botUse, BATTLE.botBeltUse).
     var acts = [], ur = rng(st.bid + '|' + st.round + '|use');
     var meKnocked = knockedNow(st, st.me);                         // Героя оглушили — ні пояса, ні вміння, ні удару
     var mi = st.me.use && !meKnocked ? beltItem(st, st.me.use) : null;
     if (mi && !mi.used) acts.push({ side: 'me', item: mi });
-    var oi = st.op.use ? ((st.op.belt || []).filter(function (b) { return b.uid === st.op.use; })[0] || null) : null;
+    botUse(ctx, st);
+    var oi = st.op.use && !knockedNow(st, st.op) ? ((st.op.belt || []).filter(function (b) { return b.uid === st.op.use; })[0] || null) : null;
     if (oi && !oi.used) acts.push({ side: 'op', item: oi });
     var first = null;
     if (acts.length > 1) {
