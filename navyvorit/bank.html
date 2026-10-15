@@ -93,6 +93,7 @@ body.flipped #sign{border-color:#8e3fb0; color:#8e3fb0;}
   }
 
   function nextVisitor(){
+    if(vi >= list.length) return;   // відвідувачі скінчились — кнопку натиснули ще раз, поки йде перехід
     var v = list[vi], vis = NAV.$("visitor");
     NAV.busy = true; bubble("");
     vis.style.transition = "none"; vis.style.left = "-50px"; vis.textContent = v.em; vis.getBoundingClientRect(); vis.style.transition = "";
@@ -107,8 +108,9 @@ body.flipped #sign{border-color:#8e3fb0; color:#8e3fb0;}
         log.push({t:v.em+" "+v.nm+" "+(v.leave ? (v.f?"залишила ":"залишив ") : (v.f?"забрала ":"забрав "))+v.c+" 🪙 → "+(rew ? "🏅 нагорода +"+(v.c*2)+" 🪙" : "нічого 😐"), cls:rew?"good":"bad"});
         renderLog();
         setTimeout(function(){
-          vis.style.left = "110%"; vi++; NAV.busy = false;
-          if(vi >= list.length){ setTimeout(stage==="obs1" ? askRule1 : askRule2, 700); return; }
+          vis.style.left = "110%"; vi++;
+          if(vi >= list.length){ setTimeout(stage==="obs1" ? askRule1 : askRule2, 700); return; }   // busy лишається, доки не з'явиться питання
+          NAV.busy = false;
           NAV.hint("Цікаво… Подивись на наступного.");
         }, 900);
       }, 900);
