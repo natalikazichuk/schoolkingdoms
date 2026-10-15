@@ -8,7 +8,7 @@
    сторінка могла показати картку «Ти отримав нагороду — …».
 
    Підключення (після firebase-config / sk-items / sk-curriculum / sk-rewards):
-     <script src="../sk-prize.js?v=1"></script>
+     <script src="../sk-prize.js?v=2"></script>
 
    API:
      SKPRIZE.summary(key)            → null | {} | {coins, names[], stat}
