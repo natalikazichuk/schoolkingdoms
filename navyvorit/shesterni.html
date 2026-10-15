@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Шестерні — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<link rel="stylesheet" href="nav-common.css">
+<style>
+/* ── майстерня шестерень ── */
+#scene{height:210px; background:linear-gradient(180deg,#e9ecef 0%,#f8f9fa 100%); display:flex; align-items:center; justify-content:center;}
+body.flipped #scene{background:linear-gradient(180deg,#e5dbff 0%,#f3f0ff 100%);}
+#rig{display:flex; align-items:center; justify-content:center;}
+.gear{position:relative; display:flex; flex-direction:column; align-items:center; margin:0 -6px;}
+.gear .g{line-height:1; transition:transform 2.2s cubic-bezier(.4,0,.2,1); filter:drop-shadow(0 3px 0 rgba(0,0,0,.15));}
+.gear .t{font-weight:800; font-size:12px; color:var(--soft); margin-top:2px; white-space:nowrap;}
+.gear .d{position:absolute; top:-20px; font-size:18px; font-weight:800; color:#e8590c;}
+.gear.first .g{filter:drop-shadow(0 3px 0 rgba(0,0,0,.15)) hue-rotate(160deg) saturate(1.6);}
+#cnt{position:absolute; top:8px; left:10px; background:#fff; border:2px solid var(--line); border-radius:12px; padding:3px 10px; font-weight:800; font-size:13px;}
+#cnt:empty{display:none;}
+</style>
+</head>
+<body>
+<script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
+<script src="nav-common.js"></script>
+<script>
+(function(){
+  "use strict";
+  var TOTAL = 5, log, rig, angles;
+
+  NAV.mount({
+    next: "gravitatsiya.html",   // «Вирушай далі! ›» — наступний пункт карти
+    title:"Шестерні", emoji:"⚙️⚙️", sub:"Логіка · Світ навиворіт · 5 кроків",
+    riddle:"У лабораторії неможливого крутяться шестерні. Велика має <b>8 зубців</b>, мала — <b>4</b>.<span class='seq'>⚙️ 8 ↻ 1 оберт → ⚙️ 4 ?</span>Скільки обертів зробить мала і в який бік? А потім — 🔄 переворот, і шестерень стане більше…",
+    play:"До шестерень ▶", steps:TOTAL, crown:"⚙️✨",
+    badgeOff:"⚙️ дві шестерні", badgeOn:"🔄 ланцюжок шестерень",
+    prizeKey:"sk_shesterni_prize_v1", href:"shesterni.html", doneText:"Механізм запущено — нагороду отримано!",
+    winTitle:"Механізм запущено!", winPerfect:"Жодна шестерня не заклинила!",
+    lesson:[
+      "Зубці сусідніх шестерень проходять <b>однаково</b>: велика (8) за оберт штовхає 8 зубців — мала (4) робить <b>2 оберти</b>.",
+      "Сусідні шестерні крутяться в <b>різні боки</b>: ↻ поруч із ↺.",
+      "🔄 У ланцюжку напрямок чергується: 1-ша ↻, 2-га ↺, 3-тя ↻… Шестерні на <b>непарних</b> місцях крутяться як перша."
+    ],
+    scene:'<div id="cnt"></div><div id="rig"></div>',
+    afterScene:'<div class="log" id="log"></div>',
+    onStart:startGame
+  });
+
+  function renderLog(){
+    var box = NAV.$("log"); box.innerHTML = '<div class="lh">📒 Журнал механіка</div>';
+    if(!log.length){ box.appendChild(NAV.el("div","empty","Поки нічого.")); return; }
+    var rows = NAV.el("div","rows"); log.slice(-3).forEach(function(r){ rows.appendChild(NAV.el("div","r",r)); }); box.appendChild(rows);
+  }
+  /* list — кількість зубців кожної шестерні зліва направо */
+  function build(list, label){
+    rig = list; angles = list.map(function(){ return 0; });
+    var box = NAV.$("rig"); box.innerHTML = "";
+    var big = list.length > 3 ? 0.62 : 1;
+    list.forEach(function(t, i){
+      var d = NAV.el("div","gear"+(i===0?" first":""),'<span class="d" id="gd'+i+'"></span><span class="g" id="g'+i+'" style="font-size:'+Math.round(Math.min(30 + t*6, 120)*big)+'px">⚙️</span><span class="t">'+(label ? label(i) : t+(t<5 ? " зубці" : " зубців"))+'</span>');
+      box.appendChild(d);
+    });
+    NAV.$("cnt").innerHTML = "";
+  }
+  function dirOf(i, first){ return i%2 ? -first : first; }   // сусіди — в інший бік
+  function arrow(d){ return d>0 ? "↻" : "↺"; }
+  /* перша робить turns обертів у бік first (+1 ↻, −1 ↺) */
+  function spin(turns, first, cb, showDirs){
+    rig.forEach(function(t, i){
+      var tr = turns * rig[0] / t, d = dirOf(i, first);
+      angles[i] += d * tr * 360;
+      NAV.$("g"+i).style.transform = "rotate("+angles[i]+"deg)";
+      if(showDirs) NAV.$("gd"+i).textContent = arrow(d);
+    });
+    NAV.snd.tone(260,0.5,"sawtooth",0.025);
+    setTimeout(cb, 2400);
+  }
+  function numOpts(right, list, why){
+    return list.map(function(n){ return n===right ? {tx:String(n), ok:true} : {tx:String(n), why:why(n)}; });
+  }
+
+  function startGame(){
+    log = []; NAV.step(0,TOTAL); renderLog();
+    build([8,4]);
+    NAV.hint("Велика шестерня зробить <b>1 оберт</b> ↻. А мала?");
+    NAV.question("Скільки обертів зробить мала шестерня (4 зубці)?", numOpts(2, [1,2,4,8], function(n){
+      return ({1:"Мала менша — вона мусить крутитись швидше! Порахуй зубці: 8 зубців великої — це скільки разів по 4?",
+               4:"Забагато. Велика за оберт штовхає 8 зубців, а в малої їх 4: 8 = 4 + 4.",
+               8:"8 — це зубці великої шестерні. А обертів малої — 8 : 4."})[n];
+    }), function(){
+      spin(1, 1, function(){
+        NAV.$("cnt").innerHTML = "⚙️8: 1 оберт · ⚙️4: <b>2 оберти</b>";
+        log.push("⚙️ 8 → 1 оберт, ⚙️ 4 → <b>2 оберти</b>"); renderLog();
+        NAV.hint("Так! 8 зубців = 2 × 4 — мала робить два оберти.","good");
+        setTimeout(step2, 1000);
+      });
+    }, {cols:4, big:true, keepOrder:true});
+  }
+
+  function step2(){
+    NAV.step(1,TOTAL);
+    NAV.$("gd0").textContent = "↻"; NAV.$("gd1").textContent = "?";
+    NAV.hint("Велика крутиться <b>за годинниковою</b> стрілкою ↻.");
+    NAV.question("Куди крутиться мала?", [
+      {tx:"↺ Проти годинникової", ok:true},
+      {tx:"↻ Так само, за годинниковою", why:"Зубці штовхають одне одного — сусідня шестерня завжди крутиться в <b>інший</b> бік."},
+      {tx:"Стоїть на місці", why:"Зубці зчеплені — якщо крутиться велика, крутиться й мала."}
+    ], function(){
+      spin(1, 1, function(){
+        log.push("⚙️ ↻ поруч → <b>↺</b>"); renderLog();
+        NAV.hint("Правильно! Сусіди крутяться в різні боки.","good");
+        setTimeout(step3, 1000);
+      }, true);
+    });
+  }
+
+  function step3(){
+    NAV.step(2,TOTAL);
+    var pairs = [[12,4],[12,6],[16,8],[16,4],[6,3],[10,5]], p = NAV.pick(pairs), k = NAV.pick([1,2]), right = p[0]*k/p[1];
+    build(p);
+    NAV.hint("Нова пара: <b>"+p[0]+"</b> і <b>"+p[1]+"</b> зубців. Велика зробить <b>"+k+"</b> "+(k===1?"оберт":"оберти")+".");
+    var c = [right, right*2, k, p[0]*k].concat([right+1, right-1]).filter(function(n, i, a){ return n>0 && a.indexOf(n)===i; }).slice(0,4).sort(function(a,b){ return a-b; });
+    NAV.question("Скільки обертів зробить мала?", numOpts(right, c, function(){
+      return "Велика проштовхне "+p[0]+" × "+k+" = "+(p[0]*k)+" зубців. Скільки разів у цьому числі по "+p[1]+"?";
+    }), function(){
+      spin(k, 1, function(){
+        log.push("⚙️ "+p[0]+" × "+k+" = "+(p[0]*k)+" зубців → ⚙️ "+p[1]+": <b>"+right+" об.</b>"); renderLog();
+        NAV.hint("Так! Рахуй зубці, а не розмір.","good");
+        setTimeout(flip, 1000);
+      });
+    }, {cols:4, big:true, keepOrder:true});
+  }
+
+  function flip(){
+    NAV.modal("🔄","Навиворіт!","Механік додав <b>третю шестерню</b>! Тепер їх три в ряд: 8 → 4 → 8. Як крутитиметься остання?",{nav:true, btn:"🔄 Перевернути"}, function(){
+      NAV.snd.whoosh(); NAV.flipAnim();
+      setTimeout(function(){
+        NAV.setFlip(true); NAV.step(3,TOTAL);
+        log.push("🔄 <b>Три шестерні: 8 → 4 → 8</b>"); renderLog();
+        build([8,4,8]);
+        NAV.$("gd0").textContent = "↻"; NAV.$("gd1").textContent = "?"; NAV.$("gd2").textContent = "?";
+        NAV.hint("Перша крутиться ↻. Друга — в інший бік. А <b>третя</b>?");
+        NAV.question("Куди крутиться третя шестерня?", [
+          {tx:"↻ Так само, як перша", ok:true},
+          {tx:"↺ Як друга", why:"Третя сусідить із другою — тож крутиться <b>навпаки до другої</b>."},
+          {tx:"Стоїть", why:"Усі зубці зчеплені — крутяться всі три."}
+        ], function(){
+          NAV.hint("Так! А скільки обертів зробить третя, коли перша зробить 1?","good");
+          setTimeout(function(){
+            NAV.question("Скільки обертів зробить третя (8 зубців)?", numOpts(1, [1,2,4], function(n){
+              return n===2 ? "2 оберти робить середня (4 зубці). А третя має 8 зубців, як перша." : "Забагато. Порахуй зубці: третя така сама, як перша.";
+            }), function(){
+              spin(1, 1, function(){
+                log.push("⚙️ 8 ↻ → 4 ↺ → 8 <b>↻, 1 оберт</b>"); renderLog();
+                NAV.hint("Так! Третя — як перша: той самий бік і 1 оберт.","good");
+                setTimeout(step5, 1000);
+              }, true);
+            }, {cols:3, big:true, keepOrder:true});
+          }, 1200);
+        });
+      }, 500);
+    });
+  }
+
+  function step5(){
+    NAV.step(4,TOTAL);
+    var n = NAV.rnd(4,6), first = NAV.pick([1,-1]), list = [];
+    for(var i=0;i<n;i++) list.push(i%2 ? 4 : 8);
+    build(list, function(i){ return "№"+(i+1); });
+    NAV.$("gd0").textContent = arrow(first);
+    for(var j=1;j<n;j++) NAV.$("gd"+j).textContent = j===n-1 ? "?" : "";
+    var right = dirOf(n-1, first);
+    NAV.hint("Ланцюжок із <b>"+n+"</b> шестерень. Перша крутиться "+arrow(first)+".");
+    NAV.question("Куди крутиться остання, №"+n+"?", [
+      {tx:arrow(right)+" "+(right>0 ? "За годинниковою" : "Проти годинникової"), ok:true},
+      {tx:arrow(-right)+" "+(right>0 ? "Проти годинникової" : "За годинниковою"), why:"Порахуй по черзі: №1 "+arrow(first)+", №2 "+arrow(-first)+", №3 "+arrow(first)+"… Як перша крутяться шестерні з <b>непарними</b> номерами."}
+    ], function(){
+      spin(1, first, function(){
+        log.push("⚙️ ×"+n+": №1 "+arrow(first)+" → №"+n+" <b>"+arrow(right)+"</b>"); renderLog();
+        NAV.hint("Чудово! Механізм запущено ⚙️","good");
+        setTimeout(NAV.finish, 1400);
+      }, true);
+    });
+  }
+})();
+</script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=12"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=4"></script>
+<script src="../sk-prize.js?v=1"></script>
+<script src="../sk-finish.js?v=6"></script>
+</body>
+</html>

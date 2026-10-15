@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Кімната без гравітації — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<link rel="stylesheet" href="nav-common.css">
+<style>
+/* ── кімната без гравітації ── */
+#scene{height:230px; background:linear-gradient(180deg,#5c6b8a 0 14px,#1f2a48 14px,#2d3b63 60%,#3b4a75 calc(100% - 14px),#5c6b8a calc(100% - 14px));}
+body.flipped #scene{background:linear-gradient(180deg,#7b5ea7 0 14px,#2e1f48 14px,#45306b 60%,#563d82 calc(100% - 14px),#7b5ea7 calc(100% - 14px));}
+#scene .star{position:absolute; color:#fff; opacity:.5; font-size:10px;}
+#magnet{position:absolute; left:50%; top:12px; transform:translateX(-50%) rotate(180deg); font-size:40px; transition:top .8s, transform .8s;}
+body.flipped #magnet{top:calc(100% - 56px); transform:translateX(-50%) rotate(0deg);}
+#obj{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-size:44px; transition:top 1.1s cubic-bezier(.5,0,.3,1); z-index:2;}
+#obj.bob{animation:bob 1.6s ease-in-out infinite;}
+@keyframes bob{50%{transform:translate(-50%,calc(-50% - 10px)) rotate(8deg)}}
+#obj .wood{filter:sepia(1) saturate(2.2) hue-rotate(-10deg) brightness(.85);}
+#objName{position:absolute; left:10px; top:22px; background:#fff; border-radius:12px; padding:3px 10px; font-weight:800; font-size:13px;}
+#gravity{position:absolute; right:10px; top:22px; background:rgba(255,255,255,.9); border-radius:12px; padding:3px 10px; font-weight:800; font-size:12px;}
+</style>
+</head>
+<body>
+<script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
+<script src="nav-common.js"></script>
+<script>
+(function(){
+  "use strict";
+  var TOTAL = 5, log;
+  var METAL = [{em:"🔑", nm:"залізний ключ", adj:"металевий"}, {em:"🔩", nm:"гвинт", adj:"металевий"}, {em:"🥄", nm:"ложка", adj:"металева"}, {em:"📎", nm:"скріпка", adj:"металева"}, {em:"🪛", nm:"викрутка", adj:"металева"}];
+  var SOFT  = [{em:"🪶", nm:"перо"}, {em:"🧸", nm:"ведмедик"}, {em:"🍎", nm:"яблуко"}, {em:"📗", nm:"книжка"}, {em:"🧦", nm:"шкарпетка"}];
+  var UP = "up", DOWN = "down", STAY = "stay";
+  var TX = {up:"⬆️ Полетить до стелі", down:"⬇️ Опуститься на підлогу", stay:"〰️ Плаватиме на місці"};
+
+  NAV.mount({
+    next: "kameni.html",   // «Вирушай далі! ›» — наступний пункт карти
+    title:"Кімната без гравітації", emoji:"🪐🧲", sub:"Логіка · Світ навиворіт · 5 кроків",
+    riddle:"У цій кімнаті <b>немає гравітації</b> — нічого не падає! А на стелі висить великий магніт 🧲.<span class='seq'>🔑 ? 🧲</span>Що станеться з металевим ключем? А потім — 🔄 переворот, і гравітація повернеться… навиворіт.",
+    play:"У кімнату ▶", steps:TOTAL, crown:"🪐✨",
+    badgeOff:"🪐 гравітації немає", badgeOn:"🔄 гравітація вгору",
+    prizeKey:"sk_gravitatsiya_prize_v1", href:"gravitatsiya.html", doneText:"Кімнату розгадано — нагороду отримано!",
+    winTitle:"Кімнату розгадано!", winPerfect:"Жоден предмет не полетів не туди!",
+    lesson:[
+      "Магніт притягує <b>лише метал</b>: ключ, гвинт, ложку. Перо чи яблуко він не помічає.",
+      "Без гравітації ніщо не падає — немагнітні предмети просто <b>плавають</b> на місці.",
+      "🔄 Навиворіт гравітація тягне <b>вгору</b>, а магніт — на підлозі. Метал летить до магніту вниз, а все інше «падає» на стелю."
+    ],
+    scene:'<span class="star" style="left:12%;top:40%">✦</span><span class="star" style="left:82%;top:62%">✦</span><span class="star" style="left:30%;top:78%">✦</span><span class="star" style="left:70%;top:30%">✦</span>'+
+          '<span id="magnet">🧲</span><div id="objName"></div><div id="gravity">🪐 гравітації немає</div><span id="obj"></span>',
+    afterScene:'<div class="log" id="log"></div>',
+    onStart:startGame
+  });
+
+  function renderLog(){
+    var box = NAV.$("log"); box.innerHTML = '<div class="lh">📒 Журнал дослідника</div>';
+    if(!log.length){ box.appendChild(NAV.el("div","empty","Поки нічого.")); return; }
+    var rows = NAV.el("div","rows"); log.slice(-3).forEach(function(r){ rows.appendChild(NAV.el("div","r",r)); }); box.appendChild(rows);
+  }
+  function show(o, wood){
+    var e = NAV.$("obj"); e.style.transition = "none"; e.style.top = "50%"; void e.offsetWidth; e.style.transition = "";
+    e.innerHTML = '<span'+(wood ? ' class="wood"' : '')+'>'+o.em+'</span>'; e.classList.add("bob");
+    NAV.$("objName").textContent = o.em+" "+o.nm;
+  }
+  function move(where, cb){
+    var e = NAV.$("obj");
+    if(where!==STAY){ e.classList.remove("bob"); e.style.top = where===UP ? "52px" : "calc(100% - 44px)"; NAV.snd.tone(where===UP ? 700 : 300, 0.25, "sine"); }
+    else NAV.snd.tone(520, 0.15, "sine");
+    setTimeout(cb, 1300);
+  }
+  /* відповідь: звичайний світ — магніт на стелі, гравітації немає; навиворіт — магніт на підлозі, гравітація вгору */
+  function fate(metal){ return NAV.flipped ? (metal ? DOWN : UP) : (metal ? UP : STAY); }
+  function opts(right, why){ return [UP, STAY, DOWN].map(function(k){ return k===right ? {tx:TX[k], ok:true} : {tx:TX[k], why:why(k)}; }); }
+
+  function ask(o, metal, wood, q, why, done){
+    show(o, wood);
+    NAV.question(q || "Що станеться з предметом "+o.em+"?", opts(fate(metal), why), function(){
+      var f = fate(metal);
+      move(f, function(){
+        log.push(o.em+" "+o.nm+" → <b>"+TX[f].replace(/^\S+ /,"").toLowerCase()+"</b>"); renderLog();
+        done();
+      });
+    }, {cols:1, keepOrder:true});
+  }
+
+  function startGame(){
+    log = []; NAV.step(0,TOTAL); renderLog(); NAV.$("gravity").textContent = "🪐 гравітації немає";
+    NAV.hint("Ключ металевий. Гравітації немає. Магніт — на стелі.");
+    ask(METAL[0], true, false, "Що станеться з металевим ключем 🔑?", function(k){
+      return k===STAY ? "Ключ металевий — магніт його притягує!" : "Гравітації немає — ніщо не падає. Але магніт на стелі тягне метал.";
+    }, function(){
+      NAV.hint("Так! Магніт притягнув ключ до стелі.","good");
+      setTimeout(step2, 1000);
+    });
+  }
+
+  function step2(){
+    NAV.step(1,TOTAL);
+    var o = NAV.pick(SOFT);
+    NAV.hint("А тепер — "+o.nm+". Подумай: що притягує магніт?");
+    ask(o, false, false, null, function(k){
+      return k===UP ? "Магніт притягує лише <b>метал</b>, а "+o.nm+" — не металевий предмет." : "Гравітації немає — нічого не падає на підлогу!";
+    }, function(){
+      NAV.hint("Правильно! Не метал — магніт не тягне, а впасти без гравітації не можна.","good");
+      setTimeout(step3, 1000);
+    });
+  }
+
+  function step3(){
+    NAV.step(2,TOTAL);
+    NAV.hint("Подивись у журнал 📒 — яке правило кімнати?");
+    NAV.question("Як поводяться предмети?", [
+      {tx:"Метал летить до магніту, інше — плаває на місці", ok:true},
+      {tx:"Усе летить до магніту", why:"Перо, яблуко, книжку магніт не притягує — вони не металеві."},
+      {tx:"Усе падає на підлогу", why:"Гравітації ж немає — падати нікуди!"}
+    ], function(){ setTimeout(flip, 900); });
+  }
+
+  function flip(){
+    NAV.modal("🔄","Навиворіт!","Гравітацію ввімкнули — але <b>навиворіт</b>: тепер усе падає <b>вгору, на стелю</b>! А магніт переставили <b>на підлогу</b>. Магніт сильніший за гравітацію.",{nav:true, btn:"🔄 Перевернути"}, function(){
+      NAV.snd.whoosh(); NAV.flipAnim();
+      setTimeout(function(){
+        NAV.setFlip(true); NAV.step(3,TOTAL); NAV.$("gravity").textContent = "⬆️ гравітація вгору";
+        log.push("🔄 <b>Гравітація вгору, магніт — на підлозі!</b>"); renderLog();
+        NAV.hint("Ось ключ — але <b>дерев'яний</b>. Гравітація тягне вгору, магніт — унизу.");
+        ask({em:"🗝️", nm:"дерев'яний ключ"}, false, true, "Що станеться з дерев'яним ключем?", function(k){
+          return k===STAY ? "Так було б без гравітації. А тепер гравітація є — і тягне <b>вгору</b>!" : "Магніт не притягує дерево! Тож діє лише гравітація — а вона навиворіт.";
+        }, function(){
+          NAV.hint("Так! Дерево магніт не тягне — ключ «упав» на стелю.","good");
+          setTimeout(step5, 1000);
+        });
+      }, 500);
+    });
+  }
+
+  function step5(){
+    NAV.step(4,TOTAL);
+    var o = NAV.pick(METAL.slice(1));
+    NAV.hint("Останній предмет — "+o.nm+". Гравітація тягне вгору, але магніт сильніший…");
+    ask(o, true, false, null, function(k){
+      return k===UP ? "Гравітація тягне вгору — але "+o.nm+" "+o.adj+", а магніт на підлозі сильніший!" : "Тепер є гравітація, тож плавати на місці не вийде. А куди тягне сильніший — магніт?";
+    }, function(){
+      NAV.hint("Чудово! Метал — до магніту на підлогу.","good");
+      setTimeout(NAV.finish, 1400);
+    });
+  }
+})();
+</script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=12"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=4"></script>
+<script src="../sk-prize.js?v=1"></script>
+<script src="../sk-finish.js?v=6"></script>
+</body>
+</html>
