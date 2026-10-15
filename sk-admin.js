@@ -12,7 +12,7 @@
    пише whenReady() — один раз на всіх.
 
    ПІДКЛЮЧЕННЯ (звичайним тегом, до інлайн-скрипта сторінки):
-     <link rel="stylesheet" href="sk-admin.css?v=1">
+     <link rel="stylesheet" href="sk-admin.css?v=2">
      <script src="sk-admin.js?v=1"></script>
 
    API:

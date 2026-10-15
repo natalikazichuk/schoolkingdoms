@@ -49,7 +49,8 @@ const REPLACE = {
   'firebase-config.js': 'sk-demo.js',
   'sk-rewards.js': 'stubs/sk-rewards.js',
   'sk-report.js': 'stubs/sk-report.js',
-  'sk-progress.js': 'stubs/sk-progress.js'
+  'sk-progress.js': 'stubs/sk-progress.js',
+  'sk-activity.js': 'stubs/sk-activity.js'
 };
 /* Сторінки повної версії, яких у демо немає → редірект на демо-головну. */
 const REDIRECTS = [

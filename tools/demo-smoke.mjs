@@ -39,9 +39,10 @@ const REDIRECT_STUBS = new Set(['hero.html', 'arena.html', 'login.html', 'auth.h
   'inventar.html', 'ekipirovka.html', 'karta.html', 'navchannia.html', 'doshkillya.html', 'tests.html',
   'biblioteka.html', 'book.html', 'slovnyk-en.html', 'admin.html']);
 
-/* Файли, яких немає і в повній версії (не помилка демо): показуємо попередженням.
-   audio/infcomp_N.mp3 — необовʼязкова озвучка слайдів (сторінка має запасний варіант). */
-const KNOWN_MISSING = ['audio/infcomp_', 'img/sl/dzob.webp', 'img/sl/zozulia.webp', 'img/sl/zahadka.webp'];
+/* Файли, яких немає і в повній версії (не помилка демо — прогалина контенту,
+   сторінки мають запасний варіант): показуємо попередженням. */
+const REPO = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+const missingInFull = p => !fs.existsSync(path.join(REPO, decodeURIComponent(p.split('?')[0])));
 const known = new Set();
 
 async function visit(url) {
@@ -49,7 +50,7 @@ async function visit(url) {
   const onResp = r => {
     if (!r.url().startsWith(ORIGIN) || r.status() < 400) return;
     const p = r.url().slice(ORIGIN.length);
-    if (KNOWN_MISSING.some(k => p.startsWith(k))) known.add(p); else issues.push(r.status() + ' ' + p);
+    if (missingInFull(p)) known.add(p); else issues.push(r.status() + ' ' + p);
   };
   const onReq = r => { if (!r.url().startsWith(ORIGIN) && /firebase|identitytoolkit|googleapis\.com\/(identity|google\.firestore)/i.test(r.url())) issues.push('FIREBASE ' + r.url()); };
   const onErr = e => issues.push('JS ' + e.message.split('\n')[0]);

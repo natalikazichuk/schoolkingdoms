@@ -87,7 +87,7 @@
   if(!window.__skReportMounted && !document.getElementById('sk-report-loader')){
     var rep = document.createElement('script');
     rep.id = 'sk-report-loader';
-    rep.src = BASE + 'sk-report.js?v=2';
+    rep.src = BASE + 'sk-report.js?v=7';
     rep.defer = true;
     (document.body || document.head || document.documentElement).appendChild(rep);
   }
