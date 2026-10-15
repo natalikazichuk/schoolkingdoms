@@ -357,7 +357,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
   var NS="http://www.w3.org/2000/svg";
   var PAGE_W=210, PAGE_H=297;
   var SITE="school-king.pp.ua", LOGO="../logo-small.png", LOGO_AR=336/209;
-  var M={top:16, bottom:14, left:24, right:10};
+  var M={top:16, bottom:10, left:8, right:8}, GL=M.left;  /* GL — лівий край сітки (сітка по центру аркуша) */
   var DIGIT_FONT="'Nunito','Segoe UI',Arial,sans-serif";
   var SVG=document.getElementById('page');
   var txt=document.getElementById('txt');
@@ -787,8 +787,8 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     g.appendChild(el("line",{x1:7,y1:8,x2:26,y2:23,stroke:"#2f6fc8","stroke-width":0.25}));
   }
   function trail(g){
-    g.appendChild(P("M53,18 C63,10 77,10 87,15 C93,18 96,16 97,13",{fill:"none",stroke:"#8fbdf0","stroke-width":0.5,"stroke-dasharray":"1.6 1.5","stroke-linecap":"round"}));
-    g.appendChild(heart(51,17,1.7,"none","#8fbdf0",0.5));
+    g.appendChild(P("M51,18 C59,11 69,11 77,15 C81,17 83,16 84,14",{fill:"none",stroke:"#8fbdf0","stroke-width":0.5,"stroke-dasharray":"1.6 1.5","stroke-linecap":"round"}));
+    g.appendChild(heart(49,17,1.7,"none","#8fbdf0",0.5));
   }
   function clip(g){
     g.appendChild(el("polygon",{points:"158.5,15 171.5,15 168.5,6 161.5,6",fill:"#2f7fd0",stroke:"#2569b4","stroke-width":0.2,"stroke-linejoin":"round"}));
@@ -830,21 +830,13 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
       g.appendChild(P(starPath(p[0],p[1],1.2,0.4,-90),{fill:"#7fb0ea"}));
     });
   }
-  function holes(g,y0,y1){
-    var n=7;
-    for(var i=0;i<n;i++){
-      var y=y0+(y1-y0)*i/(n-1);
-      g.appendChild(el("circle",{cx:10,cy:y,r:2.3,fill:"#ffffff",stroke:"#c3cfe6","stroke-width":0.45}));
-    }
-  }
   function appendDecor(blockTop,blockBottom){
     var g=el("g",{});
     plane(g); trail(g); clip(g); starFace(g,160,26,8.5,4);
-    g.appendChild(pencil(11,248,-10,"#29a6f0","#1f74c4"));
-    g.appendChild(pencil(18,250,-4,"#ffce3a","#e0a41f"));
-    g.appendChild(eraser(5,287,-9));
+    g.appendChild(pencil(10,285.5,-92,"#29a6f0","#1f74c4"));
+    g.appendChild(pencil(14,291,-89,"#ffce3a","#e0a41f"));
+    g.appendChild(eraser(52,285.5,-6));
     corner(g);
-    holes(g, Math.max(34,blockTop-1), Math.min(244,blockBottom+1));
     SVG.appendChild(g);
   }
 
@@ -854,27 +846,27 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
   function drawPageBase(TOP, decor){
     while(SVG.firstChild) SVG.removeChild(SVG.firstChild);
     SVG.appendChild(el("rect",{x:0,y:0,width:PAGE_W,height:PAGE_H,fill:"#ffffff"}));
-    /* логотип у шапці аркуша: з оздобленням — між літачком і зірочкою, без нього — зліва вгорі */
+    /* логотип у шапці аркуша — по центру */
     var LH = decor ? 21 : 12.5, LW=LH*LOGO_AR;
-    var lx = decor ? 121-LW/2 : M.left, ly = decor ? 2 : 1.5;
+    var lx = PAGE_W/2-LW/2, ly = decor ? 2 : 1.5;
     var logo=el("image",{x:lx, y:ly, width:LW, height:LH, preserveAspectRatio:"xMidYMid meet"});
     logo.setAttribute("href", LOGO); logo.setAttributeNS("http://www.w3.org/1999/xlink","xlink:href", LOGO);
     SVG.appendChild(logo);
     /* адреса сайту під логотипом / праворуч у шапці */
-    var site=el("text", decor ? {x:121, y:27, "text-anchor":"middle", "font-size":3.4}
-                              : {x:PAGE_W-M.right, y:9, "text-anchor":"end", "font-size":3.4});
+    var site=el("text", decor ? {x:PAGE_W/2, y:27, "text-anchor":"middle", "font-size":3.4}
+                              : {x:PAGE_W-GL, y:9, "text-anchor":"end", "font-size":3.4});
     site.setAttribute("font-family","Nunito, sans-serif"); site.setAttribute("font-weight","800");
     site.setAttribute("fill","#4f86d6"); site.setAttribute("letter-spacing","0.15");
     site.textContent=SITE; SVG.appendChild(site);
     var blockTop=TOP;
     if(chkName.checked){
       var ny=TOP+6;
-      var rEnd = decor ? 148 : (PAGE_W-M.right);
-      var t1=el("text",{x:M.left, y:ny, "font-size":3.6, "font-family":"Nunito, sans-serif", "font-weight":800, fill:"#5a6a8a"}); t1.textContent="Ім'я:";
-      var t2=el("text",{x:M.left+70, y:ny, "font-size":3.6, "font-family":"Nunito, sans-serif", "font-weight":800, fill:"#5a6a8a"}); t2.textContent="Дата:";
+      var rEnd = decor ? 148 : (PAGE_W-GL);
+      var t1=el("text",{x:GL, y:ny, "font-size":3.6, "font-family":"Nunito, sans-serif", "font-weight":800, fill:"#5a6a8a"}); t1.textContent="Ім'я:";
+      var t2=el("text",{x:GL+70, y:ny, "font-size":3.6, "font-family":"Nunito, sans-serif", "font-weight":800, fill:"#5a6a8a"}); t2.textContent="Дата:";
       SVG.appendChild(t1); SVG.appendChild(t2);
-      SVG.appendChild(line(M.left+15, ny+0.6, M.left+64, ny+0.6, "#c3d0ea", 0.25));
-      SVG.appendChild(line(M.left+86, ny+0.6, rEnd, ny+0.6, "#c3d0ea", 0.25));
+      SVG.appendChild(line(GL+15, ny+0.6, GL+64, ny+0.6, "#c3d0ea", 0.25));
+      SVG.appendChild(line(GL+86, ny+0.6, rEnd, ny+0.6, "#c3d0ea", 0.25));
       blockTop=TOP+12;
     }
     return blockTop;
@@ -884,24 +876,24 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
   function render(){
     var decor=chkDecor.checked;
     var TOP = decor?30:16;
-    var BOTLIM = decor?278:(PAGE_H-14);
+    var BOTLIM = decor?281:(PAGE_H-M.bottom);
+    var S=+state.size, selfH=chkSelf.checked?13:0;
+    var cols=Math.floor((PAGE_W-M.left-M.right)/S); if(cols<1)cols=1;
+    GL=(PAGE_W-cols*S)/2;
     var blockTop=drawPageBase(TOP, decor);
     if(decor) appendDecor(blockTop, BOTLIM);
 
-    var S=+state.size, selfH=chkSelf.checked?13:0;
-    var cols=Math.floor((PAGE_W-M.left-M.right)/S); if(cols<1)cols=1;
     var rows=Math.floor((BOTLIM-selfH-blockTop)/S); if(rows<2)rows=2;
-    var gridBottom=blockTop+rows*S, gridRight=M.left+cols*S;
-    for(var c=0;c<=cols;c++){ var x=M.left+c*S; SVG.appendChild(line(x, blockTop, x, gridBottom, "#c9d5ee", 0.13)); }
-    for(var r0=0;r0<=rows;r0++){ var y=blockTop+r0*S; SVG.appendChild(line(M.left, y, gridRight, y, "#c9d5ee", 0.13)); }
-    SVG.appendChild(line(M.left, blockTop, M.left, gridBottom, "#e2a0a0", 0.28));
+    var gridBottom=blockTop+rows*S, gridRight=GL+cols*S;
+    for(var c=0;c<=cols;c++){ var x=GL+c*S; SVG.appendChild(line(x, blockTop, x, gridBottom, "#c9d5ee", 0.13)); }
+    for(var r0=0;r0<=rows;r0++){ var y=blockTop+r0*S; SVG.appendChild(line(GL, y, gridRight, y, "#c9d5ee", 0.13)); }
 
-    function cx(col){ return M.left+(col+0.5)*S; }
+    function cx(col){ return GL+(col+0.5)*S; }
     function cy(row){ return blockTop+(row+0.5)*S; }
     var h=S*0.74;
 
     function drawHead(text, row){
-      var fs=Math.min(5.2, S*0.72), x=M.left+S*0.5, yb=blockTop+(row+1)*S-S*0.24;
+      var fs=Math.min(5.2, S*0.72), x=GL+S*0.5, yb=blockTop+(row+1)*S-S*0.24;
       mctx.font="800 "+fs+"px Nunito, sans-serif";
       var w=Math.min(gridRight-x-1, mctx.measureText(text).width+3);
       SVG.appendChild(el("rect",{x:x-1, y:blockTop+row*S+0.25, width:w, height:S-0.5, fill:"#ffffff"}));
@@ -917,7 +909,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
         }
         if(t.k==='word'){
           if(col<cols){
-            var wt=el("text",{x:M.left+(col+t.n/2)*S, y:y, "font-family":"Nunito, sans-serif", "font-size":Math.min(S*0.82,5.2),
+            var wt=el("text",{x:GL+(col+t.n/2)*S, y:y, "font-family":"Nunito, sans-serif", "font-size":Math.min(S*0.82,5.2),
               "font-weight":800, fill:INK, "text-anchor":"middle", "dominant-baseline":"central"});
             wt.textContent=t.v; SVG.appendChild(wt);
           }
@@ -933,7 +925,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     /* віконце рівно по клітинках: по одній клітинці на кожну цифру, межі клітинок видно;
        right — відповідь притиснута до правого краю (для стовпчика) */
     function drawBox(col, row, n, v, right){
-      var bx=M.left+col*S, by=blockTop+row*S, y=cy(row);
+      var bx=GL+col*S, by=blockTop+row*S, y=cy(row);
       SVG.appendChild(el("rect",{x:bx, y:by, width:n*S, height:S, fill:decor?"#eef5ff":"#ffffff"}));
       for(var d=1; d<n; d++) SVG.appendChild(line(bx+d*S, by, bx+d*S, by+S, "#9dbbe8", 0.2));
       SVG.appendChild(el("rect",{x:bx, y:by, width:n*S, height:S, rx:S*0.08, fill:"none", stroke:BOX_INK, "stroke-width":0.4}));
@@ -948,7 +940,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     function numAt(str, rightCol, row){
       for(var i=0;i<str.length;i++){ var c=rightCol-(str.length-1-i); if(c>=0&&c<cols) SVG.appendChild(digit(str[i], cx(c), cy(row), h, 'ink')); }
     }
-    function hrule(c0, c1, rowB){ SVG.appendChild(line(M.left+c0*S, blockTop+rowB*S, M.left+c1*S, blockTop+rowB*S, INK, 0.45)); }
+    function hrule(c0, c1, rowB){ SVG.appendChild(line(GL+c0*S, blockTop+rowB*S, GL+c1*S, blockTop+rowB*S, INK, 0.45)); }
     /* розміри прикладу в стовпчик (у клітинках) */
     function colDims(t){
       var la=t.a.length, lb=t.b.length, lr=t.r.length;
@@ -966,7 +958,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
         numAt(t.b, c0+la+t.b.length-1, r0);
         drawBox(c0+la, r0+1, t.r.length, t.r, false);
         /* кут — поверх віконця частки */
-        SVG.appendChild(line(M.left+(c0+la)*S, blockTop+r0*S, M.left+(c0+la)*S, blockTop+(r0+2)*S, INK, 0.4));
+        SVG.appendChild(line(GL+(c0+la)*S, blockTop+r0*S, GL+(c0+la)*S, blockTop+(r0+2)*S, INK, 0.4));
         hrule(c0+la, c0+la+wq, r0+1);
         return;
       }
@@ -1038,7 +1030,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
 
   /* «Перевір себе»: скільки правильно + зірочки для оцінки */
   function drawSelf(y, n){
-    var x=M.left+1, fs=3.8;
+    var x=GL+1, fs=3.8;
     var t=el("text",{x:x, y:y+5, "font-size":fs, "font-family":"Nunito, sans-serif", "font-weight":800, fill:"#5a6a8a"});
     t.textContent="Перевір себе:  правильно"; SVG.appendChild(t);
     mctx.font="800 "+fs+"px Nunito, sans-serif";
@@ -1046,7 +1038,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     SVG.appendChild(line(x2, y+5.6, x2+16, y+5.6, "#c3d0ea", 0.3));
     var t2=el("text",{x:x2+18, y:y+5, "font-size":fs, "font-family":"Nunito, sans-serif", "font-weight":800, fill:"#5a6a8a"});
     t2.textContent="з "+n; SVG.appendChild(t2);
-    var sx=PAGE_W-M.right-36;
+    var sx=PAGE_W-GL-36;
     if(chkDecor.checked) sx=Math.min(sx, 150);
     for(var i=0;i<3;i++)
       SVG.appendChild(P(starPath(sx+i*11, y+3.6, 4.4, 2, -90),{fill:"none",stroke:"#f2a63a","stroke-width":0.45,"stroke-linejoin":"round"}));
