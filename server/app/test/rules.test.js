@@ -93,7 +93,7 @@ test('inviteCodes', async () => {
 });
 
 test('контент, arenaPlan, reports', async () => {
-  for (const c of ['tests', 'books', 'items', 'vocab', 'vocabDecks', 'curriculum', 'meta']) {
+  for (const c of ['tests', 'books', 'items', 'vocab', 'vocabDecks', 'readTexts', 'curriculum', 'meta']) {
     assert.ok(await can('h1', 'list', c + '/x', {}), c);
     assert.ok(!await can(null, 'get', c + '/x', {}), c);
     assert.ok(!await can('p1', 'create', c + '/x', null, {}), c);

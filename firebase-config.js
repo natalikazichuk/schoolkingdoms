@@ -1252,6 +1252,44 @@ const SK = {
     });
   },
 
+  /* ===== ТЕКСТИ ДЛЯ ЧИТАННЯ (тренажер klas-1/chytannia-vgolos.html) =====
+     readTexts/{id} = { title, author, kind:'poem'|'text', grade (0 — усі),
+       text (строфи/абзаци — через порожній рядок), pics:[шлях або URL
+       до кожного рядка вірша], active, order }
+     Пише адмінка admin-chytannia.html. Картинки — лише шлях у репо або URL. */
+  async listReadTexts() {
+    const snap = await getDocs(collection(db, 'readTexts'));
+    const out = [];
+    snap.forEach(d => out.push(Object.assign({ id: d.id }, d.data())));
+    out.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0) ||
+      String(a.title || '').localeCompare(String(b.title || ''), 'uk'));
+    return out;
+  },
+  async listActiveReadTexts() {
+    return (await SK.listReadTexts()).filter(t => t.active !== false);
+  },
+  async getReadText(id) {
+    if (!id) return null;
+    const s = await getDoc(doc(db, 'readTexts', String(id)));
+    return s.exists() ? Object.assign({ id: s.id }, s.data()) : null;
+  },
+  async saveReadText(entry) {
+    if (!entry || typeof entry !== 'object') throw new Error('empty-text');
+    const { id, ...data } = entry;
+    data.updatedAt = serverTimestamp();
+    if (id) {
+      await setDoc(doc(db, 'readTexts', String(id)), data, { merge: true });
+      return String(id);
+    }
+    data.createdAt = serverTimestamp();
+    const ref = await addDoc(collection(db, 'readTexts'), data);
+    return ref.id;
+  },
+  async deleteReadText(id) {
+    if (!id) return;
+    await deleteDoc(doc(db, 'readTexts', String(id)));
+  },
+
   /* ===== ЧИТАЦЬКА БІБЛІОТЕКА ГЕРОЯ (heroes/{id}.library) ===== */
 
   // Прочитані книги активного Героя. -> [{ bookId, title, correct, total, readAt }]
