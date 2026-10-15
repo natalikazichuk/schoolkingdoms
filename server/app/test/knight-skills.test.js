@@ -95,21 +95,23 @@ test('Блок щитом: + до шансу блоку лише зі щитом
   assert.ok((st.me.grow['knight.shield'] || 0) + (st.me.growF['knight.shield'] || 0) > 0);
 });
 
-test('Поштовх щитом: без щита чекає, зі щитом б\'є і може збити з ніг, перезарядка 3', () => {
+test('Поштовх щитом: без щита чекає, зі щитом — без урону, може збити з ніг (15% → 30%), перезарядка 3', () => {
+  assert.strictEqual(S.skillValues('knight.bash', 25).knock, 15);
+  assert.strictEqual(S.skillValues('knight.bash', 100).knock, 30);
   const no = battle({ 'knight.bash': 1 }, ['knight.bash']);
   assert.strictEqual(SB.skillBlock(no, 'knight.bash'), 'shield');
   assert.ok(SB.useSkill(ctx, no, 'knight.bash'), 'вибір можна зробити — чекає щита');
   assert.ok(!SB.turn(ctx, no, { atk: 'head', block: 'body' }, {}, Date.now()).skill);
   let knocked = 0, hits = 0;
-  for (let k = 0; k < 40; k++) {
+  for (let k = 0; k < 120; k++) {
     const st = battle({ 'knight.bash': 1 }, ['knight.bash'], [wear(SHIELD, 'weaponL')]);
     SB.useSkill(ctx, st, 'knight.bash');
     const e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
     assert.ok(e.skill && e.skill.ok, 'на 100% вдається');
-    if (e.skill.kind === 'hit') { hits++; assert.ok(e.skill.dmg >= 1); if (e.skill.knock) knocked++; }
+    if (e.skill.kind === 'hit') { hits++; assert.strictEqual(e.skill.dmg, 0, 'урону немає'); assert.ok(e.skill.noDmg); if (e.skill.knock) knocked++; }
     assert.strictEqual(st.me.cd['knight.bash'], 1 + 3);
   }
-  assert.ok(hits > 10 && knocked > 0 && knocked < hits, 'збиває з ніг ~60% влучань: ' + knocked + '/' + hits);
+  assert.ok(hits > 30 && knocked > 0 && knocked < hits * 0.5, 'збиває з ніг ~30% влучань: ' + knocked + '/' + hits);
 });
 
 test('Берсерк: лють на 🎲 3–4 (25%) → 3–5 → 3–6 → 4–7 (100%), шанс і урон ростуть', () => {

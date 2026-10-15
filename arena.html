@@ -1671,7 +1671,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
 <script src="sk-arena-rules.js?v=19"></script>
-<script src="sk-battle.js?v=14"></script>
+<script src="sk-battle.js?v=15"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
    Інвентар, скриня, смітник, продане / куплене сьогодні й монети
@@ -2764,7 +2764,7 @@ window.SKHERO = (function(){
     if(k.kind==='buff') return '<span class="ln use">Ти: '+nm+': <span class="g">лють! +'+k.dmgPct+'% урону, −'+k.armorCut+'% броні на '+k.turns+(k.turns<5?' ходи':' ходів')+'</span><span class="dice">🎲 '+k.roll+' ≤ '+k.need+'%</span></span>';
     var t = k.kind==='fail' ? '<span class="b">не вдалося</span>'
       : k.kind==='block' ? '<span class="b">заблоковано</span>'
-      : '<span class="g">влучив</span> (−'+dmgHtml(k.dmg, k.magDmg||0)+')' + (k.knock ? ' · <span class="crit">збив з ніг 😵</span> — суперник пропустить удар' : k.knockImmune ? ' · <span class="b">не збити з ніг — суперник ще оговтується (імунітет)</span>' : k.knockHalf ? ' · <span class="b">суперник щойно підвівся: шанс збити з ніг навпіл</span>' : '');
+      : (k.noDmg ? '<span class="g">штовхнув</span>' : '<span class="g">влучив</span> (−'+dmgHtml(k.dmg, k.magDmg||0)+')') + (k.knock ? ' · <span class="crit">збив з ніг 😵</span> — суперник пропустить удар' : k.knockImmune ? ' · <span class="b">не збити з ніг — суперник ще оговтується (імунітет)</span>' : k.knockHalf ? ' · <span class="b">суперник щойно підвівся: шанс збити з ніг навпіл</span>' : '');
     return '<span class="ln use">Ти: '+nm+' → '+ZONE_UA[e.me.atk]+': '+t+(k.mana ? ' <span style="opacity:.75">(−'+k.mana+' мани)</span>' : '')+dice+'</span>';
   }
   /* Кожен удар — окремим рядком журналу: рядок N = мій удар N · удар суперника N.
@@ -3232,7 +3232,7 @@ window.SKHERO = (function(){
     rb.className = 'rbig ' + cls;
     var h0 = (meHit.hits || [meHit])[0] || {};
     if(sk){ var ski = window.SKSKILLS && SKSKILLS.byId(sk.id), ic = ski ? ski.icon+' '+ski.name : '⚡';
-      lbl += ' · ' + ic + ': ' + (sk.kind==='hit' ? '−'+sk.dmg+(sk.knock?' 😵':'') : sk.kind==='buff' ? 'лють!' : sk.kind==='block' ? 'блок' : 'не вдалось'); }
+      lbl += ' · ' + ic + ': ' + (sk.kind==='hit' ? (sk.noDmg ? (sk.knock ? '😵' : 'штовхнув') : '−'+sk.dmg+(sk.knock?' 😵':'')) : sk.kind==='buff' ? 'лють!' : sk.kind==='block' ? 'блок' : 'не вдалось'); }
     rb.innerHTML = '<span class="rnum">'+num+'</span><span class="rlbl">'+lbl+'</span>'
       + (h0.hitRoll!=null ? '<span class="rdice" id="rdice"></span>' : '')
       + '<span class="ropp">Суперник'+(opHit.kind==='fear'||opHit.kind==='skip'||opHit.kind==='knock' ? '' : ' → '+ZONE_UA[B.op.atk])+': '+ok+'</span>';
@@ -3270,6 +3270,7 @@ window.SKHERO = (function(){
     else if(h.kind==='skip'){ return; }
     else if(h.kind==='fail'){ el.className='dmg-float miss'; el.textContent=pre+'не вдалось'; }
     else if(h.kind==='buff'){ el.className='dmg-float crit'; el.textContent=pre+'лють!'; }
+    else if(h.noDmg){ el.className='dmg-float miss'; el.textContent=pre+(h.knock?'😵':'штовх'); }
     else if(h.kind==='barrier'){ el.className='dmg-float blk'; el.textContent=pre+'🫧'; }
     else if(h.kind==='dodge'){ el.className='dmg-float miss'; el.textContent=h.skillDodge ? 'ухилився 💨' : pre+'промах'; }
     else if(h.kind==='block' && h.skillShield){ el.className='dmg-float blk'; el.textContent='🛡️ блок'; }
@@ -3737,8 +3738,8 @@ window.SKHERO = (function(){
 })();
 </script>
 
-<script src="sk-items.js?v=13"></script>
-<script src="sk-skills.js?v=16"></script>
+<script src="sk-items.js?v=14"></script>
+<script src="sk-skills.js?v=17"></script>
 <script src="sk-book.js?v=8"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
@@ -3832,6 +3833,7 @@ function totals(){var baseHero={health:HERO.health||0,mana:HERO.mana||0,agility:
 function bonusClass(b){b=Number(b);return b>1.15?'b20':(b>1?'b10':(b<1?'bm10':'b0'));}
 function tipHTML(x){var base=BYID[x.id];var bc=bonusClass(x.bonus!=null?x.bonus:1);
  var h='<div class="tp-name '+bc+'">'+esc(x.name||'')+'</div>';if(!base)return h;
+ var kl=(window.SKIT&&SKIT.kindLabel)?SKIT.kindLabel(base):'';if(kl)h+='<div class="tp-row">'+esc(kl)+'</div>';   /* вид зброї — для вмінь (Меч, Сокира…) */
  var eff=(window.SKIT&&SKIT.effective)?SKIT.effective(base,x._inst||{bonus:1}):null;if(!eff)return h;var p=[];
  if(eff.stat&&eff.valueMax!=null){var vt=(eff.valueMin==null||eff.valueMin===eff.valueMax)?eff.valueMax:(eff.valueMin+'–'+eff.valueMax);p.push(cap(STAT_UK[SKIT.canon(eff.stat)]||eff.stat)+' '+vt);}
  var see=SKIT.canSeeAddStats?SKIT.canSeeAddStats(x._inst||{},HERO):false;
@@ -3888,7 +3890,7 @@ function cardBox(x,acts,opts){opts=opts||{};
  var bc=bonusClass(x.bonus!=null?x.bonus:1);
  var emo=(base&&window.SKIT&&SKIT.CAT_EMO&&SKIT.CAT_EMO[base.category])||'🎒';   // як на плитці речі
  var img=(isImg(x.icon)&&!(SKIT.imgMissing&&SKIT.imgMissing(x.icon)))?'<img src="'+x.icon+'" alt="" onerror="this.onerror=null;window.SKIT&&SKIT.imgMissed&&SKIT.imgMissed(this.getAttribute(\'src\'));this.outerHTML=\'<span class=ic-emo>'+emo+'</span>\'">':'<span class="ic-emo">'+(isImg(x.icon)?emo:(x.icon||emo))+'</span>';
- var meta=[];if(base&&base.category)meta.push(base.category);if(base&&base.grade)meta.push(base.grade+' клас');if(x.qty>1)meta.push('×'+x.qty);
+ var meta=[],kl=(window.SKIT&&SKIT.kindLabel)?SKIT.kindLabel(base):'';if(kl)meta.push(kl);else if(base&&base.category)meta.push(base.category);if(base&&base.grade)meta.push(base.grade+' клас');if(x.qty>1)meta.push('×'+x.qty);
  var dur='';if(eff&&eff.durMax){var r=Math.max(0,Math.min(1,eff.durCur/eff.durMax));
    dur='<div class="ic-durrow"><span class="ic-si">⚒️</span><span>Міцність</span><b>'+eff.durCur+' / '+eff.durMax+'</b></div>'
     +'<div class="ic-dur'+(r<=0?' zero':(r<=0.2?' low':''))+'"><i style="width:'+Math.round(r*100)+'%"></i></div>';}
@@ -4238,7 +4240,8 @@ function icon(base){var em=CAT_EMO[base&&base.category]||'🎒',src='img/items/'
   return '<img src="'+src+'" alt="" onerror="window.SKIT&&SKIT.imgMissed&&SKIT.imgMissed(this.getAttribute(\'src\'));this.replaceWith(document.createTextNode(\''+em+'\'))">';}
 function statLine(base,inst){
   if(!base||!window.SKIT)return '';
-  var e=SKIT.effective(base,inst||{bonus:1}),p=[];
+  var e=SKIT.effective(base,inst||{bonus:1}),p=[],kl=SKIT.kindLabel?SKIT.kindLabel(base):'';
+  if(kl)p.push(kl);
   if(e.stat&&e.valueMax!=null){var k=SKIT.canon(e.stat);p.push((STAT_UK[k]||e.stat)+' '+(e.valueMin!=null&&e.valueMin!==e.valueMax?e.valueMin+'–':'')+e.valueMax);}
   (e.addStats||[]).forEach(function(a){if(a.flag||a.value==null)return;var k=SKIT.canon(a.stat);p.push((STAT_UK[k]||a.stat)+' +'+a.value+(a.pct?'%':''));});
   return p.slice(0,3).join(' · ');}

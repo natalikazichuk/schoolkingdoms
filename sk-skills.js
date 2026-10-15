@@ -65,8 +65,8 @@ S('knight',1,5,'spear','Спис','P','','+урон списом',
 S('knight',1,20,'shield','Блок щитом','P','','+шанс блоку щитом у незахищену зону',
   'зі щитом у лівій руці: шанс блоку фізичних ударів +15%·м (додається до «шансу блоку» речей)',
   'Щит рятує, навіть коли не вгадав, куди вдарять.','Аладон: блок щитом',true);
-S('knight',1,5,'bash','Поштовх щитом','A','перезар. 3','удар щитом, ворог може пропустити хід',
-  'потрібен щит. Шанс спрацювати 50% → 100%; урон 3–6 × м; збити з ніг 30% → 60%',
+S('knight',1,5,'bash','Поштовх щитом','A','перезар. 3','контроль: ворог може пропустити хід (без урону)',
+  'потрібен щит. Шанс спрацювати 50% → 100%; урону немає; збити з ніг 15% → 30%',
   'Штовхни ворога щитом — він може пропустити хід.','Аладон: мощный толчок');
 S('knight',1,1,'berserk','Берсерк','A','раз за бій','+урон / −броня на 3–6 ходів',
   'шанс спрацювати 50% → 100% (не вдалося — можна знову наступного ходу); лють на 🎲 3–4 ходи (25%) → 3–5 (50%) → 3–6 (75%) → 4–7 (100%): урон +40%·м, броня −30%',
@@ -662,9 +662,8 @@ var RULES = {
   'knight.shield':  { kind: 'const', perBattle: 6, on: 'удар ворога в незахищену зону зі щитом у руці: заблоковано шансом — ✔, влучив — ✖', p: [
     { k: 'blockPct', v: 15, grow: true, u: '%', t: 'шансу блоку фізичних ударів (зі щитом)' }] },
   'knight.bash':    { kind: 'active', perBattle: 3, p: [
-    { k: 'dmgMin', v: 3, grow: true, t: 'урон від' }, { k: 'dmgMax', v: 6, grow: true, t: 'урон до' },
     { k: 'cd', v: 3, t: 'ходів перезарядки' },
-    { k: 'knock', v: 60, from: 30, u: '%', t: 'шанс збити з ніг (суперник пропускає хід)' }] },
+    { k: 'knock', v: 30, from: 15, u: '%', t: 'шанс збити з ніг (суперник пропускає хід); урону немає' }] },
   'knight.berserk': { kind: 'active', perBattle: 1, p: [
     { k: 'dmgPct', v: 40, grow: true, u: '%', t: 'урону, поки триває лють' },
     { k: 'armorCut', v: 30, u: '%', t: 'менше броні, поки триває лють' },
@@ -852,7 +851,7 @@ var FX = {
   'knight.axe':     function(v){ return 'з сокирою: +' + v.dmgPct + '% урону, ' + v.pierce + '% — пів броні ворога'; },
   'knight.spear':   function(v){ return 'зі списом: +' + v.dmgPct + '% урону'; },
   'knight.shield':  function(v){ return 'зі щитом: +' + v.blockPct + '% шансу блоку'; },
-  'knight.bash':    function(v){ return 'потрібен щит · вдається в ' + v.chance + '%, урон ' + v.dmgMin + '–' + v.dmgMax + ', збиває з ніг ' + v.knock + '%'; },
+  'knight.bash':    function(v){ return 'потрібен щит · вдається в ' + v.chance + '%, без урону, збиває з ніг ' + v.knock + '%'; },
   'knight.berserk': function(v){ return 'вдається в ' + v.chance + '%: ' + v.turnsMin + '–' + v.turnsMax + (v.turnsMax < 5 ? ' ходи +' : ' ходів +') + v.dmgPct + '% урону, −' + v.armorCut + '% броні'; },
   'knight.fists':   function(v){ return 'без зброї: +' + v.dmg + ' до урону'; },
   'knight.brave':   function(v){ return 'страх діє на ' + v.resPct + '% рідше'; },
@@ -861,7 +860,7 @@ var FX = {
 function effectText(id, m) { return FX[id] ? FX[id](skillValues(id, Math.round(Math.max(0, Math.min(1, m)) * 100))) : ''; }
 
 window.SKSKILLS = {
-  VERSION: 16,
+  VERSION: 17,
   RULES: RULES,
   KIND_UK: KIND_UK,
   skillValues: skillValues,

@@ -188,14 +188,30 @@ function itemsCacheGet() {
   itemsMem = c;
   try { return JSON.parse(c.json); } catch (e) { return null; }
 }
-function itemsCachePut(list) {
+function itemsCachePut(list, ver) {
   const json = JSON.stringify(list, (k, v) => (v && typeof v.toMillis === 'function') ? v.toMillis() : v);
-  itemsMem = { at: Date.now(), day: itemsDay(Date.now()), json };
+  itemsMem = { at: Date.now(), day: itemsDay(Date.now()), json, ver: ver || 0 };
   try { localStorage.setItem(ITEMS_CACHE_KEY, JSON.stringify(itemsMem)); } catch (e) {}
 }
 function itemsCacheDrop() {
   itemsMem = null;
   try { localStorage.removeItem(ITEMS_CACHE_KEY); } catch (e) {}
+}
+/* Мітка версії каталогу meta/items {at}: адмінка ставить її після кожної зміни
+   речей (itemsStamp). Сторінка з кешем раз на ITEMS_VER_MS читає лише цей один
+   документ: мітка інша — каталог перечитується. Так зміна з адмінки (з іншого
+   браузера чи пристрою) доходить до гри за хвилину, а не після півночі. */
+const ITEMS_VER_MS = 60 * 1000;
+let itemsVerAt = 0;
+async function itemsVer() {
+  try {
+    const s = await getDoc(doc(db, 'meta', 'items'));
+    const t = s.exists() ? s.data().at : null;
+    return t ? (typeof t.toMillis === 'function' ? t.toMillis() : Number(t) || 0) : 0;
+  } catch (e) { return null; }                 // немає звʼязку — віримо кешу
+}
+function itemsStamp() {
+  return setDoc(doc(db, 'meta', 'items'), { at: serverTimestamp() }, { merge: true }).catch(() => {});
 }
 
 // логін Героя → припустимі символи; синтетичний email для Firebase Auth
@@ -1029,15 +1045,25 @@ const SK = {
      Києвом — разом з асортиментом магазину, який теж міняється о 00:00;
      одночасні виклики ділять один запит. Свої зміни (saveItem / deleteItem /
      setItem*) кеш скидають одразу; зміни з іншого пристрою підхопляться
-     після півночі. opts.fresh — завжди з бази (адмінка предметів). */
+     після півночі. opts.fresh — завжди з бази (адмінка предметів).
+     Тепер (власний сервер, квоти Firestore немає) кеш ще й звіряється з міткою
+     meta/items раз на хвилину — зміни з адмінки видно одразу (див. itemsVer). */
   async listItems(opts) {
     const fresh = !!(opts && opts.fresh);
     if (!fresh) {
       const c = itemsCacheGet();
-      if (c) return c;
+      if (c) {
+        if (Date.now() - itemsVerAt < ITEMS_VER_MS) return c;
+        itemsVerAt = Date.now();
+        const v = await itemsVer();
+        if (v === null || v === (itemsMem && itemsMem.ver)) return c;
+        itemsCacheDrop();                          // адмін змінив речі — перечитати
+      }
     }
     if (!itemsLoading) {
       itemsLoading = (async () => {
+        const ver = await itemsVer();
+        itemsVerAt = Date.now();
         const snap = await getDocs(collection(db, 'items'));
         const out = [];
         snap.forEach(d => out.push(Object.assign({ id: d.id }, d.data())));
@@ -1050,7 +1076,7 @@ const SK = {
            кладемо в кеш до півночі: інакше речі «зникали» з інвентаря
            («У базі є N предметів, але їх немає в каталозі»). */
         if (snap.metadata && snap.metadata.fromCache) { itemsCacheDrop(); out.partial = true; }
-        else itemsCachePut(out);
+        else itemsCachePut(out, ver);
         return out;
       })().finally(() => { itemsLoading = null; });
     }
@@ -1083,10 +1109,12 @@ const SK = {
     itemsCacheDrop();
     if (id) {
       await setDoc(doc(db, 'items', String(id)), data, { merge: true });
+      await itemsStamp();
       return String(id);
     }
     data.createdAt = serverTimestamp();
     const ref = await addDoc(collection(db, 'items'), data);
+    await itemsStamp();
     return ref.id;
   },
 
@@ -1094,6 +1122,7 @@ const SK = {
     if (!id) return;
     itemsCacheDrop();
     await deleteDoc(doc(db, 'items', String(id)));
+    await itemsStamp();
   },
 
   /* ── ПЛАН АРЕНИ (admin-arena.html → вкладка «План») ──
@@ -1123,6 +1152,7 @@ const SK = {
       noShop: !!noShop,
       updatedAt: serverTimestamp()
     });
+    await itemsStamp();
   },
   async setItemActive(id, active) {
     if (!id) return;
@@ -1131,6 +1161,7 @@ const SK = {
       active: !!active,
       updatedAt: serverTimestamp()
     });
+    await itemsStamp();
   },
 
   /* ===== СЛОВНИК ENGLISH ============================================
