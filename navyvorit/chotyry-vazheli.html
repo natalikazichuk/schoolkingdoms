@@ -25,6 +25,8 @@ body.flipped #scene{background:linear-gradient(180deg,#3b2a6b 0%,#5f3dc4 62%,#97
 .lv{display:flex; flex-direction:column; align-items:center; gap:2px; font-weight:800; color:#fff; font-size:14px;}
 .lv .h{width:10px; height:44px; background:linear-gradient(180deg,#e03131,#a61e4d); border-radius:5px; transform-origin:50% 100%; transform:rotate(-25deg); transition:transform .25s;}
 .lv.up .h{transform:rotate(25deg);}
+#panel .act.tip{border-color:#f59f00; box-shadow:0 0 0 3px #ffd43b, 0 4px 0 rgba(0,0,0,.15); animation:tipPulse 1s ease-in-out infinite;}
+@keyframes tipPulse{50%{transform:scale(1.06)}}
 .lv .base{width:34px; height:10px; background:#212529; border-radius:5px;}
 </style>
 </head>
@@ -74,22 +76,43 @@ body.flipped #scene{background:linear-gradient(180deg,#3b2a6b 0%,#5f3dc4 62%,#97
     NAV.snd.tone(320 + i*80, .08, "square"); draw();
   }
   function allOn(){ return lamps.every(Boolean); }
-  /* гра руками: смикай важелі, поки всі лампи не засвітяться; «Спочатку» — повернути стан */
-  function play(start, onWin, maxPulls){
-    var initial = start.slice();
+  /* найкоротший набір важелів (кожен по разу), що вмикає всі лампи з цього стану */
+  function solve(start){
+    var best = null;
+    for(var m=1;m<16;m++){
+      var st = start.slice(), ids = [];
+      for(var i=0;i<4;i++) if(m>>i & 1){ ids.push(i); hits(i).forEach(function(k){ st[k] = !st[k]; }); }
+      if(st.every(Boolean) && (!best || ids.length < best.length)) best = ids;
+    }
+    return best || [];
+  }
+  /* гра руками: смикай важелі, поки всі лампи не засвітяться; «Спочатку» — повернути стан.
+     goal — завдання, яке завжди видно над кнопками; після 2 невдалих спроб — підказка з підсвіченими важелями */
+  function play(start, onWin, maxPulls, goal){
+    var initial = start.slice(), fails = 0, btn;
     function setup(){ lamps = initial.slice(); pulls = [0,0,0,0]; draw(); }
     function moves(){ return pulls.reduce(function(a,b){ return a+b; }, 0); }
+    function tip(){
+      var sol = solve(initial);
+      sol.forEach(function(i){ btn[L[i]].classList.add("tip"); });
+      return " 💡 Підказка: смикни <b>"+sol.map(function(i){ return L[i]; }).join(" + ")+"</b> — кожен по одному разу.";
+    }
     setup();
     var acts = L.map(function(n, i){
       return {id:n, ic:"🎚️", tx:"Важіль "+n, fn:function(){
         pull(i);
         if(allOn()){ NAV.busy = true; NAV.snd.fanfare(); setTimeout(function(){ onWin(pulls.slice()); }, 700); return; }
-        if(maxPulls && moves() >= maxPulls){ NAV.miss("Забагато смикань! Подумай: який важіль які лампи перемикає? Починаємо спочатку."); setup(); }
+        if(maxPulls && moves() >= maxPulls){
+          fails++;
+          NAV.miss("Не вийшло — починаємо спочатку. "+goal+(fails >= 2 ? tip() : ""));
+          setup();
+        }
       }};
     });
     acts.push({id:"r", ic:"↺", tx:"Спочатку", fn:function(){ setup(); }});
     NAV.busy = false;
-    NAV.actions(acts, 5);
+    btn = NAV.actions(acts, 5);
+    NAV.$("panel").insertBefore(NAV.el("div","q",goal+(maxPulls ? " <small>(не більше "+maxPulls+" смик"+(maxPulls===1?"а":"ів")+")</small>" : "")), NAV.$("panel").firstChild);
   }
 
   function startGame(){
@@ -98,7 +121,7 @@ body.flipped #scene{background:linear-gradient(180deg,#3b2a6b 0%,#5f3dc4 62%,#97
     play([false,false,false,false], function(p){
       log.push("Увімкнено: "+L.filter(function(n,i){ return p[i]%2; }).join(" + ")); renderLog();
       NAV.hint("Світло! Кожна лампа перемкнулась рівно один раз.","good"); setTimeout(step2, 1000);
-    }, 6);
+    }, 6, "Увімкни <b>всі 4</b> лампи.");
   }
   function step2(){
     NAV.step(1,TOTAL);
@@ -115,7 +138,7 @@ body.flipped #scene{background:linear-gradient(180deg,#3b2a6b 0%,#5f3dc4 62%,#97
     /* стан, з якого все вмикається одним важелем */
     var i = NAV.rnd(0,3), s = [true,true,true,true]; hits(i).forEach(function(k){ s[k] = false; });
     NAV.hint("Хтось уже смикнув важелі. Дві лампи погасли. Увімкни всі — <b>одним</b> важелем.");
-    play(s, function(){ log.push("Один важіль — і все горить!"); renderLog(); NAV.hint("Так! Знайшов(-ла) важіль, що перемикає саме ці дві лампи.","good"); setTimeout(flip, 1000); }, 1);
+    play(s, function(){ log.push("Один важіль — і все горить!"); renderLog(); NAV.hint("Так! Знайшов(-ла) важіль, що перемикає саме ці дві лампи.","good"); setTimeout(flip, 1000); }, 1, "Увімкни всі лампи <b>одним</b> важелем.");
   }
   function flip(){
     NAV.modal("🔄","Навиворіт!","Ударила блискавка — і дроти переплутались! Тепер кожен важіль перемикає <b>усі лампи, крім своєї</b>.",{nav:true, btn:"🔄 Перевернути"}, function(){
@@ -133,7 +156,7 @@ body.flipped #scene{background:linear-gradient(180deg,#3b2a6b 0%,#5f3dc4 62%,#97
       {tx:"Один будь-який", why:"Один важіль перемкне лише 3 лампи — своя лишиться темною."}
     ], function(){
       NAV.hint("Перевір руками: смикни кожен важіль по разу.");
-      play([false,false,false,false], function(){ log.push("A + B + C + D → 💡💡💡💡"); renderLog(); NAV.hint("Так! Кожна лампа перемкнулась 3 рази — і горить.","good"); setTimeout(step5, 1000); }, 6);
+      play([false,false,false,false], function(){ log.push("A + B + C + D → 💡💡💡💡"); renderLog(); NAV.hint("Так! Кожна лампа перемкнулась 3 рази — і горить.","good"); setTimeout(step5, 1000); }, 6, "Навиворіт: увімкни <b>всі 4</b> лампи.");
     }, {cols:3, keepOrder:true});
   }
   function step5(){
