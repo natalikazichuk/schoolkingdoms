@@ -122,6 +122,11 @@ body.flipped .pin.lb-l .lbl, body.flipped .pin.lb-r .lbl{transform:translateY(-5
 .flipBtn{position:sticky; bottom:6px; z-index:6; border:none; border-radius:18px; padding:15px 20px; cursor:pointer; font-weight:700; font-size:20px; color:#fff;
   background:linear-gradient(180deg,#d77af0,#b04bd6); box-shadow:0 6px 0 #8e3fb0;}
 .flipBtn:active{transform:translateY(3px); box-shadow:0 3px 0 #8e3fb0;}
+/* символ «Переворот» (img/flip-symbol.webp): крутиться при кожному перевороті */
+.flipBtn{display:flex; align-items:center; justify-content:center; gap:10px;}
+.flipBtn .fsym{flex:none; width:46px; height:44px; margin:-10px 0; background:url(img/flip-symbol.webp) center/contain no-repeat; filter:drop-shadow(0 2px 3px rgba(0,0,0,.3));}
+.flipBtn .fsym.spin{animation:fsSpin .7s ease-in-out;}
+@keyframes fsSpin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
 body.flipped .flipBtn{background:linear-gradient(180deg,#74c0fc,#4dabf7); box-shadow:0 6px 0 var(--accent-d);}
 
 /* ═════════ правила світу ═════════ */
@@ -211,7 +216,7 @@ body.flipped .rules li .f{display:inline;}
       </div>
     </div>
 
-    <button class="flipBtn" id="flipBtn" type="button">🔄 Переворот!</button>
+    <button class="flipBtn" id="flipBtn" type="button"><span class="fsym" aria-hidden="true"></span><span id="flipTx">Переворот!</span></button>
   </div>
 </div>
 
@@ -229,18 +234,18 @@ body.flipped .rules li .f{display:inline;}
      x, y — центр кружечка на карті у %, lb — підпис "l"/"r" (збоку) або знизу.
      Пункти відкриваються по черзі через усі розділи; рівні «скоро» не заважають іти далі. */
   var CH = [
-    {n:"I", nm:"Дивне місто", img:"img/rozdil-1b.webp", mini:"img/rozdil-1b-mini.webp", ar:"1/1",
+    {n:"I", nm:"Дивне місто", img:"img/rozdil-1c.webp", mini:"img/rozdil-1c-mini.webp", ar:"1/1",
      intro:"Портал відчинено! Стежка веде повз будинок із чотирма дверима, ліхтарі й пошту — до годинникової вежі.",
      pts:[
-      {lv:1, href:"budynok-yakoho-nemaye.html", em:"🏚️", nm:"Будинок, якого немає", x:50, y:27, prize:"sk_nemaye_prize_v1",
+      {lv:1, href:"budynok-yakoho-nemaye.html", em:"🏚️", nm:"Будинок, якого немає", x:50, y:28, prize:"sk_nemaye_prize_v1",
         d:"Біля порталу мав стояти будинок №17. Він зникає й з'являється з іншим номером… Чому?", a:"Щохвилини номер меншає.", b:"Час назад — номер росте."},
-      {lv:2, href:"budynok-z-dveryma.html", em:"🚪", nm:"Чотири двері", x:80, y:46, prize:"sk_dveri_prize_v1",
+      {lv:2, href:"budynok-z-dveryma.html", em:"🚪", nm:"Чотири двері", x:84, y:40, prize:"sk_dveri_prize_v1",
         d:"Будинок із червоними, синіми, зеленими й жовтими дверима. На кожних — напис, а персонажі підказують… і хтось бреше.", a:"Правильні двері брешуть.", b:"Правильні двері кажуть правду."},
-      {lv:3, href:"lihtari.html", em:"🔦", nm:"Ліхтарі навпаки", x:72, y:79, prize:"sk_lihtari_prize_v1",
+      {lv:3, href:"lihtari.html", em:"🔦", nm:"Ліхтарі навпаки", x:76, y:72, prize:"sk_lihtari_prize_v1",
         d:"Майданчик із ліхтарями. Вимкнеш ліхтар — і стає світліше! Знайди прихований прохід.", a:"Вимкнеш ліхтар — світліше.", b:"Увімкнеш — світліше."},
-      {lv:4, href:"poshta.html", em:"✉️", nm:"Пошта-перевертень", x:19, y:43, prize:"sk_poshta_prize_v1",
+      {lv:4, href:"poshta.html", em:"✉️", nm:"Пошта-перевертень", x:17, y:36, prize:"sk_poshta_prize_v1",
         d:"Листоноша плутає адреси: лист для №12 приходить у №21. Куди піде лист для №56?", a:"Цифри міняються місцями.", b:"Табличку читають догори дриґом: 16 → 91."},
-      {lv:5, href:"hodynnykova-vezha.html", em:"🕰️", nm:"Годинник без часу", x:27, y:79, prize:"sk_hodynnyk_prize_v1",
+      {lv:5, href:"hodynnykova-vezha.html", em:"🕰️", nm:"Годинник без часу", x:23, y:73, prize:"sk_hodynnyk_prize_v1",
         d:"Годинникова вежа: усі годинники показують різний час. Знайди закономірність.", a:"Час іде вперед.", b:"Час іде назад — віднімай."}
      ]},
     {n:"II", nm:"Правила зламаного світу", img:"img/rozdil-2.webp", mini:"img/rozdil-2-mini.webp", ar:"948/1659",
@@ -491,7 +496,8 @@ body.flipped .rules li .f{display:inline;}
   function setFlip(on){
     flipped = on;
     document.body.classList.toggle("flipped", on);
-    $("flipBtn").textContent = on ? "🔄 Перевернути назад" : "🔄 Переворот!";
+    $("flipTx").textContent = on ? "Перевернути назад" : "Переворот!";
+    var fs = $("flipBtn").querySelector(".fsym"); fs.classList.remove("spin"); void fs.offsetWidth; fs.classList.add("spin");
     $("subtitle").textContent = on ? "🔄 навиворіт!" : "🗺️ 6 розділів · 30 рівнів";
     renderGateCard();
   }

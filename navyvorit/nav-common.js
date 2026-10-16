@@ -187,6 +187,7 @@
   /* opt: {nav:true — фіолетова «навиворіт»-модалка, btn:"текст кнопки"} */
   NAV.modal = function(big, title, body, opt, next){
     opt = opt || {};
+    if(big === "🔄") big = '<img src="img/flip-symbol.webp" alt="🔄">';   // символ «Переворот» у віконцях навиворіт
     if(/^</.test(big)) $("mBig").innerHTML = big; else $("mBig").textContent = big;   // можна й картинку: '<img …>'
     $("mTitle").textContent = title; $("mBody").innerHTML = body;
     $("mBtn").textContent = opt.btn || "Далі →";
