@@ -233,8 +233,28 @@ body.flipped .flipBtn{font-size:22px;} body.flipped .flipBtn #flipTx{white-space
 body.flipped #map.free #world{transform:none;}
 body.flipped #map.free .pin .em{transform:none;}
 body.flipped #map.free .pin .lbl{transform:translateX(-50%);}
-#map.free #world.swap{animation:mapSwap .9s ease;}
-@keyframes mapSwap{0%{transform:scale(1) rotate(0); filter:none}45%{transform:scale(.82) rotate(-8deg); filter:blur(3px) brightness(1.4)}100%{transform:scale(1) rotate(0); filter:none}}
+/* переворот: острів затягує у вихор, спалах — і він вилітає вже навиворіт, з пружинкою */
+#map.free #world.swap{animation:mapSwap 1.05s cubic-bezier(.55,0,.35,1);}
+@keyframes mapSwap{
+  0%{transform:scale(1) rotate(0); filter:none; opacity:1}
+  12%{transform:scale(1.06) rotate(12deg)}
+  44%{transform:scale(.08) rotate(-400deg); filter:blur(2px) brightness(1.8) saturate(1.6); opacity:.4}
+  52%{transform:scale(.08) rotate(-460deg); filter:blur(2px) brightness(2.2); opacity:0}
+  82%{transform:scale(1.1) rotate(-705deg); filter:brightness(1.25); opacity:1}
+  91%{transform:scale(.96) rotate(-722deg)}
+  100%{transform:scale(1) rotate(-720deg); filter:none; opacity:1}}
+#map.free #world.swap #pins{animation:pinsIn 1.05s ease;}
+@keyframes pinsIn{0%,60%{opacity:0}100%{opacity:1}}
+.flipFx{position:absolute; inset:0; pointer-events:none; z-index:8;}
+.flipFx .ring{position:absolute; left:50%; top:50%; width:100%; aspect-ratio:1; margin:-50% 0 0 -50%; border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,.95) 0 8%,rgba(214,150,255,.75) 22%,rgba(120,60,220,.25) 45%,transparent 66%);
+  animation:fxRing 1.05s ease-out forwards; opacity:0;}
+@keyframes fxRing{0%,40%{transform:scale(0); opacity:0}52%{transform:scale(.35); opacity:1}100%{transform:scale(1.7); opacity:0}}
+.flipFx .sp{position:absolute; left:50%; top:50%; font-size:22px; color:#fff6c9; text-shadow:0 0 8px #d6a2ff; opacity:0;
+  animation:fxSpark .9s .48s ease-out forwards;}
+@keyframes fxSpark{0%{transform:translate(-50%,-50%) scale(.3); opacity:1}100%{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(1.1) rotate(200deg); opacity:0}}
+body.shake #wrap{animation:bodyShake .35s .5s ease;}
+@keyframes bodyShake{20%{transform:translate(-5px,2px)}40%{transform:translate(5px,-2px)}60%{transform:translate(-3px,1px)}80%{transform:translate(2px,0)}}
 #map.free{border:0; border-radius:0; box-shadow:none; background:none; overflow:visible;}
 #map.free .bg{background-color:transparent; background-size:contain; filter:drop-shadow(0 14px 14px rgba(30,40,80,.35));}
 .pin .em.numb{width:44px; height:44px; border:3px solid #f4c842; background:radial-gradient(circle at 35% 30%,#4f78c9,#1f3a78 70%); box-shadow:0 0 0 2px #7c5a12, 0 4px 6px rgba(0,0,0,.35);}
@@ -580,9 +600,25 @@ body.flipped #map.free .pin .lbl{transform:translateX(-50%);}
     renderGateCard();
     var c = cur >= 0 && CH[cur];
     if(c && c.imgNav){                                             // карта розділу має окремий малюнок «навиворіт»
-      $("mapBg").style.backgroundImage = "url("+(on ? c.imgNav : c.img)+")"; renderPins();
       var w = $("world"); w.classList.remove("swap"); void w.offsetWidth; w.classList.add("swap");
+      flipFx();
+      clearTimeout(w._swT);                                        // малюнок міняється, коли острів зник у вихорі
+      w._swT = setTimeout(function(){ $("mapBg").style.backgroundImage = "url("+(flipped ? c.imgNav : c.img)+")"; renderPins(); }, 500);
     }
+  }
+  /* спалах і зірочки, що розлітаються з центру карти */
+  function flipFx(){
+    var m = $("map"), old = m.querySelector(".flipFx"); if(old) old.remove();
+    var fx = document.createElement("div"); fx.className = "flipFx"; fx.innerHTML = '<div class="ring"></div>';
+    for(var i=0;i<12;i++){
+      var a = i/12*Math.PI*2 + Math.random()*.4, r = 120 + Math.random()*70, sp = document.createElement("span");
+      sp.className = "sp"; sp.textContent = i%3 ? "✦" : "★";
+      sp.style.setProperty("--dx", Math.round(Math.cos(a)*r)+"px"); sp.style.setProperty("--dy", Math.round(Math.sin(a)*r)+"px");
+      fx.appendChild(sp);
+    }
+    m.appendChild(fx);
+    document.body.classList.remove("shake"); void document.body.offsetWidth; document.body.classList.add("shake");
+    setTimeout(function(){ fx.remove(); document.body.classList.remove("shake"); }, 1500);
   }
   $("flipBtn").addEventListener("click", function(){
     whoosh();
