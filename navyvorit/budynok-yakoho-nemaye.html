@@ -206,16 +206,14 @@ h1{font-size:30px; font-weight:700;}
 /* останнє речення — посилання на віконце з підказками */
 .picbg .riddle .why{all:unset; cursor:pointer; font-weight:800; color:#24418f; border-bottom:2px dashed #7aa2ff; line-height:1.5;}
 .picbg .riddle .why:active{opacity:.7;}
-.hl{list-style:none; margin:4px 0 0; padding:0; text-align:left; display:flex; flex-direction:column; gap:8px;}
-.hl li{background:#fff; border:2px solid #ffe08a; border-radius:14px; padding:8px 10px; color:var(--ink); animation:hlIn .3s ease-out;}
-.hl li b{color:#24418f;}
-@keyframes hlIn{from{opacity:0; transform:translateY(6px)}to{opacity:1; transform:none}}
+/* віконце «Звичайно / 🔄 Навиворіт» */
+.modes{display:flex; flex-direction:column; gap:10px; margin-top:4px; text-align:left;}
+.modes div{border-radius:16px; padding:10px 12px; font-size:16px; line-height:1.35;}
+.modes .a{background:#fff; border:2px solid #ece3d2; color:var(--ink);}
+.modes .b{background:#f8f0ff; border:2px solid #d9c2fb; color:#8e3fb0;}
+.modes small{display:block; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--soft); margin-bottom:3px;}
 .rfoot{display:flex; align-items:center; gap:10px;}
-.rfoot #navIntro{flex:1; min-width:0; grid-template-columns:1fr; gap:6px;}
-.rfoot #navIntro div{padding:5px 10px; font-size:13px; line-height:1.25;}
-.rfoot #navIntro small{display:inline; margin-right:5px;}
 .rfoot .go-lbl{flex:1; font-family:'Fredoka',sans-serif; font-weight:700; font-size:19px; color:#24418f; text-align:right;}
-.rfoot:has(#navIntro) .go-lbl{display:none;}
 .go-btn{flex:none; width:64px; height:64px; border-radius:50%; border:3px solid #f4c842; cursor:pointer; color:#fff; font-size:30px; line-height:1;
   display:grid; place-items:center; padding:0 0 0 5px; background:linear-gradient(180deg,#5b97ff,#1f4fd6);
   box-shadow:0 0 0 3px #7c5a12, 0 6px 0 #163a9c, 0 10px 16px rgba(0,0,0,.3); position:relative;}
@@ -375,7 +373,6 @@ h1{font-size:30px; font-weight:700;}
     var im = new Image(); im.onload = function(){ fitStartBg.img = im; fitStartBg(); }; im.src = START_BG;
     window.addEventListener("resize", fitStartBg);
     if(document.fonts && document.fonts.ready) document.fonts.ready.then(fitStartBg);
-    window.NAV = window.NAV || {}; NAV.fitStartBg = fitStartBg;   // nav-intro.js перераховує після вставки карток
   })();
   document.querySelectorAll(".backbtn").forEach(function(b){ b.addEventListener("click", goBack); });
   var hb = $("heroBackBtn");
@@ -668,21 +665,18 @@ h1{font-size:30px; font-weight:700;}
     $("mBig").innerHTML=big; $("mTitle").textContent=title; $("mBody").innerHTML=body;
     modalNext=next; $("modal").classList.remove("hidden");
   }
-  /* «Чому номер будинку змінюється? 🔎» — віконце з підказками: по одній, відповідь не кажемо */
-  var HINTS = [
-    "🕙 Подивись на годинник: о <b>10:00</b> — №17, о <b>10:01</b> — №16. Що змінилося разом із часом?",
-    "📒 Запиши номери щохвилини: <b>17, 16, 15…</b> На скільки номер змінюється за 1 хвилину?",
-    "🔄 А якщо час піде <b>назад</b> — номер стане більшим чи меншим?"
-  ];
-  function showHints(n){
-    var html = '<ol class="hl">' + HINTS.slice(0, n).map(function(h){ return "<li>"+h+"</li>"; }).join("") + "</ol>";
-    var more = n < HINTS.length;
-    $("mBtn").textContent = more ? "Ще підказка 💡" : "Зрозуміло 👍";
-    showModal("💡", "Підказка " + n + " з " + HINTS.length, html, function(){
-      if(more) showHints(n + 1); else $("mBtn").textContent = "Далі →";
-    });
+  /* «Чому номер будинку змінюється? 🔎» — віконце з описом пункту карти «Звичайно / 🔄 Навиворіт»
+     (карта кладе його в localStorage sk_nav_intro; якщо гру відкрили не з карти — той самий текст звідси) */
+  function showModes(){
+    var m = {a:"Щохвилини номер меншає.", b:"Час назад — номер росте."};
+    try { var all = JSON.parse(localStorage.getItem("sk_nav_intro") || "null"), p = all && all[TR_HREF]; if(p && p.a) m = p; } catch(e){}
+    var box = el("div","modes",'<div class="a"><small>Звичайно</small></div><div class="b"><small>🔄 Навиворіт</small></div>');
+    box.children[0].appendChild(document.createTextNode(m.a));
+    box.children[1].appendChild(document.createTextNode(m.b));
+    $("mBtn").textContent = "Зрозуміло 👍";
+    showModal("🔎", "Чому номер змінюється?", box.outerHTML, function(){ $("mBtn").textContent = "Далі →"; });
   }
-  $("hintsLink").addEventListener("click", function(){ tap(); showHints(1); });
+  $("hintsLink").addEventListener("click", function(){ tap(); showModes(); });
   $("mBtn").addEventListener("click", function(){
     $("modal").classList.add("hidden"); tap();
     if(modalNext){ var n=modalNext; modalNext=null; n(); }
@@ -744,6 +738,5 @@ h1{font-size:30px; font-weight:700;}
 <script src="../sk-rewards.js?v=4"></script>
 <script src="../sk-prize.js?v=2"></script>
 <script src="../sk-finish.js?v=6"></script>
-<script src="nav-intro.js"></script>
 </body>
 </html>
