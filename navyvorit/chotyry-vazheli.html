@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Чотири важелі — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<link rel="stylesheet" href="nav-common.css">
+<style>
+/* ── машинна зала: 4 лампи й 4 важелі ── */
+#scene{height:230px; background:linear-gradient(180deg,#343a40 0%,#495057 62%,#868e96 62%,#adb5bd 100%);}
+body.flipped #scene{background:linear-gradient(180deg,#3b2a6b 0%,#5f3dc4 62%,#9775fa 62%,#b197fc 100%);}
+#lamps{position:absolute; top:18px; left:0; right:0; display:flex; justify-content:center; gap:14px;}
+.lp{display:flex; flex-direction:column; align-items:center; gap:4px;}
+.lp .b{width:46px; height:46px; border-radius:50%; background:#5c5f66; border:3px solid #2b2d31; transition:background .3s, box-shadow .3s;}
+.lp.on .b{background:radial-gradient(circle at 40% 35%,#fff9db,#ffd43b 55%,#f59f00); box-shadow:0 0 18px 6px rgba(255,212,59,.75);}
+.lp .n{font-weight:800; font-size:13px; color:#fff;}
+#wires{position:absolute; top:96px; left:0; right:0; text-align:center; font-weight:800; font-size:12px; color:#e9ecef; line-height:1.35;}
+#levers{position:absolute; left:0; right:0; bottom:10px; display:flex; justify-content:center; gap:22px;}
+.lv{display:flex; flex-direction:column; align-items:center; gap:2px; font-weight:800; color:#fff; font-size:14px;}
+.lv .h{width:10px; height:44px; background:linear-gradient(180deg,#e03131,#a61e4d); border-radius:5px; transform-origin:50% 100%; transform:rotate(-25deg); transition:transform .25s;}
+.lv.up .h{transform:rotate(25deg);}
+.lv .base{width:34px; height:10px; background:#212529; border-radius:5px;}
+</style>
+</head>
+<body>
+<script src="../sk-footer.js?v=6" data-base="../" data-back="self"></script>
+<script src="nav-common.js"></script>
+<script>
+(function(){
+  "use strict";
+  var TOTAL = 5, log, lamps, pulls;
+  var L = ["A","B","C","D"];
+  /* звичайно: важіль перемикає «свою» лампу і наступну по колу; навиворіт — усі, крім своєї */
+  function hits(i){ return NAV.flipped ? [0,1,2,3].filter(function(k){ return k!==i; }) : [i, (i+1)%4]; }
+
+  NAV.mount({
+    next: "kod-vorit.html",   // «Вирушай далі! ›» — наступний пункт карти
+    title:"Чотири важелі", emoji:"🎚️💡", sub:"Логіка · Світ навиворіт · 5 кроків",
+    riddle:"У машинній залі 4 лампи й 4 важелі. Кожен важіль перемикає <b>дві</b> лампи: свою і сусідню.<span class='seq'>A → 1, 2 · B → 2, 3 · C → 3, 4 · D → 4, 1</span>Як увімкнути всі лампи? А потім — 🔄 переворот, і дроти переплутаються…",
+    play:"У залу ▶", steps:TOTAL, crown:"💡💡💡💡",
+    badgeOff:"🎚️ дві лампи", badgeOn:"🔄 три лампи",
+    prizeKey:"sk_vazheli_prize_v1", href:"chotyry-vazheli.html", doneText:"Усі лампи горять — нагороду отримано!",
+    winTitle:"Зала світиться!", winPerfect:"Жодного зайвого важеля!",
+    lesson:[
+      "Важіль <b>перемикає</b> лампу: горіла — гасне, не горіла — вмикається. Двічі той самий важіль — і все як було.",
+      "Звичайно <b>A + C</b> (або <b>B + D</b>) вмикають усі 4 лампи: кожна перемикається рівно один раз.",
+      "🔄 Навиворіт важіль перемикає <b>три</b> лампи — усі, крім своєї. Тоді треба смикнути <b>всі 4</b>: кожна лампа перемкнеться 3 рази й засвітиться."
+    ],
+    scene:'<div id="lamps"></div><div id="wires"></div><div id="levers"></div>',
+    afterScene:'<div class="log" id="log"></div>',
+    onStart:startGame
+  });
+
+  function renderLog(){
+    var box = NAV.$("log"); box.innerHTML = '<div class="lh">📒 Записник механіка</div>';
+    if(!log.length){ box.appendChild(NAV.el("div","empty","Поки нічого.")); return; }
+    var rows = NAV.el("div","rows"); log.slice(-3).forEach(function(r){ rows.appendChild(NAV.el("div","r",r)); }); box.appendChild(rows);
+  }
+  function draw(){
+    var lb = NAV.$("lamps"); lb.innerHTML = "";
+    lamps.forEach(function(on, i){ lb.appendChild(NAV.el("div","lp"+(on?" on":""),'<div class="b"></div><div class="n">'+(i+1)+'</div>')); });
+    var vb = NAV.$("levers"); vb.innerHTML = "";
+    L.forEach(function(n, i){ var d = NAV.el("div","lv"+(pulls[i]%2?" up":""),'<div class="h"></div><div class="base"></div>'+n); vb.appendChild(d); });
+    NAV.$("wires").innerHTML = L.map(function(n, i){ return n+" → "+hits(i).map(function(k){ return k+1; }).join(", "); }).join(" · ");
+  }
+  function pull(i){
+    pulls[i]++; hits(i).forEach(function(k){ lamps[k] = !lamps[k]; });
+    NAV.snd.tone(320 + i*80, .08, "square"); draw();
+  }
+  function allOn(){ return lamps.every(Boolean); }
+  /* гра руками: смикай важелі, поки всі лампи не засвітяться; «Спочатку» — повернути стан */
+  function play(start, onWin, maxPulls){
+    var initial = start.slice();
+    function setup(){ lamps = initial.slice(); pulls = [0,0,0,0]; draw(); }
+    function moves(){ return pulls.reduce(function(a,b){ return a+b; }, 0); }
+    setup();
+    var acts = L.map(function(n, i){
+      return {id:n, ic:"🎚️", tx:"Важіль "+n, fn:function(){
+        pull(i);
+        if(allOn()){ NAV.busy = true; NAV.snd.fanfare(); setTimeout(function(){ onWin(pulls.slice()); }, 700); return; }
+        if(maxPulls && moves() >= maxPulls){ NAV.miss("Забагато смикань! Подумай: який важіль які лампи перемикає? Починаємо спочатку."); setup(); }
+      }};
+    });
+    acts.push({id:"r", ic:"↺", tx:"Спочатку", fn:function(){ setup(); }});
+    NAV.busy = false;
+    NAV.actions(acts, 5);
+  }
+
+  function startGame(){
+    log = []; NAV.step(0,TOTAL); renderLog();
+    NAV.hint("Усі лампи погашені. Смикай важелі — увімкни <b>всі 4</b> лампи.");
+    play([false,false,false,false], function(p){
+      log.push("Увімкнено: "+L.filter(function(n,i){ return p[i]%2; }).join(" + ")); renderLog();
+      NAV.hint("Світло! Кожна лампа перемкнулась рівно один раз.","good"); setTimeout(step2, 1000);
+    }, 6);
+  }
+  function step2(){
+    NAV.step(1,TOTAL);
+    lamps = [false,false,false,false]; pulls = [0,0,0,0]; draw();
+    NAV.hint("Подивись на дроти і в записник 📒.");
+    NAV.question("Які два важелі разом вмикають усі 4 лампи?", [
+      {tx:"A і C", ok:true},
+      {tx:"A і B", why:"A вмикає 1 і 2, B перемикає 2 і 3 — лампа 2 знову згасне, а 4 не засвітиться."},
+      {tx:"Тільки D", why:"D перемикає лише лампи 4 і 1."}
+    ], function(){ log.push("A + C → 💡💡💡💡"); renderLog(); setTimeout(step3, 900); }, {cols:3, keepOrder:true});
+  }
+  function step3(){
+    NAV.step(2,TOTAL); NAV.again = step3;
+    /* стан, з якого все вмикається одним важелем */
+    var i = NAV.rnd(0,3), s = [true,true,true,true]; hits(i).forEach(function(k){ s[k] = false; });
+    NAV.hint("Хтось уже смикнув важелі. Дві лампи погасли. Увімкни всі — <b>одним</b> важелем.");
+    play(s, function(){ log.push("Один важіль — і все горить!"); renderLog(); NAV.hint("Так! Знайшов(-ла) важіль, що перемикає саме ці дві лампи.","good"); setTimeout(flip, 1000); }, 1);
+  }
+  function flip(){
+    NAV.modal("🔄","Навиворіт!","Ударила блискавка — і дроти переплутались! Тепер кожен важіль перемикає <b>усі лампи, крім своєї</b>.",{nav:true, btn:"🔄 Перевернути"}, function(){
+      NAV.snd.whoosh(); NAV.flipAnim();
+      setTimeout(function(){ NAV.setFlip(true); log.push("🔄 <b>Важіль — усі, крім своєї</b>"); renderLog(); step4(); }, 500);
+    });
+  }
+  function step4(){
+    NAV.step(3,TOTAL);
+    lamps = [false,false,false,false]; pulls = [0,0,0,0]; draw();
+    NAV.hint("Подивись на нові дроти ⚡ і подумай, перш ніж смикати.");
+    NAV.question("Скільки важелів треба смикнути, щоб увімкнути всі 4 лампи?", [
+      {tx:"Усі 4", ok:true},
+      {tx:"Два: A і C", why:"Так було до перевороту! Тепер A і C разом перемкнуть лампи 2 і 4 двічі — вони згаснуть."},
+      {tx:"Один будь-який", why:"Один важіль перемкне лише 3 лампи — своя лишиться темною."}
+    ], function(){
+      NAV.hint("Перевір руками: смикни кожен важіль по разу.");
+      play([false,false,false,false], function(){ log.push("A + B + C + D → 💡💡💡💡"); renderLog(); NAV.hint("Так! Кожна лампа перемкнулась 3 рази — і горить.","good"); setTimeout(step5, 1000); }, 6);
+    }, {cols:3, keepOrder:true});
+  }
+  function step5(){
+    NAV.step(4,TOTAL); NAV.again = step5;
+    /* світиться одна лампа; смикни свій важіль цієї лампи — решта три перемкнуться */
+    var i = NAV.rnd(0,3), s = [true,true,true,true]; hits(i).forEach(function(k){ s[k] = false; });
+    NAV.hint("Горить лише лампа <b>"+(i+1)+"</b>. Увімкни всі — <b>одним</b> важелем.");
+    NAV.question("Який важіль смикнути?", L.map(function(n, k){
+      return k===i ? {tx:"Важіль "+n, ok:true} : {tx:"Важіль "+n, why:"Важіль "+n+" погасить лампу "+(i+1)+", а свою лампу "+(k+1)+" не ввімкне."};
+    }), function(){
+      lamps = s.slice(); pulls = [0,0,0,0]; draw();
+      setTimeout(function(){ pull(i); NAV.snd.fanfare(); NAV.hint("Чудово! Зала світиться 💡💡💡💡","good"); setTimeout(NAV.finish, 1300); }, 500);
+    }, {cols:4, keepOrder:true});
+    lamps = s.slice(); pulls = [0,0,0,0]; draw();
+  }
+})();
+</script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=15"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=4"></script>
+<script src="../sk-prize.js?v=2"></script>
+<script src="../sk-finish.js?v=6"></script>
+<script src="nav-intro.js"></script>
+</body>
+</html>

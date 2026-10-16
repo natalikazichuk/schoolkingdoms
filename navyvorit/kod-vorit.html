@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Код стародавніх воріт — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<link rel="stylesheet" href="nav-common.css">
+<style>
+/* ── кам'яні ворота з кодовим замком і табличками-підказками ── */
+#scene{height:290px; background:linear-gradient(180deg,#d3f9d8 0%,#b2f2bb 42%,#8ce99a 42%,#69db7c 100%);}
+body.flipped #scene{background:linear-gradient(180deg,#e5dbff 0%,#d0bfff 42%,#9775fa 42%,#7950f2 100%);}
+#gate{position:absolute; left:50%; top:8px; width:180px; margin-left:-90px; background:linear-gradient(180deg,#868e96,#495057); border:4px solid #343a40; border-radius:80px 80px 10px 10px; padding:10px 0 8px; text-align:center;}
+#gate .lk{font-size:22px;}
+#slots{display:flex; justify-content:center; gap:8px; margin-top:4px;}
+#slots .d{width:40px; height:48px; border-radius:8px; background:#212529; color:#ffd43b; font-family:'Fredoka'; font-weight:700; font-size:30px; line-height:48px; border:2px solid #ffd43b; transition:transform .3s;}
+#slots .d.ok{background:#2b8a3e; color:#fff; border-color:#b2f2bb;}
+body.flipped #slots{flex-direction:row-reverse;}
+#clues{position:absolute; left:8px; right:8px; top:112px; display:flex; flex-direction:column; gap:3px;}
+.cl{display:flex; align-items:center; gap:8px; background:#fff8e1; border:2px solid #c9a227; border-radius:9px; padding:2px 8px; font-size:12.5px; font-weight:700; line-height:1.25;}
+.cl .g{font-family:'Fredoka'; font-weight:700; font-size:17px; letter-spacing:2px; color:#5f3dc4; min-width:42px;}
+.cl.lit{background:#fff3bf; border-color:#f08c00;}
+</style>
+</head>
+<body>
+<script src="../sk-footer.js?v=6" data-base="../" data-back="self"></script>
+<script src="nav-common.js"></script>
+<script>
+(function(){
+  "use strict";
+  var TOTAL = 5, log;
+  /* класична загадка: відповідь 042 (єдина, перевірено перебором) */
+  var CLASSIC = [["682",1,0],["614",0,1],["206",0,2],["738",0,0],["780",0,1]];
+
+  NAV.mount({
+    next: "sertse-svitu.html",   // «Вирушай далі! ›» — наступний пункт карти
+    title:"Код стародавніх воріт", emoji:"🔐", sub:"Логіка · Світ навиворіт · 5 кроків",
+    riddle:"Стародавні ворота замкнені кодом із <b>трьох різних цифр</b>. На камені — таблички-підказки:<span class='seq'>738 — жодна не підходить</span>Розгадай код! А потім — 🔄 переворот, і ворота читатимуть код <b>навпаки</b>…",
+    play:"До воріт ▶", steps:TOTAL, crown:"🔐✨",
+    badgeOff:"➡️ код як є", badgeOn:"🔄 код навпаки",
+    prizeKey:"sk_kod_prize_v1", href:"kod-vorit.html", doneText:"Ворота відчинено — нагороду отримано!",
+    winTitle:"Ворота відчинено!", winPerfect:"Жодної зайвої спроби!",
+    lesson:[
+      "Почни з підказки «<b>жодна не підходить</b>» — вона одразу викреслює три цифри.",
+      "«Правильна, але <b>не на своєму місці</b>» — цифра є в коді, але стоїть деінде. Так звужуєш, де вона може бути.",
+      "🔄 Навиворіт код читають <b>справа наліво</b>: 042 → <b>240</b>. Спершу розгадай, потім переверни."
+    ],
+    scene:'<div id="gate"><div class="lk">🔒</div><div id="slots"></div></div><div id="clues"></div>',
+    afterScene:'<div class="log" id="log"></div>',
+    onStart:startGame
+  });
+
+  function renderLog(){
+    var box = NAV.$("log"); box.innerHTML = '<div class="lh">📒 Записник шукача</div>';
+    if(!log.length){ box.appendChild(NAV.el("div","empty","Поки нічого.")); return; }
+    var rows = NAV.el("div","rows"); log.slice(-3).forEach(function(r){ rows.appendChild(NAV.el("div","r",r)); }); box.appendChild(rows);
+  }
+  function rev(s){ return s.split("").reverse().join(""); }
+  /* a — цифр на своєму місці, b — є в коді, але не там */
+  function fb(g, c){
+    var a = 0, both = 0;
+    for(var i=0;i<3;i++){ if(g[i]===c[i]) a++; if(c.indexOf(g[i])>=0) both++; }
+    return [a, both - a];
+  }
+  var NUM = ["жодна","одна","дві","три"];
+  function clueText(a, b){
+    if(!a && !b) return "жодна цифра не підходить";
+    var p = [];
+    if(a) p.push(NUM[a]+" правильн"+(a>1?"і":"а")+" й на своєму місці");
+    if(b) p.push(NUM[b]+" правильн"+(b>1?"і":"а")+", але не на своєму місці");
+    return p.join("; ");
+  }
+  function slots(code, ok){
+    var s = NAV.$("slots"); s.innerHTML = "";
+    (code || "???").split("").forEach(function(ch){ s.appendChild(NAV.el("div","d"+(ok?" ok":""), ch)); });
+  }
+  function clues(list, lit){
+    var b = NAV.$("clues"); b.innerHTML = "";
+    list.forEach(function(c, i){ b.appendChild(NAV.el("div","cl"+(lit===i?" lit":""),'<span class="g">'+c[0]+'</span><span>'+clueText(c[1],c[2])+'</span>')); });
+  }
+  /* усі коди з трьох різних цифр */
+  var ALL = (function(){ var r = []; for(var n=0;n<1000;n++){ var s = ("00"+n).slice(-3); if(s[0]!==s[1] && s[1]!==s[2] && s[0]!==s[2]) r.push(s); } return r; })();
+  function fits(list){ return ALL.filter(function(c){ return list.every(function(k){ var f = fb(k[0], c); return f[0]===k[1] && f[1]===k[2]; }); }); }
+  /* генератор: випадковий код + підказки, доки розв'язок не стане єдиним (не більше 5) */
+  function make(){
+    for(var t=0;t<200;t++){
+      var code = NAV.pick(ALL), list = [], left = ALL.length;
+      while(list.length < 5 && left > 1){
+        var g = NAV.pick(ALL); if(g===code || list.some(function(k){ return k[0]===g; })) continue;
+        var f = fb(g, code); if(f[0]===3) continue;
+        var nx = fits(list.concat([[g,f[0],f[1]]])).length;
+        if(nx < left){ list.push([g,f[0],f[1]]); left = nx; }
+      }
+      if(left===1 && list.length>=3) return {code:code, list:list};
+    }
+    return {code:"042", list:CLASSIC};
+  }
+  /* варіанти: правильний + перестановки його цифр та «майже правильні» коди */
+  function codeOpts(right, list, extra){
+    var o = [{tx:right, ok:true}], seen = {}; seen[right] = 1;
+    function add(c, why){ if(o.length < 4 && !seen[c]){ seen[c] = 1; o.push({tx:c, why:why}); } }
+    (extra || []).forEach(function(e){ add(e[0], e[1]); });
+    var p = [right[1]+right[0]+right[2], right[0]+right[2]+right[1], right[2]+right[1]+right[0]];
+    NAV.shuffle(p).forEach(function(c){
+      var bad = list.filter(function(k){ var f = fb(k[0], c); return f[0]!==k[1] || f[1]!==k[2]; })[0];
+      if(bad) add(c, "Перевір табличку <b>"+bad[0]+"</b>: для коду "+c+" там було б «"+clueText.apply(null, fb(bad[0], c))+"».");
+    });
+    while(o.length < 4){
+      var c = NAV.pick(ALL), bad = list.filter(function(k){ var f = fb(k[0], c); return f[0]!==k[1] || f[1]!==k[2]; })[0];
+      if(bad) add(c, "Не збігається з табличкою <b>"+bad[0]+"</b>.");
+    }
+    return o;
+  }
+
+  function startGame(){
+    log = []; NAV.step(0,TOTAL); renderLog(); slots();
+    clues([CLASSIC[3]], 0);
+    NAV.hint("Перша табличка: <b>738</b> — жодна цифра не підходить.");
+    NAV.question("Які цифри точно <b>не</b> входять у код?", [
+      {tx:"7, 3 і 8", ok:true},
+      {tx:"Тільки 7", why:"Табличка каже: жодна з трьох цифр не підходить — ні 7, ні 3, ні 8."},
+      {tx:"0, 4 і 2", why:"Про ці цифри табличка 738 нічого не каже."}
+    ], function(){
+      log.push("738 → ❌ 7, 3, 8"); renderLog();
+      NAV.hint("Так! Три цифри викреслено.","good"); setTimeout(step2, 900);
+    }, {cols:3, keepOrder:true});
+  }
+  function step2(){
+    NAV.step(1,TOTAL); slots();
+    clues(CLASSIC);
+    NAV.hint("Ось усі 5 табличок. 7, 3, 8 — вже викреслено. Табличка <b>206</b>: дві цифри є, але не на своїх місцях.");
+    NAV.question("Який код відчиняє ворота?", [
+      {tx:"042", ok:true},
+      {tx:"024", why:"Табличка 682: двійка стоїть на своєму місці — третьою. А в 024 вона друга."},
+      {tx:"204", why:"Табличка 206: двійка не може стояти першою — там вона «не на своєму місці»."},
+      {tx:"402", why:"Табличка 206: нуль там другий і «не на своєму місці» — отже, у коді він не може стояти другим."}
+    ], function(){
+      slots("042", true); NAV.snd.chime();
+      log.push("Код → <b>042</b>"); renderLog();
+      NAV.hint("Клац! Перші ворота відчинено 🔓","good"); setTimeout(step3, 1200);
+    }, {cols:2, keepOrder:true});
+  }
+  function step3(){
+    NAV.step(2,TOTAL);
+    var z = make(); slots(); clues(z.list);
+    NAV.again = step3;
+    NAV.hint("Другі ворота — нові таблички. Цифри в коді не повторюються.");
+    NAV.question("Який код?", codeOpts(z.code, z.list), function(){
+      slots(z.code, true); NAV.snd.chime();
+      log.push("Другі ворота → <b>"+z.code+"</b>"); renderLog();
+      NAV.hint("Правильно! Кожна табличка збігається.","good"); setTimeout(flip, 1100);
+    }, {cols:2});
+  }
+  function flip(){
+    NAV.modal("🔄","Навиворіт!","Ворота перевернулись — і тепер замок читає код <b>справа наліво</b>! Розгадай код, а потім введи його навпаки.",{nav:true, btn:"🔄 Перевернути"}, function(){
+      NAV.snd.whoosh(); NAV.flipAnim();
+      setTimeout(function(){ NAV.setFlip(true); log.push("🔄 <b>Код — справа наліво</b>"); renderLog(); step4(); }, 500);
+    });
+  }
+  function step4(){
+    NAV.step(3,TOTAL); slots(); clues(CLASSIC);
+    NAV.hint("Ті самі таблички — код <b>042</b>. Але замок тепер читає справа наліво.");
+    NAV.question("Що ввести у перевернутий замок?", [
+      {tx:"240", ok:true},
+      {tx:"042", why:"Так було до перевороту! Тепер замок читає навпаки."},
+      {tx:"420", why:"Переверни всі три цифри: остання стає першою — 2, 4, 0."},
+      {tx:"204", why:"Читай 042 з кінця: 2… 4… 0."}
+    ], function(){
+      slots("240", true); NAV.snd.chime();
+      log.push("042 навпаки → <b>240</b>"); renderLog();
+      NAV.hint("Так! Перевернутий замок відчинено.","good"); setTimeout(step5, 1100);
+    }, {cols:2, keepOrder:true});
+  }
+  function step5(){
+    NAV.step(4,TOTAL);
+    var z = make(), r = rev(z.code); slots(); clues(z.list);
+    NAV.again = step5;
+    NAV.hint("Останні ворота. Спершу розгадай код за табличками, а потім — <b>переверни</b> його.");
+    /* варіанти: перевернутий код, сам код (старе правило) і перевернуті «майже правильні» коди */
+    var opts = [{tx:r, ok:true}, {tx:z.code, why:"Це розгаданий код — але замок навиворіт! Введи його справа наліво."}], seen = {};
+    seen[r] = seen[z.code] = 1;
+    for(var t=0; opts.length < 4 && t < 20; t++) codeOpts(z.code, z.list).forEach(function(o){
+      var w = rev(o.tx);
+      if(!o.ok && opts.length < 4 && !seen[w]){ seen[w] = 1; opts.push({tx:w, why:"Спершу розгадай код за табличками — "+o.tx+" не підходить, тож і "+w+" не відчинить ворота."}); }
+    });
+    NAV.question("Що ввести у перевернутий замок?", opts, function(){
+      slots(r, true); NAV.snd.fanfare();
+      log.push(z.code+" навпаки → <b>"+r+"</b>"); renderLog();
+      NAV.hint("Чудово! Стародавні ворота відчинено 🔓","good"); setTimeout(NAV.finish, 1300);
+    }, {cols:2});
+  }
+})();
+</script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=15"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=4"></script>
+<script src="../sk-prize.js?v=2"></script>
+<script src="../sk-finish.js?v=6"></script>
+<script src="nav-intro.js"></script>
+</body>
+</html>
