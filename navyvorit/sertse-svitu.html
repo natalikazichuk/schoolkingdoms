@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Серце Світу навиворіт — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<link rel="stylesheet" href="nav-common.css">
+<style>
+/* ── фінал: серце з трьома кристалами (числа, лампи, слова) ── */
+#scene{height:220px; background:radial-gradient(circle at 50% 55%,#f3d9fa 0%,#e599f7 45%,#9c36b5 100%);}
+body.flipped #scene{background:radial-gradient(circle at 50% 55%,#d0bfff 0%,#7950f2 50%,#2b1a66 100%);}
+#heart{position:absolute; left:50%; top:22px; width:120px; margin-left:-60px; text-align:center; font-size:96px; line-height:1; filter:drop-shadow(0 6px 10px rgba(80,0,120,.4)); transition:transform .6s;}
+#heart.beat{animation:beat .9s ease 2;}
+@keyframes beat{0%,100%{transform:scale(1)}30%{transform:scale(1.15)}60%{transform:scale(.95)}}
+#gems{position:absolute; left:0; right:0; bottom:14px; display:flex; justify-content:center; gap:16px;}
+.gm{width:74px; text-align:center; font-weight:800; font-size:11.5px; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.4);}
+.gm .c{width:42px; height:42px; margin:0 auto 3px; border-radius:10px; transform:rotate(45deg); background:#5c5f66; border:3px solid #2b2d31; transition:background .4s, box-shadow .4s;}
+.gm.on .c{background:linear-gradient(135deg,#fff,#ffd43b 40%,#f76707); box-shadow:0 0 16px 5px rgba(255,212,59,.8);}
+#lamps3{position:absolute; top:12px; right:10px; display:flex; gap:5px;}
+#lamps3 .l{width:22px; height:22px; border-radius:50%; background:#5c5f66; border:2px solid #2b2d31; color:#fff; font-size:11px; font-weight:800; line-height:18px; text-align:center;}
+#lamps3 .l.on{background:radial-gradient(circle at 40% 35%,#fff9db,#ffd43b 55%,#f59f00); box-shadow:0 0 10px 3px rgba(255,212,59,.75); color:#5c3d00;}
+</style>
+</head>
+<body>
+<script src="../sk-footer.js?v=6" data-base="../" data-back="self"></script>
+<script src="nav-common.js"></script>
+<script>
+(function(){
+  "use strict";
+  var TOTAL = 5, log;
+  var G = ["Числа","Лампи","Слова"];
+
+  NAV.mount({
+    next: "index.html",   // фінал — назад на карту
+    title:"Серце Світу навиворіт", emoji:"💜", sub:"Логіка · Світ навиворіт · фінал",
+    riddle:"Ти дійшов(-ла) до самого Серця Світу навиворіт! Щоб його розбудити, засвіти <b>три кристали</b>:<span class='seq'>🔢 числа · 💡 лампи · 💬 слова</span>А потім — останній 🔄 переворот: усе, чого ти навчився(-лась), знадобиться навпаки!",
+    play:"До Серця ▶", steps:TOTAL, crown:"💜👑",
+    badgeOff:"➡️ усе як є", badgeOn:"🔄 усе навпаки",
+    prizeKey:"sk_sertse_prize_v1", href:"sertse-svitu.html", doneText:"Серце Світу навиворіт б'ється — нагороду отримано!",
+    winTitle:"Серце б'ється!", winPerfect:"Світ навиворіт підкорено без жодної помилки!",
+    lesson:[
+      "У ряду чисел шукай <b>правило</b>: що робиться з кожним числом, щоб вийшло наступне.",
+      "У логіці «якщо… то…» перевіряй по черзі: спершу те, що відомо напевно, потім — що з нього випливає.",
+      "🔄 Навиворіт правило діє <b>у зворотний бік</b>: множення стає діленням, а мешканець, що завжди бреше, каже протилежне до правди."
+    ],
+    scene:'<div id="heart">💜</div><div id="lamps3"></div><div id="gems"></div>',
+    afterScene:'<div class="log" id="log"></div>',
+    onStart:startGame
+  });
+
+  function renderLog(){
+    var box = NAV.$("log"); box.innerHTML = '<div class="lh">📒 Записник мандрівника</div>';
+    if(!log.length){ box.appendChild(NAV.el("div","empty","Поки нічого.")); return; }
+    var rows = NAV.el("div","rows"); log.slice(-3).forEach(function(r){ rows.appendChild(NAV.el("div","r",r)); }); box.appendChild(rows);
+  }
+  var lit = [false,false,false];
+  function gems(){
+    var b = NAV.$("gems"); b.innerHTML = "";
+    G.forEach(function(n, i){ b.appendChild(NAV.el("div","gm"+(lit[i]?" on":""),'<div class="c"></div>'+n)); });
+  }
+  function light(i){ lit[i] = true; gems(); NAV.snd.chime(); }
+  function lamps(st){
+    var b = NAV.$("lamps3"); b.innerHTML = "";
+    (st || []).forEach(function(on, i){ b.appendChild(NAV.el("div","l"+(on?" on":""), String(i+1))); });
+  }
+  function numOpts(right, wrongs, why){
+    var seen = {}, o = [{tx:String(right), ok:true}]; seen[right] = 1;
+    wrongs.forEach(function(w){ if(o.length < 4 && w > 0 && w===Math.round(w) && !seen[w]){ seen[w] = 1; o.push({tx:String(w), why:why(w)}); } });
+    return o;
+  }
+
+  /* 1. числа: ряд «множ на k» — яке число далі? */
+  function startGame(){
+    log = []; lit = [false,false,false]; gems(); lamps(); NAV.step(0,TOTAL); renderLog();
+    NAV.again = startGame;
+    var k = NAV.pick([2,3]), a = NAV.rnd(2,5), s = [a, a*k, a*k*k, a*k*k*k], right = a*k*k*k*k;
+    NAV.hint("Перший кристал — 🔢 <b>числа</b>. Знайди правило ряду.");
+    NAV.question("Яке число далі? <b>"+s.join(", ")+", …</b>", numOpts(right, [s[3] + (s[3]-s[2]), s[3]+k, s[3]*2+1, right*k], function(w){
+      return w===s[3]+(s[3]-s[2]) ? "Різниця між сусідніми числами щоразу інша — тут не додають, а множать." : "Подивись: кожне число в "+k+" рази більше за попереднє.";
+    }), function(){
+      light(0); log.push(s.join(", ")+" → <b>"+right+"</b> (× "+k+")"); renderLog();
+      NAV.hint("Так! Кожне число × "+k+". Перший кристал засвітився!","good"); setTimeout(step2, 1100);
+    }, {cols:2});
+  }
+  /* 2. лампи: «якщо… то…» */
+  function step2(){
+    NAV.step(1,TOTAL); lamps([false,false,false]);
+    NAV.hint("Другий кристал — 💡 <b>лампи</b>. Читай правила по черзі.");
+    NAV.question("Лампа 1 горить. Лампа 2 горить, лише якщо лампа 1 <b>не</b> горить. Лампа 3 горить, якщо горить <b>рівно одна</b> з ламп 1 і 2. Які лампи горять?", [
+      {tx:"1 і 3", ok:true},
+      {tx:"1 і 2", why:"Лампа 1 горить — отже, лампа 2 горіти не може."},
+      {tx:"Усі три", why:"Лампа 2 горить, лише коли лампа 1 погашена. А лампа 1 горить."},
+      {tx:"Тільки 1", why:"Горить рівно одна з ламп 1 і 2 (лампа 1) — значить, лампа 3 теж горить."}
+    ], function(){
+      lamps([true,false,true]); light(1); log.push("💡 1 і 3 горять, 2 — ні"); renderLog();
+      NAV.hint("Правильно! Другий кристал засвітився!","good"); setTimeout(step3, 1100);
+    }, {cols:2, keepOrder:true});
+  }
+  /* 3. слова: хитре твердження */
+  function step3(){
+    NAV.step(2,TOTAL);
+    NAV.hint("Третій кристал — 💬 <b>слова</b>. Обережно, твердження хитре!");
+    NAV.question("Усі кристали в Серці — сині. Цей камінь — <b>не синій</b>. Що можна сказати напевно?", [
+      {tx:"Він не кристал із Серця", ok:true},
+      {tx:"Він кристал, просто інший", why:"Якби він був кристалом із Серця, то був би синім. А він не синій."},
+      {tx:"Нічого не можна сказати", why:"Можна! Усі кристали Серця сині — отже, не синій камінь точно не з них."}
+    ], function(){
+      light(2); log.push("Не синій → не кристал Серця"); renderLog();
+      NAV.hint("Так! Три кристали сяють…","good"); setTimeout(flip, 1100);
+    }, {keepOrder:true});
+  }
+  function flip(){
+    NAV.modal("🔄","Останній переворот!","Серце здригнулося — і світ перевернувся востаннє! Кристали згасли. Тепер усі правила діють <b>навпаки</b>.",{nav:true, btn:"🔄 Перевернути"}, function(){
+      NAV.snd.whoosh(); NAV.flipAnim();
+      setTimeout(function(){ NAV.setFlip(true); lit = [false,false,false]; gems(); lamps(); log.push("🔄 <b>Останній переворот</b>"); renderLog(); step4(); }, 500);
+    });
+  }
+  /* 4. числа навпаки: ряд іде назад — ділимо */
+  function step4(){
+    NAV.step(3,TOTAL); NAV.again = step4;
+    var k = NAV.pick([2,3]), a = NAV.rnd(2,4), big = a*k*k*k*k, s = [big, big/k, big/k/k, big/k/k/k], right = a;
+    NAV.hint("Числа тепер біжать <b>назад</b>. Знайди правило.");
+    NAV.question("Яке число далі? <b>"+s.join(", ")+", …</b>", numOpts(right, [s[3]*k, s[3]-k, s[3]-(s[2]-s[3]), a+1], function(w){
+      return w===s[3]*k ? "Це за старим правилом! Навиворіт ряд іде назад — ділимо." : "Кожне число в "+k+" рази менше за попереднє: поділи "+s[3]+" на "+k+".";
+    }), function(){
+      light(0); log.push(s.join(", ")+" → <b>"+right+"</b> (÷ "+k+")"); renderLog();
+      NAV.hint("Так! Множення навиворіт — це ділення.","good"); setTimeout(step5, 1100);
+    }, {cols:2});
+  }
+  /* 5. брехуни навиворіт: мешканець завжди каже неправду */
+  var LIES = [
+    {q:"«Я сплю»", ok:"Він не спить", no:[["Він спить","Він завжди бреше — отже, «я сплю» неправда."],["Не можна дізнатися","Можна! Якщо він бреше, правда — протилежна."]]},
+    {q:"«Ліхтар горить»", ok:"Ліхтар не горить", no:[["Ліхтар горить","Мешканець бреше — тож ліхтар насправді погашений."],["Ліхтар горить двічі","Так не буває 🙂 Візьми протилежне до його слів."]]},
+    {q:"«Двері відчинені»", ok:"Двері зачинені", no:[["Двері відчинені","Це його слова — а він завжди бреше."],["Дверей немає","Він казав про двері — вони є, але все навпаки."]]},
+    {q:"«Зараз ніч»", ok:"Зараз день", no:[["Зараз ніч","Він бреше — отже, не ніч."],["Зараз і ніч, і день","Візьми просто протилежне до його слів."]]}
+  ];
+  function step5(){
+    NAV.step(4,TOTAL); NAV.again = step5;
+    var z = NAV.pick(LIES);
+    NAV.hint("Мешканці Серця навиворіт <b>завжди кажуть неправду</b>.");
+    NAV.question("Мешканець каже: <b>"+z.q+"</b>. Як насправді?", [{tx:z.ok, ok:true}].concat(z.no.map(function(n){ return {tx:n[0], why:n[1]}; })), function(){
+      light(1); setTimeout(function(){ light(2); }, 350);
+      log.push(z.q+" — брехня → <b>"+z.ok.toLowerCase()+"</b>"); renderLog();
+      setTimeout(function(){
+        NAV.$("heart").classList.add("beat"); NAV.snd.fanfare();
+        NAV.hint("Серце Світу навиворіт б'ється! 💜 Ти пройшов(-ла) увесь світ!","good");
+        setTimeout(NAV.finish, 1800);
+      }, 800);
+    });
+  }
+})();
+</script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=15"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=4"></script>
+<script src="../sk-prize.js?v=2"></script>
+<script src="../sk-finish.js?v=6"></script>
+<script src="nav-intro.js"></script>
+</body>
+</html>

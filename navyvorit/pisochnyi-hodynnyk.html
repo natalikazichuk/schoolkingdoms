@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Пісочний годинник — School Kingdoms</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<link rel="stylesheet" href="nav-common.css">
+<style>
+/* ── пісочний годинник: верхня колба — піщинки, що лишились ── */
+#scene{height:230px; background:linear-gradient(180deg,#fff3bf 0%,#ffe8a3 60%,#e8c27a 60%,#d9a95a 100%);}
+body.flipped #scene{background:linear-gradient(180deg,#e5dbff 0%,#d0bfff 60%,#9775fa 60%,#7950f2 100%);}
+#grains{position:absolute; top:10px; left:10px; background:#fff; border:2px solid var(--line); border-radius:12px; padding:3px 10px; font-weight:800; font-size:14px;}
+#mins{position:absolute; top:10px; right:10px; background:#fff; border:2px solid var(--line); border-radius:12px; padding:3px 10px; font-weight:800; font-size:14px;}
+#glass{position:absolute; left:50%; top:46px; width:110px; height:160px; margin-left:-55px; transition:transform .8s cubic-bezier(.6,-.2,.3,1.2);}
+#glass.turn{transform:rotate(180deg);}
+#glass .cap{position:absolute; left:-8px; right:-8px; height:12px; background:#8a5a2b; border-radius:6px;}
+#glass .cap.t{top:-6px;} #glass .cap.b{bottom:-6px;}
+#glass .bulb{position:absolute; left:6px; right:6px; height:74px; overflow:hidden; background:rgba(255,255,255,.55); border:3px solid #b7d4ee;}
+#glass .bulb.t{top:0; border-radius:10px 10px 50% 50% / 10px 10px 90% 90%;}
+#glass .bulb.b{bottom:0; border-radius:50% 50% 10px 10px / 90% 90% 10px 10px;}
+#glass .sand{position:absolute; left:0; right:0; bottom:0; background:linear-gradient(180deg,#ffd43b,#f59f00); transition:height .5s;}
+#glass .bulb.t .sand{bottom:0;}
+#glass .neck{position:absolute; left:50%; top:72px; width:6px; height:16px; margin-left:-3px; background:#f59f00; opacity:0;}
+#glass.run .neck{opacity:1;}
+</style>
+</head>
+<body>
+<script src="../sk-footer.js?v=6" data-base="../" data-back="self"></script>
+<script src="nav-common.js"></script>
+<script>
+(function(){
+  "use strict";
+  var TOTAL = 5, log, top = 100, rate = 10, minN = 0;
+
+  NAV.mount({
+    next: "muzychnyi-dim.html",   // «Вирушай далі! ›» — наступний пункт карти
+    title:"Пісочний годинник", emoji:"⏳", sub:"Логіка · Світ навиворіт · 5 кроків",
+    riddle:"У Вежі часу стоїть чарівний пісочний годинник. У верхній колбі — 100 піщинок, і щохвилини вниз падає 10:<span class='seq'>100 → 90 → 80 → …</span>Скільки піщинок лишиться через 4 хвилини? А потім — 🔄 переворот, і пісок потече назад…",
+    play:"До годинника ▶", steps:TOTAL, crown:"⏳✨",
+    badgeOff:"⏬ пісок падає", badgeOn:"🔄 пісок вертається",
+    prizeKey:"sk_pisok_prize_v1", href:"pisochnyi-hodynnyk.html", doneText:"Пісочний годинник розгадано — нагороду отримано!",
+    winTitle:"Час підкорено!", winPerfect:"Жодної помилки з піщинками!",
+    lesson:[
+      "Щохвилини піщинок стає <b>менше на одне й те саме число</b>: 100 − 10 − 10 − 10 − 10 = <b>60</b>.",
+      "Щоб дізнатися, коли колба спорожніє, поділи: 100 піщинок ÷ 10 за хвилину = <b>10 хвилин</b>.",
+      "🔄 Навиворіт пісок вертається вгору: щохвилини <b>додавай</b>. З 40 до 100 при +10 — це <b>6 хвилин</b>."
+    ],
+    scene:'<div id="grains">⏳ <b id="gN">100</b> піщинок</div><div id="mins">🕐 <b id="mN">0</b> хв</div>'+
+      '<div id="glass"><div class="cap t"></div><div class="bulb t"><div class="sand" id="sTop"></div></div><div class="neck"></div><div class="bulb b"><div class="sand" id="sBot"></div></div><div class="cap b"></div></div>',
+    afterScene:'<div class="log" id="log"></div>',
+    onStart:startGame
+  });
+
+  function renderLog(){
+    var box = NAV.$("log"); box.innerHTML = '<div class="lh">📒 Записник годинникаря</div>';
+    if(!log.length){ box.appendChild(NAV.el("div","empty","Поки нічого.")); return; }
+    var rows = NAV.el("div","rows"); log.slice(-3).forEach(function(r){ rows.appendChild(NAV.el("div","r",r)); }); box.appendChild(rows);
+  }
+  function show(t, full){
+    top = t; NAV.$("gN").textContent = t; NAV.$("mN").textContent = minN;
+    full = full || 100;
+    NAV.$("sTop").style.height = Math.max(0, Math.min(100, t/full*100)) + "%";
+    NAV.$("sBot").style.height = Math.max(0, Math.min(100, (full-t)/full*100)) + "%";
+  }
+  /* хвилини минають: пісок перетікає (dir −1 — вниз, +1 — назад угору) */
+  function run(k, step, cb){
+    var g = NAV.$("glass"); g.classList.add("run"); var n = 0;
+    (function go(){
+      if(n >= k){ g.classList.remove("run"); setTimeout(cb, 400); return; }
+      setTimeout(function(){ n++; minN++; show(top + step); NAV.snd.tone(500 + n*40, .08, "sine"); go(); }, 450);
+    })();
+  }
+  function numOpts(right, wrongs, why){
+    var seen = {}, o = [{tx:String(right), ok:true}]; seen[right] = 1;
+    wrongs.forEach(function(w){ if(o.length < 4 && w >= 0 && !seen[w]){ seen[w] = 1; o.push({tx:String(w), why:why(w)}); } });
+    return o;
+  }
+
+  function startGame(){
+    log = []; minN = 0; NAV.step(0,TOTAL); renderLog(); show(100);
+    NAV.$("glass").classList.remove("turn");
+    NAV.hint("100 піщинок, щохвилини падає <b>10</b>. Скільки лишиться через <b>4 хвилини</b>?");
+    NAV.question("Скільки піщинок лишиться вгорі через 4 хвилини?", numOpts(60, [40, 96, 70, 50], function(w){
+      return w===96 ? "Падає не 1 піщинка, а 10 щохвилини!" : (w===70 ? "Це через 3 хвилини. Порахуй ще одну." : "Рахуй: 100 → 90 → 80 → 70 → …");
+    }), function(){
+      run(4, -10, function(){
+        log.push("100 − 10 × 4 → <b>60</b>"); renderLog();
+        NAV.hint("Так! 100 → 90 → 80 → 70 → <b>60</b>.","good");
+        setTimeout(step2, 1000);
+      });
+    }, {cols:2});
+  }
+  function step2(){
+    NAV.step(1,TOTAL); NAV.again = step2;
+    minN = 0;
+    var r = NAV.pick([5,10,20]), st = r*NAV.rnd(6,10), k = NAV.rnd(2,5), right = st - r*k;
+    rate = r; show(st, st);
+    NAV.hint("Новий годинник: <b>"+st+"</b> піщинок, щохвилини падає <b>"+r+"</b>.");
+    NAV.question("Скільки лишиться через <b>"+k+"</b> хв?", numOpts(right, [st - r*(k-1), st - k, right - r, st + r*k], function(w){
+      return w===st-k ? "Щохвилини падає "+r+", а не 1!" : (w===st+r*k ? "Пісок падає вниз — у верхній колбі стає менше." : "Рахуй кожну хвилину: −"+r+".");
+    }), function(){
+      run(k, -r, function(){
+        log.push(st+" − "+r+" × "+k+" → <b>"+right+"</b>"); renderLog();
+        NAV.hint("Правильно!","good"); setTimeout(step3, 1000);
+      });
+    }, {cols:2});
+  }
+  function step3(){
+    NAV.step(2,TOTAL);
+    minN = 0; show(100);
+    NAV.hint("Подивись у записник 📒. Коли верхня колба спорожніє?");
+    NAV.question("100 піщинок, щохвилини падає 10. Через скільки хвилин колба спорожніє?", [
+      {tx:"Через 10 хвилин", ok:true},
+      {tx:"Через 100 хвилин", why:"Падає по 10, а не по 1. 100 ÷ 10 = ?"},
+      {tx:"Через 9 хвилин", why:"Через 9 хвилин лишиться ще 10 піщинок."}
+    ], function(){ log.push("100 ÷ 10 → <b>10 хв</b>"); renderLog(); setTimeout(flip, 900); });
+  }
+  function flip(){
+    NAV.modal("🔄","Навиворіт!","Годинникар перевернув годинник — і пісок <b>потік назад угору</b>! Тепер щохвилини у верхній колбі піщинок <b>більшає</b>.",{nav:true, btn:"🔄 Перевернути"}, function(){
+      NAV.snd.whoosh(); NAV.flipAnim(); NAV.$("glass").classList.add("turn");
+      setTimeout(function(){
+        NAV.$("glass").classList.remove("turn");
+        NAV.setFlip(true); log.push("🔄 <b>Пісок вертається: щохвилини +</b>"); renderLog();
+        step4();
+      }, 900);
+    });
+  }
+  function step4(){
+    NAV.step(3,TOTAL);
+    minN = 0; show(40);
+    NAV.hint("Вгорі <b>40</b> піщинок. Пісок вертається: щохвилини <b>+10</b>.");
+    NAV.question("Через скільки хвилин вгорі знову буде 100?", [
+      {tx:"Через 6 хвилин", ok:true},
+      {tx:"Через 4 хвилини", why:"40 + 10 × 4 = 80 — ще не 100."},
+      {tx:"Через 10 хвилин", why:"Стільки треба, щоб пройти з 0 до 100. А в нас уже 40."},
+      {tx:"Ніколи", why:"Навиворіт пісок вертається — щохвилини його більшає!"}
+    ], function(){
+      run(6, 10, function(){
+        log.push("40 + 10 × 6 → <b>100</b>"); renderLog();
+        NAV.hint("Так! 40 → 50 → … → <b>100</b> за 6 хвилин.","good"); setTimeout(step5, 1000);
+      });
+    }, {cols:2});
+  }
+  function step5(){
+    NAV.step(4,TOTAL); NAV.again = step5;
+    minN = 0;
+    var r = NAV.pick([5,10,20]), full = r*10, st = r*NAV.rnd(2,6), k = NAV.rnd(2,4), right = st + r*k;
+    show(st, full);
+    NAV.hint("Останній годинник: вгорі <b>"+st+"</b>, пісок вертається по <b>+"+r+"</b> щохвилини.");
+    NAV.question("Скільки піщинок буде вгорі через <b>"+k+"</b> хв?", numOpts(right, [st - r*k, st + k, right + r, right - r], function(w){
+      return w===st-r*k ? "Це за старим правилом! Навиворіт пісок вертається — додавай." : (w===st+k ? "Щохвилини вертається "+r+", а не 1." : "Додавай по "+r+" за кожну хвилину.");
+    }), function(){
+      run(k, r, function(){
+        log.push(st+" + "+r+" × "+k+" → <b>"+right+"</b>"); renderLog();
+        NAV.hint("Чудово! Пісочний годинник тебе слухається ⏳","good"); setTimeout(NAV.finish, 1300);
+      });
+    }, {cols:2});
+  }
+})();
+</script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=15"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=4"></script>
+<script src="../sk-prize.js?v=2"></script>
+<script src="../sk-finish.js?v=6"></script>
+<script src="nav-intro.js"></script>
+</body>
+</html>
