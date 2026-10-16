@@ -154,6 +154,12 @@ body.flipped #hint{background:#faf5ff; border-color:#d0b3f5;}
 .winrow a.linkbtn{text-decoration:none; color:var(--ink);}
 .big-emoji{font-size:64px; line-height:1;}
 .mcard .big img{display:block; width:110px; height:auto; margin:0 auto;}
+/* віконце «Звичайно / Навиворіт» — на сувої, з лупою */
+.mcard.scrolly{background:none; border-radius:0; box-shadow:none; padding:0 6px; gap:8px;
+  border-style:solid; border-width:50px 44px 48px; border-image:url(img/budynok-yakoho-nemaye/scroll.webp) 150 120 140 fill / 50px 44px 48px stretch;
+  filter:drop-shadow(0 12px 18px rgba(0,0,0,.4));}
+.mcard.scrolly .big img{width:70px;}
+.mcard.scrolly .mt{color:#24418f;}
 .act .ic img{display:block; width:34px; height:26px; object-fit:contain;}
 h1{font-size:30px; font-weight:700;}
 .start-sub{color:var(--soft); font-weight:800; font-size:15px;}
@@ -212,8 +218,7 @@ h1{font-size:30px; font-weight:700;}
 .modes .a{background:#fff; border:2px solid #ece3d2; color:var(--ink);}
 .modes .b{background:#f8f0ff; border:2px solid #d9c2fb; color:#8e3fb0;}
 .modes small{display:block; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--soft); margin-bottom:3px;}
-.rfoot{display:flex; align-items:center; gap:10px;}
-.rfoot .go-lbl{flex:1; font-family:'Fredoka',sans-serif; font-weight:700; font-size:19px; color:#24418f; text-align:right;}
+.rfoot{display:flex; align-items:center; justify-content:flex-end; gap:10px;}
 .go-btn{flex:none; width:64px; height:64px; border-radius:50%; border:3px solid #f4c842; cursor:pointer; color:#fff; font-size:30px; line-height:1;
   display:grid; place-items:center; padding:0 0 0 5px; background:linear-gradient(180deg,#5b97ff,#1f4fd6);
   box-shadow:0 0 0 3px #7c5a12, 0 6px 0 #163a9c, 0 10px 16px rgba(0,0,0,.3); position:relative;}
@@ -301,7 +306,7 @@ h1{font-size:30px; font-weight:700;}
         <div><div class="dc-got" id="doneGot">Загадку розгадано!</div>
           <div class="dc-go" id="doneGo">Вирушай за новими досягненнями!</div></div>
       </div>
-      <div class="rfoot"><span class="go-lbl">Шукати будинок</span><button class="go-btn" id="playBtn" type="button" title="Шукати будинок" aria-label="Шукати будинок">➜</button></div>
+      <div class="rfoot"><button class="go-btn" id="playBtn" type="button" title="Шукати будинок" aria-label="Шукати будинок">➜</button></div>
     </div>
   </div>
 
@@ -380,7 +385,7 @@ h1{font-size:30px; font-weight:700;}
     var top = tb.getBoundingClientRect().bottom - sr.top + 4, bot = box.getBoundingClientRect().top - sr.top - 4;
     var V = Math.max(80, bot - top), h = V / (FOCUS[1] - FOCUS[0]), w = h * ar;
     if(w < W){ w = W; h = W / ar; }                       // ширину екрана завжди покриваємо
-    var y = top - FOCUS[0]*h + (V - (FOCUS[1] - FOCUS[0])*h) / 2;
+    var y = Math.min(0, top - FOCUS[0]*h + (V - (FOCUS[1] - FOCUS[0])*h) / 2);   // без світлої смуги над картинкою
     var x = Math.min(0, Math.max(W - w, W/2 - FX*w));      // діти ближче до центру, без порожніх країв
     /* верхній шар — смуга 90px по нижньому краю картинки: картинка плавно переходить у зелений фон */
     var F = 90;
@@ -693,7 +698,10 @@ h1{font-size:30px; font-weight:700;}
     box.children[0].appendChild(document.createTextNode(m.a));
     box.children[1].appendChild(document.createTextNode(m.b));
     $("mBtn").textContent = "Зрозуміло 👍";
-    showModal("🔎", "Чому номер змінюється?", box.outerHTML, function(){ $("mBtn").textContent = "Далі →"; });
+    var card = $("modal").querySelector(".mcard"); card.classList.add("scrolly");
+    showModal('<img src="img/budynok-yakoho-nemaye/magnifier.webp" alt="🔎">', "Чому номер змінюється?", box.outerHTML, function(){
+      $("mBtn").textContent = "Далі →"; card.classList.remove("scrolly");
+    });
   }
   $("hintsLink").addEventListener("click", function(){ tap(); showModes(); });
   $("mBtn").addEventListener("click", function(){
