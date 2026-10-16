@@ -224,6 +224,7 @@ h1{font-size:34px; font-weight:700;}
   .riddle{font-size:14px; padding:10px 12px;}
 }
 </style>
+<script src="nav-guard.js"></script>
 </head>
 <body>
 <div id="wrap">
@@ -296,7 +297,7 @@ h1{font-size:34px; font-weight:700;}
   </div>
 </div>
 
-<script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
+<script src="../sk-footer.js?v=6" data-base="../" data-back="self"></script>
 
 <script>
 (function(){
@@ -359,7 +360,9 @@ h1{font-size:34px; font-weight:700;}
     later(function(){ if(f.parentNode) f.parentNode.removeChild(f); }, 1300);
   }
   function renderBag(){ $("bag").textContent = bag.length>3 ? bag.slice(-2).join(" ")+" +"+(bag.length-2) : bag.join(" "); }   // довга сумка — останні 2 + скільки ще
-  function miss(txt){ mistakes++; thud(); buzz(40); hint(txt,"bad"); }
+  function miss(txt){ mistakes++; thud(); buzz(40); hint(txt,"bad"); NAVGuard.cool(panelEl); }
+  /* 2 помилки в питанні — показати його знову з перемішаними варіантами (nav-guard.js) */
+  function renewQ(fn){ NAVGuard.cool(panelEl, NAVGuard.COOL + 400); NAVGuard.after(function(){ fn(); NAVGuard.note(hintEl, "🔄 Варіанти перемішано. Подумай ще раз — не вгадуй!"); }); }
 
   /* скільки магазин повертає за покупку на цьому рівні */
   function refund(id){
@@ -471,6 +474,7 @@ h1{font-size:34px; font-weight:700;}
     hint("");
     panelEl.innerHTML = "";
     panelEl.appendChild(el("div","q","Яке правило магазину?"));
+    var misses = 0;
     var opts = [
       {t:"Повертає вдвічі більше, ніж ти заплатив(-ла)", ok:true},
       {t:"Повертає стільки ж, скільки ти заплатив(-ла)"},
@@ -485,6 +489,7 @@ h1{font-size:34px; font-weight:700;}
           miss(o.t.indexOf("10")>=0
             ? "За яблуко дали на 10 більше, а за іграшку — на 20. Тож не «+10». Подивись у журнал 📒"
             : "Подивись у журнал 📒: витратив(-ла) 10 — отримав(-ла) 20, витратив(-ла) 20 — отримав(-ла) 40.");
+          if(++misses >= 2) renewQ(function(){ if(step==="rule") askRule(); });
           return;
         }
         b.classList.add("good"); chime();
@@ -536,17 +541,20 @@ h1{font-size:34px; font-weight:700;}
     panelEl.appendChild(el("div","q", n<3 ? "Перевірено товарів: "+n+" з 3" : "Що показала перевірка?"));
     if(n<3) return;
     later(function(){ panelEl.scrollIntoView({behavior:"smooth", block:"end"}); }, 50);
+    var misses = 0;
     var opts = [
       {t:"Продавець правий: у магазині завжди все навпаки", w:"Перевір усі товари — може, якийсь порушує правило? 🔍"},
       {t:"Усе навпаки, крім 🧪 зілля — це баг! 🐞", ok:true},
       {t:"Магазин, як і раніше, подвоює", w:"Подивись у журнал 📒: яблуко, іграшка й ключ повертають лише половину."}
     ];
-    opts.forEach(function(o){
+    shuffle(opts).forEach(function(o){
       var b = el("button","opt",o.t); b.type="button";
       b.addEventListener("click", function(){
         if(busy) return;
         if(o.ok && !tested.potion){ b.classList.add("bad"); miss("А ти перевірив(-ла) зілля? Спершу купи його 🧪"); return; }
-        if(!o.ok){ b.classList.add("bad"); b.disabled=true; miss(o.w); return; }
+        if(!o.ok){ b.classList.add("bad"); b.disabled=true; miss(o.w);
+          if(++misses >= 2) renewQ(function(){ if(!busy && level===2) renderConclusion(); });
+          return; }
         b.classList.add("good"); chime(); busy = true;
         seller("Ой… Ти помітив(-ла)? 😳 Зілля: 30 → 60. Воно не підкоряється новому правилу!");
         hint("Я знайшов(-ла) баг! 🐞","good");
@@ -706,5 +714,6 @@ h1{font-size:34px; font-weight:700;}
 <script src="../sk-rewards.js?v=4"></script>
 <script src="../sk-prize.js?v=2"></script>
 <script src="../sk-finish.js?v=6"></script>
+<script src="nav-intro.js"></script>
 </body>
 </html>

@@ -4,7 +4,7 @@
    Ідентичний футеру hero.html (ромби-роздільники ◈, ВЕЛИКІ підписи).
 
    Підключення (наприкінці <body>, там де раніше стояв <nav class="botnav">):
-     <script src="sk-footer.js?v=5" data-active="tests"></script>
+     <script src="sk-footer.js?v=6" data-active="tests"></script>
 
    Атрибути на теґу <script>:
      data-active = home | tests | navch | arena | none
@@ -111,6 +111,14 @@ body{padding-bottom:calc(82px + env(safe-area-inset-bottom))}
         sk-report.js має власний захист window.__skReportMounted,
         а спільний id 'sk-report-loader' збігається з тим, що вантажить
         sk-header.js, тож двічі не завантажиться. ── */
+  /* ── «Продовжити, де зупинився»: ця сторінка — останнє місце Героя (sk-resume.js) ── */
+  if(!document.getElementById('sk-resume-loader')){
+    var rs = document.createElement('script');
+    rs.id = 'sk-resume-loader';
+    rs.src = base + 'sk-resume.js?v=1';
+    rs.onload = function(){ if(window.SKResume) SKResume.track(); };
+    document.body.appendChild(rs);
+  }
   if(!window.__skReportMounted && !document.getElementById('sk-report-loader')){
     var rep = document.createElement('script');
     rep.id = 'sk-report-loader';

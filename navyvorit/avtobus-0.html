@@ -186,6 +186,7 @@ h1{font-size:32px; font-weight:700;}
   .riddle{font-size:14px; padding:10px 12px;}
 }
 </style>
+<script src="nav-guard.js"></script>
 </head>
 <body>
 <div id="wrap">
@@ -258,7 +259,7 @@ h1{font-size:32px; font-weight:700;}
   </div>
 </div>
 
-<script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
+<script src="../sk-footer.js?v=6" data-base="../" data-back="self"></script>
 
 <script>
 (function(){
@@ -387,7 +388,9 @@ h1{font-size:32px; font-weight:700;}
     ask();
   }
 
+  var roundMiss = 0;
   function ask(){
+    roundMiss = 0;
     var a = cur.ans, st = cur.step, prev = cur.stops[cur.gap-1];
     var cand = [a, prev + (st>0 ? 1 : -1), a + st, prev, a - st, a + (st>0?1:-1)];
     var opts = [];
@@ -402,10 +405,23 @@ h1{font-size:32px; font-weight:700;}
     panelEl.appendChild(box);
   }
 
+  /* 2 помилки — нове завдання: той самий тип маршруту з новими числами
+     (для сталого маршруту — ті самі зупинки, варіанти перемішано) */
+  function renewRound(){
+    var idx = qIndex;
+    NAVGuard.cool(panelEl, NAVGuard.COOL + 400);
+    NAVGuard.after(function(){
+      if(qIndex !== idx || busy) return;
+      var fresh = buildPlan()[idx], same = fresh.stops && fresh.stops.join() === cur.stops.join();
+      if(same){ ask(); NAVGuard.note(hintEl, "🔄 Варіанти перемішано. Подумай ще раз — не вгадуй!"); return; }
+      plan[idx] = fresh; renderRound(); NAVGuard.note(hintEl, "🔄 Нове завдання! Не вгадуй — подумай.");
+    });
+  }
   function answer(x, b, box){
     if(busy || b.disabled) return;
     if(x !== cur.ans){
-      mistakes++; thud(); buzz(40); b.classList.add("bad"); b.disabled = true;
+      mistakes++; thud(); buzz(40); b.classList.add("bad"); b.disabled = true; NAVGuard.cool(panelEl);
+      if(++roundMiss >= 2) renewRound();
       sceneEl.classList.remove("shake"); void sceneEl.offsetWidth; sceneEl.classList.add("shake");
       hint(cur.depot
         ? "Подивись: 6 → 4 → 2 — щоразу −2. Скільки буде 2 − 2?"
@@ -489,7 +505,7 @@ h1{font-size:32px; font-weight:700;}
       return;
     }
     var here = drive.stops[drive.at], goal = drive.stops[drive.to];
-    if(here !== goal){ mistakes++; thud(); buzz(40); hint("Це зупинка "+here+", а тобі треба на <b>"+goal+"</b>!", "bad"); return; }
+    if(here !== goal){ mistakes++; thud(); buzz(40); NAVGuard.cool(panelEl); hint("Це зупинка "+here+", а тобі треба на <b>"+goal+"</b>!", "bad"); return; }
     busy = true; fanfare();
     hint("Приїхали! 🏁 Ти скористався(-лася) Flip, щоб поїхати назад.", "good");
     qIndex++; $("barFill").style.width = "100%";
@@ -565,5 +581,6 @@ h1{font-size:32px; font-weight:700;}
 <script src="../sk-rewards.js?v=4"></script>
 <script src="../sk-prize.js?v=2"></script>
 <script src="../sk-finish.js?v=6"></script>
+<script src="nav-intro.js"></script>
 </body>
 </html>

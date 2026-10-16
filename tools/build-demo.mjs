@@ -39,7 +39,7 @@ const EXCLUDE_PAGES = [
   ...fs.readdirSync(path.join(ROOT, 'games')).filter(f => f.endsWith('.html')).map(f => 'games/' + f)
 ];
 const SHARED = [
-  'sk-curriculum.js', 'sk-finish.js', 'sk-items.js', 'sk-prize.js', 'sk-cards.js', 'sk-covers.js',
+  'sk-curriculum.js', 'sk-finish.js', 'sk-items.js', 'sk-prize.js', 'sk-resume.js', 'sk-cards.js', 'sk-covers.js',
   'sk-voice.js', 'sk-zadachi.js', 'sk-slovnykovi.js', 'sk-phonics.js', 'sk-avatar.js',
   'sk-styles.css', 'sk-game.css', 'sk-game-chalk.css', 'hero.css',
   'favicon-32.png', 'apple-touch-icon.png', 'logo-small.png', 'logo-big.webp', 'landing-bg.webp'

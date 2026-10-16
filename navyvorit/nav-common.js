@@ -3,7 +3,7 @@
 
    Підключення (після sk-footer.js, до власного скрипта гри):
      <link rel="stylesheet" href="nav-common.css">
-     <script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
+     <script src="../sk-footer.js?v=6" data-base="../" data-back="self"></script>
      <script src="nav-common.js"></script>
 
    NAV.mount({ ... }) будує сторінку: верхня панель (крок, значок
@@ -54,7 +54,7 @@
         '<div id="dirBadge">'+(c.badgeOff||"⏩ звичайний світ")+'</div><div id="spacer"></div><button id="menuBtn" type="button">☰ Меню</button></div>'+
       '<div id="barWrap"><div id="bar"><div id="barFill"></div></div></div>'+
       '<div id="main"><div id="scene">'+(c.scene||"")+'</div><div id="hint"></div>'+(c.afterScene||"")+'<div id="panel"></div></div>'+
-      '<div class="screen'+(c.startBg ? ' picbg' : '')+'" id="startScreen"'+(c.startBg ? ' style="background-image:url('+c.startBg+')"' : '')+'>'+
+      '<div class="screen'+(c.startBg ? ' picbg' : '')+'" id="startScreen"'+(c.startBg ? ' style="background-image:url('+c.startBg+'), linear-gradient(180deg,#7cc0ff 0 45%,#c9a376 45% 100%)"' : '')+'>'+
         '<div class="start-top"><button class="iconbtn backbtn" type="button" title="Назад" aria-label="Назад">←</button><a class="maplink" href="index.html?g='+c.href+'">🗺️ На карту</a></div>'+
         (c.startBg ? '' : c.startImg ? '<div class="start-pic" role="img" aria-label="'+c.title+'" style="background-image:url('+c.startImg+')"></div>' : '<div class="big-emoji">'+c.emoji+'</div>')+'<div class="titlebox"><h1>'+c.title+'</h1><p class="start-sub">'+c.sub+'</p></div>'+
         '<div class="riddle">'+c.riddle+'</div>'+
@@ -85,7 +85,36 @@
     });
     refreshStart();
     window.addEventListener("load", refreshStart);   // sk-prize.js підключено нижче
+    if(c.startBg && c.startFocus){
+      var im = new Image(); im.onload = function(){ fitStartBg.img = im; fitStartBg(); }; im.src = c.startBg;
+      window.addEventListener("resize", fitStartBg);
+      if(document.fonts && document.fonts.ready) document.fonts.ready.then(fitStartBg);
+    }
   };
+
+  /* Стартова картинка на весь екран (startBg): смугу cfg.startFocus = [від, до] (частки висоти картинки —
+     напр. статуї й діти) ставимо рівно між банером із назвою і пергаментом, на будь-якому екрані й шрифті.
+     Порожнє місце над/під картинкою заповнює градієнт «небо / бруківка». */
+  function fitStartBg(){
+    var s = $("startScreen"), img = fitStartBg.img;
+    if(!s || !img || !img.naturalWidth || s.classList.contains("hidden")) return;
+    var tb = s.querySelector(".titlebox"), rd = s.querySelector(".riddle");
+    if(!tb || !rd) return;
+    var sr = s.getBoundingClientRect(), W = s.clientWidth, ar = img.naturalWidth / img.naturalHeight;
+    /* мало місця (низький екран, великий шрифт) — пергамент нижчий і прокручується, щоб картинку було видно */
+    var NEED = 190;
+    rd.style.maxHeight = "";
+    var gap = rd.getBoundingClientRect().top - tb.getBoundingClientRect().bottom - 8;
+    if(gap < NEED) rd.style.maxHeight = Math.max(96, rd.getBoundingClientRect().height - (NEED - gap)) + "px";
+    var top = tb.getBoundingClientRect().bottom - sr.top + 4, bot = rd.getBoundingClientRect().top - sr.top - 4;
+    var V = Math.max(80, bot - top), f1 = cfg.startFocus[0], f2 = cfg.startFocus[1];
+    var h = V / (f2 - f1), w = h * ar;
+    if(w < W){ w = W; h = W / ar; }                       // ширину екрана завжди покриваємо
+    var y = top - f1*h + (V - (f2 - f1)*h) / 2, x = (W - w) / 2;
+    s.style.backgroundSize = Math.round(w)+"px "+Math.round(h)+"px, 100% 100%";
+    s.style.backgroundPosition = Math.round(x)+"px "+Math.round(y)+"px, 0 0";
+  }
+  NAV.fitStartBg = fitStartBg;
 
   function goBack(){
     if(window.skGoBackSmart){ skGoBackSmart("navyvorit/index.html"); return; }
@@ -97,9 +126,10 @@
     $("modal").classList.add("hidden");
     $("winScreen").classList.add("hidden");
     $("startScreen").classList.remove("hidden");
+    fitStartBg();
   }
   function start(){
-    NAV.mistakes = 0; NAV.busy = false; NAV.setFlip(false);
+    NAV.mistakes = 0; NAV.busy = false; NAV.coolUntil = 0; NAV.again = null; NAV.setFlip(false);
     $("modal").classList.add("hidden");
     $("startScreen").classList.add("hidden");
     $("winScreen").classList.add("hidden");
@@ -118,6 +148,7 @@
   /* ── помічники гри ── */
   NAV.hint = function(t, cls){ var h = $("hint"); h.className = cls||""; h.innerHTML = t; };
   NAV.step = function(i, total){
+    NAV.again = null;                                    // крок із випадковим завданням поставить себе знову
     $("qNum").textContent = Math.min(i+1, total) + "/" + total;
     $("barFill").style.width = (i/total*100) + "%";
   };
@@ -129,7 +160,24 @@
   };
   NAV.flipAnim = function(){ var s = $("scene"); s.classList.remove("flipanim"); void s.offsetWidth; s.classList.add("flipanim"); };
   NAV.shake = function(){ var s = $("scene"); s.classList.remove("shake"); void s.offsetWidth; s.classList.add("shake"); };
-  NAV.miss = function(t){ NAV.mistakes++; NAV.snd.thud(); NAV.buzz(40); NAV.shake(); NAV.hint(t, "bad"); };
+  NAV.miss = function(t){ NAV.mistakes++; NAV.snd.thud(); NAV.buzz(40); NAV.shake(); NAV.hint(t, "bad"); NAV.cool(); };
+
+  /* Проти «клацання навмання»:
+     • після помилки кнопки відповіді на COOL мс засинають (смужка-таймер), щоб дитина прочитала підказку;
+     • після 2 помилок в одному питанні — нове завдання: гра генерує інше (NAV.again = функція кроку,
+       ставить сам крок із випадковими числами), а якщо завдання сталe — варіанти перемішуються
+       й закреслені повертаються. */
+  var COOL = 2500, coolT = null;
+  NAV.coolUntil = 0;
+  NAV.cooling = function(){ return Date.now() < NAV.coolUntil; };
+  NAV.cool = function(ms){
+    ms = ms || COOL; NAV.coolUntil = Date.now() + ms;
+    var p = $("panel"); if(!p) return;
+    p.style.setProperty("--cool", ms + "ms");
+    p.classList.remove("cool"); void p.offsetWidth; p.classList.add("cool");
+    clearTimeout(coolT); coolT = setTimeout(function(){ p.classList.remove("cool"); }, ms);
+  };
+  NAV.again = null;
 
   var modalNext = null;
   /* opt: {nav:true — фіолетова «навиворіт»-модалка, btn:"текст кнопки"} */
@@ -149,17 +197,37 @@
     if(q) panel.appendChild(el("div","q",q));
     var box = el("div","opts"+(o.big?" big":""));
     box.style.setProperty("--cols", o.cols || 1);
-    (o.keepOrder ? opts.slice() : NAV.shuffle(opts.slice())).forEach(function(op){
-      var b = el("button","opt",op.tx); b.type = "button";
-      b.addEventListener("click", function(){
-        if(NAV.busy || b.disabled) return;
-        if(!op.ok){ b.classList.add("bad"); b.disabled = true; NAV.miss(op.why || "Не так. Подумай ще!"); return; }
-        b.classList.add("good"); NAV.snd.chime(); NAV.busy = true;
-        Array.prototype.forEach.call(box.children, function(x){ x.disabled = true; });
-        onOk(op);
+    var misses = 0, again = NAV.again;
+    function fill(){
+      box.innerHTML = "";
+      (o.keepOrder ? opts.slice() : NAV.shuffle(opts.slice())).forEach(function(op){
+        var b = el("button","opt",op.tx); b.type = "button";
+        b.addEventListener("click", function(){
+          if(NAV.busy || b.disabled || NAV.cooling()) return;
+          if(!op.ok){
+            b.classList.add("bad"); b.disabled = true; NAV.miss(op.why || "Не так. Подумай ще!");
+            if(++misses >= 2) renew();
+            return;
+          }
+          b.classList.add("good"); NAV.snd.chime(); NAV.busy = true; NAV.again = null;
+          Array.prototype.forEach.call(box.children, function(x){ x.disabled = true; });
+          onOk(op);
+        });
+        box.appendChild(b);
       });
-      box.appendChild(b);
-    });
+    }
+    /* 2 помилки — нове завдання (після паузи, щоб пояснення встигли прочитати) */
+    function renew(){
+      NAV.cool(COOL + 400);                              // кнопки сплять, поки не з'явиться нове завдання
+      setTimeout(function(){
+        if(!box.isConnected || NAV.busy) return;
+        misses = 0;
+        if(again){ again(); note("🔄 Нове завдання! Не вгадуй — подумай."); return; }
+        fill(); note("🔄 Варіанти перемішано. Подумай ще раз — не вгадуй!");
+      }, COOL);
+    }
+    function note(t){ var h = $("hint"), was = h.className === "bad" ? "" : h.innerHTML; NAV.hint("<b>"+t+"</b>"+(was ? "<br>"+was : "")); }
+    fill();
     panel.appendChild(box);
     setTimeout(function(){ panel.scrollIntoView({behavior:"smooth", block:"end"}); }, 60);
   };
@@ -171,7 +239,7 @@
     var map = {};
     list.forEach(function(a){
       var b = el("button","act"+(a.cls?" "+a.cls:""),'<span class="ic">'+a.ic+'</span>'+a.tx); b.type = "button";
-      b.addEventListener("click", function(){ if(NAV.busy || b.disabled) return; NAV.snd.tap(); a.fn(b); });
+      b.addEventListener("click", function(){ if(NAV.busy || b.disabled || NAV.cooling()) return; NAV.snd.tap(); a.fn(b); });
       box.appendChild(b); map[a.id || a.tx] = b;
     });
     panel.appendChild(box);

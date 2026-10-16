@@ -184,6 +184,7 @@ h1{font-size:32px; font-weight:700;}
   .riddle{font-size:14px; padding:10px 12px;}
 }
 </style>
+<script src="nav-guard.js"></script>
 </head>
 <body>
 <div id="wrap">
@@ -260,7 +261,7 @@ h1{font-size:32px; font-weight:700;}
   </div>
 </div>
 
-<script src="../sk-footer.js?v=5" data-base="../" data-back="self"></script>
+<script src="../sk-footer.js?v=6" data-base="../" data-back="self"></script>
 
 <script>
 (function(){
@@ -441,7 +442,7 @@ h1{font-size:32px; font-weight:700;}
       setTimeout(renderRound, 2200);
       return;
     }
-    tries++; mistakes++; thud(); buzz(40);
+    tries++; mistakes++; thud(); buzz(40); NAVGuard.cool([$("setter"), $("checkBtn")]);
     towerEl.classList.remove("shake"); void towerEl.offsetWidth; towerEl.classList.add("shake");
     if(tries === 1){
       hint(cur.jump
@@ -449,6 +450,17 @@ h1{font-size:32px; font-weight:700;}
         : "Не так. Порівняй сусідні годинники: на скільки змінюється час?", "bad");
     } else {
       hint("Підказка: " + (cur.rule || cur.why), "bad");
+    }
+    /* 2 помилки — нове завдання того ж типу з іншим часом (nav-guard.js) */
+    if(tries === 2){
+      var idx = qIndex, tip = cur.rule || cur.why;
+      NAVGuard.cool([$("setter"), $("checkBtn")], NAVGuard.COOL + 1500);
+      setTimeout(function(){
+        if(qIndex !== idx || busy) return;
+        var fresh = buildRounds()[idx], same = fresh.shown.join() === cur.shown.join();
+        rounds[idx] = fresh; renderRound();
+        NAVGuard.note(hintEl, (same ? "🔄 Спробуй ще раз уважно. Підказка: " : "🔄 Нове завдання! Підказка: ") + tip);
+      }, NAVGuard.COOL + 1000);
     }
   });
 
@@ -534,5 +546,6 @@ h1{font-size:32px; font-weight:700;}
 <script src="../sk-rewards.js?v=4"></script>
 <script src="../sk-prize.js?v=2"></script>
 <script src="../sk-finish.js?v=6"></script>
+<script src="nav-intro.js"></script>
 </body>
 </html>
