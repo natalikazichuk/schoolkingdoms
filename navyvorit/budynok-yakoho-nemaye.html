@@ -217,6 +217,7 @@ h1{font-size:30px; font-weight:700;}
   .riddle{font-size:14px; padding:10px 12px;}
 }
 </style>
+<script src="nav-guard.js"></script>
 </head>
 <body>
 <div id="wrap">
@@ -372,10 +373,10 @@ h1{font-size:30px; font-weight:700;}
   function el(tag,cls,html){ var d=document.createElement(tag); if(cls) d.className=cls; if(html!=null) d.innerHTML=html; return d; }
   function later(fn,ms){ setTimeout(fn,ms); }
   function hint(tx,cls){ hintEl.className = cls||""; hintEl.innerHTML = tx; }
-  function setStep(n){ stepNo = n; $("qNum").textContent = Math.min(n,TOTAL)+"/"+TOTAL; $("barFill").style.width = ((n-1)/TOTAL*100)+"%"; }
+  function setStep(n){ againFn = null; stepNo = n; $("qNum").textContent = Math.min(n,TOTAL)+"/"+TOTAL; $("barFill").style.width = ((n-1)/TOTAL*100)+"%"; }
   function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var x=a[i]; a[i]=a[j]; a[j]=x; } return a; }
   function rnd(a,b){ return a + Math.floor(Math.random()*(b-a+1)); }
-  function miss(tx){ mistakes++; thud(); buzz(40); hint(tx,"bad"); }
+  function miss(tx){ mistakes++; thud(); buzz(40); hint(tx,"bad"); NAVGuard.cool(panelEl); }
 
   function showClock(){
     $("clock").textContent = "🕙 " + fmt(t);
@@ -430,8 +431,12 @@ h1{font-size:30px; font-weight:700;}
     });
     panelEl.appendChild(box);
   }
+  /* 2 помилки в питанні — нове завдання: крок із випадковими числами ставить себе (againFn),
+     стале питання показується знову з перемішаними варіантами (nav-guard.js) */
+  var againFn = null;
   function question(q, opts, onOk, col){
     busy = false;
+    var misses = 0, again = againFn;
     panelEl.innerHTML = "";
     panelEl.appendChild(el("div","q",q));
     var box = el("div","opts"+(col?" col":""));
@@ -439,8 +444,19 @@ h1{font-size:30px; font-weight:700;}
       var b = el("button","opt",o.tx); b.type="button";
       b.addEventListener("click", function(){
         if(busy || b.disabled) return;
-        if(!o.ok){ b.classList.add("bad"); b.disabled = true; miss(o.why); return; }
-        b.classList.add("good"); chime(); busy = true;
+        if(!o.ok){
+          b.classList.add("bad"); b.disabled = true; miss(o.why);
+          if(++misses >= 2){
+            NAVGuard.cool(panelEl, NAVGuard.COOL + 400);
+            NAVGuard.after(function(){
+              if(!box.isConnected) return;
+              if(again){ again(); NAVGuard.note(hintEl, "🔄 Нове завдання! Не вгадуй — подумай."); }
+              else { question(q, opts, onOk, col); NAVGuard.note(hintEl, "🔄 Варіанти перемішано. Подумай ще раз — не вгадуй!"); }
+            });
+          }
+          return;
+        }
+        b.classList.add("good"); chime(); busy = true; againFn = null;
         Array.prototype.forEach.call(box.children, function(x){ x.disabled = true; });
         onOk();
       });
@@ -511,7 +527,7 @@ h1{font-size:30px; font-weight:700;}
   }
   var wrongWhy = "";
   function stagePredict1(){
-    stage = "p1"; setStep(3);
+    stage = "p1"; setStep(3); againFn = stagePredict1;
     var k = rnd(2,3), tt = t + k, n = num(tt);
     wrongWhy = "Щохвилини номер стає на 1 менший. Від "+fmt(t)+" до "+fmt(tt)+" — "+k+" хвилини.";
     hint("Зараз "+fmt(t)+", на будинку №"+num(t)+".");
@@ -522,7 +538,7 @@ h1{font-size:30px; font-weight:700;}
     });
   }
   function stagePredict2(){
-    stage = "p2"; setStep(4);
+    stage = "p2"; setStep(4); againFn = stagePredict2;
     var target = num(t) - rnd(2,3), tt = T0 + (N0 - target);
     var tOpts = [{tx:fmt(tt), ok:true}];
     [tt+1, tt-1, T0 + target].forEach(function(x){
@@ -603,7 +619,7 @@ h1{font-size:30px; font-weight:700;}
     });
   }
   function stageRev2(){
-    stage = "r2"; setStep(7);
+    stage = "r2"; setStep(7); againFn = stageRev2;
     var k = rnd(2,4), tt = t - k, n = num(tt);
     hint("Час досі йде назад ⏪. Зараз "+fmt(t)+", на будинку №"+num(t)+".");
     question("Годинник покаже <b>"+fmt(tt)+"</b>. Який буде номер?", numOpts(n, [num(t)-k, n+1, num(t)]).map(function(o){

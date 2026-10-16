@@ -218,10 +218,10 @@
     }
     /* 2 помилки — нове завдання (після паузи, щоб пояснення встигли прочитати) */
     function renew(){
-      NAV.busy = true;
+      NAV.cool(COOL + 400);                              // кнопки сплять, поки не з'явиться нове завдання
       setTimeout(function(){
-        if(!box.isConnected) return;
-        NAV.busy = false; misses = 0;
+        if(!box.isConnected || NAV.busy) return;
+        misses = 0;
         if(again){ again(); note("🔄 Нове завдання! Не вгадуй — подумай."); return; }
         fill(); note("🔄 Варіанти перемішано. Подумай ще раз — не вгадуй!");
       }, COOL);

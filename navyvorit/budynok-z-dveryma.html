@@ -190,6 +190,7 @@ h1{font-size:32px; font-weight:700;}
   .riddle{font-size:14px; padding:10px 12px;}
 }
 </style>
+<script src="nav-guard.js"></script>
 </head>
 <body>
 <div id="wrap">
@@ -532,7 +533,7 @@ h1{font-size:32px; font-weight:700;}
     var p = PLAN[qIndex];
     if(p.flipBefore && rule!==p.rule){ showFlip(); return; }
     setRule(p.rule);
-    cur = makePuzzle(p);
+    cur = makePuzzle(p); roundMiss = 0;
     step = "liar";
     $("qNum").textContent = (qIndex+1)+"/"+PLAN.length;
     $("barFill").style.width = (qIndex/PLAN.length*100)+"%";
@@ -545,13 +546,25 @@ h1{font-size:32px; font-weight:700;}
   }
 
   /* ═════════════ хід гравця ═════════════ */
+  /* 2 помилки в загадці — нова загадка з іншими підказками (nav-guard.js) */
+  var roundMiss = 0;
+  function guardMiss(){
+    NAVGuard.cool([charsEl, doorsEl]);
+    if(++roundMiss < 2) return;
+    var idx = qIndex;
+    NAVGuard.cool([charsEl, doorsEl], NAVGuard.COOL + 400);
+    NAVGuard.after(function(){
+      if(qIndex !== idx || busy) return;
+      renderRound(); NAVGuard.note(hintEl, "🔄 Нова загадка! Не вгадуй — перевір кожну підказку.");
+    });
+  }
   function pickLiar(i, btn){
     if(busy) return;
     if(step!=="liar"){ hint("Брехуна вже знайдено — тепер обери двері 🚪"); return; }
     tap();
     if(i !== cur.liar){
       mistakes++; thud(); buzz(40); shake(btn);
-      hint(whyNotLiar(i), "bad");
+      hint(whyNotLiar(i), "bad"); guardMiss();
       return;
     }
     chime(); step = "door";
@@ -569,7 +582,7 @@ h1{font-size:32px; font-weight:700;}
     tap();
     if(D !== cur.door){
       mistakes++; thud(); buzz(40); shake(w); w.classList.add("crossed");
-      hint(whyNotDoor(D), "bad");
+      hint(whyNotDoor(D), "bad"); guardMiss();
       return;
     }
     busy = true; creak();
