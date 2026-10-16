@@ -54,7 +54,7 @@
         '<div id="dirBadge">'+(c.badgeOff||"⏩ звичайний світ")+'</div><div id="spacer"></div><button id="menuBtn" type="button">☰ Меню</button></div>'+
       '<div id="barWrap"><div id="bar"><div id="barFill"></div></div></div>'+
       '<div id="main"><div id="scene">'+(c.scene||"")+'</div><div id="hint"></div>'+(c.afterScene||"")+'<div id="panel"></div></div>'+
-      '<div class="screen'+(c.startBg ? ' picbg' : '')+'" id="startScreen"'+(c.startBg ? ' style="background-image:url('+c.startBg+'), linear-gradient(180deg,#7cc0ff 0 45%,#c9a376 45% 100%)"' : '')+'>'+
+      '<div class="screen'+(c.startBg ? ' picbg' : '')+'" id="startScreen"'+(c.startBg ? ' style="background-image:url('+c.startBg+'), '+(c.startBase || 'linear-gradient(180deg,#7cc0ff 0 45%,#c9a376 45% 100%)')+'"' : '')+'>'+
         '<div class="start-top"><button class="iconbtn backbtn" type="button" title="Назад" aria-label="Назад">←</button><a class="maplink" href="index.html?g='+c.href+'">🗺️ На карту</a></div>'+
         (c.startBg ? '' : c.startImg ? '<div class="start-pic" role="img" aria-label="'+c.title+'" style="background-image:url('+c.startImg+')"></div>' : '<div class="big-emoji">'+c.emoji+'</div>')+'<div class="titlebox"><h1>'+c.title+'</h1><p class="start-sub">'+c.sub+'</p></div>'+
         '<div class="riddle">'+c.riddle+'</div>'+
@@ -102,15 +102,19 @@
     if(!tb || !rd) return;
     var sr = s.getBoundingClientRect(), W = s.clientWidth, ar = img.naturalWidth / img.naturalHeight;
     /* мало місця (низький екран, великий шрифт) — пергамент нижчий і прокручується, щоб картинку було видно */
-    var NEED = 190;
+    /* box — блок, у якому лежить загадка (сувій .rbox, якщо гра його має), інакше сама загадка */
+    var NEED = cfg.startNeed || 190, box = rd.closest(".rbox") || rd;
     rd.style.maxHeight = "";
-    var gap = rd.getBoundingClientRect().top - tb.getBoundingClientRect().bottom - 8;
-    if(gap < NEED) rd.style.maxHeight = Math.max(96, rd.getBoundingClientRect().height - (NEED - gap)) + "px";
-    var top = tb.getBoundingClientRect().bottom - sr.top + 4, bot = rd.getBoundingClientRect().top - sr.top - 4;
+    var gap = box.getBoundingClientRect().top - tb.getBoundingClientRect().bottom - 8;
+    if(gap < NEED) rd.style.maxHeight = Math.max(cfg.startRiddleMin || 96, rd.getBoundingClientRect().height - (NEED - gap)) + "px";
+    var top = tb.getBoundingClientRect().bottom - sr.top + 4, bot = box.getBoundingClientRect().top - sr.top - 4;
     var V = Math.max(80, bot - top), f1 = cfg.startFocus[0], f2 = cfg.startFocus[1];
     var h = V / (f2 - f1), w = h * ar;
     if(w < W){ w = W; h = W / ar; }                       // ширину екрана завжди покриваємо
-    var y = top - f1*h + (V - (f2 - f1)*h) / 2, x = (W - w) / 2;
+    var y = top - f1*h + (V - (f2 - f1)*h) / 2;
+    /* високий екран: картинка почалася б нижче верху — збільшуємо її, щоб верх був на 0, а низ смуги — біля пергаменту */
+    if(y > 0){ h = Math.max(h, bot / f2); w = h * ar; y = Math.min(0, bot - f2*h); }
+    var x = (W - w) / 2;
     s.style.backgroundSize = Math.round(w)+"px "+Math.round(h)+"px, 100% 100%";
     s.style.backgroundPosition = Math.round(x)+"px "+Math.round(y)+"px, 0 0";
   }
@@ -183,7 +187,9 @@
   /* opt: {nav:true — фіолетова «навиворіт»-модалка, btn:"текст кнопки"} */
   NAV.modal = function(big, title, body, opt, next){
     opt = opt || {};
-    $("mBig").textContent = big; $("mTitle").textContent = title; $("mBody").innerHTML = body;
+    if(big === "🔄") big = '<img src="img/flip-symbol.webp" alt="🔄">';   // символ «Переворот» у віконцях навиворіт
+    if(/^</.test(big)) $("mBig").innerHTML = big; else $("mBig").textContent = big;   // можна й картинку: '<img …>'
+    $("mTitle").textContent = title; $("mBody").innerHTML = body;
     $("mBtn").textContent = opt.btn || "Далі →";
     $("mCard").classList.toggle("navm", !!opt.nav);
     modalNext = next; $("modal").classList.remove("hidden");
