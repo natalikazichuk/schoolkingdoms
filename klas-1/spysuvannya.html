@@ -322,7 +322,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
   var NS="http://www.w3.org/2000/svg";
   var PAGE_W=210, PAGE_H=297;
   var SITE="school-king.pp.ua", LOGO="../logo-big.webp";
-  var M={top:16, bottom:14, left:24, right:10};
+  var M={top:16, bottom:10, left:8, right:8};
   var DIGIT_FONT="'Nunito','Segoe UI',Arial,sans-serif";
   var SVG=document.getElementById('page');
   var txt=document.getElementById('txt');
@@ -523,21 +523,13 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
       g.appendChild(P(starPath(p[0],p[1],1.2,0.4,-90),{fill:"#7fb0ea"}));
     });
   }
-  function holes(g,y0,y1){
-    var n=7;
-    for(var i=0;i<n;i++){
-      var y=y0+(y1-y0)*i/(n-1);
-      g.appendChild(el("circle",{cx:10,cy:y,r:2.3,fill:"#ffffff",stroke:"#c3cfe6","stroke-width":0.45}));
-    }
-  }
   function appendDecor(blockTop,blockBottom){
     var g=el("g",{});
     plane(g); trail(g); clip(g); starFace(g,160,26,8.5,4);
-    g.appendChild(pencil(11,248,-10,"#29a6f0","#1f74c4"));
-    g.appendChild(pencil(18,250,-4,"#ffce3a","#e0a41f"));
-    g.appendChild(eraser(5,287,-9));
+    g.appendChild(pencil(10,285.5,-92,"#29a6f0","#1f74c4"));
+    g.appendChild(pencil(14,291,-89,"#ffce3a","#e0a41f"));
+    g.appendChild(eraser(52,285.5,-6));
     corner(g);
-    holes(g, Math.max(34,blockTop-1), Math.min(244,blockBottom+1));
     SVG.appendChild(g);
   }
 
@@ -617,7 +609,6 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
       SVG.appendChild(line(M.left, auxY,  PAGE_W-M.right, auxY,  "#adc1e5", 0.14));
       SVG.appendChild(line(M.left, baseY, PAGE_W-M.right, baseY, "#7d9fd0", 0.2));
     }
-    SVG.appendChild(line(M.left, blockTop, M.left, lastBase, "#e2a0a0", 0.28));
 
     /* переноси */
     mctx.font = fs + "px Propysy, Nunito, sans-serif";
@@ -711,10 +702,10 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     var usableW=PAGE_W-M.right-M.left;
     var cols=Math.floor(usableW/cell); if(cols<1)cols=1;
     var rows=Math.floor((BOTLIM-blockTop)/cell); if(rows<1)rows=1;
-    var gridBottom=blockTop+rows*cell, gridRight=M.left+cols*cell;
-    for(var c=0;c<=cols;c++){ var x=M.left+c*cell; SVG.appendChild(line(x, blockTop, x, gridBottom, "#c9d5ee", 0.13)); }
-    for(var r=0;r<=rows;r++){ var y=blockTop+r*cell; SVG.appendChild(line(M.left, y, gridRight, y, "#c9d5ee", 0.13)); }
-    SVG.appendChild(line(M.left, blockTop, M.left, gridBottom, "#e2a0a0", 0.28));
+    var GL=(PAGE_W-cols*cell)/2;            /* сітка по центру аркуша */
+    var gridBottom=blockTop+rows*cell, gridRight=GL+cols*cell;
+    for(var c=0;c<=cols;c++){ var x=GL+c*cell; SVG.appendChild(line(x, blockTop, x, gridBottom, "#c9d5ee", 0.13)); }
+    for(var r=0;r<=rows;r++){ var y=blockTop+r*cell; SVG.appendChild(line(GL, y, gridRight, y, "#c9d5ee", 0.13)); }
     var raw=paperText();
     var nums=raw.split("\n").map(function(x){return x.trim();}).filter(Boolean);
     if(!nums.length) return;
@@ -723,7 +714,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     var dh=cell*0.86;
     function putNum(str, col, row, solid){
       for(var j=0;j<str.length;j++){
-        var cx=M.left+(col+j+0.5)*cell, cy=blockTop+(row+0.5)*cell, ch=str[j];
+        var cx=GL+(col+j+0.5)*cell, cy=blockTop+(row+0.5)*cell, ch=str[j];
         if(isDigit(ch)) SVG.appendChild(handDigit(ch, cx, cy, dh, false, solid));
         else{
           var tEl=el("text",{x:cx, y:cy, "font-family":DIGIT_FONT, "font-size":cell*0.8,
@@ -749,19 +740,18 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
     var avail=BOTLIM-blockTop;
     var rows=Math.floor(avail/cell); if(rows<1)rows=1;
     var gridW=cols*cell, gridH=rows*cell;
-    var gridBottom=blockTop+gridH, gridRight=M.left+gridW;
+    var GL=(PAGE_W-gridW)/2;                /* сітка по центру аркуша */
+    var gridBottom=blockTop+gridH, gridRight=GL+gridW;
 
     /* сітка */
     for(var c=0;c<=cols;c++){
-      var x=M.left+c*cell;
+      var x=GL+c*cell;
       SVG.appendChild(line(x, blockTop, x, gridBottom, "#c9d5ee", 0.13));
     }
     for(var r=0;r<=rows;r++){
       var y=blockTop+r*cell;
-      SVG.appendChild(line(M.left, y, gridRight, y, "#c9d5ee", 0.13));
+      SVG.appendChild(line(GL, y, gridRight, y, "#c9d5ee", 0.13));
     }
-    /* червоне поле */
-    SVG.appendChild(line(M.left, blockTop, M.left, gridBottom, "#e2a0a0", 0.28));
 
     /* розкладка знаків по клітинках */
     var raw=paperText();
@@ -774,7 +764,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
         var ch=str[ci];
         if(ch===' '){ col++; if(col>=cols){col=0; gr++; if(gr>=rows)return;} continue; }
         if(col>=cols){ col=0; gr++; if(gr>=rows) return; }
-        var cx=M.left+col*cell+cell/2;
+        var cx=GL+col*cell+cell/2;
         var cy=blockTop+gr*cell+cell/2;
         var isS = nonSp++ < (sampleLen||0);
         if(isDigit(ch)){ SVG.appendChild(handDigit(ch, cx, cy, cell*0.84, false, isS)); col++; continue; }
@@ -842,7 +832,7 @@ textarea:focus{outline:none;border-color:#8fc0ff;background:#fff}
   function render(){
     var decor=chkDecor.checked;
     var TOP = decor?30:16;
-    var BOTLIM = decor?278:(PAGE_H-14);   /* з оздобленням — до кутика, олівці стоять на полі */
+    var BOTLIM = decor?281:(PAGE_H-M.bottom);   /* з оздобленням — над олівцями внизу */
     var blockTop=drawPageBase(TOP, decor);
     if(decor) appendDecor(blockTop, BOTLIM);
     if(state.mode==='print') blockTop=drawPrintedText(blockTop);
