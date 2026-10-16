@@ -132,7 +132,7 @@ body.flipped #hint{background:#faf5ff; border-color:#d0b3f5;}
   padding:20px 18px 18px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px;
   box-shadow:0 0 0 4px #fff9e6,0 12px 28px rgba(44,43,58,.25);}
 .mcard .big{font-size:58px; line-height:1;}
-.mcard .mt{font-family:'Fredoka'; font-weight:700; font-size:22px;}
+.mcard .mt{font-family:'Fredoka',sans-serif; font-weight:700; font-size:22px;}
 .mcard .mb{font-weight:800; font-size:15px; color:var(--soft); line-height:1.4;}
 .next{border:none; border-radius:16px; padding:13px 22px; width:100%; cursor:pointer; font-weight:700; font-size:18px;
   color:#fff; background:var(--green); box-shadow:0 6px 0 #37a052;}
@@ -202,6 +202,14 @@ h1{font-size:30px; font-weight:700;}
 .picbg .rbox{margin-top:auto; width:100%; max-width:420px; background:linear-gradient(180deg,#fffaf0,#f8ebcc); border:3px solid #c8a24a; border-radius:20px;
   box-shadow:0 0 0 4px #24418f, 0 12px 24px rgba(0,0,0,.35); padding:10px 12px 12px; display:flex; flex-direction:column; gap:10px; text-align:left;}
 .picbg .riddle{background:none; border:0; box-shadow:none; padding:0 2px; max-width:none; font-size:14px; line-height:1.4; max-height:36vh; overflow-y:auto; color:#2c2b3a;}
+.picbg .riddle .n{color:#1f4fd6;} .picbg .riddle .no{color:#7b2fbf;}
+/* останнє речення — посилання на віконце з підказками */
+.picbg .riddle .why{all:unset; cursor:pointer; font-weight:800; color:#24418f; border-bottom:2px dashed #7aa2ff; line-height:1.5;}
+.picbg .riddle .why:active{opacity:.7;}
+.hl{list-style:none; margin:4px 0 0; padding:0; text-align:left; display:flex; flex-direction:column; gap:8px;}
+.hl li{background:#fff; border:2px solid #ffe08a; border-radius:14px; padding:8px 10px; color:var(--ink); animation:hlIn .3s ease-out;}
+.hl li b{color:#24418f;}
+@keyframes hlIn{from{opacity:0; transform:translateY(6px)}to{opacity:1; transform:none}}
 .rfoot{display:flex; align-items:center; gap:10px;}
 .rfoot #navIntro{flex:1; min-width:0; grid-template-columns:1fr; gap:6px;}
 .rfoot #navIntro div{padding:5px 10px; font-size:13px; line-height:1.25;}
@@ -267,9 +275,9 @@ h1{font-size:30px; font-weight:700;}
     <div class="titlebox"><h1>Будинок, якого немає</h1></div>
     <div class="rbox">
       <div class="riddle">
-        На карті герой бачить будинок №17. Але коли приходить на це місце — будинку немає!
-        Через хвилину будинок з'являється… а на ньому вже <b>№16</b>.<br>
-        Чому номер будинку змінюється? 🔎
+        На карті герой бачить будинок <b class="n">№17</b>. Але коли приходить на це місце — <b class="no">будинку немає!</b>
+        Через хвилину будинок з'являється… а на ньому вже <b class="n">№16</b>.<br>
+        <button class="why" id="hintsLink" type="button">Чому номер будинку змінюється? 🔎</button>
       </div>
       <div class="done-card" id="startDone">
         <span class="dc-ic">🏆</span>
@@ -660,6 +668,21 @@ h1{font-size:30px; font-weight:700;}
     $("mBig").innerHTML=big; $("mTitle").textContent=title; $("mBody").innerHTML=body;
     modalNext=next; $("modal").classList.remove("hidden");
   }
+  /* «Чому номер будинку змінюється? 🔎» — віконце з підказками: по одній, відповідь не кажемо */
+  var HINTS = [
+    "🕙 Подивись на годинник: о <b>10:00</b> — №17, о <b>10:01</b> — №16. Що змінилося разом із часом?",
+    "📒 Запиши номери щохвилини: <b>17, 16, 15…</b> На скільки номер змінюється за 1 хвилину?",
+    "🔄 А якщо час піде <b>назад</b> — номер стане більшим чи меншим?"
+  ];
+  function showHints(n){
+    var html = '<ol class="hl">' + HINTS.slice(0, n).map(function(h){ return "<li>"+h+"</li>"; }).join("") + "</ol>";
+    var more = n < HINTS.length;
+    $("mBtn").textContent = more ? "Ще підказка 💡" : "Зрозуміло 👍";
+    showModal("💡", "Підказка " + n + " з " + HINTS.length, html, function(){
+      if(more) showHints(n + 1); else $("mBtn").textContent = "Далі →";
+    });
+  }
+  $("hintsLink").addEventListener("click", function(){ tap(); showHints(1); });
   $("mBtn").addEventListener("click", function(){
     $("modal").classList.add("hidden"); tap();
     if(modalNext){ var n=modalNext; modalNext=null; n(); }
