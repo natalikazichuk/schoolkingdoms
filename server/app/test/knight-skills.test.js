@@ -518,3 +518,27 @@ test('бот обеззброює Героя: Герой без зброї, Ви
   st.op.skill = null; SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
   assert.strictEqual(SB.skillBlock(st, 'knight.lunge'), '', 'наступного ходу зброя в руці — Випад знову можна');
 });
+
+test('бот із розумом: сам бере вміння (не частіше за use%), росте в межах бою від бази', () => {
+  const sw = S.skillValues('knight.sword', 50);
+  const st = botKnight({ 'knight.sword': 0.5, 'knight.lunge': 0.5 }, ['knight.lunge'], [wear(SWORD, 'weaponR')]);
+  st.op.ai = { use: 100, smart: false };
+  st.op.up = { 'knight.lunge': [{ u: 1, pct: 51, v: S.skillValues('knight.lunge', 51) }], 'knight.sword': [{ u: 1, pct: 51, v: S.skillValues('knight.sword', 51) }] };
+  let used = 0, up = [];
+  for (let i = 0; i < 6 && st.status === 'live'; i++) {
+    const e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+    if (e.opSkill && e.opSkill.id === 'knight.lunge') used++;
+    if (e.opUp) up = up.concat(e.opUp.map(x => x[0]));
+  }
+  assert.ok(used >= 5, 'use 100% — Випад щоходу: ' + used);
+  assert.ok(up.includes('knight.lunge'), 'Випад підріс до 51%');
+  assert.strictEqual(Math.round(st.op.sk['knight.lunge'] * 100), 51);
+  assert.ok(sw.accPct >= 0);
+  const st0 = botKnight({ 'knight.lunge': 0.5 }, ['knight.lunge'], [wear(SWORD, 'weaponR')]); st0.op.ai = { use: 0 };
+  for (let i = 0; i < 5; i++) assert.ok(!SB.turn(ctx, st0, { atk: 'head', block: 'body' }, {}, Date.now()).opSkill, 'use 0% — без вмінь');
+});
+test('досвід × складність суперника (лише перемога / нічия)', () => {
+  const st = botKnight({}, []); st.op.f.xpMul = 1.5; st.op.force = 1; st.op.p.agility = 1; st.me.p.accuracy = 900;
+  let e; for (let i = 0; i < 10 && st.status === 'live'; i++) e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+  if (st.summary.result === 'win') assert.strictEqual(st.summary.xpMul, 1.5);
+});

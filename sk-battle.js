@@ -301,7 +301,9 @@
     if (!opHasWeapon(po)) { rec.kind = 'noweapon'; rec.ok = false; return rec; }
     if (disarmedOn(st)) { rec.kind = 'immune'; rec.ok = false; return rec; }
     var ws = weaponSkill(st), my = ws && hasSk(st, ws) ? Math.round(num(st.me.sk[ws]) * 100) : 0;
-    var opl = Math.min(100, Math.max(0, num(st.op.f && st.op.f.level) * 5));
+    // володіння ворога: його вміння зброї в руці (бот-Лицар, Герой); немає вмінь — рівень × 5 (до 100)
+    var tv = { me: st.op, op: st.me, round: st.round }, tws = weaponSkill(tv);
+    var opl = tws && hasSk(tv, tws) ? Math.round(num(st.op.sk[tws]) * 100) : Math.min(100, Math.max(0, num(st.op.f && st.op.f.level) * 5));
     var need = Math.max(10, Math.min(90, Math.round(50 + (my - opl) / 2))), roll = ctx.R.d100(rnd);
     rec.need = need; rec.roll = roll; rec.ok = roll <= need; rec.my = my; rec.opl = opl;
     grow(st, id, rec.ok);
@@ -372,6 +374,36 @@
      Дзеркальний погляд: той самий код вмінь для бота (me ↔ op). Ріст, пояс, перевдягання —
      лише Героя (вони читають st.me напряму й з дзеркалом не викликаються). */
   function mirror(st) { return { me: st.op, op: st.me, round: st.round, bid: st.bid, status: st.status, mirror: true }; }
+  /* ── РОЗУМ БОТА: яке активне вміння взяти цього ходу ──
+     st.op.ai = {use: % ходів, коли бот узагалі бере вміння; smart: розумний вибір}.
+     Слабкий — рідко й навмання; сильний — Берсерк на початку, Благословення, коли мало здоров'я. */
+  function botSkill(st, vo) {
+    var ai = st.op.ai; if (!ai || !(st.op.bar || []).length) return null;
+    var r = rng(st.bid + '|' + st.round + '|oai');
+    if (r() * 100 >= num(ai.use)) return null;
+    var can = (st.op.bar || []).filter(function (id) { return !skillBlock(vo, id); });
+    if (!can.length) return null;
+    if (ai.smart) {
+      var hp = st.op.force / Math.max(1, st.op.max);
+      if (hp < 0.5 && can.indexOf(SKILL.bless.id) >= 0) return SKILL.bless.id;
+      if (st.round <= 3 && can.indexOf(SKILL.berserk.id) >= 0) return SKILL.berserk.id;
+      if (can.indexOf(SKILL.disarm.id) >= 0 && !heroDisarmed(st) && r() < 0.5) return SKILL.disarm.id;
+      if (can.indexOf(SKILL.bash.id) >= 0 && r() < 0.5) return SKILL.bash.id;
+    }
+    return pick(can, r);
+  }
+  /* ── РІСТ БОТА В МЕЖАХ БОЮ: op.up = {id: [{u: спрацювань до +k%, pct, v: значення}, …]} (з arena.html).
+     Невдале спрацювання — пів вдалого (як у Героя). Наступний бій — знову з бази. */
+  function botGrowth(st) {
+    var up = st.op.up; if (!up) return;
+    var changed = false;
+    Object.keys(up).forEach(function (id) {
+      var eff = num((st.op.grow || {})[id]) + 0.5 * num((st.op.growF || {})[id]), best = null;
+      (up[id] || []).forEach(function (x) { if (x && eff >= num(x.u)) best = x; });
+      if (best && Math.round(num(st.op.sk[id]) * 100) < best.pct) { st.op.sk[id] = best.pct / 100; st.op.skv[id] = best.v; changed = true; }
+    });
+    if (changed && st.op.p0) { var hp = st.op.p.hp; st.op.p = skillProfile(mirror(st), clone(st.op.p0)); st.op.p.hp = hp; }
+  }
   /* Берсерк / Благословення — до ударів */
   function preBuff(ctx, v, id, can, rnd) {
     if (!id || !can || skillBlock(v, id)) return null;
@@ -638,7 +670,9 @@
     st.me.p = profile(ctx, st);
     st.me.max = st.me.p.hp; st.me.force = st.me.p.hp;
     st.me.mana = num(st.me.p.mana);
-    if (Object.keys(st.op.sk).length) st.op.p = skillProfile(mirror(st), clone(st.op.p));   // пасивні вміння бота — у його профіль
+    if (Object.keys(st.op.sk).length) { st.op.p0 = clone(st.op.p); st.op.p = skillProfile(mirror(st), clone(st.op.p)); }   // пасивні вміння бота — у його профіль
+    if (o.op.ai) st.op.ai = o.op.ai;
+    if (o.op.up) st.op.up = o.op.up;
     st.op.max = st.op.p.hp; st.op.force = st.op.p.hp;
     st.op.mana = num(o.op.mana != null ? o.op.mana : st.op.p.mana);
     return st;
@@ -762,6 +796,7 @@
     fm.bond = !!(hasSk(st, 'base.bond') && wpn && bd.n >= (V(st, 'base.bond', 'turns') || 5));
     var knocked = fo.knock === st.round;                  // суперника збили з ніг минулого ходу — не атакує
     var sid = st.me.skill, canAct = !auto && !down && !fm.feared && !meKnocked;
+    if (!oi && st.op.ai) st.op.skill = botSkill(st, vo);                          // бот обирає вміння сам
     var osid = oi ? null : st.op.skill, opCan = !down && !fo.feared && !knocked;   // бот: пояс АБО вміння
     // Берсерк, Благословення — до ударів: діють уже цього ходу
     var skillRec = preBuff(ctx, st, sid, canAct, sd(st, 'skill'));
@@ -802,6 +837,10 @@
       if (fm.bond) grow(st, 'base.bond', meHit.dmg > 0);
       if (wpn) bd.n++;
     }
+    if (opAtk && st.op.up) {                                       // бот росте в межах бою: вміння зброї й Посилений урон
+      var owsk = weaponSkill(vo);
+      (opHit.hits || []).forEach(function (h) { var ok = h.kind === 'hit' || h.kind === 'crit'; if (owsk) grow(vo, owsk, ok); grow(vo, 'knight.enh', ok); });
+    }
     // захист: ухилення, парирування, щит — кожен від ударів суперника
     applyDodge(ctx, st, opHit, sd(st, 'dodge'));
     applyParry(ctx, st, opHit, op.atk !== me.block, sd(st, 'parry'));
@@ -837,6 +876,8 @@
     // концентрація кожного: Лицар — росте від урону; решта — у спокійний хід
     var calmRec = focusTick(ctx, st, opHit.dmg + (opRec ? opRec.dmg : 0), down, sd(st, 'focus'), sd(st, 'calm'));
     var opCalm = focusTick(ctx, vo, meHit.dmg + (skillRec ? skillRec.dmg : 0), down, sd(vo, 'focus'), sd(vo, 'calm'));
+    var opG0 = clone(st.op.sk || {}); botGrowth(st);
+    var opUp = Object.keys(st.op.sk || {}).filter(function (id) { return st.op.sk[id] !== opG0[id]; }).map(function (id) { return [id, Math.round(st.op.sk[id] * 100)]; });
     tickBuffs(st.me); tickBuffs(st.op);
     st.me.last = { atk: me.atk, block: me.block };
     st.me.atk = me.atk; st.me.block = me.block;      // вибір лишається на наступний хід
@@ -856,6 +897,7 @@
     if (opBlessHeal) e.opBlessHeal = opBlessHeal;
     if (meDisarmed) e.meDisarmed = true;
     if (opCalm) e.opCalm = opCalm;
+    if (opUp.length) e.opUp = opUp;
     if (st.op.fx && st.op.fx.focus) e.opFocus = num(st.op.fx.focus);
     // ріст вмінь цього ходу: {id: [вдалих, невдалих, разом вдалих за бій, разом невдалих за бій]}
     var gr = {}, g1 = st.me.grow || {}, f1 = st.me.growF || {};
@@ -944,8 +986,9 @@
     var B = (ctx.R && ctx.R.BATTLE) || {};
     var res = o.meDown && o.opDown ? 'draw' : (o.opDown ? 'win' : 'lose');
     var coef = ctx.R.xpCoef ? ctx.R.xpCoef(st.me.p, st.op.p) : 1;
-    var xpBase = o.surrender ? 0 : res === 'win' ? Math.round(num(B.xpWin || 50) * coef)
-      : res === 'draw' ? Math.round(num(B.xpDraw || 25) * coef) : num(B.xpLose || 8);
+    var xpMul = num(st.op.f && st.op.f.xpMul) || 1;                // складність суперника: ×0.75 … ×1.5
+    var xpBase = o.surrender ? 0 : res === 'win' ? Math.round(num(B.xpWin || 50) * coef * xpMul)
+      : res === 'draw' ? Math.round(num(B.xpDraw || 25) * coef * xpMul) : num(B.xpLose || 8);
     var share = st.played ? st.missed / st.played : 0;
     var cut = share > AFK_ZERO ? 100 : (share > AFK_CUT ? 25 : 0);
     var afk = cut === 100;
@@ -965,7 +1008,7 @@
     st.endedAt = o.now || Date.now();
     st.summary = {
       bid: st.bid, kind: st.kind, result: res, surrender: !!o.surrender,
-      xp: xp, xpBase: xpBase, coef: coef, cut: cut, afk: afk,
+      xp: xp, xpBase: xpBase, coef: coef, xpMul: xpMul, cut: cut, afk: afk,
       played: st.played, missed: st.missed,
       count: { wins: (res === 'win' && !afk) ? 1 : 0, losses: res === 'lose' ? 1 : 0, draws: (res === 'draw' && !afk) ? 1 : 0 },
       wear: wear, broken: broken, items: items, used: (st.used || []).slice(),
