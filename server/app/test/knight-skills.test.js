@@ -651,3 +651,16 @@ test('Стійкість Героя: встояти на ногах проти �
   }
   assert.ok(tries > 0, 'Стійкість спрацювала проти збити з ніг');
 });
+
+test('Ріст за рівень: до класу +4❤️/+4💧, лицар +6/+3, чарівник +3/+6; лише з 2-го рівня', () => {
+  const lb = (lv, c) => JSON.stringify(R.levelBonus(lv, c)), o = (h, m) => JSON.stringify({ health: h, mana: m });
+  assert.strictEqual(lb(1, 'knight'), o(0, 0));
+  assert.strictEqual(lb(2, 'knight'), o(4, 4), '2-й рівень — ще до класу');
+  assert.strictEqual(lb(19, 'knight'), o(4 + 17 * 6, 4 + 17 * 3));
+  assert.strictEqual(lb(19, 'mage'), o(4 + 17 * 3, 4 + 17 * 6));
+  assert.strictEqual(lb(19, null), o(18 * 4, 18 * 4), 'без класу');
+  const h = { health: 254, mana: 381, arena: { level: 19 }, heroClass: 'knight' };
+  const s = R.heroStatsOf(h);
+  assert.strictEqual(s.health, 254 + 106); assert.strictEqual(s.mana, 381 + 55);
+  assert.strictEqual(R.heroStatsOf(h, 1, null).health, 254, 'рівень і клас можна передати явно');
+});

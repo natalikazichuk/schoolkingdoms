@@ -1695,7 +1695,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script type="module" src="firebase-config.js"></script>
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
-<script src="sk-arena-rules.js?v=24"></script>
+<script src="sk-arena-rules.js?v=25"></script>
 <script src="sk-battle.js?v=25"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
@@ -2505,7 +2505,7 @@ window.SKHERO = (function(){
   }
 
   function heroGrade(){ try{ var p=JSON.parse(localStorage.getItem('sk_hero_profile')||'{}'); return p.grade || 'Перший клас'; }catch(e){ return 'Перший клас'; } }
-  function ekHeroData(){ return { health:hero.health, mana:hero.mana, agility:hero.agility, accuracy:hero.accuracy, coins:hero.coins, level:arena.level, xp:arena.xp, xpMax:xpNeed(arena.level), baseHP:CFG.baseHP, name:(hero.name||'Герой'), grade:heroGrade() }; }
+  function ekHeroData(){ return { health:hero.health, mana:hero.mana, agility:hero.agility, accuracy:hero.accuracy, coins:hero.coins, level:arena.level, cls:hero.cls||null, xp:arena.xp, xpMax:xpNeed(arena.level), baseHP:CFG.baseHP, name:(hero.name||'Герой'), grade:heroGrade() }; }
   function openWardrobe(){
     buildLookGrid();
     if(window.EKEQUIP){ EKEQUIP.render(hero.avatar, ekHeroData()); }
@@ -2596,13 +2596,14 @@ window.SKHERO = (function(){
   /* ══════════ БІЙ (1×1) ══════════ */
   var B = null; // стан поточного бою
 
-  function pickBot(tier){
+  function pickBot(tier, hs){
     var bot = BOTS[Math.max(0, Math.min(BOTS.length-1, tier|0))];
+    hs = hs || hero;                                               // база Героя з ростом за рівень
     function vary(v, d){ return Math.max(1, Math.round((v||0)*(1-d+Math.random()*2*d))); }
     return {
       name: bot.name, avatar: bot.avatar, tier: bot.power, ic: bot.ic, pct: bot.pct, xpMul: bot.xp, cls: 'knight',
       level: Math.max(1, arena.level),                               // рівень = рівень Героя: вміння відкриваються так само
-      health: vary(hero.health, 0.2), accuracy: vary(hero.accuracy, 0.1), agility: vary(hero.agility, 0.1),   // здоров'я ±20%, точність і спритність ±10%
+      health: vary(hs.health, 0.2), accuracy: vary(hs.accuracy, 0.1), agility: vary(hs.agility, 0.1),   // здоров'я ±20%, точність і спритність ±10%
       mana: bot.mana, smart: bot.smart,                              // мана — бюджет на вміння за складністю; smart — сильний набір вмінь
       lastPlayerAtk: null
     };
@@ -2684,8 +2685,15 @@ window.SKHERO = (function(){
     return RULES.fighter ? RULES.fighter(f, [], window.SKIT)
       : {hp:Math.round(f.health||50), accuracy:f.accuracy||50, agility:f.agility||50, armor:0, magicResist:0, wMin:0, wMax:0, magMin:0, magMax:0, dmgFlat:0, magFlat:0, dmgPct:0, magPct:0, critPct:0, extra:0};
   }
+  /* характеристики Героя для бою: з документа + ріст за рівень арени й клас (SKARENA.levelBonus) */
+  function heroLvStats(cls){
+    var s = {health:+hero.health||0, accuracy:hero.accuracy, agility:hero.agility, mana:+hero.mana||0};
+    var b = RULES.levelBonus ? RULES.levelBonus(arena.level, cls) : {health:0, mana:0};
+    s.health += b.health; s.mana += b.mana;
+    return s;
+  }
   function loadHeroFighter(){
-    var stats = {health:hero.health, accuracy:hero.accuracy, agility:hero.agility, mana:hero.mana};
+    var stats = heroLvStats(null);
     if(!RULES.fighter || !window.SKIT || !window.SK || !SK.getInventory || !SK.listItems) return Promise.resolve({p:plainFighter(stats), eq:[]});
     var pHero = SK.getHero ? SK.getHero().catch(function(){ return null; }) : Promise.resolve(null);
     return Promise.all([SK.getInventory(), SK.listItems(), pHero]).then(function(r){
@@ -2711,7 +2719,8 @@ window.SKHERO = (function(){
         Object.keys(bst.skills).forEach(function(id){ if(S.byId(id)){ var mp = S.mastery(bst, id); sk[id] = mp/100; if(S.skillValues && S.skillValues(id, mp)) skv[id] = S.skillValues(id, mp); use0[id] = Number(bst.skills[id])||0; fail0[id] = Number(hf[id])||0; } });
         bar = bst.bar.filter(function(id){ return id && sk[id]!=null && S.byId(id).type==='A'; });
       }
-      return {p:RULES.fighter(stats, eq, window.SKIT), eq:eq, belt:belt, catalog:r[1]||[], sk:sk, skv:skv, bar:bar, use0:use0, fail0:fail0, cls:cls};
+      stats = heroLvStats(cls);
+      return {p:RULES.fighter(stats, eq, window.SKIT), stats:stats, eq:eq, belt:belt, catalog:r[1]||[], sk:sk, skv:skv, bar:bar, use0:use0, fail0:fail0, cls:cls};
     }).catch(function(e){ try{ console.error('[арена] екіпіровку не прочитано:', e); }catch(_){} return {p:plainFighter(stats), eq:[]}; });
   }
 
@@ -3036,7 +3045,7 @@ window.SKHERO = (function(){
       return loadHeroFighter().then(function(r){
         var weak = weakItems(r.eq);
         if(weak.length && !confirm('Ці речі майже зламані: ' + weak.join(', ') + '.\n\nЯкщо річ зламається в бою — після бою вона зникне. Почати бій?')){ startBattle.busy = false; return; }
-        var bot = pickBot(tier);
+        var hs = r.stats || heroLvStats(r.cls), bot = pickBot(tier, hs);
         /* суперник: базові показники Героя (здоров'я ±20%, точність і спритність ±10%) + ВИПАДКОВІ речі тих самих
            категорій (сила кожної ±botItemVary від речі Героя, SKARENA.botItems); зброя — під вміння Лицаря. */
         var bits = (RULES.botItems && r.catalog && r.catalog.length && r.eq.length) ? RULES.botItems(r.catalog, r.eq, window.SKIT) : (r.catalog && r.catalog.length ? [] : null);
@@ -3055,7 +3064,7 @@ window.SKHERO = (function(){
         var st = SB.create(ctx(), {
           heroId: battleHeroId(), kind: 'arena',
           me: { name: hero.name, avatar: hero.avatar, level: arena.level,
-                stats: {health:hero.health, accuracy:hero.accuracy, agility:hero.agility, mana:hero.mana}, eq: r.eq, belt: r.belt||[],
+                stats: hs, eq: r.eq, belt: r.belt||[],
                 sk: r.sk||{}, skv: r.skv||{}, bar: r.bar||[], cls: r.cls||null },
           op: { f: bot, p: bp, belt: RULES.botBelt ? RULES.botBelt(r.catalog, window.SKIT) : [],
                 eq: bits || [], sk: bsk.sk, skv: bsk.skv, bar: bsk.bar, up: bsk.up, cls: bot.cls, mana: bot.mana,
@@ -3860,6 +3869,7 @@ window.SKHERO = (function(){
     if(h.health   != null) hero.health   = h.health;
     if(h.accuracy != null) hero.accuracy = h.accuracy;
     if(h.xp       != null) hero.xp       = h.xp;
+    hero.cls = h.heroClass || null;                                   // клас — для росту за рівень (SKARENA.levelBonus)
     /* Монети теж беремо з бази: без цього hero.coins лишався undefined,
        і 🪙 у гардеробі завжди показував 0, хоч би скільки їх було. */
     if(h.coins    != null) hero.coins    = +h.coins || 0;
@@ -4251,7 +4261,8 @@ function dmgRange(){var R=R0(),b=(R.BATTLE&&R.BATTLE.baseDmg)||0;
 /* база з речами — та сама формула, що на головній і в хедері (SKARENA.heroSheet) */
 function sheetNow(){var R=R0();if(!R.heroSheet||!window.SKIT)return null;
  var eq=[];for(var s in EQUIP){var e=EQUIP[s];if(e&&e._inst&&BYID[e.id])eq.push({base:BYID[e.id],inst:e._inst});}
- return R.heroSheet(R.heroStatsOf?R.heroStatsOf(HERO):{health:HERO.health,mana:HERO.mana,agility:HERO.agility,accuracy:HERO.accuracy},eq,SKIT);}
+ var cls=HERO.cls!==undefined?HERO.cls:(window.SKBOOK&&SKBOOK.state?SKBOOK.state().cls:null);   /* ріст за рівень — як у бою */
+ return R.heroSheet(R.heroStatsOf?R.heroStatsOf(HERO,LEVEL.level,cls):{health:HERO.health,mana:HERO.mana,agility:HERO.agility,accuracy:HERO.accuracy},eq,SKIT);}
 function renderStats(){var t=totals(),sh=sheetNow();
  if(sh){t=Object.assign({},t,{health:sh.health,mana:sh.mana,agility:sh.agility,accuracy:sh.accuracy,armor:sh.armor,magicResist:sh.magicResist});}
  q('ek-lvl').textContent=LEVEL.level;q('ek-xpTxt').textContent=LEVEL.xp+' / '+LEVEL.xpMax;
@@ -4473,7 +4484,7 @@ function loadData(force){if((loaded&&!force)||loading)return Promise.resolve();l
    try{console.error('[гардероб] не вдалось прочитати предмети:',e);}catch(_){}
    renderAll();});}
 if(window.SKHERO)SKHERO.on(function(st){if(loaded)applyState(st);});
-window.EKEQUIP={render:function(token,hd){if(hd){['health','mana','agility','accuracy','coins','baseHP'].forEach(function(k){if(hd[k]!=null)HERO[k]=hd[k];});if(hd.level!=null)LEVEL.level=hd.level;if(hd.xp!=null)LEVEL.xp=hd.xp;if(hd.xpMax!=null&&hd.xpMax>0)LEVEL.xpMax=hd.xpMax;if(hd.name!=null){var nn=document.getElementById('ek-heroName');if(nn)nn.textContent=hd.name;}if(hd.grade!=null){var gg=document.getElementById('ek-heroGrade');if(gg)gg.textContent=hd.grade;}}paintAvatar(token);renderAll();loadData();if(window.SKBOOK)SKBOOK.refresh();},reload:function(){return loadData(true);}};   /* книга вмінь — свіжий стан з бази (рівень — той, що бачить сервер) */
+window.EKEQUIP={render:function(token,hd){if(hd){['health','mana','agility','accuracy','coins','baseHP'].forEach(function(k){if(hd[k]!=null)HERO[k]=hd[k];});if(hd.cls!==undefined)HERO.cls=hd.cls;if(hd.level!=null)LEVEL.level=hd.level;if(hd.xp!=null)LEVEL.xp=hd.xp;if(hd.xpMax!=null&&hd.xpMax>0)LEVEL.xpMax=hd.xpMax;if(hd.name!=null){var nn=document.getElementById('ek-heroName');if(nn)nn.textContent=hd.name;}if(hd.grade!=null){var gg=document.getElementById('ek-heroGrade');if(gg)gg.textContent=hd.grade;}}paintAvatar(token);renderAll();loadData();if(window.SKBOOK)SKBOOK.refresh();},reload:function(){return loadData(true);}};   /* книга вмінь — свіжий стан з бази (рівень — той, що бачить сервер) */
 function init(){renderAll();paintAvatar(null);loadData();}
 if(document.readyState!=='loading')init();else document.addEventListener('DOMContentLoaded',init);
 })();

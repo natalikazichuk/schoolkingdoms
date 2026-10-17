@@ -260,9 +260,25 @@
      stats — {health, mana, agility, accuracy}; equipped — [{base, inst}] (inst.slot).
      → {health, mana, agility, accuracy, armor, magicResist, dmg:'11–16', mag:'—', p} */
   var HERO_DEFAULTS = { health: 50, mana: 20, agility: 50, accuracy: 50 };
-  function heroStatsOf(h) {
+  /* ріст за рівень арени (з 2-го рівня): до вибору класу (рівні 2…CLASS_LEVEL−1) і без класу — pre;
+     далі — за класом. Нічого не зберігається: рахується з рівня й класу (скинув клас — перерахувалось). */
+  var LEVEL_BONUS = { pre: { health: 4, mana: 4 }, knight: { health: 6, mana: 3 }, ranger: { health: 5, mana: 4 },
+    healer: { health: 4, mana: 5 }, mage: { health: 3, mana: 6 } };
+  var CLASS_FROM = 3;   // = SKSKILLS.CLASS_LEVEL
+  function levelBonus(level, cls) {
+    var lv = Math.max(1, Math.floor(num(level) || 1)), o = { health: 0, mana: 0 };
+    for (var k = 2; k <= lv; k++) {
+      var b = (k >= CLASS_FROM && LEVEL_BONUS[cls]) || LEVEL_BONUS.pre;
+      o.health += b.health; o.mana += b.mana;
+    }
+    return o;
+  }
+  /* характеристики Героя з документа + ріст за рівень (level/cls — якщо не передано, з h.arena.level і h.heroClass) */
+  function heroStatsOf(h, level, cls) {
     var o = {};
     for (var k in HERO_DEFAULTS) o[k] = h && h[k] != null && isFinite(Number(h[k])) ? Number(h[k]) : HERO_DEFAULTS[k];
+    var lb = levelBonus(level != null ? level : h && h.arena && h.arena.level, cls !== undefined ? cls : h && h.heroClass);
+    o.health += lb.health; o.mana += lb.mana;
     return o;
   }
   function heroSheet(stats, equipped, skit) {
@@ -562,7 +578,7 @@
     handCats: handCats, isTwoHanded: isTwoHanded, fitsHand: fitsHand, handsFix: handsFix,
     HERO_STATS: HERO_STATS, BUFF_KEYS: BUFF_KEYS, attrInfo: attrInfo,
     blockKind: blockKind, blockBy: blockBy, useEffects: useEffects, botBelt: botBelt, buffed: buffed, scrollStrike: scrollStrike,
-    fighter: fighter, varyFighter: varyFighter, heroSheet: heroSheet, heroStatsOf: heroStatsOf, HERO_DEFAULTS: HERO_DEFAULTS, hitChance: hitChance, critChance: critChance, isMagic: isMagic,
+    fighter: fighter, varyFighter: varyFighter, heroSheet: heroSheet, heroStatsOf: heroStatsOf, levelBonus: levelBonus, LEVEL_BONUS: LEVEL_BONUS, HERO_DEFAULTS: HERO_DEFAULTS, hitChance: hitChance, critChance: critChance, isMagic: isMagic,
     strike: strike, attack: attack, d100: d100, armorPass: armorPass,
     power: power, xpCoef: xpCoef, xpNeed: xpNeed, itemPower: itemPower, botItems: botItems
   };
