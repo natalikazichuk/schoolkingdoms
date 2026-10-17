@@ -624,6 +624,8 @@ body.scr-battle .wrap{max-width:1500px}
 .rbig .rnum{display:block;font-family:'Fredoka';font-weight:700;font-size:1.5rem;line-height:1}
 .rbig .rlbl{display:block;font-size:.78rem;font-weight:800;margin-top:2px}
 .rbig .ropp{display:block;margin-top:4px;font-size:.7rem;font-weight:700;color:#a9c1e4;line-height:1.25}
+.rbig .rskill{display:block;margin-top:3px;font-size:.74rem;font-weight:800;color:#ffd65a}
+.rbig .rskill.no{color:#c9d6f2}
 .rbig.hit .rnum{color:#ff9a6b} .rbig.crit .rnum{color:#ff7a4a}
 .rbig.blk .rnum{color:#7bd8ff} .rbig.miss .rnum{color:#cfe0f5}
 .rbig.show{animation:drop .6s cubic-bezier(.2,1.2,.4,1)}
@@ -3429,10 +3431,12 @@ window.SKHERO = (function(){
     else if(opHit.kind==='block') ok=blkWord(opHit, 'ти')+(opHit.dmg ? ' (−'+opHit.dmg+')' : '');
     else ok='−'+opHit.dmg+' тобі';
     rb.className = 'rbig ' + cls;
-    var h0 = (meHit.hits || [meHit])[0] || {};
+    var h0 = (meHit.hits || [meHit])[0] || {}, skl = '';
+    /* вміння — окремим рядком: Берсерк/Благословення діють на тебе, і їхній результат не залежить від блоку суперника */
     if(sk){ var ski = window.SKSKILLS && SKSKILLS.byId(sk.id), ic = ski ? ski.icon+' '+ski.name : '⚡';
-      lbl += ' · ' + ic + ': ' + (sk.kind==='hit' ? (sk.noDmg ? (sk.knock ? '😵' : 'штовхнув') : '−'+sk.dmg+(sk.knock?' 😵':'')) : sk.kind==='buff' ? 'лють!' : sk.kind==='bless' ? 'благословення!' : sk.kind==='disarm' ? 'вибив зброю!' : sk.kind==='lunge' ? '×'+sk.mul+(sk.extra?' +удар':'') : sk.kind==='block' ? 'блок' : 'не вдалось'); }
-    rb.innerHTML = '<span class="rnum">'+num+'</span><span class="rlbl">'+lbl+'</span>'
+      skl = '<span class="rskill'+(sk.kind==='fail'?' no':'')+'">' + ic + ': ' + (sk.kind==='hit' ? (sk.noDmg ? (sk.knock ? '😵' : 'штовхнув') : '−'+sk.dmg+(sk.knock?' 😵':'')) : sk.kind==='buff' ? 'лють!' : sk.kind==='bless' ? 'благословення!' : sk.kind==='disarm' ? 'вибив зброю!' : sk.kind==='lunge' ? '×'+sk.mul+(sk.extra?' +удар':'') : sk.kind==='block' ? 'блок' : 'не вдалось')
+        + (sk.roll!=null && sk.need!=null ? ' (🎲 '+sk.roll+(sk.ok?' ≤ ':' > ')+sk.need+'%)' : '') + '</span>'; }
+    rb.innerHTML = '<span class="rnum">'+num+'</span><span class="rlbl">'+lbl+'</span>' + skl
       + (h0.hitRoll!=null ? '<span class="rdice" id="rdice"></span>' : '')
       + '<span class="ropp">Суперник'+(opHit.kind==='fear'||opHit.kind==='skip'||opHit.kind==='knock' ? '' : ' → '+ZONE_UA[B.op.atk])+': '+ok+'</span>';
     if(h0.hitRoll!=null) rollDice($('rdice'), meHit.hits || [meHit]);
