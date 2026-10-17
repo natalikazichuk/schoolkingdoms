@@ -77,6 +77,8 @@ button{font-family:inherit}
   background:linear-gradient(90deg,#7bd88a,#37b558)}
 .forcebar.low > i{background:linear-gradient(90deg,#ffcf4d,#e0a42a)}
 .forcebar.crit > i{background:linear-gradient(90deg,#ff9a6b,#e0553a)}
+.forcebar.mana{height:9px}
+.forcebar.mana > i{background:linear-gradient(90deg,#6fb8ff,#2f6fe0)}
 
 /* ══════════ ТАВЕРНА ══════════ */
 .tavern-hero{position:relative;border-radius:20px;overflow:hidden;margin:4px 0 12px;
@@ -506,6 +508,7 @@ body.scr-battle .wrap{max-width:1500px}
 .avablk .hh{font-size:1rem}
 .avablk .hpwrap b{font-family:'Fredoka';font-weight:700;font-size:1.1rem;color:#fff;line-height:1;text-shadow:0 1px 3px rgba(0,0,0,.7)}
 .avablk .forcebar{flex-basis:100%;margin-top:2px}
+.avablk .hpwrap b.mn{color:#9fd0ff}
 .avablk .hpstat{flex-basis:100%;text-align:center;font-family:'Fredoka';font-weight:700;
   font-size:.66rem;line-height:1.1;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hpstat.green{color:#8ef0a3}
@@ -624,6 +627,8 @@ body.scr-battle .wrap{max-width:1500px}
 .rbig .rnum{display:block;font-family:'Fredoka';font-weight:700;font-size:1.5rem;line-height:1}
 .rbig .rlbl{display:block;font-size:.78rem;font-weight:800;margin-top:2px}
 .rbig .ropp{display:block;margin-top:4px;font-size:.7rem;font-weight:700;color:#a9c1e4;line-height:1.25}
+.rbig .rskill{display:block;margin-top:3px;font-size:.74rem;font-weight:800;color:#ffd65a}
+.rbig .rskill.no{color:#c9d6f2}
 .rbig.hit .rnum{color:#ff9a6b} .rbig.crit .rnum{color:#ff7a4a}
 .rbig.blk .rnum{color:#7bd8ff} .rbig.miss .rnum{color:#cfe0f5}
 .rbig.show{animation:drop .6s cubic-bezier(.2,1.2,.4,1)}
@@ -1472,10 +1477,10 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
             <span class="figemoji hidden" id="pSceneEmoji">🧒</span>
           </div>
           <div class="hpwrap">
-            <span class="flvl" id="pLvl">1</span>
             <span class="hh">❤️</span><b id="pForceLbl">150</b>
+            <span class="hh">💧</span><b id="pManaLbl" class="mn">0</b>
             <div class="forcebar" id="pForce"><i></i></div>
-            <span class="hpstat green" id="pStat">🟢 Здоровий</span>
+            <div class="forcebar mana" id="pMana" title="Мана"><i></i></div>
           </div>
         </div>
 
@@ -2813,7 +2818,6 @@ window.SKHERO = (function(){
     // ліва картка — гравець
     paintFull(hero.avatar,'pPeek','pSceneEmoji');
     $('pName').textContent = B.me.name || hero.name;
-    $('pLvl').textContent  = B.me.level || arena.level;
     // права картка + картки-цілі — суперник
     paintFull(B.op.f.avatar,'oPeek','oSceneEmoji');
     paintAtkCards(B.op.f.avatar);
@@ -2914,7 +2918,7 @@ window.SKHERO = (function(){
     if(!k) return '';
     var LN = '<span class="ln use'+(op?' op':'')+'">'+biEsc(who)+': ';
     var S = window.SKSKILLS && SKSKILLS.byId(k.id), nm = S ? S.icon+' «'+S.name+'»' : '⚡ вміння';
-    if(k.kind==='fail' && k.id==='knight.berserk') return LN+nm+': <span class="b">не вдалося</span> — спробуй наступного ходу<span class="dice">🎲 '+k.roll+' > '+k.need+'%</span></span>';
+    if(k.kind==='fail' && (k.id==='knight.berserk' || k.id==='knight.bless')) return LN+nm+': <span class="b">не вдалося</span> — спробуй наступного ходу<span class="dice">🎲 '+k.roll+' > '+k.need+'%</span></span>';
     var dice = '<span class="dice">🎲 '+k.roll+(k.ok?' ≤ ':' > ')+k.need+'%'+(k.calc && k.kind==='hit' && !k.noDmg ? ' · '+biEsc(k.calc)+' = '+k.dmg : '')
       +(k.knockNeed!=null ? ' · збити з ніг 🎲 '+k.knockRoll+(k.knock?' ≤ ':' > ')+k.knockNeed+'%' : '')+'</span>';
     if(k.id==='knight.lunge') return LN+nm+': '+(k.kind==='lunge'
@@ -3062,6 +3066,13 @@ window.SKHERO = (function(){
     {t:'🟢 Чудовий стан',     c:'green'},  // 90%
     {t:'🟢 Здоровий',         c:'green'}   // 100%
   ];
+  /* мана Героя: число біля здоров'я + синя смужка (повна — мана профілю на початку бою) */
+  function updateMana(unit){
+    var bar = $('pMana'), lbl = $('pManaLbl'); if(!bar || !lbl) return;
+    var mx = Math.max(1, Number(unit.p && unit.p.mana) || 0), m = Math.max(0, Math.round(Number(unit.mana) || 0));
+    lbl.textContent = m;
+    bar.querySelector('i').style.transform = 'scaleX('+Math.min(1, m/mx)+')';
+  }
   function updateForce(side, unit){
     var wrap = $(side==='p'?'pForce':'oForce');
     var pct = Math.max(0, unit.force)/unit.max;
@@ -3069,6 +3080,7 @@ window.SKHERO = (function(){
     wrap.classList.toggle('low',  pct<=0.5 && pct>0.25);
     wrap.classList.toggle('crit', pct<=0.25);
     $(side==='p'?'pForceLbl':'oForceLbl').textContent = Math.max(0,Math.round(unit.force));
+    if(side==='p') updateMana(unit);
     var stEl = $(side==='p'?'pStat':'oStat');
     if(stEl){
       var p = Math.max(0, Math.min(100, pct*100));
@@ -3429,10 +3441,12 @@ window.SKHERO = (function(){
     else if(opHit.kind==='block') ok=blkWord(opHit, 'ти')+(opHit.dmg ? ' (−'+opHit.dmg+')' : '');
     else ok='−'+opHit.dmg+' тобі';
     rb.className = 'rbig ' + cls;
-    var h0 = (meHit.hits || [meHit])[0] || {};
+    var h0 = (meHit.hits || [meHit])[0] || {}, skl = '';
+    /* вміння — окремим рядком: Берсерк/Благословення діють на тебе, і їхній результат не залежить від блоку суперника */
     if(sk){ var ski = window.SKSKILLS && SKSKILLS.byId(sk.id), ic = ski ? ski.icon+' '+ski.name : '⚡';
-      lbl += ' · ' + ic + ': ' + (sk.kind==='hit' ? (sk.noDmg ? (sk.knock ? '😵' : 'штовхнув') : '−'+sk.dmg+(sk.knock?' 😵':'')) : sk.kind==='buff' ? 'лють!' : sk.kind==='bless' ? 'благословення!' : sk.kind==='disarm' ? 'вибив зброю!' : sk.kind==='lunge' ? '×'+sk.mul+(sk.extra?' +удар':'') : sk.kind==='block' ? 'блок' : 'не вдалось'); }
-    rb.innerHTML = '<span class="rnum">'+num+'</span><span class="rlbl">'+lbl+'</span>'
+      skl = '<span class="rskill'+(sk.kind==='fail'?' no':'')+'">' + ic + ': ' + (sk.kind==='hit' ? (sk.noDmg ? (sk.knock ? '😵' : 'штовхнув') : '−'+sk.dmg+(sk.knock?' 😵':'')) : sk.kind==='buff' ? 'лють!' : sk.kind==='bless' ? 'благословення!' : sk.kind==='disarm' ? 'вибив зброю!' : sk.kind==='lunge' ? '×'+sk.mul+(sk.extra?' +удар':'') : sk.kind==='block' ? 'блок' : 'не вдалось')
+        + (sk.roll!=null && sk.need!=null ? ' (🎲 '+sk.roll+(sk.ok?' ≤ ':' > ')+sk.need+'%)' : '') + '</span>'; }
+    rb.innerHTML = '<span class="rnum">'+num+'</span><span class="rlbl">'+lbl+'</span>' + skl
       + (h0.hitRoll!=null ? '<span class="rdice" id="rdice"></span>' : '')
       + '<span class="ropp">Суперник'+(opHit.kind==='fear'||opHit.kind==='skip'||opHit.kind==='knock' ? '' : ' → '+ZONE_UA[B.op.atk])+': '+ok+'</span>';
     if(h0.hitRoll!=null) rollDice($('rdice'), meHit.hits || [meHit]);
