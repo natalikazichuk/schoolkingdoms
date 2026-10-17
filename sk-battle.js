@@ -141,11 +141,11 @@
   function stoneOn(st) { var f = st.me && st.me.fx; return !!(f && f.stone && num(f.stone.until) >= st.round); }
   function songOn(st) { var f = st.me && st.me.fx; return !!(f && f.song && num(f.song.until) >= st.round); }
   function willOn(st) { var f = st.me && st.me.fx; return !!(f && num(f.will) >= st.round); }
-  /* Залізна воля (пасивне): здоров'я < 50%, не діє й не на перезарядці — щоходу кидок chance;
+  /* Залізна воля (пасивне): здоров'я < 20%, не діє й не на перезарядці — щоходу кидок chance;
      вдалося — броня +armorPct% на turns ходів (цей теж), потім перезарядка cd → запис для журналу або null */
   function willTry(ctx, v, rnd) {
     var id = 'knight.will';
-    if (!hasSk(v, id) || willOn(v) || !(v.me.force > 0) || v.me.force >= v.me.max * 0.5) return null;
+    if (!hasSk(v, id) || willOn(v) || !(v.me.force > 0) || v.me.force >= v.me.max * 0.2) return null;   // лише на межі: ризиковано, щоб не зловживати
     var cd = (v.me.cd || {})[id]; if (cd && v.round <= cd) return null;
     var need = V(v, id, 'chance'), roll = ctx.R.d100(rnd), ok = roll <= need;
     grow(v, id, ok);
@@ -915,7 +915,7 @@
     var skillRec = preBuff(ctx, st, sid, canAct, sd(st, 'skill'));
     var opRec = preBuff(ctx, vo, osid, opCan, sd(vo, 'skill'));
     var blessHeal = down ? 0 : blessTick(st), opBlessHeal = down ? 0 : blessTick(vo);
-    var meWill = down ? null : willTry(ctx, st, sd(st, 'will')), opWill = down ? null : willTry(ctx, vo, sd(vo, 'will'));   // Залізна воля — сама, до ударів
+    var meWill = down ? null : willTry(ctx, st, sd(st, 'will')), opWill = down ? null : willTry(ctx, vo, sd(vo, 'will'));   // Залізна воля — сама, до ударів (здоров'я < 20%)
     var pm = R.buffed ? R.buffed(st.me.p, fm.buffs) : st.me.p, po = R.buffed ? R.buffed(st.op.p, fo.buffs) : st.op.p;
     // Обеззброєння — до ударів: вдалося — суперник уже цього ходу без зброї
     if (sid === SKILL.disarm.id && canAct && !skillBlock(st, sid)) skillRec = disarmTry(ctx, st, sid, po, sd(st, 'skill'));

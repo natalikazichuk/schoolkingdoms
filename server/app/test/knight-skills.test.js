@@ -601,11 +601,13 @@ test('Бойова пісня: −50 мани, 🎲 7–10 ходів точні
   const t25 = S.skillValues('knight.song', 25); assert.strictEqual(t25.turnsMin, 3); assert.strictEqual(t25.turnsMax, 5);
 });
 
-test('Залізна воля (пасивне): здоров\'я < 50% — сама з шансом 50→100%, броня +50→100% на 3 ходи, потім перезарядка 10', () => {
+test('Залізна воля (пасивне): здоров\'я < 20% — сама з шансом 50→100%, броня +50→100% на 3 ходи, потім перезарядка 10', () => {
   const st = battle({ 'knight.will': 1 }, [], [wear(ARMOR, 'armor')]);
   const e0 = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
   assert.ok(!e0.will, 'здоров\'я повне — не спрацьовує');
-  st.me.force = Math.round(st.me.max * 0.4);
+  const q = battle({ 'knight.will': 1 }, [], [wear(ARMOR, 'armor')]); q.me.force = Math.round(q.me.max * 0.3);
+  assert.ok(!SB.turn(ctx, q, { atk: 'head', block: 'body' }, {}, Date.now()).will, '30% — ще ні');
+  st.me.force = Math.round(st.me.max * 0.15);
   const e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
   assert.ok(e.will && e.will.ok); assert.strictEqual(e.will.turns, 3); assert.strictEqual(e.will.pct, 100);
   assert.strictEqual(st.me.fx.will, 2 + 3 - 1); assert.strictEqual(st.me.cd['knight.will'], 2 + 10);
