@@ -2847,11 +2847,11 @@ window.SKHERO = (function(){
     var S = window.SKSKILLS, out = ['', '🧪 ТИМЧАСОВО ДЛЯ ТЕСТУ (параметри вмінь і бою)'];
     var vals = function(u){ return Object.keys(u.skv||{}).map(function(id){ var s = S && S.byId(id), v = u.skv[id];
       return (s ? s.icon+' '+s.name : id)+' '+Math.round((u.sk&&u.sk[id]||0)*100)+'%: '+Object.keys(v).map(function(k){ return k+'='+v[k]; }).join(', '); }); };
-    var pl = function(p){ return 'здоров\'я '+p.hp+' · мана '+(p.mana||0)+' · урон зброї '+(p.wMin||0)+'–'+(p.wMax||0)+' · урон +'+(p.dmgFlat||0)+' · урон %+'+(p.dmgPct||0)
+    var pl = function(p, mana){ return 'здоров\'я '+p.hp+' · мана '+(mana!=null?mana+' (бюджет на вміння)':(p.mana||0))+' · урон зброї '+(p.wMin||0)+'–'+(p.wMax||0)+' · урон +'+(p.dmgFlat||0)+' · урон %+'+(p.dmgPct||0)
       +' · маг. %+'+(p.magPct||0)+' · крит +'+(p.critPct||0)+'% · блок фіз '+(p.blockPhys||0)+'% / маг '+(p.blockMag||0)+'%'+(p.pierce?' · пробиття '+p.pierce+'%':'')+(p.extra?' · дод. атак '+p.extra:'')+(p.evade?' · відскок':''); };
     out.push('  Ти (профіль): '+pl(B.me.p));
     vals(B.me).forEach(function(l){ out.push('    '+l); });
-    out.push('  '+B.op.f.name+' (профіль): '+pl(B.op.p));
+    out.push('  '+B.op.f.name+' (профіль): '+pl(B.op.p, B.op.f.mana));
     if(B.op.ai) out.push('    розум: бере вміння в '+B.op.ai.use+'% ходів'+(B.op.ai.smart?', розумний вибір':', навмання'));
     vals(B.op).forEach(function(l){ out.push('    '+l); });
     if(B.op.up) out.push('    ріст у бою (спрацювань до +1%): '+Object.keys(B.op.up).map(function(id){ var s = S && S.byId(id), u = B.op.up[id][0]; return (s?s.icon:id)+' '+(u?u.u:'—'); }).join(' · '));
@@ -2890,7 +2890,8 @@ window.SKHERO = (function(){
     var LN = '<span class="ln use'+(op?' op':'')+'">'+biEsc(who)+': ';
     var S = window.SKSKILLS && SKSKILLS.byId(k.id), nm = S ? S.icon+' «'+S.name+'»' : '⚡ вміння';
     if(k.kind==='fail' && k.id==='knight.berserk') return LN+nm+': <span class="b">не вдалося</span> — спробуй наступного ходу<span class="dice">🎲 '+k.roll+' > '+k.need+'%</span></span>';
-    var dice = '<span class="dice">🎲 '+k.roll+(k.ok?' ≤ ':' > ')+k.need+'%'+(k.calc && k.kind==='hit' ? ' · '+biEsc(k.calc)+' = '+k.dmg : '')+'</span>';
+    var dice = '<span class="dice">🎲 '+k.roll+(k.ok?' ≤ ':' > ')+k.need+'%'+(k.calc && k.kind==='hit' && !k.noDmg ? ' · '+biEsc(k.calc)+' = '+k.dmg : '')
+      +(k.knockNeed!=null ? ' · збити з ніг 🎲 '+k.knockRoll+(k.knock?' ≤ ':' > ')+k.knockNeed+'%' : '')+'</span>';
     if(k.id==='knight.lunge') return LN+nm+': '+(k.kind==='lunge'
         ? '<span class="g">удар ×'+k.mul+', броня ворога '+k.armor+'%</span>'+(k.extra ? ' · <span class="crit">ще один удар!</span>' : '')
         : '<span class="b">не вдалося</span> — звичайний удар')
@@ -3197,7 +3198,7 @@ window.SKHERO = (function(){
     function botLine(){
       var f = B.op.f || {}, os = B.op.up ? Object.keys(B.op.skv||{}) : Object.keys(B.op.sk||{});
       if(!f.ic && !os.length) return [];
-      return ['  Суперник: '+(f.ic||'')+' Лицар '+(f.pct||'')+'% · рівень '+(f.level||'?')+' · мана '+Math.round(B.op.mana||0)+(f.xpMul?' · досвід ×'+f.xpMul:'')
+      return ['  Суперник: '+(f.ic||'')+' Лицар '+(f.pct||'')+'% · рівень '+(f.level||'?')+' · мана на старті '+Math.round(f.mana||0)+' → зараз '+Math.round(B.op.mana||0)+(f.xpMul?' · досвід ×'+f.xpMul:'')
         +(os.length ? ' · вміння: '+os.map(function(id){ var s = S && S.byId(id); return s ? s.icon+' '+s.name : id; }).join(' · ') : '')];
     }
   }

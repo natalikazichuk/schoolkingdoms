@@ -975,8 +975,10 @@ function hadmApi(method,path,body){
 function hadmLoad(){
   if(HADM.loading)return;HADM.loading=true;
   hadmApi('GET','heroes').then(function(j){HADM.list=(j.heroes)||[];HADM.err=null;},function(e){HADM.err=e.message||String(e);})
-    .then(function(){HADM.loading=false;if(TAB==='skmech')render();});
+    .then(function(){HADM.loading=false;if(TAB==='skmech')keepScroll(render);});
 }
+/* перемальовка без стрибка вгору: сторінка лишається на тому ж Герої */
+function keepScroll(fn){var y=window.scrollY;fn();window.scrollTo(0,y);}
 function heroAdminHTML(){
   if(!HADM.list&&!HADM.err)hadmLoad();
   var opts=Object.keys(SKSKILLS.CLASSES).filter(function(k){return SKSKILLS.readyFor(k).length;}).map(function(k){var c=SKSKILLS.CLASSES[k];return '<option value="'+k+'">'+c.icon+' '+esc(c.name)+'</option>';}).join('');
@@ -992,7 +994,8 @@ function heroAdminHTML(){
       +'<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap"><input type="number" id="hadm-lv-'+esc(h.id)+'" value="'+h.lv+'" min="1" max="30" style="width:64px" aria-label="Рівень арени">'
       +'<button type="button" class="btn-ghost" data-hadm="level" data-id="'+esc(h.id)+'">🆙 Рівень</button>'
       +'<button type="button" class="btn-ghost" data-hadm="point" data-id="'+esc(h.id)+'">🎁 +1 очко вмінь</button>'
-      +'<span class="key" style="align-self:center">очок понад рівень: '+(h.bonus||0)+'</span></div></td></tr>';
+      +'<span class="key" style="align-self:center">очок понад рівень: '+(h.bonus||0)+'</span>'
+      +(HADM.done===h.id?'<span style="align-self:center;color:#2e7d32;font-weight:700">✓ Готово</span>':'')+'</div></td></tr>';
   }).join('');
   return '<section class="sec" id="hadm"><h2>🧪 Герої: клас і вміння (тест)</h2>'
     +'<p class="hint"><b>↺ Скинути клас</b> — Герой знову обирає клас; вміння класу зникають (і з панелі), очки повертаються, базові вміння лишаються. '
@@ -1021,8 +1024,8 @@ root.addEventListener('click',function(e){
     p=hadmApi('POST','hero/test-class',{id:id,cls:cls,pct:pct});
   }
   HADM.busy=true;b.disabled=true;
-  p.then(function(){HADM.list=null;HADM.err=null;},function(err){alert('Не вдалося: '+(err.message||err));})
-   .then(function(){HADM.busy=false;render();});
+  p.then(function(){HADM.err=null;HADM.done=id;hadmLoad();},function(err){alert('Не вдалося: '+(err.message||err));})
+   .then(function(){HADM.busy=false;keepScroll(render);});
 });
 var skmBound=false;
 function bindSkm(){
