@@ -807,6 +807,9 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 .binv .bslot.lock{opacity:.5;cursor:not-allowed}
 .binv .bslot.lock::after{content:'🔒';position:absolute;top:3px;right:5px;font-size:.7rem}
 .binv .bslot.broken,.binv .bitem.broken{border-color:rgba(255,90,90,.6)}
+.binv .bslot.off{border-color:rgba(255,90,90,.6);border-style:dashed}
+.binv .bslot.off .ic{opacity:.3;filter:grayscale(1)}
+.binv .bslot.off .sl.offt{color:#ff8a8a}
 .binv .bitem.broken{opacity:.45;cursor:not-allowed}
 .binv .bslot.sel,.binv .bitem.sel{border-color:var(--gold);box-shadow:0 0 0 2px rgba(242,199,92,.35)}
 .binv .bslot.fit{border-color:rgba(95,220,143,.7)}
@@ -2002,22 +2005,25 @@ window.SKHERO = (function(){
     }
     // слоти
     var opEq = {}; if(!isP) (B.op.f.eq||[]).forEach(function(e){ opEq[e.slot] = e; });
+    // вибита зброя / відбитий щит: річ лежить на землі, поки ефект діє
+    var fxs = ((isP ? B.me : B.op).fx) || {}, offIn = function(id){
+      return id==='weaponR' && (+fxs.disarm||0) >= B.round ? '🤚 вибито' : id==='weaponL' && (+fxs.shieldOff||0) >= B.round ? '💥 відбито' : ''; };
     var selBase = (BI.sel && BI.sel.uid) ? BI.byId[(bagItems().filter(function(x){ return x.uid===BI.sel.uid; })[0]||{}).id] : null;
     html += '<div class="bicols'+(isP?'':' one')+'"><div><h4>'+(isP ? 'Вдягнено' : 'На суперникові')+'</h4><div class="bislots">';
     BSLOTS.forEach(function(d){
       var id = d[0], lock = LOCKED_SLOTS.indexOf(id)>=0;
       if(isP){
-        var e = activeIn(id), left = e ? leftDur(e) : null;
-        var cls = 'bslot' + (e ? '' : ' empty') + (lock ? ' lock' : '') + (e && (e.broken || left===0) ? ' broken' : '')
+        var e = activeIn(id), left = e ? leftDur(e) : null, off = e ? offIn(id) : '';
+        var cls = 'bslot' + (e ? '' : ' empty') + (off ? ' off' : '') + (lock ? ' lock' : '') + (e && (e.broken || left===0) ? ' broken' : '')
           + (BI.sel && BI.sel.slot===id ? ' sel' : '') + (selBase && !lock && fitsSlot(selBase, id) ? ' fit' : '');
         html += '<button type="button" class="'+cls+'" data-bslot="'+id+'"'+(lock?' title="Пояс і його комірки в бою не змінюються"':'')+'>'
           + '<span class="ic">'+(e ? itemIcon(e.inst.id, d[2]) : d[2])+'</span>'
           + '<span class="nm">'+(e ? biEsc((e.base && e.base.name) || d[1]) : biEsc(d[1]))+'</span>'
-          + (e ? durHtml(left, e.inst.durMax) : '<span class="sl">порожньо</span>') + '</button>';
+          + (off ? '<span class="sl offt">'+off+'</span>' : e ? durHtml(left, e.inst.durMax) : '<span class="sl">порожньо</span>') + '</button>';
       }else{
-        var o = opEq[id];
-        html += '<div class="bslot'+(o?' worn':' empty')+'" style="cursor:default"><span class="ic">'+(o ? itemIcon(o.id, d[2]) : d[2])+'</span>'
-          + '<span class="sl">'+biEsc(d[1])+'</span></div>';
+        var o = opEq[id], oo = o ? offIn(id) : '';
+        html += '<div class="bslot'+(oo?' off':o?' worn':' empty')+'" style="cursor:default"'+(oo?' title="'+biEsc(d[1])+': '+oo+'"':'')+'><span class="ic">'+(o ? itemIcon(o.id, d[2]) : d[2])+'</span>'
+          + '<span class="sl'+(oo?' offt':'')+'">'+(oo ? oo : biEsc(d[1]))+'</span></div>';
       }
     });
     html += '</div></div>';
