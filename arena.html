@@ -1045,6 +1045,14 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 .ek-card{background:linear-gradient(180deg,#1c3357,#111f3c);border:2px solid rgba(224,164,42,.5);border-radius:16px;padding:10px;position:relative}
 .ek-art{position:relative;border-radius:12px;overflow:hidden;background:#bfe3fb url(img/portrait-bg.webp) center/cover no-repeat;box-shadow:inset 0 -60px 60px -30px rgba(0,0,0,.28);aspect-ratio:1/1;display:flex;align-items:flex-end;justify-content:center}
 .ek-art img{width:96%;height:98%;object-fit:contain;object-position:center bottom;filter:drop-shadow(0 8px 10px rgba(0,0,0,.25))}
+/* «Одягти» — образ Героя у вдягнених речах малює сервер (server/app/src/avatar.js) */
+.ek-dress{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);z-index:2;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;background:linear-gradient(180deg,#f4c842,#e0a42a);color:#5a3d05;font-family:'Fredoka';font-weight:800;font-size:.85rem;line-height:1;padding:6px 14px;border-radius:20px;border:2px solid #fff;box-shadow:0 4px 10px rgba(0,0,0,.3);cursor:pointer}
+.ek-dress:hover{filter:brightness(1.07)}
+.ek-dress[disabled]{cursor:default;opacity:.93}
+.ek-dress[hidden]{display:none}
+.ek-dress .ic{display:inline-block}
+.ek-dress.busy .ic{animation:ekDressBob 1.4s ease-in-out infinite}
+@keyframes ekDressBob{50%{transform:rotate(-14deg) scale(1.12)}}
 .ek-land{position:absolute;inset:0;background:radial-gradient(120% 60% at 50% 120%,rgba(60,120,70,.55),transparent 60%),radial-gradient(90% 40% at 20% 10%,rgba(255,255,255,.35),transparent 60%)}
 .ek-lvl{position:absolute;top:6px;left:6px;display:flex;align-items:center;gap:8px;z-index:3}
 .ek-shield{width:42px;height:48px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.15rem;color:#3a2a06;background:linear-gradient(180deg,#FFE29A,#E7B23E);border:2px solid #b9822a;clip-path:polygon(50% 0,100% 12%,100% 66%,50% 100%,0 66%,0 12%);box-shadow:0 3px 6px rgba(0,0,0,.35)}
@@ -1645,7 +1653,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
             <div class="ek-shield" id="ek-lvl">12</div>
             <div class="ek-xpwrap"><div class="t" id="ek-xpTxt">2450 / 3000</div><div class="ek-xpbar"><i id="ek-xpFill" style="width:82%"></i></div></div>
           </div>
-          <div class="ek-art"><img id="ek-heroImg" alt="Герой"></div>
+          <div class="ek-art"><img id="ek-heroImg" alt="Герой"><button class="ek-dress" id="ek-dress" type="button" hidden></button></div>
           <div class="ek-bars">
             <div class="ek-bar hp"><span class="ek-bico">❤️</span><span class="ek-track"><i id="ek-hpFill"></i><span class="ek-val" id="ek-hpVal">—</span></span></div>
             <div class="ek-bar mp"><span class="ek-bico">💧</span><span class="ek-track"><i id="ek-mpFill"></i><span class="ek-val" id="ek-mpVal">—</span></span></div>
@@ -1693,7 +1701,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script src="sk-footer.js?v=6" data-active="arena" data-back="self"></script>
 
 <script type="module" src="firebase-config.js"></script>
-<script src="sk-avatar.js?v=2"></script>
+<script src="sk-avatar.js?v=3"></script>
 <script src="sk-progress.js"></script>
 <script src="sk-arena-rules.js?v=25"></script>
 <script src="sk-battle.js?v=29"></script>
@@ -2544,6 +2552,13 @@ window.SKHERO = (function(){
     switchWTab('gear');
     if(window.EKEQUIP){ EKEQUIP.render(token, ekHeroData()); }
   }
+  /* готовий образ «Одягти»: сервер уже записав його в базу — лише показати */
+  window.SKARENA_applyAvatar = function(token){
+    hero.avatar = token;
+    paintHeroFull(token); paintWardHero(token); renderTavern();
+    try{ localStorage.setItem('sk_hero_avatar_token', token); }catch(e){}
+    if(window.EKEQUIP){ EKEQUIP.render(token, ekHeroData()); }
+  };
 
   /* ══════════ ТАВЕРНА ══════════ */
   function rankName(lv){
@@ -4500,6 +4515,72 @@ if(document.readyState!=='loading')init();else document.addEventListener('DOMCon
 })();
 </script>
 
+
+<script>
+/* ── «Одягти»: образ Героя у вдягнених речах ──
+   Сервер бере базовий аватар + речі у слотах і ставить у чергу; воркер з ComfyUI
+   малює (server/AVATAR-WORKER.md), готовий образ сервер сам робить аватаром Героя.
+   Тут — лише кнопка й очікування: поки малюється, раз на 5 с питаємо стан. */
+(function(){
+  var btn = document.getElementById('ek-dress'); if(!btn) return;
+  var timer = null, waiting = false;
+  function sk(){ return (window.SK && SK.renderAvatar && SK.isHeroSession && SK.isHeroSession()) ? SK : null; }
+  function toast(a, b){ if(window.showToast) showToast(a, b || ''); }
+  function paint(state, pos){
+    var busy = state === 'queued' || state === 'working';
+    btn.hidden = false;
+    btn.classList.toggle('busy', busy);
+    btn.disabled = busy || state === 'sending';
+    btn.innerHTML = state === 'sending' ? '<span class="ic">⏳</span>Надсилаю…'
+      : state === 'queued'  ? '<span class="ic">🎨</span>У черзі' + (pos > 1 ? ' · ' + pos : '')
+      : state === 'working' ? '<span class="ic">🎨</span>Художник малює…'
+      : '<span class="ic">🪄</span>Одягти';
+    btn.title = busy ? 'Образ малюється — він сам зʼявиться тут' : 'Намалювати героя у вдягнених речах';
+  }
+  function stop(){ if(timer){ clearTimeout(timer); timer = null; } }
+  function poll(ms){
+    stop();
+    timer = setTimeout(function(){
+      var S = sk(); if(!S) return;
+      S.avatarStatus().then(apply, function(){ poll(15000); });
+    }, ms || 5000);
+  }
+  function ready(token, plain){
+    stop(); waiting = false; paint('idle');
+    if(window.SKARENA_applyAvatar) SKARENA_applyAvatar(token);
+    if(plain) toast('🧥 Нічого не вдягнено', 'Герой у базовому вбранні');
+    else toast('✨ Образ готовий!', 'Твій герой у новому вбранні');
+  }
+  // відповідь /api/avatar/status
+  function apply(st){
+    var g = st && st.gen, j = (st && st.job) || {};
+    if(g && g.status === 'queued' && j.status !== 'failed' && j.status !== 'cancelled'){
+      waiting = true; paint(j.status === 'working' ? 'working' : 'queued', j.position); poll(); return;
+    }
+    if(waiting && g && g.status === 'ready' && st.avatar){ ready(st.avatar); return; }
+    if(waiting) toast('⚠️ Образ не вдався', 'Спробуй ще раз трохи згодом');
+    waiting = false; stop(); paint('idle');
+  }
+  btn.addEventListener('click', function(e){
+    e.stopPropagation();
+    var S = sk(); if(!S){ toast('🪄 Одягти', 'Образ одягає сам Герой — увійди Героєм'); return; }
+    paint('sending');
+    S.renderAvatar().then(function(r){
+      if(r.status === 'ready'){ ready(r.avatar, !r.filled); return; }
+      waiting = true; paint(r.status, r.position); poll();
+    }, function(err){
+      paint('idle');
+      toast('⚠️ Не вийшло', (err && err.message && err.message !== 'network error') ? err.message : 'Перевір звʼязок і спробуй ще раз');
+    });
+  });
+  // після перезавантаження: якщо образ ще малюється — показати це й чекати далі
+  (function boot(n){
+    var S = sk();
+    if(!S){ if(n < 40) setTimeout(function(){ boot(n + 1); }, 250); else paint('idle'); return; }
+    S.avatarStatus().then(apply, function(){ paint('idle'); });
+  })(0);
+})();
+</script>
 
 <!-- Спільний хедер із панеллю прогресу Героя (❤️🔮🏃🎯⭐) — те саме джерело, що й на інших сторінках -->
 <script>

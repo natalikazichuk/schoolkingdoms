@@ -26,9 +26,10 @@
 | Шлях | Що це |
 |---|---|
 | `/srv/sk/repo` | копія репозиторію, з неї nginx віддає сайт |
-| `/srv/sk/.env` | пароль PostgreSQL, версія |
+| `/srv/sk/.env` | пароль PostgreSQL, токен воркера образів, версія |
 | `/srv/sk/pgdata` | дані PostgreSQL |
 | `/srv/sk/backups` | щоденні копії бази (03:17, зберігаються 14 днів) |
+| `/srv/sk/avatars` | згенеровані образи Героїв (`/img/ava/gen/`); у копії бази не входять — за потреби перемальовуються |
 | `/srv/sk/data/hash-config.json` | параметри паролів Firebase |
 | `/srv/sk/migration` | вивантаження з Firebase (`firestore.json`, `users.json`) |
 
@@ -44,6 +45,13 @@ sudo docker compose -p sk --env-file /srv/sk/.env exec db psql -U sk sk # кон
 
 Коли сайт працює з `main`, cron кожні 2 хвилини перевіряє GitHub і сам
 запускає `deploy.sh`, якщо з'явився новий коміт (`/var/log/sk-deploy.log`).
+
+## Образ Героя (кнопка «Одягти»)
+
+Кнопка в Інвентарі арени ставить у чергу набір «базовий аватар + вдягнені речі»
+(`app/src/avatar.js`, таблиця `avatar_jobs`). Малює окремий воркер із ComfyUI на
+домашньому комп'ютері: він сам забирає завдання через API й повертає картинку. Протокол
+описаний в [`AVATAR-WORKER.md`](AVATAR-WORKER.md), токен воркера лежить в `/srv/sk/.env`.
 
 ## Перенос з Firebase
 

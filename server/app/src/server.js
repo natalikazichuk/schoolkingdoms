@@ -9,6 +9,8 @@
    POST /api/get          {path}                      → {doc}
    POST /api/query        {collection, where}         → {docs}
    POST /api/commit       {reads, writes}             → {ok}
+   POST /api/avatar/render · GET /api/avatar/status   — образ Героя (src/avatar.js)
+   POST /api/avatar/worker/*                          — воркер образів (server/AVATAR-WORKER.md)
    GET  /api/health
 
    Сесія — HttpOnly cookie sk_session (у базі лише sha256 від токена).
@@ -21,9 +23,11 @@ const { allowed } = require('./rules');
 const V = require('./values');
 const passwords = require('./passwords');
 const skills = require('./skills');
+const avatar = require('./avatar');
 
 const PORT = Number(process.env.PORT || 3000);
 const MAX_BODY = 4 * 1024 * 1024;
+const MAX_BODY_AVATAR = 13 * 1024 * 1024;   // готовий образ від воркера (base64)
 const COOKIE = 'sk_session';
 const SESSION_DAYS = 365;
 
@@ -41,12 +45,12 @@ function send(res, status, obj, headers) {
   }, headers || {}));
   res.end(body);
 }
-function readBody(req) {
+function readBody(req, limit) {
   return new Promise((ok, fail) => {
     let size = 0; const chunks = [];
     req.on('data', c => {
       size += c.length;
-      if (size > MAX_BODY) { fail(new ApiError(413, 'invalid-argument', 'too large')); req.destroy(); return; }
+      if (size > (limit || MAX_BODY)) { fail(new ApiError(413, 'invalid-argument', 'too large')); req.destroy(); return; }
       chunks.push(c);
     });
     req.on('end', () => {
@@ -367,6 +371,19 @@ function skillRoute(fn) {
   };
 }
 
+/* образ Героя: помилки AvatarError → коди API */
+const AVATAR_STATUS = { unauthenticated: 401, 'permission-denied': 403, 'invalid-argument': 400, 'failed-precondition': 409,
+  aborted: 409, 'not-found': 404, 'resource-exhausted': 429, unavailable: 503 };
+function avatarRoute(fn) {
+  return async (req, user, b) => {
+    try { return [await fn(req, user, b)]; }
+    catch (e) {
+      if (e instanceof avatar.AvatarError) throw new ApiError(AVATAR_STATUS[e.code] || 400, e.code, e.message);
+      throw e;
+    }
+  };
+}
+
 /* ---------- маршрутизація ---------- */
 const ROUTES = {
   'POST /api/auth/signup': (req, user, b) => signup(req, b),
@@ -381,6 +398,14 @@ const ROUTES = {
   'POST /api/skills/class': skillRoute(skills.chooseClass),
   'POST /api/skills/grow': skillRoute(skills.growAfterBattle),
   'POST /api/skills/trade': skillRoute(skills.growTrade),
+  'POST /api/avatar/render': avatarRoute((req, user) => avatar.render(user)),
+  'GET /api/avatar/status': avatarRoute((req, user) => avatar.status(user)),
+  'POST /api/avatar/worker/claim': avatarRoute((req, user, b) => avatar.claim(req, b)),
+  'POST /api/avatar/worker/heartbeat': avatarRoute((req, user, b) => avatar.heartbeat(req, b)),
+  'POST /api/avatar/worker/result': avatarRoute((req, user, b) => avatar.result(req, b)),
+  'POST /api/avatar/worker/fail': avatarRoute((req, user, b) => avatar.fail(req, b)),
+  'GET /api/admin/avatar/jobs': async (req, user) => { await requireAdmin(user); return avatarRoute(() => avatar.adminJobs())(req, user); },
+  'POST /api/admin/avatar/requeue': async (req, user, b) => { await requireAdmin(user); return avatarRoute(() => avatar.adminRequeue(b))(req, user, b); },
   'GET /api/admin/collections': (req, user) => adminCollections(user),
   'POST /api/admin/docs': (req, user, b) => adminDocs(user, b),
   'POST /api/admin/doc': (req, user, b) => adminDoc(user, b),
@@ -406,7 +431,7 @@ const server = http.createServer(async (req, res) => {
       const origin = req.headers.origin;
       if (origin && originHost(origin) !== req.headers.host) throw new ApiError(403, 'permission-denied', 'bad origin');
     }
-    const body = req.method === 'POST' ? await readBody(req) : {};
+    const body = req.method === 'POST' ? await readBody(req, url === '/api/avatar/worker/result' ? MAX_BODY_AVATAR : MAX_BODY) : {};
     const user = await currentUser(req);
     const [out, headers] = await route(req, user, body);
     send(res, 200, out, headers);
