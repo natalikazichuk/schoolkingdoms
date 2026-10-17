@@ -112,3 +112,20 @@ test('образ без входу → 401', async () => {
     assert.strictEqual(r.status, 401);
   } finally { server.close(); }
 });
+
+test('колекція: старий образ із avatarGen, без дублів, новий — наверх, не більше COLLECTION_MAX', () => {
+  const k = n => String(n).padStart(24, 'a');
+  const gen = { status: 'ready', key: k(1), file: 'f1', base: 'linen-boy', readyAt: 5 };
+  assert.deepStrictEqual(A.collectionOf({ avatarGen: gen }), [{ key: k(1), file: 'f1', base: 'linen-boy', at: 5 }]);
+  assert.deepStrictEqual(A.collectionOf({ avatarGen: Object.assign({}, gen, { status: 'queued' }) }), []);
+  // власна колекція вже є — avatarGen не додаємо (образ могли прибрати)
+  assert.deepStrictEqual(A.collectionOf({ avatarGen: gen, avatarCollection: [] }), []);
+  assert.deepStrictEqual(A.collectionOf({ avatarCollection: [{ key: 'bad', file: 'x', base: 'b' }, null] }), []);
+
+  let h = { avatarCollection: [{ key: k(1), file: 'f1', base: 'b', at: 1 }, { key: k(2), file: 'f2', base: 'b', at: 2 }] };
+  h.avatarCollection = A.addToCollection(h, { key: k(1), file: 'f1b', base: 'b', at: 3 });
+  assert.deepStrictEqual(h.avatarCollection.map(x => x.file), ['f2', 'f1b']);
+  for (let i = 10; i < 10 + A.COLLECTION_MAX; i++) h.avatarCollection = A.addToCollection(h, { key: k(i), file: 'g' + i, base: 'b', at: i });
+  assert.strictEqual(h.avatarCollection.length, A.COLLECTION_MAX);
+  assert.strictEqual(h.avatarCollection[0].file, 'g10');
+});

@@ -10,6 +10,7 @@
    POST /api/query        {collection, where}         → {docs}
    POST /api/commit       {reads, writes}             → {ok}
    POST /api/avatar/render · GET /api/avatar/status   — образ Героя (src/avatar.js)
+   POST /api/avatar/wear · POST /api/avatar/forget    — колекція створених образів
    POST /api/avatar/worker/*                          — воркер образів (server/AVATAR-WORKER.md)
    GET  /api/health
 
@@ -400,6 +401,8 @@ const ROUTES = {
   'POST /api/skills/trade': skillRoute(skills.growTrade),
   'POST /api/avatar/render': avatarRoute((req, user) => avatar.render(user)),
   'GET /api/avatar/status': avatarRoute((req, user) => avatar.status(user)),
+  'POST /api/avatar/wear': avatarRoute((req, user, b) => avatar.wear(user, b)),
+  'POST /api/avatar/forget': avatarRoute((req, user, b) => avatar.forget(user, b)),
   'POST /api/avatar/worker/claim': avatarRoute((req, user, b) => avatar.claim(req, b)),
   'POST /api/avatar/worker/heartbeat': avatarRoute((req, user, b) => avatar.heartbeat(req, b)),
   'POST /api/avatar/worker/result': avatarRoute((req, user, b) => avatar.result(req, b)),

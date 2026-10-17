@@ -12,7 +12,11 @@
    готовий образ береться з кешу без нової генерації, хай би який Герой його вдягнув.
    Готовий образ стає аватаром Героя: avatar = 'hero:gen/<файл>', файли лежать у
    AVATAR_DIR (nginx віддає їх як /img/ava/gen/), базовий аватар — у avatarGen.base.
-   Поле heroes/{id}.avatarGen змінює лише цей модуль (rules.js: HERO_PROTECTED). */
+   Кожен готовий образ лишається в колекції Героя (heroes/{id}.avatarCollection,
+   останні COLLECTION_MAX): у вікні «Обери свого героя» — розділ «Мої колекції»,
+     POST /api/avatar/wear   {key} → знову вдягнути образ із колекції
+     POST /api/avatar/forget {key} → прибрати образ із колекції
+   Поля heroes/{id}.avatarGen і avatarCollection змінює лише цей модуль (rules.js: HERO_PROTECTED). */
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -59,6 +63,8 @@ const MAX_ATTEMPTS = 3;
 const LEASE_MIN = 10;
 const RENDER_PER_HOUR = 20;        // нових генерацій на Героя за годину
 const MAX_IMAGE = 9 * 1024 * 1024; // байтів картинки від воркера (після base64)
+const COLLECTION_MAX = 24;         // образів у колекції Героя
+const KEY_RE = /^[a-f0-9]{24}$/;
 
 const siteDir = () => process.env.SITE_DIR || path.join(__dirname, '../../..');
 const avatarDir = () => process.env.AVATAR_DIR || '/avatars';
@@ -71,6 +77,20 @@ function baseOf(hero) {
   if (GEN_RE.test(t)) return (hero.avatarGen && hero.avatarGen.base) || null;
   if (/^hero:[a-z0-9-]+$/.test(t)) return t.slice(5);
   return null;   // емодзі
+}
+
+/* Колекція створених образів [{key, file, base, at}]. Герой, що вдягав образ ще
+   до появи колекції, отримує в ній свій поточний готовий образ. */
+function collectionOf(hero) {
+  const own = hero && hero.avatarCollection;
+  if (Array.isArray(own)) return own.filter(x => x && KEY_RE.test(String(x.key)) && x.file && x.base);
+  const g = hero && hero.avatarGen;
+  return g && g.status === 'ready' && g.file && g.base && KEY_RE.test(String(g.key))
+    ? [{ key: g.key, file: g.file, base: g.base, at: g.readyAt || g.at || 0 }] : [];
+}
+/* додати (або підняти наверх) образ; найстаріші понад COLLECTION_MAX — геть */
+function addToCollection(hero, entry) {
+  return collectionOf(hero).filter(x => x.key !== entry.key).concat([entry]).slice(-COLLECTION_MAX);
 }
 
 /* Набір для генерації. items — каталог {id: дані}, has(rel) — чи є файл на сайті. */
@@ -133,6 +153,8 @@ async function writeDoc(c, p, data) {
 /* аватар → новий токен; як SK.saveHeroAvatar: журнал avatarLog і публічна картка heroCards */
 async function setAvatar(c, uid, hero, token, gen) {
   const next = Object.assign({}, hero, { avatarGen: gen, updatedAt: { $ts: Date.now() } });
+  if (gen && gen.status === 'ready' && gen.file)
+    next.avatarCollection = addToCollection(hero, { key: gen.key, file: gen.file, base: gen.base, at: Date.now() });
   if (hero.avatar !== token) {
     const log = Array.isArray(hero.avatarLog) ? hero.avatarLog.slice(-9) : [];
     log.push({ at: Date.now(), page: 'avatar-gen', by: 'server', from: hero.avatar || null, to: token });
@@ -219,6 +241,51 @@ async function status(user) {
     }
   }
   return out;
+}
+
+/* ---------- колекція образів ---------- */
+async function onHero(user, body, fn) {
+  if (!user) throw new AvatarError('unauthenticated');
+  const key = String((body && body.key) || '');
+  if (!KEY_RE.test(key)) throw new AvatarError('invalid-argument', 'Немає такого образу');
+  const c = await pool.connect();
+  try {
+    await c.query('begin');
+    const r = await c.query('select data from docs where path = $1 for update', ['heroes/' + user.uid]);
+    if (!r.rows.length) throw new AvatarError('permission-denied', 'Колекція образів — лише для Героя');
+    const hero = r.rows[0].data;
+    const entry = collectionOf(hero).find(x => x.key === key);
+    if (!entry) throw new AvatarError('not-found', 'Цього образу немає в колекції');
+    const out = await fn(c, hero, entry);
+    await c.query('commit');
+    return out;
+  } catch (e) {
+    await c.query('rollback').catch(() => {});
+    throw e;
+  } finally {
+    c.release();
+  }
+}
+
+/* знову вдягнути образ із колекції: файл беремо з кешу (міг бути перемальований) */
+function wear(user, body) {
+  return onHero(user, body, async (c, hero, entry) => {
+    const j = (await c.query('select status, file from avatar_jobs where key = $1', [entry.key])).rows[0];
+    if (!j || j.status !== 'done' || !j.file) throw new AvatarError('failed-precondition', 'Цей образ зараз недоступний');
+    const next = await setAvatar(c, user.uid, hero, genToken(j.file),
+      { base: entry.base, key: entry.key, at: Date.now(), status: 'ready', file: j.file, readyAt: Date.now() });
+    return { avatar: next.avatar, collection: next.avatarCollection };
+  });
+}
+
+/* прибрати образ із колекції (той, що зараз на Герої, — не можна) */
+function forget(user, body) {
+  return onHero(user, body, async (c, hero, entry) => {
+    if (hero.avatar === genToken(entry.file)) throw new AvatarError('failed-precondition', 'Спершу обери інший образ');
+    const list = collectionOf(hero).filter(x => x.key !== entry.key);
+    await writeDoc(c, 'heroes/' + user.uid, Object.assign({}, hero, { avatarCollection: list, updatedAt: { $ts: Date.now() } }));
+    return { collection: list };
+  });
 }
 
 /* ---------- воркер ---------- */
@@ -379,6 +446,16 @@ async function result(req, body) {
         Object.assign({}, g, { status: 'ready', file, readyAt: Date.now() }));
       heroes++;
     }
+    // перемальований набір має новий файл — оновити його в колекціях (старий файл зараз видалимо)
+    const cs = await c.query(
+      `select path, data from docs where parent = 'heroes' and data->'avatarCollection' @> $2::jsonb for update`,
+      [j.key, JSON.stringify([{ key: j.key }])]);
+    for (const h of cs.rows) {
+      const list = collectionOf(h.data);
+      if (!list.some(x => x.key === j.key && x.file !== file)) continue;
+      await writeDoc(c, h.path, Object.assign({}, h.data,
+        { avatarCollection: list.map(x => x.key === j.key ? Object.assign({}, x, { file }) : x) }));
+    }
     await c.query('commit');
   } catch (e) {
     await c.query('rollback').catch(() => {});
@@ -409,6 +486,6 @@ async function adminRequeue(body) {
 }
 
 module.exports = {
-  AvatarError, SLOTS, FACE_BOX, buildSpec, baseOf, promptOf, makeFiles,
-  render, status, claim, heartbeat, result, fail, adminJobs, adminRequeue
+  AvatarError, SLOTS, FACE_BOX, COLLECTION_MAX, buildSpec, baseOf, promptOf, makeFiles,
+  collectionOf, addToCollection, render, status, wear, forget, claim, heartbeat, result, fail, adminJobs, adminRequeue
 };

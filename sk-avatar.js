@@ -16,8 +16,10 @@
      tokenOf(id)  idOf(token)  isHeroToken(token)
      faceSrc(id,size)  cardSrc(id)
      html(token,{size,round})      — HTML-комірка аватара (img або емодзі)
-     openPicker({selected, allowPhoto, onHero, onPhoto})
-                                   — самодостатня модалка вибору
+     openPicker({selected, allowPhoto, onHero, onPhoto, collection, onCollection, onForget})
+                                   — самодостатня модалка вибору; collection — створені
+                                     образи [{key,file,base}] (розділ «Мої колекції»)
+     collectionOf(hero)            — колекція образів із документа Героя
      gridHTML(selected,{emojis})   — сітка опцій для форми (напр. створення героя)
      bindGrid(el, cb)              — навісити кліки на .ska-opt у сітці
    Шлях до /img/ava визначається автоматично з розташування цього файлу,
@@ -65,6 +67,19 @@
   function fullSrc(id){ return BASE+'img/ava/'+id+'-full.webp'; }   // прозора вирізка (повний зріст)
   function fullPng(id){ return isGen(id) ? fullSrc(id) : BASE+'img/ava/'+id+'-full.png'; }
 
+  /* «Мої колекції»: створені образи Героя (heroes/{id}.avatarCollection, пише сервер).
+     Як server/app/src/avatar.js collectionOf: хто вдягав образ до появи колекції —
+     бачить у ній свій поточний готовий образ. Новіші — першими. */
+  function collectionOf(hero){
+    var own = hero && hero.avatarCollection, list;
+    if(Array.isArray(own)) list = own.filter(function(x){ return x && x.key && isGen('gen/'+x.file); });
+    else {
+      var g = hero && hero.avatarGen;
+      list = (g && g.status==='ready' && g.file && g.key && isGen('gen/'+g.file)) ? [{ key:g.key, file:g.file, base:g.base }] : [];
+    }
+    return list.slice().reverse();
+  }
+
   // HTML-комірка аватара: <img> для героя, інакше — емодзі/текст
   function html(token, opt){
     opt = opt||{}; var size = opt.size||48; var round = opt.round!==false;
@@ -108,6 +123,9 @@
       '.ska-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}',
       '.ska-h b{font-size:1.05rem;color:#ffe9b8}',
       '.ska-x{background:none;border:0;color:#ffe9b8;font-size:1.5rem;line-height:1;cursor:pointer;padding:2px 6px}',
+      '.ska-del{position:absolute;top:4px;right:4px;z-index:2;width:22px;height:22px;border-radius:50%;border:0;',
+        'background:rgba(10,18,38,.7);color:#ffe9b8;font-size:.75rem;line-height:22px;padding:0;cursor:pointer}',
+      '.ska-empty{font-size:.75rem;color:#cfd8ee;opacity:.85;padding:4px 2px 2px;line-height:1.35}',
       '.ska-sub{font-size:.7rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#ffd98a;margin:12px 2px 6px}'
     ].join('');
     document.head.appendChild(css);
@@ -155,9 +173,26 @@
       extra += '<div class="ska-opt" data-act="photo" style="font-size:1.6rem">📷<span class="ska-cap">Своє фото</span></div>';
     }
     extra += '<div class="ska-opt soon" data-act="model3d" style="font-size:1.6rem">🧊<span class="ska-cap">3D-модель</span></div>';
+    // Мої колекції — розділ є, лише коли сторінка вміє вдягати образи (onCollection)
+    var coll = '';
+    if(cfg.onCollection){
+      var mine = (cfg.collection||[]).filter(function(c){ return c && c.key && isGen('gen/'+c.file); });
+      coll = '<div class="ska-sub">🎒 Мої колекції</div>'
+        + (mine.length
+          ? '<div class="ska-grid">' + mine.map(function(c){
+              var tok = tokenOf('gen/'+c.file);
+              var cell = optCell(tok, nameOf(c.base)+' в образі', sel).replace('data-token=', 'data-key="'+esc(c.key)+'" data-token=');
+              // поточний образ не прибираємо — спершу обери інший
+              if(cfg.onForget && tok!==sel)
+                cell = cell.replace(/<\/div>$/, '<button class="ska-del" type="button" title="Прибрати з колекції" aria-label="Прибрати з колекції">✕</button></div>');
+              return cell;
+            }).join('') + '</div>'
+          : '<div class="ska-empty">Тут зберігатимуться образи, які ти створиш: вдягни речі в Арені й натисни «🪄 Одягти».</div>');
+    }
     m.innerHTML =
       '<div class="ska-sheet" role="dialog" aria-modal="true" aria-label="Вибір аватара">'
       + '<div class="ska-h"><b>Обери свого героя</b><button class="ska-x" type="button" aria-label="Закрити">✕</button></div>'
+      + coll
       + '<div class="ska-sub">🛡️ Герої королівства</div>'
       + '<div class="ska-grid">'+heroCells+'</div>'
       + '<div class="ska-sub">✨ Інше</div>'
@@ -169,9 +204,19 @@
     m.querySelector('.ska-x').addEventListener('click', close);
     m.querySelectorAll('.ska-opt').forEach(function(o){
       if(o.classList.contains('soon')) return;
+      var key = o.getAttribute('data-key');
+      var del = o.querySelector('.ska-del');
+      if(del) del.addEventListener('click', function(e){
+        e.stopPropagation();
+        if(!confirm('Прибрати цей образ із колекції?')) return;
+        var grid = o.parentNode; o.remove();
+        if(grid && !grid.children.length) grid.outerHTML = '<div class="ska-empty">Колекція порожня.</div>';
+        cfg.onForget(key);
+      });
       o.addEventListener('click', function(){
         var act = o.getAttribute('data-act');
         if(act==='photo'){ close(); if(cfg.onPhoto) cfg.onPhoto(); return; }
+        if(key){ close(); cfg.onCollection(key, o.getAttribute('data-token')); return; }
         var tok = o.getAttribute('data-token');
         close(); if(tok && cfg.onHero) cfg.onHero(tok);
       });
@@ -183,6 +228,7 @@
     CATALOG: CATALOG, EMOJIS: EMOJIS,
     isHeroToken: isHeroToken, idOf: idOf, tokenOf: tokenOf, has: has, isGen: isGen,
     faceSrc: faceSrc, facePng: facePng, cardSrc: cardSrc, fullSrc: fullSrc, fullPng: fullPng,
-    html: html, gridHTML: gridHTML, bindGrid: bindGrid, openPicker: openPicker
+    html: html, gridHTML: gridHTML, bindGrid: bindGrid, openPicker: openPicker,
+    collectionOf: collectionOf
   };
 })();
