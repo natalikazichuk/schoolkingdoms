@@ -515,11 +515,24 @@ const SK = {
   // СВОЄ ФОТО сюди НЕ пишемо — воно лишається лише локально (sk_hero_avatar),
   // інакше base64 (1–3 МБ) вб'є ліміт документа. Після запису оновлюємо
   // публічну картку, щоб рідні та друзі бачили новий аватар.
+  /* Кожну зміну пишемо в heroes/{id}.avatarLog (останні 10): коли, з якої сторінки,
+     хто (hero / parent), що було → що стало — щоб «аватар сам злетів» було видно в базі.
+     Помилку запису НЕ ковтаємо: сторінка має сказати, що аватар не збережено. */
   async saveHeroAvatar(token) {
     const heroId = SK._heroUid();
     if (!heroId || !token) return false;
-    await setDoc(doc(db, 'heroes', heroId),
-      { avatar: token, updatedAt: serverTimestamp() }, { merge: true });
+    const ref = doc(db, 'heroes', heroId);
+    let page = '';
+    try { page = (location.pathname.split('/').pop() || '') + (location.search || ''); } catch (e) {}
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref);
+      const cur = snap.exists() ? snap.data() : {};
+      if (cur.avatar === token) return;
+      const log = Array.isArray(cur.avatarLog) ? cur.avatarLog.slice(-9) : [];
+      log.push({ at: Date.now(), page: page.slice(0, 120), by: SK.isHeroSession() ? 'hero' : 'parent',
+        from: cur.avatar || null, to: token });
+      tx.set(ref, { avatar: token, avatarLog: log, updatedAt: serverTimestamp() }, { merge: true });
+    });
     try { await SK.publishHeroCard(); } catch (e) {}
     return true;
   },

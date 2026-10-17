@@ -1670,7 +1670,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script type="module" src="firebase-config.js"></script>
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
-<script src="sk-arena-rules.js?v=21"></script>
+<script src="sk-arena-rules.js?v=23"></script>
 <script src="sk-battle.js?v=17"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
@@ -2488,7 +2488,15 @@ window.SKHERO = (function(){
     if(live()){ paintFull(token,'pPeek','pSceneEmoji'); }
     // спільний кеш аватара — щоб головна (hero.html) одразу показала той самий
     try{ localStorage.setItem('sk_hero_avatar_token', token); }catch(e){}
-    try{ if(window.SK && SK.saveHeroAvatar && SK.isHeroSession && SK.isHeroSession()) SK.saveHeroAvatar(token); }catch(e){}
+    /* у базу — завжди, коли відомо, чий це Герой (і з входу Героя, і з входу батьків);
+       раніше з входу батьків вибір лишався лише в браузері, а наступне відкриття арени
+       перезаписувало його старим аватаром із бази — «аватар злітав» */
+    var avaFail = function(){ showToast('⚠️ Аватар не збережено', 'Перевір звʼязок і обери ще раз — інакше він повернеться до попереднього'); };
+    try{
+      if(window.SK && SK.saveHeroAvatar && SK._heroUid && SK._heroUid())
+        SK.saveHeroAvatar(token).then(function(ok){ if(!ok) avaFail(); }, function(e){ try{ console.error('[арена] аватар:', e); }catch(_){} avaFail(); });
+      else if(window.SK && SK.saveHeroAvatar) avaFail();
+    }catch(e){ avaFail(); }
     buildLookGrid();   // оновити позначку обраного
     switchWTab('gear');
     if(window.EKEQUIP){ EKEQUIP.render(token, ekHeroData()); }
@@ -3990,13 +3998,18 @@ function dmgRange(){var R=R0(),b=(R.BATTLE&&R.BATTLE.baseDmg)||0;
  function rg(lo,hi){return lo===hi?String(lo):lo+'–'+hi;}
  if(R.isMagic&&R.isMagic(p))return {phys:'—',mag:rg(b+(p.magMin||0)+(p.magFlat||0),b+(p.magMax||0)+(p.magFlat||0))};
  return {phys:rg(b+(p.wMin||0)+(p.dmgFlat||0),b+(p.wMax||0)+(p.dmgFlat||0)),mag:'—'};}
-function renderStats(){var t=totals();
+/* база з речами — та сама формула, що на головній і в хедері (SKARENA.heroSheet) */
+function sheetNow(){var R=R0();if(!R.heroSheet||!window.SKIT)return null;
+ var eq=[];for(var s in EQUIP){var e=EQUIP[s];if(e&&e._inst&&BYID[e.id])eq.push({base:BYID[e.id],inst:e._inst});}
+ return R.heroSheet(R.heroStatsOf?R.heroStatsOf(HERO):{health:HERO.health,mana:HERO.mana,agility:HERO.agility,accuracy:HERO.accuracy},eq,SKIT);}
+function renderStats(){var t=totals(),sh=sheetNow();
+ if(sh){t=Object.assign({},t,{health:sh.health,mana:sh.mana,agility:sh.agility,accuracy:sh.accuracy,armor:sh.armor,magicResist:sh.magicResist});}
  q('ek-lvl').textContent=LEVEL.level;q('ek-xpTxt').textContent=LEVEL.xp+' / '+LEVEL.xpMax;
  q('ek-xpFill').style.width=Math.min(100,LEVEL.xp/LEVEL.xpMax*100)+'%';
  q('ek-hpVal').textContent=t.health+' / '+t.health;q('ek-mpVal').textContent=t.mana+' / '+t.mana;q('ek-coins').innerHTML=coinsTxt(HERO.coins!=null?HERO.coins:0);
  var bcn=q('ek-bagCount');if(bcn&&ST())bcn.textContent=ST().bagCount(ALL_INST)+'/'+ST().BAG_LIMIT;
  q('ek-hpFill').style.width='100%';q('ek-mpFill').style.width='100%';
- var dm=dmgRange();
+ var dm=sh?{phys:sh.dmg,mag:sh.mag}:dmgRange();
  var tiles=[['dmg','⚔️','Урон',dm.phys],['arm','🛡️','Броня',t.armor],['acc','🎯','Точність',t.accuracy],
   ['mdmg','✨','Магічний урон',dm.mag],['mres','🔮','Магічна стійкість',t.magicResist],['agi','👟','Спритність',t.agility]];
  q('ek-statGrid').innerHTML=tiles.map(function(a){return '<div class="ek-stat '+a[0]+'"><div class="ek-si">'+a[1]+'</div><div class="ek-sl">'+a[2]+'</div><div class="ek-sv">'+a[3]+'</div></div>';}).join('');}
@@ -4545,7 +4558,7 @@ window.addEventListener('pagehide',function(){if(q('shop')&&!q('shop').hidden)lo
 })();
 </script>
 <script>window.SK_HEADER_SUB='Турнірна арена';</script>
-<script src="sk-header.js?v=11"></script>
+<script src="sk-header.js?v=12"></script>
 </body>
 </html>
 
