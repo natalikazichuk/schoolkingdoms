@@ -635,12 +635,12 @@ test('Обеззброєння ботом: зброя Героя летить у
 });
 
 test('Розбити щит: лише проти щита; щит відлітає на цей і наступний хід, потім повертається сам', () => {
-  const none = duel({ 'knight.shieldbreak': 1 }, ['knight.shieldbreak']);
+  const none = duel({ 'knight.shieldbreak': 1 }, ['knight.shieldbreak'], {}, [], [wear(AXE, 'weaponR')]);
   assert.strictEqual(SB.skillBlock(none, 'knight.shieldbreak'), 'noshield', 'без щита — не марнує хід');
   SB.useSkill(ctx, none, 'knight.shieldbreak');
   assert.ok(!SB.turn(ctx, none, { atk: 'head', block: 'body' }, {}, Date.now()).skill);
   assert.ok(!(none.me.cd || {})['knight.shieldbreak'], 'без щита — перезарядки немає');
-  const st = duel({ 'knight.shieldbreak': 1 }, ['knight.shieldbreak'], {}, [wear(SHIELD, 'weaponL')]);
+  const st = duel({ 'knight.shieldbreak': 1 }, ['knight.shieldbreak'], {}, [wear(SHIELD, 'weaponL')], [wear(AXE, 'weaponR')]);
   SB.useSkill(ctx, st, 'knight.shieldbreak');
   const e1 = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
   assert.strictEqual(e1.skill.kind, 'shatter'); assert.strictEqual(e1.skill.turns, 2);
@@ -655,7 +655,7 @@ test('Розбити щит: лише проти щита; щит відліта
 test('Стійкість ворога рятує від «Розбити щит» (~75% на 100%) і росте в нього', () => {
   let saved = 0, all = 0;
   for (let i = 0; i < 300; i++) {
-    const st = duel({ 'knight.shieldbreak': 1 }, ['knight.shieldbreak'], { 'knight.steady': 1 }, [wear(SHIELD, 'weaponL')]);
+    const st = duel({ 'knight.shieldbreak': 1 }, ['knight.shieldbreak'], { 'knight.steady': 1 }, [wear(SHIELD, 'weaponL')], [wear(AXE, 'weaponR')]);
     SB.useSkill(ctx, st, 'knight.shieldbreak');
     const e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
     all++; if (e.skill.kind === 'saved') saved++;
@@ -686,4 +686,13 @@ test('Ріст за рівень: до класу +4❤️/+4💧, лицар +6
   const s = R.heroStatsOf(h);
   assert.strictEqual(s.health, 254 + 106); assert.strictEqual(s.mana, 381 + 55);
   assert.strictEqual(R.heroStatsOf(h, 1, null).health, 254, 'рівень і клас можна передати явно');
+});
+
+test('Розбити щит: шанс за зброєю — сокира ×1, булава/кистень/посох ×0.85, меч ×0.7; спис чи кинджал — ніяк', () => {
+  const MACE = item({ id: 'W7', name: 'Булава', category: 'Зброя', stat: 'Урон', valueMin: 4, valueMax: 6, weaponType: 'mace' });
+  const need = w => { const st = duel({ 'knight.shieldbreak': 1 }, ['knight.shieldbreak'], {}, [wear(SHIELD, 'weaponL')], [wear(w, 'weaponR')]);
+    SB.useSkill(ctx, st, 'knight.shieldbreak'); return SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now()).skill.need; };
+  assert.strictEqual(need(AXE), 100); assert.strictEqual(need(MACE), 85); assert.strictEqual(need(SWORD), 70);
+  const sp = duel({ 'knight.shieldbreak': 1 }, ['knight.shieldbreak'], {}, [wear(SHIELD, 'weaponL')], [wear(SPEAR, 'weaponR')]);
+  assert.strictEqual(SB.skillBlock(sp, 'knight.shieldbreak'), 'weapon');
 });
