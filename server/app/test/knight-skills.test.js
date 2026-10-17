@@ -601,21 +601,42 @@ test('Бойова пісня: −50 мани, 🎲 7–10 ходів точні
   const t25 = S.skillValues('knight.song', 25); assert.strictEqual(t25.turnsMin, 3); assert.strictEqual(t25.turnsMax, 5);
 });
 
-test('Залізна воля (активне): броня ×2 на 3 ходи, вдалося — перезарядка 10 ходів', () => {
-  const st = battle({ 'knight.will': 1 }, ['knight.will'], [wear(ARMOR, 'armor')]);
-  SB.useSkill(ctx, st, 'knight.will');
+test('Залізна воля (пасивне): здоров\'я < 50% — сама з шансом 50→100%, броня +50→100% на 3 ходи, потім перезарядка 10', () => {
+  const st = battle({ 'knight.will': 1 }, [], [wear(ARMOR, 'armor')]);
+  const e0 = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+  assert.ok(!e0.will, 'здоров\'я повне — не спрацьовує');
+  st.me.force = Math.round(st.me.max * 0.4);
   const e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
-  assert.strictEqual(e.skill.kind, 'will'); assert.strictEqual(e.skill.turns, 3);
-  assert.strictEqual(st.me.fx.will, 3); assert.strictEqual(st.me.cd['knight.will'], 1 + 10);
+  assert.ok(e.will && e.will.ok); assert.strictEqual(e.will.turns, 3); assert.strictEqual(e.will.pct, 100);
+  assert.strictEqual(st.me.fx.will, 2 + 3 - 1); assert.strictEqual(st.me.cd['knight.will'], 2 + 10);
   assert.strictEqual(st.me.grow['knight.will'], 1);
-  assert.strictEqual(SB.skillBlock(st, 'knight.will'), 'cd');
-  assert.strictEqual(st.me.mana, 500, 'мани не бере');
+  assert.strictEqual(S.byId('knight.will').type, 'P');
+  const v25 = S.skillValues('knight.will', 25); assert.strictEqual(v25.chance, 50); assert.strictEqual(v25.armorPct, 50);
+  const bs = S.bookState({ skillBar: ['knight.will', 'knight.berserk', null, null, null] });
+  assert.strictEqual(bs.bar[0], null, 'стало пасивним — з панелі прибирається'); assert.strictEqual(bs.bar[1], 'knight.berserk');
+});
+
+test('Обеззброєння ботом: зброя Героя летить у сумку; вдягнути знову — перевдяганням', () => {
+  let st = null;
+  for (let i = 0; i < 60 && !st; i++) {
+    const t = duel({}, [], { 'knight.disarm': 1, 'knight.sword': 1 }, [wear(SWORD, 'weaponR', 'bw')], [wear(SWORD, 'weaponR', 'hw')]);
+    t.op.bar = ['knight.disarm']; t.op.ai = { use: 100, smart: false };
+    const e = SB.turn(ctx, t, { atk: 'head', block: 'body' }, {}, Date.now());
+    if (e.opSkill && e.opSkill.kind === 'disarm') st = t;
+  }
+  assert.ok(st, 'бот вибив зброю');
+  const w = st.me.eq.filter(e => e.uid === 'hw')[0];
+  assert.ok(w.off, 'зброя в сумці'); assert.strictEqual(st.me.p.wMax, 0);
+  st.round++; st.op.bar = [];
+  assert.ok(SB.swap(ctx, st, 'weaponR', w.inst, SWORD), 'вдягнув сам');
+  assert.ok(!w.off && st.me.p.wMax > 0);
 });
 
 test('Розбити щит: лише проти щита; щит відлітає на цей і наступний хід, потім повертається сам', () => {
   const none = duel({ 'knight.shieldbreak': 1 }, ['knight.shieldbreak']);
+  assert.strictEqual(SB.skillBlock(none, 'knight.shieldbreak'), 'noshield', 'без щита — не марнує хід');
   SB.useSkill(ctx, none, 'knight.shieldbreak');
-  assert.strictEqual(SB.turn(ctx, none, { atk: 'head', block: 'body' }, {}, Date.now()).skill.kind, 'noshield');
+  assert.ok(!SB.turn(ctx, none, { atk: 'head', block: 'body' }, {}, Date.now()).skill);
   assert.ok(!(none.me.cd || {})['knight.shieldbreak'], 'без щита — перезарядки немає');
   const st = duel({ 'knight.shieldbreak': 1 }, ['knight.shieldbreak'], {}, [wear(SHIELD, 'weaponL')]);
   SB.useSkill(ctx, st, 'knight.shieldbreak');

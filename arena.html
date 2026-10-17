@@ -1696,7 +1696,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
 <script src="sk-arena-rules.js?v=25"></script>
-<script src="sk-battle.js?v=25"></script>
+<script src="sk-battle.js?v=26"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
    Інвентар, скриня, смітник, продане / куплене сьогодні й монети
@@ -2161,6 +2161,7 @@ window.SKHERO = (function(){
       else if(why==='cd') showToast('⏳ Перезарядка', 'Обрано — спрацює, щойно перезарядиться (ще '+((B.me.cd||{})[id]-B.round+1)+' хід.).');
       else if(why==='mana') showToast('💧 Не вистачає мани', 'Обрано — спрацює, коли буде '+((B.me.skv&&B.me.skv[id]&&B.me.skv[id].mana)||5)+' мани.');
       else if(why==='shield') showToast('🛡️ Потрібен щит', 'Обрано — спрацює, коли вдягнеш щит у ліву руку.');
+      else if(why==='noshield') showToast('💥 У суперника немає щита', 'Обрано — спрацює, коли в суперника буде щит. Хід не марнується.');
       else if(why==='weapon') showToast('🗡️ Не тією зброєю', 'Обрано — спрацює з потрібною зброєю в руці: '+weaponNames(id)+'.');
       else if(why==='active') showToast('✨ Ще діє', 'Обрано — можна буде знову, коли закінчиться.');
       saveBattle(); if(window.SKBOOK) SKBOOK.paintBattle(B); paintBelt();
@@ -2192,7 +2193,7 @@ window.SKHERO = (function(){
     var left = function(n){ return 'Ще '+n+' '+(n===1?'хід':n<5?'ходи':'ходів'); };
     if(f.stone && B && f.stone.until>=B.round){ var sn=f.stone.until-B.round+1; out.push({neg:false, ic:'🗿', n:sn, title:'Кам\'яна шкіра', text:'Урон від ударів −'+(f.stone.cut||0)+'%.', left:left(sn)}); }
     if(f.song && B && f.song.until>=B.round){ var gn=f.song.until-B.round+1; out.push({neg:false, ic:'🎺', n:gn, title:'Бойова пісня', text:'Точність +'+(f.song.acc||0)+'%, урон +'+(f.song.dmg||0)+'%.', left:left(gn)}); }
-    if(f.will && B && f.will>=B.round){ var wn=f.will-B.round+1; out.push({neg:false, ic:'🦾', n:wn, title:'Залізна воля', text:'Броня ×2: коли важко, ти стаєш ще міцнішим.', left:left(wn)}); }
+    if(f.will && B && f.will>=B.round){ var wn=f.will-B.round+1; out.push({neg:false, ic:'🦾', n:wn, title:'Залізна воля', text:'Броня +'+(f.willPct||100)+'%: коли важко, ти стаєш ще міцнішим.', left:left(wn)}); }
     if(f.shieldOff && B && f.shieldOff>=B.round){ var on=f.shieldOff-B.round+1; out.push({neg:true, ic:'💥', n:on, title:'Без щита', text:'Щит відлетів убік, рука німіє: ні шансу блоку щита, ні його броні. Потім щит повернеться сам.', left:left(on)}); }
     if(f.bless && B && f.bless.until>=B.round){ var bs=f.bless.until-B.round+1;
       out.push({neg:false, ic:'🙏', n:bs, title:'Благословення', text:'Броня й маг. захист +'+(f.bless.def||0)+'%, лікує '+(f.bless.heal||0)+'% здоров\'я щоходу.', left:'Ще '+bs+' '+(bs===1?'хід':bs<5?'ходи':'ходів')}); }
@@ -2930,6 +2931,8 @@ window.SKHERO = (function(){
       + (e.meDisarmed && !(e.opSkill && e.opSkill.kind==='disarm') ? '<span class="ln use op">🤚 Ти без зброї — вдягни її сам (дія ходу) або чекай хід</span>' : '')
       + (e.opNoShield && !(e.skill && e.skill.kind==='shatter') ? '<span class="ln use">💥 '+biEsc(B.op.f.name)+' без щита — рука німіє</span>' : '')
       + (e.meNoShield && !(e.opSkill && e.opSkill.kind==='shatter') ? '<span class="ln use op">💥 Ти без щита — рука німіє</span>' : '')
+      + (e.will ? (e.will.ok ? '<span class="ln use">🦾 Залізна воля: <span class="g">броня +'+e.will.pct+'% на '+e.will.turns+(e.will.turns<5?' ходи':' ходів')+'</span> — ти не здаєшся!<span class="dice">мало здоров\'я · 🎲 '+e.will.roll+' ≤ '+e.will.need+'%</span></span>' : '<span class="dice">🦾 Залізна воля: не спрацювала 🎲 '+e.will.roll+' > '+e.will.need+'%</span>') : '')
+      + (e.opWill && e.opWill.ok ? '<span class="ln use op">🦾 '+biEsc(B.op.f.name)+': Залізна воля — <span class="g">броня +'+e.opWill.pct+'% на '+e.opWill.turns+(e.opWill.turns<5?' ходи':' ходів')+'</span></span>' : '')
       + (e.opShieldBack ? '<span class="ln use op">🛡️ '+biEsc(B.op.f.name)+' підняв щит — він знову захищає</span>' : '')
       + (e.meShieldBack ? '<span class="ln use">🛡️ Ти підняв щит — він знову захищає</span>' : '')
       + strikeLines(e) + skillLine(e)
@@ -2970,7 +2973,7 @@ window.SKHERO = (function(){
     if(k.id==='knight.disarm'){
       if(k.kind==='noweapon') return LN+nm+': <span class="b">у суперника немає зброї</span></span>';
       if(k.kind==='immune') return LN+nm+': <span class="b">суперник і так без зброї</span></span>';
-      return LN+nm+': '+(k.ok ? (op?'<span class="crit">вибив у тебе зброю! 🤚</span> — ти б\'єш без неї цей і наступний хід (або вдягни її сам — це дія ходу)':'<span class="crit">вибив зброю! 🤚</span> — суперник б\'є без неї цей і наступний хід') : '<span class="b">не вдалося</span>')
+      return LN+nm+': '+(k.ok ? (op?'<span class="crit">вибив у тебе зброю! 🤚</span> — '+(k.toBag?'«'+biEsc(k.toBag)+'» ':'')+'летить у сумку: вдягни її сам (це дія ходу)':'<span class="crit">вибив зброю! 🤚</span> — суперник б\'є без неї цей і наступний хід') : '<span class="b">не вдалося</span>')
         +'<span class="dice">🎲 '+k.roll+(k.ok?' ≤ ':' > ')+k.need+'% (50 + (володіння '+(op?'суперника ':'твоє ')+k.my+'% − '+(op?'твоє ':'суперника ')+k.opl+'%) / 2)</span></span>';
     }
     if((k.id==='knight.haft'||k.id==='knight.daze') && k.hits){
@@ -3433,6 +3436,8 @@ window.SKHERO = (function(){
       if(r.type==='scroll' && r.hit) floatDmg(u.side==='me'?'o':'p', r.hit);
       if(r.type==='heal' && r.hp>0){ var c=$(u.side==='me'?'pScene':'oScene'); if(c){ var el=document.createElement('div'); el.className='dmg-float heal'; el.textContent='+'+r.hp+' ❤️'; c.appendChild(el); setTimeout(function(){ el.remove(); }, 4300); } }
     }); });
+    if(e.will && e.will.ok) floatOne('p', {kind:'will'}, 0, 1, '🦾');
+    if(e.opWill && e.opWill.ok) floatOne('o', {kind:'will'}, 0, 1, '🦾');
     // 🙏 Благословення лікує на початку ходу: зелене «+N 🙏» на картці (як зілля)
     [['pScene', e.blessHeal], ['oScene', e.opBlessHeal]].forEach(function(x){
       var c = x[1]>0 && $(x[0]); if(!c) return;
@@ -4017,8 +4022,8 @@ window.SKHERO = (function(){
 </script>
 
 <script src="sk-items.js?v=18"></script>
-<script src="sk-skills.js?v=28"></script>
-<script src="sk-book.js?v=10"></script>
+<script src="sk-skills.js?v=29"></script>
+<script src="sk-book.js?v=11"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
    Дані ЗАРАЗ demo (локально). Крок 2: джерело речей → Firestore (адмінка).
