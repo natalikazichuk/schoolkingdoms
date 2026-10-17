@@ -141,11 +141,11 @@
   function stoneOn(st) { var f = st.me && st.me.fx; return !!(f && f.stone && num(f.stone.until) >= st.round); }
   function songOn(st) { var f = st.me && st.me.fx; return !!(f && f.song && num(f.song.until) >= st.round); }
   function willOn(st) { var f = st.me && st.me.fx; return !!(f && num(f.will) >= st.round); }
-  /* Залізна воля (пасивне): здоров'я < 50%, не діє й не на перезарядці — щоходу кидок chance;
+  /* Залізна воля (пасивне): здоров'я < 20%, не діє й не на перезарядці — щоходу кидок chance;
      вдалося — броня +armorPct% на turns ходів (цей теж), потім перезарядка cd → запис для журналу або null */
   function willTry(ctx, v, rnd) {
     var id = 'knight.will';
-    if (!hasSk(v, id) || willOn(v) || !(v.me.force > 0) || v.me.force >= v.me.max * 0.5) return null;
+    if (!hasSk(v, id) || willOn(v) || !(v.me.force > 0) || v.me.force >= v.me.max * 0.2) return null;   // лише на межі: ризиковано, щоб не зловживати
     var cd = (v.me.cd || {})[id]; if (cd && v.round <= cd) return null;
     var need = V(v, id, 'chance'), roll = ctx.R.d100(rnd), ok = roll <= need;
     grow(v, id, ok);
@@ -200,7 +200,10 @@
   function heroDisarmed(st) { var f = st.me && st.me.fx; return !!(f && num(f.disarm) >= st.round); }
   function wTypeNow(st) { var w = heroDisarmed(st) ? null : weaponOn(st); return (w && w.base && w.base.weaponType) || ''; }
   /* якою зброєю можна виконати вміння */
-  var SKILL_WEAPONS = { 'knight.lunge': ['sword', 'dagger', 'spear'], 'knight.haft': ['spear', 'staff'] };
+  var SKILL_WEAPONS = { 'knight.lunge': ['sword', 'dagger', 'spear'], 'knight.haft': ['spear', 'staff'],
+    'knight.shieldbreak': ['axe', 'mace', 'flail', 'staff', 'sword'] };
+  /* Розбити щит: шанс залежить від зброї — сокира найкраща, булава/кистень/посох трохи гірше, меч ще трохи гірше */
+  var SHATTER_MUL = { axe: 1, mace: 0.85, flail: 0.85, staff: 0.85, sword: 0.7 };
   function skillWeaponOk(st, id) { var l = SKILL_WEAPONS[id]; return !l || l.indexOf(wTypeNow(st)) >= 0; }
   /* Парирування: шанс відбити за видом зброї в руці (на 100% прокидання) */
   var PARRY = { sword: 20, dagger: 15, spear: 15, staff: 15, axe: 6, mace: 6, flail: 6 };
@@ -370,8 +373,11 @@
     var rec = { id: id, dmg: 0 }, fo = fxOf(st.op);
     if (shieldOffNow(st.op, st.round)) { rec.kind = 'immune'; rec.ok = false; return rec; }
     if (!opShield(st)) { rec.kind = 'noshield'; rec.ok = false; return rec; }
-    var need = V(st, id, 'chance'), roll = ctx.R.d100(rnd);
-    rec.need = need; rec.roll = roll; rec.ok = roll <= need;
+    var wt = wTypeNow(st), mul = SHATTER_MUL[wt] || 0, w = weaponOn(st);
+    var two = !!(w && w.base && ctx.R.isTwoHanded && ctx.R.isTwoHanded(w.base));   // дворучна — розбиває краще (×1.25)
+    if (two) mul = Math.round(mul * 1.25 * 100) / 100;
+    var need = Math.min(100, Math.round(V(st, id, 'chance') * mul)), roll = ctx.R.d100(rnd);
+    rec.need = need; rec.roll = roll; rec.ok = roll <= need; rec.wt = wt; rec.mul = mul; rec.two = two;
     grow(st, id, rec.ok);
     if (!rec.ok) rec.kind = 'fail';
     else if (steadyTry(ctx.R, st, rec, rnd)) rec.kind = 'saved';
@@ -915,7 +921,7 @@
     var skillRec = preBuff(ctx, st, sid, canAct, sd(st, 'skill'));
     var opRec = preBuff(ctx, vo, osid, opCan, sd(vo, 'skill'));
     var blessHeal = down ? 0 : blessTick(st), opBlessHeal = down ? 0 : blessTick(vo);
-    var meWill = down ? null : willTry(ctx, st, sd(st, 'will')), opWill = down ? null : willTry(ctx, vo, sd(vo, 'will'));   // Залізна воля — сама, до ударів
+    var meWill = down ? null : willTry(ctx, st, sd(st, 'will')), opWill = down ? null : willTry(ctx, vo, sd(vo, 'will'));   // Залізна воля — сама, до ударів (здоров'я < 20%)
     var pm = R.buffed ? R.buffed(st.me.p, fm.buffs) : st.me.p, po = R.buffed ? R.buffed(st.op.p, fo.buffs) : st.op.p;
     // Обеззброєння — до ударів: вдалося — суперник уже цього ходу без зброї
     if (sid === SKILL.disarm.id && canAct && !skillBlock(st, sid)) skillRec = disarmTry(ctx, st, sid, po, sd(st, 'skill'));
@@ -1233,7 +1239,7 @@
     create: create, botChoice: botChoice, autoChoice: autoChoice, turn: turn, catchUp: catchUp,
     swap: swap, useBelt: useBelt, beltItem: beltItem, beltLite: beltLite, applyUse: applyUse, fxOf: fxOf,
     surrender: surrender, finish: finish, applyToHero: applyToHero, lockLive: lockLive, noticeText: noticeText,
-    SKILL: SKILL, useSkill: useSkill, skillBlock: skillBlock, berserkOn: berserkOn, blessOn: blessOn, disarmedOn: disarmedOn, SKILL_WEAPONS: SKILL_WEAPONS, PARRY: PARRY, swapped: swapped, beltChosen: beltChosen, knockedNow: knockedNow
+    SKILL: SKILL, useSkill: useSkill, skillBlock: skillBlock, berserkOn: berserkOn, blessOn: blessOn, disarmedOn: disarmedOn, SKILL_WEAPONS: SKILL_WEAPONS, SHATTER_MUL: SHATTER_MUL, PARRY: PARRY, swapped: swapped, beltChosen: beltChosen, knockedNow: knockedNow
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   root.SKBATTLE = API;

@@ -38,7 +38,9 @@
     { id:'knight-green-boy',  name:'Мандрівний лицар'  },
     { id:'knight-wood-boy',   name:'Дубовий лицар'     },
     { id:'knight-green-girl', name:'Лісова лицарка'    },
-    { id:'knight-purple-girl',name:'Зоряна лицарка'    }
+    { id:'knight-purple-girl',name:'Зоряна лицарка'    },
+    { id:'linen-boy',         name:'Юний джура'        },
+    { id:'linen-boy-fight',   name:'Джура в стійці'    }
   ];
   var BY = {}; CATALOG.forEach(function(h){ BY[h.id]=h; });
 
