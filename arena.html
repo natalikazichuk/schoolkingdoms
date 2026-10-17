@@ -690,6 +690,8 @@ body.scr-battle .wrap{max-width:1500px}
 .result .wearline .mgup{color:#7dff9a;text-shadow:0 0 8px rgba(125,255,154,.55)}
 .dmg-float.hit{color:#ff9a6b} .dmg-float.crit{color:#ff5a3a;font-size:3.7rem;-webkit-text-stroke:2.5px rgba(32,6,0,.6)}
 .dmg-float.blk{color:#7bd8ff} .dmg-float.miss{color:#eaf2ff;font-size:2rem}
+/* лікування (Благословення, зілля) — зелене й летить повільніше, щоб встигнути помітити */
+.dmg-float.heal{color:#7dff9a;animation-duration:4.2s}
 /* вміння зросло в бою: велика іконка + «+1» злітає посередині між бійцями,
    знизу вгору хвилькою, повільно */
 .scene-mid{position:relative}
@@ -3393,8 +3395,14 @@ window.SKHERO = (function(){
     renderTurn(e);          // журнал: Хід N (+ поломки)
     (e.uses||[]).forEach(function(u){ (u.fx||[]).forEach(function(r){
       if(r.type==='scroll' && r.hit) floatDmg(u.side==='me'?'o':'p', r.hit);
-      if(r.type==='heal' && r.hp>0){ var c=$(u.side==='me'?'pScene':'oScene'); if(c){ var el=document.createElement('div'); el.className='dmg-float hit'; el.style.color='#7dff9a'; el.textContent='+'+r.hp; c.appendChild(el); setTimeout(function(){ el.remove(); }, 2900); } }
+      if(r.type==='heal' && r.hp>0){ var c=$(u.side==='me'?'pScene':'oScene'); if(c){ var el=document.createElement('div'); el.className='dmg-float heal'; el.textContent='+'+r.hp+' ❤️'; c.appendChild(el); setTimeout(function(){ el.remove(); }, 4300); } }
     }); });
+    // 🙏 Благословення лікує на початку ходу: зелене «+N 🙏» на картці (як зілля)
+    [['pScene', e.blessHeal], ['oScene', e.opBlessHeal]].forEach(function(x){
+      var c = x[1]>0 && $(x[0]); if(!c) return;
+      var el = document.createElement('div'); el.className = 'dmg-float heal'; el.style.top = '18%';
+      el.textContent = '+'+x[1]+' 🙏'; c.appendChild(el); setTimeout(function(){ el.remove(); }, 4300);
+    });
     paintBelt(); paintFx(); if(window.SKBOOK) SKBOOK.paintBattle(B);
 
     // анімації смужок
