@@ -4386,10 +4386,13 @@ function renderCounter(){
     return '<button type="button" class="sh-row" data-back="buyback" data-key="'+esc(u)+'"><span class="ic">'+icon(b)+'</span><span class="nm">↩ '+esc(b?b.name:t.inst.id)+(qtyOf(t.inst)>1?' ×'+qtyOf(t.inst):'')+'</span><span class="pr minus">−'+coinsH(t.price)+'</span></button>';}));
   if(buys.length)h+='<div class="sh-lbl buy">🛍 Купую</div><div class="sh-list">'+buys.join('')+'</div>';
   var t=totals(),lim=ST().BAG_LIMIT,poor=t.after<0,full=t.bagAfter>lim,empty=ctEmpty();
-  h+='<div class="sh-sum"><div><span>Маєш</span><b>'+coinsH(t.have)+'</b></div>'
-    +(t.got?'<div><span>Продаж</span><b style="color:#9ff0b4">+'+coinsH(t.got)+'</b></div>':'')
-    +(t.spent?'<div><span>Купівля</span><b style="color:#ffb38f">−'+coinsH(t.spent)+'</b></div>':'')
-    +'<div class="tot'+(poor?' bad':'')+'"><span>Буде</span><b>'+(poor?'не вистачає '+coinsH(-t.after):coinsH(t.after))+'</b></div>'
+  /* дитині — лише сума угоди (отримаю / заплачу / разом), без усього гаманця */
+  var net=t.got-t.spent;
+  h+='<div class="sh-sum">'
+    +(t.got?'<div><span>Отримаю</span><b style="color:#9ff0b4">+'+coinsH(t.got)+'</b></div>':'')
+    +(t.spent?'<div><span>Заплачу</span><b style="color:#ffb38f">−'+coinsH(t.spent)+'</b></div>':'')
+    +(t.got&&t.spent?'<div class="tot"><span>Разом</span><b style="color:'+(net>=0?'#9ff0b4':'#ffb38f')+'">'+(net>=0?'+':'−')+coinsH(Math.abs(net))+'</b></div>':'')
+    +(poor?'<div class="tot bad"><span>Не вистачає</span><b>'+coinsH(-t.after)+'</b></div>':'')
     +(empty?'':'<div class="'+(full?'bad':'bag')+'"><span>🎒 Сумка</span><b>'+(t.bagAfter!==t.bagNow?t.bagNow+' → ':'')+t.bagAfter+'/'+lim+(full?' — забагато речей':'')+'</b></div>')+'</div>'
     +'<div class="sh-btns"><button type="button" class="go" id="shDeal"'+((empty||poor||full||S.busy)?' disabled':'')+'>🤝 Укласти угоду</button>'
     +'<button type="button" class="cl" id="shClear"'+(empty?' disabled':'')+'>Очистити</button></div>'
@@ -4478,7 +4481,7 @@ function doDeal(){
   var t=totals(),sells=sellLive(),nSell=sells.reduce(function(a,e){return a+e.n;},0),nBuy=S.ct.buy.length+S.ct.buyback.length;
   var html=(nSell?'<div>💰 Продати: <b>'+nSell+'</b> шт. — <b style="color:#9ff0b4">+'+coinsH(t.got)+'</b></div>':'')
     +(nBuy?'<div>🛍 Купити: <b>'+nBuy+'</b> шт. — <b style="color:#ffb38f">−'+coinsH(t.spent)+'</b></div>':'')
-    +'<div class="sh-ask-tot">Після угоди буде: '+coinsH(t.after)+'</div>';
+    +(t.got&&t.spent?'<div class="sh-ask-tot">Разом: '+(t.got>=t.spent?'+':'−')+coinsH(Math.abs(t.got-t.spent))+'</div>':'');
   ask('🤝 Укласти угоду?',html,'🤝 Так, укласти').then(function(ok){
     if(!ok||S.busy)return;
     if(offline())return;
@@ -4487,7 +4490,7 @@ function doDeal(){
     SK.shopDeal({sell:sell,buy:S.ct.buy.map(function(e){return e.base;}),buyback:S.ct.buyback.slice(),limit:(S.stock&&S.stock.qty)||{}},S.byId)
      .then(function(r){S.ct={sell:[],buy:[],buyback:[]};if(r&&r.state)S.st=r.state;S.busy=false;render();
        if(window.SKHERO)SKHERO.apply(r);   // гардероб і хедер — з того самого стану, без читання
-       toast('Угоду укладено 🤝','Тепер у тебе '+coins(S.st.coins));
+       toast('Угоду укладено 🤝',[t.got?'отримав +'+coins(t.got):'',t.spent?'заплатив '+coins(t.spent):''].filter(Boolean).join(' · ')||'готово');
        growTrade();})
      .catch(function(e){S.busy=false;try{console.warn('[магазин] угода',e);}catch(_){}toast('Угода не відбулась',errText(e));load(true);});});}
 /* викинути річ просто з магазину (у смітник; повернути — в інвентарі до півночі) */
