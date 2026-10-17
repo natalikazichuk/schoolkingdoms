@@ -342,3 +342,15 @@ test('пояс бота: 5 комірок, у тесті — свитки (сп�
   assert.ok(fears > 10, 'бот кидає страх: ' + fears);
   assert.strictEqual(brave, fears, 'кожен страх — спрацювання Хоробрості');
 });
+
+test('heroSheet: база поза боєм = тести + вдягнені речі (без пояса), та сама формула, що в бою', () => {
+  const POT = item({ id: 'P', name: 'Зілля', category: 'Зелья', stat: 'Броня', valueMin: 99, valueMax: 99 });
+  const eq = [wear(SWORD, 'weaponR'), wear(ARMOR, 'armor'), wear(POT, 'belt0')];
+  const sh = R.heroSheet(R.heroStatsOf({ health: 61, accuracy: 151, agility: 262 }), eq, K);
+  assert.strictEqual(sh.health, 61); assert.strictEqual(sh.mana, 20, 'немає в базі — як за замовчуванням');
+  assert.strictEqual(sh.armor, 40, 'пояс не рахується');
+  assert.strictEqual(sh.dmg, (8 + 4) + '–' + (8 + 6));
+  assert.strictEqual(sh.mag, '—');
+  const st = battle({}, [], [wear(SWORD, 'weaponR'), wear(ARMOR, 'armor')]);
+  assert.strictEqual(R.heroSheet({ health: 400, accuracy: 60, agility: 50, mana: 50 }, [wear(SWORD, 'weaponR'), wear(ARMOR, 'armor')], K).armor, st.me.p.armor, 'як у бою');
+});

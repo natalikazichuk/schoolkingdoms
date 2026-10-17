@@ -253,6 +253,32 @@
     return p;
   }
 
+  /* ── БАЗОВІ ХАРАКТЕРИСТИКИ ГЕРОЯ (поза боєм) ──
+     Одна формула для всіх сторінок: головна (hero.html), хедер, інвентар арени.
+     База = характеристики з тестів + вдягнені речі (без пояса, без зламаних),
+     рахується тим самим fighter(), з яким Герой заходить у бій. Вміння сюди не входять.
+     stats — {health, mana, agility, accuracy}; equipped — [{base, inst}] (inst.slot).
+     → {health, mana, agility, accuracy, armor, magicResist, dmg:'11–16', mag:'—', p} */
+  var HERO_DEFAULTS = { health: 50, mana: 20, agility: 50, accuracy: 50 };
+  function heroStatsOf(h) {
+    var o = {};
+    for (var k in HERO_DEFAULTS) o[k] = h && h[k] != null && isFinite(Number(h[k])) ? Number(h[k]) : HERO_DEFAULTS[k];
+    return o;
+  }
+  function heroSheet(stats, equipped, skit) {
+    var eq = (equipped || []).filter(function (e) { return e && e.base && e.inst && e.inst.slot && !/^belt\d/.test(e.inst.slot); });
+    eq = handsFix(eq);
+    var p = fighter(stats, eq, skit), b = BATTLE.baseDmg;
+    var rg = function (lo, hi) { lo = Math.round(lo); hi = Math.round(hi); return lo === hi ? String(lo) : lo + '–' + hi; };
+    var magic = isMagic(p);
+    return {
+      health: p.hp, mana: p.mana, agility: p.agility, accuracy: p.accuracy, armor: p.armor, magicResist: p.magicResist,
+      dmg: magic ? '—' : rg(b + num(p.wMin) + num(p.dmgFlat), b + num(p.wMax) + num(p.dmgFlat)),
+      mag: magic ? rg(b + num(p.magMin) + num(p.magFlat), b + num(p.magMax) + num(p.magFlat)) : '—',
+      p: p
+    };
+  }
+
   /* яку атаку блокує «Шанс блоку» речі — за її головною характеристикою:
      магічний захист або магічний урон → магічні удари (магічна зброя, свитки);
      броня й усе інше → фізичні удари */
@@ -530,7 +556,7 @@
     handCats: handCats, isTwoHanded: isTwoHanded, fitsHand: fitsHand, handsFix: handsFix,
     HERO_STATS: HERO_STATS, BUFF_KEYS: BUFF_KEYS, attrInfo: attrInfo,
     blockKind: blockKind, blockBy: blockBy, useEffects: useEffects, botBelt: botBelt, buffed: buffed, scrollStrike: scrollStrike,
-    fighter: fighter, varyFighter: varyFighter, hitChance: hitChance, critChance: critChance, isMagic: isMagic,
+    fighter: fighter, varyFighter: varyFighter, heroSheet: heroSheet, heroStatsOf: heroStatsOf, HERO_DEFAULTS: HERO_DEFAULTS, hitChance: hitChance, critChance: critChance, isMagic: isMagic,
     strike: strike, attack: attack, d100: d100, armorPass: armorPass,
     power: power, xpCoef: xpCoef, xpNeed: xpNeed, itemPower: itemPower, botItems: botItems
   };

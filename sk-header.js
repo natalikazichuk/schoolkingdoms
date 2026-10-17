@@ -405,7 +405,7 @@
     var box = document.getElementById('skHdStats');
     if(!box) return;
     var chips = STAT_KEYS.map(function(s){
-      var base = Number(h[s[1]]) || 0;
+      var base = (window.SKARENA && SKARENA.heroStatsOf) ? SKARENA.heroStatsOf(h)[s[1]] : (Number(h[s[1]]) || 0);
       var v = (gear && gear[s[1]] != null) ? gear[s[1]] : base;
       var diff = v - base;
       var tip = diff ? ' title="'+base+(diff > 0 ? ' + ' : ' − ')+Math.abs(diff)+' від речей"' : '';
@@ -435,27 +435,30 @@
     return skitP;
   }
 
-  /* Підсумкові стати з вдягненими речами або null (речей немає / помилка).
-     Вдягнене = має slot, крім комірок пояса (там зілля, вони не діють постійно). */
-  function gearTotals(h){
-    if(!SK.getInventory || !SK.listItems) return Promise.resolve(null);
-    // інвентар уже є в документі Героя — не читаємо той самий документ удруге
-    var invP = Array.isArray(h && h.inventory) ? Promise.resolve(h.inventory) : SK.getInventory();
-    return invP.then(function(inv){
-      var worn = (inv || []).filter(function(i){ return i && i.id && i.slot && !/^belt\d/.test(i.slot); });
-      if(!worn.length) return null;
-      return Promise.all([SK.listItems(), needSKIT()]).then(function(r){
-        var SKIT = r[1]; if(!SKIT || !SKIT.combine) return null;
-        var by = {}; (r[0] || []).forEach(function(it){ by[it.id] = it; });
-        var bases = [], insts = [];
-        worn.forEach(function(i){ if(by[i.id]){ bases.push(by[i.id]); insts.push(i); } });
-        if(!bases.length) return null;
-        var baseHero = {};
-        STAT_KEYS.forEach(function(s){ baseHero[s[1]] = Number(h[s[1]]) || 0; });
-        return SKIT.combine(baseHero, bases, insts).stats;
-      });
-    }).catch(function(e){ try{ console.warn('[хедер] речі не враховано:', e); }catch(_){} return null; });
+  /* ── БАЗОВІ ХАРАКТЕРИСТИКИ ГЕРОЯ (з тестів + вдягнені речі) ──
+     Одна формула для всіх сторінок поза боєм — SKARENA.heroSheet (та сама, з якою
+     Герой заходить у бій; вміння не входять). window.SKSHEET.of(h) → Promise(sheet|null):
+     {health, mana, agility, accuracy, armor, magicResist, dmg, mag}. Головна (hero.html)
+     бере звідси плитки й здоров'я/ману, хедер — свої чотири числа. */
+  var rulesP = null;
+  function needRules(){
+    if(window.SKARENA && window.SKARENA.heroSheet) return Promise.resolve(window.SKARENA);
+    if(!rulesP) rulesP = loadScript('sk-arena-rules.js?v=23').then(function(){ return window.SKARENA || null; });
+    return rulesP;
   }
+  function sheetOf(h){
+    if(!h || !SK.listItems) return Promise.resolve(null);
+    // інвентар уже є в документі Героя — не читаємо той самий документ удруге
+    var invP = Array.isArray(h.inventory) ? Promise.resolve(h.inventory) : (SK.getInventory ? SK.getInventory() : Promise.resolve([]));
+    return Promise.all([invP, SK.listItems(), needSKIT(), needRules()]).then(function(r){
+      var SKIT = r[2], R = r[3]; if(!SKIT || !R || !R.heroSheet) return null;
+      var by = {}; (r[1] || []).forEach(function(it){ by[it.id] = it; });
+      var eq = (r[0] || []).filter(function(i){ return i && i.id && i.slot && by[i.id]; })
+        .map(function(i){ return { base: by[i.id], inst: i }; });
+      return R.heroSheet(R.heroStatsOf(h), eq, SKIT);
+    }).catch(function(e){ try{ console.warn('[хедер] характеристики з речами не пораховано:', e); }catch(_){} return null; });
+  }
+  window.SKSHEET = { of: sheetOf };
 
   /* ── заповнити шкалу з Firebase + дізнатися клас Героя ── */
   var lastHero = null;
@@ -471,7 +474,7 @@
       renderStats(h, null);
       var strip = document.getElementById('skHdStrip');
       if(strip) strip.classList.add('on');
-      gearTotals(h).then(function(g){ if(g) renderStats(h, g); });
+      sheetOf(h).then(function(g){ if(g) renderStats(h, g); });
       try{ battleCheck(h); }catch(e){}
     }).catch(showGuest);
   }
@@ -494,7 +497,7 @@
   }
   function battleDeps(){
     return Promise.all([
-      window.SKARENA  ? true : loadScript('sk-arena-rules.js?v=21'),
+      window.SKARENA  ? true : loadScript('sk-arena-rules.js?v=23'),
       window.SKBATTLE ? true : loadScript('sk-battle.js?v=17'),
       needSKIT()
     ]).then(function(){ return !!(window.SKARENA && window.SKBATTLE && window.SKIT); });
@@ -583,7 +586,7 @@
     if(!lastHero || !patch) return;
     var h = Object.assign({}, lastHero, patch); lastHero = h;
     renderStats(h, null);
-    gearTotals(h).then(function(g){ if(g) renderStats(h, g); });
+    sheetOf(h).then(function(g){ if(g) renderStats(h, g); });
   };
   /* Сторінки, де Герой перевдягається (арена), кличуть це після збереження */
   window.SKHeaderRefresh = function(){

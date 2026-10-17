@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="hero.css?v=11">
 <script src="sk-resume.js?v=1"></script>
 <script>SKResume.go();   /* відкрили застосунок — одразу туди, де Герой зупинився (якщо не минуло 2 годин) */</script>
-<script src="sk-arena-rules.js?v=21"></script>
+<script src="sk-arena-rules.js?v=23"></script>
 <script src="sk-avatar.js"></script>
 <script type="module" src="firebase-config.js"></script>
 </head>
@@ -335,9 +335,13 @@ async function loadTeam(h){
   }
 }
 
-// заповнює всі активні бойові стати ВИКЛЮЧНО з документа heroes/{heroId}
+// заповнює всі активні бойові стати з документа heroes/{heroId};
+// потім — ті самі числа з вдягненими речами (SKSHEET із sk-header.js — одна формула з ареною)
+let _sheetSeq=0;
 function renderHeroStats(h){
   if(!h) return;
+  const seq=++_sheetSeq;
+  if(window.SKSHEET) SKSHEET.of(h).then(function(sh){ if(sh && seq===_sheetSeq) paintSheet(sh); });
   const health   = h.health!=null   ? h.health   : 50;
   const agility  = h.agility!=null  ? h.agility  : 50;
   const mana     = h.mana!=null     ? h.mana     : 20;
@@ -361,8 +365,18 @@ function renderHeroStats(h){
   // сітка характеристик — той самий набір, що в інвентарі арени
   const tiles=[['dmg','⚔️','Урон',0],['arm','🛡️','Броня',0],['acc','🎯','Точність',accuracy],
     ['mdmg','✨','Магічний урон',0],['mres','🔮','Магічна стійкість',0],['agi','👟','Спритність',agility]];
+  paintTiles(tiles);
+}
+function paintTiles(tiles){
   const grid=$('heroStatGrid');
   if(grid) grid.innerHTML=tiles.map(function(a){return '<div class="ek-stat '+a[0]+'"><div class="ek-si">'+a[1]+'</div><div class="ek-sl">'+a[2]+'</div><div class="ek-sv">'+a[3]+'</div></div>';}).join('');
+}
+/* база з речами (як на арені перед боєм): здоров'я, мана й шість плиток */
+function paintSheet(sh){
+  setTxt('heroHpVal',sh.health+' / '+sh.health); setBar('heroHpFill',100);
+  setTxt('heroMpVal',sh.mana+' / '+sh.mana);     setBar('heroMpFill',100);
+  paintTiles([['dmg','⚔️','Урон',sh.dmg],['arm','🛡️','Броня',sh.armor],['acc','🎯','Точність',sh.accuracy],
+    ['mdmg','✨','Магічний урон',sh.mag],['mres','🔮','Магічна стійкість',sh.magicResist],['agi','👟','Спритність',sh.agility]]);
 }
 
 /* -- Задані завдання (від дорослих). Джерело з'явиться пізніше: якщо SK матиме
@@ -852,7 +866,10 @@ $('editName').addEventListener('click',()=>{
     if(!window.SKAVA || !SKAVA.isHeroToken(token)) return;
     try{ localStorage.removeItem('sk_hero_avatar'); }catch(e){}
     _heroToken=token; cacheToken(token); showHeroArt(SKAVA.idOf(token));
-    try{ if(window.SK && SK.saveHeroAvatar) SK.saveHeroAvatar(token); }catch(e){}
+    // у базу; не вийшло — кажемо одразу, а не мовчки (інакше аватар потім «злітає»)
+    var fail=function(e){ try{ console.error('[hero.html] аватар не збережено:', e); }catch(_){}
+      alert('⚠️ Аватар не збережено. Перевір звʼязок і обери ще раз — інакше він повернеться до попереднього.'); };
+    try{ if(window.SK && SK.saveHeroAvatar) SK.saveHeroAvatar(token).then(function(ok){ if(!ok) fail(); }, fail); }catch(e){ fail(e); }
   }
 
   // Кнопка 📷 → модалка вибору (герої / своє фото / 3D-скоро).
@@ -900,6 +917,6 @@ $('editName').addEventListener('click',()=>{
 </script>
 <!-- СПІЛЬНИЙ ХЕДЕР (бренд + шкала Героя) -->
 <script>window.SK_HEADER_SUB='Вивчай, грай, досягай';</script>
-<script src="sk-header.js?v=11"></script>
+<script src="sk-header.js?v=12"></script>
 </body>
 </html>
