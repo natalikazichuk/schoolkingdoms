@@ -1668,7 +1668,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
         </div></section>
       </div>
       <div class="ek-storepop" id="ek-storepop" hidden><section class="ek-store" id="ek-store"></section></div>
-      <div class="ek-hint2"><b>Тапни</b> річ — відкриється картка з кнопками «Вдягнути» та «У смітник». Можна й <b>перетягнути</b> річ у слот — вдягнеться одразу.</div>
+      <div class="ek-hint2"><b>Права кнопка</b> миші (на телефоні — <b>тап</b>) — картка речі з кнопками. <b>Подвійний клік</b> — вдягнути чи покласти на пояс (з пояса чи героя — зняти). Можна й <b>перетягнути</b> річ у слот.</div>
     </div>
 
     <!-- вкладка: образ (базовий лицар) -->
@@ -4447,14 +4447,18 @@ function tap(el){var src=el.getAttribute('data-src');
  else if(src==='belt'){unequipBelt(parseInt(el.getAttribute('data-belt'),10));}
  else if(src==='slot'){unequip(el.getAttribute('data-slot'));}}
 
-document.addEventListener('pointerdown',function(e){if(e.button!==0)return;var el=e.target.closest?e.target.closest('.ek-drag'):null;if(!el)return;down={el:el,x:e.clientX,y:e.clientY,started:false};});
+document.addEventListener('pointerdown',function(e){if(e.button!==0)return;var el=e.target.closest?e.target.closest('.ek-drag'):null;if(!el)return;down={el:el,x:e.clientX,y:e.clientY,started:false,mouse:e.pointerType==='mouse'};});
 document.addEventListener('pointermove',function(e){if(!down)return;if(!down.started){if(Math.hypot(e.clientX-down.x,e.clientY-down.y)<7)return;down.started=true;startDrag(down.el,e.clientX,e.clientY);}
  if(drag){moveGhost(e.clientX,e.clientY);highlightOver(targetAt(e.clientX,e.clientY));e.preventDefault();}},{passive:false});
 var lastTap={key:null,t:0};
-document.addEventListener('pointerup',function(e){if(lp&&lp.fired){lp=null;down=null;return;}if(down&&down.started)endDrag(e.clientX,e.clientY);else if(down)tapOrDouble(down.el);down=null;});
-/* тап — картка речі з кнопками; подвійний тап по зіллю/свитку — одразу на пояс (з пояса — у сумку) */
-function tapOrDouble(el){var src=el.getAttribute('data-src'),key=src+':'+(el.getAttribute('data-uid')||el.getAttribute('data-belt')),now=Date.now();
+document.addEventListener('pointerup',function(e){if(lp&&lp.fired){lp=null;down=null;return;}if(down&&down.started)endDrag(e.clientX,e.clientY);else if(down)tapOrDouble(down.el,down.mouse);down=null;});
+/* мишкою: права кнопка — картка речі (contextmenu), подвійний клік лівою — вдягнути / на пояс / зняти, один клік — нічого;
+   дотиком: тап — картка з кнопками, подвійний тап по зіллю/свитку — одразу на пояс (з пояса — у сумку) */
+function tapOrDouble(el,mouse){var src=el.getAttribute('data-src'),key=src+':'+(el.getAttribute('data-uid')||el.getAttribute('data-belt')),now=Date.now();
  var dbl=lastTap.key===key&&now-lastTap.t<380;lastTap={key:dbl?null:key,t:now};
+ if(mouse){if(!dbl)return;hideCard();var mi=src==='inv'?findInv(el.getAttribute('data-uid')):null;
+   if(mi&&mi.usable&&firstFreeBelt()<0){if(window.showToast)showToast('Пояс повний','Перетягни зілля на зайняту комірку, щоб замінити');return;}
+   tap(el);return;}
  var it=src==='inv'?findInv(el.getAttribute('data-uid')):null;
  if(dbl&&(src==='belt'||(it&&it.usable))){hideCard();if(src==='inv'&&firstFreeBelt()<0){if(window.showToast)showToast('Пояс повний','Перетягни зілля на зайняту комірку, щоб замінити');return;}tap(el);return;}
  showCard(el);}   // тап — збільшена картка з кнопками (перетягування вдягає одразу)
