@@ -570,42 +570,46 @@ function duel(sk, bar, opSk, opEq, meEq) {
   });
 }
 
-test('Кам\'яна шкіра: −50 мани лише коли вдалося, 3 ходи урон по тобі −35% (на 100%), поки діє — не обрати', () => {
+test('Кам\'яна шкіра: −50 мани лише коли вдалося, 🎲 7–10 ходів урон по тобі −30% (на 100%), поки діє — не обрати', () => {
   const st = battle({ 'knight.stoneskin': 1 }, ['knight.stoneskin'], [wear(ARMOR, 'armor')]);
   SB.useSkill(ctx, st, 'knight.stoneskin');
   const e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
-  assert.strictEqual(e.skill.kind, 'stone'); assert.strictEqual(e.skill.cut, 35); assert.strictEqual(e.skill.turns, 3);
+  assert.strictEqual(e.skill.kind, 'stone'); assert.strictEqual(e.skill.cut, 30);
+  assert.ok(e.skill.turns >= 7 && e.skill.turns <= 10, 'ходів: ' + e.skill.turns);
+  assert.strictEqual(st.me.fx.stone.until, e.skill.turns);
   assert.strictEqual(st.me.mana, 450);
   assert.strictEqual(SB.skillBlock(st, 'knight.stoneskin'), 'active');
   let cut = 0;
-  for (let i = 0; i < 2 && st.status === 'live'; i++) {
+  for (let i = 0; i < 3 && st.status === 'live'; i++) {
     const e2 = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
-    (e2.opHit.hits || []).forEach(h => { if (h.stone) { cut++; assert.strictEqual(h.dmg, Math.max(1, Math.round(h.stone[0] * 0.65))); } });
+    (e2.opHit.hits || []).forEach(h => { if (h.stone) { cut++; assert.strictEqual(h.dmg, Math.max(1, Math.round(h.stone[0] * 0.7))); } });
   }
   (e.opHit.hits || []).forEach(h => { if (h.stone) cut++; });
   assert.ok(cut >= 1, 'урон зменшено хоч раз: ' + cut);
-  assert.strictEqual(SB.skillBlock(st, 'knight.stoneskin'), '', 'після 3 ходів — знову можна');
+  const t25 = S.skillValues('knight.stoneskin', 25);
+  assert.strictEqual(t25.turnsMin, 3); assert.strictEqual(t25.turnsMax, 5); assert.strictEqual(t25.cut, 15);
 });
 
-test('Бойова пісня: −50 мани, 4 ходи точність +30% і урон +20% (на 100%)', () => {
+test('Бойова пісня: −50 мани, 🎲 7–10 ходів точність +30% і урон +20% (на 100%); урон додається до Берсерка', () => {
   const st = battle({ 'knight.song': 1 }, ['knight.song'], [wear(SWORD, 'weaponR')]);
   SB.useSkill(ctx, st, 'knight.song');
   const e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
-  assert.strictEqual(e.skill.kind, 'song'); assert.strictEqual(e.skill.accPct, 30); assert.strictEqual(e.skill.dmgPct, 20); assert.strictEqual(e.skill.turns, 4);
-  assert.strictEqual(st.me.mana, 450); assert.strictEqual(st.me.fx.song.until, 4);
+  assert.strictEqual(e.skill.kind, 'song'); assert.strictEqual(e.skill.accPct, 30); assert.strictEqual(e.skill.dmgPct, 20);
+  assert.ok(e.skill.turns >= 7 && e.skill.turns <= 10);
+  assert.strictEqual(st.me.mana, 450); assert.strictEqual(st.me.fx.song.until, e.skill.turns);
   assert.strictEqual(SB.skillBlock(st, 'knight.song'), 'active');
+  const t25 = S.skillValues('knight.song', 25); assert.strictEqual(t25.turnsMin, 3); assert.strictEqual(t25.turnsMax, 5);
 });
 
-test('Залізна воля: здоров\'я < 25% — броня ×2 на 4 ходи (100%), раз за бій', () => {
-  const st = battle({ 'knight.will': 1 }, [], [wear(ARMOR, 'armor')]);
-  st.me.force = Math.round(st.me.max * 0.2);
+test('Залізна воля (активне): броня ×2 на 3 ходи, вдалося — перезарядка 10 ходів', () => {
+  const st = battle({ 'knight.will': 1 }, ['knight.will'], [wear(ARMOR, 'armor')]);
+  SB.useSkill(ctx, st, 'knight.will');
   const e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
-  assert.strictEqual(e.will, 4); assert.strictEqual(st.me.fx.will, 1 + 4); assert.ok(st.me.fx.willUsed);
+  assert.strictEqual(e.skill.kind, 'will'); assert.strictEqual(e.skill.turns, 3);
+  assert.strictEqual(st.me.fx.will, 3); assert.strictEqual(st.me.cd['knight.will'], 1 + 10);
   assert.strictEqual(st.me.grow['knight.will'], 1);
-  st.me.force = Math.round(st.me.max * 0.1);
-  if (st.status === 'live') { const e2 = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now()); assert.ok(!e2.will, 'вдруге — ні'); }
-  const q = battle({ 'knight.will': 0.25 }, []); q.me.force = 10;
-  assert.strictEqual(SB.turn(ctx, q, { atk: 'head', block: 'body' }, {}, Date.now()).will, 2, 'на 25% — 2 ходи');
+  assert.strictEqual(SB.skillBlock(st, 'knight.will'), 'cd');
+  assert.strictEqual(st.me.mana, 500, 'мани не бере');
 });
 
 test('Розбити щит: лише проти щита; щит відлітає на цей і наступний хід, потім повертається сам', () => {

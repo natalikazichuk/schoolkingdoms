@@ -1696,7 +1696,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
 <script src="sk-arena-rules.js?v=24"></script>
-<script src="sk-battle.js?v=24"></script>
+<script src="sk-battle.js?v=25"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
    Інвентар, скриня, смітник, продане / куплене сьогодні й монети
@@ -2877,7 +2877,7 @@ window.SKHERO = (function(){
       if(x.kn > r) t.push('оглушення на хід '+x.kn);
       if(x.sto >= r) t.push('кам\'яна шкіра до ходу '+x.sto);
       if(x.sng >= r) t.push('пісня до ходу '+x.sng);
-      if(x.wil > r) t.push('залізна воля до ходу '+x.wil);
+      if(x.wil >= r) t.push('залізна воля до ходу '+x.wil);
       if(x.sho >= r) t.push('без щита до ходу '+x.sho);
       var cd = Object.keys(x.cd||{}).filter(function(k){ return x.cd[k] > r; }).map(function(k){ var S = window.SKSKILLS && SKSKILLS.byId(k); return (S?S.icon:k)+' до '+x.cd[k]; });
       if(cd.length) t.push('перезарядка: '+cd.join(', '));
@@ -2926,8 +2926,6 @@ window.SKHERO = (function(){
       + strikeLines(e) + skillLine(e)
       + (e.calm ? '<span class="dice">🧘 Незворушність: 🎲 '+e.calm[0]+(e.calm[2]?' ≤ ':' > ')+e.calm[1]+'% — '+(e.calm[2]?'концентрація втрималась':'концентрація −1')+'</span>' : '')
       + (e.opUp && window.SKSKILLS ? '<span class="dice">📈 '+biEsc(B.op.f.name)+': '+e.opUp.map(function(x){ var S2 = SKSKILLS.byId(x[0]); return (S2?S2.icon+' '+S2.name:x[0])+' → '+x[1]+'%'; }).join(' · ')+'</span>' : '')
-      + (e.will ? '<span class="ln use">🦾 Залізна воля: <span class="g">броня ×2 на '+e.will+(e.will<5?' ходи':' ходів')+'</span> — ти не здаєшся!</span>' : '')
-      + (e.opWill ? '<span class="ln use op">🦾 '+biEsc(B.op.f.name)+': Залізна воля — <span class="g">броня ×2 на '+e.opWill+(e.opWill<5?' ходи':' ходів')+'</span></span>' : '')
       + growLine(e) + wearLine(e) + testLine(e));
     (e.broke||[]).forEach(function(b){ addBreak(b); });
   }
@@ -2938,7 +2936,7 @@ window.SKHERO = (function(){
     if(!k) return '';
     var LN = '<span class="ln use'+(op?' op':'')+'">'+biEsc(who)+': ';
     var S = window.SKSKILLS && SKSKILLS.byId(k.id), nm = S ? S.icon+' «'+S.name+'»' : '⚡ вміння';
-    if(k.kind==='fail' && (k.id==='knight.berserk' || k.id==='knight.bless' || k.id==='knight.stoneskin' || k.id==='knight.song')) return LN+nm+': <span class="b">не вдалося</span> — спробуй наступного ходу<span class="dice">🎲 '+k.roll+' > '+k.need+'%</span></span>';
+    if(k.kind==='fail' && (k.id==='knight.berserk' || k.id==='knight.bless' || k.id==='knight.stoneskin' || k.id==='knight.song' || k.id==='knight.will')) return LN+nm+': <span class="b">не вдалося</span> — спробуй наступного ходу<span class="dice">🎲 '+k.roll+' > '+k.need+'%</span></span>';
     var dice = '<span class="dice">🎲 '+k.roll+(k.ok?' ≤ ':' > ')+k.need+'%'+(k.calc && k.kind==='hit' && !k.noDmg ? ' · '+biEsc(k.calc)+' = '+k.dmg : '')
       +(k.knockNeed!=null ? ' · збити з ніг 🎲 '+k.knockRoll+(k.knockRoll<=k.knockNeed?' ≤ ':' > ')+k.knockNeed+'%' : '')
       +(k.steady ? ' · 🧱 Стійкість 🎲 '+k.steady[0]+(k.steady[2]?' ≤ ':' > ')+k.steady[1]+'%' : '')+'</span>';
@@ -2951,6 +2949,7 @@ window.SKHERO = (function(){
     var turnsW = function(n){ return n+(n===1?' хід':n<5?' ходи':' ходів'); }, manaW = k.mana ? ' <span style="opacity:.75">(−'+k.mana+' мани)</span>' : '';
     var stdW = function(){ return k.steady ? ' · 🧱 Стійкість 🎲 '+k.steady[0]+(k.steady[2]?' ≤ ':' > ')+k.steady[1]+'%' : ''; };
     if(k.kind==='stone') return LN+nm+': <span class="g">урон по '+(op?'ньому':'тобі')+' −'+k.cut+'% на '+turnsW(k.turns)+'</span>'+manaW+'<span class="dice">🎲 '+k.roll+' ≤ '+k.need+'%</span></span>';
+    if(k.kind==='will') return LN+nm+': <span class="g">броня ×2 на '+turnsW(k.turns)+'</span> — '+(op?'суперник не здається':'ти не здаєшся!')+'<span class="dice">🎲 '+k.roll+' ≤ '+k.need+'%</span></span>';
     if(k.kind==='song') return LN+nm+': <span class="g">точність +'+k.accPct+'%, урон +'+k.dmgPct+'% на '+turnsW(k.turns)+'</span>'+manaW+'<span class="dice">🎲 '+k.roll+' ≤ '+k.need+'%</span></span>';
     if(k.id==='knight.shieldbreak'){
       if(k.kind==='noshield') return LN+nm+': <span class="b">у '+(op?'тебе':'суперника')+' немає щита</span></span>';
@@ -3513,7 +3512,7 @@ window.SKHERO = (function(){
   /* спливаюча цифра над карткою бійця, який отримав удар */
   /* спливаючі цифри над карткою: КОЖЕН удар окремо (кілька ударів — по черзі, віялом),
      icon — позначка вміння чи свитка перед числом */
-  var SELF_K = {buff:1, bless:1, stone:1, song:1};   // вміння на себе — цифра над своєю карткою
+  var SELF_K = {buff:1, bless:1, stone:1, song:1, will:1};   // вміння на себе — цифра над своєю карткою
   function floatOne(side, h, i, n, icon){
     var card = $(side==='p' ? 'pScene' : 'oScene'); if(!card) return;
     var el = document.createElement('div'), pre = icon ? icon+' ' : '';
@@ -3524,6 +3523,7 @@ window.SKHERO = (function(){
     else if(h.kind==='buff'){ el.className='dmg-float crit'; el.textContent=pre+'лють!'; }
     else if(h.kind==='bless'){ el.className='dmg-float hit'; el.style.color='#ffe27a'; el.textContent=pre+'благословення'; }
     else if(h.kind==='stone'){ el.className='dmg-float blk'; el.textContent=pre+'кам\'яна шкіра'; }
+    else if(h.kind==='will'){ el.className='dmg-float blk'; el.textContent=pre+'залізна воля'; }
     else if(h.kind==='song'){ el.className='dmg-float hit'; el.style.color='#ffe27a'; el.textContent=pre+'бойова пісня'; }
     else if(h.kind==='shatter'){ el.className='dmg-float crit'; el.textContent=pre+'щит відлетів!'; }
     else if(h.kind==='saved'){ el.className='dmg-float miss'; el.textContent='🧱 встояв'; }
@@ -4007,7 +4007,7 @@ window.SKHERO = (function(){
 </script>
 
 <script src="sk-items.js?v=18"></script>
-<script src="sk-skills.js?v=27"></script>
+<script src="sk-skills.js?v=28"></script>
 <script src="sk-book.js?v=10"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
