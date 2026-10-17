@@ -498,7 +498,7 @@
   function battleDeps(){
     return Promise.all([
       window.SKARENA  ? true : loadScript('sk-arena-rules.js?v=24'),
-      window.SKBATTLE ? true : loadScript('sk-battle.js?v=23'),
+      window.SKBATTLE ? true : loadScript('sk-battle.js?v=24'),
       needSKIT()
     ]).then(function(){ return !!(window.SKARENA && window.SKBATTLE && window.SKIT); });
   }

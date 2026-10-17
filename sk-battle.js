@@ -86,9 +86,10 @@
      значення з sk-skills.js (SKSKILLS.skillValues — правила, типи, округлення),
      тож бій однаковий на будь-якій сторінці й не залежить від sk-skills.js. */
   var SKILL = { kick: { id: 'base.kick' }, spark: { id: 'base.spark' }, bash: { id: 'knight.bash' }, berserk: { id: 'knight.berserk' }, lunge: { id: 'knight.lunge' },
-    bless: { id: 'knight.bless' }, disarm: { id: 'knight.disarm' }, haft: { id: 'knight.haft' }, daze: { id: 'knight.daze' } };
+    bless: { id: 'knight.bless' }, disarm: { id: 'knight.disarm' }, haft: { id: 'knight.haft' }, daze: { id: 'knight.daze' },
+    stone: { id: 'knight.stoneskin' }, song: { id: 'knight.song' }, shieldbreak: { id: 'knight.shieldbreak' } };
   /* вміння, що діють ДО ударів ходу (не окремий удар) */
-  var PRE = { 'knight.berserk': 1, 'knight.bless': 1, 'knight.disarm': 1, 'knight.lunge': 1 };
+  var PRE = { 'knight.berserk': 1, 'knight.bless': 1, 'knight.disarm': 1, 'knight.lunge': 1, 'knight.stoneskin': 1, 'knight.song': 1, 'knight.shieldbreak': 1 };
   function V(st, id, k) { var v = st.me && st.me.skv && st.me.skv[id]; return v && v[k] != null ? num(v[k]) : 0; }
   function hasSk(st, id) { var s = st.me && st.me.sk; return !!(s && s[id] != null); }
   function grow(st, id, ok) {
@@ -96,7 +97,10 @@
     var g = ok ? (st.me.grow || (st.me.grow = {})) : (st.me.growF || (st.me.growF = {}));
     g[id] = (g[id] || 0) + 1;
   }
-  function shieldOn(st) { return (st.me.eq || []).some(function (e) { return !e.off && !e.broken && e.slot === 'weaponL' && e.base && e.base.category === 'Щити'; }); }
+  function shieldOn(st) { return !shieldOffNow(st.me, st.round) && !!shieldEntry(st.me); }
+  /* щит у лівій руці (не знятий, не зламаний) і чи його зараз вибито («Розбити щит»: рука німіє) */
+  function shieldEntry(u) { return ((u && u.eq) || []).filter(function (e) { return !e.off && !e.broken && e.slot === 'weaponL' && e.base && e.base.category === 'Щити'; })[0] || null; }
+  function shieldOffNow(u, round) { var f = u && u.fx; return !!(f && num(f.shieldOff) >= round); }
   function weaponOn(st) { return (st.me.eq || []).filter(function (e) { return !e.off && !e.broken && e.slot === 'weaponR'; })[0] || null; }
   function exoticOn(st) { var w = weaponOn(st); return !!(w && w.base && w.base.weaponType === 'exotic'); }
   /* вміння зброї Лицаря: вид зброї в правій руці → id вміння (без зброї чи з кастетами — «Голі руки») */
@@ -134,13 +138,18 @@
   /* і Берсерк (лють: +урон, −броня) */
   function berserkOn(st) { var f = st.me && st.me.fx; return !!(f && num(f.berserk) >= st.round); }
   function blessOn(st) { var f = st.me && st.me.fx; return !!(f && f.bless && num(f.bless.until) >= st.round); }
+  function stoneOn(st) { var f = st.me && st.me.fx; return !!(f && f.stone && num(f.stone.until) >= st.round); }
+  function songOn(st) { var f = st.me && st.me.fx; return !!(f && f.song && num(f.song.until) >= st.round); }
+  function willOn(st) { var f = st.me && st.me.fx; return !!(f && num(f.will) >= st.round); }
   function turnBoost(st, p) {
-    var f = fxOf(st.me), bz = berserkOn(st), bl = blessOn(st) ? num(f.bless.def) : 0;
-    var add = V(st, 'base.focus', 'perLevel') * num(f.focus) + (f.bond ? V(st, 'base.bond', 'dmgPct') : 0) + (bz ? V(st, 'knight.berserk', 'dmgPct') : 0);
-    if (!add && !bz && !bl) return p;
+    var f = fxOf(st.me), bz = berserkOn(st), bl = blessOn(st) ? num(f.bless.def) : 0, sg = songOn(st) ? f.song : null, wl = willOn(st);
+    var add = V(st, 'base.focus', 'perLevel') * num(f.focus) + (f.bond ? V(st, 'base.bond', 'dmgPct') : 0) + (bz ? V(st, 'knight.berserk', 'dmgPct') : 0) + (sg ? num(sg.dmg) : 0);
+    if (!add && !bz && !bl && !sg && !wl) return p;
     var o = {}, k; for (k in p) o[k] = p[k];
     o.dmgPct = num(o.dmgPct) + add; o.magPct = num(o.magPct) + add;
+    if (sg && num(sg.acc)) o.accuracy = Math.round(num(o.accuracy) * (1 + num(sg.acc) / 100));   // Бойова пісня
     if (bl) { o.armor = Math.round(num(o.armor) * (1 + bl / 100)); o.magicResist = Math.round(num(o.magicResist) * (1 + bl / 100)); }   // Благословення
+    if (wl) o.armor = Math.round(num(o.armor) * 2);                                                  // Залізна воля
     if (bz) o.armor = Math.round(num(o.armor) * (1 - V(st, 'knight.berserk', 'armorCut') / 100));
     return o;
   }
@@ -148,8 +157,26 @@
   function disarmedOn(st) { var f = st.op && st.op.fx; return !!(f && num(f.disarm) >= st.round); }
   function noWeapon(p) { var o = {}, k; for (k in p) o[k] = p[k]; o.wMin = 0; o.wMax = 0; o.magMin = 0; o.magMax = 0; return o; }
   function opHasWeapon(p) { return num(p && p.wMax) > 0 || num(p && p.magMax) > 0; }
+  /* без щита («Розбити щит»): мінус броня й маг. захист щита, мінус його шанс блоку (і Блок щитом), без відскоку */
+  function noShield(ctx, p, e) {
+    var o = {}, k; for (k in p) o[k] = p[k];
+    var src = p.blockSrc || [], keep = src.filter(function (s) { return s.slot !== 'weaponL'; });
+    var sum = function (l, mg) { return l.filter(function (s) { return !!s.mag === mg; }).reduce(function (a, s) { return a + num(s.v); }, 0); };
+    if (e && e.base && ctx.R.fighter) {
+      var d = ctx.R.fighter({}, [{ base: e.base, inst: e.inst }], ctx.K);
+      o.armor = Math.max(0, num(o.armor) - num(d.armor)); o.magicResist = Math.max(0, num(o.magicResist) - num(d.magicResist));
+    }
+    if (p.evade) { o.evade = false; o.blockPhys = sum(keep, false); o.blockMag = sum(keep, true); }
+    else {
+      var off = src.filter(function (s) { return s.slot === 'weaponL'; });
+      o.blockPhys = Math.max(0, num(p.blockPhys) - sum(off, false)); o.blockMag = Math.max(0, num(p.blockMag) - sum(off, true));
+    }
+    o.blockSrc = keep; o.noShield = true;
+    return o;
+  }
   function opShield(st) {                                   // щит у суперника (у бота — з легкого списку речей)
     var o = st.op || {};
+    if (shieldOffNow(o, st.round)) return false;            // щит вибито — його зараз немає
     if ((o.eq || []).some(function (e) { return !e.off && !e.broken && e.slot === 'weaponL' && e.base && e.base.category === 'Щити'; })) return true;
     return ((o.f && o.f.eq) || []).some(function (e) { return e && e.slot === 'weaponL' && e.cat === 'Щити'; });
   }
@@ -180,7 +207,8 @@
     var cd = (st.me.cd || {})[id];
     if (cd && st.round <= cd) return 'cd';
     if ((st.me.once || {})[id]) return 'used';                    // раз за бій — уже було
-    if ((id === SKILL.berserk.id && berserkOn(st)) || (id === SKILL.bless.id && blessOn(st))) return 'active';   // ще діє
+    if ((id === SKILL.berserk.id && berserkOn(st)) || (id === SKILL.bless.id && blessOn(st))
+      || (id === SKILL.stone.id && stoneOn(st)) || (id === SKILL.song.id && songOn(st))) return 'active';   // ще діє
     if (id === SKILL.spark.id && num(st.me.mana) < (V(st, id, 'mana') || 5)) return 'mana';
     if (V(st, id, 'mana') && num(st.me.mana) < V(st, id, 'mana')) return 'mana';   // Берсерк 100, Благословення 50
     if (id === SKILL.bash.id && !shieldOn(st)) return 'shield';
@@ -294,6 +322,63 @@
     rec.kind = 'bless'; rec.turns = n; rec.defPct = V(st, id, 'defPct'); rec.heal = V(st, id, 'heal');
     return rec;
   }
+  /* Кам'яна шкіра й Бойова пісня: шанс 50% → 100%; вдалося — −mana, діє turns ходів (цей теж); поки діє — знову не обрати */
+  function buffTry(ctx, st, id, rnd) {
+    var need = V(st, id, 'chance'), roll = ctx.R.d100(rnd), rec = { id: id, need: need, roll: roll, ok: roll <= need, dmg: 0 };
+    grow(st, id, rec.ok);
+    if (!rec.ok) { rec.kind = 'fail'; rec.calc = 'не вдалося: 🎲 ' + roll + ' > ' + need + '%'; return rec; }
+    var n = Math.max(1, V(st, id, 'turns') || 3), until = st.round + n - 1;
+    if (id === SKILL.stone.id) { fxOf(st.me).stone = { until: until, cut: V(st, id, 'cut') }; rec.kind = 'stone'; rec.cut = V(st, id, 'cut'); }
+    else { fxOf(st.me).song = { until: until, acc: V(st, id, 'accPct'), dmg: V(st, id, 'dmgPct') }; rec.kind = 'song'; rec.accPct = V(st, id, 'accPct'); rec.dmgPct = V(st, id, 'dmgPct'); }
+    var mn = V(st, id, 'mana'); if (mn) { st.me.mana = Math.max(0, num(st.me.mana) - mn); rec.mana = mn; }
+    rec.turns = n;
+    return rec;
+  }
+  /* Стійкість цілі (st.op): шанс встояти проти контролю. → true — встояв. Ріст — у цілі (Герой; бот — у межах бою). */
+  function steadyTry(R, st, rec, rnd) {
+    var tv = { me: st.op, op: st.me, round: st.round };
+    if (!hasSk(tv, 'knight.steady')) return false;
+    var need = V(tv, 'knight.steady', 'resist'), r = R.d100(rnd), ok = r <= need;
+    grow(tv, 'knight.steady', ok);
+    rec.steady = [r, need, ok];
+    return ok;
+  }
+  /* Розбити щит: лише проти щита. Шанс 50% → 100% — ще до ударів: щит відлітає, рука німіє —
+     ворог без щита turns ходів (цей і наступний), потім піднімає його сам. Стійкість може врятувати. */
+  function shatterTry(ctx, st, id, rnd) {
+    var rec = { id: id, dmg: 0 }, fo = fxOf(st.op);
+    if (shieldOffNow(st.op, st.round)) { rec.kind = 'immune'; rec.ok = false; return rec; }
+    if (!opShield(st)) { rec.kind = 'noshield'; rec.ok = false; return rec; }
+    var need = V(st, id, 'chance'), roll = ctx.R.d100(rnd);
+    rec.need = need; rec.roll = roll; rec.ok = roll <= need;
+    grow(st, id, rec.ok);
+    if (!rec.ok) rec.kind = 'fail';
+    else if (steadyTry(ctx.R, st, rec, rnd)) rec.kind = 'saved';
+    else { rec.turns = Math.max(1, V(st, id, 'turns') || 2); fo.shieldOff = st.round + rec.turns - 1; rec.kind = 'shatter'; }
+    var cdN = V(st, id, 'cd'); if (cdN > 0) { st.me.cd = st.me.cd || {}; st.me.cd[id] = st.round + cdN; }
+    return rec;
+  }
+  /* Кам'яна шкіра того, кого б'ють (v): урон кожного удару −cut% (щонайменше 1) */
+  function stoneCut(v, hit) {
+    if (!hit || !stoneOn(v)) return;
+    var cut = num(v.me.fx.stone.cut), hs = hit.hits && hit.hits.length ? hit.hits : null;
+    var f = function (h) {
+      if (!(num(h.dmg) > 0)) return;
+      var was = h.dmg; h.dmg = Math.max(1, Math.round(was * (1 - cut / 100))); h.stone = [was, cut];
+      var k = h.dmg / was; if (h.magDmg) h.magDmg = Math.round(h.magDmg * k); if (h.physDmg) h.physDmg = h.dmg - num(h.magDmg);
+    };
+    if (hs) { hs.forEach(f); hit.dmg = hs.reduce(function (a, h) { return a + (h.dmg || 0); }, 0); if (hit.physDmg != null) hit.physDmg = hit.dmg; }
+    else f(hit);
+  }
+  /* Залізна воля: раз за бій, щойно здоров'я < 25% — броня ×2 на turns ходів (з наступного) → ходів або 0 */
+  function willTick(v) {
+    if (!hasSk(v, 'knight.will')) return 0;
+    var f = fxOf(v.me);
+    if (f.willUsed || !(v.me.force > 0) || v.me.force >= v.me.max * 0.25) return 0;
+    var n = Math.max(1, V(v, 'knight.will', 'turns') || 2);
+    f.willUsed = true; f.will = v.round + n; grow(v, 'knight.will', true);
+    return n;
+  }
   /* Обеззброєння: шанс = 50 + (твоє володіння зброєю − ворога) / 2, у межах 10…90.
      Твоє — майстерність вміння зброї в руці (Меч, Сокира, Спис, Голі руки); бот вмінь не має —
      його володіння = рівень × 5 (до 100). Вдалося — ворог без зброї цей хід і наступний (підбирає через хід). */
@@ -333,8 +418,8 @@
     rec.kind = landed.length ? 'hit' : 'block';
     grow(st, id, landed.length > 0);
     if (id === SKILL.daze.id && landed.length) {
-      var fo = fxOf(st.op), had = num(fo.focus), brave = num(st.op.brave);   // бот концентрації й Хоробрості не має
-      if (brave && R.d100(rnd) <= brave) rec.dazeSaved = true; else { fo.focus = 0; rec.daze = true; rec.focusLost = had; }
+      var fo = fxOf(st.op), had = num(fo.focus);
+      if (steadyTry(R, st, rec, rnd)) rec.dazeSaved = true; else { fo.focus = 0; rec.daze = true; rec.focusLost = had; }   // Стійкість ворога може врятувати
     }
     return rec;
   }
@@ -348,7 +433,10 @@
     if (last && last === st.round - 1) { kn = Math.round(kn / 2); rec.knockHalf = true; }
     var kr = R.d100(rnd);
     rec.knockNeed = kn; rec.knockRoll = kr;
-    if (kn > 0 && kr <= kn) { rec.knock = true; fxOf(st.op).knock = st.round + 1; }
+    if (kn > 0 && kr <= kn) {
+      if (steadyTry(R, st, rec, rnd)) rec.knockSaved = true;          // Стійкість ворога: встояв
+      else { rec.knock = true; fxOf(st.op).knock = st.round + 1; }
+    }
   }
   /* пасивне з кидком (ухилення, щит): на кожен удар, що влучив, — кидок «прокинулось»
      (шанс = майстерність %). Прокинулось — очко росту і кидок ефекту (chance):
@@ -382,12 +470,15 @@
     var ai = st.op.ai; if (!ai || !(st.op.bar || []).length) return null;
     var r = rng(st.bid + '|' + st.round + '|oai');
     if (r() * 100 >= num(ai.use)) return null;
-    var can = (st.op.bar || []).filter(function (id) { return !skillBlock(vo, id); });
+    var can = (st.op.bar || []).filter(function (id) { return !skillBlock(vo, id) && (id !== SKILL.shieldbreak.id || opShield(vo)); });   // Розбити щит — лише проти щита
     if (!can.length) return null;
     if (ai.smart) {
       var hp = st.op.force / Math.max(1, st.op.max);
       if (hp < 0.5 && can.indexOf(SKILL.bless.id) >= 0) return SKILL.bless.id;
+      if (hp < 0.6 && can.indexOf(SKILL.stone.id) >= 0) return SKILL.stone.id;
       if (st.round <= 3 && can.indexOf(SKILL.berserk.id) >= 0) return SKILL.berserk.id;
+      if (st.round <= 4 && can.indexOf(SKILL.song.id) >= 0) return SKILL.song.id;
+      if (can.indexOf(SKILL.shieldbreak.id) >= 0 && r() < 0.6) return SKILL.shieldbreak.id;
       if (can.indexOf(SKILL.disarm.id) >= 0 && !heroDisarmed(st) && r() < 0.5) return SKILL.disarm.id;
       if (can.indexOf(SKILL.bash.id) >= 0 && r() < 0.5) return SKILL.bash.id;
     }
@@ -408,7 +499,8 @@
   /* Берсерк / Благословення — до ударів */
   function preBuff(ctx, v, id, can, rnd) {
     if (!id || !can || skillBlock(v, id)) return null;
-    var rec = id === SKILL.berserk.id ? berserkTry(ctx, v, id, rnd) : id === SKILL.bless.id ? blessTry(ctx, v, id, rnd) : null;
+    var rec = id === SKILL.berserk.id ? berserkTry(ctx, v, id, rnd) : id === SKILL.bless.id ? blessTry(ctx, v, id, rnd)
+      : (id === SKILL.stone.id || id === SKILL.song.id) ? buffTry(ctx, v, id, rnd) : null;
     if (rec && rec.ok) v.me.skill = null;
     return rec;
   }
@@ -796,6 +888,7 @@
     if (!wpn || bd.uid !== wpn.uid) { bd.uid = wpn ? wpn.uid : null; bd.n = 0; }
     fm.bond = !!(hasSk(st, 'base.bond') && wpn && bd.n >= (V(st, 'base.bond', 'turns') || 5));
     var knocked = fo.knock === st.round;                  // суперника збили з ніг минулого ходу — не атакує
+    var meShieldBack = num(fm.shieldOff) && num(fm.shieldOff) === st.round - 1, opShieldBack = num(fo.shieldOff) && num(fo.shieldOff) === st.round - 1;   // рука відійшла — щит знову в руці
     var sid = st.me.skill, canAct = !auto && !down && !fm.feared && !meKnocked;
     if (!oi && st.op.ai) st.op.skill = botSkill(st, vo);                          // бот обирає вміння сам
     var osid = oi ? null : st.op.skill, opCan = !down && !fo.feared && !knocked;   // бот: пояс АБО вміння
@@ -810,6 +903,12 @@
     var opDisarmed = disarmedOn(st), meDisarmed = disarmedOn(vo);
     if (opDisarmed) po = noWeapon(po);
     if (meDisarmed) pm = noWeapon(pm);
+    // Розбити щит — до ударів: вдалося — у суперника вже цього ходу немає щита
+    if (sid === SKILL.shieldbreak.id && canAct && !skillBlock(st, sid)) skillRec = shatterTry(ctx, st, sid, sd(st, 'skill'));
+    if (osid === SKILL.shieldbreak.id && opCan && !skillBlock(vo, osid)) opRec = shatterTry(ctx, vo, osid, sd(vo, 'skill'));
+    var opNoShield = shieldOffNow(st.op, st.round), meNoShield = shieldOffNow(st.me, st.round);
+    if (opNoShield) po = noShield(ctx, po, shieldEntry(st.op));
+    if (meNoShield) pm = noShield(ctx, pm, shieldEntry(st.me));
     pm = turnBoost(st, pm); po = turnBoost(vo, po);
     // Випад — посилює основний удар цього ходу
     var lunge = null, opLunge = null;
@@ -867,6 +966,10 @@
     if (r2) opRec = r2;
     if (sid && (st.me.bar || []).indexOf(sid) < 0) st.me.skill = null;   // вибір лишається на наступний хід
     if (osid && (st.op.bar || []).indexOf(osid) < 0) st.op.skill = null;
+    // Кам'яна шкіра: урон по тому, хто під нею, −cut% (до бар'єра)
+    stoneCut(st, opHit); stoneCut(vo, meHit);
+    if (skillRec && skillRec.dmg > 0) stoneCut(vo, skillRec);
+    if (opRec && opRec.dmg > 0) stoneCut(st, opRec);
     if (skillRec && skillRec.dmg > 0) { var sh = { dmg: skillRec.dmg, kind: 'hit', hits: [skillRec] }; applyBarrier(fo, sh); skillRec.dmg = sh.dmg; }
     if (opRec && opRec.dmg > 0) { var sh2 = { dmg: opRec.dmg, kind: 'hit', hits: [opRec] }; applyBarrier(fm, sh2); opRec.dmg = sh2.dmg; }
     applyBarrier(fo, meHit); applyBarrier(fm, opHit);
@@ -874,9 +977,13 @@
     st._wlog = [];
     addWear(ctx, st, meHit, opHit, op.atk);
     var wlog = st._wlog; delete st._wlog;
+    if (opRec && opRec.kind === 'shatter' && wearItems(ctx, st, 'shield').length) {   // твій щит відлетів — зношується сильніше
+      var sw = (ctx.R.WEAR && ctx.R.WEAR.shieldBreakHit) || 2; st.wear.shield = (st.wear.shield || 0) + sw; wlog.push({ k: 'shield', n: sw });
+    }
     var broke = checkBreaks(ctx, st);
     st.op.force -= meHit.dmg + (skillRec ? skillRec.dmg : 0);
     st.me.force -= opHit.dmg + (opRec ? opRec.dmg : 0);
+    var meWill = willTick(st), opWill = willTick(vo);              // Залізна воля: здоров'я < 25% — броня ×2 з наступного ходу
     // концентрація кожного: Лицар — росте від урону; решта — у спокійний хід
     var calmRec = focusTick(ctx, st, opHit.dmg + (opRec ? opRec.dmg : 0), down, sd(st, 'focus'), sd(st, 'calm'));
     var opCalm = focusTick(ctx, vo, meHit.dmg + (skillRec ? skillRec.dmg : 0), down, sd(vo, 'focus'), sd(vo, 'calm'));
@@ -894,6 +1001,12 @@
     if (meKnocked) e.meKnocked = true;
     if (blessHeal) e.blessHeal = blessHeal;
     if (opDisarmed) e.opDisarmed = true;
+    if (opNoShield) e.opNoShield = true;
+    if (meNoShield) e.meNoShield = true;
+    if (opShieldBack) e.opShieldBack = true;
+    if (meShieldBack) e.meShieldBack = true;
+    if (meWill) e.will = meWill;
+    if (opWill) e.opWill = opWill;
     if (calmRec) e.calm = calmRec;
     if (st.me.fx && st.me.fx.focus != null) e.focus = num(st.me.fx.focus);
     // те саме для суперника (бот із вміннями)
@@ -903,7 +1016,8 @@
     if (opCalm) e.opCalm = opCalm;
     if (opUp.length) e.opUp = opUp;
     // 🧪 ТИМЧАСОВО ДЛЯ ТЕСТУ: стан обох після ходу (мана, концентрація, до якого ходу діють лють / благословення / обеззброєння / оглушення)
-    var snap = function (u) { var f = u.fx || {}; return { m: Math.round(num(u.mana)), f: num(f.focus), bz: num(f.berserk), bl: f.bless ? num(f.bless.until) : 0, dis: num(f.disarm), kn: num(f.knock), cd: clone(u.cd || {}) }; };
+    var snap = function (u) { var f = u.fx || {}; return { m: Math.round(num(u.mana)), f: num(f.focus), bz: num(f.berserk), bl: f.bless ? num(f.bless.until) : 0, dis: num(f.disarm), kn: num(f.knock),
+      sto: f.stone ? num(f.stone.until) : 0, sng: f.song ? num(f.song.until) : 0, wil: num(f.will), sho: num(f.shieldOff), cd: clone(u.cd || {}) }; };
     e.st = { me: snap(st.me), op: snap(st.op) };
     if (st.op.fx && st.op.fx.focus) e.opFocus = num(st.op.fx.focus);
     // ріст вмінь цього ходу: {id: [вдалих, невдалих, разом вдалих за бій, разом невдалих за бій]}
