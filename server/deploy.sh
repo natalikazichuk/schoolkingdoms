@@ -3,7 +3,7 @@
 #   sudo /srv/sk/repo/server/deploy.sh [гілка]      (за замовчуванням main)
 # Перший запуск сам створює /srv/sk, пароль бази (/srv/sk/.env) і щоденну
 # резервну копію бази (cron). Секрети в репозиторій не потрапляють:
-#   /srv/sk/.env             — пароль PostgreSQL
+#   /srv/sk/.env             — пароль PostgreSQL, токен воркера образів (AVATAR_WORKER_TOKEN)
 #   /srv/sk/data/hash-config.json — параметри паролів Firebase (для старих акаунтів)
 set -euo pipefail
 
@@ -15,6 +15,8 @@ install -d -m 755 "$SK" "$SK/backups"
 install -d -m 700 "$SK/data" "$SK/migration"
 # у контейнері API працює користувач node (uid 1000) — він має читати дані
 chown 1000:1000 "$SK/data" "$SK/migration"
+# образи Героїв: пише API (uid 1000), читає nginx
+install -d -m 755 -o 1000 -g 1000 "$SK/avatars"
 
 if [ ! -d "$SK/repo/.git" ]; then
   git clone -q "$REPO_URL" "$SK/repo"
@@ -28,6 +30,7 @@ if [ ! -f "$SK/.env" ]; then
   echo "DB_PASSWORD=$(openssl rand -hex 24)" > "$SK/.env"
   chmod 600 "$SK/.env"
 fi
+grep -q '^AVATAR_WORKER_TOKEN=' "$SK/.env" || echo "AVATAR_WORKER_TOKEN=$(openssl rand -hex 32)" >> "$SK/.env"
 grep -q '^APP_VERSION=' "$SK/.env" && sed -i "s|^APP_VERSION=.*|APP_VERSION=$VERSION|" "$SK/.env" \
   || echo "APP_VERSION=$VERSION" >> "$SK/.env"
 

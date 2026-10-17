@@ -423,6 +423,12 @@ const SK = {
   // після бою: ріст майстерності за спрацюваннями (сервер — один раз на бій)
   growSkills(bid)     { return skApi('POST', 'skills/grow', { bid }); },
 
+  /* ===== ОБРАЗ ГЕРОЯ (arena.html, кнопка «Одягти») =====
+     Сервер (server/app/src/avatar.js) бере базовий аватар + вдягнені речі й ставить
+     у чергу; готовий образ сам стає аватаром Героя (avatar = 'hero:gen/<файл>'). */
+  renderAvatar()      { return skApi('POST', 'avatar/render', {}); },
+  avatarStatus()      { return skApi('GET', 'avatar/status'); },
+
   async getHero() {
     const heroId = SK._heroUid();
     if (!heroId) return null;

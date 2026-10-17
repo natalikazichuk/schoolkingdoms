@@ -35,6 +35,24 @@ create table if not exists sessions (
   last_seen  timestamptz not null default now()
 );
 create index if not exists sessions_uid on sessions (uid);
+
+-- черга образів Героя (src/avatar.js): один рядок на набір «база + речі»
+create table if not exists avatar_jobs (
+  id          bigserial primary key,
+  key         text not null unique,         -- хеш набору; той самий набір — той самий образ
+  status      text not null default 'queued', -- queued | working | done | failed | cancelled
+  spec        jsonb not null,               -- що малювати (база, слоти з речами, промпт)
+  attempts    int not null default 0,
+  worker      text,
+  lease_until timestamptz,                  -- воркер має повернути результат до цього часу
+  error       text,
+  file        text,                         -- готові файли: AVATAR_DIR/<file>-full|256|96.webp
+  created_at  timestamptz not null default now(),
+  queued_at   timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  done_at     timestamptz
+);
+create index if not exists avatar_jobs_queue on avatar_jobs (status, queued_at);
 `;
 
 async function migrate() { await pool.query(SCHEMA); }

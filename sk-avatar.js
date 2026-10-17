@@ -4,6 +4,8 @@
    Аватар героя (поле heroes/{id}.avatar) — це КОРОТКИЙ РЯДОК-ТОКЕН:
      • емодзі            → '🦁'                (як було; синхронізується)
      • вбудований герой  → 'hero:knight-blue-boy'  (ілюстрація; синхронізується)
+     • образ у речах     → 'hero:gen/<файл>'  (малює сервер за кнопкою «Одягти»,
+                           server/app/src/avatar.js; файли — img/ava/gen/<файл>-full|256|96.webp)
    «Своє фото» НЕ зберігається в токені (base64 вбив би ліміт документа) —
    воно лишається лише локально (localStorage 'sk_hero_avatar') і показується
    тільки на пристрої дитини. Тому вибір фото ⇒ локальний оверрайд,
@@ -52,13 +54,16 @@
   function isHeroToken(t){ return typeof t==='string' && t.indexOf('hero:')===0; }
   function idOf(t){ return isHeroToken(t) ? t.slice(5) : ''; }
   function tokenOf(id){ return 'hero:'+id; }
-  function has(id){ return !!BY[id]; }
+  // образ у речах: id = 'gen/<файл>' — шляхи ті самі, лише без PNG-запасу й картки
+  function isGen(id){ return /^gen\/[A-Za-z0-9-]+$/.test(String(id||'')); }
+  function has(id){ return !!BY[id] || isGen(id); }
+  function nameOf(id){ return BY[id] ? BY[id].name : 'Мій герой'; }
 
   function faceSrc(id,size){ return BASE+'img/ava/'+id+'-'+((size&&size<160)?96:256)+'.webp'; }
-  function facePng(id){ return BASE+'img/ava/'+id+'-256.png'; }
-  function cardSrc(id){ return BASE+'img/ava/'+id+'-card.webp'; }
+  function facePng(id){ return isGen(id) ? faceSrc(id,256) : BASE+'img/ava/'+id+'-256.png'; }
+  function cardSrc(id){ return isGen(id) ? fullSrc(id) : BASE+'img/ava/'+id+'-card.webp'; }
   function fullSrc(id){ return BASE+'img/ava/'+id+'-full.webp'; }   // прозора вирізка (повний зріст)
-  function fullPng(id){ return BASE+'img/ava/'+id+'-full.png'; }
+  function fullPng(id){ return isGen(id) ? fullSrc(id) : BASE+'img/ava/'+id+'-full.png'; }
 
   // HTML-комірка аватара: <img> для героя, інакше — емодзі/текст
   function html(token, opt){
@@ -67,7 +72,7 @@
       var id = idOf(token), png = facePng(id);
       var r = round?'50%':'22%';
       return '<img class="ska-face" src="'+faceSrc(id,size)+'" width="'+size+'" height="'+size+'"'
-        + ' alt="'+esc(BY[id].name)+'" loading="lazy" decoding="async"'
+        + ' alt="'+esc(nameOf(id))+'" loading="lazy" decoding="async"'
         + ' style="width:'+size+'px;height:'+size+'px;border-radius:'+r+';object-fit:cover;vertical-align:middle;display:inline-block"'
         + ' onerror="this.onerror=null;this.src=\''+png+'\'">';
     }
@@ -176,7 +181,7 @@
 
   window.SKAVA = {
     CATALOG: CATALOG, EMOJIS: EMOJIS,
-    isHeroToken: isHeroToken, idOf: idOf, tokenOf: tokenOf, has: has,
+    isHeroToken: isHeroToken, idOf: idOf, tokenOf: tokenOf, has: has, isGen: isGen,
     faceSrc: faceSrc, facePng: facePng, cardSrc: cardSrc, fullSrc: fullSrc, fullPng: fullPng,
     html: html, gridHTML: gridHTML, bindGrid: bindGrid, openPicker: openPicker
   };
