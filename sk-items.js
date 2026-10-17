@@ -430,11 +430,11 @@
       (b.addStats || []).some(function (e) { return e && canon(e.stat) === 'mana'; })));
   }
   /* скільки штук разового товару в наявності за день:
-     зілля здоров'я й мани — 3–10, свитки — 1–5, решта — 1 */
-  var SHOP_QTY = { potion: [3, 10], scroll: [1, 5] };
+     зілля здоров'я й мани — 3–10, свитки — 1–5, решта зілль (удачі, точності…) — 1–3 */
+  var SHOP_QTY = { potion: [3, 10], scroll: [1, 5], other: [1, 3] };
   function consQty(b, rnd) {
-    var r = (isHealthPotion(b) || isManaPotion(b)) ? SHOP_QTY.potion : (b && b.category === 'Свиток') ? SHOP_QTY.scroll : null;
-    return r ? r[0] + Math.floor(rnd() * (r[1] - r[0] + 1)) : 1;
+    var r = (isHealthPotion(b) || isManaPotion(b)) ? SHOP_QTY.potion : (b && b.category === 'Свиток') ? SHOP_QTY.scroll : SHOP_QTY.other;
+    return r[0] + Math.floor(rnd() * (r[1] - r[0] + 1));
   }
   /* Порядок товарів — за «жеребом» кожної речі (хеш героя, дня й id), а не перемішуванням
      усього списку: заборонили чи вимкнули одну річ — на її місце стає одна наступна,
