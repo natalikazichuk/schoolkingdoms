@@ -4401,15 +4401,13 @@ function renderCounter(){
 function renderInv(){
   var b0=bag();q('shBagCnt').textContent=S.st?(ST().bagCount(S.st.inventory)+'/'+ST().BAG_LIMIT):'';
   if(!S.st){q('shInv').innerHTML='<div class="sh-empty">'+(S.err?esc(S.err):'Завантаження…')+'</div>';return;}
-  var worn=wornItems(),bf=S.bf||'all';
-  q('shBagTabs').innerHTML=grpBtns('data-bf',bf,worn.concat(b0));
+  /* вдягнене на Герої в магазині не показуємо — його видно на аватарі; продати — спершу зняти */
+  var bf=S.bf||'all';
+  q('shBagTabs').innerHTML=grpBtns('data-bf',bf,b0);
   var inF=function(i){return bf==='all'||shGrp(i.id)===bf;};
-  worn=worn.filter(inF).sort(shCmp);b0=b0.filter(inF).sort(shCmp);
-  if(!b0.length&&!worn.length){q('shInv').innerHTML='<div class="sh-empty">'+(bf==='all'?'Сумка порожня.':'У цій групі речей немає.')+'</div>';return;}
-  q('shInv').innerHTML='<div class="sh-grid">'+worn.map(function(i){var b=S.byId[i.id];if(!b)return '';var t=SKIT.tile(b,i);
-    return '<button type="button" class="sh-item worn '+t.cls+'" data-worn="'+esc(i.uid)+'" title="'+esc(b.name)+' — надіто на Герої. Щоб продати, спершу зніми в інвентарі">'
-     +'<span class="ic">'+t.html+'</span><span class="sh-worn">✔</span><span class="nm">'+esc(b.name)+'</span>'
-     +'<span class="act worn">надіто ✔️</span></button>';}).join('')+b0.map(function(i){var b=S.byId[i.id],n=sellN(i.uid),qn=qtyOf(i),used=n>=qn,part=n>0&&!used;
+  b0=b0.filter(inF).sort(shCmp);
+  if(!b0.length){q('shInv').innerHTML='<div class="sh-empty">'+(bf==='all'?'У сумці немає речей на продаж (вдягнене тут не показуємо).':'У цій групі речей немає.')+'</div>';return;}
+  q('shInv').innerHTML='<div class="sh-grid">'+b0.map(function(i){var b=S.byId[i.id],n=sellN(i.uid),qn=qtyOf(i),used=n>=qn,part=n>0&&!used;
     var t=SKIT.tile(b,i);
     return '<button type="button" class="sh-item '+t.cls+(used?' used':'')+'" data-sell="'+esc(i.uid)+'" title="'+(used?'На прилавку — натисни ще раз, щоб забрати назад · ':(part?'На прилавку '+n+' з '+qn+' — натисни, щоб додати ще одну · ':''))+esc(b.name+' — '+statLine(b,i))+'">'
      +'<span class="ic">'+t.html+'</span>'+(part?'<span class="sh-on">🧾 '+n+'</span>':'')+'<span class="nm">'+esc(b.name)+'</span>'
