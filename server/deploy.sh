@@ -4,7 +4,6 @@
 # Перший запуск сам створює /srv/sk, пароль бази (/srv/sk/.env) і щоденну
 # резервну копію бази (cron). Секрети в репозиторій не потрапляють:
 #   /srv/sk/.env             — пароль PostgreSQL
-#   /srv/sk/tunnel_path      — секретна адреса SSH-тунелю
 #   /srv/sk/data/hash-config.json — параметри паролів Firebase (для старих акаунтів)
 set -euo pipefail
 
@@ -33,8 +32,7 @@ grep -q '^APP_VERSION=' "$SK/.env" && sed -i "s|^APP_VERSION=.*|APP_VERSION=$VER
   || echo "APP_VERSION=$VERSION" >> "$SK/.env"
 
 # nginx
-TUNNEL_PATH="$(cat "$SK/tunnel_path")"
-sed "s|__TUNNEL_PATH__|$TUNNEL_PATH|" "$SK/repo/server/nginx/site.conf" > /etc/nginx/sites-available/default
+install -m 644 "$SK/repo/server/nginx/site.conf" /etc/nginx/sites-available/default
 nginx -t -q
 systemctl reload nginx
 
