@@ -77,6 +77,8 @@ button{font-family:inherit}
   background:linear-gradient(90deg,#7bd88a,#37b558)}
 .forcebar.low > i{background:linear-gradient(90deg,#ffcf4d,#e0a42a)}
 .forcebar.crit > i{background:linear-gradient(90deg,#ff9a6b,#e0553a)}
+.forcebar.mana{height:9px}
+.forcebar.mana > i{background:linear-gradient(90deg,#6fb8ff,#2f6fe0)}
 
 /* ══════════ ТАВЕРНА ══════════ */
 .tavern-hero{position:relative;border-radius:20px;overflow:hidden;margin:4px 0 12px;
@@ -506,6 +508,7 @@ body.scr-battle .wrap{max-width:1500px}
 .avablk .hh{font-size:1rem}
 .avablk .hpwrap b{font-family:'Fredoka';font-weight:700;font-size:1.1rem;color:#fff;line-height:1;text-shadow:0 1px 3px rgba(0,0,0,.7)}
 .avablk .forcebar{flex-basis:100%;margin-top:2px}
+.avablk .hpwrap b.mn{color:#9fd0ff}
 .avablk .hpstat{flex-basis:100%;text-align:center;font-family:'Fredoka';font-weight:700;
   font-size:.66rem;line-height:1.1;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hpstat.green{color:#8ef0a3}
@@ -1474,10 +1477,10 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
             <span class="figemoji hidden" id="pSceneEmoji">🧒</span>
           </div>
           <div class="hpwrap">
-            <span class="flvl" id="pLvl">1</span>
             <span class="hh">❤️</span><b id="pForceLbl">150</b>
+            <span class="hh">💧</span><b id="pManaLbl" class="mn">0</b>
             <div class="forcebar" id="pForce"><i></i></div>
-            <span class="hpstat green" id="pStat">🟢 Здоровий</span>
+            <div class="forcebar mana" id="pMana" title="Мана"><i></i></div>
           </div>
         </div>
 
@@ -2815,7 +2818,6 @@ window.SKHERO = (function(){
     // ліва картка — гравець
     paintFull(hero.avatar,'pPeek','pSceneEmoji');
     $('pName').textContent = B.me.name || hero.name;
-    $('pLvl').textContent  = B.me.level || arena.level;
     // права картка + картки-цілі — суперник
     paintFull(B.op.f.avatar,'oPeek','oSceneEmoji');
     paintAtkCards(B.op.f.avatar);
@@ -3064,6 +3066,13 @@ window.SKHERO = (function(){
     {t:'🟢 Чудовий стан',     c:'green'},  // 90%
     {t:'🟢 Здоровий',         c:'green'}   // 100%
   ];
+  /* мана Героя: число біля здоров'я + синя смужка (повна — мана профілю на початку бою) */
+  function updateMana(unit){
+    var bar = $('pMana'), lbl = $('pManaLbl'); if(!bar || !lbl) return;
+    var mx = Math.max(1, Number(unit.p && unit.p.mana) || 0), m = Math.max(0, Math.round(Number(unit.mana) || 0));
+    lbl.textContent = m;
+    bar.querySelector('i').style.transform = 'scaleX('+Math.min(1, m/mx)+')';
+  }
   function updateForce(side, unit){
     var wrap = $(side==='p'?'pForce':'oForce');
     var pct = Math.max(0, unit.force)/unit.max;
@@ -3071,6 +3080,7 @@ window.SKHERO = (function(){
     wrap.classList.toggle('low',  pct<=0.5 && pct>0.25);
     wrap.classList.toggle('crit', pct<=0.25);
     $(side==='p'?'pForceLbl':'oForceLbl').textContent = Math.max(0,Math.round(unit.force));
+    if(side==='p') updateMana(unit);
     var stEl = $(side==='p'?'pStat':'oStat');
     if(stEl){
       var p = Math.max(0, Math.min(100, pct*100));
