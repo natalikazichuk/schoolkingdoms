@@ -695,4 +695,10 @@ test('Розбити щит: шанс за зброєю — сокира ×1, б
   assert.strictEqual(need(AXE), 100); assert.strictEqual(need(MACE), 85); assert.strictEqual(need(SWORD), 70);
   const sp = duel({ 'knight.shieldbreak': 1 }, ['knight.shieldbreak'], {}, [wear(SHIELD, 'weaponL')], [wear(SPEAR, 'weaponR')]);
   assert.strictEqual(SB.skillBlock(sp, 'knight.shieldbreak'), 'weapon');
+  const TWO = item({ id: 'W8', name: 'Дворучний меч', category: 'Зброя', stat: 'Урон', valueMin: 4, valueMax: 6, weaponType: 'sword', addStats: [{ stat: 'Дворучний', flag: true }] });
+  assert.ok(R.isTwoHanded(TWO));
+  assert.strictEqual(need(TWO), 88, 'дворучний меч — ×0.7 × 1.25 ≈ ×0.88');
+  const st25 = duel({ 'knight.shieldbreak': 0.25 }, ['knight.shieldbreak'], {}, [wear(SHIELD, 'weaponL')], [wear(AXE, 'weaponR')]);
+  SB.useSkill(ctx, st25, 'knight.shieldbreak');
+  assert.strictEqual(SB.turn(ctx, st25, { atk: 'head', block: 'body' }, {}, Date.now()).skill.need, 50);
 });

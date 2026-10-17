@@ -373,9 +373,11 @@
     var rec = { id: id, dmg: 0 }, fo = fxOf(st.op);
     if (shieldOffNow(st.op, st.round)) { rec.kind = 'immune'; rec.ok = false; return rec; }
     if (!opShield(st)) { rec.kind = 'noshield'; rec.ok = false; return rec; }
-    var wt = wTypeNow(st), mul = SHATTER_MUL[wt] || 0;
-    var need = Math.round(V(st, id, 'chance') * mul), roll = ctx.R.d100(rnd);
-    rec.need = need; rec.roll = roll; rec.ok = roll <= need; rec.wt = wt; rec.mul = mul;
+    var wt = wTypeNow(st), mul = SHATTER_MUL[wt] || 0, w = weaponOn(st);
+    var two = !!(w && w.base && ctx.R.isTwoHanded && ctx.R.isTwoHanded(w.base));   // дворучна — розбиває краще (×1.25)
+    if (two) mul = Math.round(mul * 1.25 * 100) / 100;
+    var need = Math.min(100, Math.round(V(st, id, 'chance') * mul)), roll = ctx.R.d100(rnd);
+    rec.need = need; rec.roll = roll; rec.ok = roll <= need; rec.wt = wt; rec.mul = mul; rec.two = two;
     grow(st, id, rec.ok);
     if (!rec.ok) rec.kind = 'fail';
     else if (steadyTry(ctx.R, st, rec, rnd)) rec.kind = 'saved';
