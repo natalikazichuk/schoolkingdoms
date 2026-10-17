@@ -425,7 +425,8 @@ test('Удар древком: удар ×1 у зону + на 100% завжди
   const e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
   assert.strictEqual(e.skill.hits.length, 2);
   assert.strictEqual(e.skill.hits[0].zone, 'head'); assert.notStrictEqual(e.skill.hits[1].zone, 'head');
-  assert.strictEqual(st.me.cd['knight.haft'], 1 + 2);
+  assert.ok(!(st.me.cd || {})['knight.haft'], 'без перезарядки');
+  assert.strictEqual(SB.skillBlock(st, 'knight.haft'), '', 'можна знову наступного ходу');
 });
 
 test('Благословення: −50 мани, броня +20%, лікує 4% щоходу, 🎲 4–7 ходів на 100%', () => {
