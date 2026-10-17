@@ -256,6 +256,8 @@
        куплене сьогодні (shopBought, id речі) до півночі за Києвом більше не продається.
      • Монети — у сріблі: 100 сріб = 1 зол. */
   var BAG_LIMIT = 100, CHEST_LIMIT = 30, CHEST_DAYS = 3, SHOP_GEAR = 20, SHOP_CONS = 5, SHOP_SOLD_LIMIT = 20;
+  /* магазин: основні категорії спорядження (з кожної — гарантовано одна річ) і межа на категорію */
+  var SHOP_MAIN_CATS = ['Зброя', 'Щити', 'Шоломи', 'Обладунки', 'Пояси', 'Рукавиці', 'Наручі', 'Штани', 'Взуття', 'Кільце', 'Амулет'], SHOP_CAT_MAX = 5;
   var DAY_MS = 86400000;
 
   function kyivDay(ts) {
@@ -417,8 +419,9 @@
   }
 
   /* асортимент магазину на день: випадково з дозволених (active, не noShop),
-     той самий для героя протягом доби за Києвом. 20 речей + 5 зілль/сувоїв,
-     серед яких завжди є зілля здоров'я. */
+     той самий для героя протягом доби за Києвом. 20 речей (по одній з кожної категорії +
+     рівний кидок категорій) + 5 зілль/сувоїв, серед яких завжди є зілля здоров'я;
+     «Торгівля» додає до +100% місць. */
   function hashStr(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
   function seeded(seed) { var a = seed >>> 0; return function () { a = (a + 0x6D2B79F5) >>> 0; var t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
   function isHealthPotion(b) { return !!(b && b.consumable && (b.addStats || []).some(function (e) { return e && canon(e.stat) === 'healthRegen'; })); }
@@ -436,8 +439,14 @@
   /* Порядок товарів — за «жеребом» кожної речі (хеш героя, дня й id), а не перемішуванням
      усього списку: заборонили чи вимкнули одну річ — на її місце стає одна наступна,
      решта набору не змінюється. */
-  function shopStock(catalog, heroId, now) {
+  /* СПОРЯДЖЕННЯ: спершу по одній речі з кожної категорії (SHOP_MAIN_CATS), решта місць —
+     кидок категорії (усі рівні, незалежно від того, скільки в ній речей), потім річ у ній;
+     однієї категорії — не більше SHOP_CAT_MAX. Невідомі категорії — у кидку як окремі.
+     opts.stockPct — «Торгівля»: +N% місць і для речей, і для зілль/свитків (на 100% — удвічі). */
+  function shopStock(catalog, heroId, now, opts) {
     var day = kyivDay(now), key = String(heroId || '') + '|' + day;
+    var more = 1 + Math.max(0, Number(opts && opts.stockPct) || 0) / 100;
+    var nGear = Math.round(SHOP_GEAR * more), nCons = Math.round(SHOP_CONS * more);
     var lot = {};
     var ranked = function (arr) {
       return arr.slice().sort(function (a, b) {
@@ -447,13 +456,25 @@
       });
     };
     var ok = (catalog || []).filter(function (b) { return b && b.id && b.active !== false && !b.noShop && Number(b.price) > 0; });
-    var gear = ranked(ok.filter(function (b) { return !b.consumable; })).slice(0, SHOP_GEAR);
+    var byCat = {}, cats = [];
+    ok.forEach(function (b) { if (b.consumable) return; var c = b.category || '?'; if (!byCat[c]) { byCat[c] = []; cats.push(c); } byCat[c].push(b); });
+    cats.sort(function (a, b) { var x = SHOP_MAIN_CATS.indexOf(a), y = SHOP_MAIN_CATS.indexOf(b); return (x < 0 ? 99 : x) - (y < 0 ? 99 : y) || (a < b ? -1 : a > b ? 1 : 0); });
+    cats.forEach(function (c) { byCat[c] = ranked(byCat[c]); });
+    var gear = [], took = {};
+    var take = function (c) { gear.push(byCat[c][took[c] || 0]); took[c] = (took[c] || 0) + 1; };
+    cats.forEach(function (c) { if (SHOP_MAIN_CATS.indexOf(c) >= 0 && gear.length < nGear) take(c); });
+    var pick = seeded(hashStr(key + '|fill'));
+    while (gear.length < nGear) {
+      var can = cats.filter(function (c) { return (took[c] || 0) < Math.min(SHOP_CAT_MAX, byCat[c].length); });
+      if (!can.length) break;
+      take(can[Math.floor(pick() * can.length)]);
+    }
     var cons = ok.filter(function (b) { return b.consumable; });
     // завжди є зілля здоров'я і (якщо є в каталозі) зілля мани
     var hp = ranked(cons.filter(isHealthPotion)).slice(0, 1);
     var mp = ranked(cons.filter(function (b) { return isManaPotion(b) && hp.indexOf(b) < 0; })).slice(0, 1);
     var must = hp.concat(mp);
-    var rest = ranked(cons.filter(function (b) { return must.indexOf(b) < 0; })).slice(0, Math.max(0, SHOP_CONS - must.length));
+    var rest = ranked(cons.filter(function (b) { return must.indexOf(b) < 0; })).slice(0, Math.max(0, nCons - must.length));
     var list = must.concat(rest), qty = {};
     // кількість — теж від «жеребу» речі, щоб не залежала від решти набору
     list.forEach(function (b) { qty[b.id] = consQty(b, seeded(hashStr(key + '|qty|' + b.id))); });
@@ -624,7 +645,7 @@
   }
 
   var STORE = {
-    BAG_LIMIT: BAG_LIMIT, SHOP_SOLD_LIMIT: SHOP_SOLD_LIMIT, CHEST_LIMIT: CHEST_LIMIT, CHEST_DAYS: CHEST_DAYS, SHOP_GEAR: SHOP_GEAR, SHOP_CONS: SHOP_CONS,
+    BAG_LIMIT: BAG_LIMIT, SHOP_SOLD_LIMIT: SHOP_SOLD_LIMIT, CHEST_LIMIT: CHEST_LIMIT, CHEST_DAYS: CHEST_DAYS, SHOP_GEAR: SHOP_GEAR, SHOP_CONS: SHOP_CONS, SHOP_MAIN_CATS: SHOP_MAIN_CATS, SHOP_CAT_MAX: SHOP_CAT_MAX,
     kyivDay: kyivDay, bagCount: bagCount, sameStack: sameStack, sellPrice: sellPrice, sellTotal: sellTotal, buyPrice: buyPrice,
     normState: normState, normSlots: normSlots, tidy: tidy, addItems: addItems, claimChest: claimChest, trashItem: trashItem,
     restoreTrash: restoreTrash, deal: deal, boughtToday: boughtToday, boughtCount: boughtCount, SHOP_QTY: SHOP_QTY, isManaPotion: isManaPotion,

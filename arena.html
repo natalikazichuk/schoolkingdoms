@@ -3756,8 +3756,8 @@ window.SKHERO = (function(){
 })();
 </script>
 
-<script src="sk-items.js?v=15"></script>
-<script src="sk-skills.js?v=19"></script>
+<script src="sk-items.js?v=16"></script>
+<script src="sk-skills.js?v=20"></script>
 <script src="sk-book.js?v=8"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
@@ -4241,7 +4241,7 @@ if(document.readyState!=='loading')init();else document.addEventListener('DOMCon
      по одній штуці (S.ct.sell = [{uid, n}]) — у SK.shopDeal іде {uid, qty}, решта стопки лишається.
    • Однакові позиції на прилавку — одним рядком «×N»; натискання рядка забирає одну штуку.
    • Викуп — останні SKIT.store.SHOP_SOLD_LIMIT (20) проданих; права кнопка на речі в сумці — ще й «🗑 Викинути».
-   • Асортимент — SKIT.store.shopStock: 20 речей + 5 зілль/сувоїв (завжди є зілля здоров'я і мани),
+   • Асортимент — SKIT.store.shopStock: 20 речей (по одній з кожної категорії + рівний кидок, ≤5 на категорію) + 5 зілль/сувоїв; «Торгівля» — до +100% (завжди є зілля здоров'я і мани),
      у наявності: речі — по 1 шт., зілля здоров'я й мани — 3–10, свитки — 1–5 (stock.qty),
      випадково з дозволених, той самий протягом доби за Києвом.
    • Магазин закритий під час незавершеного бою; поки магазин відкритий — бій не почати
@@ -4303,16 +4303,21 @@ function load(force){var my=++S.seq;
     // у сумці є речі поза каталогом — каталог неповний: перечитуємо його з бази один раз
     if(!S.catFresh&&(S.st.inventory||[]).some(function(i){return i&&i.id&&!S.byId[i.id];})){S.catFresh=true;
       SK.listItems({fresh:true}).then(function(list){if(my!==S.seq||!list||!list.length)return;S.cat=list;S.byId={};list.forEach(function(b){S.byId[b.id]=b;});
-        var hid=(SK._heroUid&&SK._heroUid())||SK.activeHeroId||'';S.stock=ST().shopStock(S.cat,hid,Date.now());render();}).catch(function(){});}
-    var hid=(SK._heroUid&&SK._heroUid())||SK.activeHeroId||'';S.stock=ST().shopStock(S.cat,hid,Date.now());render();})
+        S.stock=mkStock();render();}).catch(function(){});}
+    S.stock=mkStock();render();})
   .catch(function(e){if(my!==S.seq)return;try{console.error('[магазин]',e);}catch(_){}
     S.err=(e&&e.code==='permission-denied')?'Немає доступу до речей. Увійди як Герой.':'Не вдалося завантажити магазин: '+((e&&e.message)||String(e));
     render();});}
 
 /* ── вміння «Торгівля»: купівля дешевша, продаж дорожчий (ціни — SKIT.store.buyPrice / sellPrice з м) ── */
+/* асортимент на сьогодні; «Торгівля» додає місць (stockPct: на 100% — удвічі більше) */
+function mkStock(){var hid=(SK._heroUid&&SK._heroUid())||SK.activeHeroId||'';return ST().shopStock(S.cat||[],hid,Date.now(),{stockPct:S.stockPct||0});}
 function loadTrade(){if(!(SK.getHero&&SK.tradePct))return;
   SK.getHero().then(function(h){S.trade=SK.tradePct(h);S.tradeOn=!!(h&&h.skills&&h.skills['base.trade']!=null);
-    S.tradePct=(window.SKSKILLS&&S.tradeOn)?SKSKILLS.mastery(SKSKILLS.bookState(h),'base.trade'):0;render();}).catch(function(){});}
+    S.tradePct=(window.SKSKILLS&&S.tradeOn)?SKSKILLS.mastery(SKSKILLS.bookState(h),'base.trade'):0;
+    var sp=(window.SKSKILLS&&S.tradeOn&&SKSKILLS.skillValues)?(SKSKILLS.skillValues('base.trade',S.tradePct).stockPct||0):0;
+    if(sp!==(S.stockPct||0)){S.stockPct=sp;if(S.stock)S.stock=mkStock();}
+    render();}).catch(function(){});}
 function bPrice(b){return ST().buyPrice(b,S.trade||0);}
 /* ціна товару: зі знижкою Торгівлі — стара закреслена */
 function bPriceH(b){var p=bPrice(b),o=Math.round(Number(b.price)||0);
@@ -4469,8 +4474,7 @@ function doDeal(){
   if(S.busy||S.ask)return;
   if(offline())return;
   // магазин відкритий з учора — опівночі товари змінились
-  if(S.stock&&S.stock.day!==ST().kyivDay(Date.now())){var hid=(SK._heroUid&&SK._heroUid())||SK.activeHeroId||'';
-    S.stock=ST().shopStock(S.cat,hid,Date.now());S.ct.buy=[];render();toast('Настала нова доба','Товари в магазині оновились — переглянь прилавок');return;}
+  if(S.stock&&S.stock.day!==ST().kyivDay(Date.now())){S.stock=mkStock();S.ct.buy=[];render();toast('Настала нова доба','Товари в магазині оновились — переглянь прилавок');return;}
   var t=totals(),sells=sellLive(),nSell=sells.reduce(function(a,e){return a+e.n;},0),nBuy=S.ct.buy.length+S.ct.buyback.length;
   var html=(nSell?'<div>💰 Продати: <b>'+nSell+'</b> шт. — <b style="color:#9ff0b4">+'+coinsH(t.got)+'</b></div>':'')
     +(nBuy?'<div>🛍 Купити: <b>'+nBuy+'</b> шт. — <b style="color:#ffb38f">−'+coinsH(t.spent)+'</b></div>':'')
