@@ -831,6 +831,14 @@ function pointsForLevel(lv) {
 }
 
 /* значки класових вмінь (у книзі й у бою) */
+/* власні картинки вмінь (плитки в книзі й на панелі), коли емодзі не підходить або збігається з іншим */
+var ICON_IMG = { 'knight.shieldbreak': 'img/skills/shieldbreak.svg' };
+function esc1(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+/* значок вміння для плитки: картинка або емодзі */
+function iconHtml(id) {
+  var s = BY_ID[id], src = ICON_IMG[id];
+  return src ? '<img class="skb-ic" src="' + src + '" alt="' + esc1(s ? s.name : '') + '" draggable="false">' : (s ? s.icon : '⚡');
+}
 var ICONS = {
   'knight.sword': '⚔️', 'knight.axe': '🪓', 'knight.spear': '🔱', 'knight.shield': '🛡️', 'knight.bash': '💥',
   'knight.berserk': '😡', 'knight.fists': '👊', 'knight.brave': '🦁', 'knight.care': '🧰',
@@ -1005,6 +1013,7 @@ window.SKSKILLS = {
   mastery: mastery,
   barBlock: barBlock,
   effectText: effectText,
+  iconHtml: iconHtml,
   forClass: function(cls){ return SKILLS.filter(function(s){ return s.cls === cls; }); },
   readyFor: function(cls){ return SKILLS.filter(function(s){ return s.cls === cls && s.ready; }); }
 };

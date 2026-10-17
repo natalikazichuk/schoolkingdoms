@@ -141,7 +141,7 @@ function tile(id, o){
   if (o.drag) cls += ' drag';
   if (sel === id && !o.inBar) cls += ' sel';
   return '<div class="' + cls + '" style="--p:' + (L ? p : 0) + '" data-skb="' + id + '"' + (o.from != null ? ' data-skb-from="' + o.from + '"' : '') + '>'
-    + '<div class="in">' + s.icon + '</div>'
+    + '<div class="in">' + (SKS.iconHtml ? SKS.iconHtml(id) : s.icon) + '</div>'
     + (L && !o.inBar ? '<span class="pc">' + (p >= 100 ? '👑 100%' : p + '%') + '</span>' : '')
     + (o.lock ? '<div class="lk">🔒</div>' : '') + '</div>';
 }
@@ -281,7 +281,7 @@ function paintBattle(bs){
     }
     var cls2 = 'skb-sk' + (s.type === 'A' ? ' act' : '') + (p >= 100 ? ' max' : '');
     h += '<div class="' + cls + '" data-skb-use="' + id + '" title="' + esc(tip) + '"><span class="k">' + (i + 1) + '</span>'
-      + '<div class="' + cls2 + '" style="--p:' + p + '"><div class="in">' + s.icon + '</div></div>' + badge + '</div>';
+      + '<div class="' + cls2 + '" style="--p:' + p + '"><div class="in">' + (SKS.iconHtml ? SKS.iconHtml(id) : s.icon) + '</div></div>' + badge + '</div>';
   }
   var hint = !any ? 'Постав вміння:<br>Інвентар → 📖'
     : b ? (b.me.skill ? 'Б\'є щоходу, коли<br>доступне · ще раз — зняти' : 'Торкнись — вміння<br>битиме щоходу') : '';
