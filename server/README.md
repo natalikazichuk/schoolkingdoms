@@ -8,8 +8,7 @@
 ```
 браузер ──HTTPS──▶ домашній проксі (сертифікат) ──HTTP──▶ VM :80 nginx
                                                           ├─ статика: /srv/sk/repo (git checkout)
-                                                          ├─ /api/   → Docker: app (Node.js) → db (PostgreSQL)
-                                                          └─ /<секрет> → websockify → SSH (доступ Claude)
+                                                          └─ /api/   → Docker: app (Node.js) → db (PostgreSQL)
 ```
 
 - `server/app` — API замість Firestore й Firebase Auth. Документи лежать у
@@ -30,7 +29,6 @@
 | `/srv/sk/.env` | пароль PostgreSQL, версія |
 | `/srv/sk/pgdata` | дані PostgreSQL |
 | `/srv/sk/backups` | щоденні копії бази (03:17, зберігаються 14 днів) |
-| `/srv/sk/tunnel_path` | секретна адреса SSH-тунелю |
 | `/srv/sk/data/hash-config.json` | параметри паролів Firebase |
 | `/srv/sk/migration` | вивантаження з Firebase (`firestore.json`, `users.json`) |
 
