@@ -24,6 +24,12 @@ fi
 git -C "$SK/repo" fetch -q origin "$BRANCH"
 git -C "$SK/repo" checkout -q -B "$BRANCH" "origin/$BRANCH"
 git -C "$SK/repo" reset -q --hard "origin/$BRANCH"
+# Цей скрипт щойно оновився разом із репозиторієм, а bash далі виконує стару
+# версію (файл відкрито до оновлення) — нові кроки спрацювали б лише з наступного
+# деплою. Тому один раз перезапускаємося вже оновленим скриптом.
+if [ -z "${SK_DEPLOY_REEXEC:-}" ]; then
+  SK_DEPLOY_REEXEC=1 exec "$SK/repo/server/deploy.sh" "$BRANCH"
+fi
 VERSION="$BRANCH@$(git -C "$SK/repo" rev-parse --short HEAD)"
 
 if [ ! -f "$SK/.env" ]; then
