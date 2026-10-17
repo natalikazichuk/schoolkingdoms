@@ -53,3 +53,14 @@ test('Торгівля: +товарів 25% → 100% разом з майсте�
   assert.strictEqual(S.skillValues('base.trade', 100).stockPct, 100);
   assert.strictEqual(S.skillValues('base.trade', 100).pct, 20, 'знижка лишилась');
 });
+
+test('кількість: зілля здоров\'я/мани 3–10, свитки 1–5, інші зілля 1–3', () => {
+  const other = [];
+  for (let i = 0; i < 8; i++) other.push({ id: 'luck' + i, name: 'Удача' + i, category: 'Зелья', consumable: true, price: 5, addStats: [{ stat: 'Шанс криту', value: 4, pct: true }] });
+  const seen = {};
+  for (let d = 0; d < 40; d++) {
+    const st = K.store.shopStock(other, 'h' + d, Date.UTC(2026, 9, 1 + d, 12));
+    st.cons.forEach(b => { const q = st.qty[b.id]; assert.ok(q >= 1 && q <= 3, b.id + ': ' + q); seen[q] = 1; });
+  }
+  assert.deepStrictEqual(Object.keys(seen).sort(), ['1', '2', '3']);
+});
