@@ -647,6 +647,15 @@ body.scr-battle .wrap{max-width:1500px}
 .step .dice b{color:#eaf2ff}
 .step .crit{color:#ff3b3b;font-weight:900}               /* Критичний урон !!! */
 .step .mag{color:#d06bff;font-weight:900}                /* магічний урон — яскраво фіолетовим */
+.result .card.pk{max-width:520px}
+.pk-list{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pk-card{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 6px;border-radius:16px;cursor:pointer;font:inherit;color:#fff;
+  background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.18)}
+.pk-card:hover{transform:translateY(-2px)}
+.pk-card.t0{border-color:#4bd07a}.pk-card.t1{border-color:#5aa9ff}.pk-card.t2{border-color:#b77bff}.pk-card.t3{border-color:#ff6b6b}
+.pk-av{width:56px;height:56px;display:flex;align-items:center;justify-content:center;font-size:2rem}
+.pk-nm{font-weight:900;font-size:.9rem}.pk-sk{font-size:.75rem;opacity:.85}.pk-xp{font-size:.75rem;font-weight:800;color:#F2C75C}
+@media (max-width:420px){.pk-list{grid-template-columns:1fr}}
 .result .logsave{display:flex;gap:8px;justify-content:center;margin:2px 0 10px}
 .result .logsave button{font:inherit;font-size:.78rem;font-weight:800;color:#cfe0f5;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.2);border-radius:999px;padding:6px 12px;cursor:pointer}
 /* журнал: простий режим ховає кидки й розрахунки; поломки речей видно завжди */
@@ -1561,6 +1570,15 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 </div>
 
 <!-- оверлей результату -->
+<!-- вибір суперника: 4 Лицарі за складністю -->
+<div class="result" id="pickOp" hidden>
+  <div class="card pk">
+    <div class="big" style="font-size:1.4rem">Обери суперника</div>
+    <p style="margin:6px 0 10px">Що складніший — то більше досвіду за перемогу</p>
+    <div class="pk-list" id="pickList"></div>
+    <button class="cta ghost" id="pickX" style="margin-top:10px">Скасувати</button>
+  </div>
+</div>
 <div class="result" id="result" hidden>
   <div class="card">
     <div class="em" id="resEm">🏆</div>
@@ -1671,7 +1689,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
 <script src="sk-arena-rules.js?v=24"></script>
-<script src="sk-battle.js?v=19"></script>
+<script src="sk-battle.js?v=22"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
    Інвентар, скриня, смітник, продане / куплене сьогодні й монети
@@ -1743,11 +1761,14 @@ window.SKHERO = (function(){
   ];
 
   /* ── боти (казкові, добрі імена) ── */
+  /* 4 суперники = 4 складності. Поки всі — Лицарі (коли доробимо класи — випадковий клас).
+     pct — майстерність усіх вмінь; mana — «бюджет на вміння» (Берсерк 100, Благословення 50);
+     use — % ходів, коли бере активне вміння; smart — розумний вибір; xp — множник досвіду за перемогу. */
   var BOTS = [
-    {name:'Тренувальний лицар', avatar:'hero:knight-green-boy',  power:0},
-    {name:'Джура Тимко',        avatar:'hero:knight-blue-boy',   power:1},
-    {name:'Лицарка Оленка',     avatar:'hero:knight-purple-girl',power:2},
-    {name:'Вартовий Грім',      avatar:'hero:knight-green-girl', power:3}
+    {name:'Тренувальний лицар', avatar:'hero:knight-green-boy',  power:0, ic:'🟢', pct:25,  mana:100, use:30, smart:false, xp:0.75},
+    {name:'Джура Тимко',        avatar:'hero:knight-blue-boy',   power:1, ic:'🔵', pct:50,  mana:200, use:50, smart:false, xp:1},
+    {name:'Лицарка Оленка',     avatar:'hero:knight-purple-girl',power:2, ic:'🟣', pct:75,  mana:300, use:70, smart:true,  xp:1.25},
+    {name:'Вартовий Грім',      avatar:'hero:knight-green-girl', power:3, ic:'🔴', pct:100, mana:400, use:90, smart:true,  xp:1.5}
   ];
 
   /* ── стан гравця (арена) ── */
@@ -2561,17 +2582,59 @@ window.SKHERO = (function(){
   /* ══════════ БІЙ (1×1) ══════════ */
   var B = null; // стан поточного бою
 
-  function pickBot(){
-    // бот під рівень гравця: беремо приблизно за силою
-    var idx = Math.min(BOTS.length-1, Math.floor((arena.level-1)/2));
-    var bot = BOTS[idx];
-    function vary(v){ return Math.max(1, Math.round((v||0)*(0.8+Math.random()*0.4))); } // ±20% від Героя
+  function pickBot(tier){
+    var bot = BOTS[Math.max(0, Math.min(BOTS.length-1, tier|0))];
+    function vary(v, d){ return Math.max(1, Math.round((v||0)*(1-d+Math.random()*2*d))); }
     return {
-      name: bot.name, avatar: bot.avatar,
-      level: Math.max(1, arena.level + (bot.power-1)),
-      health: vary(hero.health), accuracy: vary(hero.accuracy), agility: vary(hero.agility), mana: vary(hero.mana),
+      name: bot.name, avatar: bot.avatar, tier: bot.power, ic: bot.ic, pct: bot.pct, xpMul: bot.xp, cls: 'knight',
+      level: Math.max(1, arena.level),                               // рівень = рівень Героя: вміння відкриваються так само
+      health: vary(hero.health, 0.2), accuracy: vary(hero.accuracy, 0.1), agility: vary(hero.agility, 0.1),   // здоров'я ±20%, точність і спритність ±10%
+      mana: bot.mana,                                                // мана — бюджет на вміння за складністю
       lastPlayerAtk: null
     };
+  }
+  /* вміння бота-Лицаря: усі оброблені вміння класу свого рівня (+ Концентрація) на pct %;
+     up — пороги росту в межах бою (+1…+5 %), щоб бот ріс, як Герой, а наступний бій — знову з бази */
+  function botSkills(bot){
+    var S = window.SKSKILLS, out = {sk:{}, skv:{}, bar:[], up:{}};
+    if(!S || !S.readyFor) return out;
+    var list = S.readyFor(bot.cls).filter(function(s){ return (s.lv||1) <= bot.level; });
+    if(S.byId('base.focus') && S.RULES && S.RULES['base.focus']) list.push(S.byId('base.focus'));
+    list.forEach(function(s){
+      var p = bot.pct, tot = S.growTotal(s), u0 = S.usesForPct(p, tot);
+      out.sk[s.id] = p/100; out.skv[s.id] = S.skillValues(s.id, p);
+      if(s.type==='A') out.bar.push(s.id);
+      var ups = [];
+      for(var k=1; k<=5 && p+k<=100; k++) ups.push({u: Math.round((S.usesForPct(p+k, tot) - u0)*10)/10, pct: p+k, v: S.skillValues(s.id, p+k)});
+      if(ups.length) out.up[s.id] = ups;
+    });
+    return out;
+  }
+  /* зброя бота під його вміння: меч, сокира або спис (сила ±20% від зброї Героя, інакше найближча) */
+  function botWeapon(catalog, heroEq){
+    var it = function(b){ return RULES.itemPower ? RULES.itemPower(b) : Number(b.valueMax)||0; };
+    var pool = (catalog||[]).filter(function(b){ return b && b.category==='Зброя' && !b.consumable && b.active!==false && ['sword','axe','spear'].indexOf(b.weaponType)>=0; });
+    if(!pool.length) return null;
+    var hw = (heroEq||[]).filter(function(e){ return e.inst && e.inst.slot==='weaponR' && e.base; })[0];
+    var hp = hw ? it(hw.base) : Math.min.apply(null, pool.map(it));
+    var near = pool.filter(function(b){ var p = it(b); return p >= hp*0.8 && p <= hp*1.2; });
+    if(!near.length){ var best = Infinity; pool.forEach(function(b){ best = Math.min(best, Math.abs(it(b)-hp)); }); near = pool.filter(function(b){ return Math.abs(it(b)-hp)===best; }); }
+    var base = near[Math.floor(Math.random()*near.length)];
+    var inst = window.SKIT && SKIT.makeInstance ? SKIT.makeInstance(base, {bonus:1}) : {id:base.id, bonus:1};
+    inst.slot = 'weaponR';
+    return {slot:'weaponR', base:base, inst:inst};
+  }
+  /* вибір суперника: 4 картки (складність, нагорода) */
+  function openPick(){
+    if(live()){ enterBattle(); return; }
+    var box = $('pickOp'); if(!box){ startBattle(1); return; }
+    $('pickList').innerHTML = BOTS.map(function(b, i){
+      var av = window.SKAVA ? SKAVA.html(b.avatar, {size:56}) : '🛡️';
+      return '<button type="button" class="pk-card t'+i+'" data-tier="'+i+'"><span class="pk-av">'+av+'</span>'
+        +'<span class="pk-nm">'+b.ic+' '+b.name+'</span><span class="pk-sk">Лицар · вміння '+b.pct+'%</span>'
+        +'<span class="pk-xp">досвід ×'+b.xp+'</span></button>';
+    }).join('');
+    box.hidden = false;
   }
 
   /* ── бойовий профіль Героя: характеристики + вдягнені речі ──
@@ -2729,7 +2792,7 @@ window.SKHERO = (function(){
     // права картка + картки-цілі — суперник
     paintFull(B.op.f.avatar,'oPeek','oSceneEmoji');
     paintAtkCards(B.op.f.avatar);
-    $('oName').textContent = B.op.f.name;
+    $('oName').textContent = B.op.f.name + (B.op.f.ic ? ' '+B.op.f.ic+' '+B.op.f.pct+'%' : '');
     $('oLvl').textContent  = B.op.f.level;
 
     updateForce('p', B.me); updateForce('o', B.op);
@@ -2761,6 +2824,41 @@ window.SKHERO = (function(){
     return (ups.length ? '<span class="ln grw">📈 Вміння зросло: '+ups.join(' · ')+'</span>' : '')
       + '<span class="dice grw">📈 Спрацювання вмінь: '+pts.join(' · ')+'</span>';
   }
+  /* ══ 🧪 ТИМЧАСОВО ДЛЯ ТЕСТУ ВМІНЬ ══ (прибрати: TEST_LOG = false або видалити блок)
+     у детальному журналі — стан обох після ходу; у заголовку файлу — числа вмінь, розум і ріст бота, правила бою */
+  var TEST_LOG = true;
+  function testLine(e){
+    if(!TEST_LOG || !e.st) return '';
+    var r = e.r, f = function(x, who){
+      var t = [who+': мана '+x.m];
+      if(x.f) t.push('концентрація '+x.f);
+      if(x.bz >= r) t.push('лють до ходу '+x.bz);
+      if(x.bl >= r) t.push('благословення до ходу '+x.bl);
+      if(x.dis >= r) t.push('без зброї до ходу '+x.dis);
+      if(x.kn > r) t.push('оглушення на хід '+x.kn);
+      var cd = Object.keys(x.cd||{}).filter(function(k){ return x.cd[k] > r; }).map(function(k){ var S = window.SKSKILLS && SKSKILLS.byId(k); return (S?S.icon:k)+' до '+x.cd[k]; });
+      if(cd.length) t.push('перезарядка: '+cd.join(', '));
+      return t.join(' · ');
+    };
+    return '<span class="dice">🧪 стан після ходу — '+f(e.st.me, 'ти')+' | '+f(e.st.op, biEsc(B.op.f.name))+'</span>';
+  }
+  function testLines(){
+    if(!TEST_LOG || !B || !B.me || !B.op) return [];
+    var S = window.SKSKILLS, out = ['', '🧪 ТИМЧАСОВО ДЛЯ ТЕСТУ (параметри вмінь і бою)'];
+    var vals = function(u){ return Object.keys(u.skv||{}).map(function(id){ var s = S && S.byId(id), v = u.skv[id];
+      return (s ? s.icon+' '+s.name : id)+' '+Math.round((u.sk&&u.sk[id]||0)*100)+'%: '+Object.keys(v).map(function(k){ return k+'='+v[k]; }).join(', '); }); };
+    var pl = function(p){ return 'здоров\'я '+p.hp+' · мана '+(p.mana||0)+' · урон зброї '+(p.wMin||0)+'–'+(p.wMax||0)+' · урон +'+(p.dmgFlat||0)+' · урон %+'+(p.dmgPct||0)
+      +' · маг. %+'+(p.magPct||0)+' · крит +'+(p.critPct||0)+'% · блок фіз '+(p.blockPhys||0)+'% / маг '+(p.blockMag||0)+'%'+(p.pierce?' · пробиття '+p.pierce+'%':'')+(p.extra?' · дод. атак '+p.extra:'')+(p.evade?' · відскок':''); };
+    out.push('  Ти (профіль): '+pl(B.me.p));
+    vals(B.me).forEach(function(l){ out.push('    '+l); });
+    out.push('  '+B.op.f.name+' (профіль): '+pl(B.op.p));
+    if(B.op.ai) out.push('    розум: бере вміння в '+B.op.ai.use+'% ходів'+(B.op.ai.smart?', розумний вибір':', навмання'));
+    vals(B.op).forEach(function(l){ out.push('    '+l); });
+    if(B.op.up) out.push('    ріст у бою (спрацювань до +1%): '+Object.keys(B.op.up).map(function(id){ var s = S && S.byId(id), u = B.op.up[id][0]; return (s?s.icon:id)+' '+(u?u.u:'—'); }).join(' · '));
+    var C = RULES.BATTLE || {};
+    out.push('  Правила бою: база урону '+C.baseDmg+' · крит ×'+C.critMult+' (база '+C.critBase+'%) · влучання '+Math.round(C.hitMin*100)+'–'+Math.round(C.hitMax*100)+'% · страх '+Math.round(C.fearFirst*100)+'%/'+Math.round(C.fearNext*100)+'% · пояс бота '+(C.botBeltTest?'тест (свитки)':'порожній'));
+    return out;
+  }
   /* детальний журнал: знос речей за хід (і що зберіг «Догляд за зброєю») та здоров'я після ходу */
   function wearLine(e){
     var w = e.wear || [], lost = w.filter(function(x){ return !x.saved; }), kept = w.filter(function(x){ return x.saved; });
@@ -2776,41 +2874,47 @@ window.SKHERO = (function(){
       + (e.auto ? '<span class="b" title="Хід без тебе: ті самі зони, що минулого разу">⏳ авто</span> ' : '')
       + (e.blessHeal ? '<span class="ln use">🙏 Благословення: <span class="g">+'+e.blessHeal+' ❤️</span></span>' : '')
       + (e.opDisarmed && !(e.skill && e.skill.kind==='disarm') ? '<span class="ln use">🤚 '+biEsc(B.op.f.name)+' без зброї</span>' : '')
+      + (e.opBlessHeal ? '<span class="ln use op">🙏 '+biEsc(B.op.f.name)+': благословення <span class="g">+'+e.opBlessHeal+' ❤️</span></span>' : '')
+      + (e.meDisarmed && !(e.opSkill && e.opSkill.kind==='disarm') ? '<span class="ln use op">🤚 Ти без зброї — вдягни її сам (дія ходу) або чекай хід</span>' : '')
       + strikeLines(e) + skillLine(e)
       + (e.calm ? '<span class="dice">🧘 Незворушність: 🎲 '+e.calm[0]+(e.calm[2]?' ≤ ':' > ')+e.calm[1]+'% — '+(e.calm[2]?'концентрація втрималась':'концентрація −1')+'</span>' : '')
-      + growLine(e) + wearLine(e));
+      + (e.opUp && window.SKSKILLS ? '<span class="dice">📈 '+biEsc(B.op.f.name)+': '+e.opUp.map(function(x){ var S2 = SKSKILLS.byId(x[0]); return (S2?S2.icon+' '+S2.name:x[0])+' → '+x[1]+'%'; }).join(' · ')+'</span>' : '')
+      + growLine(e) + wearLine(e) + testLine(e));
     (e.broke||[]).forEach(function(b){ addBreak(b); });
   }
   /* рядок журналу: удар активним вмінням (у ту саму зону, що й основний) */
-  function skillLine(e){
-    var k = e.skill; if(!k) return '';
+  /* рядки вмінь обох: твоє (e.skill) і суперника (e.opSkill — бот-Лицар) */
+  function skillLine(e){ return skillLineOf(e.skill, e.me.atk, 'Ти', false) + skillLineOf(e.opSkill, e.op.atk, B.op.f.name, true); }
+  function skillLineOf(k, zone, who, op){
+    if(!k) return '';
+    var LN = '<span class="ln use'+(op?' op':'')+'">'+biEsc(who)+': ';
     var S = window.SKSKILLS && SKSKILLS.byId(k.id), nm = S ? S.icon+' «'+S.name+'»' : '⚡ вміння';
-    if(k.kind==='fail' && k.id==='knight.berserk') return '<span class="ln use">Ти: '+nm+': <span class="b">не вдалося</span> — спробуй наступного ходу<span class="dice">🎲 '+k.roll+' > '+k.need+'%</span></span>';
+    if(k.kind==='fail' && k.id==='knight.berserk') return LN+nm+': <span class="b">не вдалося</span> — спробуй наступного ходу<span class="dice">🎲 '+k.roll+' > '+k.need+'%</span></span>';
     var dice = '<span class="dice">🎲 '+k.roll+(k.ok?' ≤ ':' > ')+k.need+'%'+(k.calc && k.kind==='hit' ? ' · '+biEsc(k.calc)+' = '+k.dmg : '')+'</span>';
-    if(k.id==='knight.lunge') return '<span class="ln use">Ти: '+nm+': '+(k.kind==='lunge'
+    if(k.id==='knight.lunge') return LN+nm+': '+(k.kind==='lunge'
         ? '<span class="g">удар ×'+k.mul+', броня ворога '+k.armor+'%</span>'+(k.extra ? ' · <span class="crit">ще один удар!</span>' : '')
         : '<span class="b">не вдалося</span> — звичайний удар')
       +'<span class="dice">🎲 '+k.roll+(k.ok?' ≤ ':' > ')+k.need+'%'+(k.exNeed ? ' · ще удар 🎲 '+k.exRoll+(k.extra?' ≤ ':' > ')+k.exNeed+'%' : '')+'</span></span>';
-    if(k.kind==='buff') return '<span class="ln use">Ти: '+nm+': <span class="g">лють! +'+k.dmgPct+'% урону, −'+k.armorCut+'% броні на '+k.turns+(k.turns<5?' ходи':' ходів')+'</span>'+(k.mana?' <span style="opacity:.75">(−'+k.mana+' мани)</span>':'')+'<span class="dice">🎲 '+k.roll+' ≤ '+k.need+'%</span></span>';
-    if(k.kind==='bless') return '<span class="ln use">Ти: '+nm+': <span class="g">броня й маг. захист +'+k.defPct+'%, лікує '+k.heal+'% щоходу — '+k.turns+(k.turns<5?' ходи':' ходів')+'</span> <span style="opacity:.75">(−'+k.mana+' мани)</span><span class="dice">🎲 '+k.roll+' ≤ '+k.need+'%</span></span>';
+    if(k.kind==='buff') return LN+nm+': <span class="g">лють! +'+k.dmgPct+'% урону, −'+k.armorCut+'% броні на '+k.turns+(k.turns<5?' ходи':' ходів')+'</span>'+(k.mana?' <span style="opacity:.75">(−'+k.mana+' мани)</span>':'')+'<span class="dice">🎲 '+k.roll+' ≤ '+k.need+'%</span></span>';
+    if(k.kind==='bless') return LN+nm+': <span class="g">броня й маг. захист +'+k.defPct+'%, лікує '+k.heal+'% щоходу — '+k.turns+(k.turns<5?' ходи':' ходів')+'</span> <span style="opacity:.75">(−'+k.mana+' мани)</span><span class="dice">🎲 '+k.roll+' ≤ '+k.need+'%</span></span>';
     if(k.id==='knight.disarm'){
-      if(k.kind==='noweapon') return '<span class="ln use">Ti: '.replace('Ti','Ти')+nm+': <span class="b">у суперника немає зброї</span></span>';
-      if(k.kind==='immune') return '<span class="ln use">Ти: '+nm+': <span class="b">суперник і так без зброї</span></span>';
-      return '<span class="ln use">Ти: '+nm+': '+(k.ok ? '<span class="crit">вибив зброю! 🤚</span> — суперник б\'є без неї цей і наступний хід' : '<span class="b">не вдалося</span>')
-        +'<span class="dice">🎲 '+k.roll+(k.ok?' ≤ ':' > ')+k.need+'% (50 + (твоє володіння '+k.my+'% − суперника '+k.opl+'%) / 2)</span></span>';
+      if(k.kind==='noweapon') return LN+nm+': <span class="b">у суперника немає зброї</span></span>';
+      if(k.kind==='immune') return LN+nm+': <span class="b">суперник і так без зброї</span></span>';
+      return LN+nm+': '+(k.ok ? (op?'<span class="crit">вибив у тебе зброю! 🤚</span> — ти б\'єш без неї цей і наступний хід (або вдягни її сам — це дія ходу)':'<span class="crit">вибив зброю! 🤚</span> — суперник б\'є без неї цей і наступний хід') : '<span class="b">не вдалося</span>')
+        +'<span class="dice">🎲 '+k.roll+(k.ok?' ≤ ':' > ')+k.need+'% (50 + (володіння '+(op?'суперника ':'твоє ')+k.my+'% − '+(op?'твоє ':'суперника ')+k.opl+'%) / 2)</span></span>';
     }
     if((k.id==='knight.haft'||k.id==='knight.daze') && k.hits){
-      if(k.kind==='fail') return '<span class="ln use">Ти: '+nm+': <span class="b">не вдалося</span><span class="dice">🎲 '+k.roll+' > '+k.need+'%</span></span>';
+      if(k.kind==='fail') return LN+nm+': <span class="b">не вдалося</span><span class="dice">🎲 '+k.roll+' > '+k.need+'%</span></span>';
       var hs2 = k.hits.map(function(h){ return ZONE_UA[h.zone]+': '+(h.kind==='hit'||h.kind==='crit' ? '<span class="g">−'+h.dmg+'</span>' : h.kind==='block' ? '<span class="b">блок</span>' : '<span class="b">промах</span>'); }).join(' · ');
-      return '<span class="ln use">Ти: '+nm+' → '+hs2
-        +(k.daze ? ' · <span class="crit">збив концентрацію'+(k.focusLost?' ('+k.focusLost+')':'')+'</span>' : k.dazeSaved ? ' · <span class="b">суперник встояв (Хоробрість)</span>' : '')
+      return LN+nm+' → '+hs2
+        +(k.daze ? ' · <span class="crit">збив концентрацію'+(k.focusLost?' ('+k.focusLost+')':'')+'</span>' : k.dazeSaved ? (op?' · <span class="b">ти встояв (Хоробрість)</span>':' · <span class="b">суперник встояв (Хоробрість)</span>') : '')
         +'<span class="dice">🎲 '+k.roll+' ≤ '+k.need+'%'+(k.secNeed!=null ? ' · другий удар 🎲 '+k.secRoll+(k.secRoll<=k.secNeed?' ≤ ':' > ')+k.secNeed+'%' : '')
         +' · '+k.hits.map(function(h){ return h.calc ? biEsc(h.calc)+' = '+(h.dmg||0) : ''; }).join(' | ')+'</span></span>';
     }
     var t = k.kind==='fail' ? '<span class="b">не вдалося</span>'
       : k.kind==='block' ? '<span class="b">заблоковано</span>'
-      : (k.noDmg ? '<span class="g">штовхнув</span>' : '<span class="g">влучив</span> (−'+dmgHtml(k.dmg, k.magDmg||0)+')') + (k.knock ? ' · <span class="crit">збив з ніг 😵</span> — суперник пропустить удар' : k.knockImmune ? ' · <span class="b">не збити з ніг — суперник ще оговтується (імунітет)</span>' : k.knockHalf ? ' · <span class="b">суперник щойно підвівся: шанс збити з ніг навпіл</span>' : '');
-    return '<span class="ln use">Ти: '+nm+' → '+ZONE_UA[e.me.atk]+': '+t+(k.mana ? ' <span style="opacity:.75">(−'+k.mana+' мани)</span>' : '')+dice+'</span>';
+      : (k.noDmg ? '<span class="g">штовхнув</span>' : '<span class="g">влучив</span> (−'+dmgHtml(k.dmg, k.magDmg||0)+')') + (k.knock ? (op?' · <span class="crit">збив тебе з ніг 😵</span> — ти пропустиш удар':' · <span class="crit">збив з ніг 😵</span> — суперник пропустить удар') : k.knockImmune ? ' · <span class="b">не збити з ніг — суперник ще оговтується (імунітет)</span>' : k.knockHalf ? ' · <span class="b">суперник щойно підвівся: шанс збити з ніг навпіл</span>' : '');
+    return LN+nm+' → '+ZONE_UA[zone]+': '+t+(k.mana ? ' <span style="opacity:.75">(−'+k.mana+' мани)</span>' : '')+dice+'</span>';
   }
   /* Кожен удар — окремим рядком журналу: рядок N = мій удар N · удар суперника N.
      У кого ударів більше (додаткові атаки: 2, 3, 6…) — у зайвих рядках лише його удари.
@@ -2830,7 +2934,9 @@ window.SKHERO = (function(){
       var h0x = mh[i] && mh[i].hits && mh[i].hits[0], lx = h0x && h0x.lungeExtra;                       // Випад: ще один удар
       var xtag = h0x && h0x.second ? ' <span class="sno">⚡ друга атака</span>' : h0x && h0x.riposte ? ' <span class="sno">↩️ протидія</span>' : '';
       if(mh[i]) parts.push(phrase('Ти → '+ZONE_UA[mz ? mz.zone : e.me.atk]+(mz ? ' <span class="sno">👊👊 Двійка</span>' : lx ? ' <span class="sno">🗡️ ще удар'+(h0x.shieldX2?' · щит ×2':'')+'</span>' : xtag || tag(mh,i)), mh[i]));
-      if(oh[i]) parts.push(phrase(B.op.f.name+' → '+ZONE_UA[e.op.atk]+tag(oh,i), oh[i]));
+      var o0 = oh[i] && oh[i].hits && oh[i].hits[0];                                                     // теги ударів суперника
+      var otag = o0 && o0.combo ? ' <span class="sno">👊👊 Двійка</span>' : o0 && o0.lungeExtra ? ' <span class="sno">🗡️ ще удар</span>' : o0 && o0.second ? ' <span class="sno">⚡ друга атака</span>' : o0 && o0.riposte ? ' <span class="sno">↩️ протидія</span>' : '';
+      if(oh[i]) parts.push(phrase(B.op.f.name+' → '+ZONE_UA[o0 && o0.combo ? o0.zone : e.op.atk]+(otag || tag(oh,i)), oh[i]));
       out += '<span class="ln">'+parts.join(' <span style="opacity:.5">·</span> ')
         + (mh[i] ? diceLine('Ти', mh[i]) : '') + (oh[i] ? diceLine(B.op.f.name, oh[i]) : '') + '</span>';
     }
@@ -2856,8 +2962,9 @@ window.SKHERO = (function(){
     }).map(function(e){ return (e.base && e.base.name) || e.inst.id; });
   }
 
-  function startBattle(){
+  function startBattle(tier){
     if(live()){ enterBattle(); return; }   // незавершений бій не перезапускаємо — продовжуємо
+    if(tier == null){ openPick(); return; }   // спершу — вибір суперника
     // поки герой у магазині (у цій чи іншій вкладці) — новий бій не почати
     if(window.SKSHOP && SKSHOP.isOpen()){ showToast('Спершу вийди з магазину', 'Магазин відкритий — можливо, в іншій вкладці. Закрий його там (✕) і спробуй ще раз'); return; }
     if(startBattle.busy) return; startBattle.busy = true;
@@ -2868,11 +2975,14 @@ window.SKHERO = (function(){
       return loadHeroFighter().then(function(r){
         var weak = weakItems(r.eq);
         if(weak.length && !confirm('Ці речі майже зламані: ' + weak.join(', ') + '.\n\nЯкщо річ зламається в бою — після бою вона зникне. Почати бій?')){ startBattle.busy = false; return; }
-        var bot = pickBot();
-        /* суперник: базові показники Героя ±botVary + ВИПАДКОВІ речі тих самих категорій
-           (сила кожної ±botItemVary від речі Героя, SKARENA.botItems). Без каталогу —
-           як раніше: копія профілю Героя ±botVary. */
-        var bits = (RULES.botItems && r.catalog && r.catalog.length && r.eq.length) ? RULES.botItems(r.catalog, r.eq, window.SKIT) : null;
+        var bot = pickBot(tier);
+        /* суперник: базові показники Героя (здоров'я ±20%, точність і спритність ±10%) + ВИПАДКОВІ речі тих самих
+           категорій (сила кожної ±botItemVary від речі Героя, SKARENA.botItems); зброя — під вміння Лицаря. */
+        var bits = (RULES.botItems && r.catalog && r.catalog.length && r.eq.length) ? RULES.botItems(r.catalog, r.eq, window.SKIT) : (r.catalog && r.catalog.length ? [] : null);
+        if(bits){ var bw = botWeapon(r.catalog, r.eq);
+          if(bw){ bits = bits.filter(function(e){ return e.slot!=='weaponR'; }); bits.push(bw);
+            if(RULES.isTwoHanded && RULES.isTwoHanded(bw.base)) bits = bits.filter(function(e){ return e.slot!=='weaponL'; }); } }
+        var bsk = botSkills(bot);
         var bp;
         if(bits && bits.length && RULES.fighter){
           bp = RULES.fighter({health:bot.health, accuracy:bot.accuracy, agility:bot.agility, mana:bot.mana}, bits, window.SKIT);
@@ -2886,7 +2996,9 @@ window.SKHERO = (function(){
           me: { name: hero.name, avatar: hero.avatar, level: arena.level,
                 stats: {health:hero.health, accuracy:hero.accuracy, agility:hero.agility, mana:hero.mana}, eq: r.eq, belt: r.belt||[],
                 sk: r.sk||{}, skv: r.skv||{}, bar: r.bar||[], cls: r.cls||null },
-          op: { f: bot, p: bp, belt: RULES.botBelt ? RULES.botBelt(r.catalog, window.SKIT) : [] }
+          op: { f: bot, p: bp, belt: RULES.botBelt ? RULES.botBelt(r.catalog, window.SKIT) : [],
+                eq: bits || [], sk: bsk.sk, skv: bsk.skv, bar: bsk.bar, up: bsk.up, cls: bot.cls, mana: bot.mana,
+                ai: {use: BOTS[bot.tier].use, smart: BOTS[bot.tier].smart} }
         });
         // для «+1%» у бою: скільки спрацювань і невдач було на старті (як рахує сервер)
         st.me.use0 = r.use0 || {}; st.me.fail0 = r.fail0 || {};
@@ -3078,7 +3190,16 @@ window.SKHERO = (function(){
       '  '+row(B.op.f.name, B.op.p),
       '  Шанс влучити: '+(hero.name||'Ти')+' → '+pc(B.me.p, B.op.p)+' · '+B.op.f.name+' → '+pc(B.op.p, B.me.p)
         +'  (межі '+Math.round(CFG.hitMin*100)+'–'+Math.round(CFG.hitMax*100)+'%)']
-      .concat(skl.length ? ['  Вміння на початку бою: '+skl.join(' · ')] : []);
+      .concat(skl.length ? ['  Вміння на початку бою: '+skl.join(' · ')] : [])
+      .concat(botLine())
+      .concat(testLines());   // 🧪 тимчасово
+    /* суперник-Лицар: складність, мана й вміння (на початку бою — з бази) */
+    function botLine(){
+      var f = B.op.f || {}, os = B.op.up ? Object.keys(B.op.skv||{}) : Object.keys(B.op.sk||{});
+      if(!f.ic && !os.length) return [];
+      return ['  Суперник: '+(f.ic||'')+' Лицар '+(f.pct||'')+'% · рівень '+(f.level||'?')+' · мана '+Math.round(B.op.mana||0)+(f.xpMul?' · досвід ×'+f.xpMul:'')
+        +(os.length ? ' · вміння: '+os.map(function(id){ var s = S && S.byId(id); return s ? s.icon+' '+s.name : id; }).join(' · ') : '')];
+    }
   }
   /* Для збереження/копіювання: спершу простий журнал, далі — детальний (з кидками). */
   function logTextBoth(){
@@ -3223,6 +3344,9 @@ window.SKHERO = (function(){
     if(e.skill){ var ski = window.SKSKILLS && SKSKILLS.byId(e.skill.id);
       if(e.skill.kind!=='lunge' && e.skill.kind!=='noweapon' && e.skill.kind!=='immune') floatOne(e.skill.kind==='buff'||e.skill.kind==='bless' ? 'p' : 'o', e.skill, nMe, nMe + 1, ski ? ski.icon : '⚡');   // Випад — урон уже в основному ударі
       if(e.skill.knock) setTimeout(function(){ floatOne('o', {kind:'knock'}, 0, 1); }, (nMe+1)*380); }
+    if(e.opSkill){ var oki = window.SKSKILLS && SKSKILLS.byId(e.opSkill.id), ok2 = e.opSkill;   // вміння суперника — дзеркально
+      if(ok2.kind!=='lunge' && ok2.kind!=='noweapon' && ok2.kind!=='immune' && ok2.kind!=='fail') floatOne(ok2.kind==='buff'||ok2.kind==='bless' ? 'o' : 'p', ok2, 0, 1, oki ? oki.icon : '⚡');
+      if(ok2.knock) setTimeout(function(){ floatOne('p', {kind:'knock'}, 0, 1); }, 380); }
     floatGrow(grow0, B.me.grow, growF0, B.me.growF, (nMe + (e.skill ? 2 : 1)) * 380 + 500);
 
     renderTurn(e);          // журнал: Хід N (+ поломки)
@@ -3498,7 +3622,7 @@ window.SKHERO = (function(){
     $('resEm').textContent = V[0]; $('resBig').textContent = V[1]; $('resTxt').textContent = V[2];
     if(s.xp > 0){
       var coef = s.coef, cn = (s.result!=='lose' && coef && Math.abs(coef-1) >= 0.01) ? ' (×' + coef.toFixed(2).replace('.', ',') + (coef > 1 ? ' — суперник сильніший' : ' — суперник слабший') + ')' : '';
-      $('resXp').textContent = '+' + s.xp + ' досвіду' + cn; $('resXp').style.display='';
+      $('resXp').textContent = '+' + s.xp + ' досвіду' + cn + (s.xpMul && s.xpMul !== 1 && s.result !== 'lose' ? ' (складність ×' + s.xpMul + ')' : ''); $('resXp').style.display='';
     }else $('resXp').style.display='none';
     var note = SB.noticeText(s) + (pending ? ' Підсумок запишеться, щойно зʼявиться звʼязок.' : '');
     var nt = $('resNote'); if(nt){ nt.textContent = note; nt.style.display = note ? '' : 'none'; }
@@ -3555,6 +3679,11 @@ window.SKHERO = (function(){
     setLogMode(logMode());
     $('findBtn').addEventListener('click', function(){
       startBattle();
+    });
+    $('pickX').addEventListener('click', function(){ $('pickOp').hidden = true; });
+    $('pickList').addEventListener('click', function(ev){
+      var c = ev.target.closest('[data-tier]'); if(!c) return;
+      $('pickOp').hidden = true; startBattle(+c.getAttribute('data-tier'));
     });
     document.querySelectorAll('.fmt').forEach(function(f){
       f.addEventListener('click', function(){
