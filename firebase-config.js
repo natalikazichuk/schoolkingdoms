@@ -428,6 +428,9 @@ const SK = {
      у чергу; готовий образ сам стає аватаром Героя (avatar = 'hero:gen/<файл>'). */
   renderAvatar()      { return skApi('POST', 'avatar/render', {}); },
   avatarStatus()      { return skApi('GET', 'avatar/status'); },
+  // «Мої колекції»: створені образи лишаються в heroes/{id}.avatarCollection
+  wearAvatar(key)     { return skApi('POST', 'avatar/wear', { key }); },
+  forgetAvatar(key)   { return skApi('POST', 'avatar/forget', { key }); },
 
   async getHero() {
     const heroId = SK._heroUid();

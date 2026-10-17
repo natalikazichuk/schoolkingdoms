@@ -12,7 +12,7 @@
 <script src="sk-resume.js?v=1"></script>
 <script>SKResume.go();   /* відкрили застосунок — одразу туди, де Герой зупинився (якщо не минуло 2 годин) */</script>
 <script src="sk-arena-rules.js?v=25"></script>
-<script src="sk-avatar.js?v=3"></script>
+<script src="sk-avatar.js?v=5"></script>
 <script type="module" src="firebase-config.js"></script>
 </head>
 <body>
@@ -737,7 +737,7 @@ async function loadVyproProgress(){
         }
         if(child.grade!=null) setTxt('heroGrade', gradeLabel(child.grade));
         // синхронізований аватар (емодзі/ілюстрація) → великий портрет
-        try{ if(window.__skApplyHeroAvatar) window.__skApplyHeroAvatar(child.avatar); }catch(e){}
+        try{ if(window.__skApplyHeroAvatar) window.__skApplyHeroAvatar(child.avatar, child); }catch(e){}
       }
 
       // 2) Характеристики героя = документ heroes/{heroID} — єдине джерело правди
@@ -811,6 +811,7 @@ $('editName').addEventListener('click',()=>{
   var file=document.getElementById('avaFile');
 
   var _heroToken=null;   // синхронізований токен (емодзі / 'hero:<id>')
+  var _collection=[];    // «Мої колекції»: створені образи [{key,file,base}]
 
   function showPhoto(src){
     if(photo){ photo.classList.remove('art'); photo.onerror=function(){ this.style.display='none'; }; photo.src=src; photo.style.display='block'; }
@@ -833,8 +834,9 @@ $('editName').addEventListener('click',()=>{
   }
   // Викликається із блоку завантаження героя: застосувати синхронізований аватар.
   // Локальне фото має пріоритет над ілюстрацією (це власне фото на цьому пристрої).
-  window.__skApplyHeroAvatar=function(token){
+  window.__skApplyHeroAvatar=function(token, heroDoc){
     _heroToken=token||null;
+    if(heroDoc && window.SKAVA && SKAVA.collectionOf) _collection=SKAVA.collectionOf(heroDoc);
     cacheToken(token);                          // кеш для миттєвого показу при перезавантаженні
     if(hasLocalPhoto()) return;                 // локальне фото має пріоритет
     if(window.SKAVA && SKAVA.isHeroToken(token)) showHeroArt(SKAVA.idOf(token));
@@ -871,7 +873,27 @@ $('editName').addEventListener('click',()=>{
     try{ if(window.SK && SK.saveHeroAvatar) SK.saveHeroAvatar(token).then(function(ok){ if(!ok) fail(); }, fail); }catch(e){ fail(e); }
   }
 
-  // Кнопка 📷 → модалка вибору (герої / своє фото / 3D-скоро).
+  // Образ із «Моїх колекцій»: вдягає сервер (він же веде колекцію й базу образу).
+  function wearFromCollection(key, token){
+    var fail=function(e){ try{ console.error('[hero.html] образ не вдягнено:', e); }catch(_){}
+      alert('⚠️ '+((e && e.message && e.message!=='network error') ? e.message : 'Образ не вдягнено. Перевір звʼязок і спробуй ще раз.')); };
+    if(!window.SK || !SK.wearAvatar){ fail(); return; }
+    SK.wearAvatar(key).then(function(r){
+      if(!r || !r.avatar){ fail(); return; }
+      try{ localStorage.removeItem('sk_hero_avatar'); }catch(e){}
+      _heroToken=r.avatar; cacheToken(r.avatar); showHeroArt(SKAVA.idOf(r.avatar));
+      if(Array.isArray(r.collection)) _collection=SKAVA.collectionOf({avatarCollection:r.collection});
+    }, fail);
+  }
+  function forgetFromCollection(key){
+    _collection=_collection.filter(function(c){ return c.key!==key; });
+    if(!window.SK || !SK.forgetAvatar) return;
+    SK.forgetAvatar(key).then(function(r){
+      if(r && Array.isArray(r.collection)) _collection=SKAVA.collectionOf({avatarCollection:r.collection});
+    }, function(e){ try{ console.error('[hero.html] образ не прибрано:', e); }catch(_){} });
+  }
+
+  // Кнопка 📷 → модалка вибору (мої колекції / герої / своє фото / 3D-скоро).
   if(cam){
     cam.title='Змінити аватар'; cam.setAttribute('aria-label','Змінити аватар героя');
     cam.addEventListener('click',function(e){
@@ -881,6 +903,9 @@ $('editName').addEventListener('click',()=>{
           selected:_heroToken,
           allowPhoto:!!file,
           onHero:pickHero,
+          collection:_collection,
+          onCollection:wearFromCollection,
+          onForget:forgetFromCollection,
           onPhoto:function(){ if(file) file.click(); }
         });
       } else if(file){ file.click(); }
