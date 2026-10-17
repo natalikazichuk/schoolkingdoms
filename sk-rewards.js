@@ -27,7 +27,7 @@
    іншому пристрої той самий Герой нагороду вдруге не забере.
 
    Підключення на сторінці тренажера (звичайні скрипти, після firebase-config):
-     <script src="../sk-items.js?v=17"></script>
+     <script src="../sk-items.js?v=18"></script>
      <script src="../sk-rewards.js?v=4"></script>
    і виклик у момент повного проходження:
      const res = await SKREWARD.claim();

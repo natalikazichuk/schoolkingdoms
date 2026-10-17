@@ -20,11 +20,11 @@ function battle(sk, bar, eq) {
   });
 }
 
-test('пасивні сталі: зброя, магія — у профілі, ефект × м з округленням', () => {
+test('пасивні сталі: зброя, магія — у профілі, ефект × м, вниз до цілого', () => {
   const none = battle({}, []);
   const st = battle({ 'base.weapons': 1, 'base.magic': 0.5 }, []);
   assert.strictEqual(st.me.p.dmgPct - none.me.p.dmgPct, 25);
-  assert.strictEqual(st.me.p.magPct - none.me.p.magPct, 13, '12,5 → 13');
+  assert.strictEqual(st.me.p.magPct - none.me.p.magPct, 12, '12,5 → 12 (вниз: максимум лише на 100%)');
   const low = battle({ 'base.weapons': 0.25 }, []);
   assert.strictEqual(low.me.p.dmgPct - none.me.p.dmgPct, 6, '6,25 → 6');
 });

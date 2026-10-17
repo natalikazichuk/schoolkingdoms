@@ -35,6 +35,7 @@ test('той самий герой і день — той самий набір;
   assert.deepStrictEqual(a.gear.map(x => x.id), b.gear.map(x => x.id));
   const full = K.store.shopStock(cat, 'h', t, { stockPct: 100 });
   assert.strictEqual(full.gear.length, 40); assert.strictEqual(full.cons.length, 10);
+  assert.strictEqual(K.store.shopStock(cat, 'h', t, { stockPct: 98 }).gear.length, 39, '40 — лише на 100%');
   const half = K.store.shopStock(cat, 'h', t, { stockPct: 50 });
   assert.strictEqual(half.gear.length, 30);
   assert.deepStrictEqual(full.gear.slice(0, 20).map(x => x.id), a.gear.map(x => x.id), 'перші 20 — ті самі');

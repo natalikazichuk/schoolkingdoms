@@ -31,9 +31,9 @@ test('правила: активні — шанс 50% на 25% → 100% на 100
   assert.strictEqual(S.skillValues('base.kick', 50).chance, 67);
   assert.strictEqual(S.skillValues('base.kick', 100).chance, 100);
   assert.strictEqual(S.skillValues('base.kick', 25).dmgMin, 1, '5 × 0,25 = 1,25 → 1');
-  assert.strictEqual(S.skillValues('base.kick', 25).dmgMax, 3, '10 × 0,25 = 2,5 → 3');
+  assert.strictEqual(S.skillValues('base.kick', 25).dmgMax, 2, '10 × 0,25 = 2,5 → 2 (вниз)');
   assert.strictEqual(S.skillValues('base.kick', 100).dmgMax, 10);
-  assert.strictEqual(S.skillValues('base.spark', 25).dmgMax, 3);
+  assert.strictEqual(S.skillValues('base.spark', 25).dmgMax, 2);
   assert.strictEqual(S.skillValues('base.kick', 25).knock, 5);
   assert.strictEqual(S.skillValues('base.kick', 100).knock, 10);
   assert.strictEqual(S.skillValues('base.kick', 25).cd, 2, 'перезарядка — стала');
@@ -41,7 +41,10 @@ test('правила: активні — шанс 50% на 25% → 100% на 100
 });
 test('правила: пасивні сталі × м; пасивні з кидком — прокидаються з шансом = майстерність', () => {
   assert.strictEqual(S.skillValues('base.weapons', 25).dmgPct, 6);
-  assert.strictEqual(S.skillValues('base.potions', 25).powerPct, 13);
+  assert.strictEqual(S.skillValues('base.potions', 25).powerPct, 12);
+  // максимум — лише на 100%: Торгівля 20% × 0,98 = 19,6 → 19, а не вже 20
+  assert.strictEqual(S.skillValues('base.trade', 98).pct, 19);
+  assert.strictEqual(S.skillValues('base.trade', 100).pct, 20);
   assert.strictEqual(S.skillValues('base.dodge', 40).engage, 40);
   assert.strictEqual(S.skillValues('base.dodge', 40).chance, 15, 'шанс ефекту — сталий');
   assert.strictEqual(S.skillValues('base.focus', 49).cap, 3);

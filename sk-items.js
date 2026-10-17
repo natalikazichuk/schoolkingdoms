@@ -446,7 +446,7 @@
   function shopStock(catalog, heroId, now, opts) {
     var day = kyivDay(now), key = String(heroId || '') + '|' + day;
     var more = 1 + Math.max(0, Number(opts && opts.stockPct) || 0) / 100;
-    var nGear = Math.round(SHOP_GEAR * more), nCons = Math.round(SHOP_CONS * more);
+    var nGear = Math.floor(SHOP_GEAR * more + 1e-9), nCons = Math.floor(SHOP_CONS * more + 1e-9);   // вниз: максимум лише на 100%
     var lot = {};
     var ranked = function (arr) {
       return arr.slice().sort(function (a, b) {

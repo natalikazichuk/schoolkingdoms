@@ -682,6 +682,9 @@ var RULES = {
 };
 var KIND_UK = { active: 'активне', const: 'пасивне стале', trigger: 'пасивне з кидком' };
 function rnd5(x) { return Math.round(x); }       // 0,5 і більше — вгору
+/* значення, що ростуть із майстерністю, — вниз до цілого: максимум (v) лише на 100%,
+   а не вже на 98% (19,6 → 20 «з'їдало» останні відсотки). 1e-9 — від похибки дробів. */
+function down(x) { return Math.floor(x + 1e-9); }
 /* значення вміння при майстерності pct (25…100): { chance?, engage?, <k>: число } */
 function skillValues(id, pct) {
   var r = RULES[id]; if (!r) return null;
@@ -691,7 +694,7 @@ function skillValues(id, pct) {
   if (r.kind === 'trigger') out.engage = pct;
   var t = Math.max(0, pct - LEARN_START) / (100 - LEARN_START);   // 0 на 25% … 1 на 100%
   r.p.forEach(function (q) {
-    out[q.k] = q.calc ? q.calc(pct) : q.from != null ? rnd5(q.from + (q.v - q.from) * t) : q.grow ? rnd5(q.v * m) : q.v;
+    out[q.k] = q.calc ? q.calc(pct) : q.from != null ? down(q.from + (q.v - q.from) * t) : q.grow ? down(q.v * m) : q.v;
   });
   return out;
 }
@@ -864,7 +867,7 @@ var FX = {
 function effectText(id, m) { return FX[id] ? FX[id](skillValues(id, Math.round(Math.max(0, Math.min(1, m)) * 100))) : ''; }
 
 window.SKSKILLS = {
-  VERSION: 20,
+  VERSION: 21,
   RULES: RULES,
   KIND_UK: KIND_UK,
   skillValues: skillValues,
