@@ -203,10 +203,20 @@ body.flipped h1 .t1, body.flipped h1 .t2{color:#e5b3ff;}
 body.inCh h1{display:none;}
 body.inCh .topBack{display:block; margin-right:auto; border-radius:999px; padding:10px 18px; font-size:16px; border:2px solid #e6cfa6;}
 #intro{display:flex; align-items:center; gap:10px; text-align:left; color:var(--ink); background:linear-gradient(180deg,#fffdf4,#fff3cf); border:3px solid #f4c842; box-shadow:0 0 0 2px #e8c06a inset, 0 6px 12px rgba(0,0,0,.15);}
-#intro .wiz{font-size:56px; flex:none; line-height:1;}
+#intro .wiz{flex:none; width:76px; height:76px; position:relative;}
+.wiz img{position:absolute; inset:0; width:100%; height:100%; object-fit:contain; transition:opacity .5s;}
+.wiz .w1, body.flipped .wiz .w0{opacity:0;}
+body.flipped .wiz .w1{opacity:1;}
+.chHead .cht{display:flex; align-items:center; gap:10px;}
+.chHead .cht .wiz{flex:none; width:64px; height:64px; position:relative;}
+.chHead .cht .tx{flex:1; min-width:0;}
+.chHead .cht.joy .wiz .w0, .chHead .cht.joy .wiz .w1{opacity:0;}
+.chHead .cht .w2{opacity:0;}
+.chHead .cht.joy .w2{opacity:1;}
 #intro b{color:var(--nav);}
 .gateCard{border-width:3px; box-shadow:0 0 0 2px #e8c06a inset, 0 6px 12px rgba(0,0,0,.15);}
-.gateCard .gi{font-size:44px;}
+.gateCard .gi{width:72px; height:72px; flex:none; object-fit:contain; filter:drop-shadow(0 3px 4px rgba(0,0,0,.25));}
+.sheet .sb img{width:150px; height:150px; object-fit:contain;}
 .gateCard .gb{flex:1; min-width:0;}
 .gateCard .gt{color:var(--nav); font-size:18px;}
 .gateCard .gift{font-size:28px; flex:none; align-self:flex-start;}
@@ -233,6 +243,14 @@ body.flipped .flipBtn{font-size:22px;} body.flipped .flipBtn #flipTx{white-space
 body.flipped #map.free #world{transform:none;}
 body.flipped #map.free .pin .em{transform:none;}
 body.flipped #map.free .pin .lbl{transform:translateX(-50%);}
+/* 🔄 після Перевороту картки стають фіолетово-бузковими */
+#intro, .gateCard, .chCard, .chHead .cht, .pill{transition:background .6s, border-color .6s, box-shadow .6s;}
+body.flipped #intro, body.flipped .gateCard, body.flipped .chHead .cht{background:linear-gradient(180deg,#faf5ff,#ead9ff); border-color:#a77ce8; box-shadow:0 0 0 2px #d2b6ff inset, 0 6px 12px rgba(60,20,120,.25);}
+body.flipped .chCard{background:linear-gradient(180deg,#fbf7ff,#efe3ff); border-color:#a77ce8; box-shadow:0 0 0 2px #dcc6ff inset, 0 6px 12px rgba(60,20,120,.25);}
+body.flipped .chCard .th{border-color:#a77ce8;}
+body.flipped .pill{background:linear-gradient(180deg,#faf5ff,#ead9ff); border-color:#a77ce8;}
+body.flipped .pill .val{color:#7f2bc4;}
+body.flipped .chev, body.flipped .chCard .st:after{color:#8a4fd6;}
 /* переворот: острів затягує у вихор, спалах — і він вилітає вже навиворіт, з пружинкою */
 #map.free #world.swap{animation:mapSwap 1.05s cubic-bezier(.55,0,.35,1);}
 @keyframes mapSwap{
@@ -285,10 +303,10 @@ body.shake #wrap{animation:bodyShake .35s .5s ease;}
   <div id="main">
     <!-- ══ хаб: ворота + розділи ══ -->
     <div class="view" id="hubView">
-      <div id="intro"><span class="wiz" aria-hidden="true">🧙‍♂️</span><span>У цьому світі все працює <b>нормально</b>… поки не станеться <b>Переворот</b>. Тоді треба зрозуміти нове правило — і використати його!</span></div>
+      <div id="intro"><span class="wiz" aria-hidden="true"><img class="w0" src="img/wiz.webp" alt=""><img class="w1" src="img/wiz-nav.webp" alt=""></span><span>У цьому світі все працює <b>нормально</b>… поки не станеться <b>Переворот</b>. Тоді треба зрозуміти нове правило — і використати його!</span></div>
 
       <div class="gateCard" id="gateCard">
-        <span class="gi">🎟️</span>
+        <img class="gi" id="gateIc" src="img/pass-off.webp" alt="🎟️">
         <div class="gb"><div class="gt" id="gateTitle">Ворота у Світ навиворіт</div>
           <div class="gs" id="gateSub">Зроби Переворот і розгадай 6 нових правил біля воріт — отримаєш перепустку.</div></div>
         <span class="gift" aria-hidden="true">🎁</span><span class="chev" aria-hidden="true">›</span>
@@ -517,7 +535,10 @@ body.shake #wrap{animation:bodyShake .35s .5s ease;}
     try{ localStorage.setItem("sk_navyvorit_chapter", String(ci)); }catch(e){}
     $("hubView").classList.add("hidden"); $("chView").classList.remove("hidden");
     document.body.classList.add("inCh"); $("map").classList.toggle("free", !!c.free);
-    $("chTitle").innerHTML = '<b>Розділ '+c.n+'. '+c.nm+'</b>'+c.intro;
+    var st = chStats(c);
+    $("chTitle").innerHTML = '<span class="wiz" aria-hidden="true"><img class="w0" src="img/wiz.webp" alt=""><img class="w1" src="img/wiz-nav.webp" alt=""><img class="w2" src="img/wiz-joy.webp" alt=""></span>'+
+      '<span class="tx"><b>Розділ '+c.n+'. '+c.nm+'</b>'+c.intro+'</span>';
+    $("chTitle").classList.toggle("joy", st.built > 0 && st.done === st.built);   // розділ пройдено — Чарівник радіє
     $("map").style.aspectRatio = c.ar || "2/3";
     var bg = $("mapBg");
     bg.className = "bg" + (c.img ? "" : " fallback");
@@ -588,6 +609,7 @@ body.shake #wrap{animation:bodyShake .35s .5s ease;}
   }
   function renderGateCard(){
     var n = gate.got ? Object.keys(gate.got).length : 0;
+    $("gateIc").src = gate.pass ? "img/pass-on.webp" : "img/pass-off.webp";
     $("gateTitle").textContent = gate.pass ? "Перепустку отримано!" : "Ворота у Світ навиворіт";
     $("gateSub").textContent = gate.pass
       ? "Ти знаєш усі 6 правил Світу навиворіт. Торкнись, щоб переглянути правила."
@@ -651,13 +673,13 @@ body.shake #wrap{animation:bodyShake .35s .5s ease;}
   function openGate(){
     tap();
     if(!flipped){
-      openSheet('<div class="sb">🎟️</div><div class="st">Ворота у Світ навиворіт</div>'+
+      openSheet('<div class="sb"><img src="img/pass-off.webp" alt="🎟️"></div><div class="st">Ворота у Світ навиворіт</div>'+
         '<div class="sd">Поки що тут усе працює нормально: сонце світить удень, риби плавають, а вогонь гріє.<br><br>'+
         'Натисни <b>🔄 Переворот</b> — і повертайся до воріт. Подивимось, чи зрозумієш ти нові правила!</div>'+rulesHtml());
       return;
     }
     if(gate.pass){
-      openSheet('<div class="sb">🎟️</div><div class="st">Перепустку отримано!</div>'+
+      openSheet('<div class="sb"><img src="img/pass-on.webp" alt="🎟️"></div><div class="st">Перепустку отримано!</div>'+
         '<div class="sd">Ти розгадав(-ла) всі 6 правил Світу навиворіт. Тепер — у дорогу: розділи чекають!</div>'+rulesHtml()+
         '<button class="play" type="button" id="regate" style="border:none;cursor:pointer;background:var(--purple);box-shadow:0 6px 0 #8e3fb0">↻ Пройти ворота ще раз</button>');
       $("regate").addEventListener("click", function(){ gate = {}; save(); renderAll(); gi = 0; askGate(); });
@@ -691,7 +713,7 @@ body.shake #wrap{animation:bodyShake .35s .5s ease;}
   function gatePassed(){
     gate.pass = 1; save(); fanfare(); renderAll();
     var first = BUILT[0];
-    openSheet('<div class="sb">🎟️✨</div><div class="st">Перепустку отримано!</div>'+
+    openSheet('<div class="sb"><img src="img/pass-on.webp" alt="🎟️"></div><div class="st">Перепустку отримано!</div>'+
       '<div class="sd">Ти зрозумів(-ла) всі нові правила й використав(-ла) їх. Так і грають у Світі навиворіт: '+
       'спершу помічаєш, що змінилось, — а тоді дієш інакше.<br><br>Біля воріт тобі дали 🗝️ <b>ключ від будинку №17</b>. '+
       'Портал відчинено — вирушай у розділ I «Дивне місто»! Перша зупинка — '+first.em+' <b>'+first.nm+'</b>.</div>'+
