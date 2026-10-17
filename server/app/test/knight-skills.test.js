@@ -26,9 +26,9 @@ function battle(sk, bar, eq, opEq) {
   });
 }
 const KN = ['knight.sword', 'knight.axe', 'knight.spear', 'knight.shield', 'knight.bash', 'knight.berserk', 'knight.fists', 'knight.brave', 'knight.care', 'knight.lunge', 'knight.enh',
-  'knight.calm', 'knight.second', 'knight.haft', 'knight.bless', 'knight.parry', 'knight.daze', 'knight.riposte', 'knight.disarm'];
+  'knight.tough', 'knight.calm', 'knight.second', 'knight.haft', 'knight.bless', 'knight.parry', 'knight.daze', 'knight.riposte', 'knight.disarm'];
 
-test('Лицар: оброблені вміння (9 першого рівня + 10 з 5–16 рівня), у кожного правила, значок, опис і ріст', () => {
+test('Лицар: оброблені вміння (9 першого рівня + 11 з 4–16 рівня), у кожного правила, значок, опис і ріст', () => {
   const ready = S.readyFor('knight').map(s => s.id);
   assert.strictEqual(JSON.stringify(ready.slice().sort()), JSON.stringify(KN.slice().sort()));
   KN.forEach(id => {
@@ -381,6 +381,20 @@ test('Посилений урон: +25% фізичного на 100%, ріст �
   assert.strictEqual(a.me.p.dmgPct - b.me.p.dmgPct, 25);
   SB.turn(ctx, a, { atk: 'head', block: 'body' }, {}, Date.now());
   assert.ok((a.me.grow['knight.enh'] || 0) + (a.me.growF['knight.enh'] || 0) >= 1);
+});
+
+test('Міцне тіло: максимум здоров\'я +25% на 100% (+6% на 25%), ріст від ударів, що завдали урону', () => {
+  const b = battle({}, []), a = battle({ 'knight.tough': 1 }, []), q = battle({ 'knight.tough': 0.25 }, []);
+  assert.strictEqual(a.me.max, Math.round(b.me.max * 1.25)); assert.strictEqual(a.me.force, a.me.max);
+  assert.strictEqual(q.me.max, Math.round(b.me.max * 1.06));
+  let got = 0, dmg = 0;
+  for (let i = 0; i < 40 && a.status === 'live'; i++) {
+    const e = SB.turn(ctx, a, { atk: 'head', block: 'legs' }, {}, Date.now());
+    dmg += ((e.opHit && e.opHit.hits) || []).filter(h => (h.kind === 'hit' || h.kind === 'crit') && h.dmg > 0).length;
+  }
+  got = (a.me.grow || {})['knight.tough'] || 0;
+  assert.ok(dmg > 0 && got === dmg, 'ріст = ударів з уроном: ' + got + ' / ' + dmg);
+  assert.ok(!((a.me.growF || {})['knight.tough']), 'невдалих спроб немає');
 });
 
 const DAGGER = item({ id: 'W4', name: 'Кинджал', category: 'Зброя', stat: 'Урон', valueMin: 4, valueMax: 6, weaponType: 'dagger' });

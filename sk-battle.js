@@ -122,6 +122,7 @@
       if (!weaponOn(st)) { p.wMin = num(p.wMin) + V(st, ws, 'dmgMin'); p.wMax = num(p.wMax) + Math.max(V(st, ws, 'dmgMin'), V(st, ws, 'dmgMax')); }
       if (shieldOn(st) && V(st, ws, 'accPct')) p.accuracy = Math.round(num(p.accuracy) * (1 + V(st, ws, 'accPct') / 100));   // кулак + щит
     }
+    if (V(st, 'knight.tough', 'hpPct')) p.hp = Math.round(num(p.hp) * (1 + V(st, 'knight.tough', 'hpPct') / 100));   // Міцне тіло: + максимум здоров'я
     var bp = shieldOn(st) ? V(st, 'knight.shield', 'blockPct') : 0;      // Блок щитом: + до «шансу блоку» щита
     if (bp) {
       if (p.evade) { p.blockPhys = num(p.blockPhys) + bp / 2; p.blockMag = num(p.blockMag) + bp / 2; }
@@ -853,6 +854,9 @@
     applyDodge(ctx, vo, meHit, sd(vo, 'dodge'));
     applyParry(ctx, vo, meHit, me.atk !== op.block, sd(vo, 'parry'));
     applyShield(ctx, vo, meHit, sd(vo, 'shield'));
+    // Міцне тіло: росте від кожного удару суперника, що завдав урону — після ухилення, парирування й щита (у бота — в межах бою)
+    if (opAtk) (opHit.hits || []).forEach(function (h) { if ((h.kind === 'hit' || h.kind === 'crit') && num(h.dmg) > 0) grow(st, 'knight.tough', true); });
+    if (meAtk && st.op.up) (meHit.hits || []).forEach(function (h) { if ((h.kind === 'hit' || h.kind === 'crit') && num(h.dmg) > 0) grow(vo, 'knight.tough', true); });
     // Протидія: кожен свій блок — рідкісний контрудар ×0.5 у зону своєї атаки
     if (meAtk) riposteTry(ctx, st, opHit, meHit, pm, po, me.atk === op.block, sd(st, 'riposte'));
     if (opAtk) riposteTry(ctx, vo, meHit, opHit, po, pm, op.atk === me.block, sd(vo, 'riposte'));
