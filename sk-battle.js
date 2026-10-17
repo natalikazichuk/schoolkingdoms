@@ -898,6 +898,9 @@
     if (meDisarmed) e.meDisarmed = true;
     if (opCalm) e.opCalm = opCalm;
     if (opUp.length) e.opUp = opUp;
+    // 🧪 ТИМЧАСОВО ДЛЯ ТЕСТУ: стан обох після ходу (мана, концентрація, до якого ходу діють лють / благословення / обеззброєння / оглушення)
+    var snap = function (u) { var f = u.fx || {}; return { m: Math.round(num(u.mana)), f: num(f.focus), bz: num(f.berserk), bl: f.bless ? num(f.bless.until) : 0, dis: num(f.disarm), kn: num(f.knock), cd: clone(u.cd || {}) }; };
+    e.st = { me: snap(st.me), op: snap(st.op) };
     if (st.op.fx && st.op.fx.focus) e.opFocus = num(st.op.fx.focus);
     // ріст вмінь цього ходу: {id: [вдалих, невдалих, разом вдалих за бій, разом невдалих за бій]}
     var gr = {}, g1 = st.me.grow || {}, f1 = st.me.growF || {};
