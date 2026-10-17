@@ -271,6 +271,7 @@ function paintBattle(bs){
       if (why === 'cd') { cls += ' cd'; badge = '<span class="skb-cd">' + (cd - b.round + 1) + '</span>'; tip += sel2 ? ' · обрано, спрацює після перезарядки' : ' · перезарядка'; }
       else if (why === 'mana') { cls += ' cd'; badge = '<span class="skb-cd">💧</span>'; tip += sel2 ? ' · обрано, спрацює, коли буде мана' : ' · мало мани'; }
       else if (why === 'shield') { cls += ' cd'; badge = '<span class="skb-cd">🛡️</span>'; tip += ' · потрібен щит у лівій руці'; }
+      else if (why === 'noshield') { cls += ' cd'; badge = '<span class="skb-cd">💥</span>'; tip += ' · у суперника немає щита'; }
       else if (why === 'used') { cls += ' cd'; badge = '<span class="skb-cd">✔</span>'; tip += ' · уже використано в цьому бою'; }
       else if (why === 'weapon') { cls += ' cd'; badge = '<span class="skb-cd">🗡️</span>'; tip += ' · не тією зброєю (або її вибито)'; }
       else if (why === 'active') { cls += ' cd'; badge = '<span class="skb-cd">✨</span>'; tip += ' · ще діє'; }
