@@ -632,7 +632,8 @@ var RULES = {
     { k: 'barrier2', v: 100, grow: true, u: '%', t: 'шанс на другий бар\'єр' },
     { k: 'fearPct', v: 20, grow: true, u: '%', t: 'до шансу страху' }] },
   'base.trade':   { kind: 'const', perBattle: 4, p: [
-    { k: 'pct', v: 20, grow: true, u: '%', t: 'дешевша купівля і дорожчий продаж' }] },
+    { k: 'pct', v: 20, grow: true, u: '%', t: 'дешевша купівля і дорожчий продаж' },
+    { k: 'stockPct', v: 100, grow: true, u: '%', t: 'більше товарів у магазині (речей і зілль/свитків)' }] },
   'base.magic':   { kind: 'const', perBattle: 10, p: [
     { k: 'magPct', v: 25, grow: true, u: '%', t: 'урону заклинань' }] },
   'base.spark':   { kind: 'active', perBattle: 8, p: [
@@ -842,7 +843,7 @@ var FX = {
   'base.kick':    function(v){ return 'вдається в ' + v.chance + '%, урон ' + v.dmgMin + '–' + v.dmgMax + ', збиває з ніг ' + v.knock + '%'; },
   'base.potions': function(v){ return 'зілля сильніші на ' + v.powerPct + '%'; },
   'base.scrolls': function(v){ return 'свитки сильніші на ' + v.powerPct + '%, другий бар\'єр — ' + v.barrier2 + '%'; },
-  'base.trade':   function(v){ return 'купуєш дешевше і продаєш дорожче на ' + v.pct + '%'; },
+  'base.trade':   function(v){ return 'купуєш дешевше і продаєш дорожче на ' + v.pct + '%, товарів у магазині +' + v.stockPct + '%'; },
   'base.magic':   function(v){ return '+' + v.magPct + '% сили заклинань'; },
   'base.spark':   function(v){ return 'вдається в ' + v.chance + '%, урон ' + v.dmgMin + '–' + v.dmgMax + ', ' + v.mana + ' мани'; },
   'base.shield':  function(v){ return 'прокидається в ' + v.engage + '% ударів, тоді блокує в ' + v.chance + '%'; },
@@ -863,7 +864,7 @@ var FX = {
 function effectText(id, m) { return FX[id] ? FX[id](skillValues(id, Math.round(Math.max(0, Math.min(1, m)) * 100))) : ''; }
 
 window.SKSKILLS = {
-  VERSION: 19,
+  VERSION: 20,
   RULES: RULES,
   KIND_UK: KIND_UK,
   skillValues: skillValues,
