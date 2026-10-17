@@ -26,9 +26,10 @@ function battle(sk, bar, eq, opEq) {
   });
 }
 const KN = ['knight.sword', 'knight.axe', 'knight.spear', 'knight.shield', 'knight.bash', 'knight.berserk', 'knight.fists', 'knight.brave', 'knight.care', 'knight.lunge', 'knight.enh',
-  'knight.tough', 'knight.calm', 'knight.second', 'knight.haft', 'knight.bless', 'knight.parry', 'knight.daze', 'knight.riposte', 'knight.disarm'];
+  'knight.tough', 'knight.calm', 'knight.second', 'knight.haft', 'knight.bless', 'knight.parry', 'knight.daze', 'knight.riposte', 'knight.disarm',
+  'knight.stoneskin', 'knight.steady', 'knight.song', 'knight.will', 'knight.shieldbreak'];
 
-test('Лицар: оброблені вміння (9 першого рівня + 11 з 4–16 рівня), у кожного правила, значок, опис і ріст', () => {
+test('Лицар: оброблені вміння (9 першого рівня + 11 з 4–16 рівня + 5 з 18–22), у кожного правила, значок, опис і ріст', () => {
   const ready = S.readyFor('knight').map(s => s.id);
   assert.strictEqual(JSON.stringify(ready.slice().sort()), JSON.stringify(KN.slice().sort()));
   KN.forEach(id => {
@@ -38,14 +39,15 @@ test('Лицар: оброблені вміння (9 першого рівня +
     assert.ok(S.growTotal(s) >= 20, id);
   });
   assert.ok(!S.byId('knight.potions') && !S.byId('knight.scrolls'), 'дублі універсальних прибрано');
-  assert.ok(!S.byId('knight.stoneskin').ready, 'вміння з 18 рівня ще не оброблені');
+  assert.ok(!S.byId('knight.frenzy').ready && !S.byId('knight.offhand').ready && !S.byId('knight.taunt').ready, 'решта ще не оброблені');
+  assert.ok(!S.byId('knight.dodge'), 'дубль Ухилення замінено Стійкістю');
 });
 
 test('вивчення: лише свій клас і лише оброблені', () => {
   const st = S.bookState({ arena: { level: 3 }, heroClass: 'knight', skills: {} });
   assert.strictEqual(S.learnBlock(st, 'knight.sword'), '');
   assert.strictEqual(S.learnBlock(st, 'knight.lunge'), 'level', 'Випад — з 5 рівня');
-  assert.strictEqual(S.learnBlock(S.bookState({ arena: { level: 20 }, heroClass: 'knight', skills: {} }), 'knight.stoneskin'), 'unknown');
+  assert.strictEqual(S.learnBlock(S.bookState({ arena: { level: 20 }, heroClass: 'knight', skills: {} }), 'knight.frenzy'), 'unknown');
   assert.strictEqual(S.learnBlock(S.bookState({ arena: { level: 3 }, heroClass: 'mage', skills: {} }), 'knight.sword'), 'class');
   assert.strictEqual(S.learnBlock(S.bookState({ arena: { level: 3 }, skills: {} }), 'knight.bash'), 'class');
 });
@@ -556,4 +558,92 @@ test('досвід × складність суперника (лише пере
   const st = botKnight({}, []); st.op.f.xpMul = 1.5; st.op.force = 1; st.op.p.agility = 1; st.me.p.accuracy = 900;
   let e; for (let i = 0; i < 10 && st.status === 'live'; i++) e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
   if (st.summary.result === 'win') assert.strictEqual(st.summary.xpMul, 1.5);
+});
+
+/* ── вміння 18–22 рівня ── */
+function duel(sk, bar, opSk, opEq, meEq) {
+  const oe = opEq || [];
+  return SB.create(ctx, {
+    bid: 'kn2-' + (n++),
+    me: { name: 'Я', stats: { health: 400, accuracy: 60, agility: 50, mana: 500 }, eq: meEq || [], sk, skv: skvOf(sk), bar, cls: 'knight' },
+    op: { f: { name: 'Бот', level: 20 }, p: R.fighter({ health: 400, accuracy: 50, agility: 50, mana: 0 }, oe, K), eq: oe, sk: opSk || {}, skv: skvOf(opSk || {}), cls: 'knight' }
+  });
+}
+
+test('Кам\'яна шкіра: −50 мани лише коли вдалося, 3 ходи урон по тобі −35% (на 100%), поки діє — не обрати', () => {
+  const st = battle({ 'knight.stoneskin': 1 }, ['knight.stoneskin'], [wear(ARMOR, 'armor')]);
+  SB.useSkill(ctx, st, 'knight.stoneskin');
+  const e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+  assert.strictEqual(e.skill.kind, 'stone'); assert.strictEqual(e.skill.cut, 35); assert.strictEqual(e.skill.turns, 3);
+  assert.strictEqual(st.me.mana, 450);
+  assert.strictEqual(SB.skillBlock(st, 'knight.stoneskin'), 'active');
+  let cut = 0;
+  for (let i = 0; i < 2 && st.status === 'live'; i++) {
+    const e2 = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+    (e2.opHit.hits || []).forEach(h => { if (h.stone) { cut++; assert.strictEqual(h.dmg, Math.max(1, Math.round(h.stone[0] * 0.65))); } });
+  }
+  (e.opHit.hits || []).forEach(h => { if (h.stone) cut++; });
+  assert.ok(cut >= 1, 'урон зменшено хоч раз: ' + cut);
+  assert.strictEqual(SB.skillBlock(st, 'knight.stoneskin'), '', 'після 3 ходів — знову можна');
+});
+
+test('Бойова пісня: −50 мани, 4 ходи точність +30% і урон +20% (на 100%)', () => {
+  const st = battle({ 'knight.song': 1 }, ['knight.song'], [wear(SWORD, 'weaponR')]);
+  SB.useSkill(ctx, st, 'knight.song');
+  const e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+  assert.strictEqual(e.skill.kind, 'song'); assert.strictEqual(e.skill.accPct, 30); assert.strictEqual(e.skill.dmgPct, 20); assert.strictEqual(e.skill.turns, 4);
+  assert.strictEqual(st.me.mana, 450); assert.strictEqual(st.me.fx.song.until, 4);
+  assert.strictEqual(SB.skillBlock(st, 'knight.song'), 'active');
+});
+
+test('Залізна воля: здоров\'я < 25% — броня ×2 на 4 ходи (100%), раз за бій', () => {
+  const st = battle({ 'knight.will': 1 }, [], [wear(ARMOR, 'armor')]);
+  st.me.force = Math.round(st.me.max * 0.2);
+  const e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+  assert.strictEqual(e.will, 4); assert.strictEqual(st.me.fx.will, 1 + 4); assert.ok(st.me.fx.willUsed);
+  assert.strictEqual(st.me.grow['knight.will'], 1);
+  st.me.force = Math.round(st.me.max * 0.1);
+  if (st.status === 'live') { const e2 = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now()); assert.ok(!e2.will, 'вдруге — ні'); }
+  const q = battle({ 'knight.will': 0.25 }, []); q.me.force = 10;
+  assert.strictEqual(SB.turn(ctx, q, { atk: 'head', block: 'body' }, {}, Date.now()).will, 2, 'на 25% — 2 ходи');
+});
+
+test('Розбити щит: лише проти щита; щит відлітає на цей і наступний хід, потім повертається сам', () => {
+  const none = duel({ 'knight.shieldbreak': 1 }, ['knight.shieldbreak']);
+  SB.useSkill(ctx, none, 'knight.shieldbreak');
+  assert.strictEqual(SB.turn(ctx, none, { atk: 'head', block: 'body' }, {}, Date.now()).skill.kind, 'noshield');
+  assert.ok(!(none.me.cd || {})['knight.shieldbreak'], 'без щита — перезарядки немає');
+  const st = duel({ 'knight.shieldbreak': 1 }, ['knight.shieldbreak'], {}, [wear(SHIELD, 'weaponL')]);
+  SB.useSkill(ctx, st, 'knight.shieldbreak');
+  const e1 = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+  assert.strictEqual(e1.skill.kind, 'shatter'); assert.strictEqual(e1.skill.turns, 2);
+  assert.ok(e1.opNoShield); assert.strictEqual(st.op.fx.shieldOff, 2);
+  assert.strictEqual(st.me.cd['knight.shieldbreak'], 1 + 4);
+  const e2 = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+  assert.ok(e2.opNoShield, 'наступний хід — теж без щита');
+  const e3 = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+  assert.ok(!e3.opNoShield && e3.opShieldBack, 'потім щит повертається');
+});
+
+test('Стійкість ворога рятує від «Розбити щит» (~75% на 100%) і росте в нього', () => {
+  let saved = 0, all = 0;
+  for (let i = 0; i < 300; i++) {
+    const st = duel({ 'knight.shieldbreak': 1 }, ['knight.shieldbreak'], { 'knight.steady': 1 }, [wear(SHIELD, 'weaponL')]);
+    SB.useSkill(ctx, st, 'knight.shieldbreak');
+    const e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+    all++; if (e.skill.kind === 'saved') saved++;
+    assert.ok(e.skill.steady && e.skill.steady[1] === 75);
+  }
+  assert.ok(saved > all * 0.65 && saved < all * 0.85, saved + '/' + all);
+});
+
+test('Стійкість Героя: встояти на ногах проти Поштовху бота (росте ✔/✖)', () => {
+  let tries = 0;
+  for (let i = 0; i < 200 && !tries; i++) {
+    const st = duel({ 'knight.steady': 1 }, [], { 'knight.bash': 1 }, [wear(SHIELD, 'weaponL')]);
+    st.op.bar = ['knight.bash']; st.op.ai = { use: 100, smart: false };
+    for (let t = 0; t < 6 && st.status === 'live'; t++) SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+    tries = (st.me.grow['knight.steady'] || 0) + (st.me.growF['knight.steady'] || 0);
+  }
+  assert.ok(tries > 0, 'Стійкість спрацювала проти збити з ніг');
 });
