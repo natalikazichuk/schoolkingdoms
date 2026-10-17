@@ -85,7 +85,7 @@
   /* Числа вмінь — не тут: на старті бою arena.html кладе в st.me.skv готові
      значення з sk-skills.js (SKSKILLS.skillValues — правила, типи, округлення),
      тож бій однаковий на будь-якій сторінці й не залежить від sk-skills.js. */
-  var SKILL = { kick: { id: 'base.kick' }, spark: { id: 'base.spark' }, bash: { id: 'knight.bash' }, berserk: { id: 'knight.berserk' } };
+  var SKILL = { kick: { id: 'base.kick' }, spark: { id: 'base.spark' }, bash: { id: 'knight.bash' }, berserk: { id: 'knight.berserk' }, lunge: { id: 'knight.lunge' } };
   function V(st, id, k) { var v = st.me && st.me.skv && st.me.skv[id]; return v && v[k] != null ? num(v[k]) : 0; }
   function hasSk(st, id) { var s = st.me && st.me.sk; return !!(s && s[id] != null); }
   function grow(st, id, ok) {
@@ -110,7 +110,7 @@
     if (!st.me || !st.me.sk) return p;
     var ex = exoticOn(st) ? V(st, 'base.exotic', 'dmgPct') : 0;
     var ws = weaponSkill(st), wd = ws && hasSk(st, ws) ? V(st, ws, 'dmgPct') : 0;
-    p.dmgPct = num(p.dmgPct) + V(st, 'base.weapons', 'dmgPct') + ex + wd;
+    p.dmgPct = num(p.dmgPct) + V(st, 'base.weapons', 'dmgPct') + ex + wd + V(st, 'knight.enh', 'dmgPct');   // Посилений урон — фізичний
     p.magPct = num(p.magPct) + V(st, 'base.magic', 'magPct') + ex;
     if (ws === 'knight.sword' && V(st, ws, 'accPct')) p.accuracy = Math.round(num(p.accuracy) * (1 + V(st, ws, 'accPct') / 100));
     if (ws === 'knight.axe' && V(st, ws, 'pierce')) p.pierce = V(st, ws, 'pierce');
@@ -227,6 +227,19 @@
     var ks = meHit.hits.map(function (x) { return x.kind; });
     meHit.kind = ks.indexOf('crit') >= 0 ? 'crit' : ks.indexOf('hit') >= 0 ? 'hit' : ks.indexOf('block') >= 0 ? 'block' : 'dodge';
     meHit.crit = meHit.hits.some(function (x) { return x.crit; });
+  }
+  /* Випад: не окремий удар, а посилення ОСНОВНОГО удару цього ходу (перезарядки немає — можна щоходу).
+     Вдалося (шанс 50% → 100%) — урон ×(1 + dmgPct%), броня ворога рахується на armor %; і з шансом
+     extra % — ще один звичайний удар (×1) у ту саму зону. Не вдалося — звичайний удар. */
+  function lungeTry(ctx, st, id, pm, rnd) {
+    var need = V(st, id, 'chance'), roll = ctx.R.d100(rnd), rec = { id: id, need: need, roll: roll, ok: roll <= need, dmg: 0 };
+    if (!rec.ok) { rec.kind = 'fail'; grow(st, id, false); return { rec: rec }; }
+    var att = {}, k; for (k in pm) att[k] = pm[k];
+    rec.kind = 'lunge'; rec.mul = Math.round((1 + V(st, id, 'dmgPct') / 100) * 100) / 100; rec.armor = V(st, id, 'armor');
+    att.dmgMul = rec.mul; att.armorPct = rec.armor;
+    var ex = V(st, id, 'extra');
+    if (ex > 0) { rec.exNeed = ex; rec.exRoll = ctx.R.d100(rnd); rec.extra = rec.exRoll <= ex; }
+    return { rec: rec, att: att };
   }
   /* Берсерк: не удар, а лють на кілька ходів — кидається ДО ударів цього ходу.
      Тривалість — 🎲 turnsMin…turnsMax ходів. Вдалося — раз за бій (більше не обирається); не вдалося — можна знову наступного ходу. */
@@ -562,7 +575,22 @@
     var pm = R.buffed ? R.buffed(st.me.p, fm.buffs) : st.me.p, po = R.buffed ? R.buffed(st.op.p, fo.buffs) : st.op.p;
     pm = turnBoost(st, pm);
     var knocked = fo.knock === st.round;                  // Пінок збив з ніг минулого ходу — суперник не атакує
-    var meHit = down ? none('skip') : fm.feared ? none('fear') : meKnocked ? none('knock') : R.attack(pm, po, me.atk === op.block, rng(st.bid + '|' + st.round + '|me'));
+    var lunge = null;                                     // Випад — посилює основний удар цього ходу
+    if (sid === SKILL.lunge.id && !auto && !down && !fm.feared && !meKnocked && !skillBlock(st, sid)) {
+      lunge = lungeTry(ctx, st, sid, pm, rng(st.bid + '|' + st.round + '|skill')); skillRec = lunge.rec;
+    }
+    var meHit = down ? none('skip') : fm.feared ? none('fear') : meKnocked ? none('knock') : R.attack(lunge && lunge.att ? lunge.att : pm, po, me.atk === op.block, rng(st.bid + '|' + st.round + '|me'));
+    if (lunge && lunge.att) {
+      grow(st, SKILL.lunge.id, meHit.hits.some(function (h) { return h.kind === 'hit' || h.kind === 'crit'; }));
+      if (lunge.rec.extra) {                              // + звичайний удар ×1 у ту саму зону
+        var lx = R.strike(pm, po, me.atk === op.block, rng(st.bid + '|' + st.round + '|lunge'));
+        lx.lungeExtra = true; meHit.hits.push(lx);
+        meHit.dmg = meHit.hits.reduce(function (a, x) { return a + (x.dmg || 0); }, 0);
+        var lk = meHit.hits.map(function (x) { return x.kind; });
+        meHit.kind = lk.indexOf('crit') >= 0 ? 'crit' : lk.indexOf('hit') >= 0 ? 'hit' : lk.indexOf('block') >= 0 ? 'block' : 'dodge';
+        meHit.crit = meHit.hits.some(function (x) { return x.crit; });
+      }
+    }
     var opHit = down ? none('skip') : fo.feared ? none('fear') : knocked ? none('knock') : R.attack(po, pm, op.atk === me.block, rng(st.bid + '|' + st.round + '|op'));
     if (!down && !fm.feared && !meKnocked) comboTry(ctx, st, meHit, pm, po, op.block, rng(st.bid + '|' + st.round + '|combo'));
     // вміння, що ростуть від ударів
@@ -573,6 +601,7 @@
         var ok = h.kind === 'hit' || h.kind === 'crit';
         grow(st, 'base.weapons', ok); if (exoticOn(st)) grow(st, 'base.exotic', ok);
         if (wsk) grow(st, wsk, ok);
+        grow(st, 'knight.enh', ok);                                   // Посилений урон — від кожного удару
       });
       if (fm.bond) grow(st, 'base.bond', meHit.dmg > 0);
       if (wpn) bd.n++;
@@ -585,7 +614,7 @@
     });
     applyShield(ctx, st, opHit, rng(st.bid + '|' + st.round + '|shield'));
     // активне вміння: окремий удар у ту саму зону, що й основний
-    if (sid && sid !== SKILL.berserk.id && !auto && !down && !fm.feared && !skillBlock(st, sid)) {
+    if (sid && sid !== SKILL.berserk.id && sid !== SKILL.lunge.id && !auto && !down && !fm.feared && !skillBlock(st, sid)) {
       skillRec = skillStrike(ctx, st, sid, pm, po, me.atk === op.block, rng(st.bid + '|' + st.round + '|skill'));
       var cdN = V(st, sid, 'cd'); if (cdN > 0) { st.me.cd = st.me.cd || {}; st.me.cd[sid] = st.round + cdN; }
     }

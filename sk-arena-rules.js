@@ -454,20 +454,26 @@
       out.pierceNeed = Math.min(100, Math.round(num(att.pierce))); out.pierceRoll = d100(rnd);
       if (out.pierceRoll <= out.pierceNeed) { defV = Math.round(defV / 2); out.pierce = true; }
     }
+    // 3в) «Випад»: броня ворога рахується лише на armorPct %
+    if (!magic && defV > 0 && num(att.armorPct) > 0 && num(att.armorPct) < 100) {
+      out.armorFrom = defV; defV = Math.round(defV * num(att.armorPct) / 100); out.armorPct = num(att.armorPct);
+    }
     // 4) крізь захист проходить частка (armorPass), 5) відсотки
     var pass = armorPass(raw, defV);
-    var half = num(att.dmgMul) > 0 && num(att.dmgMul) !== 1;      // «Двійка» лівим кулаком — пів урону
-    var base = raw * pass * (1 + pctV / 100) * (half ? num(att.dmgMul) : 1);
+    // множник удару: «Двійка» лівим кулаком — ×½, «Випад» — ×1…1.5
+    var mul = num(att.dmgMul) > 0 ? num(att.dmgMul) : 1, half = mul === 0.5;
+    var base = raw * pass * (1 + pctV / 100) * mul;
     if (half) out.half = true;
+    if (mul !== 1) out.mul = mul;
     // 6) крит
     var crit = critCheck();
     var mult = crit ? BATTLE.critMult : 1;
     var dmg = Math.max(BATTLE.minDmg, Math.round(base * mult));
     out.raw = raw; out.armor = defV; out.magic = magic; out.pass = pass;
     out.magDmg = magic ? dmg : 0; out.physDmg = magic ? 0 : dmg;   // журнал фарбує магічний урон фіолетовим
-    out.parts = { magic: magic, raw: raw, def: defV, pass: pass, pct: pctV, mult: mult, half: half };
+    out.parts = { magic: magic, raw: raw, def: defV, pass: pass, pct: pctV, mult: mult, half: half, mul: mul };
     var calc = (magic ? '✨маг. ' : '') + raw + (defV > 0 ? ' × ' + pctOf(pass) + '% (' + (magic ? 'маг. захист ' : 'броня ') + defV + (out.pierce ? ', 🪓 пів броні' : '') + ')' : '')
-      + (pctV ? ' × ' + (100 + pctV) + '%' : '') + (half ? ' × ½' : '') + (crit ? ' × ' + BATTLE.critMult + ' крит' : '');
+      + (pctV ? ' × ' + (100 + pctV) + '%' : '') + (half ? ' × ½' : mul !== 1 ? ' × ' + mul : '') + (crit ? ' × ' + BATTLE.critMult + ' крит' : '');
     if (blocked) {   // частковий блок (лише якщо blockKeep > 0)
       var kept = Math.round(dmg * BATTLE.blockKeep);
       return ret({ dmg: kept, kind: 'block', crit: crit, calc: 'блок: ' + calc + ' = ' + dmg + ' → проходить ' + Math.round(BATTLE.blockKeep * 100) + '%' });

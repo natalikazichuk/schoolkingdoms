@@ -25,9 +25,9 @@ function battle(sk, bar, eq, opEq) {
     op: { f: { name: 'Бот', level: 3 }, p: R.fighter({ health: 400, accuracy: 50, agility: 50, mana: 0 }, opEq || [], K) }
   });
 }
-const KN = ['knight.sword', 'knight.axe', 'knight.spear', 'knight.shield', 'knight.bash', 'knight.berserk', 'knight.fists', 'knight.brave', 'knight.care'];
+const KN = ['knight.sword', 'knight.axe', 'knight.spear', 'knight.shield', 'knight.bash', 'knight.berserk', 'knight.fists', 'knight.brave', 'knight.care', 'knight.lunge', 'knight.enh'];
 
-test('Лицар: 9 оброблених вмінь 1 рівня, у кожного правила, значок, опис і ріст', () => {
+test('Лицар: оброблені вміння (9 першого рівня + Випад, Посилений урон), у кожного правила, значок, опис і ріст', () => {
   const ready = S.readyFor('knight').map(s => s.id);
   assert.strictEqual(JSON.stringify(ready.slice().sort()), JSON.stringify(KN.slice().sort()));
   KN.forEach(id => {
@@ -37,13 +37,14 @@ test('Лицар: 9 оброблених вмінь 1 рівня, у кожно�
     assert.ok(S.growTotal(s) >= 20, id);
   });
   assert.ok(!S.byId('knight.potions') && !S.byId('knight.scrolls'), 'дублі універсальних прибрано');
-  assert.ok(!S.byId('knight.lunge').ready, 'вміння 5+ рівня ще не оброблені');
+  assert.ok(!S.byId('knight.calm').ready, 'решта вмінь 5+ рівня ще не оброблені');
 });
 
 test('вивчення: лише свій клас і лише оброблені', () => {
   const st = S.bookState({ arena: { level: 3 }, heroClass: 'knight', skills: {} });
   assert.strictEqual(S.learnBlock(st, 'knight.sword'), '');
-  assert.strictEqual(S.learnBlock(st, 'knight.lunge'), 'unknown');
+  assert.strictEqual(S.learnBlock(st, 'knight.lunge'), 'level', 'Випад — з 5 рівня');
+  assert.strictEqual(S.learnBlock(S.bookState({ arena: { level: 6 }, heroClass: 'knight', skills: {} }), 'knight.calm'), 'unknown');
   assert.strictEqual(S.learnBlock(S.bookState({ arena: { level: 3 }, heroClass: 'mage', skills: {} }), 'knight.sword'), 'class');
   assert.strictEqual(S.learnBlock(S.bookState({ arena: { level: 3 }, skills: {} }), 'knight.bash'), 'class');
 });
@@ -353,4 +354,32 @@ test('heroSheet: база поза боєм = тести + вдягнені ре
   assert.strictEqual(sh.mag, '—');
   const st = battle({}, [], [wear(SWORD, 'weaponR'), wear(ARMOR, 'armor')]);
   assert.strictEqual(R.heroSheet({ health: 400, accuracy: 60, agility: 50, mana: 50 }, [wear(SWORD, 'weaponR'), wear(ARMOR, 'armor')], K).armor, st.me.p.armor, 'як у бою');
+});
+
+test('Випад: без перезарядки, основний удар ×1 → ×1.5, броня 80%, на 100% — 25% ще одного удару', () => {
+  assert.strictEqual(S.skillValues('knight.lunge', 100).dmgPct, 50);
+  assert.strictEqual(S.skillValues('knight.lunge', 25).extra, 6);
+  assert.ok(S.skillValues('knight.lunge', 100).cd == null, 'перезарядки немає');
+  let extra = 0, turns = 0, mulSeen = false, armorSeen = false;
+  for (let k = 0; k < 40; k++) {
+    const st = battle({ 'knight.lunge': 1 }, ['knight.lunge'], [wear(SWORD, 'weaponR')], [wear(ARMOR, 'armor')]);
+    SB.useSkill(ctx, st, 'knight.lunge');
+    for (let i = 0; i < 4 && st.status === 'live'; i++) {
+      const e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now()); turns++;
+      assert.ok(e.skill && e.skill.id === 'knight.lunge' && e.skill.kind === 'lunge', 'на 100% вдається щоходу');
+      assert.strictEqual(e.skill.mul, 1.5);
+      assert.strictEqual(st.me.skill, 'knight.lunge', 'вибір лишається — можна щоходу');
+      e.meHit.hits.forEach(h => { if (h.parts && !h.lungeExtra) { if (h.mul === 1.5) mulSeen = true; if (h.armorPct === 80 && h.armor === 32) armorSeen = true; } });
+      if (e.skill.extra) { extra++; assert.ok(e.meHit.hits.some(h => h.lungeExtra)); }
+    }
+  }
+  assert.ok(mulSeen && armorSeen, 'удар ×1.5, броня 40 → 32');
+  assert.ok(extra > turns * 0.1 && extra < turns * 0.45, 'ще удар ~25%: ' + extra + '/' + turns);
+});
+
+test('Посилений урон: +25% фізичного на 100%, ріст від ударів', () => {
+  const a = battle({ 'knight.enh': 1 }, [], [wear(SWORD, 'weaponR')]), b = battle({}, [], [wear(SWORD, 'weaponR')]);
+  assert.strictEqual(a.me.p.dmgPct - b.me.p.dmgPct, 25);
+  SB.turn(ctx, a, { atk: 'head', block: 'body' }, {}, Date.now());
+  assert.ok((a.me.grow['knight.enh'] || 0) + (a.me.growF['knight.enh'] || 0) >= 1);
 });
