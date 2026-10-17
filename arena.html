@@ -1670,8 +1670,8 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script type="module" src="firebase-config.js"></script>
 <script src="sk-avatar.js"></script>
 <script src="sk-progress.js"></script>
-<script src="sk-arena-rules.js?v=23"></script>
-<script src="sk-battle.js?v=17"></script>
+<script src="sk-arena-rules.js?v=24"></script>
+<script src="sk-battle.js?v=19"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
    Інвентар, скриня, смітник, продане / куплене сьогодні й монети
@@ -2115,6 +2115,11 @@ window.SKHERO = (function(){
     el.style.maxHeight = Math.max(110, Math.round(room)) + 'px';
   }
   window.addEventListener('resize', fitLog);
+  /* якою зброєю виконується вміння (Випад, Удар древком): «⚔️ меч, 🗡️ кинджал…» */
+  function weaponNames(id){
+    var l = (SB.SKILL_WEAPONS||{})[id] || [];
+    return l.map(function(k){ var w = window.SKIT && SKIT.weaponType ? SKIT.weaponType(k) : null; return w ? w.icon+' '+w.label.toLowerCase() : k; }).join(', ') || 'будь-яка';
+  }
   function bindSkills(){
     var col = $('btSkills'); if(!col) return;
     col.addEventListener('click', function(e){
@@ -2126,8 +2131,10 @@ window.SKHERO = (function(){
         else if(why==='swap') showToast('🔁 Ти вже перевдягнувся', 'За хід — одна дія: вміння, пояс або перевдягання.');
         else if(why==='knock') showToast('😵 Тебе збили з ніг', 'Цей хід — без атаки й без спецдій.'); return; }
       else if(why==='cd') showToast('⏳ Перезарядка', 'Обрано — спрацює, щойно перезарядиться (ще '+((B.me.cd||{})[id]-B.round+1)+' хід.).');
-      else if(why==='mana') showToast('💧 Не вистачає мани', 'Обрано — спрацює, коли буде 5 мани.');
+      else if(why==='mana') showToast('💧 Не вистачає мани', 'Обрано — спрацює, коли буде '+((B.me.skv&&B.me.skv[id]&&B.me.skv[id].mana)||5)+' мани.');
       else if(why==='shield') showToast('🛡️ Потрібен щит', 'Обрано — спрацює, коли вдягнеш щит у ліву руку.');
+      else if(why==='weapon') showToast('🗡️ Не тією зброєю', 'Обрано — спрацює з потрібною зброєю в руці: '+weaponNames(id)+'.');
+      else if(why==='active') showToast('✨ Ще діє', 'Обрано — можна буде знову, коли закінчиться.');
       saveBattle(); if(window.SKBOOK) SKBOOK.paintBattle(B); paintBelt();
     });
   }
@@ -2595,13 +2602,13 @@ window.SKHERO = (function(){
         belt = (bv.belt||[]).filter(Boolean).map(function(i){ return {base:by[i.id], inst:i}; });
       }catch(e){ belt = []; }
       // вміння: майстерність 0…1 вивчених і активні з панелі (sk-skills.js; бій бере знімок на старті)
-      var sk = {}, skv = {}, bar = [], use0 = {}, fail0 = {}, S = window.SKSKILLS;
+      var sk = {}, skv = {}, bar = [], use0 = {}, fail0 = {}, cls = (r[2] && r[2].heroClass) || null, S = window.SKSKILLS;
       if(S && r[2]){
         var bst = S.bookState(r[2]), hf = r[2].skillFails || {};
         Object.keys(bst.skills).forEach(function(id){ if(S.byId(id)){ var mp = S.mastery(bst, id); sk[id] = mp/100; if(S.skillValues && S.skillValues(id, mp)) skv[id] = S.skillValues(id, mp); use0[id] = Number(bst.skills[id])||0; fail0[id] = Number(hf[id])||0; } });
         bar = bst.bar.filter(function(id){ return id && sk[id]!=null && S.byId(id).type==='A'; });
       }
-      return {p:RULES.fighter(stats, eq, window.SKIT), eq:eq, belt:belt, catalog:r[1]||[], sk:sk, skv:skv, bar:bar, use0:use0, fail0:fail0};
+      return {p:RULES.fighter(stats, eq, window.SKIT), eq:eq, belt:belt, catalog:r[1]||[], sk:sk, skv:skv, bar:bar, use0:use0, fail0:fail0, cls:cls};
     }).catch(function(e){ try{ console.error('[арена] екіпіровку не прочитано:', e); }catch(_){} return {p:plainFighter(stats), eq:[]}; });
   }
 
@@ -2767,7 +2774,11 @@ window.SKHERO = (function(){
       (e.first ? '<span class="use">🎲 Хто перший з поясом: ти '+e.first.me+' · '+biEsc(B.op.f.name)+' '+e.first.op+'</span>' : '')
       + (e.uses||[]).map(useLine).join('')
       + (e.auto ? '<span class="b" title="Хід без тебе: ті самі зони, що минулого разу">⏳ авто</span> ' : '')
-      + strikeLines(e) + skillLine(e) + growLine(e) + wearLine(e));
+      + (e.blessHeal ? '<span class="ln use">🙏 Благословення: <span class="g">+'+e.blessHeal+' ❤️</span></span>' : '')
+      + (e.opDisarmed && !(e.skill && e.skill.kind==='disarm') ? '<span class="ln use">🤚 '+biEsc(B.op.f.name)+' без зброї</span>' : '')
+      + strikeLines(e) + skillLine(e)
+      + (e.calm ? '<span class="dice">🧘 Незворушність: 🎲 '+e.calm[0]+(e.calm[2]?' ≤ ':' > ')+e.calm[1]+'% — '+(e.calm[2]?'концентрація втрималась':'концентрація −1')+'</span>' : '')
+      + growLine(e) + wearLine(e));
     (e.broke||[]).forEach(function(b){ addBreak(b); });
   }
   /* рядок журналу: удар активним вмінням (у ту саму зону, що й основний) */
@@ -2776,7 +2787,26 @@ window.SKHERO = (function(){
     var S = window.SKSKILLS && SKSKILLS.byId(k.id), nm = S ? S.icon+' «'+S.name+'»' : '⚡ вміння';
     if(k.kind==='fail' && k.id==='knight.berserk') return '<span class="ln use">Ти: '+nm+': <span class="b">не вдалося</span> — спробуй наступного ходу<span class="dice">🎲 '+k.roll+' > '+k.need+'%</span></span>';
     var dice = '<span class="dice">🎲 '+k.roll+(k.ok?' ≤ ':' > ')+k.need+'%'+(k.calc && k.kind==='hit' ? ' · '+biEsc(k.calc)+' = '+k.dmg : '')+'</span>';
-    if(k.kind==='buff') return '<span class="ln use">Ти: '+nm+': <span class="g">лють! +'+k.dmgPct+'% урону, −'+k.armorCut+'% броні на '+k.turns+(k.turns<5?' ходи':' ходів')+'</span><span class="dice">🎲 '+k.roll+' ≤ '+k.need+'%</span></span>';
+    if(k.id==='knight.lunge') return '<span class="ln use">Ти: '+nm+': '+(k.kind==='lunge'
+        ? '<span class="g">удар ×'+k.mul+', броня ворога '+k.armor+'%</span>'+(k.extra ? ' · <span class="crit">ще один удар!</span>' : '')
+        : '<span class="b">не вдалося</span> — звичайний удар')
+      +'<span class="dice">🎲 '+k.roll+(k.ok?' ≤ ':' > ')+k.need+'%'+(k.exNeed ? ' · ще удар 🎲 '+k.exRoll+(k.extra?' ≤ ':' > ')+k.exNeed+'%' : '')+'</span></span>';
+    if(k.kind==='buff') return '<span class="ln use">Ти: '+nm+': <span class="g">лють! +'+k.dmgPct+'% урону, −'+k.armorCut+'% броні на '+k.turns+(k.turns<5?' ходи':' ходів')+'</span>'+(k.mana?' <span style="opacity:.75">(−'+k.mana+' мани)</span>':'')+'<span class="dice">🎲 '+k.roll+' ≤ '+k.need+'%</span></span>';
+    if(k.kind==='bless') return '<span class="ln use">Ти: '+nm+': <span class="g">броня й маг. захист +'+k.defPct+'%, лікує '+k.heal+'% щоходу — '+k.turns+(k.turns<5?' ходи':' ходів')+'</span> <span style="opacity:.75">(−'+k.mana+' мани)</span><span class="dice">🎲 '+k.roll+' ≤ '+k.need+'%</span></span>';
+    if(k.id==='knight.disarm'){
+      if(k.kind==='noweapon') return '<span class="ln use">Ti: '.replace('Ti','Ти')+nm+': <span class="b">у суперника немає зброї</span></span>';
+      if(k.kind==='immune') return '<span class="ln use">Ти: '+nm+': <span class="b">суперник і так без зброї</span></span>';
+      return '<span class="ln use">Ти: '+nm+': '+(k.ok ? '<span class="crit">вибив зброю! 🤚</span> — суперник б\'є без неї цей і наступний хід' : '<span class="b">не вдалося</span>')
+        +'<span class="dice">🎲 '+k.roll+(k.ok?' ≤ ':' > ')+k.need+'% (50 + (твоє володіння '+k.my+'% − суперника '+k.opl+'%) / 2)</span></span>';
+    }
+    if((k.id==='knight.haft'||k.id==='knight.daze') && k.hits){
+      if(k.kind==='fail') return '<span class="ln use">Ти: '+nm+': <span class="b">не вдалося</span><span class="dice">🎲 '+k.roll+' > '+k.need+'%</span></span>';
+      var hs2 = k.hits.map(function(h){ return ZONE_UA[h.zone]+': '+(h.kind==='hit'||h.kind==='crit' ? '<span class="g">−'+h.dmg+'</span>' : h.kind==='block' ? '<span class="b">блок</span>' : '<span class="b">промах</span>'); }).join(' · ');
+      return '<span class="ln use">Ти: '+nm+' → '+hs2
+        +(k.daze ? ' · <span class="crit">збив концентрацію'+(k.focusLost?' ('+k.focusLost+')':'')+'</span>' : k.dazeSaved ? ' · <span class="b">суперник встояв (Хоробрість)</span>' : '')
+        +'<span class="dice">🎲 '+k.roll+' ≤ '+k.need+'%'+(k.secNeed!=null ? ' · другий удар 🎲 '+k.secRoll+(k.secRoll<=k.secNeed?' ≤ ':' > ')+k.secNeed+'%' : '')
+        +' · '+k.hits.map(function(h){ return h.calc ? biEsc(h.calc)+' = '+(h.dmg||0) : ''; }).join(' | ')+'</span></span>';
+    }
     var t = k.kind==='fail' ? '<span class="b">не вдалося</span>'
       : k.kind==='block' ? '<span class="b">заблоковано</span>'
       : (k.noDmg ? '<span class="g">штовхнув</span>' : '<span class="g">влучив</span> (−'+dmgHtml(k.dmg, k.magDmg||0)+')') + (k.knock ? ' · <span class="crit">збив з ніг 😵</span> — суперник пропустить удар' : k.knockImmune ? ' · <span class="b">не збити з ніг — суперник ще оговтується (імунітет)</span>' : k.knockHalf ? ' · <span class="b">суперник щойно підвівся: шанс збити з ніг навпіл</span>' : '');
@@ -2797,7 +2827,9 @@ window.SKHERO = (function(){
     for(var i=0;i<n;i++){
       var parts = [];
       var mz = mh[i] && mh[i].hits && mh[i].hits[0] && mh[i].hits[0].combo ? mh[i].hits[0] : null;   // «Двійка» — своя зона
-      if(mh[i]) parts.push(phrase('Ти → '+ZONE_UA[mz ? mz.zone : e.me.atk]+(mz ? ' <span class="sno">👊👊 Двійка</span>' : tag(mh,i)), mh[i]));
+      var h0x = mh[i] && mh[i].hits && mh[i].hits[0], lx = h0x && h0x.lungeExtra;                       // Випад: ще один удар
+      var xtag = h0x && h0x.second ? ' <span class="sno">⚡ друга атака</span>' : h0x && h0x.riposte ? ' <span class="sno">↩️ протидія</span>' : '';
+      if(mh[i]) parts.push(phrase('Ти → '+ZONE_UA[mz ? mz.zone : e.me.atk]+(mz ? ' <span class="sno">👊👊 Двійка</span>' : lx ? ' <span class="sno">🗡️ ще удар'+(h0x.shieldX2?' · щит ×2':'')+'</span>' : xtag || tag(mh,i)), mh[i]));
       if(oh[i]) parts.push(phrase(B.op.f.name+' → '+ZONE_UA[e.op.atk]+tag(oh,i), oh[i]));
       out += '<span class="ln">'+parts.join(' <span style="opacity:.5">·</span> ')
         + (mh[i] ? diceLine('Ти', mh[i]) : '') + (oh[i] ? diceLine(B.op.f.name, oh[i]) : '') + '</span>';
@@ -2853,7 +2885,7 @@ window.SKHERO = (function(){
           heroId: battleHeroId(), kind: 'arena',
           me: { name: hero.name, avatar: hero.avatar, level: arena.level,
                 stats: {health:hero.health, accuracy:hero.accuracy, agility:hero.agility, mana:hero.mana}, eq: r.eq, belt: r.belt||[],
-                sk: r.sk||{}, skv: r.skv||{}, bar: r.bar||[] },
+                sk: r.sk||{}, skv: r.skv||{}, bar: r.bar||[], cls: r.cls||null },
           op: { f: bot, p: bp, belt: RULES.botBelt ? RULES.botBelt(r.catalog, window.SKIT) : [] }
         });
         // для «+1%» у бою: скільки спрацювань і невдач було на старті (як рахує сервер)
@@ -3189,7 +3221,7 @@ window.SKHERO = (function(){
     var nMe = floatDmg('o', meHit);   // скільки втратив суперник від тебе — кожен удар окремо
     floatDmg('p', opHit);             // скільки втратив ти від суперника
     if(e.skill){ var ski = window.SKSKILLS && SKSKILLS.byId(e.skill.id);
-      floatOne(e.skill.kind==='buff' ? 'p' : 'o', e.skill, nMe, nMe + 1, ski ? ski.icon : '⚡');
+      if(e.skill.kind!=='lunge' && e.skill.kind!=='noweapon' && e.skill.kind!=='immune') floatOne(e.skill.kind==='buff'||e.skill.kind==='bless' ? 'p' : 'o', e.skill, nMe, nMe + 1, ski ? ski.icon : '⚡');   // Випад — урон уже в основному ударі
       if(e.skill.knock) setTimeout(function(){ floatOne('o', {kind:'knock'}, 0, 1); }, (nMe+1)*380); }
     floatGrow(grow0, B.me.grow, growF0, B.me.growF, (nMe + (e.skill ? 2 : 1)) * 380 + 500);
 
@@ -3248,7 +3280,7 @@ window.SKHERO = (function(){
     rb.className = 'rbig ' + cls;
     var h0 = (meHit.hits || [meHit])[0] || {};
     if(sk){ var ski = window.SKSKILLS && SKSKILLS.byId(sk.id), ic = ski ? ski.icon+' '+ski.name : '⚡';
-      lbl += ' · ' + ic + ': ' + (sk.kind==='hit' ? (sk.noDmg ? (sk.knock ? '😵' : 'штовхнув') : '−'+sk.dmg+(sk.knock?' 😵':'')) : sk.kind==='buff' ? 'лють!' : sk.kind==='block' ? 'блок' : 'не вдалось'); }
+      lbl += ' · ' + ic + ': ' + (sk.kind==='hit' ? (sk.noDmg ? (sk.knock ? '😵' : 'штовхнув') : '−'+sk.dmg+(sk.knock?' 😵':'')) : sk.kind==='buff' ? 'лють!' : sk.kind==='bless' ? 'благословення!' : sk.kind==='disarm' ? 'вибив зброю!' : sk.kind==='lunge' ? '×'+sk.mul+(sk.extra?' +удар':'') : sk.kind==='block' ? 'блок' : 'не вдалось'); }
     rb.innerHTML = '<span class="rnum">'+num+'</span><span class="rlbl">'+lbl+'</span>'
       + (h0.hitRoll!=null ? '<span class="rdice" id="rdice"></span>' : '')
       + '<span class="ropp">Суперник'+(opHit.kind==='fear'||opHit.kind==='skip'||opHit.kind==='knock' ? '' : ' → '+ZONE_UA[B.op.atk])+': '+ok+'</span>';
@@ -3286,6 +3318,8 @@ window.SKHERO = (function(){
     else if(h.kind==='skip'){ return; }
     else if(h.kind==='fail'){ el.className='dmg-float miss'; el.textContent=pre+'не вдалось'; }
     else if(h.kind==='buff'){ el.className='dmg-float crit'; el.textContent=pre+'лють!'; }
+    else if(h.kind==='bless'){ el.className='dmg-float hit'; el.style.color='#ffe27a'; el.textContent=pre+'благословення'; }
+    else if(h.kind==='disarm'){ el.className='dmg-float crit'; el.textContent=pre+'без зброї!'; }
     else if(h.noDmg){ el.className='dmg-float miss'; el.textContent=pre+(h.knock?'😵':'штовх'); }
     else if(h.kind==='barrier'){ el.className='dmg-float blk'; el.textContent=pre+'🫧'; }
     else if(h.kind==='dodge'){ el.className='dmg-float miss'; el.textContent=h.skillDodge ? 'ухилився 💨' : pre+'промах'; }
@@ -3340,7 +3374,7 @@ window.SKHERO = (function(){
     var q = h.parts; if(!q) return h.calc || '';
     var t = q.magic
       ? '<span class="mag">✨маг. ' + defPart(q, 'маг. захист') + (q.pct ? ' × ' + (100+q.pct) + '%' : '') + '</span>'
-      : defPart(q, 'броня') + (h.pierce ? ' <span class="g">🪓 Сокира: пів броні (🎲 '+h.pierceRoll+' ≤ '+h.pierceNeed+'%)</span>' : '') + (q.pct ? ' × ' + (100+q.pct) + '%' : '') + (q.half ? ' × ½ <span class="g">👊👊 двійка</span>' : '');
+      : defPart(q, 'броня') + (h.pierce ? ' <span class="g">🪓 Сокира: пів броні (🎲 '+h.pierceRoll+' ≤ '+h.pierceNeed+'%)</span>' : '') + (q.pct ? ' × ' + (100+q.pct) + '%' : '') + (q.half ? ' × ½ <span class="g">👊👊 двійка</span>' : q.mul && q.mul!==1 ? ' × '+q.mul+' <span class="g">🗡️ випад</span>' : '') + (h.armorPct ? ' <span class="g">(броня '+h.armorFrom+' → '+h.armorPct+'%)</span>' : '');
     if(h.crit) t += ' <span class="crit">× ' + q.mult + ' — Критичний урон !!!</span>';
     return t;
   }
@@ -3352,9 +3386,11 @@ window.SKHERO = (function(){
       if(h.hitRoll==null) return '';
       var t = (hs.length>1 ? (i+1)+') ' : '')
         + (h.combo ? '👊👊 двійка 🎲 <b>'+h.combo[0]+'</b> ≤ '+h.combo[1]+'% · ' : '')
+        + (h.second ? '⚡ друга атака 🎲 <b>'+h.second[0]+'</b> ≤ '+h.second[1]+'% · ' : '')
+        + (h.riposte ? '↩️ протидія 🎲 <b>'+h.riposte[0]+'</b> ≤ '+h.riposte[1]+'% · ' : '')
         + '🎲 <b>'+h.hitRoll+'</b> '+(h.hitRoll<=h.hitNeed?'≤':'>')+' '+h.hitNeed+'% '+(h.kind==='dodge'&&!h.skillDodge?'— промах':'— влучив');
       if(h.skillDodge) t += ' · <span class="ev">'+biEsc(h.dodgeCalc||'')+'</span>';   // влучив, але ухилився вмінням
-      else if(h.kind==='block' && h.skillShield) t += ' · <span class="ev">'+biEsc(h.blockCalc||'')+'</span>';
+      else if(h.kind==='block' && (h.skillShield||h.skillParry)) t += ' · <span class="ev">'+biEsc(h.blockCalc||'')+'</span>';
       else if(h.kind==='block') t += ' · '+(h.evade ? '<span class="ev">'+h.calc+'</span>' : h.magic ? '<span class="mblk">'+h.calc+'</span>' : h.calc);   // блок: крит — для зносу щита
       else if(h.kind==='barrier') t += ' · '+calcHtml(h)+' = '+h.absorbed+' → 🫧 бар\'єр поглинув';
       else if(h.kind!=='dodge') t += (h.blockRoll!=null ? (h.evadeTry ? ' · відскок 🎲 <b>' : ' · блок шансом 🎲 <b>')+h.blockRoll+'</b> > '+h.blockNeed+'%' : '')
@@ -3374,6 +3410,7 @@ window.SKHERO = (function(){
     if(hit.kind==='skip') return '<span>'+prefix.split(' →')[0]+': <span class="b">удару не було</span></span>';
     if(hit.kind==='knock') return '<span>'+prefix.split(' →')[0]+': <span class="b">😵 збитий з ніг — не атакує</span></span>';
     if(hit.kind==='dodge' && hs.some(function(h){ return h.skillDodge; })) return '<span title="'+biEsc(hs.map(function(h){ return h.dodgeCalc||''; }).join(' '))+'">'+prefix+': <span class="ev">💨 ухилився вмінням</span>'+x+'</span>';
+    if(hit.kind==='block' && hs.some(function(h){ return h.skillParry; })) return '<span title="'+biEsc(hs.map(function(h){ return h.blockCalc||''; }).join(' '))+'">'+prefix+': <span class="ev">🤺 парирував зброєю</span>'+x+'</span>';
     if(hit.kind==='block' && hs.some(function(h){ return h.skillShield; })) return '<span title="'+biEsc(hs.map(function(h){ return h.blockCalc||''; }).join(' '))+'">'+prefix+': <span class="ev">🛡️ заблокував щитом (вміння)</span>'+x+'</span>';
     if(hit.kind==='barrier') return '<span'+t+'>'+prefix+': <span class="b">🫧 бар\'єр поглинув удар</span>'+x+'</span>';
     if(hit.kind==='dodge') return '<span'+t+'>'+prefix+': <span class="b">промах!</span>'+x+'</span>';
@@ -3757,8 +3794,8 @@ window.SKHERO = (function(){
 </script>
 
 <script src="sk-items.js?v=18"></script>
-<script src="sk-skills.js?v=21"></script>
-<script src="sk-book.js?v=8"></script>
+<script src="sk-skills.js?v=23"></script>
+<script src="sk-book.js?v=9"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
    Дані ЗАРАЗ demo (локально). Крок 2: джерело речей → Firestore (адмінка).

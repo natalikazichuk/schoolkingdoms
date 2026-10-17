@@ -13,8 +13,8 @@
 <script src="sk-admin.js?v=1"></script>
 <script src="sk-curriculum.js?v=8"></script>
 <script src="sk-items.js?v=18"></script>
-<script src="sk-arena-rules.js?v=23"></script>
-<script src="sk-skills.js?v=21"></script>
+<script src="sk-arena-rules.js?v=24"></script>
+<script src="sk-skills.js?v=23"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -988,11 +988,16 @@ function heroAdminHTML(){
       +'<td><button type="button" class="btn-ghost" data-hadm="reset" data-id="'+esc(h.id)+'"'+(h.cls?'':' disabled')+'>↺ Скинути клас</button>'
       +'<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap"><select id="hadm-cls-'+esc(h.id)+'" aria-label="Клас">'+opts+'</select>'
       +'<input type="number" id="hadm-pct-'+esc(h.id)+'" value="50" min="25" max="100" style="width:64px" aria-label="Майстерність %">'
-      +'<button type="button" class="btn-ghost" data-hadm="test" data-id="'+esc(h.id)+'">🧪 Клас + вміння</button></div></td></tr>';
+      +'<button type="button" class="btn-ghost" data-hadm="test" data-id="'+esc(h.id)+'">🧪 Клас + вміння</button></div>'
+      +'<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap"><input type="number" id="hadm-lv-'+esc(h.id)+'" value="'+h.lv+'" min="1" max="30" style="width:64px" aria-label="Рівень арени">'
+      +'<button type="button" class="btn-ghost" data-hadm="level" data-id="'+esc(h.id)+'">🆙 Рівень</button>'
+      +'<button type="button" class="btn-ghost" data-hadm="point" data-id="'+esc(h.id)+'">🎁 +1 очко вмінь</button>'
+      +'<span class="key" style="align-self:center">очок понад рівень: '+(h.bonus||0)+'</span></div></td></tr>';
   }).join('');
   return '<section class="sec" id="hadm"><h2>🧪 Герої: клас і вміння (тест)</h2>'
     +'<p class="hint"><b>↺ Скинути клас</b> — Герой знову обирає клас; вміння класу зникають (і з панелі), очки повертаються, базові вміння лишаються. '
-    +'<b>🧪 Клас + вміння</b> — дати клас і всі оброблені вміння цього класу на вказаний % (для перевірки в бою; очки не витрачаються).</p>'
+    +'<b>🧪 Клас + вміння</b> — дати клас і всі оброблені вміння цього класу на вказаний % (для перевірки в бою; очки не витрачаються). '
+    +'<b>🆙 Рівень</b> — рівень арени (1–30, досвід з нуля; відкриває вміння свого рівня). <b>🎁 +1 очко</b> — ще одне очко вмінь. Відкрита арена в Героя — хай оновить сторінку.</p>'
     +(HADM.err?'<p class="hint" style="color:#a8322f">Не вдалося: '+esc(HADM.err)+'</p>':'')
     +(HADM.list?'<div class="tblwrap"><table class="st"><thead><tr><th>Герой</th><th>Рів.</th><th>Клас</th><th>Вміння</th><th>Дії</th></tr></thead><tbody>'+rows+'</tbody></table></div>':(HADM.err?'':'<div class="empty">Завантаження…</div>'))
     +'</section>';
@@ -1003,6 +1008,13 @@ root.addEventListener('click',function(e){
   if(b.dataset.hadm==='reset'){
     if(!confirm('Скинути клас Героя «'+(h.name||id)+'»? Вміння класу зникнуть.'))return;
     p=hadmApi('POST','hero/reset-class',{id:id});
+  } else if(b.dataset.hadm==='level'){
+    var lv=Math.floor(+document.getElementById('hadm-lv-'+id).value||0);
+    if(!(lv>=1&&lv<=30)){alert('Рівень — від 1 до 30');return;}
+    if(!confirm('Встановити Героєві «'+(h.name||id)+'» рівень арени '+lv+'? Досвід почнеться з нуля.'))return;
+    p=hadmApi('POST','hero/set-level',{id:id,level:lv});
+  } else if(b.dataset.hadm==='point'){
+    p=hadmApi('POST','hero/set-level',{id:id,addPoints:1});
   } else {
     var cls=document.getElementById('hadm-cls-'+id).value,pct=+document.getElementById('hadm-pct-'+id).value||50;
     if(!confirm('Дати Героєві «'+(h.name||id)+'» клас '+SKSKILLS.CLASSES[cls].name+' і всі його оброблені вміння на '+pct+'%?'))return;

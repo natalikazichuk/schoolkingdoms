@@ -210,6 +210,21 @@ function testClass(heroId, body) {
     return { heroClass: cls, skills, skillFails: base.skillFails, skillBar: base.skillBar, skillBonus: Math.max(st.bonus, need) };
   });
 }
+/* Адмін (тест): рівень арени і очки вмінь. level — 1…30 (досвід до наступного рівня — з нуля);
+   addPoints — скільки очок вмінь додати (у skillBonus, 0…20). Бій не має йти. */
+function setLevel(heroId, body) {
+  const lvRaw = body.level == null ? null : Math.floor(Number(body.level));
+  const add = Math.max(0, Math.min(20, Math.floor(Number(body.addPoints) || 0)));
+  if (lvRaw != null && !(lvRaw >= 1 && lvRaw <= 30)) throw new SkillError('invalid-argument', 'Рівень — від 1 до 30');
+  if (lvRaw == null && !add) throw new SkillError('invalid-argument', 'Нічого змінювати');
+  return withHeroId(String(heroId || ''), (hero, st) => {
+    if (battleLive(hero)) throw new SkillError('failed-precondition', 'Герой зараз у бою — спершу хай завершить бій');
+    const out = {};
+    if (lvRaw != null) out.arena = Object.assign({}, hero.arena || {}, { level: lvRaw, xp: 0 });
+    if (add) out.skillBonus = st.bonus + add;
+    return out;
+  });
+}
 /* Список Героїв для адмінки: ім'я, рівень, клас, вміння */
 async function heroList() {
   const r = await pool.query(`select id, data from docs where parent = 'heroes' order by data->>'name'`);
@@ -224,4 +239,4 @@ async function heroList() {
 /* поля книги, які браузер не може змінювати напряму (rules.js) */
 const PROTECTED = ['skills', 'skillBar', 'heroClass', 'skillBonus', 'skillGrowIds', 'skillFails', 'skillTrade'];
 
-module.exports = { learn, setBar, chooseClass, growAfterBattle, applyGrow, growTrade, tradeDeals, resetClass, testClass, heroList, stripClass, SkillError, PROTECTED, lib };
+module.exports = { learn, setBar, chooseClass, growAfterBattle, applyGrow, growTrade, tradeDeals, resetClass, testClass, setLevel, heroList, stripClass, SkillError, PROTECTED, lib };

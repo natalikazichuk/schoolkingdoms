@@ -262,6 +262,8 @@ function paintBattle(bs){
       else if (why === 'mana') { cls += ' cd'; badge = '<span class="skb-cd">💧</span>'; tip += sel2 ? ' · обрано, спрацює, коли буде мана' : ' · мало мани'; }
       else if (why === 'shield') { cls += ' cd'; badge = '<span class="skb-cd">🛡️</span>'; tip += ' · потрібен щит у лівій руці'; }
       else if (why === 'used') { cls += ' cd'; badge = '<span class="skb-cd">✔</span>'; tip += ' · уже використано в цьому бою'; }
+      else if (why === 'weapon') { cls += ' cd'; badge = '<span class="skb-cd">🗡️</span>'; tip += ' · не тією зброєю (або її вибито)'; }
+      else if (why === 'active') { cls += ' cd'; badge = '<span class="skb-cd">✨</span>'; tip += ' · ще діє'; }
       else if (why === 'knock') { cls += ' cd'; badge = '<span class="skb-cd">😵</span>'; tip += ' · тебе збили з ніг: цей хід без дій'; }
       else if (why === 'swap') { cls += ' cd'; badge = '<span class="skb-cd">🔁</span>'; tip += ' · цього ходу ти вже перевдягнувся'; }
       else if (sel2) tip += ' · спрацює цього ходу';
@@ -272,7 +274,7 @@ function paintBattle(bs){
   }
   var hint = !any ? 'Постав вміння:<br>Інвентар → 📖'
     : b ? (b.me.skill ? 'Б\'є щоходу, коли<br>доступне · ще раз — зняти' : 'Торкнись — вміння<br>битиме щоходу') : '';
-  if (b && b.me.sk['base.spark'] != null) hint += '<br>💧 мана: ' + Math.round(Number(b.me.mana) || 0);
+  if (b && (b.me.bar || []).some(function (x) { return b.me.skv && b.me.skv[x] && b.me.skv[x].mana; })) hint += '<br>💧 мана: ' + Math.round(Number(b.me.mana) || 0);   // вміння, що беруть ману
   host.innerHTML = h + (hint ? '<div class="hint">' + hint + '</div>' : '');
 }
 
