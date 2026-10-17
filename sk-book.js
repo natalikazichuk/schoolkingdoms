@@ -177,6 +177,15 @@ function renderBar(){
 }
 
 /* ── книга ── */
+/* список вмінь двома групами: спершу активні, далі пасивні; у кожній — вищий рівень зверху */
+function groupsHTML(list){
+  var by = function(a, b){ return (b.lv || 1) - (a.lv || 1); };
+  var grp = function(act, title){
+    var l = list.filter(function(s){ return (s.type === 'A') === act; }).sort(by);
+    return l.length ? '<div class="skb-grp">' + title + ' <small>' + l.length + '</small></div>' + l.map(function(s){ return rowHTML(s.id); }).join('') : '';
+  };
+  return grp(true, '⚡ Активні') + grp(false, '🛡️ Пасивні');
+}
 function rowHTML(id){
   var s = sk(id), L = learned(id), lock = s.lv > ST.lv, p = pct(id);
   var can = hero() && !L && !lock && free() > 0;
@@ -189,7 +198,8 @@ function rowHTML(id){
     ? '<div class="skb-sk spot" data-skb-ret="' + id + '" title="На панелі — торкнись, щоб повернути"><div class="in">⚡ на<br>панелі</div></div>'
     : tile(id, { drag: L && isActive(id), lock: lock });
   return '<div class="skb-row' + (can ? ' can' : '') + (lock ? ' lock' : '') + '">' + left
-    + '<div class="skb-txt" data-skb-info="' + id + '"><div class="skb-nm">' + esc(s.name) + ' <span class="skb-tag ' + (s.type === 'A' ? 'a">АКТИВНЕ' : 'p">ПАСИВНЕ') + '</span></div>'
+    + '<div class="skb-txt" data-skb-info="' + id + '"><div class="skb-nm">' + esc(s.name) + ' <span class="skb-tag ' + (s.type === 'A' ? 'a">АКТИВНЕ' : 'p">ПАСИВНЕ') + '</span>'
+    + (TAB === 'cls' ? '<span class="skb-tag lv">рів. ' + (s.lv || 1) + '</span>' : '') + '</div>'
     + '<div class="skb-kid">' + esc(s.kid) + '</div>' + st + '</div>'
     + (can ? '<button class="skb-learn" type="button" data-skb-learn="' + id + '"' + (BUSY ? ' disabled' : '') + '>✨ Вивчити</button>' : '') + '</div>';
 }
@@ -214,7 +224,7 @@ function renderBook(){
   else if (TAB === 'cls') h += clsHTML(ready);
   else {
     if (!hero()) h += '<div class="skb-msg">Вміння вивчає сам Герой. Увійди Героєм, щоб вивчати й ставити їх на панель.</div>';
-    h += SKS.UNIVERSAL.filter(function(s){ return s.lv === TAB; }).map(function(s){ return rowHTML(s.id); }).join('');
+    h += groupsHTML(SKS.UNIVERSAL.filter(function(s){ return s.lv === TAB; }));
   }
   host.innerHTML = h + '</div>';
 }
@@ -226,7 +236,7 @@ function clsHTML(ready){
   var c = SKS.CLASSES[ST.cls], list = SKS.readyFor ? SKS.readyFor(ST.cls).filter(function(s){ return s.lv <= ST.lv; }) : [];
   if (!list.length) return '<div class="skb-msg">' + c.icon + ' Ти — <b>' + c.name + '</b>. Вміння класу з\'являться тут у наступному оновленні.</div>';
   return '<div class="skb-msg">' + c.icon + ' Ти — <b>' + c.name + '</b>. Вміння класу вивчаються за очки вмінь, як і звичайні. Нові з\'являтимуться з оновленнями.</div>'
-    + list.map(function(s){ return rowHTML(s.id); }).join('');
+    + groupsHTML(list);
 }
 function render(){
   var f = $('ek-flip'); if (f) f.classList.toggle('book', OPEN);

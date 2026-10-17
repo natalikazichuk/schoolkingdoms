@@ -1322,7 +1322,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 @media(max-width:520px){#wtabGear{--ek-cell:66px}.ek-slots{grid-template-columns:repeat(3,var(--ek-cell))}.ek-body{gap:10px}}
 
 </style>
-<link rel="stylesheet" href="sk-book.css?v=7">
+<link rel="stylesheet" href="sk-book.css?v=8">
 </head>
 <body>
 <div class="bg-img"></div>
@@ -2589,24 +2589,49 @@ window.SKHERO = (function(){
       name: bot.name, avatar: bot.avatar, tier: bot.power, ic: bot.ic, pct: bot.pct, xpMul: bot.xp, cls: 'knight',
       level: Math.max(1, arena.level),                               // рівень = рівень Героя: вміння відкриваються так само
       health: vary(hero.health, 0.2), accuracy: vary(hero.accuracy, 0.1), agility: vary(hero.agility, 0.1),   // здоров'я ±20%, точність і спритність ±10%
-      mana: bot.mana,                                                // мана — бюджет на вміння за складністю
+      mana: bot.mana, smart: bot.smart,                              // мана — бюджет на вміння за складністю; smart — сильний набір вмінь
       lastPlayerAtk: null
     };
   }
-  /* вміння бота-Лицаря: усі оброблені вміння класу свого рівня (+ Концентрація) на pct %;
-     up — пороги росту в межах бою (+1…+5 %), щоб бот ріс, як Герой, а наступний бій — знову з бази */
-  function botSkills(bot){
-    var S = window.SKSKILLS, out = {sk:{}, skv:{}, bar:[], up:{}};
+  /* вміння бота-Лицаря — за тими самими правилами, що й у Героя:
+     стільки вмінь, скільки очок на його рівні (pointsForLevel), активних — не більше відкритих ячейок панелі (barSlots);
+     вміння класу — з CLASS_LEVEL; лише ті, що підходять до його зброї/щита.
+     smart (🟣🔴) — сильний порядок вивчення, інакше (🟢🔵) — випадковий, як у недосвідченого гравця.
+     Усі вивчені — на pct %; up — пороги росту в межах бою (+1…+5 %), наступний бій — знову з бази. */
+  var BOT_ORDER = ['base.weapons','W','knight.berserk','knight.brave','knight.shield','knight.bash','knight.lunge','knight.second',
+    'knight.calm','base.focus','knight.parry','knight.bless','knight.enh','knight.disarm','knight.riposte','knight.haft',
+    'knight.daze','base.dodge','base.shield','base.kick','knight.care'];
+  var BOT_W = {'knight.sword':['sword'], 'knight.axe':['axe'], 'knight.spear':['spear'],
+    'knight.lunge':['sword','dagger','spear'], 'knight.haft':['spear','staff']};
+  var BOT_SH = {'knight.shield':1, 'knight.bash':1, 'base.shield':1};
+  function botSkills(bot, eq){
+    var S = window.SKSKILLS, out = {sk:{}, skv:{}, bar:[], up:{}, learned:[]};
     if(!S || !S.readyFor) return out;
-    var list = S.readyFor(bot.cls).filter(function(s){ return (s.lv||1) <= bot.level; });
-    if(S.byId('base.focus') && S.RULES && S.RULES['base.focus']) list.push(S.byId('base.focus'));
-    list.forEach(function(s){
+    var wR = (eq||[]).filter(function(e){ return e.slot==='weaponR' && e.base; })[0];
+    var wt = wR ? wR.base.weaponType : null;
+    var shield = (eq||[]).some(function(e){ return e.slot==='weaponL' && e.base && e.base.category==='Щити'; });
+    var W = wt && S.byId('knight.'+wt) ? 'knight.'+wt : null;
+    var ok = function(id){
+      var s = S.byId(id); if(!s || !S.RULES || !S.RULES[id]) return false;
+      if((s.lv||1) > bot.level) return false;
+      if(/^knight\./.test(id) && bot.level < (S.CLASS_LEVEL||3)) return false;
+      if(BOT_W[id] && BOT_W[id].indexOf(wt) < 0) return false;
+      if(BOT_SH[id] && !shield) return false;
+      return true;
+    };
+    var pool = BOT_ORDER.map(function(id){ return id==='W' ? W : id; }).filter(function(id, i, a){ return id && a.indexOf(id)===i && ok(id); });
+    if(!bot.smart) for(var i = pool.length-1; i > 0; i--){ var j = Math.floor(Math.random()*(i+1)), t = pool[i]; pool[i] = pool[j]; pool[j] = t; }
+    var pts = S.pointsForLevel(bot.level), slots = S.barSlots(bot.level);
+    pool.forEach(function(id){
+      if(out.learned.length >= pts) return;
+      var s = S.byId(id);
+      if(s.type==='A'){ if(out.bar.length >= slots) return; out.bar.push(id); }
+      out.learned.push(id);
       var p = bot.pct, tot = S.growTotal(s), u0 = S.usesForPct(p, tot);
-      out.sk[s.id] = p/100; out.skv[s.id] = S.skillValues(s.id, p);
-      if(s.type==='A') out.bar.push(s.id);
+      out.sk[id] = p/100; out.skv[id] = S.skillValues(id, p);
       var ups = [];
-      for(var k=1; k<=5 && p+k<=100; k++) ups.push({u: Math.round((S.usesForPct(p+k, tot) - u0)*10)/10, pct: p+k, v: S.skillValues(s.id, p+k)});
-      if(ups.length) out.up[s.id] = ups;
+      for(var k=1; k<=5 && p+k<=100; k++) ups.push({u: Math.round((S.usesForPct(p+k, tot) - u0)*10)/10, pct: p+k, v: S.skillValues(id, p+k)});
+      if(ups.length) out.up[id] = ups;
     });
     return out;
   }
@@ -2983,7 +3008,7 @@ window.SKHERO = (function(){
         if(bits){ var bw = botWeapon(r.catalog, r.eq);
           if(bw){ bits = bits.filter(function(e){ return e.slot!=='weaponR'; }); bits.push(bw);
             if(RULES.isTwoHanded && RULES.isTwoHanded(bw.base)) bits = bits.filter(function(e){ return e.slot!=='weaponL'; }); } }
-        var bsk = botSkills(bot);
+        var bsk = botSkills(bot, bits);
         var bp;
         if(bits && bits.length && RULES.fighter){
           bp = RULES.fighter({health:bot.health, accuracy:bot.accuracy, agility:bot.agility, mana:bot.mana}, bits, window.SKIT);
@@ -3199,6 +3224,7 @@ window.SKHERO = (function(){
       var f = B.op.f || {}, os = B.op.up ? Object.keys(B.op.skv||{}) : Object.keys(B.op.sk||{});
       if(!f.ic && !os.length) return [];
       return ['  Суперник: '+(f.ic||'')+' Лицар '+(f.pct||'')+'% · рівень '+(f.level||'?')+' · мана на старті '+Math.round(f.mana||0)+' → зараз '+Math.round(B.op.mana||0)+(f.xpMul?' · досвід ×'+f.xpMul:'')
+        +(f.smart!=null ? ' · набір вмінь: '+(f.smart?'сильний':'випадковий')+' ('+os.length+' з '+(S&&S.pointsForLevel?S.pointsForLevel(f.level||1):'?')+' очок, на панелі '+(B.op.bar||[]).length+' з '+(S&&S.barSlots?S.barSlots(f.level||1):'?')+')' : '')
         +(os.length ? ' · вміння: '+os.map(function(id){ var s = S && S.byId(id); return s ? s.icon+' '+s.name : id; }).join(' · ') : '')];
     }
   }
@@ -3925,7 +3951,7 @@ window.SKHERO = (function(){
 
 <script src="sk-items.js?v=18"></script>
 <script src="sk-skills.js?v=23"></script>
-<script src="sk-book.js?v=9"></script>
+<script src="sk-book.js?v=10"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
    Дані ЗАРАЗ demo (локально). Крок 2: джерело речей → Firestore (адмінка).
