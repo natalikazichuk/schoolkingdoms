@@ -48,7 +48,29 @@ test('ключ: той самий набір — той самий ключ; к�
   assert.match(a, /^[0-9a-f]{24}$/);
   assert.strictEqual(k({ weaponR: 'IT-093', helmet: 'IT-001', ring1: 'IT-108', belt0: 'IT-001' }), a);
   assert.notStrictEqual(k({ helmet: 'IT-001' }), a);
-  assert.notStrictEqual(A.buildSpec(hero('hero:linen-boy-fight', { helmet: 'IT-001', weaponR: 'IT-093' }), ITEMS, has).key, a);
+  // пряма й бойова поза джури — один набір (малюється в обох позах), тож і ключ один
+  assert.strictEqual(A.buildSpec(hero('hero:linen-boy-fight', { helmet: 'IT-001', weaponR: 'IT-093' }), ITEMS, has).key, a);
+});
+
+test('дві пози: бойова база для вбудованого джури й для героя з фото', async () => {
+  const s = A.buildSpec(hero('hero:linen-boy-fight', { helmet: 'IT-001' }), ITEMS, has);
+  assert.strictEqual(s.base, 'linen-boy');
+  assert.strictEqual(s.baseImage, 'img/ava/linen-boy-base.webp');
+  assert.strictEqual(s.fightImage, 'img/ava/linen-boy-fight-base.webp');
+  assert.strictEqual(A.standOf('linen-boy-fight'), 'linen-boy');
+  assert.strictEqual(A.baseImageOf('gen/abc-1', 'fight'), 'img/ava/gen/abc-1-fight-base.webp');
+  assert.strictEqual(A.baseImageOf('knight-blue-boy', 'fight'), null);
+  // немає бойової бази — малюємо лише пряму
+  const p = A.buildSpec({ avatar: 'hero:gen/abc-1', avatarGen: { base: 'gen/abc-1' }, inventory: [] }, ITEMS, r => r === 'img/ava/gen/abc-1-base.webp');
+  assert.strictEqual(p.fightImage, null);
+  // бойова поза — лише повний зріст (і межі бази для героя з фото)
+  const out = await sharp({ create: { width: 1024, height: 1536, channels: 4, background: { r: 9, g: 9, b: 9, alpha: 1 } } }).png().toBuffer();
+  const f = await A.makeFiles(out, 'linen-boy', 'fight');
+  assert.deepStrictEqual(Object.keys(f).sort(), ['fight', 'fightRegion']);
+  const m = await sharp(f.fightRegion).metadata();
+  const b = await sharp(require('path').join(__dirname, '../../../img/ava/linen-boy-fight-base.webp')).metadata();
+  assert.ok(Math.abs(m.width / m.height - b.width / b.height) < 0.01);
+  assert.strictEqual(m.height, A.OUT_H);
 });
 
 test('без бази генерації немає: смайлик або аватар без -base.webp', () => {
@@ -64,19 +86,58 @@ test('базові зображення Юного джури лежать на 
   }
 });
 
-test('файли образу: пропорції бази, прозорість, аватарки 256/96', async () => {
-  // «результат воркера»: квадрат 1024×1024 замість 578×1000 бази
-  const out = await sharp({ create: { width: 1024, height: 1024, channels: 4, background: { r: 200, g: 40, b: 40, alpha: 1 } } }).png().toBuffer();
-  const f = await A.makeFiles(out, 'linen-boy-fight');
+test('файли образу: полотно з запасом — довга зброя не обрізається, обличчя влучає, зріст OUT_H', async () => {
+  const cv = await A.canvasOf('linen-boy-fight', 'stand', true);
+  assert.ok(cv.px > 0 && cv.pt > 0 && cv.W === cv.w + 2 * cv.px && cv.H === cv.h + cv.pt);
+  // «результат воркера» на полотні: герой (сірий) у межах бази, кнут (червоний) далеко праворуч
+  // за краєм бази, обличчя (синє) — у FACE_BOX
+  const fb = A.FACE_BOX['linen-boy-fight'];
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${cv.W}" height="${cv.H}">`
+    + `<rect x="${cv.px}" y="${cv.pt}" width="${cv.w}" height="${cv.h}" fill="#808080"/>`
+    + `<rect x="${cv.px + cv.w - 10}" y="${cv.pt + 300}" width="${cv.px - 20}" height="12" fill="#ff0000"/>`
+    + `<rect x="${cv.px + fb.left * cv.w}" y="${cv.pt + fb.top * cv.h}" width="${fb.size * cv.w}" height="${fb.size * cv.w}" fill="#0000ff"/></svg>`;
+  const f = await A.makeFiles(await sharp(Buffer.from(svg)).png().toBuffer(), 'linen-boy-fight');
   const full = await sharp(f.full).metadata();
   assert.strictEqual(full.format, 'webp');
-  assert.ok(Math.abs(full.width / full.height - 578 / 1000) < 0.01, `${full.width}×${full.height}`);
   assert.ok(full.hasAlpha);
+  const k = A.OUT_H / cv.h;
+  assert.ok(full.width > cv.w * k + 2 * (cv.px - 40) * k, `кнут обрізано: ${full.width}`);   // ширина вмістила кнут з обох боків
+  assert.ok(full.height <= A.OUT_H + 10, `${full.height}`);                           // зверху порожньо — обрізано (лишається поле 8 px)
+  // мініатюра — з обличчя (синя)
+  const px = await sharp(f.face256).extract({ left: 128, top: 128, width: 1, height: 1 }).raw().toBuffer();
+  assert.ok(px[2] > 200 && px[0] < 60, `обличчя не влучило: ${[...px]}`);
   for (const [b, s] of [[f.face256, 256], [f.face96, 96]]) {
     const m = await sharp(b).metadata();
     assert.strictEqual(m.width, s); assert.strictEqual(m.height, s);
   }
+  // region — рівно межі бази (база для героя з фото)
+  const r = await sharp(f.region).metadata();
+  assert.ok(Math.abs(r.width / r.height - cv.w / cv.h) < 0.01);
+  // старі завдання (без запасу): вписуємо в саму базу — ширина бази, порожнє зверху обрізано
+  const old = await A.makeFiles(await sharp({ create: { width: 1024, height: 1024, channels: 4, background: { r: 200, g: 40, b: 40, alpha: 1 } } }).png().toBuffer(), 'linen-boy-fight', 'stand', false);
+  const om = await sharp(old.full).metadata();
+  assert.strictEqual(om.width, Math.round(cv.w * k), `${om.width}×${om.height}`);
+  assert.ok(om.height < A.OUT_H);
   await assert.rejects(A.makeFiles(Buffer.from('не картинка'), 'linen-boy'), e => e.code === 'invalid-argument');
+});
+
+test('воркер отримує базу на полотні з запасом (файл у каталозі образів)', async () => {
+  const dir = require('fs').mkdtempSync(require('path').join(require('os').tmpdir(), 'ava-'));
+  const old = process.env.AVATAR_DIR; process.env.AVATAR_DIR = dir;
+  try {
+    const spec = A.buildSpec(hero('hero:linen-boy', { helmet: 'IT-001' }), ITEMS);
+    const out = await A.absolute(spec, { headers: {} });
+    assert.match(out.baseImage, /\/img\/ava\/gen\/canvas\/v1-linen-boy\.webp$/);
+    assert.match(out.fightImage, /\/img\/ava\/gen\/canvas\/v1-linen-boy-fight\.webp$/);
+    const m = await sharp(require('path').join(dir, 'canvas', 'v1-linen-boy-fight.webp')).metadata();
+    const cv = await A.canvasOf('linen-boy', 'fight', true);
+    assert.strictEqual(m.width, cv.W); assert.strictEqual(m.height, cv.H);
+    // старе завдання (версія 2) — база як була
+    const v2 = await A.absolute(Object.assign({}, spec, { version: 2 }), { headers: {} });
+    assert.match(v2.baseImage, /\/img\/ava\/linen-boy-base\.webp$/);
+  } finally {
+    if (old === undefined) delete process.env.AVATAR_DIR; else process.env.AVATAR_DIR = old;
+  }
 });
 
 /* ---------- HTTP: воркер без токена не проходить (до бази не доходить) ---------- */
@@ -128,4 +189,41 @@ test('колекція: старий образ із avatarGen, без дубл�
   for (let i = 10; i < 10 + A.COLLECTION_MAX; i++) h.avatarCollection = A.addToCollection(h, { key: k(i), file: 'g' + i, base: 'b', at: i });
   assert.strictEqual(h.avatarCollection.length, A.COLLECTION_MAX);
   assert.strictEqual(h.avatarCollection[0].file, 'g10');
+});
+
+test('герой з фото: фото → PNG ≤1024 px, база gen/<файл> бере рамку обличчя шаблону', async () => {
+  const jpg = await sharp({ create: { width: 2000, height: 1500, channels: 3, background: '#c08060' } }).jpeg().toBuffer();
+  const png = await A.photoPng('data:image/jpeg;base64,' + jpg.toString('base64'));
+  const m = await sharp(png).metadata();
+  assert.strictEqual(m.format, 'png');
+  assert.strictEqual(m.width, 1024);
+  await assert.rejects(A.photoPng(''), /Немає фото/);
+  await assert.rejects(A.photoPng(Buffer.from('not an image').toString('base64')), /не зображення/);
+  // новий герой — база для «Одягти»: має файл <файл>-base.webp у каталозі образів
+  assert.strictEqual(A.baseOf({ avatar: 'hero:gen/abc-1', avatarGen: { kind: 'photo', base: 'gen/abc-1' } }), 'gen/abc-1');
+  const has = rel => rel === 'img/ava/gen/abc-1-base.webp';
+  const s = A.buildSpec({ avatar: 'hero:gen/abc-1', avatarGen: { base: 'gen/abc-1' }, inventory: [{ id: 'IT-001', slot: 'helmet' }] }, ITEMS, has);
+  assert.strictEqual(s.baseImage, 'img/ava/gen/abc-1-base.webp');
+});
+
+test('OpenAI: запит редагування з двома картинками, помилки — зрозумілі', async () => {
+  const O = require('../src/openai-image');
+  const old = process.env.OPENAI_API_KEY;
+  process.env.OPENAI_API_KEY = 'sk-test';
+  try {
+    let seen = null;
+    const ok = async (url, init) => { seen = { url, init }; return { ok: true, status: 200, json: async () => ({ data: [{ b64_json: Buffer.from('PNG').toString('base64') }] }) }; };
+    const out = await O.portrait(Buffer.from('t'), Buffer.from('p'), { fetch: ok });
+    assert.strictEqual(out.toString(), 'PNG');
+    assert.strictEqual(seen.url, 'https://api.openai.com/v1/images/edits');
+    assert.strictEqual(seen.init.headers.Authorization, 'Bearer sk-test');
+    assert.strictEqual(seen.init.body.getAll('image[]').length, 2);
+    assert.strictEqual(seen.init.body.get('background'), 'transparent');
+    const bad = async () => ({ ok: false, status: 400, json: async () => ({ error: { message: 'safety system' } }) });
+    await assert.rejects(O.portrait(Buffer.from('t'), Buffer.from('p'), { fetch: bad }), e => e instanceof O.ImageError && /safety system/.test(e.message) && !e.retry);
+    delete process.env.OPENAI_API_KEY;
+    await assert.rejects(O.portrait(Buffer.from('t'), Buffer.from('p'), { fetch: ok }), /OPENAI_API_KEY/);
+  } finally {
+    if (old === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = old;
+  }
 });

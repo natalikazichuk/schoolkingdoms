@@ -14,7 +14,8 @@
    Публічний API (window.SKAVA):
      CATALOG                       — масив {id,name}
      tokenOf(id)  idOf(token)  isHeroToken(token)
-     faceSrc(id,size)  cardSrc(id)
+     faceSrc(id,size)  cardSrc(id)  fullSrc(id) — пряма поза (hero.html)
+     arenaSrc(id) / arenaPng(id)  — бойова поза створеного образу (арена) і запас
      html(token,{size,round})      — HTML-комірка аватара (img або емодзі)
      openPicker({selected, allowPhoto, onHero, onPhoto, collection, onCollection, onForget})
                                    — самодостатня модалка вибору; collection — створені
@@ -66,6 +67,9 @@
   function cardSrc(id){ return isGen(id) ? fullSrc(id) : BASE+'img/ava/'+id+'-card.webp'; }
   function fullSrc(id){ return BASE+'img/ava/'+id+'-full.webp'; }   // прозора вирізка (повний зріст)
   function fullPng(id){ return isGen(id) ? fullSrc(id) : BASE+'img/ava/'+id+'-full.png'; }
+  // арена: створений образ — у бойовій позі (<файл>-fight.webp); немає її — запас arenaPng (пряма)
+  function arenaSrc(id){ return isGen(id) ? BASE+'img/ava/'+id+'-fight.webp' : fullSrc(id); }
+  function arenaPng(id){ return isGen(id) ? fullSrc(id) : fullPng(id); }
 
   /* «Мої колекції»: створені образи Героя (heroes/{id}.avatarCollection, пише сервер).
      Як server/app/src/avatar.js collectionOf: хто вдягав образ до появи колекції —
@@ -181,13 +185,15 @@
         + (mine.length
           ? '<div class="ska-grid">' + mine.map(function(c){
               var tok = tokenOf('gen/'+c.file);
-              var cell = optCell(tok, nameOf(c.base)+' в образі', sel).replace('data-token=', 'data-key="'+esc(c.key)+'" data-token=');
+              // герой із фото: base = 'gen/<файл>' (сам образ — це він, без речей)
+              var cap = /^gen\//.test(c.base||'') ? (c.base==='gen/'+c.file ? 'Герой з фото' : 'Герой з фото в образі') : nameOf(c.base)+' в образі';
+              var cell = optCell(tok, cap, sel).replace('data-token=', 'data-key="'+esc(c.key)+'" data-token=');
               // поточний образ не прибираємо — спершу обери інший
               if(cfg.onForget && tok!==sel)
                 cell = cell.replace(/<\/div>$/, '<button class="ska-del" type="button" title="Прибрати з колекції" aria-label="Прибрати з колекції">✕</button></div>');
               return cell;
             }).join('') + '</div>'
-          : '<div class="ska-empty">Тут зберігатимуться образи, які ти створиш: вдягни речі в Арені й натисни «🪄 Одягти».</div>');
+          : '<div class="ska-empty">Тут зберігатимуться образи, які ти створиш: вдягни речі в Арені й натисни «🪄 Одягти» або «📸 Аватар з фото».</div>');
     }
     m.innerHTML =
       '<div class="ska-sheet" role="dialog" aria-modal="true" aria-label="Вибір аватара">'
@@ -228,6 +234,7 @@
     CATALOG: CATALOG, EMOJIS: EMOJIS,
     isHeroToken: isHeroToken, idOf: idOf, tokenOf: tokenOf, has: has, isGen: isGen,
     faceSrc: faceSrc, facePng: facePng, cardSrc: cardSrc, fullSrc: fullSrc, fullPng: fullPng,
+    arenaSrc: arenaSrc, arenaPng: arenaPng,
     html: html, gridHTML: gridHTML, bindGrid: bindGrid, openPicker: openPicker,
     collectionOf: collectionOf
   };

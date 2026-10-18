@@ -16,11 +16,18 @@
    останні COLLECTION_MAX): у вікні «Обери свого героя» — розділ «Мої колекції»,
      POST /api/avatar/wear   {key} → знову вдягнути образ із колекції
      POST /api/avatar/forget {key} → прибрати образ із колекції
+   «Згенерувати аватар» (Інвентар арени): POST /api/avatar/photo {image} — фото дитини
+   малює OpenAI (src/openai-image.js) у кадрі й позі шаблону PHOTO_TEMPLATE. Результат —
+   новий герой-шаблон: base = 'gen/<файл>' (файл <файл>-base.webp лежить поруч з образом),
+   тож у нього так само можна вдягати речі кнопкою «Одягти». Фото не зберігаємо.
+   Кожен образ — у двох позах: прямо (<файл>-full.webp, hero.html і мініатюри -256/-96)
+   і бойова (<файл>-fight.webp, арена). Пари поз вбудованих героїв — FIGHT_PAIRS.
    Поля heroes/{id}.avatarGen і avatarCollection змінює лише цей модуль (rules.js: HERO_PROTECTED). */
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { pool } = require('./db');
+const openai = require('./openai-image');
 
 class AvatarError extends Error {
   constructor(code, message) { super(message || code); this.code = code; }
@@ -56,22 +63,35 @@ const FACE_BOX = {
   'linen-boy-fight': { left: 0.197, top: 0, size: 0.590 }
 };
 const FACE_DEFAULT = { left: 0.2, top: 0, size: 0.6 };
+/* пряма поза → бойова: образ малюється в обох (арена показує бойову) */
+const FIGHT_PAIRS = { 'linen-boy': 'linen-boy-fight' };
 
 // версія набору й промпту: змінив PROMPT/SLOTS — підніми, і старий кеш не підхопиться
-const SPEC_VERSION = 1;
+const SPEC_VERSION = 3;   // 2: дві пози (fightImage); 3: база на полотні з запасом (CANVAS_PAD)
 const MAX_ATTEMPTS = 3;
 const LEASE_MIN = 10;
 const RENDER_PER_HOUR = 20;        // нових генерацій на Героя за годину
 const MAX_IMAGE = 9 * 1024 * 1024; // байтів картинки від воркера (після base64)
 const COLLECTION_MAX = 24;         // образів у колекції Героя
 const KEY_RE = /^[a-f0-9]{24}$/;
+// герой з фото: шаблон (кадр, поза, рамка обличчя) і обмеження — кожен малюнок коштує грошей
+const PHOTO_TEMPLATE = 'linen-boy';
+const PHOTO_PER_DAY = Number(process.env.AVATAR_PHOTO_PER_DAY) || 3;      // на Героя
+const PHOTO_DAY_TOTAL = Number(process.env.AVATAR_PHOTO_DAY_TOTAL) || 30; // на весь сайт
+const PHOTO_TIMEOUT_MIN = 6;                // довше «малюється» — значить, сервер перезапускався
+const MAX_PHOTO = 3 * 1024 * 1024;          // байтів фото (браузер стискає до ~1024 px)
+const GEN_BASE_RE = /^gen\/[A-Za-z0-9-]+$/;
+const isPhotoBase = b => GEN_BASE_RE.test(String(b || ''));
 
 const siteDir = () => process.env.SITE_DIR || path.join(__dirname, '../../..');
 const avatarDir = () => process.env.AVATAR_DIR || '/avatars';
-const exists = rel => { try { return fs.statSync(path.join(siteDir(), rel)).isFile(); } catch (e) { return false; } };
+/* файли сайту; img/ava/gen/ — каталог образів AVATAR_DIR (nginx віддає його за цією адресою) */
+const filePath = rel => rel.indexOf('img/ava/gen/') === 0 ? path.join(avatarDir(), rel.slice(12)) : path.join(siteDir(), rel);
+const exists = rel => { try { return fs.statSync(filePath(rel)).isFile(); } catch (e) { return false; } };
 
 const GEN_RE = /^hero:gen\/[A-Za-z0-9-]+$/;
-/* базовий аватар Героя: вбудований 'hero:<id>' або той, з якого зроблено образ */
+/* базовий аватар Героя: вбудований 'hero:<id>' або той, з якого зроблено образ
+   (для героя з фото — 'gen/<файл>') */
 function baseOf(hero) {
   const t = String((hero && hero.avatar) || '');
   if (GEN_RE.test(t)) return (hero.avatarGen && hero.avatarGen.base) || null;
@@ -93,12 +113,26 @@ function addToCollection(hero, entry) {
   return collectionOf(hero).filter(x => x.key !== entry.key).concat([entry]).slice(-COLLECTION_MAX);
 }
 
+/* пряма поза для бази: вибрав бойового джуру — образ однаково малюється з прямого */
+function standOf(base) {
+  return Object.keys(FIGHT_PAIRS).find(k => FIGHT_PAIRS[k] === base) || base;
+}
+/* базове зображення пози; для героя з фото бойова база лежить поруч: <файл>-fight-base.webp */
+function baseImageOf(base, pose) {
+  if (pose !== 'fight') return 'img/ava/' + base + '-base.webp';
+  if (isPhotoBase(base)) return 'img/ava/' + base + '-fight-base.webp';
+  return FIGHT_PAIRS[base] ? 'img/ava/' + FIGHT_PAIRS[base] + '-base.webp' : null;
+}
+
 /* Набір для генерації. items — каталог {id: дані}, has(rel) — чи є файл на сайті. */
 function buildSpec(hero, items, has) {
   has = has || exists;
-  const base = baseOf(hero);
-  if (!base) throw new AvatarError('failed-precondition', 'Спершу обери героя-аватар (не смайлик)');
-  const baseImage = 'img/ava/' + base + '-base.webp';
+  const own = baseOf(hero);
+  if (!own) throw new AvatarError('failed-precondition', 'Спершу обери героя-аватар (не смайлик)');
+  const base = standOf(own);
+  const baseImage = baseImageOf(base, 'stand');
+  const fight = baseImageOf(base, 'fight');
+  const fightImage = fight && has(fight) ? fight : null;   // немає бойової бази — лише пряма поза
   if (!has(baseImage)) throw new AvatarError('failed-precondition', 'Для цього аватара ще немає базового зображення');
   const worn = {};
   (Array.isArray(hero.inventory) ? hero.inventory : []).forEach(i => { if (i && i.slot && i.id) worn[i.slot] = i.id; });
@@ -118,7 +152,7 @@ function buildSpec(hero, items, has) {
   const key = crypto.createHash('sha256')
     .update(JSON.stringify([SPEC_VERSION, base, slots.map(s => s.item && s.item.id)]))
     .digest('hex').slice(0, 24);
-  return { version: SPEC_VERSION, key, base, baseImage, total: SLOTS.length, filled, slots, prompt: promptOf(slots) };
+  return { version: SPEC_VERSION, key, base, baseImage, fightImage, total: SLOTS.length, filled, slots, prompt: promptOf(slots) };
 }
 
 /* Підказка для моделі (англійською — так її краще розуміють). Воркер може
@@ -191,8 +225,9 @@ async function render(user) {
 
     if (!spec.filled) {
       // нічого не вдягнено — просто базовий аватар, малювати нічого
-      await setAvatar(c, user.uid, hero, 'hero:' + spec.base, Object.assign(gen, { status: 'ready', file: null }));
-      out = { status: 'ready', avatar: 'hero:' + spec.base };
+      const plain = 'hero:' + baseOf(hero);   // яку позу обрав, ту й лишаємо
+      await setAvatar(c, user.uid, hero, plain, Object.assign(gen, { status: 'ready', file: null }));
+      out = { status: 'ready', avatar: plain };
     } else {
       const j = (await c.query('select * from avatar_jobs where key = $1 for update', [spec.key])).rows[0];
       if (j && j.status === 'done' && j.file) {
@@ -231,9 +266,11 @@ async function status(user) {
   await sweep();
   const r = await pool.query('select data from docs where path = $1', ['heroes/' + user.uid]);
   if (!r.rows.length) throw new AvatarError('permission-denied', 'Образ — лише для Героя');
-  const hero = r.rows[0].data, g = hero.avatarGen || null;
+  const hero = r.rows[0].data;
+  let g = hero.avatarGen || null;
+  if (photoStale(g)) g = (await failPhoto(user.uid, g.key, 'Сервер перезапустився — спробуй ще раз')) || g;
   const out = { avatar: hero.avatar || null, gen: g };
-  if (g && g.key && g.status === 'queued') {
+  if (g && g.key && g.status === 'queued' && g.kind !== 'photo') {
     const j = (await pool.query('select status, attempts from avatar_jobs where key = $1', [g.key])).rows[0];
     if (j) {
       out.job = { status: j.status, attempts: j.attempts };
@@ -270,7 +307,9 @@ async function onHero(user, body, fn) {
 /* знову вдягнути образ із колекції: файл беремо з кешу (міг бути перемальований) */
 function wear(user, body) {
   return onHero(user, body, async (c, hero, entry) => {
-    const j = (await c.query('select status, file from avatar_jobs where key = $1', [entry.key])).rows[0];
+    const j = isPhotoBase(entry.base) && entry.base === 'gen/' + entry.file
+      ? (exists('img/ava/gen/' + entry.file + '-full.webp') ? { status: 'done', file: entry.file } : null)   // герой з фото
+      : (await c.query('select status, file from avatar_jobs where key = $1', [entry.key])).rows[0];
     if (!j || j.status !== 'done' || !j.file) throw new AvatarError('failed-precondition', 'Цей образ зараз недоступний');
     const next = await setAvatar(c, user.uid, hero, genToken(j.file),
       { base: entry.base, key: entry.key, at: Date.now(), status: 'ready', file: j.file, readyAt: Date.now() });
@@ -286,6 +325,131 @@ function forget(user, body) {
     await writeDoc(c, 'heroes/' + user.uid, Object.assign({}, hero, { avatarCollection: list, updatedAt: { $ts: Date.now() } }));
     return { collection: list };
   });
+}
+
+/* ---------- герой з фото (OpenAI) ---------- */
+const photoRecent = new Map();   // uid → [мітки часу], як rateOk, але за добу
+let photoAll = [];
+function photoRateOk(uid) {
+  const now = Date.now(), day = 864e5;
+  photoAll = photoAll.filter(t => now - t < day);
+  const a = (photoRecent.get(uid) || []).filter(t => now - t < day);
+  photoRecent.set(uid, a);
+  if (a.length >= PHOTO_PER_DAY) return 'Сьогодні вже досить нових героїв — спробуй завтра';
+  if (photoAll.length >= PHOTO_DAY_TOTAL) return 'Художник на сьогодні втомився — спробуй завтра';
+  return '';
+}
+function notePhoto(uid) { const t = Date.now(); photoRecent.get(uid).push(t); photoAll.push(t); }
+const photoStale = g => !!(g && g.kind === 'photo' && g.status === 'queued' && Date.now() - (g.at || 0) > PHOTO_TIMEOUT_MIN * 60e3);
+
+/* фото з браузера → PNG без EXIF-повороту, не більше 1024 px */
+async function photoPng(raw) {
+  const sharp = require('sharp');
+  const buf = Buffer.from(String(raw || '').replace(/^data:[^,]*,/, ''), 'base64');
+  if (!buf.length) throw new AvatarError('invalid-argument', 'Немає фото');
+  if (buf.length > MAX_PHOTO) throw new AvatarError('invalid-argument', 'Фото завелике — спробуй менше');
+  let meta;
+  try { meta = await sharp(buf).metadata(); } catch (e) { throw new AvatarError('invalid-argument', 'Це не зображення'); }
+  if (!['png', 'webp', 'jpeg'].includes(meta.format)) throw new AvatarError('invalid-argument', 'Потрібне фото JPEG, PNG або WebP');
+  if (meta.width * meta.height > 40e6) throw new AvatarError('invalid-argument', 'Завелике фото');
+  return sharp(buf).rotate().resize(1024, 1024, { fit: 'inside', withoutEnlargement: true }).png().toBuffer();
+}
+/* шаблон пози для моделі — на полотні з запасом, фон білий (так модель краще бачить силует) */
+const templatePng = pose => canvasPng(PHOTO_TEMPLATE, pose, true);
+
+async function photo(user, body) {
+  if (!user) throw new AvatarError('unauthenticated');
+  if (!openai.configured()) throw new AvatarError('unavailable', 'Генерація з фото ще не налаштована (OPENAI_API_KEY)');
+  const png = await photoPng(body && body.image);
+  const key = crypto.randomBytes(12).toString('hex');
+  const c = await pool.connect();
+  try {
+    await c.query('begin');
+    const r = await c.query('select data from docs where path = $1 for update', ['heroes/' + user.uid]);
+    if (!r.rows.length) throw new AvatarError('permission-denied', 'Героя з фото створює сам Герой');
+    const hero = r.rows[0].data, g = hero.avatarGen;
+    if (g && g.kind === 'photo' && g.status === 'queued' && !photoStale(g)) throw new AvatarError('aborted', 'Твій герой уже малюється — зачекай');
+    const limit = photoRateOk(user.uid);
+    if (limit) throw new AvatarError('resource-exhausted', limit);
+    await writeDoc(c, 'heroes/' + user.uid, Object.assign({}, hero, {
+      avatarGen: { kind: 'photo', key, base: null, status: 'queued', at: Date.now() }, updatedAt: { $ts: Date.now() } }));
+    await c.query('commit');
+  } catch (e) {
+    await c.query('rollback').catch(() => {});
+    throw e;
+  } finally {
+    c.release();
+  }
+  notePhoto(user.uid);
+  drawPhoto(user.uid, key, png);   // малюється у фоні (до хвилини-двох); стан — GET /api/avatar/status
+  return { status: 'queued', key };
+}
+
+async function drawPhoto(uid, key, png) {
+  let file = null;
+  try {
+    // 1) пряма поза з фото; 2) бойова — з уже намальованого героя (так обидві пози схожі)
+    const out = await openai.portrait(await templatePng('stand'), png);
+    const files = await makeFiles(out, PHOTO_TEMPLATE);
+    try {
+      const fight = await openai.portrait(await templatePng('fight'), out, { prompt: openai.POSE_PROMPT });
+      Object.assign(files, await makeFiles(fight, PHOTO_TEMPLATE, 'fight'));
+    } catch (e) {
+      try { console.error('[avatar/photo] бойова поза:', uid, e && e.message || e); } catch (_) {}   // арена покаже пряму
+    }
+    file = key.slice(0, 12) + '-' + Date.now().toString(36);
+    // герой з фото — сам собі база для «Одягти»: рівно в межах шаблону (тоді й FACE_BOX шаблону влучає)
+    files.base = files.region;
+    files.fightBase = files.fightRegion;
+    saveFiles(file, files);
+    const base = 'gen/' + file;
+    const c = await pool.connect();
+    try {
+      await c.query('begin');
+      const r = await c.query('select data from docs where path = $1 for update', ['heroes/' + uid]);
+      const hero = r.rows[0].data, g = hero.avatarGen || {};
+      const gen = { kind: 'photo', base, key, status: 'ready', file, at: g.at || Date.now(), readyAt: Date.now() };
+      if (g.key === key) await setAvatar(c, uid, hero, genToken(file), gen);
+      else {
+        // поки малювалось, Герой обрав інше — новий герой лише чекає в «Моїх колекціях»
+        await writeDoc(c, 'heroes/' + uid, Object.assign({}, hero,
+          { avatarCollection: addToCollection(hero, { key, file, base, at: Date.now() }) }));
+      }
+      await c.query('commit');
+    } catch (e) {
+      await c.query('rollback').catch(() => {});
+      throw e;
+    } finally {
+      c.release();
+    }
+    return { ok: true, file };
+  } catch (e) {
+    if (file) removeFiles(file);
+    try { console.error('[avatar/photo]', uid, e && e.message || e); } catch (_) {}
+    await failPhoto(uid, key, e instanceof openai.ImageError ? 'Не вдалося намалювати — спробуй інше фото або пізніше' : 'Щось пішло не так — спробуй ще раз')
+      .catch(() => {});
+    return { ok: false, error: String(e && e.message || e) };
+  }
+}
+async function failPhoto(uid, key, error) {
+  const c = await pool.connect();
+  try {
+    await c.query('begin');
+    const r = await c.query('select data from docs where path = $1 for update', ['heroes/' + uid]);
+    const hero = r.rows.length && r.rows[0].data, g = hero && hero.avatarGen;
+    let out = null;
+    if (g && g.key === key && g.status === 'queued') {
+      out = Object.assign({}, g, { status: 'failed', error });
+      await writeDoc(c, 'heroes/' + uid, Object.assign({}, hero, { avatarGen: out }));
+    }
+    await c.query('commit');
+    return out;
+  } catch (e) {
+    await c.query('rollback').catch(() => {});
+    throw e;
+  } finally {
+    c.release();
+  }
 }
 
 /* ---------- воркер ---------- */
@@ -315,18 +479,23 @@ async function markFailed(q, key) {
 }
 
 /* шляхи сайту → повні адреси, щоб воркер міг їх просто завантажити */
-function absolute(spec, req) {
+async function absolute(spec, req) {
   const host = process.env.PUBLIC_URL || ('https://' + (req.headers.host || 'school-king.pp.ua'));
   const abs = p => p ? host.replace(/\/$/, '') + '/' + p : null;
+  // з версії 3 воркер малює на полотні з запасом (CANVAS_PAD) — довга зброя не обрізається
+  const pad = (spec.version || 1) >= 3;
+  const baseImage = pad ? await canvasImage(spec.base, 'stand') : spec.baseImage;
+  const fightImage = spec.fightImage && pad ? await canvasImage(spec.base, 'fight') : spec.fightImage;
   return Object.assign({}, spec, {
-    baseImage: abs(spec.baseImage),
+    baseImage: abs(baseImage),
+    fightImage: abs(fightImage),
     slots: spec.slots.map(s => Object.assign({}, s, { item: s.item && Object.assign({}, s.item, { image: abs(s.item.image) }) }))
   });
 }
-const jobOut = (j, req) => ({
+const jobOut = async (j, req) => ({
   id: Number(j.id), key: j.key, attempt: j.attempts,
   leaseUntil: j.lease_until, leaseSeconds: LEASE_MIN * 60,
-  spec: absolute(j.spec, req)
+  spec: await absolute(j.spec, req)
 });
 
 async function claim(req, body) {
@@ -339,7 +508,7 @@ async function claim(req, body) {
                    where status = 'queued' or (status = 'working' and lease_until < now())
                    order by queued_at for update skip locked limit 1)
       returning *`, [String(body.worker || 'worker').slice(0, 64)]);
-  return { job: r.rows.length ? jobOut(r.rows[0], req) : null };
+  return { job: r.rows.length ? await jobOut(r.rows[0], req) : null };
 }
 
 async function heartbeat(req, body) {
@@ -376,42 +545,107 @@ async function fail(req, body) {
   }
 }
 
-/* Картинка від воркера → файли образу: повний зріст у пропорціях бази
-   (тоді рамка обличчя з FACE_BOX влучає) + аватарки -256/-96 на тлі вбудованих. */
-async function makeFiles(buf, base) {
+/* ПОЛОТНО. Бази обрізані впритул до героя (бойова — від краю до краю), і модель малює
+   в тих самих межах: довга зброя (кнут, спис, лук) обрізалась. Тому воркер і OpenAI
+   отримують базу з прозорим запасом з боків і зверху (CANVAS_PAD), а готовий результат
+   ми обрізаємо по вмісту симетрично від центру (герой лишається посередині, ноги внизу). */
+const CANVAS_PAD = { x: 0.35, top: 0.12 };   // частки ширини / висоти бази
+const CANVAS_VER = 'v1';                     // змінив CANVAS_PAD — підніми (файли полотен кешуються)
+const OUT_H = 1000;                          // зріст героя в готових файлах, px
+
+/* геометрія полотна: розмір бази w×h, запас px (з боків) і pt (зверху), повний W×H */
+async function canvasOf(base, pose, padded) {
+  const m = await require('sharp')(filePath(baseImageOf(base, pose))).metadata();
+  const px = padded ? Math.round(m.width * CANVAS_PAD.x) : 0, pt = padded ? Math.round(m.height * CANVAS_PAD.top) : 0;
+  return { w: m.width, h: m.height, px, pt, W: m.width + 2 * px, H: m.height + pt };
+}
+/* база на полотні (PNG); white — прозорий фон залити білим (так моделі OpenAI видно силует) */
+async function canvasPng(base, pose, white) {
+  const sharp = require('sharp'), cv = await canvasOf(base, pose, true);
+  const bg = white ? { r: 255, g: 255, b: 255, alpha: 1 } : { r: 0, g: 0, b: 0, alpha: 0 };
+  let img = sharp(filePath(baseImageOf(base, pose))).extend({ top: cv.pt, left: cv.px, right: cv.px, bottom: 0, background: { r: 0, g: 0, b: 0, alpha: 0 } });
+  if (white) img = sharp(await img.png().toBuffer()).flatten({ background: bg });
+  return img.png().toBuffer();
+}
+/* полотно для воркера: файл у каталозі образів (nginx віддає /img/ava/gen/canvas/…) */
+async function canvasImage(base, pose) {
+  const name = CANVAS_VER + '-' + base.replace(/\//g, '_') + (pose === 'fight' ? '-fight' : '') + '.webp';
+  const out = path.join(avatarDir(), 'canvas', name);
+  if (!fs.existsSync(out)) {
+    const webp = await require('sharp')(await canvasPng(base, pose)).webp({ lossless: true }).toBuffer();
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    fs.writeFileSync(out + '.tmp', webp);
+    fs.renameSync(out + '.tmp', out);
+  }
+  return 'img/ava/gen/canvas/' + name;
+}
+
+/* межі непрозорого вмісту (альфа > 16) */
+async function alphaBox(buf) {
+  const { data, info } = await require('sharp')(buf).ensureAlpha().extractChannel(3).raw().toBuffer({ resolveWithObject: true });
+  let L = info.width, R = -1, T = info.height, B = -1;
+  for (let y = 0; y < info.height; y++) {
+    const row = y * info.width;
+    for (let x = 0; x < info.width; x++) {
+      if (data[row + x] > 16) { if (x < L) L = x; if (x > R) R = x; if (y < T) T = y; if (y > B) B = y; }
+    }
+  }
+  return R < 0 ? null : { L, R, T, B };
+}
+
+/* Картинка від воркера / OpenAI → файли образу. Результат вписуємо в полотно бази
+   (тоді рамка обличчя з FACE_BOX влучає), ріжемо аватарки -256/-96 на тлі вбудованих,
+   потім обрізаємо порожні поля. pose 'fight' — лише повний зріст ({fight}).
+   region — та сама картинка рівно в межах бази (без запасу): база для героя з фото.
+   padded = false — старі завдання (SPEC_VERSION < 3), намальовані без запасу. */
+async function makeFiles(buf, base, pose, padded) {
   const sharp = require('sharp');
+  if (padded === undefined) padded = true;
   let meta;
   try { meta = await sharp(buf).metadata(); } catch (e) { throw new AvatarError('invalid-argument', 'Це не зображення'); }
   if (!['png', 'webp', 'jpeg'].includes(meta.format)) throw new AvatarError('invalid-argument', 'Потрібен PNG, WebP або JPEG');
   if (meta.width * meta.height > 40e6) throw new AvatarError('invalid-argument', 'Завелике зображення');
-  const bm = await sharp(path.join(siteDir(), 'img/ava', base + '-base.webp')).metadata();
-  const H = Math.min(1448, Math.max(bm.height, meta.height));
-  const W = Math.round(H * bm.width / bm.height);
-  const full = await sharp(buf).rotate()
-    .resize(W, H, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-    .webp({ quality: 90, alphaQuality: 90 }).toBuffer();
-  const fb = FACE_BOX[base] || FACE_DEFAULT;
-  const left = Math.round(fb.left * W), top = Math.round(fb.top * H);
-  const s = Math.max(16, Math.min(Math.round(fb.size * W), W - left, H - top));
-  const head = await sharp(full).extract({ left, top, width: s, height: s }).resize(256, 256).png().toBuffer();
+  const cv = await canvasOf(base, pose, padded);
+  const k = OUT_H / cv.h;                               // зріст героя → OUT_H
+  const W = Math.round(cv.W * k), H = Math.round(cv.H * k);
+  const canvas = await sharp(buf).rotate()
+    .resize(W, H, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer();
+  const rx = Math.round(cv.px * k), ry = Math.round(cv.pt * k);
+  const rw = Math.min(W - rx, Math.round(cv.w * k)), rh = H - ry;
+  const region = await sharp(canvas).extract({ left: rx, top: ry, width: rw, height: rh }).webp({ quality: 86, alphaQuality: 90 }).toBuffer();
+  // порожні поля геть: симетрично від центру, низ (ноги) не чіпаємо
+  const box = await alphaBox(canvas), M = 8;
+  let full = canvas;
+  if (box) {
+    const half = Math.min(W / 2, Math.max(W / 2 - box.L, box.R + 1 - W / 2) + M);
+    const left = Math.max(0, Math.floor(W / 2 - half)), top = Math.max(0, box.T - M);
+    full = await sharp(canvas).extract({ left, top, width: Math.min(W - left, Math.ceil(2 * half)), height: H - top }).png().toBuffer();
+  }
+  full = await sharp(full).webp({ quality: 86, alphaQuality: 90 }).toBuffer();
+  if (pose === 'fight') return { fight: full, fightRegion: region };
+  const fb = FACE_BOX[isPhotoBase(base) ? PHOTO_TEMPLATE : base] || FACE_DEFAULT;
+  const left = rx + Math.round(fb.left * cv.w * k), top = ry + Math.round(fb.top * cv.h * k);
+  const s = Math.max(16, Math.min(Math.round(fb.size * cv.w * k), W - left, H - top));
+  const head = await sharp(canvas).extract({ left, top, width: s, height: s }).resize(256, 256).png().toBuffer();
   const sky = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">'
     + '<stop offset="0" stop-color="#bee3fb"/><stop offset="1" stop-color="#7bb4e7"/></linearGradient></defs>'
     + '<rect width="256" height="256" fill="url(#g)"/></svg>');
   const face256 = await sharp(sky).composite([{ input: head }]).webp({ quality: 88 }).toBuffer();
   const face96 = await sharp(face256).resize(96, 96).webp({ quality: 88 }).toBuffer();
-  return { full, face256, face96 };
+  return { full, face256, face96, region };
 }
 function saveFiles(file, f) {
   const dir = avatarDir();
   fs.mkdirSync(dir, { recursive: true });
-  [['full', f.full], ['256', f.face256], ['96', f.face96]].forEach(([suf, b]) => {
+  [['full', f.full], ['256', f.face256], ['96', f.face96], ['base', f.base], ['fight', f.fight], ['fight-base', f.fightBase]].forEach(([suf, b]) => {
+    if (!b) return;
     const p = path.join(dir, `${file}-${suf}.webp`);
     fs.writeFileSync(p + '.tmp', b);
     fs.renameSync(p + '.tmp', p);
   });
 }
 function removeFiles(file) {
-  ['full', '256', '96'].forEach(suf => { try { fs.unlinkSync(path.join(avatarDir(), `${file}-${suf}.webp`)); } catch (e) {} });
+  ['full', '256', '96', 'base', 'fight', 'fight-base'].forEach(suf => { try { fs.unlinkSync(path.join(avatarDir(), `${file}-${suf}.webp`)); } catch (e) {} });
 }
 
 async function result(req, body) {
@@ -422,7 +656,12 @@ async function result(req, body) {
   const buf = Buffer.from(String(body.image || '').replace(/^data:[^,]*,/, ''), 'base64');
   if (!buf.length) throw new AvatarError('invalid-argument', 'Немає зображення (image: base64)');
   if (buf.length > MAX_IMAGE) throw new AvatarError('invalid-argument', 'Завелике зображення');
-  const files = await makeFiles(buf, j0.spec.base);
+  const padded = (j0.spec.version || 1) >= 3;   // старі завдання малювались без запасу полотна
+  const files = await makeFiles(buf, j0.spec.base, 'stand', padded);
+  // бойова поза (необов'язкова: без неї арена покаже пряму)
+  const fbuf = Buffer.from(String(body.fight || '').replace(/^data:[^,]*,/, ''), 'base64');
+  if (fbuf.length > MAX_IMAGE) throw new AvatarError('invalid-argument', 'Завелике зображення (fight)');
+  if (fbuf.length && j0.spec.fightImage) Object.assign(files, await makeFiles(fbuf, j0.spec.base, 'fight', padded));
   const file = j0.key.slice(0, 12) + '-' + Date.now().toString(36);
   saveFiles(file, files);
 
@@ -441,7 +680,7 @@ async function result(req, body) {
       const g = h.data.avatarGen || {};
       const wearing = g.status === 'ready' && GEN_RE.test(String(h.data.avatar || ''));
       // поки малювалось, Герой обрав інший аватар — не перебиваємо його вибір
-      if ((g.status !== 'queued' && g.status !== 'failed' && !wearing) || baseOf(h.data) !== g.base) continue;
+      if ((g.status !== 'queued' && g.status !== 'failed' && !wearing) || standOf(baseOf(h.data)) !== g.base) continue;
       await setAvatar(c, h.path.split('/')[1], h.data, genToken(file),
         Object.assign({}, g, { status: 'ready', file, readyAt: Date.now() }));
       heroes++;
@@ -465,7 +704,7 @@ async function result(req, body) {
     c.release();
   }
   if (old && old !== file) removeFiles(old);
-  return { ok: true, file, avatar: genToken(file), heroes };
+  return { ok: true, file, avatar: genToken(file), fight: !!files.fight, heroes };
 }
 
 /* ---------- адмінка ---------- */
@@ -486,6 +725,6 @@ async function adminRequeue(body) {
 }
 
 module.exports = {
-  AvatarError, SLOTS, FACE_BOX, COLLECTION_MAX, buildSpec, baseOf, promptOf, makeFiles,
-  collectionOf, addToCollection, render, status, wear, forget, claim, heartbeat, result, fail, adminJobs, adminRequeue
+  AvatarError, SLOTS, FACE_BOX, FIGHT_PAIRS, CANVAS_PAD, OUT_H, canvasOf, canvasPng, canvasImage, absolute, COLLECTION_MAX, buildSpec, baseOf, standOf, baseImageOf, promptOf, makeFiles,
+  PHOTO_TEMPLATE, collectionOf, addToCollection, render, status, wear, forget, photo, photoPng, claim, heartbeat, result, fail, adminJobs, adminRequeue
 };
