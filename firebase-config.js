@@ -1394,7 +1394,8 @@ const SK = {
 
   /* ===== КОМАНДА: БРАТИ/СЕСТРИ ТА ДРУЗІ ===== */
 
-  // Публічна картка Героя — лише ім'я, аватар, рівень (жодних особистих даних).
+  // Публічна картка Героя — лише ім'я, аватар, рівень і підсумок боїв арени
+  // (для рейтингу родини й друзів; жодних особистих даних).
   async publishHeroCard(hero) {
     const u = auth.currentUser;
     if (!u) return false;
@@ -1408,10 +1409,17 @@ const SK = {
       avatar: h.avatar || '🧒',
       level: h.level != null ? h.level : 1,
       grade: h.grade != null ? h.grade : null,
+      arena: SK._arenaCard(h.arena),
       parentUid: h.parentUid,
       updatedAt: serverTimestamp()
     }, { merge: true });
     return true;
+  },
+
+  // Підсумок арени для публічної картки: рівень і бої, без досвіду й решти.
+  _arenaCard(a) {
+    if (!a) return null;
+    return { level: +a.level || 1, wins: +a.wins || 0, losses: +a.losses || 0, draws: +a.draws || 0 };
   },
 
   // Брати/сестри — Герої тієї самої родини (без себе).
@@ -1430,7 +1438,8 @@ const SK = {
       if (d.id === meId) return;
       const x = d.data();
       out.push({ id: d.id, name: x.name || '', avatar: x.avatar || '🧒',
-                 level: x.level != null ? x.level : 1, grade: x.grade != null ? x.grade : null });
+                 level: x.level != null ? x.level : 1, grade: x.grade != null ? x.grade : null,
+                 arena: SK._arenaCard(x.arena) });
     });
     out.sort((a, b) => (b.level - a.level) || String(a.name).localeCompare(String(b.name), 'uk'));
     return out;
@@ -1459,7 +1468,7 @@ const SK = {
         if (c.exists()) {
           const x = c.data();
           cards.push({ id, name: x.name || '', avatar: x.avatar || '🧒',
-                       level: x.level != null ? x.level : 1 });
+                       level: x.level != null ? x.level : 1, arena: SK._arenaCard(x.arena) });
         }
       } catch (e) { /* немає доступу — пропускаємо */ }
     }
@@ -1762,6 +1771,8 @@ const SK = {
     // історія: сам бій позначаємо завершеним, найстаріші (понад 20) — прибираємо
     try { await setDoc(SK._battleRef(st.bid), SK._battleData(st)); } catch (e) {}
     (out && out.drop || []).forEach(b => { try { deleteDoc(SK._battleRef(b)).catch(() => {}); } catch (e) {} });
+    // свіжий підсумок боїв — у публічну картку, щоб рейтинг друзів не відставав
+    if (out && !out.already) { try { await SK.publishHeroCard(); } catch (e) {} }
     return out;
   },
   // Долити монет героєві. coins — надійний лічильник (sk-progress його не чіпає),
