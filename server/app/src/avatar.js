@@ -242,6 +242,10 @@ async function render(user, engine) {
     if (!r.rows.length) throw new AvatarError('permission-denied', 'Образ одягає сам Герой');
     const hero = r.rows[0].data;
     if (gpt && !gptAllowed(hero)) throw new AvatarError('permission-denied', '«Одягти GPT» поки що лише для тестових Героїв');
+    // GPT уже малює для цього Героя (друга вкладка, повторне натискання) — не платимо вдруге
+    const cur = hero.avatarGen;
+    if (cur && cur.engine === 'gpt' && cur.status === 'queued' && Date.now() - (cur.at || 0) < GPT_LEASE_MIN * 60e3)
+      throw new AvatarError('aborted', 'GPT уже малює твій образ — зачекай, він зʼявиться сам');
     const items = {};
     (await c.query(`select id, data from docs where parent = 'items'`)).rows.forEach(x => { items[x.id] = x.data; });
     const spec = buildSpec(hero, items);

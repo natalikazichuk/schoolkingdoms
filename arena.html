@@ -1051,10 +1051,12 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 /* «Одягти» — образ Героя у вдягнених речах малює сервер (server/app/src/avatar.js) */
 /* кнопки під героєм: «Одягти» і «Аватар з фото» */
 /* кнопки під героєм: «Одягти» (воркер) і «Одягти GPT» (OpenAI, лише тестові Герої) — поруч */
-.ek-acts{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);z-index:2;display:flex;align-items:center;gap:6px}
+.ek-acts{position:absolute;left:6px;right:6px;bottom:8px;z-index:2;display:flex;align-items:center;justify-content:center;gap:6px}
+.ek-acts .ek-dress{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .ek-dress{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;background:linear-gradient(180deg,#f4c842,#e0a42a);color:#5a3d05;font-family:'Fredoka';font-weight:800;font-size:.85rem;line-height:1;padding:6px 14px;border-radius:20px;border:2px solid #fff;box-shadow:0 4px 10px rgba(0,0,0,.3);cursor:pointer}
 .ek-dress:hover{filter:brightness(1.07)}
-.ek-dress[disabled]{cursor:default;opacity:.93}
+.ek-dress[disabled]{cursor:not-allowed;opacity:.6;filter:grayscale(.75)}
+.ek-dress.busy[disabled]{opacity:.85;filter:grayscale(.35)}   /* та, що малює, — помітніша за заблоковану сусідню */
 .ek-dress[hidden]{display:none}
 .ek-dress.ek-photo{background:linear-gradient(180deg,#8fd0ff,#4a9be0);color:#0d2d52;font-size:.78rem;padding:5px 12px}
 .ek-dress .ic{display:inline-block}
@@ -4535,8 +4537,16 @@ if(document.readyState!=='loading')init();else document.addEventListener('DOMCon
        Видно лише тестовим Героям (status.gpt, AVATAR_GPT_HEROES на сервері).
    Готовий образ сервер сам робить аватаром Героя. Тут — лише кнопки й очікування:
    поки малюється, раз на 5 с питаємо стан. */
+/* поки одна кнопка надсилає чи малює, неактивні обидві: інакше другий образ перебив би перший
+   (а за GPT уже заплачено) */
+var EK_DRESS = [];
+function ekDressLock(){
+  var any = EK_DRESS.some(function(r){ return r.busy; });
+  EK_DRESS.forEach(function(r){ r.btn.disabled = r.busy || any; });
+}
 function ekDressButton(btn, o){
   if(!btn) return;
+  var me = { btn: btn, busy: false }; EK_DRESS.push(me);
   var timer = null, waiting = false, since = 0;   // since — коли почав малювати (для «GPT малює… 1:20»)
   function sk(){ return (window.SK && SK.renderAvatar && SK.isHeroSession && SK.isHeroSession()) ? SK : null; }
   function toast(a, b){ if(window.showToast) showToast(a, b || ''); }
@@ -4551,12 +4561,12 @@ function ekDressButton(btn, o){
     var busy = state === 'queued' || state === 'working';
     if(!o.gpt) btn.hidden = false;
     btn.classList.toggle('busy', busy);
-    btn.disabled = busy || state === 'sending';
+    me.busy = busy || state === 'sending'; ekDressLock();
     btn.innerHTML = state === 'sending' ? '<span class="ic">⏳</span>Надсилаю…'
       : state === 'queued'  ? '<span class="ic">🎨</span>У черзі' + (pos > 1 ? ' · ' + pos : '')
-      : state === 'working' ? '<span class="ic">🎨</span>' + (o.gpt ? 'GPT малює…' + clock() : 'Художник малює…')
+      : state === 'working' ? '<span class="ic">🎨</span>' + (o.gpt ? 'GPT' + clock() : 'Малює…')
       : '<span class="ic">' + o.icon + '</span>' + o.label;
-    btn.title = busy ? 'Образ малюється — він сам зʼявиться тут' : o.title;
+    btn.title = busy ? (o.gpt ? 'GPT малює образ' + clock() + ' — він сам зʼявиться тут' : 'Образ малюється — він сам зʼявиться тут') : o.title;
   }
   function stop(){ if(timer){ clearTimeout(timer); timer = null; } }
   function poll(ms){
@@ -4587,8 +4597,9 @@ function ekDressButton(btn, o){
   }
   btn.addEventListener('click', function(e){
     e.stopPropagation();
+    if(btn.disabled) return;
     var S = sk(); if(!S){ toast(o.icon + ' ' + o.label, 'Образ одягає сам Герой — увійди Героєм'); return; }
-    paint('sending');
+    paint('sending');   // одразу неактивна — повторне натискання не надішле ще один (платний) запит
     S[o.render]().then(function(r){
       if(r.status === 'ready'){ ready(r.avatar, !r.filled); return; }
       waiting = true; paint(r.status, r.position); poll();
