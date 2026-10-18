@@ -63,11 +63,17 @@ function slotLabel(s, item) {
    img/ava/<id>-256.webp з <id>-full.webp. */
 const FACE_BOX = {
   'linen-boy':       { left: 0.242, top: 0, size: 0.513 },
-  'linen-boy-fight': { left: 0.197, top: 0, size: 0.590 }
+  'linen-boy-fight': { left: 0.197, top: 0, size: 0.590 },
+  'blond-boy':          { left: 0.113, top: 0, size: 0.680 },
+  'blond-boy-fight':    { left: 0.053, top: 0, size: 0.565 },
+  'chestnut-boy':       { left: 0.100, top: 0, size: 0.595 },
+  'chestnut-boy-fight': { left: 0.058, top: 0, size: 0.400 },
+  'hoodie-boy-fight':   { left: 0.114, top: 0, size: 0.480 },
+  'glasses-girl-fight': { left: 0.053, top: 0, size: 0.533 }
 };
 const FACE_DEFAULT = { left: 0.2, top: 0, size: 0.6 };
 /* пряма поза → бойова: образ малюється в обох (арена показує бойову) */
-const FIGHT_PAIRS = { 'linen-boy': 'linen-boy-fight' };
+const FIGHT_PAIRS = { 'linen-boy': 'linen-boy-fight', 'blond-boy': 'blond-boy-fight', 'chestnut-boy': 'chestnut-boy-fight' };
 
 // версія набору й промпту: змінив PROMPT/SLOTS — підніми, і старий кеш не підхопиться
 const SPEC_VERSION = 3;   // 2: дві пози (fightImage); 3: база на полотні з запасом (CANVAS_PAD)

@@ -58,6 +58,7 @@ test('дві пози: бойова база для вбудованого дж�
   assert.strictEqual(s.baseImage, 'img/ava/linen-boy-base.webp');
   assert.strictEqual(s.fightImage, 'img/ava/linen-boy-fight-base.webp');
   assert.strictEqual(A.standOf('linen-boy-fight'), 'linen-boy');
+  assert.strictEqual(A.standOf('chestnut-boy-fight'), 'chestnut-boy');
   assert.strictEqual(A.baseImageOf('gen/abc-1', 'fight'), 'img/ava/gen/abc-1-fight-base.webp');
   assert.strictEqual(A.baseImageOf('knight-blue-boy', 'fight'), null);
   // немає бойової бази — малюємо лише пряму
@@ -79,8 +80,9 @@ test('без бази генерації немає: смайлик або ав�
     e => e.code === 'failed-precondition' && /базового/.test(e.message));
 });
 
-test('базові зображення Юного джури лежать на сайті й мають рамку обличчя', () => {
-  for (const id of ['linen-boy', 'linen-boy-fight']) {
+test('базові зображення вбудованих героїв лежать на сайті й мають рамку обличчя', () => {
+  for (const id of ['linen-boy', 'linen-boy-fight', 'blond-boy', 'blond-boy-fight', 'chestnut-boy',
+    'chestnut-boy-fight', 'hoodie-boy-fight', 'glasses-girl-fight']) {
     assert.ok(A.buildSpec(hero('hero:' + id, {}), ITEMS).baseImage);
     assert.ok(A.FACE_BOX[id]);
   }

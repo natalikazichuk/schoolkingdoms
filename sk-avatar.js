@@ -45,7 +45,13 @@
     { id:'knight-green-girl', name:'Лісова лицарка'    },
     { id:'knight-purple-girl',name:'Зоряна лицарка'    },
     { id:'linen-boy',         name:'Юний джура'        },
-    { id:'linen-boy-fight',   name:'Джура в стійці'    }
+    { id:'linen-boy-fight',   name:'Джура в стійці'    },
+    { id:'blond-boy',         name:'Сонячний джура'    },
+    { id:'blond-boy-fight',   name:'Сонячний у стійці' },
+    { id:'chestnut-boy',      name:'Каштановий джура'  },
+    { id:'chestnut-boy-fight',name:'Каштановий у стійці'},
+    { id:'hoodie-boy-fight',  name:'Вогняний боєць'    },
+    { id:'glasses-girl-fight',name:'Мудра воїтелька'   }
   ];
   var BY = {}; CATALOG.forEach(function(h){ BY[h.id]=h; });
 
