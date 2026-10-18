@@ -1,6 +1,7 @@
 /* Малюнок героя з фото через OpenAI Images API (режим редагування з кількома картинками).
    Ключ — OPENAI_API_KEY у /srv/sk/.env (рахунок власника сайту), модель — OPENAI_IMAGE_MODEL.
-   Картинка 1 — шаблон (базовий герой без верхнього одягу), картинка 2 — фото дитини.
+   Картинка 1 — шаблон (базовий герой без верхнього одягу), картинка 2 — фото дитини
+   (для бойової пози — уже намальований герой, промпт POSE_PROMPT).
    Відповідь — PNG з прозорим фоном у кадрі й позі шаблону. Фото ніде не зберігаємо. */
 const ENDPOINT = 'https://api.openai.com/v1/images/edits';
 const TIMEOUT_MS = 240e3;
@@ -14,6 +15,15 @@ const PROMPT = [
   'Redraw the child from image 2 as this cartoon character: keep the child\'s face shape, hairstyle, hair colour, eye colour, skin tone and gender recognisable,',
   'but use exactly the art style, pose, body proportions, camera framing, scale and plain linen outfit of image 1.',
   'The head must be in the same place and the same size as in image 1. Friendly, kind expression, suitable for a children\'s educational game.',
+  'Full body, nothing cropped. No text, no other objects. Transparent background.'
+].join('\n');
+
+// бойова поза: картинка 1 — шаблон пози, картинка 2 — уже намальований герой
+const POSE_PROMPT = [
+  'Image 1 is a pose template: a cartoon 3D child hero in a fighting stance.',
+  'Image 2 is a cartoon 3D child character.',
+  'Redraw the character from image 2 in exactly the pose, body proportions, camera framing and scale of image 1.',
+  'Keep the face, hairstyle, hair colour, eye colour, skin tone, outfit and art style of image 2 unchanged.',
   'Full body, nothing cropped. No text, no other objects. Transparent background.'
 ].join('\n');
 
@@ -56,4 +66,4 @@ async function portrait(template, photo, opt) {
   return Buffer.from(b64, 'base64');
 }
 
-module.exports = { configured, model, portrait, ImageError, PROMPT };
+module.exports = { configured, model, portrait, ImageError, PROMPT, POSE_PROMPT };

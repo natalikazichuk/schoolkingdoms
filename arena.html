@@ -1707,7 +1707,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script src="sk-footer.js?v=6" data-active="arena" data-back="self"></script>
 
 <script type="module" src="firebase-config.js"></script>
-<script src="sk-avatar.js?v=6"></script>
+<script src="sk-avatar.js?v=7"></script>
 <script src="sk-progress.js"></script>
 <script src="sk-arena-rules.js?v=25"></script>
 <script src="sk-battle.js?v=29"></script>
@@ -1829,7 +1829,7 @@ window.SKHERO = (function(){
       var id = SKAVA.idOf(token);
       img.src = SKAVA.faceSrc(id, 256);
       img.classList.remove('hidden'); em.classList.add('hidden');
-      if(peek) peek.src = SKAVA.fullSrc(id);
+      if(peek){ peek.onerror = function(){ peek.onerror=null; peek.src = SKAVA.fullSrc(id); }; peek.src = (SKAVA.arenaSrc||SKAVA.fullSrc)(id); }
     }else{
       var heroTok = (typeof token==='string' && token.indexOf('hero:')===0);
       em.textContent = heroTok ? '🧒' : (token || '🧒'); em.classList.remove('hidden'); img.classList.add('hidden');
@@ -1843,8 +1843,8 @@ window.SKHERO = (function(){
     if(!img) return;
     if(SKAVA && SKAVA.isHeroToken && SKAVA.isHeroToken(token)){
       var id=SKAVA.idOf(token);
-      img.onerror=function(){ img.onerror=null; if(SKAVA.fullPng) img.src=SKAVA.fullPng(id); };
-      img.src=SKAVA.fullSrc(id); img.style.display='block';
+      img.onerror=function(){ img.onerror=null; img.src=(SKAVA.arenaPng||SKAVA.fullPng)(id); };
+      img.src=(SKAVA.arenaSrc||SKAVA.fullSrc)(id); img.style.display='block';
       if(em) em.classList.add('hidden');
     }else{
       img.style.display='none';
@@ -2343,8 +2343,8 @@ window.SKHERO = (function(){
     var SKAVA = window.SKAVA;
     if(SKAVA && SKAVA.isHeroToken && SKAVA.isHeroToken(token) && SKAVA.has && SKAVA.has(SKAVA.idOf(token))){
       var id = SKAVA.idOf(token);
-      img.onerror = function(){ img.onerror=null; if(SKAVA.fullPng) img.src = SKAVA.fullPng(id); };
-      img.src = SKAVA.fullSrc(id);
+      img.onerror = function(){ img.onerror=null; img.src = (SKAVA.arenaPng||SKAVA.fullPng)(id); };
+      img.src = (SKAVA.arenaSrc||SKAVA.fullSrc)(id);
       img.style.display = 'block'; em.classList.add('hidden');
     }else{
       img.style.display = 'none';
@@ -2410,8 +2410,8 @@ window.SKHERO = (function(){
     var SKAVA=window.SKAVA;
     if(SKAVA && SKAVA.isHeroToken && SKAVA.isHeroToken(token) && SKAVA.has && SKAVA.has(SKAVA.idOf(token))){
       var id=SKAVA.idOf(token);
-      img.onerror=function(){ img.onerror=null; if(SKAVA.fullPng) img.src=SKAVA.fullPng(id); };
-      img.src=SKAVA.fullSrc(id); img.style.display='block'; em.classList.add('hidden');
+      img.onerror=function(){ img.onerror=null; img.src=(SKAVA.arenaPng||SKAVA.fullPng)(id); };
+      img.src=(SKAVA.arenaSrc||SKAVA.fullSrc)(id); img.style.display='block'; em.classList.add('hidden');
     }else{ img.style.display='none'; em.classList.remove('hidden'); }
   }
 
@@ -4275,7 +4275,7 @@ function placeTip(x,y){if(!tip||tip.hidden)return;var w=tip.offsetWidth,h=tip.of
 
 function paintAvatar(token){var img=q('ek-heroImg');if(!img)return;var S=window.SKAVA;
  if(S&&S.isHeroToken&&S.isHeroToken(token)&&S.has&&S.has(S.idOf(token))){var id=S.idOf(token);
-  img.onerror=function(){img.onerror=null;if(S.fullPng)img.src=S.fullPng(id);};img.src=S.fullSrc(id);}
+  img.onerror=function(){img.onerror=null;img.src=(S.arenaPng||S.fullPng)(id);};img.src=(S.arenaSrc||S.fullSrc)(id);}
  else{img.onerror=function(){img.onerror=null;img.src='https://raw.githubusercontent.com/natalikazichuk/schoolkingdoms/main/img/ava/knight-green-boy-full.webp';};img.src='img/ava/knight-green-boy-full.webp';}}
 
 /* Урон удару — як у бою (sk-arena-rules.js): база BATTLE.baseDmg + кидок у діапазоні зброї в руці

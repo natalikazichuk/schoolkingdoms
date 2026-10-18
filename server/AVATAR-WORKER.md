@@ -66,7 +66,8 @@ Authorization: Bearer <AVATAR_WORKER_TOKEN>
       "version": 1,
       "key": "6cf1c3f1d0a54e5b9c3e2a10",
       "base": "linen-boy-fight",
-      "baseImage": "https://school-king.pp.ua/img/ava/linen-boy-fight-base.webp",
+      "baseImage": "https://school-king.pp.ua/img/ava/linen-boy-base.webp",
+      "fightImage": "https://school-king.pp.ua/img/ava/linen-boy-fight-base.webp",
       "total": 10,
       "filled": 3,
       "slots": [
@@ -93,7 +94,8 @@ Authorization: Bearer <AVATAR_WORKER_TOKEN>
 
 | Поле | Що це |
 |---|---|
-| `baseImage` | базовий аватар **без верхнього одягу** (прозорий фон, WebP). Поки що є лише Юний джура: `linen-boy`, `linen-boy-fight` |
+| `baseImage` | базовий аватар **без верхнього одягу** у **прямій позі** (прозорий фон, WebP). Поки що є лише Юний джура (`linen-boy`) і герої з фото (`gen/<файл>`) |
+| `fightImage` | та сама база в **бойовій позі** або `null`. Набір малюється двічі: з `baseImage` (пряма поза, hero.html і мініатюри) і з `fightImage` (бойова, арена) |
 | `total` | скільки слотів малюється (зараз 10) |
 | `filled` | скільки з них зайнято речами (≥ 1: порожній набір сервер не ставить у чергу) |
 | `slots[]` | **усі** 10 слотів по порядку, зверху вниз: `helmet, amulet, armor, bracers, gloves, belt, pants, boots, weaponR, weaponL` |
@@ -115,8 +117,11 @@ Authorization: Bearer <AVATAR_WORKER_TOKEN>
 ## 3. Віддати результат — `POST /api/avatar/worker/result`
 
 ```json
-{ "id": 1, "image": "<base64 PNG/WebP/JPEG>" }
+{ "id": 1, "image": "<base64: пряма поза>", "fight": "<base64: бойова поза>" }
 ```
+
+`fight` потрібен, коли `spec.fightImage` не `null`: це той самий набір речей, намальований з
+`fightImage` як картинкою 1. Без нього образ збережеться лише в прямій позі, і арена покаже її.
 
 Можна і `data:image/png;base64,…`. Ліміт — 9 МБ картинки (≈ 12 МБ base64). Відповідь:
 `{"ok": true, "file": "6cf1c3f1d0a5-mgv8k2a1", "avatar": "hero:gen/6cf1c3f1d0a5-mgv8k2a1", "heroes": 1}`.
@@ -131,7 +136,7 @@ Authorization: Bearer <AVATAR_WORKER_TOKEN>
   (наприклад, нодою rembg / BiRefNet у тому ж workflow).
 - Роздільність — від розміру бази й вище, по висоті до ~1448 px (більше сервер зменшить).
 
-Сервер сам зберігає файли (`/img/ava/gen/<file>-full|256|96.webp`) і ставить образ
+Сервер сам зберігає файли (`/img/ava/gen/<file>-full|fight|256|96.webp`) і ставить образ
 аватаром усім Героям, які чекали цей набір. Повторний `result` для того самого завдання
 замінює образ: так перемальовують невдалий.
 
@@ -174,9 +179,13 @@ while True:
         spec = job["spec"]
         base = download(spec["baseImage"])
         sheet = make_sheet([s for s in spec["slots"] if s["item"]])   # Pillow: картинки + підписи
-        png = run_comfy(base, sheet, spec["prompt"], seed=int(job["key"][:8], 16),
-                        on_progress=lambda: post("/api/avatar/worker/heartbeat", {"id": job["id"]}))
-        post("/api/avatar/worker/result", {"id": job["id"], "image": b64(png)})
+        beat = lambda: post("/api/avatar/worker/heartbeat", {"id": job["id"]})
+        seed = int(job["key"][:8], 16)
+        png = run_comfy(base, sheet, spec["prompt"], seed=seed, on_progress=beat)
+        out = {"id": job["id"], "image": b64(png)}
+        if spec.get("fightImage"):   # той самий набір у бойовій позі
+            out["fight"] = b64(run_comfy(download(spec["fightImage"]), sheet, spec["prompt"], seed=seed, on_progress=beat))
+        post("/api/avatar/worker/result", out)
     except Aborted:            # 409 — завдання перевидали
         continue
     except Exception as e:

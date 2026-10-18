@@ -48,7 +48,28 @@ test('ключ: той самий набір — той самий ключ; к�
   assert.match(a, /^[0-9a-f]{24}$/);
   assert.strictEqual(k({ weaponR: 'IT-093', helmet: 'IT-001', ring1: 'IT-108', belt0: 'IT-001' }), a);
   assert.notStrictEqual(k({ helmet: 'IT-001' }), a);
-  assert.notStrictEqual(A.buildSpec(hero('hero:linen-boy-fight', { helmet: 'IT-001', weaponR: 'IT-093' }), ITEMS, has).key, a);
+  // пряма й бойова поза джури — один набір (малюється в обох позах), тож і ключ один
+  assert.strictEqual(A.buildSpec(hero('hero:linen-boy-fight', { helmet: 'IT-001', weaponR: 'IT-093' }), ITEMS, has).key, a);
+});
+
+test('дві пози: бойова база для вбудованого джури й для героя з фото', async () => {
+  const s = A.buildSpec(hero('hero:linen-boy-fight', { helmet: 'IT-001' }), ITEMS, has);
+  assert.strictEqual(s.base, 'linen-boy');
+  assert.strictEqual(s.baseImage, 'img/ava/linen-boy-base.webp');
+  assert.strictEqual(s.fightImage, 'img/ava/linen-boy-fight-base.webp');
+  assert.strictEqual(A.standOf('linen-boy-fight'), 'linen-boy');
+  assert.strictEqual(A.baseImageOf('gen/abc-1', 'fight'), 'img/ava/gen/abc-1-fight-base.webp');
+  assert.strictEqual(A.baseImageOf('knight-blue-boy', 'fight'), null);
+  // немає бойової бази — малюємо лише пряму
+  const p = A.buildSpec({ avatar: 'hero:gen/abc-1', avatarGen: { base: 'gen/abc-1' }, inventory: [] }, ITEMS, r => r === 'img/ava/gen/abc-1-base.webp');
+  assert.strictEqual(p.fightImage, null);
+  // бойова поза — лише повний зріст у пропорціях бойової бази
+  const out = await sharp({ create: { width: 1024, height: 1536, channels: 4, background: { r: 9, g: 9, b: 9, alpha: 1 } } }).png().toBuffer();
+  const f = await A.makeFiles(out, 'linen-boy', 'fight');
+  assert.deepStrictEqual(Object.keys(f), ['fight']);
+  const m = await sharp(f.fight).metadata();
+  const b = await sharp(require('path').join(__dirname, '../../../img/ava/linen-boy-fight-base.webp')).metadata();
+  assert.ok(Math.abs(m.width / m.height - b.width / b.height) < 0.01);
 });
 
 test('без бази генерації немає: смайлик або аватар без -base.webp', () => {

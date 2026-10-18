@@ -20,6 +20,8 @@
    малює OpenAI (src/openai-image.js) у кадрі й позі шаблону PHOTO_TEMPLATE. Результат —
    новий герой-шаблон: base = 'gen/<файл>' (файл <файл>-base.webp лежить поруч з образом),
    тож у нього так само можна вдягати речі кнопкою «Одягти». Фото не зберігаємо.
+   Кожен образ — у двох позах: прямо (<файл>-full.webp, hero.html і мініатюри -256/-96)
+   і бойова (<файл>-fight.webp, арена). Пари поз вбудованих героїв — FIGHT_PAIRS.
    Поля heroes/{id}.avatarGen і avatarCollection змінює лише цей модуль (rules.js: HERO_PROTECTED). */
 const fs = require('fs');
 const path = require('path');
@@ -61,9 +63,11 @@ const FACE_BOX = {
   'linen-boy-fight': { left: 0.197, top: 0, size: 0.590 }
 };
 const FACE_DEFAULT = { left: 0.2, top: 0, size: 0.6 };
+/* пряма поза → бойова: образ малюється в обох (арена показує бойову) */
+const FIGHT_PAIRS = { 'linen-boy': 'linen-boy-fight' };
 
 // версія набору й промпту: змінив PROMPT/SLOTS — підніми, і старий кеш не підхопиться
-const SPEC_VERSION = 1;
+const SPEC_VERSION = 2;   // 2: дві пози (fightImage)
 const MAX_ATTEMPTS = 3;
 const LEASE_MIN = 10;
 const RENDER_PER_HOUR = 20;        // нових генерацій на Героя за годину
@@ -109,12 +113,26 @@ function addToCollection(hero, entry) {
   return collectionOf(hero).filter(x => x.key !== entry.key).concat([entry]).slice(-COLLECTION_MAX);
 }
 
+/* пряма поза для бази: вибрав бойового джуру — образ однаково малюється з прямого */
+function standOf(base) {
+  return Object.keys(FIGHT_PAIRS).find(k => FIGHT_PAIRS[k] === base) || base;
+}
+/* базове зображення пози; для героя з фото бойова база лежить поруч: <файл>-fight-base.webp */
+function baseImageOf(base, pose) {
+  if (pose !== 'fight') return 'img/ava/' + base + '-base.webp';
+  if (isPhotoBase(base)) return 'img/ava/' + base + '-fight-base.webp';
+  return FIGHT_PAIRS[base] ? 'img/ava/' + FIGHT_PAIRS[base] + '-base.webp' : null;
+}
+
 /* Набір для генерації. items — каталог {id: дані}, has(rel) — чи є файл на сайті. */
 function buildSpec(hero, items, has) {
   has = has || exists;
-  const base = baseOf(hero);
-  if (!base) throw new AvatarError('failed-precondition', 'Спершу обери героя-аватар (не смайлик)');
-  const baseImage = 'img/ava/' + base + '-base.webp';
+  const own = baseOf(hero);
+  if (!own) throw new AvatarError('failed-precondition', 'Спершу обери героя-аватар (не смайлик)');
+  const base = standOf(own);
+  const baseImage = baseImageOf(base, 'stand');
+  const fight = baseImageOf(base, 'fight');
+  const fightImage = fight && has(fight) ? fight : null;   // немає бойової бази — лише пряма поза
   if (!has(baseImage)) throw new AvatarError('failed-precondition', 'Для цього аватара ще немає базового зображення');
   const worn = {};
   (Array.isArray(hero.inventory) ? hero.inventory : []).forEach(i => { if (i && i.slot && i.id) worn[i.slot] = i.id; });
@@ -134,7 +152,7 @@ function buildSpec(hero, items, has) {
   const key = crypto.createHash('sha256')
     .update(JSON.stringify([SPEC_VERSION, base, slots.map(s => s.item && s.item.id)]))
     .digest('hex').slice(0, 24);
-  return { version: SPEC_VERSION, key, base, baseImage, total: SLOTS.length, filled, slots, prompt: promptOf(slots) };
+  return { version: SPEC_VERSION, key, base, baseImage, fightImage, total: SLOTS.length, filled, slots, prompt: promptOf(slots) };
 }
 
 /* Підказка для моделі (англійською — так її краще розуміють). Воркер може
@@ -207,8 +225,9 @@ async function render(user) {
 
     if (!spec.filled) {
       // нічого не вдягнено — просто базовий аватар, малювати нічого
-      await setAvatar(c, user.uid, hero, 'hero:' + spec.base, Object.assign(gen, { status: 'ready', file: null }));
-      out = { status: 'ready', avatar: 'hero:' + spec.base };
+      const plain = 'hero:' + baseOf(hero);   // яку позу обрав, ту й лишаємо
+      await setAvatar(c, user.uid, hero, plain, Object.assign(gen, { status: 'ready', file: null }));
+      out = { status: 'ready', avatar: plain };
     } else {
       const j = (await c.query('select * from avatar_jobs where key = $1 for update', [spec.key])).rows[0];
       if (j && j.status === 'done' && j.file) {
@@ -335,9 +354,9 @@ async function photoPng(raw) {
   if (meta.width * meta.height > 40e6) throw new AvatarError('invalid-argument', 'Завелике фото');
   return sharp(buf).rotate().resize(1024, 1024, { fit: 'inside', withoutEnlargement: true }).png().toBuffer();
 }
-/* шаблон для моделі: прозорий фон заливаємо білим — так модель краще бачить силует */
-function templatePng() {
-  return require('sharp')(filePath('img/ava/' + PHOTO_TEMPLATE + '-base.webp')).flatten({ background: '#ffffff' }).png().toBuffer();
+/* шаблон пози для моделі: прозорий фон заливаємо білим — так модель краще бачить силует */
+function templatePng(pose) {
+  return require('sharp')(filePath(baseImageOf(PHOTO_TEMPLATE, pose))).flatten({ background: '#ffffff' }).png().toBuffer();
 }
 
 async function photo(user, body) {
@@ -371,10 +390,18 @@ async function photo(user, body) {
 async function drawPhoto(uid, key, png) {
   let file = null;
   try {
-    const out = await openai.portrait(await templatePng(), png);
+    // 1) пряма поза з фото; 2) бойова — з уже намальованого героя (так обидві пози схожі)
+    const out = await openai.portrait(await templatePng('stand'), png);
     const files = await makeFiles(out, PHOTO_TEMPLATE);
+    try {
+      const fight = await openai.portrait(await templatePng('fight'), out, { prompt: openai.POSE_PROMPT });
+      Object.assign(files, await makeFiles(fight, PHOTO_TEMPLATE, 'fight'));
+    } catch (e) {
+      try { console.error('[avatar/photo] бойова поза:', uid, e && e.message || e); } catch (_) {}   // арена покаже пряму
+    }
     file = key.slice(0, 12) + '-' + Date.now().toString(36);
     files.base = files.full;          // герой з фото — сам собі базове зображення для «Одягти»
+    files.fightBase = files.fight;
     saveFiles(file, files);
     const base = 'gen/' + file;
     const c = await pool.connect();
@@ -458,6 +485,7 @@ function absolute(spec, req) {
   const abs = p => p ? host.replace(/\/$/, '') + '/' + p : null;
   return Object.assign({}, spec, {
     baseImage: abs(spec.baseImage),
+    fightImage: abs(spec.fightImage),
     slots: spec.slots.map(s => Object.assign({}, s, { item: s.item && Object.assign({}, s.item, { image: abs(s.item.image) }) }))
   });
 }
@@ -515,19 +543,21 @@ async function fail(req, body) {
 }
 
 /* Картинка від воркера → файли образу: повний зріст у пропорціях бази
-   (тоді рамка обличчя з FACE_BOX влучає) + аватарки -256/-96 на тлі вбудованих. */
-async function makeFiles(buf, base) {
+   (тоді рамка обличчя з FACE_BOX влучає) + аватарки -256/-96 на тлі вбудованих.
+   pose 'fight' — лише повний зріст у пропорціях бойової бази ({fight}). */
+async function makeFiles(buf, base, pose) {
   const sharp = require('sharp');
   let meta;
   try { meta = await sharp(buf).metadata(); } catch (e) { throw new AvatarError('invalid-argument', 'Це не зображення'); }
   if (!['png', 'webp', 'jpeg'].includes(meta.format)) throw new AvatarError('invalid-argument', 'Потрібен PNG, WebP або JPEG');
   if (meta.width * meta.height > 40e6) throw new AvatarError('invalid-argument', 'Завелике зображення');
-  const bm = await sharp(filePath('img/ava/' + base + '-base.webp')).metadata();
+  const bm = await sharp(filePath(baseImageOf(base, pose))).metadata();
   const H = Math.min(1448, Math.max(bm.height, meta.height));
   const W = Math.round(H * bm.width / bm.height);
   const full = await sharp(buf).rotate()
     .resize(W, H, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .webp({ quality: 90, alphaQuality: 90 }).toBuffer();
+  if (pose === 'fight') return { fight: full };
   const fb = FACE_BOX[isPhotoBase(base) ? PHOTO_TEMPLATE : base] || FACE_DEFAULT;
   const left = Math.round(fb.left * W), top = Math.round(fb.top * H);
   const s = Math.max(16, Math.min(Math.round(fb.size * W), W - left, H - top));
@@ -542,7 +572,7 @@ async function makeFiles(buf, base) {
 function saveFiles(file, f) {
   const dir = avatarDir();
   fs.mkdirSync(dir, { recursive: true });
-  [['full', f.full], ['256', f.face256], ['96', f.face96], ['base', f.base]].forEach(([suf, b]) => {
+  [['full', f.full], ['256', f.face256], ['96', f.face96], ['base', f.base], ['fight', f.fight], ['fight-base', f.fightBase]].forEach(([suf, b]) => {
     if (!b) return;
     const p = path.join(dir, `${file}-${suf}.webp`);
     fs.writeFileSync(p + '.tmp', b);
@@ -550,7 +580,7 @@ function saveFiles(file, f) {
   });
 }
 function removeFiles(file) {
-  ['full', '256', '96', 'base'].forEach(suf => { try { fs.unlinkSync(path.join(avatarDir(), `${file}-${suf}.webp`)); } catch (e) {} });
+  ['full', '256', '96', 'base', 'fight', 'fight-base'].forEach(suf => { try { fs.unlinkSync(path.join(avatarDir(), `${file}-${suf}.webp`)); } catch (e) {} });
 }
 
 async function result(req, body) {
@@ -562,6 +592,10 @@ async function result(req, body) {
   if (!buf.length) throw new AvatarError('invalid-argument', 'Немає зображення (image: base64)');
   if (buf.length > MAX_IMAGE) throw new AvatarError('invalid-argument', 'Завелике зображення');
   const files = await makeFiles(buf, j0.spec.base);
+  // бойова поза (необов'язкова: без неї арена покаже пряму)
+  const fbuf = Buffer.from(String(body.fight || '').replace(/^data:[^,]*,/, ''), 'base64');
+  if (fbuf.length > MAX_IMAGE) throw new AvatarError('invalid-argument', 'Завелике зображення (fight)');
+  if (fbuf.length && j0.spec.fightImage) Object.assign(files, await makeFiles(fbuf, j0.spec.base, 'fight'));
   const file = j0.key.slice(0, 12) + '-' + Date.now().toString(36);
   saveFiles(file, files);
 
@@ -580,7 +614,7 @@ async function result(req, body) {
       const g = h.data.avatarGen || {};
       const wearing = g.status === 'ready' && GEN_RE.test(String(h.data.avatar || ''));
       // поки малювалось, Герой обрав інший аватар — не перебиваємо його вибір
-      if ((g.status !== 'queued' && g.status !== 'failed' && !wearing) || baseOf(h.data) !== g.base) continue;
+      if ((g.status !== 'queued' && g.status !== 'failed' && !wearing) || standOf(baseOf(h.data)) !== g.base) continue;
       await setAvatar(c, h.path.split('/')[1], h.data, genToken(file),
         Object.assign({}, g, { status: 'ready', file, readyAt: Date.now() }));
       heroes++;
@@ -604,7 +638,7 @@ async function result(req, body) {
     c.release();
   }
   if (old && old !== file) removeFiles(old);
-  return { ok: true, file, avatar: genToken(file), heroes };
+  return { ok: true, file, avatar: genToken(file), fight: !!files.fight, heroes };
 }
 
 /* ---------- адмінка ---------- */
@@ -625,6 +659,6 @@ async function adminRequeue(body) {
 }
 
 module.exports = {
-  AvatarError, SLOTS, FACE_BOX, COLLECTION_MAX, buildSpec, baseOf, promptOf, makeFiles,
+  AvatarError, SLOTS, FACE_BOX, FIGHT_PAIRS, COLLECTION_MAX, buildSpec, baseOf, standOf, baseImageOf, promptOf, makeFiles,
   PHOTO_TEMPLATE, collectionOf, addToCollection, render, status, wear, forget, photo, photoPng, claim, heartbeat, result, fail, adminJobs, adminRequeue
 };
