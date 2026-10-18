@@ -67,7 +67,7 @@ const FACE_DEFAULT = { left: 0.2, top: 0, size: 0.6 };
 const FIGHT_PAIRS = { 'linen-boy': 'linen-boy-fight' };
 
 // версія набору й промпту: змінив PROMPT/SLOTS — підніми, і старий кеш не підхопиться
-const SPEC_VERSION = 2;   // 2: дві пози (fightImage)
+const SPEC_VERSION = 3;   // 2: дві пози (fightImage); 3: база на полотні з запасом (CANVAS_PAD)
 const MAX_ATTEMPTS = 3;
 const LEASE_MIN = 10;
 const RENDER_PER_HOUR = 20;        // нових генерацій на Героя за годину
@@ -354,10 +354,8 @@ async function photoPng(raw) {
   if (meta.width * meta.height > 40e6) throw new AvatarError('invalid-argument', 'Завелике фото');
   return sharp(buf).rotate().resize(1024, 1024, { fit: 'inside', withoutEnlargement: true }).png().toBuffer();
 }
-/* шаблон пози для моделі: прозорий фон заливаємо білим — так модель краще бачить силует */
-function templatePng(pose) {
-  return require('sharp')(filePath(baseImageOf(PHOTO_TEMPLATE, pose))).flatten({ background: '#ffffff' }).png().toBuffer();
-}
+/* шаблон пози для моделі — на полотні з запасом, фон білий (так модель краще бачить силует) */
+const templatePng = pose => canvasPng(PHOTO_TEMPLATE, pose, true);
 
 async function photo(user, body) {
   if (!user) throw new AvatarError('unauthenticated');
@@ -400,8 +398,9 @@ async function drawPhoto(uid, key, png) {
       try { console.error('[avatar/photo] бойова поза:', uid, e && e.message || e); } catch (_) {}   // арена покаже пряму
     }
     file = key.slice(0, 12) + '-' + Date.now().toString(36);
-    files.base = files.full;          // герой з фото — сам собі базове зображення для «Одягти»
-    files.fightBase = files.fight;
+    // герой з фото — сам собі база для «Одягти»: рівно в межах шаблону (тоді й FACE_BOX шаблону влучає)
+    files.base = files.region;
+    files.fightBase = files.fightRegion;
     saveFiles(file, files);
     const base = 'gen/' + file;
     const c = await pool.connect();
@@ -480,19 +479,23 @@ async function markFailed(q, key) {
 }
 
 /* шляхи сайту → повні адреси, щоб воркер міг їх просто завантажити */
-function absolute(spec, req) {
+async function absolute(spec, req) {
   const host = process.env.PUBLIC_URL || ('https://' + (req.headers.host || 'school-king.pp.ua'));
   const abs = p => p ? host.replace(/\/$/, '') + '/' + p : null;
+  // з версії 3 воркер малює на полотні з запасом (CANVAS_PAD) — довга зброя не обрізається
+  const pad = (spec.version || 1) >= 3;
+  const baseImage = pad ? await canvasImage(spec.base, 'stand') : spec.baseImage;
+  const fightImage = spec.fightImage && pad ? await canvasImage(spec.base, 'fight') : spec.fightImage;
   return Object.assign({}, spec, {
-    baseImage: abs(spec.baseImage),
-    fightImage: abs(spec.fightImage),
+    baseImage: abs(baseImage),
+    fightImage: abs(fightImage),
     slots: spec.slots.map(s => Object.assign({}, s, { item: s.item && Object.assign({}, s.item, { image: abs(s.item.image) }) }))
   });
 }
-const jobOut = (j, req) => ({
+const jobOut = async (j, req) => ({
   id: Number(j.id), key: j.key, attempt: j.attempts,
   leaseUntil: j.lease_until, leaseSeconds: LEASE_MIN * 60,
-  spec: absolute(j.spec, req)
+  spec: await absolute(j.spec, req)
 });
 
 async function claim(req, body) {
@@ -505,7 +508,7 @@ async function claim(req, body) {
                    where status = 'queued' or (status = 'working' and lease_until < now())
                    order by queued_at for update skip locked limit 1)
       returning *`, [String(body.worker || 'worker').slice(0, 64)]);
-  return { job: r.rows.length ? jobOut(r.rows[0], req) : null };
+  return { job: r.rows.length ? await jobOut(r.rows[0], req) : null };
 }
 
 async function heartbeat(req, body) {
@@ -542,32 +545,94 @@ async function fail(req, body) {
   }
 }
 
-/* Картинка від воркера → файли образу: повний зріст у пропорціях бази
-   (тоді рамка обличчя з FACE_BOX влучає) + аватарки -256/-96 на тлі вбудованих.
-   pose 'fight' — лише повний зріст у пропорціях бойової бази ({fight}). */
-async function makeFiles(buf, base, pose) {
+/* ПОЛОТНО. Бази обрізані впритул до героя (бойова — від краю до краю), і модель малює
+   в тих самих межах: довга зброя (кнут, спис, лук) обрізалась. Тому воркер і OpenAI
+   отримують базу з прозорим запасом з боків і зверху (CANVAS_PAD), а готовий результат
+   ми обрізаємо по вмісту симетрично від центру (герой лишається посередині, ноги внизу). */
+const CANVAS_PAD = { x: 0.35, top: 0.12 };   // частки ширини / висоти бази
+const CANVAS_VER = 'v1';                     // змінив CANVAS_PAD — підніми (файли полотен кешуються)
+const OUT_H = 1000;                          // зріст героя в готових файлах, px
+
+/* геометрія полотна: розмір бази w×h, запас px (з боків) і pt (зверху), повний W×H */
+async function canvasOf(base, pose, padded) {
+  const m = await require('sharp')(filePath(baseImageOf(base, pose))).metadata();
+  const px = padded ? Math.round(m.width * CANVAS_PAD.x) : 0, pt = padded ? Math.round(m.height * CANVAS_PAD.top) : 0;
+  return { w: m.width, h: m.height, px, pt, W: m.width + 2 * px, H: m.height + pt };
+}
+/* база на полотні (PNG); white — прозорий фон залити білим (так моделі OpenAI видно силует) */
+async function canvasPng(base, pose, white) {
+  const sharp = require('sharp'), cv = await canvasOf(base, pose, true);
+  const bg = white ? { r: 255, g: 255, b: 255, alpha: 1 } : { r: 0, g: 0, b: 0, alpha: 0 };
+  let img = sharp(filePath(baseImageOf(base, pose))).extend({ top: cv.pt, left: cv.px, right: cv.px, bottom: 0, background: { r: 0, g: 0, b: 0, alpha: 0 } });
+  if (white) img = sharp(await img.png().toBuffer()).flatten({ background: bg });
+  return img.png().toBuffer();
+}
+/* полотно для воркера: файл у каталозі образів (nginx віддає /img/ava/gen/canvas/…) */
+async function canvasImage(base, pose) {
+  const name = CANVAS_VER + '-' + base.replace(/\//g, '_') + (pose === 'fight' ? '-fight' : '') + '.webp';
+  const out = path.join(avatarDir(), 'canvas', name);
+  if (!fs.existsSync(out)) {
+    const webp = await require('sharp')(await canvasPng(base, pose)).webp({ lossless: true }).toBuffer();
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    fs.writeFileSync(out + '.tmp', webp);
+    fs.renameSync(out + '.tmp', out);
+  }
+  return 'img/ava/gen/canvas/' + name;
+}
+
+/* межі непрозорого вмісту (альфа > 16) */
+async function alphaBox(buf) {
+  const { data, info } = await require('sharp')(buf).ensureAlpha().extractChannel(3).raw().toBuffer({ resolveWithObject: true });
+  let L = info.width, R = -1, T = info.height, B = -1;
+  for (let y = 0; y < info.height; y++) {
+    const row = y * info.width;
+    for (let x = 0; x < info.width; x++) {
+      if (data[row + x] > 16) { if (x < L) L = x; if (x > R) R = x; if (y < T) T = y; if (y > B) B = y; }
+    }
+  }
+  return R < 0 ? null : { L, R, T, B };
+}
+
+/* Картинка від воркера / OpenAI → файли образу. Результат вписуємо в полотно бази
+   (тоді рамка обличчя з FACE_BOX влучає), ріжемо аватарки -256/-96 на тлі вбудованих,
+   потім обрізаємо порожні поля. pose 'fight' — лише повний зріст ({fight}).
+   region — та сама картинка рівно в межах бази (без запасу): база для героя з фото.
+   padded = false — старі завдання (SPEC_VERSION < 3), намальовані без запасу. */
+async function makeFiles(buf, base, pose, padded) {
   const sharp = require('sharp');
+  if (padded === undefined) padded = true;
   let meta;
   try { meta = await sharp(buf).metadata(); } catch (e) { throw new AvatarError('invalid-argument', 'Це не зображення'); }
   if (!['png', 'webp', 'jpeg'].includes(meta.format)) throw new AvatarError('invalid-argument', 'Потрібен PNG, WebP або JPEG');
   if (meta.width * meta.height > 40e6) throw new AvatarError('invalid-argument', 'Завелике зображення');
-  const bm = await sharp(filePath(baseImageOf(base, pose))).metadata();
-  const H = Math.min(1448, Math.max(bm.height, meta.height));
-  const W = Math.round(H * bm.width / bm.height);
-  const full = await sharp(buf).rotate()
-    .resize(W, H, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-    .webp({ quality: 90, alphaQuality: 90 }).toBuffer();
-  if (pose === 'fight') return { fight: full };
+  const cv = await canvasOf(base, pose, padded);
+  const k = OUT_H / cv.h;                               // зріст героя → OUT_H
+  const W = Math.round(cv.W * k), H = Math.round(cv.H * k);
+  const canvas = await sharp(buf).rotate()
+    .resize(W, H, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer();
+  const rx = Math.round(cv.px * k), ry = Math.round(cv.pt * k);
+  const rw = Math.min(W - rx, Math.round(cv.w * k)), rh = H - ry;
+  const region = await sharp(canvas).extract({ left: rx, top: ry, width: rw, height: rh }).webp({ quality: 86, alphaQuality: 90 }).toBuffer();
+  // порожні поля геть: симетрично від центру, низ (ноги) не чіпаємо
+  const box = await alphaBox(canvas), M = 8;
+  let full = canvas;
+  if (box) {
+    const half = Math.min(W / 2, Math.max(W / 2 - box.L, box.R + 1 - W / 2) + M);
+    const left = Math.max(0, Math.floor(W / 2 - half)), top = Math.max(0, box.T - M);
+    full = await sharp(canvas).extract({ left, top, width: Math.min(W - left, Math.ceil(2 * half)), height: H - top }).png().toBuffer();
+  }
+  full = await sharp(full).webp({ quality: 86, alphaQuality: 90 }).toBuffer();
+  if (pose === 'fight') return { fight: full, fightRegion: region };
   const fb = FACE_BOX[isPhotoBase(base) ? PHOTO_TEMPLATE : base] || FACE_DEFAULT;
-  const left = Math.round(fb.left * W), top = Math.round(fb.top * H);
-  const s = Math.max(16, Math.min(Math.round(fb.size * W), W - left, H - top));
-  const head = await sharp(full).extract({ left, top, width: s, height: s }).resize(256, 256).png().toBuffer();
+  const left = rx + Math.round(fb.left * cv.w * k), top = ry + Math.round(fb.top * cv.h * k);
+  const s = Math.max(16, Math.min(Math.round(fb.size * cv.w * k), W - left, H - top));
+  const head = await sharp(canvas).extract({ left, top, width: s, height: s }).resize(256, 256).png().toBuffer();
   const sky = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">'
     + '<stop offset="0" stop-color="#bee3fb"/><stop offset="1" stop-color="#7bb4e7"/></linearGradient></defs>'
     + '<rect width="256" height="256" fill="url(#g)"/></svg>');
   const face256 = await sharp(sky).composite([{ input: head }]).webp({ quality: 88 }).toBuffer();
   const face96 = await sharp(face256).resize(96, 96).webp({ quality: 88 }).toBuffer();
-  return { full, face256, face96 };
+  return { full, face256, face96, region };
 }
 function saveFiles(file, f) {
   const dir = avatarDir();
@@ -591,11 +656,12 @@ async function result(req, body) {
   const buf = Buffer.from(String(body.image || '').replace(/^data:[^,]*,/, ''), 'base64');
   if (!buf.length) throw new AvatarError('invalid-argument', 'Немає зображення (image: base64)');
   if (buf.length > MAX_IMAGE) throw new AvatarError('invalid-argument', 'Завелике зображення');
-  const files = await makeFiles(buf, j0.spec.base);
+  const padded = (j0.spec.version || 1) >= 3;   // старі завдання малювались без запасу полотна
+  const files = await makeFiles(buf, j0.spec.base, 'stand', padded);
   // бойова поза (необов'язкова: без неї арена покаже пряму)
   const fbuf = Buffer.from(String(body.fight || '').replace(/^data:[^,]*,/, ''), 'base64');
   if (fbuf.length > MAX_IMAGE) throw new AvatarError('invalid-argument', 'Завелике зображення (fight)');
-  if (fbuf.length && j0.spec.fightImage) Object.assign(files, await makeFiles(fbuf, j0.spec.base, 'fight'));
+  if (fbuf.length && j0.spec.fightImage) Object.assign(files, await makeFiles(fbuf, j0.spec.base, 'fight', padded));
   const file = j0.key.slice(0, 12) + '-' + Date.now().toString(36);
   saveFiles(file, files);
 
@@ -659,6 +725,6 @@ async function adminRequeue(body) {
 }
 
 module.exports = {
-  AvatarError, SLOTS, FACE_BOX, FIGHT_PAIRS, COLLECTION_MAX, buildSpec, baseOf, standOf, baseImageOf, promptOf, makeFiles,
+  AvatarError, SLOTS, FACE_BOX, FIGHT_PAIRS, CANVAS_PAD, OUT_H, canvasOf, canvasPng, canvasImage, absolute, COLLECTION_MAX, buildSpec, baseOf, standOf, baseImageOf, promptOf, makeFiles,
   PHOTO_TEMPLATE, collectionOf, addToCollection, render, status, wear, forget, photo, photoPng, claim, heartbeat, result, fail, adminJobs, adminRequeue
 };
