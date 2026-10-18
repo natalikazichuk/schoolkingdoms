@@ -33,7 +33,7 @@ test('набір: 10 слотів з підписами, кільця не ма�
   assert.ok(!s.slots.some(x => /^ring|^belt\d/.test(x.slot)));
   const by = Object.fromEntries(s.slots.map(x => [x.slot, x]));
   assert.strictEqual(by.helmet.label, 'головний убір');
-  assert.deepStrictEqual(by.helmet.item, { id: 'IT-001', name: 'шляпа', category: 'Шоломи', weaponType: null, image: 'img/items/IT-001.webp' });
+  assert.deepStrictEqual(by.helmet.item, { id: 'IT-001', name: 'шляпа', category: 'Шоломи', weaponType: null, look: null, image: 'img/items/IT-001.webp' });
   assert.strictEqual(by.weaponR.item.image, null);
   assert.strictEqual(by.weaponL.label, 'щит у лівій руці');
   assert.strictEqual(by.boots.item, null);
@@ -389,3 +389,14 @@ test('токен «лише читання»: відкриває тільки м
     server.close();
   }
 });
+
+test('промпт: шапка сидить на голові, наручі окремо від рукавиць, опис речі з картки', () => {
+  const items = Object.assign({}, ITEMS, { 'IT-B1': { name: 'Наручі', look: 'brown leather bracers with steel studs' } });
+  const h = hero('hero:linen-boy', { helmet: 'IT-001', bracers: 'IT-B1' });
+  const p = A.buildSpec(h, items).prompt;
+  assert.match(p, /headwear sits firmly ON the head/);
+  assert.match(p, /Bracers are separate armour pieces/);
+  assert.match(p, /brown leather bracers with steel studs/);
+  assert.doesNotMatch(A.buildSpec(hero('hero:linen-boy', {}), ITEMS).prompt, /headwear sits|Bracers are/);
+});
+
