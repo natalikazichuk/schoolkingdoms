@@ -58,6 +58,7 @@
   .ai-raw-it .pics{display:flex;gap:4px}
   .ai-raw-it img{height:110px;width:auto;background:repeating-conic-gradient(#e8eef8 0 25%,#fff 0 50%) 0 0/16px 16px;border-radius:6px}
   .ai-key-row input{flex:1 1 260px;min-width:0}
+  .rd-write{display:block;margin:0 0 10px;font-weight:700;font-size:.88rem}
   #viewHome .home-head p{margin:6px 0 0;color:var(--muted);font-weight:700;font-size:.95rem}
   .home-grid{
     display:grid;gap:14px;
@@ -557,7 +558,27 @@
       </form>
       <div class="ai-jobs" id="aiJobs" hidden></div>
       <div class="ai-raw" id="aiRaw" hidden></div>
-      <p class="hint">Ключ створюється на platform.openai.com → API keys. Він потрапляє одразу на сервер — не в код і не в GitHub. Кожен герой з фото — 2 платні малюнки.</p>
+      <p class="hint" id="aiKeyHint">Ключ створюється на platform.openai.com → API keys. Він потрапляє одразу на сервер — не в код і не в GitHub. Кожен герой з фото — 2 платні малюнки.</p>
+    </div>
+
+    <!-- Токен «лише читання» для Claude: бачить базу (як «Перегляд бази»), нічого не змінює.
+         Сервер зберігає лише хеш; сам токен показується один раз. -->
+    <div class="ai-key" id="rdBox" hidden>
+      <h3>🤖 Доступ для Claude <small>до бази сайту</small></h3>
+      <p class="ai-key-state" id="rdState">Перевіряю…</p>
+      <div class="ai-key-row" id="rdNew" hidden>
+        <input type="text" id="rdToken" readonly spellcheck="false">
+        <button class="btn pri" type="button" id="rdCopy">Копіювати</button>
+      </div>
+      <label class="rd-write"><input type="checkbox" id="rdWrite"> дозволити й <b>зміни</b> (Claude питатиме дозволу перед кожною; усе пишеться в журнал adminLog)</label>
+      <div class="ai-key-row">
+        <button class="btn" type="button" id="rdCreate">Створити токен</button>
+        <button class="btn ghost danger" type="button" id="rdRevoke" hidden>Відкликати</button>
+      </div>
+      <p class="hint">Токен показується <b>один раз</b>. Не надсилайте його в чат: додайте в налаштування середовища
+        Claude Code (меню середовища в заголовку сесії → Edit → змінна <b>SK_READ_TOKEN</b>). З ним Claude бачить
+        базу, акаунти, Героїв і образи; зі «зміни» — ще й править документи (кожна правка — в журналі adminLog
+        з «до/після»). Паролів і ключа OpenAI не бачить. «Відкликати» — доступ одразу зникне.</p>
     </div>
   </section>
 
@@ -3352,6 +3373,7 @@ SKADMIN.guard({
       $('adminEmail').textContent = (user && (user.email || user.uid)) || '—';
       await bootstrap();
       initAiKey(SK);
+      initReader(SK);
     } catch (e){
       console.error(e);
       showDenied();
@@ -3428,6 +3450,38 @@ function initAiKey(SK){
   del.addEventListener('click', async function(){
     if(!confirm('Прибрати ключ OpenAI? «Аватар з фото» перестане працювати.')) return;
     try{ paint(await SK.adminOpenaiSave('')); }catch(err){ alert((err && err.message) || 'Не вдалося'); }
+  });
+}
+
+/* ── Токен «лише читання» для Claude (GET/POST /api/admin/reader) ── */
+function initReader(SK){
+  const box = $('rdBox'); if(!box || !SK.adminReader) return;
+  function paint(s){
+    box.hidden = false;
+    $('rdState').className = 'ai-key-state ' + (s.active ? 'ok' : 'no');
+    $('rdState').textContent = s.active
+      ? '✅ Доступ відкрито: ' + (s.mode === 'write' ? 'читання й зміни' : 'лише читання')
+        + (s.at ? ' (токен від ' + new Date(s.at).toLocaleString('uk-UA') + ')' : '')
+      : '— Доступу немає';
+    $('rdRevoke').hidden = !s.active;
+    $('rdCreate').textContent = s.active ? 'Створити новий (старий перестане діяти)' : 'Створити токен';
+    $('rdNew').hidden = !s.token;
+    if(s.token) $('rdToken').value = s.token;
+  }
+  SK.adminReader().then(paint, function(){});
+  $('rdCreate').addEventListener('click', async function(){
+    const w = $('rdWrite').checked;
+    if(w && !confirm('Дати Claude право змінювати базу? Він питатиме дозволу перед кожною зміною, а кожна правка лишиться в журналі adminLog.')) return;
+    try{ paint(await SK.adminReaderSave('create', w)); }catch(err){ alert((err && err.message) || 'Не вдалося'); }
+  });
+  $('rdRevoke').addEventListener('click', async function(){
+    if(!confirm('Відкликати доступ Claude до бази?')) return;
+    try{ $('rdToken').value = ''; paint(await SK.adminReaderSave('revoke')); }catch(err){ alert((err && err.message) || 'Не вдалося'); }
+  });
+  $('rdCopy').addEventListener('click', function(){
+    const t = $('rdToken'); t.select();
+    (navigator.clipboard ? navigator.clipboard.writeText(t.value) : Promise.reject()).then(
+      function(){ $('rdCopy').textContent = '✅ Скопійовано'; }, function(){ document.execCommand('copy'); });
   });
 }
 
