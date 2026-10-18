@@ -278,12 +278,19 @@ test('«Одягти GPT»: доступ за логіном/іменем, ок�
   assert.match(k, /^[0-9a-f]{24}$/);
   assert.notStrictEqual(k, spec.key);
 
-  // шолом і щит мають картинки (2, 3), меч — ні (лише назва); з готовим образом — картинка 4
+  // речі — одним аркушем (картинка 2): шолом — клітинка 1, щит — 2; меч без картинки — лише назва;
+  // готовий прямий образ — картинка 3
   const p = A.gptPrompt(spec.slots, true);
-  assert.match(p, /Image 2 — headwear: "шляпа"/);
+  assert.match(p, /Image 2 is a sheet of 2 items in a grid of 1 row\(s\) × 2 column/);
+  assert.match(p, /cell 1 → headwear: "шляпа"/);
+  assert.match(p, /cell 2 → shield held in the left hand/);
   assert.match(p, /weapon held in the right hand: "Меч новачка" \(Меч\) \(no picture/);
-  assert.match(p, /Image 3 — shield held in the left hand/);
-  assert.match(p, /Image 4 is the same character already dressed/);
+  assert.match(p, /Image 3 is the same character already dressed/);
+  assert.deepStrictEqual(A.sheetGrid(8), { cols: 3, rows: 3 });
+  assert.deepStrictEqual(A.sheetGrid(10), { cols: 4, rows: 3 });
+  const one = await sharp({ create: { width: 512, height: 512, channels: 4, background: { r: 200, g: 0, b: 0, alpha: 1 } } }).png().toBuffer();
+  const sheet = await sharp(await A.itemSheet([one, one, one, one, one])).metadata();
+  assert.strictEqual(sheet.width, 3 * 256); assert.strictEqual(sheet.height, 2 * 256);
   assert.doesNotMatch(A.gptPrompt(spec.slots, false), /already dressed/);
 
   // полотно доповнюється до розміру OpenAI, а результат вирізається назад у пропорціях полотна

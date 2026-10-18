@@ -1046,7 +1046,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 #wtabGear{--ek-cell:78px;--ek-gap:8px}
 .ek-body{display:grid;grid-template-columns:280px minmax(180px,auto) 1fr;gap:12px;align-items:stretch}
 .ek-card{background:linear-gradient(180deg,#1c3357,#111f3c);border:2px solid rgba(224,164,42,.5);border-radius:16px;padding:10px;position:relative}
-.ek-art{position:relative;border-radius:12px;overflow:hidden;background:#bfe3fb url(img/portrait-bg.webp) center/cover no-repeat;box-shadow:inset 0 -60px 60px -30px rgba(0,0,0,.28);aspect-ratio:1/1;display:flex;align-items:flex-end;justify-content:center}
+.ek-art{position:relative;border-radius:12px;overflow:hidden;background:#bfe3fb url(img/portrait-bg.webp) center/cover no-repeat;box-shadow:inset 0 -60px 60px -30px rgba(0,0,0,.28);aspect-ratio:7/8;display:flex;align-items:flex-end;justify-content:center}
 .ek-art img{width:96%;height:98%;object-fit:contain;object-position:center bottom;filter:drop-shadow(0 8px 10px rgba(0,0,0,.25))}
 /* «Одягти» — образ Героя у вдягнених речах малює сервер (server/app/src/avatar.js) */
 /* кнопки під героєм: «Одягти» і «Аватар з фото» */
@@ -1067,6 +1067,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 .ek-namebar{text-align:center;margin:0 0 10px}
 .ek-ribbon{position:relative;display:block;background:linear-gradient(180deg,#2f6fc4,#21539c);border:2px solid #fff;border-radius:14px;padding:8px 34px 9px;color:#fff;box-shadow:0 6px 14px rgba(20,40,80,.3);font-family:'Fredoka';font-weight:800;font-size:1.25rem;line-height:1}
 .ek-edit{position:absolute;top:6px;right:8px;background:rgba(255,255,255,.2);border:none;border-radius:8px;width:24px;height:24px;font-size:.8rem;color:#fff;line-height:24px;cursor:pointer;padding:0}
+.ek-grade[hidden]{display:none}
 .ek-grade{display:inline-block;margin-top:7px;background:linear-gradient(180deg,#f4c842,#e0a42a);color:#5a3d05;font-weight:900;font-size:.8rem;padding:3px 16px;border-radius:20px;border:2px solid #fff;box-shadow:0 3px 8px rgba(0,0,0,.2)}
 .ek-xpwrap{background:rgba(9,18,38,.72);border:1.5px solid rgba(224,164,42,.6);border-radius:12px;padding:5px 10px;min-width:140px}
 .ek-xpwrap .t{font-size:.6rem;font-weight:800;color:#ffe9b8;letter-spacing:.03em;margin-bottom:3px}
@@ -1149,7 +1150,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 .ek-bagrow{display:flex;gap:var(--ek-gap);flex:1 1 auto;min-height:0}
 .ek-bagrow>.ek-grid{flex:1 1 auto;justify-content:start}
 /* невисокий екран комп'ютера: менші клітинки — усе на одному екрані без прокрутки */
-@media(min-width:821px) and (max-height:820px){#wtabGear{--ek-cell:64px;--ek-gap:7px}.ek-art{max-height:210px}}
+@media(min-width:821px) and (max-height:820px){#wtabGear{--ek-cell:64px;--ek-gap:7px}.ek-art{max-height:245px}}
 .ek-boxes{display:flex;flex-direction:column;gap:var(--ek-gap);flex:none;padding:2px 0}
 .ek-box{width:var(--ek-cell);height:var(--ek-cell);border-radius:14px;position:relative;cursor:pointer;padding:4px 3px 3px;font:inherit;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;color:#ffe9b8;
@@ -1654,7 +1655,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
         <section class="ek-card">
           <div class="ek-namebar">
             <div class="ek-ribbon"><button class="ek-edit" id="ek-editName" type="button" title="Змінити ім'я" aria-label="Змінити ім'я">✏️</button><span id="ek-heroName">Герой</span></div>
-            <span class="ek-grade" id="ek-heroGrade">Перший клас</span>
+            <span class="ek-grade" id="ek-heroGrade" hidden>Перший клас</span>
           </div>
           <div class="ek-lvltop">
             <div class="ek-shield" id="ek-lvl">12</div>
@@ -4536,10 +4537,15 @@ if(document.readyState!=='loading')init();else document.addEventListener('DOMCon
    поки малюється, раз на 5 с питаємо стан. */
 function ekDressButton(btn, o){
   if(!btn) return;
-  var timer = null, waiting = false;
+  var timer = null, waiting = false, since = 0;   // since — коли почав малювати (для «GPT малює… 1:20»)
   function sk(){ return (window.SK && SK.renderAvatar && SK.isHeroSession && SK.isHeroSession()) ? SK : null; }
   function toast(a, b){ if(window.showToast) showToast(a, b || ''); }
   // чий це стан: GPT — engine 'gpt'; воркер — без engine; «Аватар з фото» — нічий
+  function clock(){
+    if(!since) return '';
+    var s = Math.max(0, Math.round((Date.now() - since) / 1000));
+    return ' ' + Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2);
+  }
   function mine(g){ return !!g && g.kind !== 'photo' && (o.gpt ? g.engine === 'gpt' : !g.engine); }
   function paint(state, pos){
     var busy = state === 'queued' || state === 'working';
@@ -4548,7 +4554,7 @@ function ekDressButton(btn, o){
     btn.disabled = busy || state === 'sending';
     btn.innerHTML = state === 'sending' ? '<span class="ic">⏳</span>Надсилаю…'
       : state === 'queued'  ? '<span class="ic">🎨</span>У черзі' + (pos > 1 ? ' · ' + pos : '')
-      : state === 'working' ? '<span class="ic">🎨</span>' + (o.gpt ? 'GPT малює…' : 'Художник малює…')
+      : state === 'working' ? '<span class="ic">🎨</span>' + (o.gpt ? 'GPT малює…' + clock() : 'Художник малює…')
       : '<span class="ic">' + o.icon + '</span>' + o.label;
     btn.title = busy ? 'Образ малюється — він сам зʼявиться тут' : o.title;
   }
@@ -4572,10 +4578,11 @@ function ekDressButton(btn, o){
     if(o.gpt) btn.hidden = !(st && st.gpt);
     if(!mine(g)){ waiting = false; stop(); paint('idle'); return; }   // стан іншої кнопки
     if(g.status === 'queued' && j.status !== 'failed' && j.status !== 'cancelled'){
-      waiting = true; paint(j.status === 'working' ? 'working' : 'queued', j.position); poll(); return;
+      waiting = true; since = g.at || since || Date.now();
+      paint(j.status === 'working' ? 'working' : 'queued', j.position); poll(); return;
     }
     if(waiting && g.status === 'ready' && st.avatar){ ready(st.avatar); return; }
-    if(waiting) toast('⚠️ Образ не вдався', 'Спробуй ще раз трохи згодом');
+    if(waiting) toast('⚠️ Образ не вдався', j.error || 'Спробуй ще раз трохи згодом');
     waiting = false; stop(); paint('idle');
   }
   btn.addEventListener('click', function(e){

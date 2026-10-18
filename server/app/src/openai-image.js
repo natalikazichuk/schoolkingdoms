@@ -6,7 +6,7 @@
    edit() — загальний виклик: «Одягти GPT» (src/avatar.js) передає базу й картинки речей.
    Відповідь — PNG з прозорим фоном у кадрі й позі шаблону. Фото ніде не зберігаємо. */
 const ENDPOINT = 'https://api.openai.com/v1/images/edits';
-const TIMEOUT_MS = 240e3;
+const TIMEOUT_MS = 360e3;   // багато картинок-речей — OpenAI може малювати кілька хвилин; обірваний запит усе одно оплачується
 
 const settings = require('./settings');
 const KEY_SETTING = 'openai_api_key';
