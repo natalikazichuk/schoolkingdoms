@@ -431,7 +431,8 @@ function gptPrompt(slots, withRef) {
     ...lines,
     ref ? `Image ${ref} is the same character already dressed in these items: keep the outfit, colours and details identical, only use the pose of image 1.` : '',
     'Each item replaces the matching part of the base outfit; parts without an item keep the base outfit from image 1.',
-    'Keep the same face, hairstyle, skin tone, body proportions, pose, camera framing, position and scale of the character as in image 1.',
+    'The face must stay EXACTLY as in image 1: same face shape, eyes, eyebrows, nose, mouth, expression, skin tone and hairstyle — do not redraw or replace it.',
+    'Keep the same body proportions, pose, camera framing, position and scale of the character as in image 1.',
     'Long weapons may extend into the empty margins but must not be cropped. Cartoon 3D art style as image 1.',
     'No text, no other objects. Transparent background.'
   ].filter(Boolean).join('\n');
