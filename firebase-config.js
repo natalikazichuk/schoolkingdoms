@@ -438,6 +438,7 @@ const SK = {
   // адмінка: ключ OpenAI для «Аватара з фото» (сервер віддає лише останні 4 символи)
   adminOpenai()       { return skApi('GET', 'admin/openai'); },
   adminOpenaiSave(key){ return skApi('POST', 'admin/openai', { key }); },
+  adminAvatarJobs()   { return skApi('GET', 'admin/avatar/jobs'); },
 
   async getHero() {
     const heroId = SK._heroUid();

@@ -311,11 +311,13 @@ async function status(user) {
   let g = hero.avatarGen || null;
   if (photoStale(g)) g = (await failPhoto(user.uid, g.key, 'Сервер перезапустився — спробуй ще раз')) || g;
   const out = { avatar: hero.avatar || null, gen: g, gpt: gptAllowed(hero) && openai.configured() };
-  if (g && g.key && g.status === 'queued' && g.kind !== 'photo') {
-    const j = (await pool.query('select status, attempts from avatar_jobs where key = $1', [g.key])).rows[0];
+  if (g && g.key && (g.status === 'queued' || g.status === 'failed') && g.kind !== 'photo') {
+    const j = (await pool.query('select status, attempts, error from avatar_jobs where key = $1', [g.key])).rows[0];
     if (j) {
       out.job = { status: j.status, attempts: j.attempts };
       if (j.status === 'queued') out.job.position = await position(pool, g.key);
+      // чому не вдалось (напр. відповідь OpenAI) — Герой бачить це в повідомленні
+      if (j.status === 'failed' && j.error) out.job.error = String(j.error).slice(0, 200);
     }
   }
   return out;
@@ -395,17 +397,32 @@ async function unframe(out, crop) {
   return sharp(out).extract({ left, top, width: Math.min(m.width - left, Math.round(crop.width * m.width)),
     height: Math.min(m.height - top, Math.round(crop.height * m.height)) }).png().toBuffer();
 }
-/* промпт GPT: картинка 1 — база на полотні, далі — речі по одній, наприкінці (бойова поза) — готовий прямий образ */
+/* Речі — ОДНІЄЮ картинкою-аркушем (сітка, без підписів: номер клітинки = номер у промпті).
+   Раніше кожна річ ішла окремою картинкою: 9–10 вхідних зображень робили запит дорогим
+   (вхідні картинки теж оплачуються) і довгим — довшим за тайм-аут, а оплата все одно знімалась. */
+const SHEET_CELL = 256;
+function sheetGrid(n) { const cols = Math.min(4, Math.max(1, Math.ceil(Math.sqrt(n)))); return { cols, rows: Math.ceil(n / cols) }; }
+async function itemSheet(images) {
+  const sharp = require('sharp'), g = sheetGrid(images.length), pad = 12, inner = SHEET_CELL - 2 * pad;
+  const tiles = [];
+  for (let i = 0; i < images.length; i++) {
+    const t = await sharp(images[i]).resize(inner, inner, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } }).png().toBuffer();
+    tiles.push({ input: t, left: (i % g.cols) * SHEET_CELL + pad, top: Math.floor(i / g.cols) * SHEET_CELL + pad });
+  }
+  return sharp({ create: { width: g.cols * SHEET_CELL, height: g.rows * SHEET_CELL, channels: 3, background: '#ffffff' } })
+    .composite(tiles).png().toBuffer();
+}
+/* промпт GPT: картинка 1 — база на полотні, картинка 2 — аркуш речей, 3 (бойова поза) — готовий прямий образ */
 function gptPrompt(slots, withRef) {
   const on = slots.filter(s => s.item);
-  let n = 1;
-  const lines = on.map(s => {
-    const what = `${s.en}: "${s.item.name}"` + (s.item.weaponType ? ` (${s.item.weaponType})` : '');
-    return s.item.image ? `- Image ${++n} — ${what}` : `- ${what} (no picture, draw it from the name)`;
-  });
-  const ref = withRef ? n + 1 : 0;
+  const pics = on.filter(s => s.item.image), g = sheetGrid(pics.length);
+  const what = s => `${s.en}: "${s.item.name}"` + (s.item.weaponType ? ` (${s.item.weaponType})` : '');
+  const lines = pics.map((s, i) => `- cell ${i + 1} → ${what(s)}`)
+    .concat(on.filter(s => !s.item.image).map(s => `- ${what(s)} (no picture, draw it from the name)`));
+  const ref = withRef ? (pics.length ? 3 : 2) : 0;
   return [
     'Image 1 is the base character on a canvas with empty margins on the sides and top; the margins are room for long weapons.',
+    pics.length ? `Image 2 is a sheet of ${pics.length} items in a grid of ${g.rows} row(s) × ${g.cols} column(s), cells numbered left to right, top to bottom.` : '',
     'Dress the character from image 1 in exactly these items, each in its slot:',
     ...lines,
     ref ? `Image ${ref} is the same character already dressed in these items: keep the outfit, colours and details identical, only use the pose of image 1.` : '',
@@ -417,15 +434,18 @@ function gptPrompt(slots, withRef) {
 }
 async function gptPose(spec, pose, items, ref) {
   const frame = await openaiFrame(await canvasPng(spec.base, pose, true));
-  const images = [frame.png].concat(items, ref ? [ref] : []);
+  // готовий прямий образ — зменшений: це лише підказка вбрання, а великі картинки дорожчі
+  const small = ref ? await require('sharp')(ref).resize({ height: 768, withoutEnlargement: true }).png().toBuffer() : null;
+  const images = [frame.png].concat(items, small ? [small] : []);
   const out = await openai.edit(images, gptPrompt(spec.slots, !!ref), { size: frame.size });
   return unframe(out, frame.crop);
 }
 async function drawGpt(id, spec) {
   try {
     const sharp = require('sharp');
-    const items = [];
-    for (const s of spec.slots) if (s.item && s.item.image) items.push(await sharp(filePath(s.item.image)).png().toBuffer());
+    const pics = [];
+    for (const s of spec.slots) if (s.item && s.item.image) pics.push(await sharp(filePath(s.item.image)).png().toBuffer());
+    const items = pics.length ? [await itemSheet(pics)] : [];
     const stand = await gptPose(spec, 'stand', items, null);
     let fight = null;
     if (spec.fightImage) {
@@ -833,6 +853,7 @@ async function applyResult(body) {
 async function adminJobs() {
   const r = await pool.query(
     `select id, key, status, attempts, worker, error, file, spec->>'base' as base, (spec->>'filled')::int as filled,
+            spec->>'engine' as engine,
             created_at, queued_at, done_at, updated_at
        from avatar_jobs order by updated_at desc limit 100`);
   return { jobs: r.rows.map(x => Object.assign(x, { id: Number(x.id) })) };
@@ -849,5 +870,5 @@ async function adminRequeue(body) {
 
 module.exports = {
   AvatarError, SLOTS, FACE_BOX, FIGHT_PAIRS, CANVAS_PAD, OUT_H, canvasOf, canvasPng, canvasImage, absolute, COLLECTION_MAX, buildSpec, baseOf, standOf, baseImageOf, promptOf, makeFiles,
-  PHOTO_TEMPLATE, collectionOf, addToCollection, render, status, gptAllowed, gptKey, gptPrompt, openaiFrame, unframe, wear, forget, photo, photoPng, claim, heartbeat, result, fail, adminJobs, adminRequeue
+  PHOTO_TEMPLATE, collectionOf, addToCollection, render, status, gptAllowed, gptKey, gptPrompt, itemSheet, sheetGrid, openaiFrame, unframe, wear, forget, photo, photoPng, claim, heartbeat, result, fail, adminJobs, adminRequeue
 };
