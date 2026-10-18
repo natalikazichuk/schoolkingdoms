@@ -187,6 +187,7 @@
               var tok = tokenOf('gen/'+c.file);
               // герой із фото: base = 'gen/<файл>' (сам образ — це він, без речей)
               var cap = /^gen\//.test(c.base||'') ? (c.base==='gen/'+c.file ? 'Герой з фото' : 'Герой з фото в образі') : nameOf(c.base)+' в образі';
+              if(c.engine==='gpt') cap += ' · GPT';   // «Одягти GPT» — щоб порівнювати з малюнками воркера
               var cell = optCell(tok, cap, sel).replace('data-token=', 'data-key="'+esc(c.key)+'" data-token=');
               // поточний образ не прибираємо — спершу обери інший
               if(cfg.onForget && tok!==sel)

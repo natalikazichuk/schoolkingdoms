@@ -22,6 +22,9 @@
    тож у нього так само можна вдягати речі кнопкою «Одягти». Фото не зберігаємо.
    Кожен образ — у двох позах: прямо (<файл>-full.webp, hero.html і мініатюри -256/-96)
    і бойова (<файл>-fight.webp, арена). Пари поз вбудованих героїв — FIGHT_PAIRS.
+   «✨ Одягти GPT» (POST /api/avatar/render-gpt) — той самий набір, але малює OpenAI
+   прямо з сервера (drawGpt): для порівняння з воркером. Окремий ключ набору (gptKey),
+   завдання в avatar_jobs з engine 'gpt' воркер не бере. Лише для GPT_HEROES.
    Поля heroes/{id}.avatarGen і avatarCollection змінює лише цей модуль (rules.js: HERO_PROTECTED). */
 const fs = require('fs');
 const path = require('path');
@@ -82,6 +85,10 @@ const PHOTO_TIMEOUT_MIN = 6;                // довше «малюється»
 const MAX_PHOTO = 3 * 1024 * 1024;          // байтів фото (браузер стискає до ~1024 px)
 const GEN_BASE_RE = /^gen\/[A-Za-z0-9-]+$/;
 const isPhotoBase = b => GEN_BASE_RE.test(String(b || ''));
+// «Одягти GPT»: кому доступно (логін або ім'я Героя) і скільки нових образів на добу
+const GPT_HEROES = () => String(process.env.AVATAR_GPT_HEROES || 'vova,testim').toLowerCase().split(',').map(x => x.trim()).filter(Boolean);
+const GPT_PER_DAY = Number(process.env.AVATAR_GPT_PER_DAY) || 20;
+const GPT_LEASE_MIN = 15;          // довше «малюється» — сервер перезапускався, завдання — помилка
 
 const siteDir = () => process.env.SITE_DIR || path.join(__dirname, '../../..');
 const avatarDir = () => process.env.AVATAR_DIR || '/avatars';
@@ -188,7 +195,8 @@ async function writeDoc(c, p, data) {
 async function setAvatar(c, uid, hero, token, gen) {
   const next = Object.assign({}, hero, { avatarGen: gen, updatedAt: { $ts: Date.now() } });
   if (gen && gen.status === 'ready' && gen.file)
-    next.avatarCollection = addToCollection(hero, { key: gen.key, file: gen.file, base: gen.base, at: Date.now() });
+    next.avatarCollection = addToCollection(hero, Object.assign({ key: gen.key, file: gen.file, base: gen.base, at: Date.now() },
+      gen.engine ? { engine: gen.engine } : {}));
   if (hero.avatar !== token) {
     const log = Array.isArray(hero.avatarLog) ? hero.avatarLog.slice(-9) : [];
     log.push({ at: Date.now(), page: 'avatar-gen', by: 'server', from: hero.avatar || null, to: token });
@@ -208,19 +216,38 @@ async function position(q, key) {
   return r.rows[0].n;
 }
 
-async function render(user) {
+function gptAllowed(hero) {
+  const list = GPT_HEROES();
+  return [hero && hero.login, hero && hero.name].some(x => x && list.includes(String(x).trim().toLowerCase()));
+}
+// окремий кеш для GPT: той самий набір, намальований OpenAI, — інший образ
+const gptKey = key => crypto.createHash('sha256').update('gpt:' + key).digest('hex').slice(0, 24);
+const gptRecent = new Map();
+function gptRateOk(uid) {
+  const now = Date.now(), a = (gptRecent.get(uid) || []).filter(t => now - t < 864e5);
+  gptRecent.set(uid, a);
+  return a.length < GPT_PER_DAY;
+}
+
+/* engine: 'gpt' — «✨ Одягти GPT», інакше — черга воркера (відеокарта) */
+async function render(user, engine) {
   if (!user) throw new AvatarError('unauthenticated');
+  const gpt = engine === 'gpt';
+  if (gpt && !openai.configured()) throw new AvatarError('unavailable', 'Ключ OpenAI не задано (адмінка)');
+  let start = null;   // GPT-завдання, яке треба почати малювати після commit
   const c = await pool.connect();
   try {
     await c.query('begin');
     const r = await c.query('select data from docs where path = $1 for update', ['heroes/' + user.uid]);
     if (!r.rows.length) throw new AvatarError('permission-denied', 'Образ одягає сам Герой');
     const hero = r.rows[0].data;
+    if (gpt && !gptAllowed(hero)) throw new AvatarError('permission-denied', '«Одягти GPT» поки що лише для тестових Героїв');
     const items = {};
     (await c.query(`select id, data from docs where parent = 'items'`)).rows.forEach(x => { items[x.id] = x.data; });
     const spec = buildSpec(hero, items);
+    if (gpt) Object.assign(spec, { engine: 'gpt', key: gptKey(spec.key) });
     const prev = hero.avatarGen || null;
-    const gen = { base: spec.base, key: spec.key, at: Date.now() };
+    const gen = Object.assign({ base: spec.base, key: spec.key, at: Date.now() }, gpt ? { engine: 'gpt' } : {});
     let out;
 
     if (!spec.filled) {
@@ -233,6 +260,19 @@ async function render(user) {
       if (j && j.status === 'done' && j.file) {
         await setAvatar(c, user.uid, hero, genToken(j.file), Object.assign(gen, { status: 'ready', file: j.file }));
         out = { status: 'ready', avatar: genToken(j.file) };
+      } else if (gpt) {
+        if (!j || j.status !== 'working') {
+          if (!gptRateOk(user.uid)) throw new AvatarError('resource-exhausted', 'На сьогодні досить образів GPT — спробуй завтра');
+          gptRecent.get(user.uid).push(Date.now());
+          // одразу 'working' з орендою: воркер такі не бере (claim), сервер малює сам після commit
+          const row = (await c.query(
+            `insert into avatar_jobs (key, spec, status, attempts, worker, lease_until) values ($1, $2, 'working', 1, 'openai', now() + interval '${GPT_LEASE_MIN} minutes')
+             on conflict (key) do update set status = 'working', spec = excluded.spec, attempts = 1, error = null, worker = 'openai',
+               lease_until = excluded.lease_until, queued_at = now(), updated_at = now() returning id`, [spec.key, JSON.stringify(spec)])).rows[0];
+          start = { id: Number(row.id), spec };
+        }
+        await writeDoc(c, 'heroes/' + user.uid, Object.assign({}, hero, { avatarGen: Object.assign(gen, { status: 'queued' }), updatedAt: { $ts: Date.now() } }));
+        out = { status: 'working' };
       } else {
         if (!j || j.status === 'failed' || j.status === 'cancelled') {
           if (!rateOk(user.uid)) throw new AvatarError('resource-exhausted', 'Забагато образів за годину — спробуй пізніше');
@@ -252,6 +292,7 @@ async function render(user) {
       if (!other.rows.length) await c.query(`update avatar_jobs set status = 'cancelled', updated_at = now() where key = $1 and status = 'queued'`, [prev.key]);
     }
     await c.query('commit');
+    if (start) drawGpt(start.id, start.spec);   // у фоні; стан — GET /api/avatar/status
     return Object.assign(out, { key: spec.key, filled: spec.filled, total: spec.total });
   } catch (e) {
     await c.query('rollback').catch(() => {});
@@ -269,7 +310,7 @@ async function status(user) {
   const hero = r.rows[0].data;
   let g = hero.avatarGen || null;
   if (photoStale(g)) g = (await failPhoto(user.uid, g.key, 'Сервер перезапустився — спробуй ще раз')) || g;
-  const out = { avatar: hero.avatar || null, gen: g };
+  const out = { avatar: hero.avatar || null, gen: g, gpt: gptAllowed(hero) && openai.configured() };
   if (g && g.key && g.status === 'queued' && g.kind !== 'photo') {
     const j = (await pool.query('select status, attempts from avatar_jobs where key = $1', [g.key])).rows[0];
     if (j) {
@@ -312,7 +353,8 @@ function wear(user, body) {
       : (await c.query('select status, file from avatar_jobs where key = $1', [entry.key])).rows[0];
     if (!j || j.status !== 'done' || !j.file) throw new AvatarError('failed-precondition', 'Цей образ зараз недоступний');
     const next = await setAvatar(c, user.uid, hero, genToken(j.file),
-      { base: entry.base, key: entry.key, at: Date.now(), status: 'ready', file: j.file, readyAt: Date.now() });
+      Object.assign({ base: entry.base, key: entry.key, at: Date.now(), status: 'ready', file: j.file, readyAt: Date.now() },
+        entry.engine ? { engine: entry.engine } : {}));
     return { avatar: next.avatar, collection: next.avatarCollection };
   });
 }
@@ -325,6 +367,80 @@ function forget(user, body) {
     await writeDoc(c, 'heroes/' + user.uid, Object.assign({}, hero, { avatarCollection: list, updatedAt: { $ts: Date.now() } }));
     return { collection: list };
   });
+}
+
+/* ---------- «✨ Одягти GPT»: той самий набір малює OpenAI ---------- */
+const OPENAI_SIZES = [[1024, 1024], [1024, 1536], [1536, 1024]];
+/* полотно → розмір OpenAI: доповнюємо полотно до пропорцій виходу (білим: з боків
+   або зверху, ноги лишаються внизу), а з результату вирізаємо назад саме полотно */
+async function openaiFrame(png) {
+  const sharp = require('sharp');
+  const m = await sharp(png).metadata(), a = m.width / m.height;
+  let best = null;
+  for (const [sw, sh] of OPENAI_SIZES) {
+    const as = sw / sh;
+    const W = a < as ? Math.round(m.height * as) : m.width, H = a < as ? m.height : Math.round(m.width / as);
+    const waste = W * H - m.width * m.height;
+    if (!best || waste < best.waste) best = { sw, sh, W, H, waste };
+  }
+  const padL = Math.floor((best.W - m.width) / 2), padT = best.H - m.height;
+  const framed = await sharp(png).extend({ left: padL, right: best.W - m.width - padL, top: padT, bottom: 0,
+    background: { r: 255, g: 255, b: 255, alpha: 1 } }).png().toBuffer();
+  return { png: framed, size: best.sw + 'x' + best.sh,
+    crop: { left: padL / best.W, top: padT / best.H, width: m.width / best.W, height: m.height / best.H } };
+}
+async function unframe(out, crop) {
+  const sharp = require('sharp'), m = await sharp(out).metadata();
+  const left = Math.round(crop.left * m.width), top = Math.round(crop.top * m.height);
+  return sharp(out).extract({ left, top, width: Math.min(m.width - left, Math.round(crop.width * m.width)),
+    height: Math.min(m.height - top, Math.round(crop.height * m.height)) }).png().toBuffer();
+}
+/* промпт GPT: картинка 1 — база на полотні, далі — речі по одній, наприкінці (бойова поза) — готовий прямий образ */
+function gptPrompt(slots, withRef) {
+  const on = slots.filter(s => s.item);
+  let n = 1;
+  const lines = on.map(s => {
+    const what = `${s.en}: "${s.item.name}"` + (s.item.weaponType ? ` (${s.item.weaponType})` : '');
+    return s.item.image ? `- Image ${++n} — ${what}` : `- ${what} (no picture, draw it from the name)`;
+  });
+  const ref = withRef ? n + 1 : 0;
+  return [
+    'Image 1 is the base character on a canvas with empty margins on the sides and top; the margins are room for long weapons.',
+    'Dress the character from image 1 in exactly these items, each in its slot:',
+    ...lines,
+    ref ? `Image ${ref} is the same character already dressed in these items: keep the outfit, colours and details identical, only use the pose of image 1.` : '',
+    'Each item replaces the matching part of the base outfit; parts without an item keep the base outfit from image 1.',
+    'Keep the same face, hairstyle, skin tone, body proportions, pose, camera framing, position and scale of the character as in image 1.',
+    'Long weapons may extend into the empty margins but must not be cropped. Cartoon 3D art style as image 1.',
+    'No text, no other objects. Transparent background.'
+  ].filter(Boolean).join('\n');
+}
+async function gptPose(spec, pose, items, ref) {
+  const frame = await openaiFrame(await canvasPng(spec.base, pose, true));
+  const images = [frame.png].concat(items, ref ? [ref] : []);
+  const out = await openai.edit(images, gptPrompt(spec.slots, !!ref), { size: frame.size });
+  return unframe(out, frame.crop);
+}
+async function drawGpt(id, spec) {
+  try {
+    const sharp = require('sharp');
+    const items = [];
+    for (const s of spec.slots) if (s.item && s.item.image) items.push(await sharp(filePath(s.item.image)).png().toBuffer());
+    const stand = await gptPose(spec, 'stand', items, null);
+    let fight = null;
+    if (spec.fightImage) {
+      try { fight = await gptPose(spec, 'fight', items, stand); }
+      catch (e) { try { console.error('[avatar/gpt] бойова поза:', id, e && e.message || e); } catch (_) {} }   // арена покаже пряму
+    }
+    await applyResult({ id, image: stand.toString('base64'), fight: fight ? fight.toString('base64') : '' });
+  } catch (e) {
+    try { console.error('[avatar/gpt]', id, e && e.message || e); } catch (_) {}
+    try {
+      const r = await pool.query(`update avatar_jobs set status = 'failed', error = $2, lease_until = null, updated_at = now()
+                                   where id = $1 and status = 'working' returning key`, [id, String(e && e.message || e).slice(0, 500)]);
+      if (r.rows.length) await markFailed(pool, r.rows[0].key);
+    } catch (_) {}
+  }
 }
 
 /* ---------- герой з фото (OpenAI) ---------- */
@@ -467,7 +583,8 @@ async function sweep(q) {
   q = q || pool;
   const dead = await q.query(
     `update avatar_jobs set status = 'failed', error = coalesce(error, 'lease expired'), updated_at = now()
-      where status = 'working' and lease_until < now() and attempts >= $1 returning key`, [MAX_ATTEMPTS]);
+      where status = 'working' and lease_until < now()
+        and (attempts >= $1 or spec->>'engine' = 'gpt') returning key`, [MAX_ATTEMPTS]);
   for (const row of dead.rows) await markFailed(q, row.key);
 }
 async function markFailed(q, key) {
@@ -505,7 +622,8 @@ async function claim(req, body) {
     `update avatar_jobs set status = 'working', attempts = attempts + 1, worker = $1,
             lease_until = now() + interval '${LEASE_MIN} minutes', updated_at = now()
       where id = (select id from avatar_jobs
-                   where status = 'queued' or (status = 'working' and lease_until < now())
+                   where (status = 'queued' or (status = 'working' and lease_until < now()))
+                     and coalesce(spec->>'engine', '') <> 'gpt'
                    order by queued_at for update skip locked limit 1)
       returning *`, [String(body.worker || 'worker').slice(0, 64)]);
   return { job: r.rows.length ? await jobOut(r.rows[0], req) : null };
@@ -648,8 +766,12 @@ function removeFiles(file) {
   ['full', '256', '96', 'base', 'fight', 'fight-base'].forEach(suf => { try { fs.unlinkSync(path.join(avatarDir(), `${file}-${suf}.webp`)); } catch (e) {} });
 }
 
-async function result(req, body) {
+function result(req, body) {
   workerAuth(req);
+  return applyResult(body);
+}
+/* готові картинки завдання (від воркера або drawGpt) → файли образу, Героям, колекціям */
+async function applyResult(body) {
   const id = Number(body.id) || 0;
   const j0 = (await pool.query('select key, spec, status from avatar_jobs where id = $1', [id])).rows[0];
   if (!j0) throw new AvatarError('not-found', 'Немає такого завдання');
@@ -719,12 +841,13 @@ async function adminJobs() {
 async function adminRequeue(body) {
   const r = await pool.query(
     `update avatar_jobs set status = 'queued', attempts = 0, error = null, worker = null, lease_until = null,
-            queued_at = now(), updated_at = now() where key = $1 and status <> 'working' returning id`, [String(body.key || '')]);
+            queued_at = now(), updated_at = now()
+      where key = $1 and status <> 'working' and coalesce(spec->>'engine', '') <> 'gpt' returning id`, [String(body.key || '')]);
   if (!r.rows.length) throw new AvatarError('not-found', 'Немає такого набору (або він саме малюється)');
   return { ok: true };
 }
 
 module.exports = {
   AvatarError, SLOTS, FACE_BOX, FIGHT_PAIRS, CANVAS_PAD, OUT_H, canvasOf, canvasPng, canvasImage, absolute, COLLECTION_MAX, buildSpec, baseOf, standOf, baseImageOf, promptOf, makeFiles,
-  PHOTO_TEMPLATE, collectionOf, addToCollection, render, status, wear, forget, photo, photoPng, claim, heartbeat, result, fail, adminJobs, adminRequeue
+  PHOTO_TEMPLATE, collectionOf, addToCollection, render, status, gptAllowed, gptKey, gptPrompt, openaiFrame, unframe, wear, forget, photo, photoPng, claim, heartbeat, result, fail, adminJobs, adminRequeue
 };

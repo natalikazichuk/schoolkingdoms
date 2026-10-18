@@ -263,3 +263,56 @@ test('ключ OpenAI: з адмінки має перевагу над .env; п
     assert.strictEqual(r.status, 401);
   } finally { server.close(); }
 });
+
+test('«Одягти GPT»: доступ за логіном/іменем, окремий ключ, промпт з номерами картинок, полотно ↔ розмір OpenAI', async () => {
+  assert.ok(A.gptAllowed({ login: 'vova' }));
+  assert.ok(A.gptAllowed({ login: 'x', name: 'Testim' }));
+  assert.ok(!A.gptAllowed({ login: 'petro', name: 'Петро' }));
+  const old = process.env.AVATAR_GPT_HEROES;
+  process.env.AVATAR_GPT_HEROES = 'ira';
+  try { assert.ok(A.gptAllowed({ login: 'IRA' })); assert.ok(!A.gptAllowed({ login: 'vova' })); }
+  finally { if (old === undefined) delete process.env.AVATAR_GPT_HEROES; else process.env.AVATAR_GPT_HEROES = old; }
+
+  const spec = A.buildSpec(hero('hero:linen-boy', { helmet: 'IT-001', weaponR: 'IT-093', weaponL: 'IT-102' }), ITEMS, has);
+  const k = A.gptKey(spec.key);
+  assert.match(k, /^[0-9a-f]{24}$/);
+  assert.notStrictEqual(k, spec.key);
+
+  // шолом і щит мають картинки (2, 3), меч — ні (лише назва); з готовим образом — картинка 4
+  const p = A.gptPrompt(spec.slots, true);
+  assert.match(p, /Image 2 — headwear: "шляпа"/);
+  assert.match(p, /weapon held in the right hand: "Меч новачка" \(Меч\) \(no picture/);
+  assert.match(p, /Image 3 — shield held in the left hand/);
+  assert.match(p, /Image 4 is the same character already dressed/);
+  assert.doesNotMatch(A.gptPrompt(spec.slots, false), /already dressed/);
+
+  // полотно доповнюється до розміру OpenAI, а результат вирізається назад у пропорціях полотна
+  for (const pose of ['stand', 'fight']) {
+    const png = await A.canvasPng('linen-boy', pose, true);
+    const m = await sharp(png).metadata();
+    const f = await A.openaiFrame(png);
+    const fm = await sharp(f.png).metadata();
+    const [sw, sh] = f.size.split('x').map(Number);
+    assert.ok(Math.abs(fm.width / fm.height - sw / sh) < 0.01, `${pose}: ${fm.width}×${fm.height} vs ${f.size}`);
+    const out = await sharp(f.png).resize(sw, sh).png().toBuffer();       // «відповідь OpenAI»
+    const back = await sharp(await A.unframe(out, f.crop)).metadata();
+    assert.ok(Math.abs(back.width / back.height - m.width / m.height) < 0.01, `${pose}: ${back.width}×${back.height}`);
+  }
+});
+
+test('OpenAI edit: усі картинки в запиті по порядку, розмір з параметра', async () => {
+  const O = require('../src/openai-image');
+  const old = process.env.OPENAI_API_KEY;
+  process.env.OPENAI_API_KEY = 'sk-test';
+  try {
+    let body = null;
+    const ok = async (url, init) => { body = init.body; return { ok: true, status: 200, json: async () => ({ data: [{ b64_json: 'AA==' }] }) }; };
+    await O.edit([Buffer.from('a'), Buffer.from('b'), Buffer.from('c')], 'p', { size: '1536x1024', fetch: ok });
+    const imgs = body.getAll('image[]');
+    assert.strictEqual(imgs.length, 3);
+    assert.strictEqual(imgs[0].name, 'image1.png');
+    assert.strictEqual(body.get('size'), '1536x1024');
+  } finally {
+    if (old === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = old;
+  }
+});
