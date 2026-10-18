@@ -67,6 +67,9 @@
   <!-- LEFT HERO PANEL -->
   <aside class="hero-panel">
     <!-- портрет у різьбленій золотій рамі -->
+    <!-- усі характеристики — смуга значків над портретом: значок, число, підпис -->
+    <div class="stat-badges" id="heroStatGrid" role="list" aria-label="Характеристики героя"></div>
+
     <div class="portrait-frame">
       <span class="pf-gem top" aria-hidden="true">◆</span>
       <span class="pf-gem bottom" aria-hidden="true">◆</span>
@@ -78,9 +81,6 @@
         <button class="ava-cam" id="avaCam" type="button" title="Додати своє фото" aria-label="Додати фото героя">📷</button>
         <input type="file" id="avaFile" accept="image/*" hidden>
       </div>
-      <!-- усі характеристики — значки поверх портрета, по 2 в ряд;
-           підпис і значення — у підказці (наведення мишкою / дотик / фокус) -->
-      <div class="stat-badges" id="heroStatGrid" aria-label="Характеристики героя"></div>
     </div>
 
     <!-- ПРИГОДИ — під рядом з аватаром, у лівій панелі -->
@@ -439,34 +439,19 @@ function renderHeroStats(h){
 }
 /* Значки поверх портрета: [ключ, значок, підпис, як показати значення] */
 const BADGES=[
-  ['hp','❤️','Здоровʼя',v=>v+' / '+v], ['mp','💎','Мана',v=>v+' / '+v],
-  ['dmg','⚔️','Урон'], ['arm','🛡️','Броня'],
-  ['acc','🎯','Точність'], ['agi','👟','Спритність'],
-  ['mdmg','✨','Магічний урон'], ['mres','🔮','Магічна стійкість']];
+  ['hp','❤️','Здоровʼя'], ['mp','💎','Мана'], ['dmg','⚔️','Урон'], ['arm','🛡️','Броня'],
+  ['acc','🎯','Точність'], ['agi','👟','Спритність'], ['mdmg','✨','Маг. урон','Магічний урон'],
+  ['mres','🔮','Маг. стійк.','Магічна стійкість']];
 function paintBadges(v){
   const grid=$('heroStatGrid'); if(!grid) return;
   grid.innerHTML=BADGES.map(function(b){
-    const raw=v[b[0]], val=raw==null ? '…' : (b[3] ? b[3](raw) : raw);
-    const tip=b[2]+': '+val;
-    return '<button type="button" class="sb '+b[0]+'" aria-label="'+escHtml(tip)+'">'
-      +'<span aria-hidden="true">'+b[1]+'</span>'
-      +'<span class="sb-tip" aria-hidden="true">'+escHtml(b[2])+' <b>'+escHtml(val)+'</b></span></button>';
+    const val=v[b[0]]==null ? '…' : v[b[0]], full=b[3]||b[2];
+    return '<div class="sb '+b[0]+'" role="listitem" title="'+escHtml(full)+'" aria-label="'+escHtml(full+': '+val)+'">'
+      +'<span class="sb-ic" aria-hidden="true">'+b[1]+'</span>'
+      +'<b aria-hidden="true">'+escHtml(val)+'</b>'
+      +'<small aria-hidden="true">'+escHtml(b[2])+'</small></div>';
   }).join('');
 }
-/* дотик (телефон, де нема наведення): тап показує/ховає підказку і не смикає героя */
-(function(){
-  const grid=$('heroStatGrid'); if(!grid) return;
-  grid.addEventListener('click',function(e){
-    e.stopPropagation();
-    const b=e.target.closest('.sb'); if(!b) return;
-    const on=!b.classList.contains('show');
-    grid.querySelectorAll('.sb.show').forEach(x=>x.classList.remove('show'));
-    if(on) b.classList.add('show');
-  });
-  document.addEventListener('click',function(e){
-    if(!e.target.closest('#heroStatGrid')) grid.querySelectorAll('.sb.show').forEach(x=>x.classList.remove('show'));
-  });
-})();
 /* база з речами (як на арені перед боєм): здоров'я, мана й шість характеристик */
 function paintSheet(sh){
   paintBadges({hp:sh.health, mp:sh.mana, dmg:sh.dmg, arm:sh.armor, acc:sh.accuracy,
