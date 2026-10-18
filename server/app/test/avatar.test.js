@@ -319,6 +319,7 @@ test('OpenAI edit: усі картинки в запиті по порядку, 
     assert.strictEqual(imgs.length, 3);
     assert.strictEqual(imgs[0].name, 'image1.png');
     assert.strictEqual(body.get('size'), '1536x1024');
+    assert.strictEqual(body.get('input_fidelity'), 'high');   // обличчя бази не перемальовується
   } finally {
     if (old === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = old;
   }

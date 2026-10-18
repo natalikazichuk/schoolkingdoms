@@ -56,6 +56,9 @@ async function edit(images, prompt, opt) {
   fd.append('background', 'transparent');
   fd.append('quality', process.env.OPENAI_IMAGE_QUALITY || 'medium');
   fd.append('n', '1');
+  // високa точність до вхідних картинок — найбільше до ПЕРШОЇ (база героя): модель не
+  // перемальовує обличчя. Дорожче за вхідні картинки; вимкнути — OPENAI_INPUT_FIDELITY=low
+  if (opt.fidelity !== false) fd.append('input_fidelity', process.env.OPENAI_INPUT_FIDELITY || 'high');
   let res;
   try {
     res = await (opt.fetch || fetch)(ENDPOINT, {
