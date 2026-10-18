@@ -3,6 +3,7 @@
    (рахунок власника сайту), модель — OPENAI_IMAGE_MODEL.
    Картинка 1 — шаблон (базовий герой без верхнього одягу), картинка 2 — фото дитини
    (для бойової пози — уже намальований герой, промпт POSE_PROMPT).
+   edit() — загальний виклик: «Одягти GPT» (src/avatar.js) передає базу й картинки речей.
    Відповідь — PNG з прозорим фоном у кадрі й позі шаблону. Фото ніде не зберігаємо. */
 const ENDPOINT = 'https://api.openai.com/v1/images/edits';
 const TIMEOUT_MS = 240e3;
@@ -38,15 +39,20 @@ class ImageError extends Error {
 }
 
 /* template, photo — PNG-буфери → PNG-буфер результату */
-async function portrait(template, photo, opt) {
+function portrait(template, photo, opt) {
+  opt = opt || {};
+  return edit([template, photo], opt.prompt || PROMPT, Object.assign({ size: '1024x1536' }, opt));
+}
+
+/* images — PNG-буфери (картинка 1, 2, … у тому ж порядку, що й у промпті) → PNG-буфер */
+async function edit(images, prompt, opt) {
   opt = opt || {};
   if (!configured()) throw new ImageError('Ключ OpenAI не задано (адмінка або OPENAI_API_KEY)');
   const fd = new FormData();
   fd.append('model', model());
-  fd.append('prompt', opt.prompt || PROMPT);
-  fd.append('image[]', new Blob([template], { type: 'image/png' }), 'template.png');
-  fd.append('image[]', new Blob([photo], { type: 'image/png' }), 'photo.png');
-  fd.append('size', '1024x1536');
+  fd.append('prompt', prompt);
+  images.forEach((b, i) => fd.append('image[]', new Blob([b], { type: 'image/png' }), 'image' + (i + 1) + '.png'));
+  fd.append('size', opt.size || '1024x1024');
   fd.append('background', 'transparent');
   fd.append('quality', process.env.OPENAI_IMAGE_QUALITY || 'medium');
   fd.append('n', '1');
@@ -87,4 +93,4 @@ async function checkKey(key, opt) {
   }
 }
 
-module.exports = { configured, model, portrait, checkKey, apiKey, keySource, KEY_SETTING, ImageError, PROMPT, POSE_PROMPT };
+module.exports = { configured, model, portrait, edit, checkKey, apiKey, keySource, KEY_SETTING, ImageError, PROMPT, POSE_PROMPT };

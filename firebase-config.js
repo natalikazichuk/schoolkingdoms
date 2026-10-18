@@ -428,6 +428,8 @@ const SK = {
      у чергу; готовий образ сам стає аватаром Героя (avatar = 'hero:gen/<файл>'). */
   renderAvatar()      { return skApi('POST', 'avatar/render', {}); },
   avatarStatus()      { return skApi('GET', 'avatar/status'); },
+  // «✨ Одягти GPT»: той самий набір малює OpenAI (лише тестові Герої — status.gpt)
+  renderAvatarGpt()   { return skApi('POST', 'avatar/render-gpt', {}); },
   // «Мої колекції»: створені образи лишаються в heroes/{id}.avatarCollection
   wearAvatar(key)     { return skApi('POST', 'avatar/wear', { key }); },
   forgetAvatar(key)   { return skApi('POST', 'avatar/forget', { key }); },
