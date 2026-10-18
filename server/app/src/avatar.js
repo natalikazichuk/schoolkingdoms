@@ -76,7 +76,7 @@ const FACE_DEFAULT = { left: 0.2, top: 0, size: 0.6 };
 const FIGHT_PAIRS = { 'linen-boy': 'linen-boy-fight', 'blond-boy': 'blond-boy-fight', 'chestnut-boy': 'chestnut-boy-fight' };
 
 // версія набору й промпту: змінив PROMPT/SLOTS — підніми, і старий кеш не підхопиться
-const SPEC_VERSION = 3;   // 2: дві пози (fightImage); 3: база на полотні з запасом (CANVAS_PAD)
+const SPEC_VERSION = 4;   // 2: дві пози (fightImage); 3: база на полотні з запасом (CANVAS_PAD); 4: описи речей і де сидять шапка/наручі
 const MAX_ATTEMPTS = 3;
 const LEASE_MIN = 10;
 const RENDER_PER_HOUR = 20;        // нових генерацій на Героя за годину
@@ -157,6 +157,7 @@ function buildSpec(hero, items, has) {
       name: String(b.name || id),
       category: b.category || null,
       weaponType: b.weaponType || null,
+      look: b.look ? String(b.look).slice(0, 200) : null,   // опис вигляду (items/<id>.look), якщо вже є
       image: has('img/items/' + id + '.webp') ? 'img/items/' + id + '.webp' : null
     } : null;
     return Object.assign({ slot: s.slot }, slotLabel(s, item), { item });
@@ -168,6 +169,17 @@ function buildSpec(hero, items, has) {
   return { version: SPEC_VERSION, key, base, baseImage, fightImage, total: SLOTS.length, filled, slots, prompt: promptOf(slots) };
 }
 
+/* Де саме сидять речі — модель інакше «підвішує» шапку над волоссям, а наручі
+   зливає з рукавицями (так було на воркері ComfyUI). */
+function placementRules(on) {
+  const has = slot => on.some(s => s.slot === slot);
+  const r = [];
+  if (has('helmet')) r.push('The headwear sits firmly ON the head: its inner rim touches the hair and forehead, no gap and no floating above the head; the head size stays the same.');
+  if (has('bracers')) r.push('Bracers are separate armour pieces strapped around BOTH forearms between wrist and elbow, clearly visible over the sleeves'
+    + (has('gloves') ? ', above the gloves (gloves cover only the hands).' : '; the hands stay bare.'));
+  return r;
+}
+
 /* Підказка для моделі (англійською — так її краще розуміють). Воркер може
    скласти свою з полів slots; назви речей — як у грі, українською. */
 function promptOf(slots) {
@@ -175,8 +187,10 @@ function promptOf(slots) {
   return [
     'Image 1 is the base character. Image 2 is a reference sheet of clothing and gear; every item on it is captioned with its slot.',
     'Dress the character from image 1 in exactly these items:',
-    ...on.map(s => `- ${s.en}: "${s.item.name}"` + (s.item.weaponType ? ` (${s.item.weaponType})` : '')),
+    ...on.map(s => `- ${s.en}: "${s.item.name}"` + (s.item.weaponType ? ` (${s.item.weaponType})` : '')
+      + (s.item.look ? ` — ${s.item.look}` : '')),
     'Each item replaces the matching part of the base outfit; parts without an item keep the base outfit from image 1.',
+    ...placementRules(on),
     'Keep the same face, hairstyle, skin tone, body proportions, pose, camera framing and cartoon 3D art style as image 1.',
     'Do not add any other items, text or background objects. Transparent or plain white background.'
   ].join('\n');
@@ -466,7 +480,7 @@ function gptPrompt(slots, withRef, looks) {
   const on = slots.filter(s => s.item);
   const pics = on.filter(s => s.item.image), g = sheetGrid(pics.length);
   const what = s => `${s.en}: "${s.item.name}"` + (s.item.weaponType ? ` (${s.item.weaponType})` : '')
-    + (looks[s.item.id] ? ` — ${looks[s.item.id]}` : '');
+    + ((looks[s.item.id] || s.item.look) ? ` — ${looks[s.item.id] || s.item.look}` : '');
   const empty = ['weaponR', 'weaponL'].filter(k => !on.some(s => s.slot === k))
     .map(k => k === 'weaponR' ? 'The right hand holds nothing.' : 'The left hand holds nothing.');
   const lines = pics.map((s, i) => `- cell ${i + 1} → ${what(s)}`)
@@ -483,6 +497,7 @@ function gptPrompt(slots, withRef, looks) {
     'Do not add gold trim, gems, capes, cloaks, tunics, skirts, quivers or any decoration or item that is not in the list.',
     ref ? `Image ${ref} is the same character already dressed in these items: keep the outfit, colours and details identical, only use the pose of image 1.` : '',
     'Each item replaces the matching part of the base outfit; parts without an item keep the base outfit from image 1.',
+    ...placementRules(on),
     'The face must stay EXACTLY as in image 1: same face shape, eyes, eyebrows, nose, mouth, expression, skin tone and hairstyle — do not redraw or replace it.',
     'Keep the same body proportions, pose, camera framing, position and scale of the character as in image 1.',
     'Long weapons may extend into the empty margins but must not be cropped. Cartoon 3D art style as image 1.',
