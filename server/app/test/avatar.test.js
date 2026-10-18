@@ -103,7 +103,8 @@ test('файли образу: полотно з запасом — довга �
   assert.strictEqual(full.format, 'webp');
   assert.ok(full.hasAlpha);
   const k = A.OUT_H / cv.h;
-  assert.ok(full.width > cv.w * k + 2 * (cv.px - 40) * k, `кнут обрізано: ${full.width}`);   // ширина вмістила кнут з обох боків
+  assert.ok(full.width >= (cv.w + cv.px - 20) * k, `кнут обрізано: ${full.width}`);   // ширина вмістила кнут
+  assert.ok(full.width <= (cv.w + cv.px - 20) * k + 20, `порожні поля лишились: ${full.width}`);   // обрізано щільно, без поля зліва
   assert.ok(full.height <= A.OUT_H + 10, `${full.height}`);                           // зверху порожньо — обрізано (лишається поле 8 px)
   // мініатюра — з обличчя (синя)
   const px = await sharp(f.face256).extract({ left: 128, top: 128, width: 1, height: 1 }).raw().toBuffer();
@@ -121,6 +122,27 @@ test('файли образу: полотно з запасом — довга �
   assert.strictEqual(om.width, Math.round(cv.w * k), `${om.width}×${om.height}`);
   assert.ok(om.height < A.OUT_H);
   await assert.rejects(A.makeFiles(Buffer.from('не картинка'), 'linen-boy'), e => e.code === 'invalid-argument');
+});
+
+test('старі образи з порожніми полями обрізаються щільно один раз', async () => {
+  const fs = require('fs'), path = require('path');
+  const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'ava-'));
+  const old = process.env.AVATAR_DIR; process.env.AVATAR_DIR = dir;
+  try {
+    // фігура 300×800 зліва на полотні 1000×1000 (як було: симетрична обрізка лишала поле справа)
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000"><rect x="20" y="150" width="300" height="850" fill="#808080"/></svg>';
+    await sharp(Buffer.from(svg)).webp().toFile(path.join(dir, 'x-full.webp'));
+    fs.writeFileSync(path.join(dir, 'x-256.webp'), 'не чіпати');
+    assert.strictEqual(await A.trimExisting(), 1);
+    const m = await sharp(fs.readFileSync(path.join(dir, 'x-full.webp'))).metadata();
+    assert.ok(m.width <= 316 && m.width >= 300, `${m.width}`);
+    assert.ok(m.height >= 850 && m.height <= 860, `${m.height}`);
+    assert.strictEqual(await A.trimExisting(), 0);   // уже щільно — не чіпає
+    assert.strictEqual(fs.readFileSync(path.join(dir, 'x-256.webp'), 'utf8'), 'не чіпати');
+  } finally {
+    if (old === undefined) delete process.env.AVATAR_DIR; else process.env.AVATAR_DIR = old;
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('воркер отримує базу на полотні з запасом (файл у каталозі образів)', async () => {
