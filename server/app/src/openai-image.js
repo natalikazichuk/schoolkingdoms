@@ -1,12 +1,18 @@
 /* Малюнок героя з фото через OpenAI Images API (режим редагування з кількома картинками).
-   Ключ — OPENAI_API_KEY у /srv/sk/.env (рахунок власника сайту), модель — OPENAI_IMAGE_MODEL.
+   Ключ — з адмінки (таблиця settings, src/settings.js) або OPENAI_API_KEY у /srv/sk/.env
+   (рахунок власника сайту), модель — OPENAI_IMAGE_MODEL.
    Картинка 1 — шаблон (базовий герой без верхнього одягу), картинка 2 — фото дитини
    (для бойової пози — уже намальований герой, промпт POSE_PROMPT).
    Відповідь — PNG з прозорим фоном у кадрі й позі шаблону. Фото ніде не зберігаємо. */
 const ENDPOINT = 'https://api.openai.com/v1/images/edits';
 const TIMEOUT_MS = 240e3;
 
-const configured = () => !!process.env.OPENAI_API_KEY;
+const settings = require('./settings');
+const KEY_SETTING = 'openai_api_key';
+// ключ з адмінки має перевагу: його можна змінити без входу на сервер
+const apiKey = () => settings.get(KEY_SETTING) || process.env.OPENAI_API_KEY || '';
+const keySource = () => settings.get(KEY_SETTING) ? 'admin' : (process.env.OPENAI_API_KEY ? 'env' : null);
+const configured = () => !!apiKey();
 const model = () => process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1';
 
 const PROMPT = [
@@ -34,7 +40,7 @@ class ImageError extends Error {
 /* template, photo — PNG-буфери → PNG-буфер результату */
 async function portrait(template, photo, opt) {
   opt = opt || {};
-  if (!configured()) throw new ImageError('OPENAI_API_KEY не задано');
+  if (!configured()) throw new ImageError('Ключ OpenAI не задано (адмінка або OPENAI_API_KEY)');
   const fd = new FormData();
   fd.append('model', model());
   fd.append('prompt', opt.prompt || PROMPT);
@@ -48,7 +54,7 @@ async function portrait(template, photo, opt) {
   try {
     res = await (opt.fetch || fetch)(ENDPOINT, {
       method: 'POST',
-      headers: { Authorization: 'Bearer ' + process.env.OPENAI_API_KEY },
+      headers: { Authorization: 'Bearer ' + apiKey() },
       body: fd,
       signal: AbortSignal.timeout(TIMEOUT_MS)
     });
@@ -66,4 +72,19 @@ async function portrait(template, photo, opt) {
   return Buffer.from(b64, 'base64');
 }
 
-module.exports = { configured, model, portrait, ImageError, PROMPT, POSE_PROMPT };
+/* перевірити ключ, нічого не малюючи (список моделей безкоштовний):
+   'ok' | 'invalid' (401) | 'unknown' (мережа, інша помилка — зберігаємо, але попереджаємо) */
+async function checkKey(key, opt) {
+  opt = opt || {};
+  try {
+    const res = await (opt.fetch || fetch)('https://api.openai.com/v1/models', {
+      headers: { Authorization: 'Bearer ' + key }, signal: AbortSignal.timeout(15e3)
+    });
+    if (res.ok) return 'ok';
+    return res.status === 401 ? 'invalid' : 'unknown';
+  } catch (e) {
+    return 'unknown';
+  }
+}
+
+module.exports = { configured, model, portrait, checkKey, apiKey, keySource, KEY_SETTING, ImageError, PROMPT, POSE_PROMPT };

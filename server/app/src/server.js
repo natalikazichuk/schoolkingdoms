@@ -12,6 +12,7 @@
    POST /api/avatar/render · GET /api/avatar/status   — образ Героя (src/avatar.js)
    POST /api/avatar/wear · POST /api/avatar/forget    — колекція створених образів
    POST /api/avatar/photo                             — новий герой із фото (OpenAI)
+   GET|POST /api/admin/openai                         — ключ OpenAI з адмінки (лише адмін)
    POST /api/avatar/worker/*                          — воркер образів (server/AVATAR-WORKER.md)
    GET  /api/health
 
@@ -26,6 +27,8 @@ const V = require('./values');
 const passwords = require('./passwords');
 const skills = require('./skills');
 const avatar = require('./avatar');
+const openaiImage = require('./openai-image');
+const settings = require('./settings');
 
 const PORT = Number(process.env.PORT || 3000);
 const MAX_BODY = 4 * 1024 * 1024;
@@ -386,6 +389,26 @@ function avatarRoute(fn) {
   };
 }
 
+/* ключ OpenAI з адмінки: назад віддаємо лише останні 4 символи */
+function openaiState() {
+  const k = openaiImage.apiKey();
+  return { configured: !!k, source: openaiImage.keySource(), hint: k ? '…' + k.slice(-4) : null, model: openaiImage.model() };
+}
+async function adminOpenai(user) {
+  await requireAdmin(user);
+  return [openaiState()];
+}
+async function adminOpenaiSave(user, b) {
+  await requireAdmin(user);
+  const key = String((b && b.key) || '').trim();
+  if (!key) { await settings.set(openaiImage.KEY_SETTING, null); return [openaiState()]; }   // порожньо — прибрати
+  if (!/^sk-[A-Za-z0-9_-]{20,300}$/.test(key)) throw new ApiError(400, 'invalid-argument', 'Це не схоже на ключ OpenAI (він починається з sk-)');
+  const check = await openaiImage.checkKey(key);
+  if (check === 'invalid') throw new ApiError(400, 'invalid-argument', 'OpenAI не приймає цей ключ — перевір, чи скопійовано повністю й чи його не відкликано');
+  await settings.set(openaiImage.KEY_SETTING, key);
+  return [Object.assign(openaiState(), { check })];
+}
+
 /* ---------- маршрутизація ---------- */
 const ROUTES = {
   'POST /api/auth/signup': (req, user, b) => signup(req, b),
@@ -410,6 +433,8 @@ const ROUTES = {
   'POST /api/avatar/worker/result': avatarRoute((req, user, b) => avatar.result(req, b)),
   'POST /api/avatar/worker/fail': avatarRoute((req, user, b) => avatar.fail(req, b)),
   'GET /api/admin/avatar/jobs': async (req, user) => { await requireAdmin(user); return avatarRoute(() => avatar.adminJobs())(req, user); },
+  'GET /api/admin/openai': (req, user) => adminOpenai(user),
+  'POST /api/admin/openai': (req, user, b) => adminOpenaiSave(user, b),
   'POST /api/admin/avatar/requeue': async (req, user, b) => { await requireAdmin(user); return avatarRoute(() => avatar.adminRequeue(b))(req, user, b); },
   'GET /api/admin/collections': (req, user) => adminCollections(user),
   'POST /api/admin/docs': (req, user, b) => adminDocs(user, b),
@@ -448,7 +473,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 if (require.main === module) {
-  migrate().then(() => server.listen(PORT, () => console.log('SchoolKingdoms API on :' + PORT)))
+  migrate().then(() => settings.load()).then(() => server.listen(PORT, () => console.log('SchoolKingdoms API on :' + PORT)))
     .catch(e => { console.error(e); process.exit(1); });
 }
 

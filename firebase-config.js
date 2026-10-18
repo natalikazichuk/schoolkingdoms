@@ -433,6 +433,9 @@ const SK = {
   forgetAvatar(key)   { return skApi('POST', 'avatar/forget', { key }); },
   // «Згенерувати аватар»: фото (data:URL, стиснуте) → новий герой; малює OpenAI, стан — avatarStatus()
   photoAvatar(image)  { return skApi('POST', 'avatar/photo', { image }); },
+  // адмінка: ключ OpenAI для «Аватара з фото» (сервер віддає лише останні 4 символи)
+  adminOpenai()       { return skApi('GET', 'admin/openai'); },
+  adminOpenaiSave(key){ return skApi('POST', 'admin/openai', { key }); },
 
   async getHero() {
     const heroId = SK._heroUid();
