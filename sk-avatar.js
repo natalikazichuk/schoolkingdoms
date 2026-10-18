@@ -181,13 +181,15 @@
         + (mine.length
           ? '<div class="ska-grid">' + mine.map(function(c){
               var tok = tokenOf('gen/'+c.file);
-              var cell = optCell(tok, nameOf(c.base)+' в образі', sel).replace('data-token=', 'data-key="'+esc(c.key)+'" data-token=');
+              // герой із фото: base = 'gen/<файл>' (сам образ — це він, без речей)
+              var cap = /^gen\//.test(c.base||'') ? (c.base==='gen/'+c.file ? 'Герой з фото' : 'Герой з фото в образі') : nameOf(c.base)+' в образі';
+              var cell = optCell(tok, cap, sel).replace('data-token=', 'data-key="'+esc(c.key)+'" data-token=');
               // поточний образ не прибираємо — спершу обери інший
               if(cfg.onForget && tok!==sel)
                 cell = cell.replace(/<\/div>$/, '<button class="ska-del" type="button" title="Прибрати з колекції" aria-label="Прибрати з колекції">✕</button></div>');
               return cell;
             }).join('') + '</div>'
-          : '<div class="ska-empty">Тут зберігатимуться образи, які ти створиш: вдягни речі в Арені й натисни «🪄 Одягти».</div>');
+          : '<div class="ska-empty">Тут зберігатимуться образи, які ти створиш: вдягни речі в Арені й натисни «🪄 Одягти» або «📸 Аватар з фото».</div>');
     }
     m.innerHTML =
       '<div class="ska-sheet" role="dialog" aria-modal="true" aria-label="Вибір аватара">'

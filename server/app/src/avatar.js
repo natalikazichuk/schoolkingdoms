@@ -16,11 +16,16 @@
    останні COLLECTION_MAX): у вікні «Обери свого героя» — розділ «Мої колекції»,
      POST /api/avatar/wear   {key} → знову вдягнути образ із колекції
      POST /api/avatar/forget {key} → прибрати образ із колекції
+   «Згенерувати аватар» (Інвентар арени): POST /api/avatar/photo {image} — фото дитини
+   малює OpenAI (src/openai-image.js) у кадрі й позі шаблону PHOTO_TEMPLATE. Результат —
+   новий герой-шаблон: base = 'gen/<файл>' (файл <файл>-base.webp лежить поруч з образом),
+   тож у нього так само можна вдягати речі кнопкою «Одягти». Фото не зберігаємо.
    Поля heroes/{id}.avatarGen і avatarCollection змінює лише цей модуль (rules.js: HERO_PROTECTED). */
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { pool } = require('./db');
+const openai = require('./openai-image');
 
 class AvatarError extends Error {
   constructor(code, message) { super(message || code); this.code = code; }
@@ -65,13 +70,24 @@ const RENDER_PER_HOUR = 20;        // нових генерацій на Гер�
 const MAX_IMAGE = 9 * 1024 * 1024; // байтів картинки від воркера (після base64)
 const COLLECTION_MAX = 24;         // образів у колекції Героя
 const KEY_RE = /^[a-f0-9]{24}$/;
+// герой з фото: шаблон (кадр, поза, рамка обличчя) і обмеження — кожен малюнок коштує грошей
+const PHOTO_TEMPLATE = 'linen-boy';
+const PHOTO_PER_DAY = Number(process.env.AVATAR_PHOTO_PER_DAY) || 3;      // на Героя
+const PHOTO_DAY_TOTAL = Number(process.env.AVATAR_PHOTO_DAY_TOTAL) || 30; // на весь сайт
+const PHOTO_TIMEOUT_MIN = 6;                // довше «малюється» — значить, сервер перезапускався
+const MAX_PHOTO = 3 * 1024 * 1024;          // байтів фото (браузер стискає до ~1024 px)
+const GEN_BASE_RE = /^gen\/[A-Za-z0-9-]+$/;
+const isPhotoBase = b => GEN_BASE_RE.test(String(b || ''));
 
 const siteDir = () => process.env.SITE_DIR || path.join(__dirname, '../../..');
 const avatarDir = () => process.env.AVATAR_DIR || '/avatars';
-const exists = rel => { try { return fs.statSync(path.join(siteDir(), rel)).isFile(); } catch (e) { return false; } };
+/* файли сайту; img/ava/gen/ — каталог образів AVATAR_DIR (nginx віддає його за цією адресою) */
+const filePath = rel => rel.indexOf('img/ava/gen/') === 0 ? path.join(avatarDir(), rel.slice(12)) : path.join(siteDir(), rel);
+const exists = rel => { try { return fs.statSync(filePath(rel)).isFile(); } catch (e) { return false; } };
 
 const GEN_RE = /^hero:gen\/[A-Za-z0-9-]+$/;
-/* базовий аватар Героя: вбудований 'hero:<id>' або той, з якого зроблено образ */
+/* базовий аватар Героя: вбудований 'hero:<id>' або той, з якого зроблено образ
+   (для героя з фото — 'gen/<файл>') */
 function baseOf(hero) {
   const t = String((hero && hero.avatar) || '');
   if (GEN_RE.test(t)) return (hero.avatarGen && hero.avatarGen.base) || null;
@@ -231,9 +247,11 @@ async function status(user) {
   await sweep();
   const r = await pool.query('select data from docs where path = $1', ['heroes/' + user.uid]);
   if (!r.rows.length) throw new AvatarError('permission-denied', 'Образ — лише для Героя');
-  const hero = r.rows[0].data, g = hero.avatarGen || null;
+  const hero = r.rows[0].data;
+  let g = hero.avatarGen || null;
+  if (photoStale(g)) g = (await failPhoto(user.uid, g.key, 'Сервер перезапустився — спробуй ще раз')) || g;
   const out = { avatar: hero.avatar || null, gen: g };
-  if (g && g.key && g.status === 'queued') {
+  if (g && g.key && g.status === 'queued' && g.kind !== 'photo') {
     const j = (await pool.query('select status, attempts from avatar_jobs where key = $1', [g.key])).rows[0];
     if (j) {
       out.job = { status: j.status, attempts: j.attempts };
@@ -270,7 +288,9 @@ async function onHero(user, body, fn) {
 /* знову вдягнути образ із колекції: файл беремо з кешу (міг бути перемальований) */
 function wear(user, body) {
   return onHero(user, body, async (c, hero, entry) => {
-    const j = (await c.query('select status, file from avatar_jobs where key = $1', [entry.key])).rows[0];
+    const j = isPhotoBase(entry.base) && entry.base === 'gen/' + entry.file
+      ? (exists('img/ava/gen/' + entry.file + '-full.webp') ? { status: 'done', file: entry.file } : null)   // герой з фото
+      : (await c.query('select status, file from avatar_jobs where key = $1', [entry.key])).rows[0];
     if (!j || j.status !== 'done' || !j.file) throw new AvatarError('failed-precondition', 'Цей образ зараз недоступний');
     const next = await setAvatar(c, user.uid, hero, genToken(j.file),
       { base: entry.base, key: entry.key, at: Date.now(), status: 'ready', file: j.file, readyAt: Date.now() });
@@ -286,6 +306,124 @@ function forget(user, body) {
     await writeDoc(c, 'heroes/' + user.uid, Object.assign({}, hero, { avatarCollection: list, updatedAt: { $ts: Date.now() } }));
     return { collection: list };
   });
+}
+
+/* ---------- герой з фото (OpenAI) ---------- */
+const photoRecent = new Map();   // uid → [мітки часу], як rateOk, але за добу
+let photoAll = [];
+function photoRateOk(uid) {
+  const now = Date.now(), day = 864e5;
+  photoAll = photoAll.filter(t => now - t < day);
+  const a = (photoRecent.get(uid) || []).filter(t => now - t < day);
+  photoRecent.set(uid, a);
+  if (a.length >= PHOTO_PER_DAY) return 'Сьогодні вже досить нових героїв — спробуй завтра';
+  if (photoAll.length >= PHOTO_DAY_TOTAL) return 'Художник на сьогодні втомився — спробуй завтра';
+  return '';
+}
+function notePhoto(uid) { const t = Date.now(); photoRecent.get(uid).push(t); photoAll.push(t); }
+const photoStale = g => !!(g && g.kind === 'photo' && g.status === 'queued' && Date.now() - (g.at || 0) > PHOTO_TIMEOUT_MIN * 60e3);
+
+/* фото з браузера → PNG без EXIF-повороту, не більше 1024 px */
+async function photoPng(raw) {
+  const sharp = require('sharp');
+  const buf = Buffer.from(String(raw || '').replace(/^data:[^,]*,/, ''), 'base64');
+  if (!buf.length) throw new AvatarError('invalid-argument', 'Немає фото');
+  if (buf.length > MAX_PHOTO) throw new AvatarError('invalid-argument', 'Фото завелике — спробуй менше');
+  let meta;
+  try { meta = await sharp(buf).metadata(); } catch (e) { throw new AvatarError('invalid-argument', 'Це не зображення'); }
+  if (!['png', 'webp', 'jpeg'].includes(meta.format)) throw new AvatarError('invalid-argument', 'Потрібне фото JPEG, PNG або WebP');
+  if (meta.width * meta.height > 40e6) throw new AvatarError('invalid-argument', 'Завелике фото');
+  return sharp(buf).rotate().resize(1024, 1024, { fit: 'inside', withoutEnlargement: true }).png().toBuffer();
+}
+/* шаблон для моделі: прозорий фон заливаємо білим — так модель краще бачить силует */
+function templatePng() {
+  return require('sharp')(filePath('img/ava/' + PHOTO_TEMPLATE + '-base.webp')).flatten({ background: '#ffffff' }).png().toBuffer();
+}
+
+async function photo(user, body) {
+  if (!user) throw new AvatarError('unauthenticated');
+  if (!openai.configured()) throw new AvatarError('unavailable', 'Генерація з фото ще не налаштована (OPENAI_API_KEY)');
+  const png = await photoPng(body && body.image);
+  const key = crypto.randomBytes(12).toString('hex');
+  const c = await pool.connect();
+  try {
+    await c.query('begin');
+    const r = await c.query('select data from docs where path = $1 for update', ['heroes/' + user.uid]);
+    if (!r.rows.length) throw new AvatarError('permission-denied', 'Героя з фото створює сам Герой');
+    const hero = r.rows[0].data, g = hero.avatarGen;
+    if (g && g.kind === 'photo' && g.status === 'queued' && !photoStale(g)) throw new AvatarError('aborted', 'Твій герой уже малюється — зачекай');
+    const limit = photoRateOk(user.uid);
+    if (limit) throw new AvatarError('resource-exhausted', limit);
+    await writeDoc(c, 'heroes/' + user.uid, Object.assign({}, hero, {
+      avatarGen: { kind: 'photo', key, base: null, status: 'queued', at: Date.now() }, updatedAt: { $ts: Date.now() } }));
+    await c.query('commit');
+  } catch (e) {
+    await c.query('rollback').catch(() => {});
+    throw e;
+  } finally {
+    c.release();
+  }
+  notePhoto(user.uid);
+  drawPhoto(user.uid, key, png);   // малюється у фоні (до хвилини-двох); стан — GET /api/avatar/status
+  return { status: 'queued', key };
+}
+
+async function drawPhoto(uid, key, png) {
+  let file = null;
+  try {
+    const out = await openai.portrait(await templatePng(), png);
+    const files = await makeFiles(out, PHOTO_TEMPLATE);
+    file = key.slice(0, 12) + '-' + Date.now().toString(36);
+    files.base = files.full;          // герой з фото — сам собі базове зображення для «Одягти»
+    saveFiles(file, files);
+    const base = 'gen/' + file;
+    const c = await pool.connect();
+    try {
+      await c.query('begin');
+      const r = await c.query('select data from docs where path = $1 for update', ['heroes/' + uid]);
+      const hero = r.rows[0].data, g = hero.avatarGen || {};
+      const gen = { kind: 'photo', base, key, status: 'ready', file, at: g.at || Date.now(), readyAt: Date.now() };
+      if (g.key === key) await setAvatar(c, uid, hero, genToken(file), gen);
+      else {
+        // поки малювалось, Герой обрав інше — новий герой лише чекає в «Моїх колекціях»
+        await writeDoc(c, 'heroes/' + uid, Object.assign({}, hero,
+          { avatarCollection: addToCollection(hero, { key, file, base, at: Date.now() }) }));
+      }
+      await c.query('commit');
+    } catch (e) {
+      await c.query('rollback').catch(() => {});
+      throw e;
+    } finally {
+      c.release();
+    }
+    return { ok: true, file };
+  } catch (e) {
+    if (file) removeFiles(file);
+    try { console.error('[avatar/photo]', uid, e && e.message || e); } catch (_) {}
+    await failPhoto(uid, key, e instanceof openai.ImageError ? 'Не вдалося намалювати — спробуй інше фото або пізніше' : 'Щось пішло не так — спробуй ще раз')
+      .catch(() => {});
+    return { ok: false, error: String(e && e.message || e) };
+  }
+}
+async function failPhoto(uid, key, error) {
+  const c = await pool.connect();
+  try {
+    await c.query('begin');
+    const r = await c.query('select data from docs where path = $1 for update', ['heroes/' + uid]);
+    const hero = r.rows.length && r.rows[0].data, g = hero && hero.avatarGen;
+    let out = null;
+    if (g && g.key === key && g.status === 'queued') {
+      out = Object.assign({}, g, { status: 'failed', error });
+      await writeDoc(c, 'heroes/' + uid, Object.assign({}, hero, { avatarGen: out }));
+    }
+    await c.query('commit');
+    return out;
+  } catch (e) {
+    await c.query('rollback').catch(() => {});
+    throw e;
+  } finally {
+    c.release();
+  }
 }
 
 /* ---------- воркер ---------- */
@@ -384,13 +522,13 @@ async function makeFiles(buf, base) {
   try { meta = await sharp(buf).metadata(); } catch (e) { throw new AvatarError('invalid-argument', 'Це не зображення'); }
   if (!['png', 'webp', 'jpeg'].includes(meta.format)) throw new AvatarError('invalid-argument', 'Потрібен PNG, WebP або JPEG');
   if (meta.width * meta.height > 40e6) throw new AvatarError('invalid-argument', 'Завелике зображення');
-  const bm = await sharp(path.join(siteDir(), 'img/ava', base + '-base.webp')).metadata();
+  const bm = await sharp(filePath('img/ava/' + base + '-base.webp')).metadata();
   const H = Math.min(1448, Math.max(bm.height, meta.height));
   const W = Math.round(H * bm.width / bm.height);
   const full = await sharp(buf).rotate()
     .resize(W, H, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .webp({ quality: 90, alphaQuality: 90 }).toBuffer();
-  const fb = FACE_BOX[base] || FACE_DEFAULT;
+  const fb = FACE_BOX[isPhotoBase(base) ? PHOTO_TEMPLATE : base] || FACE_DEFAULT;
   const left = Math.round(fb.left * W), top = Math.round(fb.top * H);
   const s = Math.max(16, Math.min(Math.round(fb.size * W), W - left, H - top));
   const head = await sharp(full).extract({ left, top, width: s, height: s }).resize(256, 256).png().toBuffer();
@@ -404,14 +542,15 @@ async function makeFiles(buf, base) {
 function saveFiles(file, f) {
   const dir = avatarDir();
   fs.mkdirSync(dir, { recursive: true });
-  [['full', f.full], ['256', f.face256], ['96', f.face96]].forEach(([suf, b]) => {
+  [['full', f.full], ['256', f.face256], ['96', f.face96], ['base', f.base]].forEach(([suf, b]) => {
+    if (!b) return;
     const p = path.join(dir, `${file}-${suf}.webp`);
     fs.writeFileSync(p + '.tmp', b);
     fs.renameSync(p + '.tmp', p);
   });
 }
 function removeFiles(file) {
-  ['full', '256', '96'].forEach(suf => { try { fs.unlinkSync(path.join(avatarDir(), `${file}-${suf}.webp`)); } catch (e) {} });
+  ['full', '256', '96', 'base'].forEach(suf => { try { fs.unlinkSync(path.join(avatarDir(), `${file}-${suf}.webp`)); } catch (e) {} });
 }
 
 async function result(req, body) {
@@ -487,5 +626,5 @@ async function adminRequeue(body) {
 
 module.exports = {
   AvatarError, SLOTS, FACE_BOX, COLLECTION_MAX, buildSpec, baseOf, promptOf, makeFiles,
-  collectionOf, addToCollection, render, status, wear, forget, claim, heartbeat, result, fail, adminJobs, adminRequeue
+  PHOTO_TEMPLATE, collectionOf, addToCollection, render, status, wear, forget, photo, photoPng, claim, heartbeat, result, fail, adminJobs, adminRequeue
 };

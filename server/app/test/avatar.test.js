@@ -129,3 +129,40 @@ test('колекція: старий образ із avatarGen, без дубл�
   assert.strictEqual(h.avatarCollection.length, A.COLLECTION_MAX);
   assert.strictEqual(h.avatarCollection[0].file, 'g10');
 });
+
+test('герой з фото: фото → PNG ≤1024 px, база gen/<файл> бере рамку обличчя шаблону', async () => {
+  const jpg = await sharp({ create: { width: 2000, height: 1500, channels: 3, background: '#c08060' } }).jpeg().toBuffer();
+  const png = await A.photoPng('data:image/jpeg;base64,' + jpg.toString('base64'));
+  const m = await sharp(png).metadata();
+  assert.strictEqual(m.format, 'png');
+  assert.strictEqual(m.width, 1024);
+  await assert.rejects(A.photoPng(''), /Немає фото/);
+  await assert.rejects(A.photoPng(Buffer.from('not an image').toString('base64')), /не зображення/);
+  // новий герой — база для «Одягти»: має файл <файл>-base.webp у каталозі образів
+  assert.strictEqual(A.baseOf({ avatar: 'hero:gen/abc-1', avatarGen: { kind: 'photo', base: 'gen/abc-1' } }), 'gen/abc-1');
+  const has = rel => rel === 'img/ava/gen/abc-1-base.webp';
+  const s = A.buildSpec({ avatar: 'hero:gen/abc-1', avatarGen: { base: 'gen/abc-1' }, inventory: [{ id: 'IT-001', slot: 'helmet' }] }, ITEMS, has);
+  assert.strictEqual(s.baseImage, 'img/ava/gen/abc-1-base.webp');
+});
+
+test('OpenAI: запит редагування з двома картинками, помилки — зрозумілі', async () => {
+  const O = require('../src/openai-image');
+  const old = process.env.OPENAI_API_KEY;
+  process.env.OPENAI_API_KEY = 'sk-test';
+  try {
+    let seen = null;
+    const ok = async (url, init) => { seen = { url, init }; return { ok: true, status: 200, json: async () => ({ data: [{ b64_json: Buffer.from('PNG').toString('base64') }] }) }; };
+    const out = await O.portrait(Buffer.from('t'), Buffer.from('p'), { fetch: ok });
+    assert.strictEqual(out.toString(), 'PNG');
+    assert.strictEqual(seen.url, 'https://api.openai.com/v1/images/edits');
+    assert.strictEqual(seen.init.headers.Authorization, 'Bearer sk-test');
+    assert.strictEqual(seen.init.body.getAll('image[]').length, 2);
+    assert.strictEqual(seen.init.body.get('background'), 'transparent');
+    const bad = async () => ({ ok: false, status: 400, json: async () => ({ error: { message: 'safety system' } }) });
+    await assert.rejects(O.portrait(Buffer.from('t'), Buffer.from('p'), { fetch: bad }), e => e instanceof O.ImageError && /safety system/.test(e.message) && !e.retry);
+    delete process.env.OPENAI_API_KEY;
+    await assert.rejects(O.portrait(Buffer.from('t'), Buffer.from('p'), { fetch: ok }), /OPENAI_API_KEY/);
+  } finally {
+    if (old === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = old;
+  }
+});

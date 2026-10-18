@@ -431,6 +431,8 @@ const SK = {
   // «Мої колекції»: створені образи лишаються в heroes/{id}.avatarCollection
   wearAvatar(key)     { return skApi('POST', 'avatar/wear', { key }); },
   forgetAvatar(key)   { return skApi('POST', 'avatar/forget', { key }); },
+  // «Згенерувати аватар»: фото (data:URL, стиснуте) → новий герой; малює OpenAI, стан — avatarStatus()
+  photoAvatar(image)  { return skApi('POST', 'avatar/photo', { image }); },
 
   async getHero() {
     const heroId = SK._heroUid();
