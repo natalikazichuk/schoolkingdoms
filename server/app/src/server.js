@@ -437,6 +437,8 @@ const ROUTES = {
   'GET /api/admin/avatar/jobs': async (req, user) => { await requireAdmin(user); return avatarRoute(() => avatar.adminJobs())(req, user); },
   'GET /api/admin/openai': (req, user) => adminOpenai(user),
   'POST /api/admin/openai': (req, user, b) => adminOpenaiSave(user, b),
+  'GET /api/admin/avatar/raw': async (req, user) => { await requireAdmin(user); return avatarRoute(() => avatar.adminRaw())(req, user); },
+  'POST /api/admin/avatar/reapply': async (req, user, b) => { await requireAdmin(user); return avatarRoute(() => avatar.adminReapply(b))(req, user, b); },
   'POST /api/admin/avatar/requeue': async (req, user, b) => { await requireAdmin(user); return avatarRoute(() => avatar.adminRequeue(b))(req, user, b); },
   'GET /api/admin/collections': (req, user) => adminCollections(user),
   'POST /api/admin/docs': (req, user, b) => adminDocs(user, b),

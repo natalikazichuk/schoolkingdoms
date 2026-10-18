@@ -447,9 +447,10 @@ async function drawGpt(id, spec) {
     for (const s of spec.slots) if (s.item && s.item.image) pics.push(await sharp(filePath(s.item.image)).png().toBuffer());
     const items = pics.length ? [await itemSheet(pics)] : [];
     const stand = await gptPose(spec, 'stand', items, null);
+    saveRaw(id, 'stand', stand);   // оплачено — зберігаємо одразу, ще до обробки
     let fight = null;
     if (spec.fightImage) {
-      try { fight = await gptPose(spec, 'fight', items, stand); }
+      try { fight = await gptPose(spec, 'fight', items, stand); saveRaw(id, 'fight', fight); }
       catch (e) { try { console.error('[avatar/gpt] бойова поза:', id, e && e.message || e); } catch (_) {} }   // арена покаже пряму
     }
     await applyResult({ id, image: stand.toString('base64'), fight: fight ? fight.toString('base64') : '' });
@@ -461,6 +462,45 @@ async function drawGpt(id, spec) {
       if (r.rows.length) await markFailed(pool, r.rows[0].key);
     } catch (_) {}
   }
+}
+
+/* «Сирі» картинки від OpenAI (останні RAW_KEEP завдань): малюнок уже оплачено, тож
+   якщо обробка впаде, адмін застосує його ще раз без нового запиту (adminReapply).
+   Файли — <AVATAR_DIR>/raw/<id завдання>-stand|fight.png (nginx: /img/ava/gen/raw/…). */
+const RAW_KEEP = 5;
+const rawDir = () => path.join(avatarDir(), 'raw');
+function rawIds() {
+  let names = [];
+  try { names = fs.readdirSync(rawDir()); } catch (e) {}
+  return [...new Set(names.map(n => (/^(\d+)-(stand|fight)\.png$/.exec(n) || [])[1]).filter(Boolean).map(Number))].sort((a, b) => b - a);
+}
+function saveRaw(id, pose, png) {
+  try {
+    fs.mkdirSync(rawDir(), { recursive: true });
+    fs.writeFileSync(path.join(rawDir(), `${id}-${pose}.png`), png);
+    for (const old of rawIds().slice(RAW_KEEP))
+      ['stand', 'fight'].forEach(p => { try { fs.unlinkSync(path.join(rawDir(), `${old}-${p}.png`)); } catch (e) {} });
+  } catch (e) {
+    try { console.error('[avatar/gpt] сира картинка не збереглась:', id, e && e.message || e); } catch (_) {}
+  }
+}
+const rawHas = (id, pose) => fs.existsSync(path.join(rawDir(), `${id}-${pose}.png`));
+async function adminRaw() {
+  const ids = rawIds();
+  const jobs = {};
+  if (ids.length) (await pool.query('select id, status, error, file from avatar_jobs where id = any($1::bigint[])', [ids]))
+    .rows.forEach(r => { jobs[Number(r.id)] = r; });
+  return { raw: ids.map(id => ({
+    id, status: jobs[id] ? jobs[id].status : null, error: jobs[id] ? jobs[id].error : null,
+    stand: 'img/ava/gen/raw/' + id + '-stand.png', fight: rawHas(id, 'fight') ? 'img/ava/gen/raw/' + id + '-fight.png' : null
+  })) };
+}
+/* застосувати збережену сиру картинку ще раз (без нового запиту в OpenAI) */
+async function adminReapply(body) {
+  const id = Number(body && body.id) || 0;
+  if (!id || !rawHas(id, 'stand')) throw new AvatarError('not-found', 'Немає збереженої картинки для цього завдання');
+  const read = pose => rawHas(id, pose) ? fs.readFileSync(path.join(rawDir(), `${id}-${pose}.png`)).toString('base64') : '';
+  return applyResult({ id, image: read('stand'), fight: read('fight') });
 }
 
 /* ---------- герой з фото (OpenAI) ---------- */
@@ -829,8 +869,8 @@ async function applyResult(body) {
     }
     // перемальований набір має новий файл — оновити його в колекціях (старий файл зараз видалимо)
     const cs = await c.query(
-      `select path, data from docs where parent = 'heroes' and data->'avatarCollection' @> $2::jsonb for update`,
-      [j.key, JSON.stringify([{ key: j.key }])]);
+      `select path, data from docs where parent = 'heroes' and data->'avatarCollection' @> $1::jsonb for update`,
+      [JSON.stringify([{ key: j.key }])]);
     for (const h of cs.rows) {
       const list = collectionOf(h.data);
       if (!list.some(x => x.key === j.key && x.file !== file)) continue;
@@ -870,5 +910,5 @@ async function adminRequeue(body) {
 
 module.exports = {
   AvatarError, SLOTS, FACE_BOX, FIGHT_PAIRS, CANVAS_PAD, OUT_H, canvasOf, canvasPng, canvasImage, absolute, COLLECTION_MAX, buildSpec, baseOf, standOf, baseImageOf, promptOf, makeFiles,
-  PHOTO_TEMPLATE, collectionOf, addToCollection, render, status, gptAllowed, gptKey, gptPrompt, itemSheet, sheetGrid, openaiFrame, unframe, wear, forget, photo, photoPng, claim, heartbeat, result, fail, adminJobs, adminRequeue
+  PHOTO_TEMPLATE, collectionOf, addToCollection, render, status, gptAllowed, gptKey, gptPrompt, itemSheet, sheetGrid, openaiFrame, unframe, applyResult, drawGpt, saveRaw, rawIds, adminRaw, adminReapply, wear, forget, photo, photoPng, claim, heartbeat, result, fail, adminJobs, adminRequeue
 };
