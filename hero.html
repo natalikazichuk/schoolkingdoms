@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="hero.css?v=12">
+<link rel="stylesheet" href="hero.css?v=13">
 <script src="sk-resume.js?v=1"></script>
 <script>SKResume.go();   /* відкрили застосунок — одразу туди, де Герой зупинився (якщо не минуло 2 годин) */</script>
 <script src="sk-arena-rules.js?v=25"></script>
@@ -78,23 +78,9 @@
         <button class="ava-cam" id="avaCam" type="button" title="Додати своє фото" aria-label="Додати фото героя">📷</button>
         <input type="file" id="avaFile" accept="image/*" hidden>
       </div>
-      <!-- здоровʼя та мана — компактні значки з підписами поверх портрета -->
-      <div class="ek-bars">
-        <div class="ek-bar hp" title="Здоровʼя">
-          <span class="ek-bico" aria-hidden="true">❤️</span>
-          <span class="ek-bbody">
-            <span class="ek-blab">Здоров’я</span><span class="ek-val" id="heroHpVal">—</span>
-            <span class="ek-track"><i id="heroHpFill"></i></span>
-          </span>
-        </div>
-        <div class="ek-bar mp" title="Мана">
-          <span class="ek-bico" aria-hidden="true">💎</span>
-          <span class="ek-bbody">
-            <span class="ek-blab">Мана</span><span class="ek-val" id="heroMpVal">—</span>
-            <span class="ek-track"><i id="heroMpFill"></i></span>
-          </span>
-        </div>
-      </div>
+      <!-- усі характеристики — значки поверх портрета, по 2 в ряд;
+           підпис і значення — у підказці (наведення мишкою / дотик / фокус) -->
+      <div class="stat-badges" id="heroStatGrid" aria-label="Характеристики героя"></div>
     </div>
 
     <!-- ПРИГОДИ — під рядом з аватаром, у лівій панелі -->
@@ -114,11 +100,8 @@
 
   <!-- RIGHT CONTENT -->
   <main class="content">
-    <h2 class="sec-title">Активні характеристики</h2>
-    <div class="ek-stats" id="heroStatGrid"></div>
-
     <!-- РЕЙТИНГ (сімʼя / друзі) + МІЙ ПРОГРЕС — поруч, на телефоні одне під одним -->
-    <div class="rank-prog">
+    <div class="rank-prog" style="margin-top:0">
       <section class="rank-card">
         <div class="rp-head">
           <span class="rp-ic" aria-hidden="true">🏆</span>
@@ -323,13 +306,11 @@ function render(){
 }
 
 function renderLoadingStats(){
-  ['w-coins','heroLvl','heroXpTxt','heroHpVal','heroMpVal'].forEach(function(id){
+  ['w-coins','heroLvl','heroXpTxt'].forEach(function(id){
     const el=$(id); if(el) el.textContent='…';
   });
-  ['heroXpFill','heroHpFill','heroMpFill'].forEach(function(id){
-    const el=$(id); if(el) el.style.width='0%';
-  });
-  const g=$('heroStatGrid'); if(g) g.innerHTML='';
+  const el=$('heroXpFill'); if(el) el.style.width='0%';
+  paintBadges({});
 }
 
 
@@ -451,27 +432,45 @@ function renderHeroStats(h){
   setTxt('heroXpTxt',xp+' / '+xpMax);
   setBar('heroXpFill',xpMax?Math.min(100,xp/xpMax*100):0);
 
-  // здоровʼя та мана під аватаром
-  setTxt('heroHpVal',health+' / '+health); setBar('heroHpFill',100);
-  setTxt('heroMpVal',mana+' / '+mana);     setBar('heroMpFill',100);
-
   setTxt('w-coins',coins); setTxt('coins2',coins);
 
-  // сітка характеристик — той самий набір, що в інвентарі арени
-  const tiles=[['dmg','⚔️','Урон',0],['arm','🛡️','Броня',0],['acc','🎯','Точність',accuracy],
-    ['mdmg','✨','Магічний урон',0],['mres','🔮','Магічна стійкість',0],['agi','👟','Спритність',agility]];
-  paintTiles(tiles);
+  // значки характеристик — той самий набір, що в інвентарі арени
+  paintBadges({hp:health, mp:mana, dmg:0, arm:0, acc:accuracy, mdmg:0, mres:0, agi:agility});
 }
-function paintTiles(tiles){
-  const grid=$('heroStatGrid');
-  if(grid) grid.innerHTML=tiles.map(function(a){return '<div class="ek-stat '+a[0]+'"><div class="ek-si">'+a[1]+'</div><div class="ek-sl">'+a[2]+'</div><div class="ek-sv">'+a[3]+'</div></div>';}).join('');
+/* Значки поверх портрета: [ключ, значок, підпис, як показати значення] */
+const BADGES=[
+  ['hp','❤️','Здоровʼя',v=>v+' / '+v], ['mp','💎','Мана',v=>v+' / '+v],
+  ['dmg','⚔️','Урон'], ['arm','🛡️','Броня'],
+  ['acc','🎯','Точність'], ['agi','👟','Спритність'],
+  ['mdmg','✨','Магічний урон'], ['mres','🔮','Магічна стійкість']];
+function paintBadges(v){
+  const grid=$('heroStatGrid'); if(!grid) return;
+  grid.innerHTML=BADGES.map(function(b){
+    const raw=v[b[0]], val=raw==null ? '…' : (b[3] ? b[3](raw) : raw);
+    const tip=b[2]+': '+val;
+    return '<button type="button" class="sb '+b[0]+'" aria-label="'+escHtml(tip)+'">'
+      +'<span aria-hidden="true">'+b[1]+'</span>'
+      +'<span class="sb-tip" aria-hidden="true">'+escHtml(b[2])+' <b>'+escHtml(val)+'</b></span></button>';
+  }).join('');
 }
-/* база з речами (як на арені перед боєм): здоров'я, мана й шість плиток */
+/* дотик (телефон, де нема наведення): тап показує/ховає підказку і не смикає героя */
+(function(){
+  const grid=$('heroStatGrid'); if(!grid) return;
+  grid.addEventListener('click',function(e){
+    e.stopPropagation();
+    const b=e.target.closest('.sb'); if(!b) return;
+    const on=!b.classList.contains('show');
+    grid.querySelectorAll('.sb.show').forEach(x=>x.classList.remove('show'));
+    if(on) b.classList.add('show');
+  });
+  document.addEventListener('click',function(e){
+    if(!e.target.closest('#heroStatGrid')) grid.querySelectorAll('.sb.show').forEach(x=>x.classList.remove('show'));
+  });
+})();
+/* база з речами (як на арені перед боєм): здоров'я, мана й шість характеристик */
 function paintSheet(sh){
-  setTxt('heroHpVal',sh.health+' / '+sh.health); setBar('heroHpFill',100);
-  setTxt('heroMpVal',sh.mana+' / '+sh.mana);     setBar('heroMpFill',100);
-  paintTiles([['dmg','⚔️','Урон',sh.dmg],['arm','🛡️','Броня',sh.armor],['acc','🎯','Точність',sh.accuracy],
-    ['mdmg','✨','Магічний урон',sh.mag],['mres','🔮','Магічна стійкість',sh.magicResist],['agi','👟','Спритність',sh.agility]]);
+  paintBadges({hp:sh.health, mp:sh.mana, dmg:sh.dmg, arm:sh.armor, acc:sh.accuracy,
+    mdmg:sh.mag, mres:sh.magicResist, agi:sh.agility});
 }
 
 /* -- Задані завдання (від дорослих). Джерело з'явиться пізніше: якщо SK матиме
