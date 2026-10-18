@@ -53,6 +53,12 @@ create table if not exists avatar_jobs (
   done_at     timestamptz
 );
 create index if not exists avatar_jobs_queue on avatar_jobs (status, queued_at);
+-- налаштування з адмінки (src/settings.js): ключ OpenAI тощо; назовні не віддаються
+create table if not exists settings (
+  key        text primary key,
+  value      text not null,
+  updated_at timestamptz not null default now()
+);
 `;
 
 async function migrate() { await pool.query(SCHEMA); }

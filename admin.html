@@ -36,6 +36,14 @@
   /* ── Головна адмінки (хаб) ── */
   #viewHome .home-head{margin:6px 0 18px}
   #viewHome .home-head h2{color:var(--ink);font-size:1.35rem}
+  .ai-key{max-width:900px;margin-top:22px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow)}
+  .ai-key h3{margin:0 0 6px;font-size:1.05rem;color:var(--ink)}
+  .ai-key h3 small{font-weight:700;color:var(--muted);font-size:.8rem}
+  .ai-key-state{margin:0 0 10px;font-weight:800}
+  .ai-key-state.ok{color:#1e7a3c}
+  .ai-key-state.no{color:var(--danger)}
+  .ai-key-row{display:flex;gap:8px;flex-wrap:wrap}
+  .ai-key-row input{flex:1 1 260px;min-width:0}
   #viewHome .home-head p{margin:6px 0 0;color:var(--muted);font-weight:700;font-size:.95rem}
   .home-grid{
     display:grid;gap:14px;
@@ -522,6 +530,19 @@
     </div>
     <!-- Картки малює renderAdminNav() з того самого списку, що й шапка. -->
     <div class="home-grid" id="homeGrid"></div>
+
+    <!-- Ключ OpenAI для «📸 Аватар з фото»: зберігається лише на сервері (таблиця settings),
+         назад приходять тільки останні 4 символи. -->
+    <div class="ai-key" id="aiKeyBox" hidden>
+      <h3>🔑 Ключ OpenAI <small>для кнопки «📸 Аватар з фото»</small></h3>
+      <p class="ai-key-state" id="aiKeyState">Перевіряю…</p>
+      <form class="ai-key-row" id="aiKeyForm" autocomplete="off">
+        <input type="password" id="aiKeyInput" placeholder="sk-…  (вставте новий ключ)" autocomplete="new-password" spellcheck="false">
+        <button class="btn pri" type="submit" id="aiKeySave">Зберегти</button>
+        <button class="btn ghost danger" type="button" id="aiKeyDel" hidden>Прибрати</button>
+      </form>
+      <p class="hint">Ключ створюється на platform.openai.com → API keys. Він потрапляє одразу на сервер — не в код і не в GitHub. Кожен герой з фото — 2 платні малюнки.</p>
+    </div>
   </section>
 
   <!-- ---- ВИД: СПИСОК ТЕСТІВ ---- -->
@@ -3314,12 +3335,45 @@ SKADMIN.guard({
       const user = SKADMIN.currentUser(SK);
       $('adminEmail').textContent = (user && (user.email || user.uid)) || '—';
       await bootstrap();
+      initAiKey(SK);
     } catch (e){
       console.error(e);
       showDenied();
     }
   }
 });
+
+/* ── Ключ OpenAI (POST /api/admin/openai): сервер перевіряє ключ і зберігає в settings ── */
+function initAiKey(SK){
+  const box = $('aiKeyBox'), state = $('aiKeyState'), form = $('aiKeyForm'), inp = $('aiKeyInput'), del = $('aiKeyDel');
+  if(!box || !SK.adminOpenai) return;
+  function paint(s, note){
+    box.hidden = false;
+    state.className = 'ai-key-state ' + (s.configured ? 'ok' : 'no');
+    state.textContent = s.configured
+      ? '✅ Ключ задано (' + s.hint + (s.source === 'env' ? ', з /srv/sk/.env' : '') + ') · модель ' + s.model + (note ? ' · ' + note : '')
+      : '⚠️ Ключа немає — «Аватар з фото» не працює';
+    del.hidden = s.source !== 'admin';
+  }
+  SK.adminOpenai().then(paint, function(){ /* не адмін або сервер без маршруту — ховаємо */ });
+  form.addEventListener('submit', async function(e){
+    e.preventDefault();
+    const key = inp.value.trim(); if(!key) return;
+    $('aiKeySave').disabled = true; state.className = 'ai-key-state'; state.textContent = 'Перевіряю ключ в OpenAI…';
+    try{
+      const s = await SK.adminOpenaiSave(key);
+      inp.value = '';
+      paint(s, s.check === 'ok' ? 'перевірено ✓' : 'збережено, але OpenAI зараз не відповів — перевірте кнопкою в Арені');
+    }catch(err){
+      state.className = 'ai-key-state no';
+      state.textContent = '✖ ' + ((err && err.message) || 'Не вдалося зберегти');
+    }finally{ $('aiKeySave').disabled = false; }
+  });
+  del.addEventListener('click', async function(){
+    if(!confirm('Прибрати ключ OpenAI? «Аватар з фото» перестане працювати.')) return;
+    try{ paint(await SK.adminOpenaiSave('')); }catch(err){ alert((err && err.message) || 'Не вдалося'); }
+  });
+}
 
 function showDenied(){
   $('gateLoading').classList.add('hidden');

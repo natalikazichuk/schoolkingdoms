@@ -227,3 +227,39 @@ test('OpenAI: запит редагування з двома картинкам
     if (old === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = old;
   }
 });
+
+test('ключ OpenAI: з адмінки має перевагу над .env; перевірка ключа; адмінка без входу → 401', async () => {
+  const O = require('../src/openai-image');
+  const settings = require('../src/settings');
+  const old = process.env.OPENAI_API_KEY;
+  try {
+    delete process.env.OPENAI_API_KEY;
+    assert.strictEqual(O.configured(), false);
+    assert.strictEqual(O.keySource(), null);
+    process.env.OPENAI_API_KEY = 'sk-env';
+    assert.strictEqual(O.apiKey(), 'sk-env');
+    assert.strictEqual(O.keySource(), 'env');
+    // ключ з адмінки (кеш settings; у базу тест не ходить) має перевагу
+    const get = settings.get;
+    settings.get = k => k === O.KEY_SETTING ? 'sk-admin' : null;
+    try {
+      assert.strictEqual(O.apiKey(), 'sk-admin');
+      assert.strictEqual(O.keySource(), 'admin');
+    } finally { settings.get = get; }
+  } finally {
+    if (old === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = old;
+  }
+  const res = (status) => async () => ({ ok: status === 200, status });
+  assert.strictEqual(await O.checkKey('sk-x', { fetch: res(200) }), 'ok');
+  assert.strictEqual(await O.checkKey('sk-x', { fetch: res(401) }), 'invalid');
+  assert.strictEqual(await O.checkKey('sk-x', { fetch: res(500) }), 'unknown');
+  assert.strictEqual(await O.checkKey('sk-x', { fetch: async () => { throw new Error('offline'); } }), 'unknown');
+
+  const port = await start();
+  try {
+    let r = await fetch(`http://127.0.0.1:${port}/api/admin/openai`);
+    assert.strictEqual(r.status, 401);
+    r = await post(port, '/api/admin/openai');
+    assert.strictEqual(r.status, 401);
+  } finally { server.close(); }
+});
