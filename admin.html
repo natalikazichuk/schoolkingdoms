@@ -50,6 +50,13 @@
   .ai-jobs .st-done{color:#1e7a3c;font-weight:800}
   .ai-jobs .st-failed{color:var(--danger);font-weight:800}
   .ai-jobs .st-working{color:#b8863b;font-weight:800}
+  .ai-raw{margin-top:14px}
+  .ai-raw h4{margin:0 0 4px;font-size:.9rem;color:var(--ink)}
+  .ai-raw p{margin:0 0 8px;color:var(--muted);font-size:.8rem;font-weight:700}
+  .ai-raw-list{display:flex;gap:10px;flex-wrap:wrap}
+  .ai-raw-it{border:1px solid var(--border);border-radius:10px;padding:6px;background:var(--panel-2);display:flex;flex-direction:column;gap:6px;align-items:center;font-size:.75rem}
+  .ai-raw-it .pics{display:flex;gap:4px}
+  .ai-raw-it img{height:110px;width:auto;background:repeating-conic-gradient(#e8eef8 0 25%,#fff 0 50%) 0 0/16px 16px;border-radius:6px}
   .ai-key-row input{flex:1 1 260px;min-width:0}
   #viewHome .home-head p{margin:6px 0 0;color:var(--muted);font-weight:700;font-size:.95rem}
   .home-grid{
@@ -549,6 +556,7 @@
         <button class="btn ghost danger" type="button" id="aiKeyDel" hidden>Прибрати</button>
       </form>
       <div class="ai-jobs" id="aiJobs" hidden></div>
+      <div class="ai-raw" id="aiRaw" hidden></div>
       <p class="hint">Ключ створюється на platform.openai.com → API keys. Він потрапляє одразу на сервер — не в код і не в GitHub. Кожен герой з фото — 2 платні малюнки.</p>
     </div>
   </section>
@@ -3378,6 +3386,32 @@ function initAiKey(SK){
     }).join('') + '</table>';
     box.hidden = false;
   }, function(){});
+  // останні 5 «сирих» картинок від OpenAI (уже оплачені): застосувати ще раз без нового запиту
+  function paintRaw(){
+    if(!SK.adminAvatarRaw) return;
+    SK.adminAvatarRaw().then(function(r){
+      const list = (r && r.raw) || [], box = $('aiRaw');
+      if(!list.length){ box.hidden = true; return; }
+      box.innerHTML = '<h4>🖼 Картинки від GPT (останні 5)</h4>'
+        + '<p>Уже оплачені. «Застосувати» — зробити з картинки образ ще раз, без нового запиту в OpenAI.</p>'
+        + '<div class="ai-raw-list">' + list.map(function(x){
+          return '<div class="ai-raw-it"><div class="pics">'
+            + '<img src="/' + esc(x.stand) + '" alt="пряма поза" loading="lazy">'
+            + (x.fight ? '<img src="/' + esc(x.fight) + '" alt="бойова поза" loading="lazy">' : '')
+            + '</div><span>№' + x.id + ' · ' + esc(x.status === 'done' ? '✅ застосовано' : x.status === 'failed' ? '✖ помилка' : (x.status || '—')) + '</span>'
+            + '<button class="btn sm" type="button" data-raw="' + x.id + '">Застосувати</button></div>';
+        }).join('') + '</div>';
+      box.hidden = false;
+      box.querySelectorAll('[data-raw]').forEach(function(b){
+        b.addEventListener('click', async function(){
+          b.disabled = true; b.textContent = 'Застосовую…';
+          try{ await SK.adminAvatarReapply(Number(b.getAttribute('data-raw'))); b.textContent = '✅ Готово'; setTimeout(paintRaw, 800); }
+          catch(err){ b.disabled = false; b.textContent = 'Застосувати'; alert((err && err.message) || 'Не вдалося'); }
+        });
+      });
+    }, function(){});
+  }
+  paintRaw();
   form.addEventListener('submit', async function(e){
     e.preventDefault();
     const key = inp.value.trim(); if(!key) return;
