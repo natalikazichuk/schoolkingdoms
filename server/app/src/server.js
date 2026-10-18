@@ -573,7 +573,11 @@ const server = http.createServer(async (req, res) => {
 });
 
 if (require.main === module) {
-  migrate().then(() => settings.load()).then(() => server.listen(PORT, () => console.log('SchoolKingdoms API on :' + PORT)))
+  migrate().then(() => settings.load()).then(() => server.listen(PORT, () => {
+    console.log('SchoolKingdoms API on :' + PORT);
+    // старі образи з порожніми полями по боках → щільно (повторно нічого не робить)
+    avatar.trimExisting().then(n => { if (n) console.log('[avatar/trim] обрізано образів: ' + n); }, () => {});
+  }))
     .catch(e => { console.error(e); process.exit(1); });
 }
 

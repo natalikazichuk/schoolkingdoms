@@ -829,6 +829,41 @@ async function alphaBox(buf) {
   return R < 0 ? null : { L, R, T, B };
 }
 
+/* Порожні поля геть — щільно по фігурі (з полем M): у рамці 3:4 (арена, hero.html) герой
+   тоді великий. Симетрично від центру не можна: зброя з одного боку робила картинку
+   майже квадратною, і герой дрібнішав. Низ (ноги) не чіпаємо. → WebP */
+async function trimmed(png) {
+  const sharp = require('sharp');
+  const { width: W, height: H } = await sharp(png).metadata();
+  const box = await alphaBox(png), M = 8;
+  let out = sharp(png);
+  if (box) {
+    const left = Math.max(0, box.L - M), top = Math.max(0, box.T - M);
+    out = sharp(await out.extract({ left, top, width: Math.min(W, box.R + 1 + M) - left, height: H - top }).png().toBuffer());
+  }
+  return out.webp({ quality: 86, alphaQuality: 90 }).toBuffer();
+}
+/* Уже готові образи (до щільної обрізки) — обрізати один раз при старті сервера.
+   Лише -full / -fight, де порожнього по боках помітно; мініатюри й бази не чіпаємо. */
+async function trimExisting() {
+  const sharp = require('sharp');
+  let files = [];
+  try { files = fs.readdirSync(avatarDir()).filter(f => /-(full|fight)\.webp$/.test(f)); } catch (e) { return 0; }
+  let n = 0;
+  for (const f of files) {
+    try {
+      const p = path.join(avatarDir(), f);
+      const png = await sharp(fs.readFileSync(p)).png().toBuffer();   // з буфера: sharp кешує файли за шляхом
+      const box = await alphaBox(png), m = await sharp(png).metadata();
+      if (!box || (box.R - box.L + 1 + 16) / m.width > 0.95) continue;
+      fs.writeFileSync(p + '.tmp', await trimmed(png));
+      fs.renameSync(p + '.tmp', p);
+      n++;
+    } catch (e) { console.error('[avatar/trim]', f, e && e.message); }
+  }
+  return n;
+}
+
 /* Картинка від воркера / OpenAI → файли образу. Результат вписуємо в полотно бази
    (тоді рамка обличчя з FACE_BOX влучає), ріжемо аватарки -256/-96 на тлі вбудованих,
    потім обрізаємо порожні поля. pose 'fight' — лише повний зріст ({fight}).
@@ -849,15 +884,7 @@ async function makeFiles(buf, base, pose, padded) {
   const rx = Math.round(cv.px * k), ry = Math.round(cv.pt * k);
   const rw = Math.min(W - rx, Math.round(cv.w * k)), rh = H - ry;
   const region = await sharp(canvas).extract({ left: rx, top: ry, width: rw, height: rh }).webp({ quality: 86, alphaQuality: 90 }).toBuffer();
-  // порожні поля геть: симетрично від центру, низ (ноги) не чіпаємо
-  const box = await alphaBox(canvas), M = 8;
-  let full = canvas;
-  if (box) {
-    const half = Math.min(W / 2, Math.max(W / 2 - box.L, box.R + 1 - W / 2) + M);
-    const left = Math.max(0, Math.floor(W / 2 - half)), top = Math.max(0, box.T - M);
-    full = await sharp(canvas).extract({ left, top, width: Math.min(W - left, Math.ceil(2 * half)), height: H - top }).png().toBuffer();
-  }
-  full = await sharp(full).webp({ quality: 86, alphaQuality: 90 }).toBuffer();
+  const full = await trimmed(canvas);
   if (pose === 'fight') return { fight: full, fightRegion: region };
   const fb = FACE_BOX[isPhotoBase(base) ? PHOTO_TEMPLATE : base] || FACE_DEFAULT;
   const left = rx + Math.round(fb.left * cv.w * k), top = ry + Math.round(fb.top * cv.h * k);
@@ -967,6 +994,6 @@ async function adminRequeue(body) {
 }
 
 module.exports = {
-  AvatarError, SLOTS, FACE_BOX, FIGHT_PAIRS, CANVAS_PAD, OUT_H, canvasOf, canvasPng, canvasImage, absolute, COLLECTION_MAX, buildSpec, baseOf, standOf, baseImageOf, promptOf, makeFiles,
+  AvatarError, SLOTS, FACE_BOX, trimExisting, FIGHT_PAIRS, CANVAS_PAD, OUT_H, canvasOf, canvasPng, canvasImage, absolute, COLLECTION_MAX, buildSpec, baseOf, standOf, baseImageOf, promptOf, makeFiles,
   PHOTO_TEMPLATE, collectionOf, addToCollection, render, status, gptAllowed, gptKey, gptPrompt, itemSheet, sheetGrid, openaiFrame, unframe, applyResult, drawGpt, saveRaw, rawIds, adminRaw, adminReapply, wear, forget, photo, photoPng, claim, heartbeat, result, fail, adminJobs, adminRequeue
 };
