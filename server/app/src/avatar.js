@@ -406,29 +406,75 @@ async function unframe(out, crop) {
    (вхідні картинки теж оплачуються) і довгим — довшим за тайм-аут, а оплата все одно знімалась. */
 const SHEET_CELL = 256;
 function sheetGrid(n) { const cols = Math.min(4, Math.max(1, Math.ceil(Math.sqrt(n)))); return { cols, rows: Math.ceil(n / cols) }; }
+/* номер клітинки: кружечок і цифри «семисегментними» лініями — на сервері немає шрифтів */
+const SEG = { 0: 'abcdef', 1: 'bc', 2: 'abged', 3: 'abgcd', 4: 'fgbc', 5: 'afgcd', 6: 'afgedc', 7: 'abc', 8: 'abcdefg', 9: 'abcdfg' };
+function digitsSvg(n, cx, cy) {
+  const ds = String(n), w = 9, h = 18, gap = 5, total = ds.length * w + (ds.length - 1) * gap;
+  let out = `<circle cx="${cx}" cy="${cy}" r="20" fill="#222"/>`;
+  [...ds].forEach((d, i) => {
+    const x = cx - total / 2 + i * (w + gap), y = cy - h / 2, m = y + h / 2;
+    const L = { a: [x, y, x + w, y], b: [x + w, y, x + w, m], c: [x + w, m, x + w, y + h], d: [x, y + h, x + w, y + h],
+      e: [x, m, x, y + h], f: [x, y, x, m], g: [x, m, x + w, m] };
+    for (const s of SEG[d]) out += `<line x1="${L[s][0]}" y1="${L[s][1]}" x2="${L[s][2]}" y2="${L[s][3]}" stroke="#fff" stroke-width="3" stroke-linecap="round"/>`;
+  });
+  return out;
+}
 async function itemSheet(images) {
-  const sharp = require('sharp'), g = sheetGrid(images.length), pad = 12, inner = SHEET_CELL - 2 * pad;
+  const sharp = require('sharp'), g = sheetGrid(images.length), pad = 26, inner = SHEET_CELL - 2 * pad;
+  const W = g.cols * SHEET_CELL, H = g.rows * SHEET_CELL;
   const tiles = [];
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">`;
   for (let i = 0; i < images.length; i++) {
+    const x = (i % g.cols) * SHEET_CELL, y = Math.floor(i / g.cols) * SHEET_CELL;
     const t = await sharp(images[i]).resize(inner, inner, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } }).png().toBuffer();
-    tiles.push({ input: t, left: (i % g.cols) * SHEET_CELL + pad, top: Math.floor(i / g.cols) * SHEET_CELL + pad });
+    tiles.push({ input: t, left: x + pad, top: y + pad });
+    svg += `<rect x="${x + .5}" y="${y + .5}" width="${SHEET_CELL - 1}" height="${SHEET_CELL - 1}" fill="none" stroke="#ccc"/>` + digitsSvg(i + 1, x + 24, y + 24);
   }
-  return sharp({ create: { width: g.cols * SHEET_CELL, height: g.rows * SHEET_CELL, channels: 3, background: '#ffffff' } })
-    .composite(tiles).png().toBuffer();
+  return sharp({ create: { width: W, height: H, channels: 3, background: '#ffffff' } })
+    .composite(tiles.concat([{ input: Buffer.from(svg + '</svg>') }])).png().toBuffer();
+}
+
+/* описи речей для промпту: з картки речі (items/<id>.look), а яких немає — один раз просимо в
+   OpenAI і зберігаємо в картку. Не вийшло — промпт обійдеться назвою. */
+async function itemLooks(slots) {
+  const ids = slots.filter(s => s.item && s.item.image).map(s => s.item.id), looks = {};
+  if (!ids.length) return looks;
+  const r = await pool.query(`select id, data->>'look' as look from docs where parent = 'items' and id = any($1::text[])`, [ids]);
+  r.rows.forEach(x => { if (x.look) looks[x.id] = x.look; });
+  for (const s of slots) {
+    const id = s.item && s.item.image && s.item.id;
+    if (!id || looks[id]) continue;
+    try {
+      looks[id] = await openai.describe(await require('sharp')(filePath(s.item.image)).png().toBuffer());
+      await pool.query(`update docs set data = jsonb_set(data, '{look}', to_jsonb($2::text)), updated_at = now() where path = $1`,
+        ['items/' + id, looks[id]]);
+    } catch (e) {
+      try { console.error('[avatar/gpt] опис речі', id, e && e.message || e); } catch (_) {}
+    }
+  }
+  return looks;
 }
 /* промпт GPT: картинка 1 — база на полотні, картинка 2 — аркуш речей, 3 (бойова поза) — готовий прямий образ */
-function gptPrompt(slots, withRef) {
+function gptPrompt(slots, withRef, looks) {
+  looks = looks || {};
   const on = slots.filter(s => s.item);
   const pics = on.filter(s => s.item.image), g = sheetGrid(pics.length);
-  const what = s => `${s.en}: "${s.item.name}"` + (s.item.weaponType ? ` (${s.item.weaponType})` : '');
+  const what = s => `${s.en}: "${s.item.name}"` + (s.item.weaponType ? ` (${s.item.weaponType})` : '')
+    + (looks[s.item.id] ? ` — ${looks[s.item.id]}` : '');
+  const empty = ['weaponR', 'weaponL'].filter(k => !on.some(s => s.slot === k))
+    .map(k => k === 'weaponR' ? 'The right hand holds nothing.' : 'The left hand holds nothing.');
   const lines = pics.map((s, i) => `- cell ${i + 1} → ${what(s)}`)
     .concat(on.filter(s => !s.item.image).map(s => `- ${what(s)} (no picture, draw it from the name)`));
   const ref = withRef ? (pics.length ? 3 : 2) : 0;
   return [
-    'Image 1 is the base character on a canvas with empty margins on the sides and top; the margins are room for long weapons.',
-    pics.length ? `Image 2 is a sheet of ${pics.length} items in a grid of ${g.rows} row(s) × ${g.cols} column(s), cells numbered left to right, top to bottom.` : '',
+    'Image 1 is the base character on a canvas with empty margins on the sides and top; the margins are room for long weapons and tall hats.',
+    'EDIT image 1 — do not create a new character.',
+    pics.length ? `Image 2 is a sheet of ${pics.length} items in a grid of ${g.rows} row(s) × ${g.cols} column(s); each cell has its number in the top-left corner (left to right, top to bottom).` : '',
     'Dress the character from image 1 in exactly these items, each in its slot:',
     ...lines,
+    ...empty,
+    'Copy each item EXACTLY as drawn in image 2 — the same shape, colours, materials and details.',
+    'Do not add gold trim, gems, capes, cloaks, tunics, skirts, quivers or any decoration or item that is not in the list.',
     ref ? `Image ${ref} is the same character already dressed in these items: keep the outfit, colours and details identical, only use the pose of image 1.` : '',
     'Each item replaces the matching part of the base outfit; parts without an item keep the base outfit from image 1.',
     'The face must stay EXACTLY as in image 1: same face shape, eyes, eyebrows, nose, mouth, expression, skin tone and hairstyle — do not redraw or replace it.',
@@ -437,12 +483,12 @@ function gptPrompt(slots, withRef) {
     'No text, no other objects. Transparent background.'
   ].filter(Boolean).join('\n');
 }
-async function gptPose(spec, pose, items, ref) {
+async function gptPose(spec, pose, items, ref, looks) {
   const frame = await openaiFrame(await canvasPng(spec.base, pose, true));
   // готовий прямий образ — зменшений: це лише підказка вбрання, а великі картинки дорожчі
   const small = ref ? await require('sharp')(ref).resize({ height: 768, withoutEnlargement: true }).png().toBuffer() : null;
   const images = [frame.png].concat(items, small ? [small] : []);
-  const out = await openai.edit(images, gptPrompt(spec.slots, !!ref), { size: frame.size });
+  const out = await openai.edit(images, gptPrompt(spec.slots, !!ref, looks), { size: frame.size });
   return unframe(out, frame.crop);
 }
 async function drawGpt(id, spec) {
@@ -451,11 +497,12 @@ async function drawGpt(id, spec) {
     const pics = [];
     for (const s of spec.slots) if (s.item && s.item.image) pics.push(await sharp(filePath(s.item.image)).png().toBuffer());
     const items = pics.length ? [await itemSheet(pics)] : [];
-    const stand = await gptPose(spec, 'stand', items, null);
+    const looks = await itemLooks(spec.slots);   // описи речей (один раз на річ, потім — з картки)
+    const stand = await gptPose(spec, 'stand', items, null, looks);
     saveRaw(id, 'stand', stand);   // оплачено — зберігаємо одразу, ще до обробки
     let fight = null;
     if (spec.fightImage) {
-      try { fight = await gptPose(spec, 'fight', items, stand); saveRaw(id, 'fight', fight); }
+      try { fight = await gptPose(spec, 'fight', items, stand, looks); saveRaw(id, 'fight', fight); }
       catch (e) { try { console.error('[avatar/gpt] бойова поза:', id, e && e.message || e); } catch (_) {} }   // арена покаже пряму
     }
     await applyResult({ id, image: stand.toString('base64'), fight: fight ? fight.toString('base64') : '' });

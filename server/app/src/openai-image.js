@@ -81,6 +81,32 @@ async function edit(images, prompt, opt) {
   return Buffer.from(b64, 'base64');
 }
 
+/* Короткий опис речі для промпту «Одягти GPT» (дешева текстова модель з «зором», один раз
+   на річ — опис зберігається в картці речі). Так GPT копіює саму річ, а не «прикрашає» її. */
+const DESCRIBE_PROMPT = 'This is an item icon from a cartoon game. Describe it for an illustrator in ONE short phrase '
+  + '(max 18 words): what it is, shape, colours, materials and notable details. No intro, no quotes.';
+async function describe(png, opt) {
+  opt = opt || {};
+  if (!configured()) throw new ImageError('Ключ OpenAI не задано (адмінка або OPENAI_API_KEY)');
+  const res = await (opt.fetch || fetch)('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + apiKey(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: process.env.OPENAI_TEXT_MODEL || 'gpt-4o-mini', max_tokens: 60,
+      messages: [{ role: 'user', content: [
+        { type: 'text', text: DESCRIBE_PROMPT },
+        { type: 'image_url', image_url: { url: 'data:image/png;base64,' + Buffer.from(png).toString('base64'), detail: 'low' } }
+      ] }]
+    }),
+    signal: AbortSignal.timeout(30e3)
+  });
+  let data = null;
+  try { data = await res.json(); } catch (e) {}
+  const text = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+  if (!res.ok || !text) throw new ImageError('OpenAI (опис речі): ' + String((data && data.error && data.error.message) || ('HTTP ' + res.status)).slice(0, 200));
+  return String(text).replace(/\s+/g, ' ').replace(/^["'«]|["'»]$/g, '').trim().slice(0, 200);
+}
+
 /* перевірити ключ, нічого не малюючи (список моделей безкоштовний):
    'ok' | 'invalid' (401) | 'unknown' (мережа, інша помилка — зберігаємо, але попереджаємо) */
 async function checkKey(key, opt) {
@@ -96,4 +122,4 @@ async function checkKey(key, opt) {
   }
 }
 
-module.exports = { configured, model, portrait, edit, checkKey, apiKey, keySource, KEY_SETTING, ImageError, PROMPT, POSE_PROMPT };
+module.exports = { configured, model, portrait, edit, describe, checkKey, apiKey, keySource, KEY_SETTING, ImageError, PROMPT, POSE_PROMPT };

@@ -40,15 +40,19 @@ test('«Одягти GPT»: картинки від OpenAI → образ Гер
     if (/avatarGen'->>'key' = \$1/.test(s)) return { rows: [{ path: 'heroes/u1', data: doc }] };
     if (/avatarCollection' @> \$1::jsonb/.test(s)) return { rows: [] };
     if (/^update docs set data = \$2/.test(s)) { if (params[0] === 'heroes/u1') doc = JSON.parse(params[1]); return { rows: [] }; }
+    if (/data->>'look' as look from docs where parent = 'items'/.test(s)) return { rows: [{ id: 'IT-001', look: 'plain steel helmet' }] };
+    if (/jsonb_set\(data, '\{look\}'/.test(s)) { looksSaved.push(params); return { rows: [] }; }
     if (/^update docs set data = jsonb_set/.test(s)) return { rows: [] };
     throw new Error('неочікуваний запит: ' + s.slice(0, 100));
   };
-  const was = { query: db.pool.query, connect: db.pool.connect, edit: O.edit, configured: O.configured };
+  const looksSaved = [], prompts = [];
+  const was = { query: db.pool.query, connect: db.pool.connect, edit: O.edit, describe: O.describe };
+  O.describe = async () => 'round wooden shield with an iron rim';
   db.pool.query = q;
   db.pool.connect = async () => ({ query: q, release() {} });
   let calls = 0;
   O.edit = async (images, prompt, opt) => {
-    calls++;
+    calls++; prompts.push(prompt);
     const [w, h] = opt.size.split('x').map(Number);
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect x="${w * .3}" y="${h * .2}" width="${w * .4}" height="${h * .75}" fill="#963"/></svg>`;
     return sharp({ create: { width: w, height: h, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
@@ -59,6 +63,12 @@ test('«Одягти GPT»: картинки від OpenAI → образ Гер
     assert.strictEqual(job.error, undefined, job.error);
     assert.strictEqual(job.status, 'done');
     assert.strictEqual(calls, 2);                                  // пряма й бойова пози
+    // описи речей: шолом — з картки, щит — описано й збережено в картку
+    assert.match(prompts[0], /headwear: "шляпа" — plain steel helmet/);
+    assert.match(prompts[0], /"щит" — round wooden shield with an iron rim/);
+    assert.deepStrictEqual(looksSaved, [['items/IT-102', 'round wooden shield with an iron rim']]);
+    assert.match(prompts[0], /EDIT image 1/);
+    assert.match(prompts[0], /The right hand holds nothing\./);   // правої зброї немає
     assert.strictEqual(doc.avatar, 'hero:gen/' + job.file);
     assert.strictEqual(doc.avatarGen.status, 'ready');
     assert.deepStrictEqual(doc.avatarCollection.map(x => [x.key, x.engine]), [[spec.key, 'gpt']]);
@@ -72,7 +82,7 @@ test('«Одягти GPT»: картинки від OpenAI → образ Гер
     assert.strictEqual(doc.avatarGen.status, 'ready');
   } finally {
     Object.assign(db.pool, { query: was.query, connect: was.connect });
-    Object.assign(O, { edit: was.edit });
+    Object.assign(O, { edit: was.edit, describe: was.describe });
   }
 });
 
