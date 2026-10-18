@@ -439,6 +439,9 @@ const SK = {
   adminOpenai()       { return skApi('GET', 'admin/openai'); },
   adminOpenaiSave(key){ return skApi('POST', 'admin/openai', { key }); },
   adminAvatarJobs()   { return skApi('GET', 'admin/avatar/jobs'); },
+  // токен «лише читання» для Claude: створити (показується один раз) / відкликати
+  adminReader()       { return skApi('GET', 'admin/reader'); },
+  adminReaderSave(action, write) { return skApi('POST', 'admin/reader', { action, write: !!write }); },
   // останні 5 «сирих» картинок від OpenAI; застосувати ще раз — без нового (платного) запиту
   adminAvatarRaw()    { return skApi('GET', 'admin/avatar/raw'); },
   adminAvatarReapply(id) { return skApi('POST', 'admin/avatar/reapply', { id }); },

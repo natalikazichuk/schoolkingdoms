@@ -14,6 +14,8 @@
    POST /api/avatar/photo                             — новий герой із фото (OpenAI; кнопку відкладено)
    POST /api/avatar/render-gpt                        — «✨ Одягти GPT»: той самий набір малює OpenAI
    GET|POST /api/admin/openai                         — ключ OpenAI з адмінки (лише адмін)
+   GET|POST /api/admin/reader                         — токен для Claude (читання / зміни), лише адмін
+   POST /api/admin/doc/set                            — правка документа (адмін), журнал adminLog
    POST /api/avatar/worker/*                          — воркер образів (server/AVATAR-WORKER.md)
    GET  /api/health
 
@@ -283,9 +285,97 @@ async function commit(user, body) {
   }
 }
 
+/* ---------- токен для Claude: «лише читання» або «читання й зміни» ----------
+   Адмін створює його в адмінці (показуємо один раз), сервер зберігає лише sha256 у settings.
+   З ним (Authorization: Bearer skr_…) відкриті ЛИШЕ маршрути з READER_ROUTES (перегляд бази,
+   акаунти, Герої, образи), а з рівнем «зміни» — ще й WRITER_ROUTES (правка документа, дії
+   адмінки з образами й Героями). Кожна зміна документа пишеться в журнал adminLog
+   (до / після). Решта — 403. Claude питає дозволу перед кожною зміною. */
+const READER_SETTING = 'reader_token_sha';
+const READER_AT = 'reader_token_at';
+const READER_MODE = 'reader_token_mode';   // 'read' | 'write'
+const READER_ROUTES = new Set([
+  'GET /api/health', 'GET /api/auth/me',
+  'GET /api/admin/collections', 'POST /api/admin/docs', 'POST /api/admin/doc',
+  'GET /api/admin/accounts', 'GET /api/admin/heroes',
+  'GET /api/admin/avatar/jobs', 'GET /api/admin/avatar/raw', 'GET /api/admin/openai'
+]);
+const WRITER_ROUTES = new Set([
+  'POST /api/admin/doc/set',
+  'POST /api/admin/avatar/reapply', 'POST /api/admin/avatar/requeue',
+  'POST /api/admin/hero/reset-class', 'POST /api/admin/hero/test-class', 'POST /api/admin/hero/set-level'
+]);
+const readerAllows = (u, key) => READER_ROUTES.has(key) || (u.write && WRITER_ROUTES.has(key));
+function readerFrom(req) {
+  const m = /^Bearer\s+(skr_[A-Za-z0-9_-]{20,200})$/.exec(String(req.headers.authorization || ''));
+  const want = settings.get(READER_SETTING);
+  if (!m || !want) return null;
+  const a = Buffer.from(sha(m[1])), b = Buffer.from(want);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  const write = settings.get(READER_MODE) === 'write';
+  return { uid: '@reader', email: write ? 'claude (зміни)' : 'claude (читання)', reader: true, write };
+}
+async function adminReader(user) {
+  await requireAdmin(user);
+  return [{ active: !!settings.get(READER_SETTING), at: Number(settings.get(READER_AT)) || null,
+    mode: settings.get(READER_MODE) || 'read' }];
+}
+async function adminReaderSave(user, b) {
+  if (user && user.reader) throw deny();
+  await requireAdmin(user);
+  if (b && b.action === 'revoke') {
+    await settings.set(READER_SETTING, null); await settings.set(READER_AT, null); await settings.set(READER_MODE, null);
+    return [{ active: false }];
+  }
+  const mode = b && b.write ? 'write' : 'read';
+  const token = 'skr_' + crypto.randomBytes(32).toString('base64url');
+  await settings.set(READER_SETTING, sha(token)); await settings.set(READER_AT, String(Date.now()));
+  await settings.set(READER_MODE, mode);
+  return [{ active: true, at: Date.now(), mode, token }];   // показуємо один раз — на сервері лише хеш
+}
+
+/* правка одного документа з адмінки / токеном «зміни»: data — увесь документ (merge — злити
+   з наявним, null — видалити). Журнал adminLog/<час-шлях>: хто, коли, що було, що стало. */
+async function adminDocSet(user, b) {
+  await requireAdmin(user);
+  const path = String((b && b.path) || ''), sp = splitPath(path);
+  if (!sp) throw new ApiError(400, 'invalid-argument', 'bad path');
+  if (sp.parent === 'adminLog') throw deny();
+  const del = b.data === null;
+  if (!del && (!b.data || typeof b.data !== 'object' || Array.isArray(b.data))) throw new ApiError(400, 'invalid-argument', 'data — обʼєкт або null');
+  const c = await pool.connect();
+  try {
+    await c.query('begin');
+    const cur = (await c.query('select data, version from docs where path = $1 for update', [path])).rows[0] || null;
+    if (b.version != null && (!cur || Number(cur.version) !== Number(b.version)))
+      throw new ApiError(409, 'aborted', 'Документ змінився з того часу, як його прочитали');
+    const before = cur ? cur.data : null;
+    let after = null;
+    if (del) await c.query('delete from docs where path = $1', [path]);
+    else {
+      after = b.merge && before ? Object.assign({}, before, b.data) : b.data;
+      await c.query(
+        `insert into docs (path, parent, id, data) values ($1, $2, $3, $4)
+         on conflict (path) do update set data = excluded.data, version = docs.version + 1, updated_at = now()`,
+        [path, sp.parent, sp.id, JSON.stringify(after)]);
+    }
+    const logId = Date.now().toString(36) + '-' + crypto.randomBytes(3).toString('hex');
+    await c.query(`insert into docs (path, parent, id, data) values ($1, 'adminLog', $2, $3)`,
+      ['adminLog/' + logId, logId, JSON.stringify({ at: Date.now(), by: user.email || user.uid, path, before, after, note: String(b.note || '').slice(0, 300) })]);
+    await c.query('commit');
+    return [{ ok: true, path, deleted: del, log: 'adminLog/' + logId }];
+  } catch (e) {
+    await c.query('rollback').catch(() => {});
+    throw e;
+  } finally {
+    c.release();
+  }
+}
+
 /* ---------- перегляд бази (admin-db.html), лише адмін, лише читання ---------- */
 async function requireAdmin(user) {
   if (!user) throw new ApiError(401, 'unauthenticated');
+  if (user.reader) return;   // токен «лише читання»: сюди доходять тільки маршрути з READER_ROUTES
   const r = await pool.query(`select data->>'role' as role from docs where path = $1`, ['users/' + user.uid]);
   if (!r.rows.length || r.rows[0].role !== 'admin') throw deny();
 }
@@ -440,9 +530,12 @@ const ROUTES = {
   'GET /api/admin/avatar/raw': async (req, user) => { await requireAdmin(user); return avatarRoute(() => avatar.adminRaw())(req, user); },
   'POST /api/admin/avatar/reapply': async (req, user, b) => { await requireAdmin(user); return avatarRoute(() => avatar.adminReapply(b))(req, user, b); },
   'POST /api/admin/avatar/requeue': async (req, user, b) => { await requireAdmin(user); return avatarRoute(() => avatar.adminRequeue(b))(req, user, b); },
+  'GET /api/admin/reader': (req, user) => adminReader(user),
+  'POST /api/admin/reader': (req, user, b) => adminReaderSave(user, b),
   'GET /api/admin/collections': (req, user) => adminCollections(user),
   'POST /api/admin/docs': (req, user, b) => adminDocs(user, b),
   'POST /api/admin/doc': (req, user, b) => adminDoc(user, b),
+  'POST /api/admin/doc/set': (req, user, b) => adminDocSet(user, b),
   'GET /api/admin/accounts': (req, user) => adminAccounts(user),
   'GET /api/admin/heroes': async (req, user) => { await requireAdmin(user); return [{ heroes: await skills.heroList() }]; },
   'POST /api/admin/hero/reset-class': async (req, user, b) => { await requireAdmin(user); return skillRoute(() => skills.resetClass(b.id))(req, user, b); },
@@ -466,7 +559,10 @@ const server = http.createServer(async (req, res) => {
       if (origin && originHost(origin) !== req.headers.host) throw new ApiError(403, 'permission-denied', 'bad origin');
     }
     const body = req.method === 'POST' ? await readBody(req, url === '/api/avatar/worker/result' ? MAX_BODY_AVATAR : MAX_BODY) : {};
-    const user = await currentUser(req);
+    const reader = readerFrom(req);
+    if (reader && !readerAllows(reader, req.method + ' ' + url))
+      throw new ApiError(403, 'permission-denied', reader.write ? 'Цей маршрут токену недоступний' : 'Токен лише для читання');
+    const user = reader || await currentUser(req);
     const [out, headers] = await route(req, user, body);
     send(res, 200, out, headers);
   } catch (e) {

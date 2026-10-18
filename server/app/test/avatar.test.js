@@ -324,3 +324,44 @@ test('OpenAI edit: усі картинки в запиті по порядку, 
     if (old === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = old;
   }
 });
+
+test('токен «лише читання»: відкриває тільки маршрути читання, запис — 403, чужий токен — як без входу', async () => {
+  const settings = require('../src/settings');
+  const crypto = require('crypto');
+  const token = 'skr_' + 'x'.repeat(40);
+  const get = settings.get;
+  settings.get = k => k === 'reader_token_sha' ? crypto.createHash('sha256').update(token).digest('hex') : get(k);
+  const port = await start();
+  const call = (method, p, auth) => fetch(`http://127.0.0.1:${port}${p}`, {
+    method, headers: Object.assign({ 'content-type': 'application/json' }, auth ? { authorization: 'Bearer ' + auth } : {}),
+    body: method === 'POST' ? '{}' : undefined
+  });
+  try {
+    let r = await call('GET', '/api/admin/openai', token);          // читання (до бази не ходить)
+    assert.strictEqual(r.status, 200);
+    assert.strictEqual('configured' in (await r.json()), true);
+    r = await call('GET', '/api/auth/me', token);
+    assert.strictEqual((await r.json()).user.reader, true);
+    for (const [m, p] of [['POST', '/api/commit'], ['POST', '/api/admin/openai'], ['POST', '/api/admin/reader'],
+      ['POST', '/api/avatar/render'], ['POST', '/api/admin/avatar/reapply'], ['POST', '/api/get']]) {
+      r = await call(m, p, token);
+      assert.strictEqual(r.status, 403, p);
+    }
+    r = await call('POST', '/api/admin/doc/set', token);                 // рівень «лише читання» — правки ні
+    assert.strictEqual(r.status, 403);
+    r = await call('GET', '/api/admin/openai', 'skr_' + 'y'.repeat(40));   // не той токен — як без входу
+    assert.strictEqual(r.status, 401);
+    // рівень «зміни»: правка документа пускається далі (без бази — помилка шляху, не 403), commit — ні
+    settings.get = k => k === 'reader_token_sha' ? crypto.createHash('sha256').update(token).digest('hex')
+      : k === 'reader_token_mode' ? 'write' : get(k);
+    r = await call('POST', '/api/admin/doc/set', token);
+    assert.strictEqual(r.status, 400);
+    r = await call('POST', '/api/commit', token);
+    assert.strictEqual(r.status, 403);
+    r = await call('POST', '/api/admin/reader', token);                   // токен не може сам себе перевипустити
+    assert.strictEqual(r.status, 403);
+  } finally {
+    settings.get = get;
+    server.close();
+  }
+});
