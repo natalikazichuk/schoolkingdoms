@@ -12,6 +12,7 @@
                       публікація learn у картку; завдання батьків не дають ⭐
      3. hero.html   — «Мої здібності»: суперсили, що прокачати, наступний крок, ▶
      4. parent.html — «Здібності»: лічильники, рекомендація, «➕ Задати»
+     5. hero.html   — павутинка: рівень предметів, картки, обкладинки й запасні картинки
 
    Падіння (код виходу 1): будь-яка перевірка не справдилась або помилка JS.
    Запуск:  node tools/qa/flows-e2e.mjs        (з кореня; потрібен playwright)
@@ -162,6 +163,52 @@ await scenario('hero.html — «Мої здібності»: суперсили,
   assert.deepEqual(st, { 'Числа в межах 10': 'master', 'Числа в межах 20': 'new',
                          'Порівняння чисел': 'repeat', 'Геометричні фігури': 'good' });
   assert.match(await page.textContent('.ab-subj summary'), /3 з 4 тем.*Точність/);
+  assert.equal(await page.$eval('#abilRadar', el => el.innerHTML.trim()), '', 'павутинка з одним предметом не малюється');
+});
+
+/* ── 5. hero.html: павутинка здібностей ── карта на 6 предметів (getCurriculum) */
+await scenario('hero.html — павутинка: рівні предметів, картки, обкладинки', async (page, withSK) => {
+  const SUBJ = [
+    ['m', 'Математика', '🧮', 'accuracy', ['До 10', 'Порівняння', 'Задачі']],
+    ['u', 'Українська мова', '🌺', 'health', ['Букви', 'Склади']],
+    ['e', 'English', '🔤', 'mana', ['Colors', 'Numbers']],
+    ['y', 'ЯДС · Я досліджую світ', '🌍', 'agility', ['Тварини', 'Рослини']],
+    ['i', 'Інформатика', '📘', '', ['Алгоритми']],
+    ['f', 'Дозвілля', '🎡', '', ['Ігри']]];
+  const MAP = { tiers: [{ id: 'junior', name: 'Молодша', status: 'ready', grades: [{ id: 'g1', gradeNum: 1, name: '1 клас',
+    subjects: SUBJ.map(([id, name, icon, statKey, tp]) => ({ id, name, icon, statKey, keys: [name.toLowerCase()],
+      topics: tp.map((topic, j) => ({ topic, tests: ['t' + id + j] })) })) }] }] };
+  const T = SUBJ.flatMap(([id, name, , , tp]) => tp.map((topic, j) => ({ id: 't' + id + j, title: 'Тест ' + topic, subject: name, grade: 1 })));
+  T[0].imgCard = 'img/tr/do10.webp';        // обкладинка з адмінки — є файл
+  T[3].imgCard = 'img/tr/немає-такої.webp'; // обкладинка є, але файлу немає → запасна картинка предмета
+  await withSK(`
+    const hero = { name: 'vova', avatar: '🧒', level: 3, parentUid: 'p1', progress: {} };
+    return { ready: Promise.resolve({ uid: 'h1' }), isHeroSession: () => true,
+      getActiveChild: async () => ({ name: 'vova', avatar: '🧒', grade: 1 }), getHero: async () => hero,
+      getSiblings: async () => [], getFriends: async () => [], getAssignedTasks: async () => [],   // справжній API — завжди масиви
+      getCurriculum: async () => (${JSON.stringify(MAP)}), listActiveTests: async () => ${JSON.stringify(T)} };`);
+  // рівень предмета = середнє по ВСІХ темах (непробувані = 0):
+  // Математика (98 + 40 + 0) / 3 = 46 · Українська (83 + 60) / 2 = 72 · English (100 + 93) / 2 = 97 · ЯДС 70 / 2 = 35
+  await page.addInitScript(() => {
+    const D = 864e5, N = Date.now(), L = (...a) => JSON.stringify(a.map((pct, i) => ({ at: N - (a.length - i) * D, pct, wrong: [] })));
+    Object.entries({ tm0: [95, 100], tm1: [40], tu0: [80, 85], tu1: [60], te0: [100, 100], te1: [90, 95], ty0: [70] })
+      .forEach(([k, v]) => localStorage.setItem('sk_testlog_' + k, L(...v)));
+  });
+  await page.goto(`${BASE}/hero.html`);
+  await page.waitForSelector('#abilRadar .rd-card');
+  const cards = await page.$$eval('#abilRadar .rd-card', cs => cs.map(c => [c.querySelector('.rd-name').textContent,
+    (c.querySelector('.rd-stat') || {}).textContent || '', c.querySelector('.rd-pct').textContent]));
+  assert.deepEqual(cards, [['Математика', 'Точність', '46%'], ['Українська мова', "Здоров'я", '72%'], ['English', 'Мана', '97%'],
+    ['ЯДС', 'Спритність', '35%'], ['Інформатика', '', '0%'], ['Дозвілля', '', '0%']]);
+  assert.match(await page.getAttribute('#abilRadar svg', 'aria-label'), /Математика 46%.*English 97%/);
+  assert.equal(await page.$$eval('#abilRadar .rd-dot', d => d.length), 6, 'вершина на кожен предмет');
+  assert.ok(await page.$eval('#abilRadar', el => el.classList.contains('many')), '6 предметів — вищий блок');
+  // картинки: дочекатись, поки всі завантажаться (з урахуванням запасних)
+  await page.waitForFunction(() => [...document.querySelectorAll('#abilRadar .rd-pic img')].every(i => i.complete && i.naturalWidth > 0));
+  const pics = await page.$$eval('#abilRadar .rd-pic img', is => is.map(i => [new URL(i.src).pathname, i.className]));
+  assert.deepEqual(pics[0], ['/img/tr/do10.webp', 'cover'], 'Математика — обкладинка тесту з адмінки');
+  assert.deepEqual(pics[1], ['/img/nav/dis-bukvy.webp', ''], 'Українська — обкладинки немає (файл не знайдено) → картинка предмета');
+  assert.deepEqual(pics[2], ['/img/nav/dis-english.webp', ''], 'English — без обкладинки → картинка предмета');
 });
 
 /* ── 4. parent.html: Здібності ── */

@@ -125,3 +125,12 @@ test('тест із рівнями без sk_testscore: рахуємо прой�
   // формат «levels» без масиву рівнів у списку — пробуваний за міткою
   assert.equal(I.testState({ id: 'M', format: 'levels' }, getter({ sk_lvtest_M_done: '["l0"]' })).tried, true);
 });
+
+test('аналіз: значок і колір предмета з карти доходять до предмета (для павутинки)', () => {
+  const subj = { id: 'u', name: 'Українська мова', icon: '🌺', accent: '#D6577A', statKey: 'health' };
+  const r = I.analyze([{ tier: { id: 'junior' }, grade: GRADE, subj, topic: { topic: 'Букви' }, tests: [{ id: 'b' }] }],
+    getter({ sk_testlog_b: log(80) }), { now: NOW });
+  assert.equal(r.subjects[0].icon, '🌺');
+  assert.equal(r.subjects[0].accent, '#D6577A');
+  assert.equal(r.topics[0].accent, '#D6577A');
+});
