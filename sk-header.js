@@ -89,6 +89,10 @@
       +'.sk-hd__ni.active .sk-hd__nbtn{background:linear-gradient(180deg,#F2C75C,#E0A42A);'
         +'color:#3a2708;border-color:#c9942f;box-shadow:0 2px 8px -2px rgba(224,164,42,.7)}'
       +'.sk-hd__ni.active .sk-hd__nbtn .sk-hd__car{color:#3a2708}'
+      /* підпис «Навчання →» перед ступенями */
+      +'.sk-hd__learn{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;'
+        +'font-weight:800;font-size:.9rem;color:#FBEFD0;padding:0 2px}'
+      +'.sk-hd__larr{color:#F2C75C;font-weight:900}'
       /* ступінь «скоро» — приглушений */
       +'.sk-hd__nbtn.soon{opacity:.7}'
 
@@ -155,6 +159,14 @@
         +'.sk-hd__stats{justify-content:center;gap:5px}'
         +'.sk-hd__stat{padding:3px 9px;font-size:.76rem;gap:4px}'
         +'.sk-hd__nbtn{font-size:.84rem;padding:6px 12px}'
+      +'}'
+      /* телефон: чотири пункти (Навчання + три ступені) — в один рядок */
+      +'@media(max-width:480px){'
+        +'.sk-hd__nav{gap:4px}'
+        +'.sk-hd__nbtn{font-size:.74rem;padding:5px 7px;gap:3px}'
+        +'.sk-hd__nic{display:none}'
+        +'.sk-hd__learn{font-size:.74rem;gap:3px}'
+        +'.sk-hd__nbtn .sk-hd__car{font-size:.6rem}'
       +'}'
       +'@media(max-width:360px){'
         +'.sk-hd__stat{padding:3px 7px;font-size:.72rem;gap:3px}'
@@ -313,7 +325,7 @@
     if(!nav || !map || !map.tiers || !map.tiers.length){ return; }
     var actId = pageTierId(map) || tierOfGrade(map, activeGrade);
 
-    nav.innerHTML = map.tiers.map(function(t){
+    nav.innerHTML = learnMenu() + map.tiers.map(function(t){
       var isActive = (t.id === actId);
       var soon = !tierOpen(t);
       return '<div class="sk-hd__ni'+(isActive?' active':'')+'" data-tier="'+esc(t.id)+'">'
@@ -325,6 +337,12 @@
     }).join('');
     nav.hidden = false;
     wireNav(nav);
+  }
+
+  /* «Навчання →» — просто підпис перед ступенями (без меню й переходу) */
+  function learnMenu(){
+    return '<span class="sk-hd__learn"><span class="sk-hd__nic">🎓</span>Навчання'
+         + '<span class="sk-hd__larr" aria-hidden="true">→</span></span>';
   }
 
   function wireNav(nav){
