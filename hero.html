@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="hero.css?v=21">
+<link rel="stylesheet" href="hero.css?v=22">
 <script src="sk-resume.js?v=1"></script>
 <script>SKResume.go();   /* відкрили застосунок — одразу туди, де Герой зупинився (якщо не минуло 2 годин) */</script>
 <script src="sk-arena-rules.js?v=25"></script>
@@ -153,6 +153,7 @@
         <span class="rp-ic" aria-hidden="true">🧭</span>
         <h3>Мої здібності</h3>
       </div>
+      <div class="ab-grades" id="abilGrades" role="tablist" aria-label="Клас" hidden></div>
       <div class="ab-radar" id="abilRadar"></div>
       <div class="abil-top" id="abilTop"></div>
       <div class="abil-subjs" id="abilSubjs"></div>
@@ -527,8 +528,7 @@ function abilRadar(subjects){
   subjects.forEach((sj, i) => {
     const ry = n >= 6 ? 36 : 31;   // 6–7 предметів: блок вищий (.many), сусіди праворуч/ліворуч не налазять
     const x = 50 + Math.cos(ang(i))*35, y = 50 + Math.sin(ang(i))*ry;
-    let name = String(sj.subject).split(' · ')[0];
-    if(sj.grade!==ABIL_GRADE && ABIL_GRADE!=null) name += ' · '+abilGrade(sj.grade);
+    const name = String(sj.subject).split(' · ')[0];
     const st = window.SKCUR && SKCUR.statByKey ? SKCUR.statByKey(sj.statKey) : null;
     const im = abilImgs(sj), imgs = im.covers.concat(im.nav), nNav = im.nav.length;
     // клас cover — квадратна обкладинка (кадр по центру); img/nav — обрізаємо знизу, там угорі назва
@@ -543,6 +543,39 @@ function abilRadar(subjects){
   });
   return html;
 }
+/* стан павутинки: усі предмети, класи перемикача, вибраний клас */
+const ABIL = { subjects:[], grades:[], sel:null };
+function paintAbilGrade(){
+  const g = ABIL.sel, S = SKINS.STATUS;
+  const subjects = ABIL.subjects.filter(sj => sj.grade===g);
+  const tabs = $('abilGrades');
+  tabs.hidden = ABIL.grades.length < 2;
+  tabs.innerHTML = ABIL.grades.map(x => '<button type="button" role="tab" data-grade="'+x+'" aria-selected="'+(x===g)+'"'
+    + (x===g ? ' class="on"' : '')+'>'+(x===ABIL_GRADE ? '🎒 ' : '')+escHtml(abilGrade(x))+'</button>').join('');
+  $('abilRadar').innerHTML = abilRadar(subjects);
+  $('abilRadar').classList.toggle('many', subjects.length >= 6);
+  $('abilSubjs').innerHTML = subjects.map(function(sj){
+    const stat = abilStat(sj.statKey);
+    return '<details class="ab-subj"'+(subjects.length===1?' open':'')+'>'
+      + '<summary><span class="ab-si">'+escHtml(sj.icon)+'</span>'
+      +   '<span class="ab-sn"><b>'+escHtml(sj.subject)+'</b><small>'+sj.tried+' з '+sj.total+' тем'+(stat?' · '+escHtml(stat):'')+'</small></span>'
+      +   abilStars(sj.stars)+'</summary>'
+      + '<div class="ab-topics">'+sj.topics.map(function(t){
+          const st=S[t.status];
+          return '<a class="ab-topic st-'+t.status+'"'+(t.next?' href="'+escHtml(abilHref(t.next))+'"':'')+' title="'+escHtml(st.kid)+'">'
+            + '<span class="ab-st">'+st.icon+'</span>'
+            + '<span class="ab-tx"><b>'+escHtml(t.topic)+'</b><small>'+escHtml(st.kid)+'</small></span>'
+            + abilStars(t.stars)+'</a>';
+        }).join('')+'</div></details>';
+  }).join('');
+}
+(function(){
+  const tabs = document.getElementById('abilGrades');
+  if(tabs) tabs.addEventListener('click', function(e){
+    const b = e.target.closest('[data-grade]'); if(!b) return;
+    ABIL.sel = Number(b.getAttribute('data-grade')); paintAbilGrade();
+  });
+})();
 async function loadAbilities(h){
   const card=$('abilCard'); if(!card || !window.SKINS || !window.SKCUR || !(window.SK && SK.listActiveTests)) return;
   let tests=[], map=SKCUR.map;
@@ -550,17 +583,21 @@ async function loadAbilities(h){
   if(!tests.length) return;
   const placed = SKCUR.placeTests(map, tests.filter(t=>t && !t.hidden)).topics;
   const get = SKINS.reader((h && h.progress) || {});
-  /* Свій клас — завжди; інші класи — лише ті предмети, де вже є спроби
-     (дитина могла проходити тести молодшого класу), з позначкою класу. */
+  /* Павутинка й предмети — окремо для кожного класу (перемикач над нею).
+     Класи в перемикачі: клас Героя — завжди, інші — лише якщо там уже є спроби
+     (дитина могла проходити тести молодшого класу). Суперсили й «що прокачати» — загальні. */
   const all = SKINS.analyze(placed, get, {});
   const own = ABIL_GRADE!=null ? SKINS.analyze(placed, get, { grade:ABIL_GRADE }) : all;
-  const subjects = own.subjects.concat(ABIL_GRADE==null ? [] : all.subjects.filter(sj => sj.grade!==ABIL_GRADE && sj.tried>0));
-  const r = { topics: own.topics.length ? own.topics : all.topics, subjects: subjects,
-              strengths: all.strengths, improve: all.improve, nextStep: own.nextStep || all.nextStep };
-  if(!subjects.length){ card.hidden=true; return; }
+  const r = { strengths: all.strengths, improve: all.improve, nextStep: own.nextStep || all.nextStep };
   // сирі тести кожного предмета в порядку карти — для обкладинок на павутинці
-  subjects.forEach(sj => { sj._tests = [];
+  all.subjects.forEach(sj => { sj._tests = [];
     placed.forEach(p => { if(p.subj && p.subj.id===sj.subjectId && p.grade && Number(p.grade.gradeNum)===Number(sj.grade)) sj._tests.push(...(p.tests||[])); }); });
+  const known = [...new Set(all.subjects.map(sj => sj.grade))].sort((a, b) => a - b);
+  let grades = known.filter(g => g===ABIL_GRADE || all.subjects.some(sj => sj.grade===g && sj.tried>0));
+  if(!grades.length && ABIL_GRADE==null) grades = known;
+  if(!grades.length){ card.hidden=true; return; }
+  ABIL.subjects = all.subjects; ABIL.grades = grades;
+  if(!grades.includes(ABIL.sel)) ABIL.sel = grades.includes(ABIL_GRADE) ? ABIL_GRADE : grades[0];
   const S = SKINS.STATUS;
   const go = (t, label) => t.next ? '<a class="ab-go" href="'+escHtml(abilHref(t.next))+'">'+(label||'▶')+'</a>' : '';
   let top='';
@@ -580,22 +617,7 @@ async function loadAbilities(h){
   }
   if(!top) top='<div class="ab-empty">Пройди перший тест — і тут засяють твої здібності ✨</div>';
   $('abilTop').innerHTML = top;
-  $('abilRadar').innerHTML = abilRadar(r.subjects);
-  $('abilRadar').classList.toggle('many', r.subjects.length >= 6);
-  $('abilSubjs').innerHTML = r.subjects.map(function(sj){
-    const stat = abilStat(sj.statKey);
-    return '<details class="ab-subj"'+(r.subjects.length===1?' open':'')+'>'
-      + '<summary><span class="ab-si">'+escHtml(sj.icon)+'</span>'
-      +   '<span class="ab-sn"><b>'+escHtml(sj.subject)+(sj.grade!==ABIL_GRADE && ABIL_GRADE!=null ? ' · '+escHtml(abilGrade(sj.grade)) : '')+'</b><small>'+sj.tried+' з '+sj.total+' тем'+(stat?' · '+escHtml(stat):'')+'</small></span>'
-      +   abilStars(sj.stars)+'</summary>'
-      + '<div class="ab-topics">'+sj.topics.map(function(t){
-          const st=S[t.status];
-          return '<a class="ab-topic st-'+t.status+'"'+(t.next?' href="'+escHtml(abilHref(t.next))+'"':'')+' title="'+escHtml(st.kid)+'">'
-            + '<span class="ab-st">'+st.icon+'</span>'
-            + '<span class="ab-tx"><b>'+escHtml(t.topic)+'</b><small>'+escHtml(st.kid)+'</small></span>'
-            + abilStars(t.stars)+'</a>';
-        }).join('')+'</div></details>';
-  }).join('');
+  paintAbilGrade();
   card.hidden=false;
 }
 
