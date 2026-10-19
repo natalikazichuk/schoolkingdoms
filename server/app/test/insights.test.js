@@ -115,3 +115,13 @@ test('читач: кабінет батьків бере лише базу, не
   assert.equal(JSON.parse(both('sk_testlog_a'))[0].pct, 90);
   assert.equal(JSON.parse(both('sk_testscore_b'))[0].pct, 5);
 });
+
+test('тест із рівнями без sk_testscore: рахуємо пройдені рівні (_done / _ever)', () => {
+  const t = { id: 'L', format: 'levels', levels: [{}, {}, {}, {}] };
+  const s = I.testState(t, getter({ sk_lvtest_L_ever: { 0: true, 1: true, 2: true } }));
+  assert.equal(s.tried, true);
+  assert.equal(s.pct, 75);
+  assert.equal(s.passed, true);
+  // формат «levels» без масиву рівнів у списку — пробуваний за міткою
+  assert.equal(I.testState({ id: 'M', format: 'levels' }, getter({ sk_lvtest_M_done: '["l0"]' })).tried, true);
+});

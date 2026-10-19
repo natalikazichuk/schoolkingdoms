@@ -8,13 +8,13 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="hero.css?v=17">
+<link rel="stylesheet" href="hero.css?v=18">
 <script src="sk-resume.js?v=1"></script>
 <script>SKResume.go();   /* відкрили застосунок — одразу туди, де Герой зупинився (якщо не минуло 2 годин) */</script>
 <script src="sk-arena-rules.js?v=25"></script>
 <script src="sk-avatar.js?v=9"></script>
 <script src="sk-curriculum.js?v=8"></script>
-<script src="sk-insights.js?v=1"></script>
+<script src="sk-insights.js?v=2"></script>
 <script type="module" src="firebase-config.js"></script>
 </head>
 <body>
@@ -152,6 +152,7 @@
         <span class="rp-ic" aria-hidden="true">🧭</span>
         <h3>Мої здібності</h3>
       </div>
+      <div class="ab-radar" id="abilRadar"></div>
       <div class="abil-top" id="abilTop"></div>
       <div class="abil-subjs" id="abilSubjs"></div>
     </section>
@@ -457,6 +458,42 @@ function abilStat(key){
   const s = window.SKCUR && SKCUR.statByKey ? SKCUR.statByKey(key) : null;
   return s ? s.emoji+' '+s.label : '';
 }
+function abilGrade(g){ return Number(g)===0 ? 'дошкілля' : g+' клас'; }
+/* Рівень предмета для павутинки: середнє по ВСІХ темах (непробувані = 0) —
+   тож одна пройдена тема з 16 не малює «повний» промінь. */
+function abilLevel(sj){
+  return sj.total ? Math.round(sj.topics.reduce((a, t) => a + (t.status==='new' ? 0 : t.mastery), 0) / sj.total) : 0;
+}
+/* ── Діаграма-павутинка: промінь на предмет, 0–100% ── */
+function abilRadar(subjects){
+  const n = subjects.length;
+  if(n < 3) return '';
+  const W = 470, H = 300, cx = 235, cy = 152, R = 100;
+  const ang = i => -Math.PI/2 + i*2*Math.PI/n;
+  const pt = (i, f) => [cx + Math.cos(ang(i))*R*f, cy + Math.sin(ang(i))*R*f];
+  const poly = f => subjects.map((_, i) => pt(i, f).map(v => v.toFixed(1)).join(',')).join(' ');
+  const vals = subjects.map(abilLevel);
+  const shape = vals.map((v, i) => pt(i, Math.max(v, 3)/100).map(x => x.toFixed(1)).join(',')).join(' ');
+  let g = '';
+  [0.25, 0.5, 0.75, 1].forEach(f => { g += '<polygon class="rd-ring" points="'+poly(f)+'"/>'; });
+  subjects.forEach((_, i) => { const p = pt(i, 1); g += '<line class="rd-axis" x1="'+cx+'" y1="'+cy+'" x2="'+p[0].toFixed(1)+'" y2="'+p[1].toFixed(1)+'"/>'; });
+  g += '<polygon class="rd-shape" points="'+shape+'"/>';
+  vals.forEach((v, i) => { const p = pt(i, Math.max(v, 3)/100); g += '<circle class="rd-dot" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="4"/>'; });
+  subjects.forEach((sj, i) => {
+    const p = pt(i, 1.14), c = Math.cos(ang(i));
+    const anchor = c > 0.3 ? 'start' : c < -0.3 ? 'end' : 'middle';
+    // коротко, щоб влізло: «ЯДС · Я досліджую світ» → «ЯДС», «Українська мова» → «Українська»
+    let name = String(sj.subject).split(' · ')[0];
+    if(name.length > 11) name = name.split(' ')[0].slice(0, 12);
+    if(sj.grade!==ABIL_GRADE && ABIL_GRADE!=null) name += ' ('+abilGrade(sj.grade)+')';
+    const dy = Math.sin(ang(i)) < -0.5 ? -8 : Math.sin(ang(i)) > 0.5 ? 14 : 4;
+    g += '<text class="rd-lab" x="'+p[0].toFixed(1)+'" y="'+(p[1]+dy).toFixed(1)+'" text-anchor="'+anchor+'">'
+       + escHtml(sj.icon)+' '+escHtml(name)+'</text>'
+       + '<text class="rd-val" x="'+p[0].toFixed(1)+'" y="'+(p[1]+dy+15).toFixed(1)+'" text-anchor="'+anchor+'">'+vals[i]+'%</text>';
+  });
+  const label = 'Павутинка здібностей: ' + subjects.map((sj, i) => sj.subject+' '+vals[i]+'%').join(', ');
+  return '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+escHtml(label)+'">'+g+'</svg>';
+}
 async function loadAbilities(h){
   const card=$('abilCard'); if(!card || !window.SKINS || !window.SKCUR || !(window.SK && SK.listActiveTests)) return;
   let tests=[], map=SKCUR.map;
@@ -464,8 +501,14 @@ async function loadAbilities(h){
   if(!tests.length) return;
   const placed = SKCUR.placeTests(map, tests.filter(t=>t && !t.hidden)).topics;
   const get = SKINS.reader((h && h.progress) || {});
-  const r = SKINS.analyze(placed, get, ABIL_GRADE!=null ? { grade:ABIL_GRADE } : {});
-  if(!r.topics.length){ card.hidden=true; return; }
+  /* Свій клас — завжди; інші класи — лише ті предмети, де вже є спроби
+     (дитина могла проходити тести молодшого класу), з позначкою класу. */
+  const all = SKINS.analyze(placed, get, {});
+  const own = ABIL_GRADE!=null ? SKINS.analyze(placed, get, { grade:ABIL_GRADE }) : all;
+  const subjects = own.subjects.concat(ABIL_GRADE==null ? [] : all.subjects.filter(sj => sj.grade!==ABIL_GRADE && sj.tried>0));
+  const r = { topics: own.topics.length ? own.topics : all.topics, subjects: subjects,
+              strengths: all.strengths, improve: all.improve, nextStep: own.nextStep || all.nextStep };
+  if(!subjects.length){ card.hidden=true; return; }
   const S = SKINS.STATUS;
   const go = (t, label) => t.next ? '<a class="ab-go" href="'+escHtml(abilHref(t.next))+'">'+(label||'▶')+'</a>' : '';
   let top='';
@@ -485,11 +528,12 @@ async function loadAbilities(h){
   }
   if(!top) top='<div class="ab-empty">Пройди перший тест — і тут засяють твої здібності ✨</div>';
   $('abilTop').innerHTML = top;
+  $('abilRadar').innerHTML = abilRadar(r.subjects);
   $('abilSubjs').innerHTML = r.subjects.map(function(sj){
     const stat = abilStat(sj.statKey);
     return '<details class="ab-subj"'+(r.subjects.length===1?' open':'')+'>'
       + '<summary><span class="ab-si">'+escHtml(sj.icon)+'</span>'
-      +   '<span class="ab-sn"><b>'+escHtml(sj.subject)+'</b><small>'+sj.tried+' з '+sj.total+' тем'+(stat?' · '+escHtml(stat):'')+'</small></span>'
+      +   '<span class="ab-sn"><b>'+escHtml(sj.subject)+(sj.grade!==ABIL_GRADE && ABIL_GRADE!=null ? ' · '+escHtml(abilGrade(sj.grade)) : '')+'</b><small>'+sj.tried+' з '+sj.total+' тем'+(stat?' · '+escHtml(stat):'')+'</small></span>'
       +   abilStars(sj.stars)+'</summary>'
       + '<div class="ab-topics">'+sj.topics.map(function(t){
           const st=S[t.status];
