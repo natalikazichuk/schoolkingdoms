@@ -8,11 +8,13 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="hero.css?v=16">
+<link rel="stylesheet" href="hero.css?v=17">
 <script src="sk-resume.js?v=1"></script>
 <script>SKResume.go();   /* відкрили застосунок — одразу туди, де Герой зупинився (якщо не минуло 2 годин) */</script>
 <script src="sk-arena-rules.js?v=25"></script>
 <script src="sk-avatar.js?v=9"></script>
+<script src="sk-curriculum.js?v=8"></script>
+<script src="sk-insights.js?v=1"></script>
 <script type="module" src="firebase-config.js"></script>
 </head>
 <body>
@@ -143,6 +145,16 @@
         <a class="prog-arena" href="arena.html">⚔️ На арену</a>
       </section>
     </div>
+
+    <!-- МОЇ ЗДІБНОСТІ — аналітика тестів (sk-insights.js): суперсили, що прокачати, теми предметів -->
+    <section class="abil-card" id="abilCard" hidden>
+      <div class="rp-head">
+        <span class="rp-ic" aria-hidden="true">🧭</span>
+        <h3>Мої здібності</h3>
+      </div>
+      <div class="abil-top" id="abilTop"></div>
+      <div class="abil-subjs" id="abilSubjs"></div>
+    </section>
 
     <!-- ЗАДАНІ ЗАВДАННЯ (від дорослих) — дизайн у стилі блоку «Пригоди» -->
     <section class="tasks-card">
@@ -427,6 +439,68 @@ function renderRating(){
     renderRating();
   }); });
 })();
+
+/* ── МОЇ ЗДІБНОСТІ ──
+   Теми карти королівства (SKCUR.placeTests) + прогрес тестів → SKINS.analyze.
+   Показуємо лише клас Героя; тон тільки підбадьорливий — слабка тема це
+   «пригода, яку варто пройти», без червоного й оцінок. */
+let ABIL_GRADE = null;
+function abilHref(t){
+  if(!t) return '';
+  const isLink = (t.format==='link'||t.format==='html'||t.format==='video') && t.linkHref;
+  return isLink
+    ? String(t.linkHref)+(String(t.linkHref).indexOf('?')>=0?'&':'?')+'skdone=t:'+encodeURIComponent(t.id)+'&skback=hero.html'
+    : 'test.html?id='+encodeURIComponent(t.id);
+}
+function abilStars(n){ return '<span class="ab-stars" aria-label="'+n+' з 3 зірок">'+'★'.repeat(n)+'<i>'+'★'.repeat(3-n)+'</i></span>'; }
+function abilStat(key){
+  const s = window.SKCUR && SKCUR.statByKey ? SKCUR.statByKey(key) : null;
+  return s ? s.emoji+' '+s.label : '';
+}
+async function loadAbilities(h){
+  const card=$('abilCard'); if(!card || !window.SKINS || !window.SKCUR || !(window.SK && SK.listActiveTests)) return;
+  let tests=[], map=SKCUR.map;
+  try{ map = await SKCUR.ready; tests = (await SK.listActiveTests()) || []; }catch(e){ return; }
+  if(!tests.length) return;
+  const placed = SKCUR.placeTests(map, tests.filter(t=>t && !t.hidden)).topics;
+  const get = SKINS.reader((h && h.progress) || {});
+  const r = SKINS.analyze(placed, get, ABIL_GRADE!=null ? { grade:ABIL_GRADE } : {});
+  if(!r.topics.length){ card.hidden=true; return; }
+  const S = SKINS.STATUS;
+  const go = (t, label) => t.next ? '<a class="ab-go" href="'+escHtml(abilHref(t.next))+'">'+(label||'▶')+'</a>' : '';
+  let top='';
+  if(r.strengths.length){
+    top += '<div class="ab-box pow"><div class="ab-bh">✨ Мої суперсили</div>'
+      + r.strengths.map(t=>'<div class="ab-chip">'+escHtml(t.icon)+' <b>'+escHtml(t.topic)+'</b>'+abilStars(t.stars)+'</div>').join('')
+      + '</div>';
+  }
+  const tips = r.improve.slice();
+  if(r.nextStep && tips.length<2) tips.push(Object.assign({}, r.nextStep, { _next:true }));
+  if(tips.length){
+    top += '<div class="ab-box up"><div class="ab-bh">🎯 Що прокачати</div>'
+      + tips.map(t=>'<div class="ab-chip"><span class="ab-st">'+(t._next?'🚀':S[t.status].icon)+'</span>'
+          +'<span class="ab-tx"><b>'+escHtml(t.topic)+'</b><small>'+(t._next?'Наступний крок — нова тема!':escHtml(S[t.status].kid))+'</small></span>'
+          + go(t) + '</div>').join('')
+      + '</div>';
+  }
+  if(!top) top='<div class="ab-empty">Пройди перший тест — і тут засяють твої здібності ✨</div>';
+  $('abilTop').innerHTML = top;
+  $('abilSubjs').innerHTML = r.subjects.map(function(sj){
+    const stat = abilStat(sj.statKey);
+    return '<details class="ab-subj"'+(r.subjects.length===1?' open':'')+'>'
+      + '<summary><span class="ab-si">'+escHtml(sj.icon)+'</span>'
+      +   '<span class="ab-sn"><b>'+escHtml(sj.subject)+'</b><small>'+sj.tried+' з '+sj.total+' тем'+(stat?' · '+escHtml(stat):'')+'</small></span>'
+      +   abilStars(sj.stars)+'</summary>'
+      + '<div class="ab-topics">'+sj.topics.map(function(t){
+          const st=S[t.status];
+          return '<a class="ab-topic st-'+t.status+'"'+(t.next?' href="'+escHtml(abilHref(t.next))+'"':'')+' title="'+escHtml(st.kid)+'">'
+            + '<span class="ab-st">'+st.icon+'</span>'
+            + '<span class="ab-tx"><b>'+escHtml(t.topic)+'</b><small>'+escHtml(st.kid)+'</small></span>'
+            + abilStars(t.stars)+'</a>';
+        }).join('')+'</div></details>';
+  }).join('');
+  card.hidden=false;
+}
 
 /* «Мій прогрес»: бої арени — з бази (heroes/{id}.arena), запас — localStorage арени */
 function renderArenaProgress(h){
@@ -843,7 +917,7 @@ async function loadVyproProgress(){
           $('heroName').textContent = child.name;
           setTxt('avatarMini',(child.name||'🧒').trim().charAt(0).toUpperCase()||'🧒');
         }
-        if(child.grade!=null) setTxt('heroGrade', gradeLabel(child.grade));
+        if(child.grade!=null){ setTxt('heroGrade', gradeLabel(child.grade)); ABIL_GRADE = Number(child.grade); }
         // синхронізований аватар (емодзі/ілюстрація) → великий портрет
         try{ if(window.__skApplyHeroAvatar) window.__skApplyHeroAvatar(child.avatar, child); }catch(e){}
       }
@@ -856,6 +930,7 @@ async function loadVyproProgress(){
         return;
       }
       renderHeroStats(h);
+      loadAbilities(h);
       // ім'я беремо з документа дитини; якщо його там немає — як запасний варіант ім'я героя
       if(!child || !child.name){
         if(h.name){ $('heroName').textContent=h.name; setTxt('avatarMini',(h.name||'🧒').trim().charAt(0).toUpperCase()||'🧒'); }
@@ -887,7 +962,7 @@ async function loadVyproProgress(){
       if(window.SK.isHeroSession && !window.SK.isHeroSession()) return;
       busy=true;
       window.SK.getHero()
-        .then(function(h){ if(h) renderHeroStats(h); })
+        .then(function(h){ if(h){ renderHeroStats(h); loadAbilities(h); } })
         .catch(function(){})
         .finally(function(){ busy=false; });
     }
