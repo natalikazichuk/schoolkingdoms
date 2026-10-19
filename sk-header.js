@@ -156,6 +156,13 @@
         +'.sk-hd__stat{padding:3px 9px;font-size:.76rem;gap:4px}'
         +'.sk-hd__nbtn{font-size:.84rem;padding:6px 12px}'
       +'}'
+      /* телефон: чотири пункти (Навчання + три ступені) — в один рядок */
+      +'@media(max-width:480px){'
+        +'.sk-hd__nav{gap:4px}'
+        +'.sk-hd__nbtn{font-size:.74rem;padding:5px 7px;gap:3px}'
+        +'.sk-hd__nic{display:none}'
+        +'.sk-hd__nbtn .sk-hd__car{font-size:.6rem}'
+      +'}'
       +'@media(max-width:360px){'
         +'.sk-hd__stat{padding:3px 7px;font-size:.72rem;gap:3px}'
         +'.sk-hd__stats{gap:4px}'
@@ -313,7 +320,7 @@
     if(!nav || !map || !map.tiers || !map.tiers.length){ return; }
     var actId = pageTierId(map) || tierOfGrade(map, activeGrade);
 
-    nav.innerHTML = map.tiers.map(function(t){
+    nav.innerHTML = learnMenu(map) + map.tiers.map(function(t){
       var isActive = (t.id === actId);
       var soon = !tierOpen(t);
       return '<div class="sk-hd__ni'+(isActive?' active':'')+'" data-tier="'+esc(t.id)+'">'
@@ -325,6 +332,30 @@
     }).join('');
     nav.hidden = false;
     wireNav(nav);
+  }
+
+  /* «Навчання ▾» — перший пункт: ступені королівства й вхід на navchannia.html */
+  function learnMenu(map){
+    var here = /\/navchannia\.html$/.test(location.pathname);
+    var rows = map.tiers.map(function(t){
+      return '<a class="sk-hd__sub" href="'+tierHref(t)+'">'
+           +   '<span class="sic">'+esc(t.icon||'🏰')+'</span>'
+           +   '<span>'+esc(t.name||shortTierName(t))+'</span>'
+           +   (tierOpen(t) ? '' : '<span class="sk-hd__mpill soon">Скоро</span>')
+           + '</a>';
+    }).join('');
+    return '<div class="sk-hd__ni'+(here?' active':'')+'" data-tier="learn">'
+         +   '<button type="button" class="sk-hd__nbtn" aria-haspopup="true" aria-expanded="false">'
+         +     '<span class="sk-hd__nic">🎓</span>Навчання<span class="sk-hd__car">▾</span>'
+         +   '</button>'
+         +   '<div class="sk-hd__menu" role="menu">'
+         +     '<div class="sk-hd__mhead"><span class="ic">🎓</span><span class="nm">Навчання</span></div>'
+         +     '<div class="sk-hd__subs">'+rows
+         +       '<a class="sk-hd__sub" href="'+BASE+'tests.html"><span class="sic">📝</span><span>Тести й прогрес</span></a>'
+         +     '</div>'
+         +     '<a class="sk-hd__mopen" href="'+BASE+'navchannia.html">Відкрити Навчання →</a>'
+         +   '</div>'
+         + '</div>';
   }
 
   function wireNav(nav){
