@@ -13,6 +13,7 @@
      3. hero.html   — «Мої здібності»: суперсили, що прокачати, наступний крок, ▶
      4. parent.html — «Здібності»: лічильники, рекомендація, «➕ Задати»
      5. hero.html   — павутинка: рівень предметів, картки, обкладинки й запасні картинки
+     6. hero.html   — павутинка за класами: перемикач, свій клас першим, інші — лише зі спробами
 
    Падіння (код виходу 1): будь-яка перевірка не справдилась або помилка JS.
    Запуск:  node tools/qa/flows-e2e.mjs        (з кореня; потрібен playwright)
@@ -236,6 +237,40 @@ await scenario('parent.html — «Здібності»: лічильники, р
   await sec.locator('.in-row').first().locator('.in-done').waitFor();
   assert.deepEqual(await page.evaluate(() => window.__calls), [['assign', 'h1', 'c1']]);
   assert.match(await sec.textContent(), /7 \+ 8 = \?/, 'типові помилки з журналу');
+});
+
+/* ── 6. hero.html: павутинка за класами ── 1 клас (клас Героя), 2 клас зі спробами, 3 клас без спроб */
+await scenario('hero.html — павутинка за класами: перемикач, свій клас першим', async (page, withSK) => {
+  const subj = (g, id, name, tp) => ({ id: id + g, name, icon: '📘', keys: [name.toLowerCase()],
+    topics: tp.map((topic, j) => ({ topic, tests: ['t' + id + g + j] })) });
+  const grade = (n, list) => ({ id: 'g' + n, gradeNum: n, name: n + ' клас', subjects: list.map(([id, name, tp]) => subj(n, id, name, tp)) });
+  const SUBJ = [['m', 'Математика', ['А', 'Б']], ['u', 'Українська мова', ['В']], ['e', 'English', ['Г']]];
+  const MAP = { tiers: [{ id: 'junior', name: 'Молодша', status: 'ready', grades: [grade(1, SUBJ), grade(2, SUBJ), grade(3, SUBJ)] }] };
+  const T = MAP.tiers[0].grades.flatMap(g => g.subjects.flatMap(sj => sj.topics.map(tp =>
+    ({ id: tp.tests[0], title: 'Тест ' + tp.tests[0], subject: sj.name, grade: g.gradeNum }))));
+  await withSK(`
+    const hero = { name: 'vova', avatar: '🧒', level: 3, parentUid: 'p1', progress: {} };
+    return { ready: Promise.resolve({ uid: 'h1' }), isHeroSession: () => true,
+      getActiveChild: async () => ({ name: 'vova', avatar: '🧒', grade: 1 }), getHero: async () => hero,
+      getSiblings: async () => [], getFriends: async () => [], getAssignedTasks: async () => [],
+      getCurriculum: async () => (${JSON.stringify(MAP)}), listActiveTests: async () => ${JSON.stringify(T)} };`);
+  // 1 клас: Математика А = 100, Б не пробувана → 50%; 2 клас: English = 80; 3 клас — нічого
+  await page.addInitScript(() => {
+    const N = Date.now(), L = (...a) => JSON.stringify(a.map((pct, i) => ({ at: N - (a.length - i) * 864e5, pct, wrong: [] })));
+    localStorage.setItem('sk_testlog_tm10', L(100, 100));
+    localStorage.setItem('sk_testlog_te20', L(80));
+  });
+  await page.goto(`${BASE}/hero.html`);
+  await page.waitForSelector('#abilRadar .rd-card');
+  const tabs = () => page.$$eval('#abilGrades button', bs => bs.map(b => [b.textContent, b.classList.contains('on')]));
+  const pct = () => page.$$eval('#abilRadar .rd-card', cs => cs.map(c => c.querySelector('.rd-name').textContent + ' ' + c.querySelector('.rd-pct').textContent));
+  assert.deepEqual(await tabs(), [['🎒 1 клас', true], ['2 клас', false]], 'свій клас — вибраний; 3 клас без спроб — нема');
+  assert.deepEqual(await pct(), ['Математика 50%', 'Українська мова 0%', 'English 0%']);
+  await page.click('#abilGrades [data-grade="2"]');
+  assert.deepEqual(await tabs(), [['🎒 1 клас', false], ['2 клас', true]]);
+  assert.deepEqual(await pct(), ['Математика 0%', 'Українська мова 0%', 'English 80%'], 'павутинка 2 класу — свої предмети');
+  assert.equal(await page.$$eval('#abilSubjs .ab-subj', d => d.length), 3, 'список предметів теж за вибраним класом');
+  assert.match(await page.textContent('#abilSubjs'), /English.*1 з 1 тем/);
 });
 
 await browser.close();
