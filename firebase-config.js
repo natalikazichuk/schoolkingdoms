@@ -1416,6 +1416,25 @@ const SK = {
     return true;
   },
 
+  // Підсумок навчання для рейтингу «Навчання»: лише пройдені тести (завдання від батьків не входять).
+  async publishHeroLearn(learn) {
+    const u = auth.currentUser;
+    if (!u || !learn) return false;
+    const heroId = await SK._resolveHero();
+    if (!heroId) return false;
+    const s = await getDoc(doc(db, 'heroes', heroId));
+    const h = s.exists() ? s.data() : null;
+    if (!h || !h.parentUid) return false;
+    await setDoc(doc(db, 'heroCards', heroId), {
+      learn: SK._learnCard(learn), parentUid: h.parentUid, updatedAt: serverTimestamp()
+    }, { merge: true });
+    return true;
+  },
+  _learnCard(l) {
+    if (!l) return null;
+    return { tests: Math.max(0, +l.tests || 0) };
+  },
+
   // Підсумок арени для публічної картки: рівень і бої, без досвіду й решти.
   _arenaCard(a) {
     if (!a) return null;
@@ -1439,8 +1458,13 @@ const SK = {
       const x = d.data();
       out.push({ id: d.id, name: x.name || '', avatar: x.avatar || '🧒',
                  level: x.level != null ? x.level : 1, grade: x.grade != null ? x.grade : null,
-                 arena: SK._arenaCard(x.arena) });
+                 arena: SK._arenaCard(x.arena), learn: null });
     });
+    // підсумок навчання лежить у публічній картці (його пише сторінка Героя)
+    await Promise.all(out.map(async o => {
+      try { const c = await getDoc(doc(db, 'heroCards', o.id)); if (c.exists()) o.learn = SK._learnCard(c.data().learn); }
+      catch (e) { /* немає картки — без навчання */ }
+    }));
     out.sort((a, b) => (b.level - a.level) || String(a.name).localeCompare(String(b.name), 'uk'));
     return out;
   },
@@ -1468,7 +1492,8 @@ const SK = {
         if (c.exists()) {
           const x = c.data();
           cards.push({ id, name: x.name || '', avatar: x.avatar || '🧒',
-                       level: x.level != null ? x.level : 1, arena: SK._arenaCard(x.arena) });
+                       level: x.level != null ? x.level : 1, arena: SK._arenaCard(x.arena),
+                       learn: SK._learnCard(x.learn) });
         }
       } catch (e) { /* немає доступу — пропускаємо */ }
     }
