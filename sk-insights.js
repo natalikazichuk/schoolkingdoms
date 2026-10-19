@@ -160,6 +160,7 @@ function topicState(placed, get, now){
     subject: (placed && placed.subj && placed.subj.name) || '',
     subjectId: (placed && placed.subj && placed.subj.id) || '',
     icon: (placed && placed.subj && placed.subj.icon) || '📘',
+    accent: (placed && placed.subj && placed.subj.accent) || '',
     statKey: (placed && placed.subj && placed.subj.statKey) || '',
     grade: placed && placed.grade ? placed.grade.gradeNum : null,
     status: status, mastery: mastery, stars: status === 'new' ? 0 : starsOf(mastery),
@@ -187,7 +188,7 @@ function analyze(placedTopics, get, opts){
   topics.forEach(function(t){
     var k = t.subjectId + '|' + t.grade;
     if(!bySubj[k]){
-      bySubj[k] = { subject: t.subject, subjectId: t.subjectId, icon: t.icon, statKey: t.statKey, grade: t.grade,
+      bySubj[k] = { subject: t.subject, subjectId: t.subjectId, icon: t.icon, accent: t.accent, statKey: t.statKey, grade: t.grade,
                     topics: [], mastery: 0, tried: 0, total: 0 };
       subjects.push(bySubj[k]);
     }

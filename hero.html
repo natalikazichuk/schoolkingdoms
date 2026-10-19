@@ -8,13 +8,13 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="hero.css?v=18">
+<link rel="stylesheet" href="hero.css?v=19">
 <script src="sk-resume.js?v=1"></script>
 <script>SKResume.go();   /* відкрили застосунок — одразу туди, де Герой зупинився (якщо не минуло 2 годин) */</script>
 <script src="sk-arena-rules.js?v=25"></script>
 <script src="sk-avatar.js?v=9"></script>
 <script src="sk-curriculum.js?v=8"></script>
-<script src="sk-insights.js?v=2"></script>
+<script src="sk-insights.js?v=3"></script>
 <script type="module" src="firebase-config.js"></script>
 </head>
 <body>
@@ -464,35 +464,53 @@ function abilGrade(g){ return Number(g)===0 ? 'дошкілля' : g+' клас'
 function abilLevel(sj){
   return sj.total ? Math.round(sj.topics.reduce((a, t) => a + (t.status==='new' ? 0 : t.mastery), 0) / sj.total) : 0;
 }
-/* ── Діаграма-павутинка: промінь на предмет, 0–100% ── */
-function abilRadar(subjects){
+/* ── Діаграма-павутинка: промінь на предмет, 0–100% ──
+   Дитячий вигляд: кольоровий медальйон предмета на кінці променя, зірочки
+   на вершинах, веселкова фігура «виростає» з центру, у центрі — сам Герой.
+   Фон — img/abil-radar-bg.webp, якщо файл є (інакше лишається сяйво з CSS). */
+const RD_COLORS = ['#5C6BC0','#D6577A','#3FB6A8','#E0954E','#8E6CE0','#4FA3E0','#E0C04E'];
+function abilRadar(subjects, h){
   const n = subjects.length;
   if(n < 3) return '';
-  const W = 470, H = 300, cx = 235, cy = 152, R = 100;
+  const W = 470, H = 380, cx = 235, cy = 196, R = 100;
   const ang = i => -Math.PI/2 + i*2*Math.PI/n;
   const pt = (i, f) => [cx + Math.cos(ang(i))*R*f, cy + Math.sin(ang(i))*R*f];
-  const poly = f => subjects.map((_, i) => pt(i, f).map(v => v.toFixed(1)).join(',')).join(' ');
+  const xy = p => p[0].toFixed(1)+','+p[1].toFixed(1);
+  const poly = f => subjects.map((_, i) => xy(pt(i, f))).join(' ');
   const vals = subjects.map(abilLevel);
-  const shape = vals.map((v, i) => pt(i, Math.max(v, 3)/100).map(x => x.toFixed(1)).join(',')).join(' ');
-  let g = '';
-  [0.25, 0.5, 0.75, 1].forEach(f => { g += '<polygon class="rd-ring" points="'+poly(f)+'"/>'; });
-  subjects.forEach((_, i) => { const p = pt(i, 1); g += '<line class="rd-axis" x1="'+cx+'" y1="'+cy+'" x2="'+p[0].toFixed(1)+'" y2="'+p[1].toFixed(1)+'"/>'; });
-  g += '<polygon class="rd-shape" points="'+shape+'"/>';
-  vals.forEach((v, i) => { const p = pt(i, Math.max(v, 3)/100); g += '<circle class="rd-dot" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="4"/>'; });
+  const col = (sj, i) => /^#[0-9a-f]{3,8}$/i.test(sj.accent||'') ? sj.accent : RD_COLORS[i % RD_COLORS.length];
+  let g = '<defs><linearGradient id="rdFill" x1="0" y1="0" x2="1" y2="1">'
+        + '<stop offset="0" stop-color="#ff9ad5"/><stop offset=".5" stop-color="#ffd766"/><stop offset="1" stop-color="#7ff0c8"/></linearGradient></defs>';
+  // павутиння: кільця з легкою заливкою (від зовнішнього до внутрішнього) + промені
+  [1, 0.75, 0.5, 0.25].forEach((f, k) => { g += '<polygon class="rd-ring'+(k%2?' alt':'')+'" points="'+poly(f)+'"/>'; });
+  subjects.forEach((sj, i) => { const p = pt(i, 1); g += '<line class="rd-axis" x1="'+cx+'" y1="'+cy+'" x2="'+p[0].toFixed(1)+'" y2="'+p[1].toFixed(1)+'"/>'; });
+  // фігура здібностей
+  const shape = vals.map((v, i) => xy(pt(i, Math.max(v, 4)/100))).join(' ');
+  g += '<g class="rd-grow" style="transform-origin:'+cx+'px '+cy+'px"><polygon class="rd-shape" points="'+shape+'"/>';
+  vals.forEach((v, i) => { const p = pt(i, Math.max(v, 4)/100);
+    g += '<text class="rd-star" x="'+p[0].toFixed(1)+'" y="'+(p[1]+6).toFixed(1)+'" text-anchor="middle">★</text>'; });
+  g += '</g>';
+  // центр під аватар Героя
+  g += '<circle class="rd-core" cx="'+cx+'" cy="'+cy+'" r="21"/>';
+  // медальйони предметів + назва й відсоток
   subjects.forEach((sj, i) => {
-    const p = pt(i, 1.14), c = Math.cos(ang(i));
-    const anchor = c > 0.3 ? 'start' : c < -0.3 ? 'end' : 'middle';
-    // коротко, щоб влізло: «ЯДС · Я досліджую світ» → «ЯДС», «Українська мова» → «Українська»
+    const p = pt(i, 1.2), up = Math.sin(ang(i)) < -0.9;
     let name = String(sj.subject).split(' · ')[0];
     if(name.length > 11) name = name.split(' ')[0].slice(0, 12);
     if(sj.grade!==ABIL_GRADE && ABIL_GRADE!=null) name += ' ('+abilGrade(sj.grade)+')';
-    const dy = Math.sin(ang(i)) < -0.5 ? -8 : Math.sin(ang(i)) > 0.5 ? 14 : 4;
-    g += '<text class="rd-lab" x="'+p[0].toFixed(1)+'" y="'+(p[1]+dy).toFixed(1)+'" text-anchor="'+anchor+'">'
-       + escHtml(sj.icon)+' '+escHtml(name)+'</text>'
-       + '<text class="rd-val" x="'+p[0].toFixed(1)+'" y="'+(p[1]+dy+15).toFixed(1)+'" text-anchor="'+anchor+'">'+vals[i]+'%</text>';
+    g += '<circle class="rd-med" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="21" fill="'+col(sj, i)+'"/>'
+       + '<text class="rd-medi" x="'+p[0].toFixed(1)+'" y="'+(p[1]+7).toFixed(1)+'" text-anchor="middle">'+escHtml(sj.icon)+'</text>';
+    const ny = up ? p[1]-44 : p[1]+42, vy = up ? p[1]-27 : p[1]+60;
+    g += '<text class="rd-lab" x="'+p[0].toFixed(1)+'" y="'+ny.toFixed(1)+'" text-anchor="middle">'+escHtml(name)+'</text>'
+       + '<text class="rd-val" x="'+p[0].toFixed(1)+'" y="'+vy.toFixed(1)+'" text-anchor="middle">'+vals[i]+'%</text>';
   });
+  // кілька іскорок для настрою (фіксовані місця — малюнок щоразу однаковий)
+  [[40,40],[430,60],[30,300],[440,320],[120,120],[360,250]].forEach(s2 => {
+    g += '<text class="rd-spark" x="'+s2[0]+'" y="'+s2[1]+'" text-anchor="middle">✦</text>'; });
   const label = 'Павутинка здібностей: ' + subjects.map((sj, i) => sj.subject+' '+vals[i]+'%').join(', ');
-  return '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+escHtml(label)+'">'+g+'</svg>';
+  const av = h && h.avatar ? (window.SKAVA ? SKAVA.html(String(h.avatar), { size:36 }) : escHtml(String(h.avatar))) : '🧒';
+  return '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+escHtml(label)+'">'+g+'</svg>'
+       + '<span class="rd-hero" style="top:'+(cy/H*100).toFixed(2)+'%" aria-hidden="true">'+av+'</span>';
 }
 async function loadAbilities(h){
   const card=$('abilCard'); if(!card || !window.SKINS || !window.SKCUR || !(window.SK && SK.listActiveTests)) return;
@@ -528,7 +546,7 @@ async function loadAbilities(h){
   }
   if(!top) top='<div class="ab-empty">Пройди перший тест — і тут засяють твої здібності ✨</div>';
   $('abilTop').innerHTML = top;
-  $('abilRadar').innerHTML = abilRadar(r.subjects);
+  $('abilRadar').innerHTML = abilRadar(r.subjects, h);
   $('abilSubjs').innerHTML = r.subjects.map(function(sj){
     const stat = abilStat(sj.statKey);
     return '<details class="ab-subj"'+(r.subjects.length===1?' open':'')+'>'
