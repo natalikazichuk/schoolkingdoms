@@ -568,7 +568,33 @@ function levelMenu(){
 
 /* Почати спробу спочатку після помилки. Питання беремо заново — інакше з
    третьої спроби вивчається послідовність, а не матеріал. */
+/* ── ЖУРНАЛ СПРОБ (для аналітики «Мої здібності») ──
+   sk_testlog_<testId> — останні LOG_MAX спроб: коли, бал, скільки часу,
+   на яких питаннях помилка (текст питання, бо порядок перемішаний) і скільки
+   разів тест починався спочатку через помилку. Ключ sk_* — сам їде в
+   heroes/{id}.progress. Спроба = від старту тесту/рівня до підсумку. */
+var LOG_MAX=10, ATT=null;
+function attStart(){ ATT={t0:Date.now(), wrong:[], restarts:0}; }
+function attWrong(q){
+  if(!ATT) attStart();
+  var t=String((q && (q.q||q.text)) || '').replace(/\s+/g,' ').trim().slice(0,60);
+  if(t && ATT.wrong.length<8 && ATT.wrong.indexOf(t)<0) ATT.wrong.push(t);
+}
+function logAttempt(correct, total, lv){
+  if(!TEST || !TEST.id) return;
+  var a=ATT||{t0:Date.now(), wrong:[], restarts:0};
+  var rec={ at:Date.now(), pct: total? Math.round(correct/total*100) : 0, correct:correct, total:total,
+            dur: Math.max(0, Math.round((Date.now()-a.t0)/1000)), wrong:a.wrong.slice(), restarts:a.restarts };
+  if(lv!=null) rec.lv=lv;
+  var key='sk_testlog_'+TEST.id, arr=[];
+  try{ arr=JSON.parse(localStorage.getItem(key)||'[]'); if(!Array.isArray(arr)) arr=[]; }catch(e){ arr=[]; }
+  arr.push(rec);
+  try{ localStorage.setItem(key, JSON.stringify(arr.slice(-LOG_MAX))); }catch(e){}
+  ATT=null;
+}
+
 function restartRun(){
+  if(ATT) ATT.restarts++;
   if(IS_LEVELS){
     if(ST.level!=null){
       QS = hasGen() ? genQuestions(levelCount(ST.level), ST.level+1) : pickLevelQs(ST.level);
@@ -577,16 +603,18 @@ function restartRun(){
     renderQ();
     return;
   }
-  startQuiz();
+  startQuiz(true);
 }
 
-function startQuiz(){
+function startQuiz(restart){
+  if(restart!==true) attStart();   // перезапуск після помилки — та сама спроба (з кнопки приходить подія кліку)
   QS = hasGen() ? genQuestions(num(TEST.count)||(TEST.questions||[]).length||10, 1) : shuffleQs(TEST.questions);
   ST={idx:0, correct:0, answered:false};
   renderQ();
 }
 
 function startLevel(i){
+  attStart();
   QS = hasGen() ? genQuestions(levelCount(i), i+1) : pickLevelQs(i);
   var already=!!loadDone()[levelId(i)];   // рівень уже пройдено → повтор
   ST={idx:0, correct:0, answered:false, level:i, isReplay:already};
@@ -742,6 +770,7 @@ function answer(i){
     if(btns[i]) btns[i].classList.add('correct');
     if(fb){ fb.textContent='✅ Правильно!'; fb.style.color='#0f6b38'; }
   } else {
+    attWrong(q);
     if(btns[i]) btns[i].classList.add('wrong');
     if(correct>=0 && btns[correct]) btns[correct].classList.add('correct');
     // Помилка повертає на початок — у рівнях завжди, у пласкому тесті за
@@ -779,6 +808,7 @@ function answerPick(nClicked){
     if(bn===ansNum) b.classList.add('correct');
     else if(bn===nClicked && !right) b.classList.add('wrong');
   });
+  if(!right) attWrong(q);
   if(right){
     ST.correct++;
     if(fb){ fb.textContent='✅ Правильно!'; fb.style.color='#0f6b38'; }
@@ -854,6 +884,7 @@ function finish(){
   try{ if(pctScore>=100) localStorage.setItem('sk_test100_'+id,'1'); }catch(e){}   // 100% → у Досягнення
   // Результат для перевірки батьком (читає hero.html при поданні завдання)
   try{ localStorage.setItem('sk_testscore_'+id, JSON.stringify({pct:pctScore, correct:correct, total:total, passed:(pctScore>=55), at:Date.now()})); }catch(e){}
+  logAttempt(correct, total, null);
   var crossed = markPassed(passed);
   if(HERO_SESSION) saveReward(statGain);
   if(HERO_SESSION && perfect) claimLoot(null);
@@ -876,6 +907,7 @@ function finishLevel(){
   if(replay || ever[id]){ statGain = 0; }   // повтор рівня: без стата
 
   var pctScore = total? Math.round(correct/total*100) : 0;
+  logAttempt(correct, total, i);
   var stars = pctScore>=90?3 : pctScore>=70?2 : 1;
   var emoji = stars===3?'🏆':stars===2?'🌟':'💪';
   var head  = stars===3?'Бездоганно!':stars===2?'Молодець!':'Готово!';

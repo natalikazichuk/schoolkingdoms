@@ -356,26 +356,27 @@ async function loadTeam(h){
 /* ── Рейтинг: я + брати/сестри (вкладка «Сімʼя») або я + друзі («Друзі»).
    Очки ⭐ рахуємо з публічного підсумку арени — однаково для всіх. ── */
 const RANK = { tab:'family', cat:'learn', me:null, family:[], friends:[], loaded:false };
-/* моє навчання: пройдені тести (loadTestsProgress) і зараховані завдання (loadTasks);
-   null — ще не пораховано. Щойно пораховано обидва — у публічну картку для рейтингу. */
-const MY_LEARN = { tests:null, tasks:null };
+/* моє навчання: пройдені тести (loadTestsProgress); null — ще не пораховано.
+   Завдання від батьків у рейтинг НЕ входять — щоб їх не «накачували».
+   Щойно пораховано — у публічну картку для рейтингу. */
+const MY_LEARN = { tests:null };
 let _learnSent = '';
 function setMyLearn(k, v){
   MY_LEARN[k] = v;
   renderRating();
-  if(MY_LEARN.tests==null || MY_LEARN.tasks==null) return;
-  const key = MY_LEARN.tests+'/'+MY_LEARN.tasks;
+  if(MY_LEARN.tests==null) return;
+  const key = String(MY_LEARN.tests);
   if(key === _learnSent || !(window.SK && SK.publishHeroLearn)) return;
   _learnSent = key;
   SK.publishHeroLearn(MY_LEARN).catch(function(e){ _learnSent=''; console.warn('[hero.html] publishHeroLearn:', e); });
 }
 const RANK_NOTE = {
-  learn:'⭐ = пройдені тести × 5 + виконані завдання × 10',
+  learn:'⭐ = пройдені тести × 10',
   arena:'⭐ = перемоги × 10 + нічиї × 5 + рівень арени × 20'
 };
 function learnOf(x){
   const l = x && x.learn;
-  return { tests:(l && +l.tests) || 0, tasks:(l && +l.tasks) || 0 };
+  return { tests:(l && +l.tests) || 0 };
 }
 function arenaOf(x){
   const a = x && x.arena;
@@ -383,7 +384,7 @@ function arenaOf(x){
            wins:(a && +a.wins) || 0, losses:(a && +a.losses) || 0, draws:(a && +a.draws) || 0 };
 }
 function rankScore(x){
-  if(RANK.cat==='learn'){ const l=learnOf(x); return l.tests*5 + l.tasks*10; }
+  if(RANK.cat==='learn') return learnOf(x).tests*10;
   const a=arenaOf(x); return a.wins*10 + a.draws*5 + a.level*20;
 }
 function renderRating(){
@@ -391,7 +392,7 @@ function renderRating(){
   setTxt('rankNote', RANK_NOTE[RANK.cat]);
   if(!RANK.loaded){ box.innerHTML='<li class="rank-empty">Завантаження…</li>'; return; }
   const me = RANK.me ? { id:'me', me:true, name:$('heroName').textContent, avatar:RANK.me.avatar, level:RANK.me.level, arena:RANK.me.arena,
-    learn:{ tests:MY_LEARN.tests||0, tasks:MY_LEARN.tasks||0 } } : null;
+    learn:{ tests:MY_LEARN.tests||0 } } : null;
   const others = RANK.tab==='family' ? RANK.family : RANK.friends;
   if(!others.length){
     box.innerHTML='<li class="rank-empty">'+(RANK.tab==='family'
@@ -531,12 +532,11 @@ function renderTaskItem(t){
 
 async function loadTasks(){
   const box=$('taskList'); if(!box) return;
-  let tasks=[], gotTasks=false;   // gotTasks — список справді прийшов (не помилка й не ранній виклик без SK)
-  try{ if(window.SK && window.SK.ready && window.SK.getAssignedTasks){ tasks=(await window.SK.getAssignedTasks())||[]; gotTasks=true; } }
+  let tasks=[];
+  try{ if(window.SK && window.SK.getAssignedTasks) tasks=(await window.SK.getAssignedTasks())||[]; }
   catch(e){ console.warn('[hero.html] getAssignedTasks:',e); }
   if(!Array.isArray(tasks) || !tasks.length){
     ALL_TASKS=[]; box.innerHTML='<div class="tasks-empty">Поки що завдань немає 🎉</div>';
-    if(gotTasks && Array.isArray(tasks)) setMyLearn('tasks', 0);
     syncTasksAllBtn(); return;
   }
   // Авто-подання НА ПЕРЕВІРКУ: тест — за міткою проходження sk_testpass_<testId>;
@@ -548,7 +548,6 @@ async function loadTasks(){
   anchorApprovedXp(tasks);
 
   ALL_TASKS = tasks;
-  setMyLearn('tasks', tasks.filter(t=>t.status==='approved').length);
   // У картці — ТІЛЬКИ активні (незроблені) завдання. Виконані (approved) ховаємо;
   // весь список доступний у поп-апі за кнопкою «Усі».
   const active = tasks.filter(t=>(t.status||'assigned')!=='approved');

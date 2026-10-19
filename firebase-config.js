@@ -1416,7 +1416,7 @@ const SK = {
     return true;
   },
 
-  // Підсумок навчання для рейтингу «Навчання»: пройдені тести й зараховані завдання.
+  // Підсумок навчання для рейтингу «Навчання»: лише пройдені тести (завдання від батьків не входять).
   async publishHeroLearn(learn) {
     const u = auth.currentUser;
     if (!u || !learn) return false;
@@ -1432,7 +1432,7 @@ const SK = {
   },
   _learnCard(l) {
     if (!l) return null;
-    return { tests: Math.max(0, +l.tests || 0), tasks: Math.max(0, +l.tasks || 0) };
+    return { tests: Math.max(0, +l.tests || 0) };
   },
 
   // Підсумок арени для публічної картки: рівень і бої, без досвіду й решти.
