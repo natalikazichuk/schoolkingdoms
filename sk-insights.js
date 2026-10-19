@@ -229,10 +229,12 @@ function commonMistakes(tests, get, limit){
 }
 
 /* читач прогресу: localStorage, а якщо там порожньо — heroes/{id}.progress.
-   Журнал спроб беремо той, де остання спроба новіша (інший пристрій). */
-function reader(progress){
+   Журнал спроб беремо той, де остання спроба новіша (інший пристрій).
+   opts.local === false — лише база (кабінет батьків: localStorage там чужий). */
+function reader(progress, opts){
   progress = progress || {};
-  function ls(k){ try{ return window.localStorage.getItem(k); }catch(e){ return null; } }
+  var local = !(opts && opts.local === false);
+  function ls(k){ if(!local) return null; try{ return window.localStorage.getItem(k); }catch(e){ return null; } }
   return function(k){
     var a = ls(k), b = progress[k] != null ? progress[k] : null;
     if(k.indexOf('sk_testlog_') === 0 && a != null && b != null){

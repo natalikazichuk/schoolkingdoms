@@ -217,6 +217,14 @@
 
   /* ── Статистика ── */
   .st-sec{margin-top:22px}
+  .in-tip{margin:10px 0 4px;padding:9px 12px;border-radius:12px;background:rgba(242,199,92,.12);
+    border:1px solid rgba(242,199,92,.4);color:#FBEFD0;font-size:.86rem;line-height:1.4}
+  .in-row .ta-w small{display:block;color:#b9c8e0;font-weight:700;font-size:.74rem;margin-top:2px}
+  .in-row.st-new{opacity:.7}
+  .in-assign{flex-shrink:0;padding:6px 11px;border-radius:99px;border:1.5px solid #C9942F;cursor:pointer;
+    background:linear-gradient(180deg,#FFE7A0,#E0A93A);color:#5a3d08;font-weight:800;font-size:.78rem}
+  .in-assign:disabled{opacity:.6;cursor:default}
+  .in-done{flex-shrink:0;font-weight:800;font-size:.76rem;color:#c9d6ee}
   .st-sec:first-child{margin-top:4px}
   .st-sec-h{font-family:'Playfair Display',serif;font-weight:800;font-size:1.1rem;color:#FBEFD0;
     margin-bottom:10px;display:flex;align-items:center;gap:8px}
@@ -637,6 +645,7 @@
 
   <script src="sk-avatar.js?v=9"></script>
   <script src="sk-curriculum.js?v=8"></script>
+  <script src="sk-insights.js?v=1"></script>
   <script type="module" src="firebase-config.js"></script>
   <script>
     // ── Гейт сторінки user ──────────────────────────────────────
@@ -1550,7 +1559,7 @@
       const hid = $('stHero').value;
       const hero = ST_HEROES && ST_HEROES[hid];
       if (!hero){ body.innerHTML = '<div class="fr-empty">Оберіть Героя…</div>'; return; }
-      body.innerHTML = stOverview(hero) + stGrades(hero) + stTasks(hero) + stTests(hero);
+      body.innerHTML = stOverview(hero) + stGrades(hero) + stInsights(hero) + stTasks(hero) + stTests(hero);
     }
 
     function stSec(title, inner){
@@ -1688,6 +1697,87 @@
           + '<span class="gp-pct">'+gp+'%</span></summary><div class="gp-body">'+rows+'</div></details>';
       }).join('');
       return stSec('🏫 Прогрес за класами', html || '<div class="fr-empty">У програмі ще немає тестів.</div>');
+    }
+
+    /* ── Здібності (sk-insights.js): статус кожної теми класу Героя,
+       динаміка, типові помилки і «Задати» для теми, яку варто підтягнути.
+       Джерело — лише heroes/{id}.progress (localStorage тут батьківський). */
+    const IN_TREND = { up:'↗', down:'↘', flat:'' };
+    function inWhen(ts){
+      if (!ts) return '';
+      const d = Math.floor((Date.now() - ts) / 864e5);
+      return d <= 0 ? 'сьогодні' : d === 1 ? 'вчора' : d + ' дн. тому';
+    }
+    function inAssignCell(hero, t){
+      if (!t || !t.id) return '';
+      const open = stOpenTask(hero, t.id);
+      if (open) return '<span class="in-done">'+(open.st === 'pending' ? '⏳ на перевірці' : '📌 задано')+'</span>';
+      return '<button type="button" class="in-assign" data-test="'+escapeHtml(t.id)+'" onclick="inAssign(this)" title="Задати тест «'
+        + escapeHtml(t.title || '') + '»">➕ Задати</button>';
+    }
+    function stInsights(hero){
+      const cur = ST_CUR || (window.SKCUR ? SKCUR.map : null);
+      if (!window.SKINS || !cur || !window.SKCUR || !SKCUR.placeTests) return '';
+      const tests = (ST_TESTS || []).filter(t => t && t.active !== false && !t.hidden);
+      const get = SKINS.reader(stProgObj(hero), { local:false });
+      const opts = (hero.grade != null && hero.grade !== '') ? { grade: Number(hero.grade) } : {};
+      const r = SKINS.analyze(SKCUR.placeTests(cur, tests).topics, get, opts);
+      const tried = r.topics.filter(t => t.status !== 'new');
+      if (!tried.length) return stSec('🧭 Здібності', '<div class="fr-empty">Ще немає спроб тестів у темах класу — аналітика зʼявиться після перших тестів.</div>');
+      const S = SKINS.STATUS;
+      const cnt = k => r.topics.filter(t => t.status === k).length;
+      const cards = '<div class="st-mini-row">'
+        + stMini('🌟', cnt('master'), 'майстер')
+        + stMini('✅', cnt('good'),   'вміє')
+        + stMini('🌱', cnt('learn'),  'вчиться')
+        + stMini('🔁', cnt('repeat') + cnt('stale'), 'повторити') + '</div>';
+      // рекомендація: що підтягнути
+      let tip = '';
+      if (r.improve.length){
+        tip = '<div class="in-tip">💡 <b>Варто підтягнути:</b> '
+          + r.improve.map(t => escapeHtml(t.topic) + ' (' + escapeHtml(S[t.status].parent.toLowerCase()) + ', ' + t.mastery + '%)').join('; ')
+          + '</div>';
+      }
+      // таблиця тем: спершу проблемні, далі в порядку карти
+      const pri = { repeat:0, stale:1, learn:2, good:3, master:4, new:5 };
+      const rows = r.topics.map((t, i) => ({ t, i })).sort((a, b) => (pri[a.t.status] - pri[b.t.status]) || (a.i - b.i)).map(({ t }) => {
+        const st = S[t.status];
+        const res = t.status === 'new' ? '' : '<span class="ta-res '+(t.mastery >= SKINS.TH.good ? 'ok' : t.mastery < SKINS.TH.pass ? 'bad' : '')+'">'
+          + t.mastery + '% ' + IN_TREND[t.trend] + '</span>';
+        const meta = [t.subject, t.status === 'new' ? '' : (t.tried + ' з ' + t.total + ' тестів'), inWhen(t.lastAt)].filter(Boolean).join(' · ');
+        const act = (t.status === 'repeat' || t.status === 'stale' || t.status === 'learn' || (r.nextStep && r.nextStep.topic === t.topic)) ? inAssignCell(hero, t.next) : '';
+        return '<div class="ta-item st-test in-row st-'+t.status+'"><span class="ta-ic" title="'+escapeHtml(st.parent)+'">'+st.icon+'</span>'
+          + '<span class="ta-w">'+escapeHtml(t.topic)+'<small>'+escapeHtml(st.parent)+(meta ? ' · '+escapeHtml(meta) : '')+'</small></span>'
+          + res + act + '</div>';
+      }).join('');
+      // типові помилки
+      const mist = SKINS.commonMistakes(tests, get, 5);
+      const mistHtml = mist.length
+        ? '<div class="st-subj"><span>❗ Типові помилки</span></div>' + mist.map(m =>
+            '<div class="ta-item st-test"><span class="ta-ic">✏️</span><span class="ta-w">'+escapeHtml(m.q)
+            + '<small>'+escapeHtml(m.test)+'</small></span><span class="ta-res bad">'+m.n+'×</span></div>').join('')
+        : '';
+      return stSec('🧭 Здібності', cards + tip + '<div class="st-grp">' + rows + '</div>' + (mistHtml ? '<div class="st-grp">' + mistHtml + '</div>' : '')
+        + '<div class="fr-sub" style="margin-top:8px">🌟 ≥ 90% двічі поспіль · ✅ ≥ 75% · 🌱 55–75% · 🔁 < 55% або бал упав · 💤 не повторював понад 30 днів. Час на сайті — у вкладці «Активність».</div>');
+    }
+    /* «➕ Задати»: тест теми → завдання дитині (як чек-бокс у списку тестів) */
+    async function inAssign(btn){
+      const hid = $('stHero').value, hero = ST_HEROES && ST_HEROES[hid];
+      const testId = btn.getAttribute('data-test');
+      if (!hero || !testId) return;
+      btn.disabled = true;
+      try {
+        const meta = (ST_TESTS || []).find(t => t.id === testId) || {};
+        const task = { type:'test', title: meta.title || 'Тест', subject: meta.subject || '', testId, icon:'📝' };
+        const id = await SK.assignTask(hid, task);
+        hero.tasks = (Array.isArray(hero.tasks) ? hero.tasks : []).concat([Object.assign({ id }, task)]);
+        btn.outerHTML = '<span class="in-done">📌 задано</span>';
+        toast('🎉 Тест призначено дитині');
+      } catch(e){
+        console.warn('[parent] insights assign:', e);
+        btn.disabled = false;
+        toast('❌ Не вдалося задати завдання');
+      }
     }
 
     // ── Тести: збираємо результати з progress{} ──

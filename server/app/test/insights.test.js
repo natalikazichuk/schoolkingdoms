@@ -100,3 +100,18 @@ test('типові помилки: частіші — вище', () => {
   assert.equal(m[0].n, 2);
   assert.equal(m.length, 2);
 });
+
+test('читач: кабінет батьків бере лише базу, не localStorage', () => {
+  const b2 = { window: { localStorage: { getItem: () => JSON.stringify([{ at: 1, pct: 5 }]) } } };
+  b2.window.window = b2.window;
+  vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'sk-insights.js'), 'utf8'), b2.window);
+  const prog = { sk_testlog_a: JSON.stringify([{ at: 2, pct: 90 }]), sk_testscore_b: '{"pct":70}' };
+  const only = b2.window.SKINS.reader(prog, { local: false });
+  assert.equal(only('sk_testscore_b'), '{"pct":70}');
+  assert.equal(only('sk_testpass_x'), null);
+  assert.equal(JSON.parse(only('sk_testlog_a'))[0].pct, 90);
+  // звичайний читач (сторінка Героя): localStorage має перевагу, але журнал — свіжіший
+  const both = b2.window.SKINS.reader(prog);
+  assert.equal(JSON.parse(both('sk_testlog_a'))[0].pct, 90);
+  assert.equal(JSON.parse(both('sk_testscore_b'))[0].pct, 5);
+});
