@@ -8,12 +8,13 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="hero.css?v=20">
+<link rel="stylesheet" href="hero.css?v=21">
 <script src="sk-resume.js?v=1"></script>
 <script>SKResume.go();   /* відкрили застосунок — одразу туди, де Герой зупинився (якщо не минуло 2 годин) */</script>
 <script src="sk-arena-rules.js?v=25"></script>
 <script src="sk-avatar.js?v=9"></script>
 <script src="sk-curriculum.js?v=8"></script>
+<script src="sk-covers.js?v=19"></script>
 <script src="sk-insights.js?v=3"></script>
 <script type="module" src="firebase-config.js"></script>
 </head>
@@ -479,10 +480,29 @@ const RD_IMG = [
   { re:/істор|history/,                          img:'img/nav/tema-istoriya.webp' },
   { re:/дозвіл|відпочин|розваг/,                 img:'img/nav/tema-dozvillya.webp' }
 ];
+/* Обкладинка тесту — та сама черга, що в tests.html (toTestObj): примусова з
+   sk-covers.js → «Обкладинка» з адмінки → img/tr/<сторінка>.webp → за назвою →
+   обкладинка предмета й класу. */
+function abilTestCovers(t, subjName, grade){
+  const out = [], C = window.SKCovers;
+  const img = (C && C.forced(t.title, subjName)) || t.imgCard || t.cover || '';
+  if(img) out.push(img);
+  else if((t.format==='link'||t.format==='html'||t.format==='video') && t.linkHref){
+    const slug = String(t.linkHref).replace(/[?#].*$/,'').replace(/\.html?$/i,'').replace(/^.*\//,'');
+    if(slug) out.push('img/tr/'+slug+'.webp');
+  }
+  if(!img && C){ const byT = C.byTitle(t.title, subjName); if(byT) out.push(byT);
+                 const byS = C.bySubject(subjName, grade); if(byS) out.push(byS); }
+  return out;
+}
+/* Картинка предмета: обкладинки тестів його тем у порядку карти (перша, що
+   завантажиться), а якщо жодної — картинка предмета з img/nav/, як на плитках. */
 function abilImgs(sj){
+  const covers = [];
+  (sj._tests || []).forEach(t => abilTestCovers(t, sj.subject, sj.grade).forEach(u => { if(covers.indexOf(u) < 0) covers.push(u); }));
   const hay = (String(sj.subjectId||'')+' '+String(sj.subject||'')).toLowerCase().replace(/[’'`ʼ]/g,'');
   const theme = (RD_IMG.find(x => x.re.test(hay)) || {}).img || '';
-  return ['img/nav/subj-'+encodeURIComponent(sj.subjectId||'')+'.webp', theme].filter(Boolean);
+  return { covers: covers.slice(0, 8), nav: ['img/nav/subj-'+encodeURIComponent(sj.subjectId||'')+'.webp', theme].filter(Boolean) };
 }
 function abilRadar(subjects){
   const n = subjects.length;
@@ -510,11 +530,12 @@ function abilRadar(subjects){
     let name = String(sj.subject).split(' · ')[0];
     if(sj.grade!==ABIL_GRADE && ABIL_GRADE!=null) name += ' · '+abilGrade(sj.grade);
     const st = window.SKCUR && SKCUR.statByKey ? SKCUR.statByKey(sj.statKey) : null;
-    const imgs = abilImgs(sj);
+    const im = abilImgs(sj), imgs = im.covers.concat(im.nav), nNav = im.nav.length;
+    // клас cover — квадратна обкладинка (кадр по центру); img/nav — обрізаємо знизу, там угорі назва
     html += '<div class="rd-card" style="left:'+x.toFixed(1)+'%;top:'+y.toFixed(1)+'%;--sc:'+col(sj, i)+'">'
       + '<span class="rd-pic">'+(imgs.length
-          ? '<img src="'+escHtml(imgs[0])+'" alt="" loading="lazy" data-fb="'+escHtml(imgs.slice(1).join('|'))+'"'
-            + ' onerror="var f=(this.dataset.fb||\'\').split(\'|\').filter(Boolean);if(f.length){this.dataset.fb=f.slice(1).join(\'|\');this.src=f[0];}else{this.remove();}">'
+          ? '<img class="'+(im.covers.length?'cover':'')+'" src="'+escHtml(imgs[0])+'" alt="" loading="lazy" data-fb="'+escHtml(imgs.slice(1).join('|'))+'" data-nav="'+nNav+'"'
+            + ' onerror="var f=(this.dataset.fb||\'\').split(\'|\').filter(Boolean);if(f.length){this.dataset.fb=f.slice(1).join(\'|\');if(f.length<=+this.dataset.nav)this.className=\'\';this.src=f[0];}else{this.remove();}">'
           : '')+'<i>'+escHtml(sj.icon)+'</i></span>'
       + '<span class="rd-name">'+escHtml(name)+'</span>'
       + (st ? '<span class="rd-stat">'+escHtml(st.label)+'</span>' : '')
@@ -537,6 +558,9 @@ async function loadAbilities(h){
   const r = { topics: own.topics.length ? own.topics : all.topics, subjects: subjects,
               strengths: all.strengths, improve: all.improve, nextStep: own.nextStep || all.nextStep };
   if(!subjects.length){ card.hidden=true; return; }
+  // сирі тести кожного предмета в порядку карти — для обкладинок на павутинці
+  subjects.forEach(sj => { sj._tests = [];
+    placed.forEach(p => { if(p.subj && p.subj.id===sj.subjectId && p.grade && Number(p.grade.gradeNum)===Number(sj.grade)) sj._tests.push(...(p.tests||[])); }); });
   const S = SKINS.STATUS;
   const go = (t, label) => t.next ? '<a class="ab-go" href="'+escHtml(abilHref(t.next))+'">'+(label||'▶')+'</a>' : '';
   let top='';
