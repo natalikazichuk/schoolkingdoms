@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="hero.css?v=19">
+<link rel="stylesheet" href="hero.css?v=20">
 <script src="sk-resume.js?v=1"></script>
 <script>SKResume.go();   /* відкрили застосунок — одразу туди, де Герой зупинився (якщо не минуло 2 годин) */</script>
 <script src="sk-arena-rules.js?v=25"></script>
@@ -465,52 +465,62 @@ function abilLevel(sj){
   return sj.total ? Math.round(sj.topics.reduce((a, t) => a + (t.status==='new' ? 0 : t.mastery), 0) / sj.total) : 0;
 }
 /* ── Діаграма-павутинка: промінь на предмет, 0–100% ──
-   Дитячий вигляд: кольоровий медальйон предмета на кінці променя, зірочки
-   на вершинах, веселкова фігура «виростає» з центру, у центрі — сам Герой.
-   Фон — img/abil-radar-bg.webp, якщо файл є (інакше лишається сяйво з CSS). */
+   Посередині — павутинка (SVG), довкола — картки предметів у напрямку свого
+   променя: картинка предмета, кольорова назва, характеристика, відсоток.
+   Картинки — ті самі, що на плитках предметів у tests.html (img/nav/):
+   власна subj-<id>.webp, а якщо її немає — спільна за темою. */
 const RD_COLORS = ['#5C6BC0','#D6577A','#3FB6A8','#E0954E','#8E6CE0','#4FA3E0','#E0C04E'];
-function abilRadar(subjects, h){
+const RD_IMG = [
+  { re:/математ|лічб|цифр|number|math/,          img:'img/nav/dis-tsyfry.webp' },
+  { re:/українськ|абетк|букв|читанн|грамот|мова/, img:'img/nav/dis-bukvy.webp' },
+  { re:/english|англ/,                           img:'img/nav/dis-english.webp' },
+  { re:/ядс|досліджую світ|природ|довкіл|світ/,   img:'img/nav/dis-svit.webp' },
+  { re:/інформат|informat|комп.ютер/,            img:'img/nav/tema-informatyka.webp' },
+  { re:/істор|history/,                          img:'img/nav/tema-istoriya.webp' },
+  { re:/дозвіл|відпочин|розваг/,                 img:'img/nav/tema-dozvillya.webp' }
+];
+function abilImgs(sj){
+  const hay = (String(sj.subjectId||'')+' '+String(sj.subject||'')).toLowerCase().replace(/[’'`ʼ]/g,'');
+  const theme = (RD_IMG.find(x => x.re.test(hay)) || {}).img || '';
+  return ['img/nav/subj-'+encodeURIComponent(sj.subjectId||'')+'.webp', theme].filter(Boolean);
+}
+function abilRadar(subjects){
   const n = subjects.length;
   if(n < 3) return '';
-  const W = 470, H = 380, cx = 235, cy = 196, R = 100;
+  const S = 200, c = 100, R = 78;                               // SVG павутинки, у центрі блоку
   const ang = i => -Math.PI/2 + i*2*Math.PI/n;
-  const pt = (i, f) => [cx + Math.cos(ang(i))*R*f, cy + Math.sin(ang(i))*R*f];
+  const pt = (i, f) => [c + Math.cos(ang(i))*R*f, c + Math.sin(ang(i))*R*f];
   const xy = p => p[0].toFixed(1)+','+p[1].toFixed(1);
   const poly = f => subjects.map((_, i) => xy(pt(i, f))).join(' ');
   const vals = subjects.map(abilLevel);
   const col = (sj, i) => /^#[0-9a-f]{3,8}$/i.test(sj.accent||'') ? sj.accent : RD_COLORS[i % RD_COLORS.length];
-  let g = '<defs><linearGradient id="rdFill" x1="0" y1="0" x2="1" y2="1">'
-        + '<stop offset="0" stop-color="#ff9ad5"/><stop offset=".5" stop-color="#ffd766"/><stop offset="1" stop-color="#7ff0c8"/></linearGradient></defs>';
-  // павутиння: кільця з легкою заливкою (від зовнішнього до внутрішнього) + промені
-  [1, 0.75, 0.5, 0.25].forEach((f, k) => { g += '<polygon class="rd-ring'+(k%2?' alt':'')+'" points="'+poly(f)+'"/>'; });
-  subjects.forEach((sj, i) => { const p = pt(i, 1); g += '<line class="rd-axis" x1="'+cx+'" y1="'+cy+'" x2="'+p[0].toFixed(1)+'" y2="'+p[1].toFixed(1)+'"/>'; });
-  // фігура здібностей
-  const shape = vals.map((v, i) => xy(pt(i, Math.max(v, 4)/100))).join(' ');
-  g += '<g class="rd-grow" style="transform-origin:'+cx+'px '+cy+'px"><polygon class="rd-shape" points="'+shape+'"/>';
-  vals.forEach((v, i) => { const p = pt(i, Math.max(v, 4)/100);
-    g += '<text class="rd-star" x="'+p[0].toFixed(1)+'" y="'+(p[1]+6).toFixed(1)+'" text-anchor="middle">★</text>'; });
+  let g = '';
+  [1, 0.75, 0.5, 0.25].forEach(f => { g += '<polygon class="rd-ring" points="'+poly(f)+'"/>'; });
+  subjects.forEach((_, i) => { const p = pt(i, 1); g += '<line class="rd-axis" x1="'+c+'" y1="'+c+'" x2="'+p[0].toFixed(1)+'" y2="'+p[1].toFixed(1)+'"/>'
+    + '<circle class="rd-tip" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="3.2"/>'; });
+  g += '<g class="rd-grow" style="transform-origin:'+c+'px '+c+'px"><polygon class="rd-shape" points="'+vals.map((v, i) => xy(pt(i, Math.max(v, 4)/100))).join(' ')+'"/>';
+  vals.forEach((v, i) => { const p = pt(i, Math.max(v, 4)/100); g += '<circle class="rd-dot" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="5"/>'; });
   g += '</g>';
-  // центр під аватар Героя
-  g += '<circle class="rd-core" cx="'+cx+'" cy="'+cy+'" r="21"/>';
-  // медальйони предметів + назва й відсоток
-  subjects.forEach((sj, i) => {
-    const p = pt(i, 1.2), up = Math.sin(ang(i)) < -0.9;
-    let name = String(sj.subject).split(' · ')[0];
-    if(name.length > 11) name = name.split(' ')[0].slice(0, 12);
-    if(sj.grade!==ABIL_GRADE && ABIL_GRADE!=null) name += ' ('+abilGrade(sj.grade)+')';
-    g += '<circle class="rd-med" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="21" fill="'+col(sj, i)+'"/>'
-       + '<text class="rd-medi" x="'+p[0].toFixed(1)+'" y="'+(p[1]+7).toFixed(1)+'" text-anchor="middle">'+escHtml(sj.icon)+'</text>';
-    const ny = up ? p[1]-44 : p[1]+42, vy = up ? p[1]-27 : p[1]+60;
-    g += '<text class="rd-lab" x="'+p[0].toFixed(1)+'" y="'+ny.toFixed(1)+'" text-anchor="middle">'+escHtml(name)+'</text>'
-       + '<text class="rd-val" x="'+p[0].toFixed(1)+'" y="'+vy.toFixed(1)+'" text-anchor="middle">'+vals[i]+'%</text>';
-  });
-  // кілька іскорок для настрою (фіксовані місця — малюнок щоразу однаковий)
-  [[40,40],[430,60],[30,300],[440,320],[120,120],[360,250]].forEach(s2 => {
-    g += '<text class="rd-spark" x="'+s2[0]+'" y="'+s2[1]+'" text-anchor="middle">✦</text>'; });
   const label = 'Павутинка здібностей: ' + subjects.map((sj, i) => sj.subject+' '+vals[i]+'%').join(', ');
-  const av = h && h.avatar ? (window.SKAVA ? SKAVA.html(String(h.avatar), { size:36 }) : escHtml(String(h.avatar))) : '🧒';
-  return '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+escHtml(label)+'">'+g+'</svg>'
-       + '<span class="rd-hero" style="top:'+(cy/H*100).toFixed(2)+'%" aria-hidden="true">'+av+'</span>';
+  let html = '<svg class="rd-web" viewBox="0 0 '+S+' '+S+'" role="img" aria-label="'+escHtml(label)+'">'+g+'</svg>';
+  // картки предметів довкола — у напрямку свого променя
+  subjects.forEach((sj, i) => {
+    const ry = n >= 6 ? 36 : 31;   // 6–7 предметів: блок вищий (.many), сусіди праворуч/ліворуч не налазять
+    const x = 50 + Math.cos(ang(i))*35, y = 50 + Math.sin(ang(i))*ry;
+    let name = String(sj.subject).split(' · ')[0];
+    if(sj.grade!==ABIL_GRADE && ABIL_GRADE!=null) name += ' · '+abilGrade(sj.grade);
+    const st = window.SKCUR && SKCUR.statByKey ? SKCUR.statByKey(sj.statKey) : null;
+    const imgs = abilImgs(sj);
+    html += '<div class="rd-card" style="left:'+x.toFixed(1)+'%;top:'+y.toFixed(1)+'%;--sc:'+col(sj, i)+'">'
+      + '<span class="rd-pic">'+(imgs.length
+          ? '<img src="'+escHtml(imgs[0])+'" alt="" loading="lazy" data-fb="'+escHtml(imgs.slice(1).join('|'))+'"'
+            + ' onerror="var f=(this.dataset.fb||\'\').split(\'|\').filter(Boolean);if(f.length){this.dataset.fb=f.slice(1).join(\'|\');this.src=f[0];}else{this.remove();}">'
+          : '')+'<i>'+escHtml(sj.icon)+'</i></span>'
+      + '<span class="rd-name">'+escHtml(name)+'</span>'
+      + (st ? '<span class="rd-stat">'+escHtml(st.label)+'</span>' : '')
+      + '<span class="rd-pct">'+vals[i]+'%</span></div>';
+  });
+  return html;
 }
 async function loadAbilities(h){
   const card=$('abilCard'); if(!card || !window.SKINS || !window.SKCUR || !(window.SK && SK.listActiveTests)) return;
@@ -546,7 +556,8 @@ async function loadAbilities(h){
   }
   if(!top) top='<div class="ab-empty">Пройди перший тест — і тут засяють твої здібності ✨</div>';
   $('abilTop').innerHTML = top;
-  $('abilRadar').innerHTML = abilRadar(r.subjects, h);
+  $('abilRadar').innerHTML = abilRadar(r.subjects);
+  $('abilRadar').classList.toggle('many', r.subjects.length >= 6);
   $('abilSubjs').innerHTML = r.subjects.map(function(sj){
     const stat = abilStat(sj.statKey);
     return '<details class="ab-subj"'+(r.subjects.length===1?' open':'')+'>'
