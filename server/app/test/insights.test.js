@@ -115,3 +115,22 @@ test('читач: кабінет батьків бере лише базу, не
   assert.equal(JSON.parse(both('sk_testlog_a'))[0].pct, 90);
   assert.equal(JSON.parse(both('sk_testscore_b'))[0].pct, 5);
 });
+
+test('тест із рівнями без sk_testscore: рахуємо пройдені рівні (_done / _ever)', () => {
+  const t = { id: 'L', format: 'levels', levels: [{}, {}, {}, {}] };
+  const s = I.testState(t, getter({ sk_lvtest_L_ever: { 0: true, 1: true, 2: true } }));
+  assert.equal(s.tried, true);
+  assert.equal(s.pct, 75);
+  assert.equal(s.passed, true);
+  // формат «levels» без масиву рівнів у списку — пробуваний за міткою
+  assert.equal(I.testState({ id: 'M', format: 'levels' }, getter({ sk_lvtest_M_done: '["l0"]' })).tried, true);
+});
+
+test('аналіз: значок і колір предмета з карти доходять до предмета (для павутинки)', () => {
+  const subj = { id: 'u', name: 'Українська мова', icon: '🌺', accent: '#D6577A', statKey: 'health' };
+  const r = I.analyze([{ tier: { id: 'junior' }, grade: GRADE, subj, topic: { topic: 'Букви' }, tests: [{ id: 'b' }] }],
+    getter({ sk_testlog_b: log(80) }), { now: NOW });
+  assert.equal(r.subjects[0].icon, '🌺');
+  assert.equal(r.subjects[0].accent, '#D6577A');
+  assert.equal(r.topics[0].accent, '#D6577A');
+});

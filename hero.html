@@ -8,13 +8,14 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="hero.css?v=17">
+<link rel="stylesheet" href="hero.css?v=21">
 <script src="sk-resume.js?v=1"></script>
 <script>SKResume.go();   /* відкрили застосунок — одразу туди, де Герой зупинився (якщо не минуло 2 годин) */</script>
 <script src="sk-arena-rules.js?v=25"></script>
 <script src="sk-avatar.js?v=9"></script>
 <script src="sk-curriculum.js?v=8"></script>
-<script src="sk-insights.js?v=1"></script>
+<script src="sk-covers.js?v=19"></script>
+<script src="sk-insights.js?v=3"></script>
 <script type="module" src="firebase-config.js"></script>
 </head>
 <body>
@@ -152,6 +153,7 @@
         <span class="rp-ic" aria-hidden="true">🧭</span>
         <h3>Мої здібності</h3>
       </div>
+      <div class="ab-radar" id="abilRadar"></div>
       <div class="abil-top" id="abilTop"></div>
       <div class="abil-subjs" id="abilSubjs"></div>
     </section>
@@ -457,6 +459,90 @@ function abilStat(key){
   const s = window.SKCUR && SKCUR.statByKey ? SKCUR.statByKey(key) : null;
   return s ? s.emoji+' '+s.label : '';
 }
+function abilGrade(g){ return Number(g)===0 ? 'дошкілля' : g+' клас'; }
+/* Рівень предмета для павутинки: середнє по ВСІХ темах (непробувані = 0) —
+   тож одна пройдена тема з 16 не малює «повний» промінь. */
+function abilLevel(sj){
+  return sj.total ? Math.round(sj.topics.reduce((a, t) => a + (t.status==='new' ? 0 : t.mastery), 0) / sj.total) : 0;
+}
+/* ── Діаграма-павутинка: промінь на предмет, 0–100% ──
+   Посередині — павутинка (SVG), довкола — картки предметів у напрямку свого
+   променя: картинка предмета, кольорова назва, характеристика, відсоток.
+   Картинки — ті самі, що на плитках предметів у tests.html (img/nav/):
+   власна subj-<id>.webp, а якщо її немає — спільна за темою. */
+const RD_COLORS = ['#5C6BC0','#D6577A','#3FB6A8','#E0954E','#8E6CE0','#4FA3E0','#E0C04E'];
+const RD_IMG = [
+  { re:/математ|лічб|цифр|number|math/,          img:'img/nav/dis-tsyfry.webp' },
+  { re:/українськ|абетк|букв|читанн|грамот|мова/, img:'img/nav/dis-bukvy.webp' },
+  { re:/english|англ/,                           img:'img/nav/dis-english.webp' },
+  { re:/ядс|досліджую світ|природ|довкіл|світ/,   img:'img/nav/dis-svit.webp' },
+  { re:/інформат|informat|комп.ютер/,            img:'img/nav/tema-informatyka.webp' },
+  { re:/істор|history/,                          img:'img/nav/tema-istoriya.webp' },
+  { re:/дозвіл|відпочин|розваг/,                 img:'img/nav/tema-dozvillya.webp' }
+];
+/* Обкладинка тесту — та сама черга, що в tests.html (toTestObj): примусова з
+   sk-covers.js → «Обкладинка» з адмінки → img/tr/<сторінка>.webp → за назвою →
+   обкладинка предмета й класу. */
+function abilTestCovers(t, subjName, grade){
+  const out = [], C = window.SKCovers;
+  const img = (C && C.forced(t.title, subjName)) || t.imgCard || t.cover || '';
+  if(img) out.push(img);
+  else if((t.format==='link'||t.format==='html'||t.format==='video') && t.linkHref){
+    const slug = String(t.linkHref).replace(/[?#].*$/,'').replace(/\.html?$/i,'').replace(/^.*\//,'');
+    if(slug) out.push('img/tr/'+slug+'.webp');
+  }
+  if(!img && C){ const byT = C.byTitle(t.title, subjName); if(byT) out.push(byT);
+                 const byS = C.bySubject(subjName, grade); if(byS) out.push(byS); }
+  return out;
+}
+/* Картинка предмета: обкладинки тестів його тем у порядку карти (перша, що
+   завантажиться), а якщо жодної — картинка предмета з img/nav/, як на плитках. */
+function abilImgs(sj){
+  const covers = [];
+  (sj._tests || []).forEach(t => abilTestCovers(t, sj.subject, sj.grade).forEach(u => { if(covers.indexOf(u) < 0) covers.push(u); }));
+  const hay = (String(sj.subjectId||'')+' '+String(sj.subject||'')).toLowerCase().replace(/[’'`ʼ]/g,'');
+  const theme = (RD_IMG.find(x => x.re.test(hay)) || {}).img || '';
+  return { covers: covers.slice(0, 8), nav: ['img/nav/subj-'+encodeURIComponent(sj.subjectId||'')+'.webp', theme].filter(Boolean) };
+}
+function abilRadar(subjects){
+  const n = subjects.length;
+  if(n < 3) return '';
+  const S = 200, c = 100, R = 78;                               // SVG павутинки, у центрі блоку
+  const ang = i => -Math.PI/2 + i*2*Math.PI/n;
+  const pt = (i, f) => [c + Math.cos(ang(i))*R*f, c + Math.sin(ang(i))*R*f];
+  const xy = p => p[0].toFixed(1)+','+p[1].toFixed(1);
+  const poly = f => subjects.map((_, i) => xy(pt(i, f))).join(' ');
+  const vals = subjects.map(abilLevel);
+  const col = (sj, i) => /^#[0-9a-f]{3,8}$/i.test(sj.accent||'') ? sj.accent : RD_COLORS[i % RD_COLORS.length];
+  let g = '';
+  [1, 0.75, 0.5, 0.25].forEach(f => { g += '<polygon class="rd-ring" points="'+poly(f)+'"/>'; });
+  subjects.forEach((_, i) => { const p = pt(i, 1); g += '<line class="rd-axis" x1="'+c+'" y1="'+c+'" x2="'+p[0].toFixed(1)+'" y2="'+p[1].toFixed(1)+'"/>'
+    + '<circle class="rd-tip" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="3.2"/>'; });
+  g += '<g class="rd-grow" style="transform-origin:'+c+'px '+c+'px"><polygon class="rd-shape" points="'+vals.map((v, i) => xy(pt(i, Math.max(v, 4)/100))).join(' ')+'"/>';
+  vals.forEach((v, i) => { const p = pt(i, Math.max(v, 4)/100); g += '<circle class="rd-dot" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="5"/>'; });
+  g += '</g>';
+  const label = 'Павутинка здібностей: ' + subjects.map((sj, i) => sj.subject+' '+vals[i]+'%').join(', ');
+  let html = '<svg class="rd-web" viewBox="0 0 '+S+' '+S+'" role="img" aria-label="'+escHtml(label)+'">'+g+'</svg>';
+  // картки предметів довкола — у напрямку свого променя
+  subjects.forEach((sj, i) => {
+    const ry = n >= 6 ? 36 : 31;   // 6–7 предметів: блок вищий (.many), сусіди праворуч/ліворуч не налазять
+    const x = 50 + Math.cos(ang(i))*35, y = 50 + Math.sin(ang(i))*ry;
+    let name = String(sj.subject).split(' · ')[0];
+    if(sj.grade!==ABIL_GRADE && ABIL_GRADE!=null) name += ' · '+abilGrade(sj.grade);
+    const st = window.SKCUR && SKCUR.statByKey ? SKCUR.statByKey(sj.statKey) : null;
+    const im = abilImgs(sj), imgs = im.covers.concat(im.nav), nNav = im.nav.length;
+    // клас cover — квадратна обкладинка (кадр по центру); img/nav — обрізаємо знизу, там угорі назва
+    html += '<div class="rd-card" style="left:'+x.toFixed(1)+'%;top:'+y.toFixed(1)+'%;--sc:'+col(sj, i)+'">'
+      + '<span class="rd-pic">'+(imgs.length
+          ? '<img class="'+(im.covers.length?'cover':'')+'" src="'+escHtml(imgs[0])+'" alt="" loading="lazy" data-fb="'+escHtml(imgs.slice(1).join('|'))+'" data-nav="'+nNav+'"'
+            + ' onerror="var f=(this.dataset.fb||\'\').split(\'|\').filter(Boolean);if(f.length){this.dataset.fb=f.slice(1).join(\'|\');if(f.length<=+this.dataset.nav)this.className=\'\';this.src=f[0];}else{this.remove();}">'
+          : '')+'<i>'+escHtml(sj.icon)+'</i></span>'
+      + '<span class="rd-name">'+escHtml(name)+'</span>'
+      + (st ? '<span class="rd-stat">'+escHtml(st.label)+'</span>' : '')
+      + '<span class="rd-pct">'+vals[i]+'%</span></div>';
+  });
+  return html;
+}
 async function loadAbilities(h){
   const card=$('abilCard'); if(!card || !window.SKINS || !window.SKCUR || !(window.SK && SK.listActiveTests)) return;
   let tests=[], map=SKCUR.map;
@@ -464,8 +550,17 @@ async function loadAbilities(h){
   if(!tests.length) return;
   const placed = SKCUR.placeTests(map, tests.filter(t=>t && !t.hidden)).topics;
   const get = SKINS.reader((h && h.progress) || {});
-  const r = SKINS.analyze(placed, get, ABIL_GRADE!=null ? { grade:ABIL_GRADE } : {});
-  if(!r.topics.length){ card.hidden=true; return; }
+  /* Свій клас — завжди; інші класи — лише ті предмети, де вже є спроби
+     (дитина могла проходити тести молодшого класу), з позначкою класу. */
+  const all = SKINS.analyze(placed, get, {});
+  const own = ABIL_GRADE!=null ? SKINS.analyze(placed, get, { grade:ABIL_GRADE }) : all;
+  const subjects = own.subjects.concat(ABIL_GRADE==null ? [] : all.subjects.filter(sj => sj.grade!==ABIL_GRADE && sj.tried>0));
+  const r = { topics: own.topics.length ? own.topics : all.topics, subjects: subjects,
+              strengths: all.strengths, improve: all.improve, nextStep: own.nextStep || all.nextStep };
+  if(!subjects.length){ card.hidden=true; return; }
+  // сирі тести кожного предмета в порядку карти — для обкладинок на павутинці
+  subjects.forEach(sj => { sj._tests = [];
+    placed.forEach(p => { if(p.subj && p.subj.id===sj.subjectId && p.grade && Number(p.grade.gradeNum)===Number(sj.grade)) sj._tests.push(...(p.tests||[])); }); });
   const S = SKINS.STATUS;
   const go = (t, label) => t.next ? '<a class="ab-go" href="'+escHtml(abilHref(t.next))+'">'+(label||'▶')+'</a>' : '';
   let top='';
@@ -485,11 +580,13 @@ async function loadAbilities(h){
   }
   if(!top) top='<div class="ab-empty">Пройди перший тест — і тут засяють твої здібності ✨</div>';
   $('abilTop').innerHTML = top;
+  $('abilRadar').innerHTML = abilRadar(r.subjects);
+  $('abilRadar').classList.toggle('many', r.subjects.length >= 6);
   $('abilSubjs').innerHTML = r.subjects.map(function(sj){
     const stat = abilStat(sj.statKey);
     return '<details class="ab-subj"'+(r.subjects.length===1?' open':'')+'>'
       + '<summary><span class="ab-si">'+escHtml(sj.icon)+'</span>'
-      +   '<span class="ab-sn"><b>'+escHtml(sj.subject)+'</b><small>'+sj.tried+' з '+sj.total+' тем'+(stat?' · '+escHtml(stat):'')+'</small></span>'
+      +   '<span class="ab-sn"><b>'+escHtml(sj.subject)+(sj.grade!==ABIL_GRADE && ABIL_GRADE!=null ? ' · '+escHtml(abilGrade(sj.grade)) : '')+'</b><small>'+sj.tried+' з '+sj.total+' тем'+(stat?' · '+escHtml(stat):'')+'</small></span>'
       +   abilStars(sj.stars)+'</summary>'
       + '<div class="ab-topics">'+sj.topics.map(function(t){
           const st=S[t.status];

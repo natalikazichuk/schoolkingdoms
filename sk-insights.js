@@ -42,6 +42,11 @@ function parse(v){
   if(typeof v !== 'string') return v;
   try{ return JSON.parse(v); }catch(e){ return v; }
 }
+function countLv(v){
+  var o = parse(v);
+  if(Array.isArray(o)) return o.length;
+  return (o && typeof o === 'object') ? Object.keys(o).length : 0;
+}
 function flag(v){ return v === '1' || v === 1 || v === true; }
 function clampPct(n){ n = Math.round(Number(n) || 0); return n < 0 ? 0 : n > 100 ? 100 : n; }
 
@@ -67,7 +72,8 @@ function testState(test, get){
   var out = { id: id, title: (test && test.title) || '', tried: false, pct: 0, last: null,
               lastAt: 0, attempts: 0, trend: 'flat', master: false, passed: false };
   if(!id) return out;
-  var levels = Array.isArray(test.levels) && test.levels.length > 0;
+  var nLv = Array.isArray(test.levels) ? test.levels.length : 0;
+  var levels = test.format === 'levels' || nLv > 0;
   var log = readLog(get, id);
   var score = parse(get('sk_testscore_' + id));
   if(!score || typeof score !== 'object') score = null;
@@ -78,8 +84,12 @@ function testState(test, get){
     /* тест із рівнями: володіння = частка пройдених рівнів (її й пише sk_testscore) */
     if(score){ out.pct = clampPct(score.pct); out.lastAt = Number(score.at) || 0; }
     if(log.length){ out.lastAt = Math.max(out.lastAt, log[log.length - 1].at); }
+    /* пройдені рівні (за весь час) — так само рахує смужка «Тести» на сторінці Героя;
+       sk_testscore могло й не бути (рівні пройдені до того, як його почали писати) */
+    var lvDone = Math.max(countLv(get('sk_lvtest_' + id + '_done')), countLv(get('sk_lvtest_' + id + '_ever')));
+    if(nLv > 0 && lvDone > 0) out.pct = Math.max(out.pct, clampPct(lvDone / nLv * 100));
     if(full) out.pct = 100;
-    out.tried = !!(score || log.length || passFlag || full);
+    out.tried = !!(score || log.length || passFlag || full || lvDone > 0);
     if(passFlag && out.pct < TH.pass) out.pct = TH.pass;
     out.master = full || out.pct >= TH.master;
   } else if(log.length){
@@ -150,6 +160,7 @@ function topicState(placed, get, now){
     subject: (placed && placed.subj && placed.subj.name) || '',
     subjectId: (placed && placed.subj && placed.subj.id) || '',
     icon: (placed && placed.subj && placed.subj.icon) || '📘',
+    accent: (placed && placed.subj && placed.subj.accent) || '',
     statKey: (placed && placed.subj && placed.subj.statKey) || '',
     grade: placed && placed.grade ? placed.grade.gradeNum : null,
     status: status, mastery: mastery, stars: status === 'new' ? 0 : starsOf(mastery),
@@ -177,7 +188,7 @@ function analyze(placedTopics, get, opts){
   topics.forEach(function(t){
     var k = t.subjectId + '|' + t.grade;
     if(!bySubj[k]){
-      bySubj[k] = { subject: t.subject, subjectId: t.subjectId, icon: t.icon, statKey: t.statKey, grade: t.grade,
+      bySubj[k] = { subject: t.subject, subjectId: t.subjectId, icon: t.icon, accent: t.accent, statKey: t.statKey, grade: t.grade,
                     topics: [], mastery: 0, tried: 0, total: 0 };
       subjects.push(bySubj[k]);
     }
