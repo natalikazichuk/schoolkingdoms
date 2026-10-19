@@ -89,6 +89,10 @@
       +'.sk-hd__ni.active .sk-hd__nbtn{background:linear-gradient(180deg,#F2C75C,#E0A42A);'
         +'color:#3a2708;border-color:#c9942f;box-shadow:0 2px 8px -2px rgba(224,164,42,.7)}'
       +'.sk-hd__ni.active .sk-hd__nbtn .sk-hd__car{color:#3a2708}'
+      /* підпис «Навчання →» перед ступенями */
+      +'.sk-hd__learn{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;'
+        +'font-weight:800;font-size:.9rem;color:#FBEFD0;padding:0 2px}'
+      +'.sk-hd__larr{color:#F2C75C;font-weight:900}'
       /* ступінь «скоро» — приглушений */
       +'.sk-hd__nbtn.soon{opacity:.7}'
 
@@ -161,6 +165,7 @@
         +'.sk-hd__nav{gap:4px}'
         +'.sk-hd__nbtn{font-size:.74rem;padding:5px 7px;gap:3px}'
         +'.sk-hd__nic{display:none}'
+        +'.sk-hd__learn{font-size:.74rem;gap:3px}'
         +'.sk-hd__nbtn .sk-hd__car{font-size:.6rem}'
       +'}'
       +'@media(max-width:360px){'
@@ -320,7 +325,7 @@
     if(!nav || !map || !map.tiers || !map.tiers.length){ return; }
     var actId = pageTierId(map) || tierOfGrade(map, activeGrade);
 
-    nav.innerHTML = learnMenu(map) + map.tiers.map(function(t){
+    nav.innerHTML = learnMenu() + map.tiers.map(function(t){
       var isActive = (t.id === actId);
       var soon = !tierOpen(t);
       return '<div class="sk-hd__ni'+(isActive?' active':'')+'" data-tier="'+esc(t.id)+'">'
@@ -334,28 +339,10 @@
     wireNav(nav);
   }
 
-  /* «Навчання ▾» — перший пункт: ступені королівства й вхід на navchannia.html */
-  function learnMenu(map){
-    var here = /\/navchannia\.html$/.test(location.pathname);
-    var rows = map.tiers.map(function(t){
-      return '<a class="sk-hd__sub" href="'+tierHref(t)+'">'
-           +   '<span class="sic">'+esc(t.icon||'🏰')+'</span>'
-           +   '<span>'+esc(t.name||shortTierName(t))+'</span>'
-           +   (tierOpen(t) ? '' : '<span class="sk-hd__mpill soon">Скоро</span>')
-           + '</a>';
-    }).join('');
-    return '<div class="sk-hd__ni'+(here?' active':'')+'" data-tier="learn">'
-         +   '<button type="button" class="sk-hd__nbtn" aria-haspopup="true" aria-expanded="false">'
-         +     '<span class="sk-hd__nic">🎓</span>Навчання<span class="sk-hd__car">▾</span>'
-         +   '</button>'
-         +   '<div class="sk-hd__menu" role="menu">'
-         +     '<div class="sk-hd__mhead"><span class="ic">🎓</span><span class="nm">Навчання</span></div>'
-         +     '<div class="sk-hd__subs">'+rows
-         +       '<a class="sk-hd__sub" href="'+BASE+'tests.html"><span class="sic">📝</span><span>Тести й прогрес</span></a>'
-         +     '</div>'
-         +     '<a class="sk-hd__mopen" href="'+BASE+'navchannia.html">Відкрити Навчання →</a>'
-         +   '</div>'
-         + '</div>';
+  /* «Навчання →» — просто підпис перед ступенями (без меню й переходу) */
+  function learnMenu(){
+    return '<span class="sk-hd__learn"><span class="sk-hd__nic">🎓</span>Навчання'
+         + '<span class="sk-hd__larr" aria-hidden="true">→</span></span>';
   }
 
   function wireNav(nav){
