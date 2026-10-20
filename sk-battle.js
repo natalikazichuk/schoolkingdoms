@@ -485,7 +485,7 @@
     grow(st, id, landed.length > 0);
     if (id === SKILL.daze.id && landed.length) {
       var fo = fxOf(st.op), had = num(fo.focus);
-      if (steadyTry(R, st, rec, rnd)) rec.dazeSaved = true; else { fo.focus = 0; rec.daze = true; rec.focusLost = had; }   // Стійкість ворога може врятувати
+      if (steadyTry(R, st, rec, rnd)) rec.dazeSaved = true; else { fo.focus = 0; fo.dazed = st.round; rec.daze = true; rec.focusLost = had; }   // Стійкість ворога може врятувати; цього ходу концентрація вже не росте
     }
     if (id === SKILL.stun.id && landed.length) stunTry(R, st, id, rec, rnd);
     if (id === SKILL.ult.id && landed.length) {              // влучила — ворог пропускає наступний хід; Стійкість не рятує
@@ -684,6 +684,7 @@
   function focusTick(ctx, v, dmgIn, down, rndF, rndC) {
     if (!hasSk(v, 'base.focus')) return null;
     var f = fxOf(v.me), cap = V(v, 'base.focus', 'cap') || 3;
+    if (num(f.dazed) === v.round) return null;                 // збили з пантелику цього ходу — концентрація не росте й не спадає
     var eng = !down && ctx.R.d100(rndF) <= V(v, 'base.focus', 'engage');
     if (v.me.cls === 'knight') {
       if (dmgIn > 0) { if (eng) { grow(v, 'base.focus', true); if (num(f.focus) < cap) f.focus = num(f.focus) + 1; } return null; }
