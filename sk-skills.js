@@ -62,6 +62,21 @@ S('knight',1,5,'axe','Сокира','P','','+урон сокирою, шанс �
 S('knight',1,5,'spear','Спис','P','','+урон списом',
   'зі списом: урон +20%·м',
   'Спис б\'є сильно й далеко.','Аладон: копье',true);
+S('knight',1,5,'dagger','Кинджал','P','','+урон і +шанс криту кинджалом',
+  'з кинджалом: урон +10%·м, шанс криту +10%·м',
+  'Кинджал швидкий — частіше знаходить слабке місце.','★',true);
+S('knight',1,5,'mace','Булава','P','','+урон булавою, частіше оглушує',
+  'з булавою (молотом, дубиною): урон +15%·м; Оглушливий удар оглушує на +10%·м частіше',
+  'Важка булава — і ворог бачить зірочки.','★',true);
+S('knight',1,5,'flail','Кистень','P','','+урон кистенем, б\'є через щит',
+  'з кистенем: урон +10%·м; шанс блоку щита ворога проти твоїх ударів −20%·м',
+  'Ланцюг кистеня огинає щит.','★',true);
+S('knight',1,5,'whip','Кнут','P','','+точність кнутом, довше сплутує',
+  'з кнутом: точність +20%·м; на 75% і більше Захльост сплутує на +1 хід',
+  'Кнут дістає далеко й точно.','★',true);
+S('knight',1,5,'staff','Посох','P','','+урон бойовим посохом, краще парирує',
+  'з бойовим посохом (не магічним): урон +10%·м; парирування — як мечем (20% замість 15%)',
+  'Довгий посох — і удар, і захист.','★',true);
 S('knight',1,20,'shield','Блок щитом','P','','+шанс блоку щитом у незахищену зону',
   'зі щитом у лівій руці: шанс блоку фізичних ударів +15%·м (додається до «шансу блоку» речей)',
   'Щит рятує, навіть коли не вгадав, куди вдарять.','Аладон: блок щитом',true);
@@ -678,6 +693,20 @@ var RULES = {
     { k: 'pierce', v: 20, grow: true, u: '%', t: 'шанс рахувати лише половину броні ворога' }] },
   'knight.spear':   { kind: 'const', perBattle: 30, on: 'удар списом: влучив — ✔, промах чи блок — ✖', p: [
     { k: 'dmgPct', v: 20, grow: true, u: '%', t: 'урону списом' }] },
+  'knight.dagger':  { kind: 'const', perBattle: 30, on: 'удар кинджалом: влучив — ✔, промах чи блок — ✖', p: [
+    { k: 'dmgPct', v: 10, grow: true, u: '%', t: 'урону кинджалом' },
+    { k: 'critPct', v: 10, grow: true, u: '%', t: 'шансу криту' }] },
+  'knight.mace':    { kind: 'const', perBattle: 30, on: 'удар булавою: влучив — ✔, промах чи блок — ✖', p: [
+    { k: 'dmgPct', v: 15, grow: true, u: '%', t: 'урону булавою' },
+    { k: 'stunPct', v: 10, grow: true, u: '%', t: 'до шансу оглушення (Оглушливий удар)' }] },
+  'knight.flail':   { kind: 'const', perBattle: 30, on: 'удар кистенем: влучив — ✔, промах чи блок — ✖', p: [
+    { k: 'dmgPct', v: 10, grow: true, u: '%', t: 'урону кистенем' },
+    { k: 'shieldCut', v: 20, grow: true, u: '%', t: 'менше шансу блоку щита ворога проти тебе' }] },
+  'knight.whip':    { kind: 'const', perBattle: 30, on: 'удар кнутом: влучив — ✔, промах чи блок — ✖', p: [
+    { k: 'accPct', v: 20, grow: true, u: '%', t: 'точності кнутом' },
+    { k: 'tanglePlus', v: 1, calc: function (pct) { return pct >= 75 ? 1 : 0; }, t: 'ходів сплутування Захльостом (з 75%)' }] },
+  'knight.staff':   { kind: 'const', perBattle: 30, on: 'удар бойовим посохом: влучив — ✔, промах чи блок — ✖', p: [
+    { k: 'dmgPct', v: 10, grow: true, u: '%', t: 'урону посохом' }] },
   'knight.shield':  { kind: 'const', perBattle: 6, on: 'удар ворога в незахищену зону зі щитом у руці: заблоковано шансом — ✔, влучив — ✖', p: [
     { k: 'blockPct', v: 15, grow: true, u: '%', t: 'шансу блоку фізичних ударів (зі щитом)' }] },
   'knight.bash':    { kind: 'active', perBattle: 3, p: [
@@ -866,7 +895,7 @@ function iconHtml(id) {
   return src ? '<img class="skb-ic" src="' + src + '" alt="' + esc1(s ? s.name : '') + '" draggable="false">' : (s ? s.icon : '⚡');
 }
 var ICONS = {
-  'knight.sword': '⚔️', 'knight.axe': '🪓', 'knight.spear': '🔱', 'knight.shield': '🛡️', 'knight.bash': '💥',
+  'knight.sword': '⚔️', 'knight.axe': '🪓', 'knight.spear': '🔱', 'knight.dagger': '🗡️', 'knight.mace': '🔨', 'knight.flail': '⛓️', 'knight.whip': '➰', 'knight.staff': '🦯', 'knight.shield': '🛡️', 'knight.bash': '💥',
   'knight.berserk': '😡', 'knight.fists': '👊', 'knight.brave': '🦁', 'knight.care': '🧰',
   'knight.lunge': '🗡️', 'knight.enh': '💪', 'knight.calm': '🧘', 'knight.tough': '🪨', 'knight.second': '⚡', 'knight.haft': '🔱',
   'knight.bless': '🙏', 'knight.parry': '🤺', 'knight.daze': '😵‍💫', 'knight.riposte': '↩️', 'knight.disarm': '🤚',
@@ -994,6 +1023,11 @@ var FX = {
   'knight.sword':   function(v){ return 'з мечем: +' + v.accPct + '% точності, +' + v.dmgPct + '% урону'; },
   'knight.axe':     function(v){ return 'з сокирою: +' + v.dmgPct + '% урону, ' + v.pierce + '% — пів броні ворога'; },
   'knight.spear':   function(v){ return 'зі списом: +' + v.dmgPct + '% урону'; },
+  'knight.dagger':  function(v){ return 'з кинджалом: +' + v.dmgPct + '% урону, +' + v.critPct + '% шансу криту'; },
+  'knight.mace':    function(v){ return 'з булавою: +' + v.dmgPct + '% урону, оглушення +' + v.stunPct + '%'; },
+  'knight.flail':   function(v){ return 'з кистенем: +' + v.dmgPct + '% урону, щит ворога блокує на ' + v.shieldCut + '% рідше'; },
+  'knight.whip':    function(v){ return 'з кнутом: +' + v.accPct + '% точності' + (v.tanglePlus ? ', сплутування +1 хід' : ''); },
+  'knight.staff':   function(v){ return 'з бойовим посохом: +' + v.dmgPct + '% урону, парирування як мечем'; },
   'knight.shield':  function(v){ return 'зі щитом: +' + v.blockPct + '% шансу блоку'; },
   'knight.bash':    function(v){ return 'потрібен щит · вдається в ' + v.chance + '%, без урону, збиває з ніг ' + v.knock + '%'; },
   'knight.berserk': function(v){ return 'вдається в ' + v.chance + '% (−' + v.mana + ' мани): ' + v.turnsMin + '–' + v.turnsMax + (v.turnsMax < 5 ? ' ходи +' : ' ходів +') + v.dmgPct + '% урону, −' + v.armorCut + '% броні'; },

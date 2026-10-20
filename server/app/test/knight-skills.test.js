@@ -28,7 +28,8 @@ function battle(sk, bar, eq, opEq) {
 const KN = ['knight.sword', 'knight.axe', 'knight.spear', 'knight.shield', 'knight.bash', 'knight.berserk', 'knight.fists', 'knight.brave', 'knight.care', 'knight.lunge', 'knight.enh',
   'knight.tough', 'knight.calm', 'knight.second', 'knight.haft', 'knight.bless', 'knight.parry', 'knight.daze', 'knight.riposte', 'knight.disarm',
   'knight.stoneskin', 'knight.steady', 'knight.song', 'knight.will', 'knight.shieldbreak', 'knight.stun', 'knight.lash',
-  'knight.offhand', 'knight.grip', 'knight.frenzy', 'knight.third', 'knight.cleave', 'knight.ult'];
+  'knight.offhand', 'knight.grip', 'knight.frenzy', 'knight.third', 'knight.cleave', 'knight.ult',
+  'knight.dagger', 'knight.mace', 'knight.flail', 'knight.whip', 'knight.staff'];
 
 test('Лицар: оброблені вміння (9 першого рівня + 11 з 4–16 рівня + 2 з 14–17 + 5 з 18–22), у кожного правила, значок, опис і ріст', () => {
   const ready = S.readyFor('knight').map(s => s.id);
@@ -911,4 +912,45 @@ test('Збити з пантелику: лицар-бот втрачає ВСЮ 
   assert.strictEqual(e.skill.focusLost, 3);
   assert.ok(e.meHit.dmg > 0 || e.skill.dmg > 0, 'бот отримав урон цього ходу');
   assert.strictEqual(st.op.fx.focus, 0, 'не відросла від ударів цього ходу');
+});
+
+/* ── вміння зброї: Кинджал, Булава, Кистень, Кнут, Посох ── */
+test('нова зброя Лицаря: Кинджал (+урон, +крит), Булава, Кистень, Кнут (+точність), Посох (не магічний)', () => {
+  const DAG = item({ id: 'W30', name: 'Кинджал', category: 'Зброя', stat: 'Урон', valueMin: 4, valueMax: 6, weaponType: 'dagger' });
+  const WH = item({ id: 'W31', name: 'Кнут', category: 'Зброя', stat: 'Урон', valueMin: 4, valueMax: 6, weaponType: 'whip' });
+  const ST = item({ id: 'W32', name: 'Посох', category: 'Зброя', stat: 'Урон', valueMin: 4, valueMax: 6, weaponType: 'staff' });
+  const MST = item({ id: 'W33', name: 'Чарівний посох', category: 'Зброя', stat: 'Магічний урон', valueMin: 4, valueMax: 6, weaponType: 'staff' });
+  const sk = { 'knight.dagger': 1, 'knight.mace': 1, 'knight.flail': 1, 'knight.whip': 1, 'knight.staff': 1 };
+  const d0 = battle({}, [], [wear(DAG, 'weaponR')]).me.p, d1 = battle(sk, [], [wear(DAG, 'weaponR')]).me.p;
+  assert.strictEqual(d1.dmgPct - d0.dmgPct, 10); assert.strictEqual(num(d1.critPct) - num(d0.critPct), 10);
+  const m0 = battle({}, [], [wear(MACE2, 'weaponR')]).me.p, m1 = battle(sk, [], [wear(MACE2, 'weaponR')]).me.p;
+  assert.strictEqual(m1.dmgPct - m0.dmgPct, 15);
+  const f0 = battle({}, [], [wear(FLAIL, 'weaponR')]).me.p, f1 = battle(sk, [], [wear(FLAIL, 'weaponR')]).me.p;
+  assert.strictEqual(f1.dmgPct - f0.dmgPct, 10);
+  const w0 = battle({}, [], [wear(WH, 'weaponR')]).me.p, w1 = battle(sk, [], [wear(WH, 'weaponR')]).me.p;
+  assert.strictEqual(w1.accuracy, Math.round(w0.accuracy * 1.2));
+  const s0 = battle({}, [], [wear(ST, 'weaponR')]).me.p, s1 = battle(sk, [], [wear(ST, 'weaponR')]).me.p;
+  assert.strictEqual(s1.dmgPct - s0.dmgPct, 10);
+  const ms0 = battle({}, [], [wear(MST, 'weaponR')]).me.p, ms1 = battle(sk, [], [wear(MST, 'weaponR')]).me.p;
+  assert.strictEqual(ms1.dmgPct, ms0.dmgPct, 'магічний посох — без бонусу Лицаря');
+  // ріст — від ударів своєю зброєю
+  const st = battle(sk, [], [wear(DAG, 'weaponR')]);
+  for (let i = 0; i < 3; i++) SB.turn(ctx, st, HIT, {}, Date.now());
+  assert.ok(((st.me.grow || {})['knight.dagger'] || 0) + ((st.me.growF || {})['knight.dagger'] || 0) >= 3);
+  assert.ok(!((st.me.grow || {})['knight.mace']));
+});
+function num(v) { v = Number(v); return isNaN(v) ? 0 : v; }
+
+test('Кистень: шанс блоку щита ворога проти твоїх ударів −20% на 100%', () => {
+  const BIG = item({ id: 'S8', name: 'Щит', category: 'Щити', stat: 'Броня', valueMin: 2, valueMax: 2, addStats: [{ stat: 'Шанс блоку', value: 50 }] });
+  let blk = 0, blk0 = 0, t = 0;
+  for (let k = 0; k < 40; k++) {
+    const a = sharp(duel({ 'knight.flail': 1 }, [], {}, [wear(BIG, 'weaponL')], [wear(FLAIL, 'weaponR')]));
+    const b = sharp(duel({}, [], {}, [wear(BIG, 'weaponL')], [wear(FLAIL, 'weaponR')]));
+    for (let i = 0; i < 3; i++) {
+      const ea = SB.turn(ctx, a, { atk: 'head', block: 'body' }, {}, Date.now()), eb = SB.turn(ctx, b, { atk: 'head', block: 'body' }, {}, Date.now());
+      blk += ea.meHit.hits.filter(h => h.byChance).length; blk0 += eb.meHit.hits.filter(h => h.byChance).length; t++;
+    }
+  }
+  assert.ok(blk < blk0, 'з Кистенем блоків щитом менше: ' + blk + ' < ' + blk0);
 });
