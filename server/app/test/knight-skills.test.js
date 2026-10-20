@@ -955,3 +955,14 @@ test('Кистень: шанс блоку щита ворога проти тв�
   }
   assert.ok(blk < blk0, 'з Кистенем блоків щитом менше: ' + blk + ' < ' + blk0);
 });
+
+test('Королівська лють не блокується захистом зони', () => {
+  let n = 0;
+  for (let k = 0; k < 200; k++) {
+    const st = sharp(battle({ 'knight.ult': 1 }, ['knight.ult'], [wear(SWORD, 'weaponR')]));
+    st.me.fx.focus = 2; SB.useSkill(ctx, st, 'knight.ult');
+    const e = SB.turn(ctx, st, HIT, {}, Date.now());
+    if (e.skill && e.skill.kind !== 'fail' && e.op.block === HIT.atk) { assert.notStrictEqual(e.skill.hits[0].kind, 'block', 'суперник закрив зону, але ульта пройшла'); n++; }
+  }
+  assert.ok(n > 0, 'був хід, коли суперник закрив саме зону ульти');
+});
