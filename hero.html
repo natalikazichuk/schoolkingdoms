@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="hero.css?v=22">
+<link rel="stylesheet" href="hero.css?v=23">
 <script src="sk-resume.js?v=1"></script>
 <script>SKResume.go();   /* відкрили застосунок — одразу туди, де Герой зупинився (якщо не минуло 2 годин) */</script>
 <script src="sk-arena-rules.js?v=25"></script>
@@ -168,9 +168,9 @@
 
     <!-- МОЇ ЗДІБНОСТІ — аналітика тестів (sk-insights.js): суперсили, що прокачати, теми предметів -->
     <section class="abil-card" id="abilCard" hidden>
-      <div class="rp-head">
-        <span class="rp-ic" aria-hidden="true">🧭</span>
-        <h3>Мої здібності</h3>
+      <div class="ab-title">
+        <img src="img/abil/compass.webp" alt="" aria-hidden="true">
+        <h3>Мої <span>здібності</span></h3>
       </div>
       <div class="ab-grades" id="abilGrades" role="tablist" aria-label="Клас" hidden></div>
       <div class="ab-radar" id="abilRadar"></div>
@@ -485,6 +485,24 @@ function abilLevel(sj){
    Картинки — ті самі, що на плитках предметів у tests.html (img/nav/):
    власна subj-<id>.webp, а якщо її немає — спільна за темою. */
 const RD_COLORS = ['#5C6BC0','#D6577A','#3FB6A8','#E0954E','#8E6CE0','#4FA3E0','#E0C04E'];
+/* Значки предметів з прозорим фоном (img/abil/) і кольори з макета:
+   великий — на павутинці й у «Що прокачати», малий — у рядку «Мої суперсили». */
+const AB_ICO = [
+  { re:/математ|лічб|цифр|number|math/,          img:'math', sm:'abacus', col:'#F2C75C' },
+  { re:/українськ|абетк|букв|читанн|грамот|мова/, img:'ukr',  sm:'abv',    col:'#F27FA6' },
+  { re:/english|англ/,                           img:'eng',  sm:'eng',    col:'#A98BF0' },
+  { re:/ядс|досліджую світ|природ|довкіл|світ/,   img:'yads', sm:'yads',   col:'#8EDB9A' },
+  { re:/інформат|informat|комп.ютер/,            img:'inf',  sm:'inf',    col:'#7FC1F2' }
+];
+function abilIco(sj){
+  const hay = (String(sj.subjectId||'')+' '+String(sj.subject||'')).toLowerCase().replace(/[’'`ʼ]/g,'');
+  const m = AB_ICO.find(x => x.re.test(hay));
+  return m ? { img:'img/abil/'+m.img+'.webp', sm:'img/abil/'+m.sm+'.webp', col:m.col } : null;
+}
+function abilCol(sj, i){
+  const ic = abilIco(sj);
+  return ic ? ic.col : /^#[0-9a-f]{3,8}$/i.test(sj.accent||'') ? sj.accent : RD_COLORS[i % RD_COLORS.length];
+}
 const RD_IMG = [
   { re:/математ|лічб|цифр|number|math/,          img:'img/nav/dis-tsyfry.webp' },
   { re:/українськ|абетк|букв|читанн|грамот|мова/, img:'img/nav/dis-bukvy.webp' },
@@ -527,7 +545,6 @@ function abilRadar(subjects){
   const xy = p => p[0].toFixed(1)+','+p[1].toFixed(1);
   const poly = f => subjects.map((_, i) => xy(pt(i, f))).join(' ');
   const vals = subjects.map(abilLevel);
-  const col = (sj, i) => /^#[0-9a-f]{3,8}$/i.test(sj.accent||'') ? sj.accent : RD_COLORS[i % RD_COLORS.length];
   let g = '';
   [1, 0.75, 0.5, 0.25].forEach(f => { g += '<polygon class="rd-ring" points="'+poly(f)+'"/>'; });
   subjects.forEach((_, i) => { const p = pt(i, 1); g += '<line class="rd-axis" x1="'+c+'" y1="'+c+'" x2="'+p[0].toFixed(1)+'" y2="'+p[1].toFixed(1)+'"/>'
@@ -543,21 +560,50 @@ function abilRadar(subjects){
     const x = 50 + Math.cos(ang(i))*35, y = 50 + Math.sin(ang(i))*ry;
     const name = String(sj.subject).split(' · ')[0];
     const st = window.SKCUR && SKCUR.statByKey ? SKCUR.statByKey(sj.statKey) : null;
+    const ic = abilIco(sj);
     const im = abilImgs(sj), imgs = im.covers.concat(im.nav), nNav = im.nav.length;
-    // клас cover — квадратна обкладинка (кадр по центру); img/nav — обрізаємо знизу, там угорі назва
-    html += '<button type="button" class="rd-card" data-subj="'+i+'" aria-label="'+escHtml(name+': теми')+'" style="left:'+x.toFixed(1)+'%;top:'+y.toFixed(1)+'%;--sc:'+col(sj, i)+'">'
-      + '<span class="rd-pic">'+(imgs.length
+    // є значок з прозорим фоном — він; інакше квадратна картинка:
+    // клас cover — обкладинка (кадр по центру); img/nav — обрізаємо знизу, там угорі назва
+    html += '<button type="button" class="rd-card" data-subj="'+i+'" aria-label="'+escHtml(name+': теми')+'" style="left:'+x.toFixed(1)+'%;top:'+y.toFixed(1)+'%;--sc:'+abilCol(sj, i)+'">'
+      + (ic ? '<img class="rd-ico" src="'+ic.img+'" alt="">' : '<span class="rd-pic">'+(imgs.length
           ? '<img class="'+(im.covers.length?'cover':'')+'" src="'+escHtml(imgs[0])+'" alt="" loading="lazy" data-fb="'+escHtml(imgs.slice(1).join('|'))+'" data-nav="'+nNav+'"'
             + ' onerror="var f=(this.dataset.fb||\'\').split(\'|\').filter(Boolean);if(f.length){this.dataset.fb=f.slice(1).join(\'|\');if(f.length<=+this.dataset.nav)this.className=\'\';this.src=f[0];}else{this.remove();}">'
-          : '')+'<i>'+escHtml(sj.icon)+'</i></span>'
+          : '')+'<i>'+escHtml(sj.icon)+'</i></span>')
       + '<span class="rd-name">'+escHtml(name)+'</span>'
       + (st ? '<span class="rd-stat">'+escHtml(st.label)+'</span>' : '')
       + '<span class="rd-pct">'+vals[i]+'%</span></button>';
   });
   return html;
 }
-/* стан павутинки: усі предмети, класи перемикача, вибраний клас */
-const ABIL = { subjects:[], grades:[], sel:null, shown:[] };
+/* стан павутинки: усі предмети, класи перемикача, вибраний клас; усі теми — для «Всі» */
+const ABIL = { subjects:[], grades:[], sel:null, shown:[], topics:[] };
+/* «Мої суперсили» / «Що прокачати»: заголовок зі значком і кнопкою «Всі» */
+function abilBoxHead(ico, title, all){
+  return '<div class="ab-bh"><img src="img/abil/'+ico+'.webp" alt="" aria-hidden="true"><span>'+title+'</span>'
+    + '<button type="button" class="ab-all" data-all="'+all+'" aria-label="'+escHtml(title+': усі теми')+'">Всі <b aria-hidden="true">›</b></button></div>';
+}
+function abilSubjName(t){ return String(t.subject||'').split(' · ')[0]; }
+function abilTopicIco(t, big){
+  const ic = abilIco(t);
+  return ic ? '<img class="ab-ti" src="'+(big ? ic.img : ic.sm)+'" alt="">' : '<span class="ab-ti ab-te">'+escHtml(t.icon)+'</span>';
+}
+function abilPowRow(t, i){
+  const tag = t.next ? 'a' : 'div';
+  return '<'+tag+' class="ab-chip"'+(t.next ? ' href="'+escHtml(abilHref(t.next))+'"' : '')+' style="--sc:'+abilCol(t, i)+'">'
+    + abilTopicIco(t, false)
+    + '<span class="ab-tx"><b>'+escHtml(t.topic)+'</b><small>'+escHtml(abilSubjName(t))+'</small></span>'
+    + abilStars(t.stars)+'</'+tag+'>';
+}
+function abilUpCard(t, i){
+  const S = SKINS.STATUS, pct = t._next ? 0 : t.mastery;
+  return '<div class="ab-chip" style="--sc:'+abilCol(t, i)+'">'
+    + abilTopicIco(t, true)
+    + '<span class="ab-pill">'+escHtml(abilSubjName(t))+'</span>'
+    + '<span class="ab-tx"><b>'+escHtml(t.topic)+'</b><small>'+(t._next ? '🚀 Наступний крок — нова тема!' : S[t.status].icon+' '+escHtml(S[t.status].kid))+'</small></span>'
+    + '<span class="ab-bar" role="img" aria-label="Володіння '+pct+'%"><i style="width:'+pct+'%"></i></span><span class="ab-pc">'+pct+'%</span>'
+    + (t.next ? '<a class="ab-go" href="'+escHtml(abilHref(t.next))+'">'+(t._next ? 'Почати' : 'Тренувати')+'</a>' : '')
+    + '</div>';
+}
 function paintAbilGrade(){
   const g = ABIL.sel;
   const subjects = ABIL.subjects.filter(sj => sj.grade===g);
@@ -599,6 +645,22 @@ function openAbilModal(sj){
   $('abilModalList').innerHTML = abilTopics(sj);
   m.hidden=false; document.body.classList.add('modal-open');
 }
+/* що прокачати — той самий порядок, що в SKINS.analyze().improve, але без обмеження «до 2» */
+function abilImprove(topics){
+  const rank = { repeat:0, stale:1, learn:2 };
+  return topics.filter(t => t.status in rank).sort((a, b) => (rank[a.status]-rank[b.status]) || (a.mastery-b.mastery));
+}
+/* «Всі» — усі теми-суперсили або всі, що варто прокачати, у тому ж поп-апі */
+function openAbilAll(kind){
+  const m=$('abilModal'); if(!m) return;
+  const list = kind==='pow'
+    ? ABIL.topics.filter(t => t.status==='master' || t.status==='good').sort((a, b) => b.mastery - a.mastery)
+    : abilImprove(ABIL.topics);
+  $('abilModalTitle').textContent = kind==='pow' ? '⭐ Мої суперсили' : '🎯 Що прокачати';
+  $('abilModalSub').textContent = list.length+' '+(list.length===1 ? 'тема' : list.length>=2 && list.length<=4 ? 'теми' : 'тем');
+  $('abilModalList').innerHTML = abilTopics({ topics:list });
+  m.hidden=false; document.body.classList.add('modal-open');
+}
 function closeAbilModal(){ const m=$('abilModal'); if(!m) return; m.hidden=true; document.body.classList.remove('modal-open'); }
 (function(){
   const tabs = document.getElementById('abilGrades');
@@ -610,6 +672,10 @@ function closeAbilModal(){ const m=$('abilModal'); if(!m) return; m.hidden=true;
   if(radar) radar.addEventListener('click', function(e){
     const c = e.target.closest('[data-subj]'); if(!c) return;
     openAbilModal(ABIL.shown[Number(c.getAttribute('data-subj'))]);
+  });
+  const abTop = document.getElementById('abilTop');
+  if(abTop) abTop.addEventListener('click', function(e){
+    const b = e.target.closest('[data-all]'); if(b) openAbilAll(b.getAttribute('data-all'));
   });
   const modal = document.getElementById('abilModal');
   if(modal) modal.addEventListener('click', function(e){ if(e.target.closest('[data-close]')) closeAbilModal(); });
@@ -627,7 +693,7 @@ async function loadAbilities(h){
      (дитина могла проходити тести молодшого класу). Суперсили й «що прокачати» — загальні. */
   const all = SKINS.analyze(placed, get, {});
   const own = ABIL_GRADE!=null ? SKINS.analyze(placed, get, { grade:ABIL_GRADE }) : all;
-  const r = { strengths: all.strengths, improve: all.improve, nextStep: own.nextStep || all.nextStep };
+  const r = { strengths: all.strengths, nextStep: own.nextStep || all.nextStep };
   // сирі тести кожного предмета в порядку карти — для обкладинок на павутинці
   all.subjects.forEach(sj => { sj._tests = [];
     placed.forEach(p => { if(p.subj && p.subj.id===sj.subjectId && p.grade && Number(p.grade.gradeNum)===Number(sj.grade)) sj._tests.push(...(p.tests||[])); }); });
@@ -637,22 +703,17 @@ async function loadAbilities(h){
   if(!grades.length){ card.hidden=true; return; }
   ABIL.subjects = all.subjects; ABIL.grades = grades;
   if(!grades.includes(ABIL.sel)) ABIL.sel = grades.includes(ABIL_GRADE) ? ABIL_GRADE : grades[0];
-  const S = SKINS.STATUS;
-  const go = (t, label) => t.next ? '<a class="ab-go" href="'+escHtml(abilHref(t.next))+'">'+(label||'▶')+'</a>' : '';
+  ABIL.topics = all.topics;
   let top='';
   if(r.strengths.length){
-    top += '<div class="ab-box pow"><div class="ab-bh">✨ Мої суперсили</div>'
-      + r.strengths.map(t=>'<div class="ab-chip">'+escHtml(t.icon)+' <b>'+escHtml(t.topic)+'</b>'+abilStars(t.stars)+'</div>').join('')
-      + '</div>';
+    top += '<div class="ab-box pow">'+abilBoxHead('star', 'Мої суперсили', 'pow')
+      + r.strengths.map(abilPowRow).join('') + '</div>';
   }
-  const tips = r.improve.slice();
-  if(r.nextStep && tips.length<2) tips.push(Object.assign({}, r.nextStep, { _next:true }));
+  const tips = abilImprove(all.topics).slice(0, 3);
+  if(r.nextStep && tips.length<3) tips.push(Object.assign({}, r.nextStep, { _next:true }));
   if(tips.length){
-    top += '<div class="ab-box up"><div class="ab-bh">🎯 Що прокачати</div>'
-      + tips.map(t=>'<div class="ab-chip"><span class="ab-st">'+(t._next?'🚀':S[t.status].icon)+'</span>'
-          +'<span class="ab-tx"><b>'+escHtml(t.topic)+'</b><small>'+(t._next?'Наступний крок — нова тема!':escHtml(S[t.status].kid))+'</small></span>'
-          + go(t) + '</div>').join('')
-      + '</div>';
+    top += '<div class="ab-box up">'+abilBoxHead('target', 'Що прокачати', 'up')
+      + '<div class="ab-ups">'+tips.map(abilUpCard).join('')+'</div></div>';
   }
   if(!top) top='<div class="ab-empty">Пройди перший тест — і тут засяють твої здібності ✨</div>';
   $('abilTop').innerHTML = top;
