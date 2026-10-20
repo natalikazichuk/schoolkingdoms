@@ -162,6 +162,24 @@ body:not(.learn) .learn-only{display:none}
 body.m-learn #micBtn,body:not(.m-learn) #listenBtn{display:none}
 .btn.listen{background:#7c5cd0;box-shadow:0 5px 0 #5b3fa8}
 .btn.listen.on{background:var(--red);box-shadow:0 5px 0 #c94b4b}
+
+/* «Вчити» / «Розказати» — одна картка (рядок + картинка) на весь екран */
+.lvl.full{padding:5px 10px}
+.solo-bar{display:none;align-items:center;justify-content:center;gap:10px}
+body.learn.solo .solo-bar{display:flex}
+.solo-bar button{height:40px;min-width:46px;border:2px solid var(--line);background:#fff;border-radius:12px;
+  font-size:1.1rem;cursor:pointer;color:var(--ink);font-weight:800}
+.solo-bar button:disabled{opacity:.35;cursor:default}
+.solo-bar span{font-weight:800;color:var(--soft);min-width:56px;text-align:center}
+body.solo .learn-grid{grid-template-columns:minmax(0,1fr)!important;grid-template-rows:minmax(0,1fr)!important;
+  grid-auto-rows:auto!important;overflow:hidden!important}
+body.solo .tile{display:none}
+body.solo .tile.big{display:flex;border-radius:22px;cursor:default}
+body.solo .tile.big img{object-fit:contain;background:#fdf6e8}
+body.solo .tile.big .cap{flex:none;font-size:clamp(1.6rem,8vw,2.8rem);line-height:1.25;padding:10px 12px 14px}
+body.solo .tile.big .w{padding:0 3px;margin:0 1px;border-radius:8px}
+body.solo .tile.big.nopic .cap{flex:1;font-size:clamp(2rem,10vw,3.4rem)}
+body.solo .tile.big::after{font-size:1.4rem;top:8px;right:10px}
 </style>
 </head>
 <body>
@@ -178,6 +196,7 @@ body.m-learn #micBtn,body:not(.m-learn) #listenBtn{display:none}
     <button class="lvl on" type="button" data-level="all" title="Весь текст">📝 Текст</button>
     <button class="lvl" type="button" data-level="first" title="Перші літери слів">🔤 Літери</button>
     <button class="lvl" type="button" data-level="none" title="Лише картинки">🖼 Картинки</button>
+    <button class="lvl full" type="button" id="soloBtn" title="Одна картка на весь екран">⛶</button>
   </div>
 
   <div class="top">
@@ -189,6 +208,12 @@ body.m-learn #micBtn,body:not(.m-learn) #listenBtn{display:none}
   </div>
 
   <div class="learn-grid" id="grid"></div>
+  <div class="solo-bar">
+    <button type="button" id="soPrev" aria-label="Попередній рядок">◀</button>
+    <span id="soNo">1 / 1</span>
+    <button type="button" id="soNext" aria-label="Наступний рядок">▶</button>
+    <button type="button" id="soGrid" aria-label="Усі картки" title="Усі картки">▦</button>
+  </div>
 
   <div class="card" id="textCard">
     <h2 class="poem-title" id="poemTitle"></h2>
@@ -248,6 +273,7 @@ body.m-learn #micBtn,body:not(.m-learn) #listenBtn{display:none}
   var pages = [], pageCount = 0, page = 0;   // read: строфи — сторінки по 4 рядки
   var autoPos = -1, flipTimer = 0;
   var tiles = [];        // learn: [{el, from, to}] — картка рядка й діапазон його слів
+  var solo = -1;         // learn/tell: картка на весь екран (індекс рядка), -1 — уся сітка
 
   var $ = function(id){ return document.getElementById(id); };
   var words = [];        // [{el, norm}]
@@ -365,6 +391,7 @@ body.m-learn #micBtn,body:not(.m-learn) #listenBtn{display:none}
     applyLevel();
     autoPos = -1;
     if(!grid()) showPage(0);
+    else if(solo >= 0) showSolo(solo);
   }
   /* Рівень підказки у «Вивчити вірш»: ще не сказані слова показуємо повністю,
      першою літерою або ховаємо; сказане — завжди повністю й зеленим. */
@@ -378,7 +405,11 @@ body.m-learn #micBtn,body:not(.m-learn) #listenBtn{display:none}
 
   function paint(){
     words.forEach(function(w, i){ w.el.classList.toggle('cur', !grid() && i === pos && pos < words.length); });
-    if(!playing) tiles.forEach(function(t){ t.el.classList.toggle('now', listening && pos >= t.from && pos < t.to); });
+    if(!playing) tiles.forEach(function(t, k){
+      var now = listening && pos >= t.from && pos < t.to;
+      t.el.classList.toggle('now', now);
+      if(now && solo >= 0 && solo !== k) showSolo(k);   // розказує — картка йде слідом
+    });
     $('barFill').style.width = (words.length ? pos / words.length * 100 : 0) + '%';
     /* Дочитав строфу — сторінка сама перегортається на наступну
        (з короткою паузою, щоб дитина побачила останнє зелене слово). */
@@ -606,10 +637,49 @@ body.m-learn #micBtn,body:not(.m-learn) #listenBtn{display:none}
     paint();
   });
 
-  /* «Вивчити вірш»: натиснув на картку — почув рядок (підказка, якщо забув). */
+  /* Одна картка на весь екран: велика картинка й рядок, гортаємо ◀ ▶ або свайпом. */
+  function showSolo(n){
+    if(!tiles.length){ solo = -1; }
+    else solo = Math.max(0, Math.min(tiles.length - 1, n));
+    document.body.classList.toggle('solo', solo >= 0);
+    $('soloBtn').classList.toggle('on', solo >= 0);
+    tiles.forEach(function(t, k){ t.el.classList.toggle('big', k === solo); });
+    if(solo < 0) return;
+    $('soNo').textContent = (solo + 1) + ' / ' + tiles.length;
+    $('soPrev').disabled = solo === 0;
+    $('soNext').disabled = solo === tiles.length - 1;
+  }
+  function soloStep(d){ if(solo >= 0){ stopPlay(); showSolo(solo + d); } }
+  $('soloBtn').addEventListener('click', function(){ showSolo(solo >= 0 ? -1 : 0); });
+  $('soPrev').addEventListener('click', function(){ soloStep(-1); });
+  $('soNext').addEventListener('click', function(){ soloStep(1); });
+  $('soGrid').addEventListener('click', function(){ showSolo(-1); });
+  var touchX = null;
+  $('grid').addEventListener('touchstart', function(e){ touchX = solo >= 0 ? e.touches[0].clientX : null; }, {passive: true});
+  $('grid').addEventListener('touchend', function(e){
+    if(touchX === null) return;
+    var dx = e.changedTouches[0].clientX - touchX;
+    touchX = null;
+    if(Math.abs(dx) > 50){
+      swiped = true; setTimeout(function(){ swiped = false; }, 400);
+      soloStep(dx < 0 ? 1 : -1);
+    }
+  });
+  var swiped = false;
+  document.addEventListener('keydown', function(e){
+    if(solo < 0 || !grid()) return;
+    if(e.key === 'ArrowRight') soloStep(1);
+    else if(e.key === 'ArrowLeft') soloStep(-1);
+    else if(e.key === 'Escape') showSolo(-1);
+  });
+
+  /* «Вивчити вірш»: натиснув на картку — почув рядок (підказка, якщо забув).
+     У сітці картка ще й відкривається на весь екран. */
   $('grid').addEventListener('click', function(e){
     var el = e.target.closest('.tile');
     if(!el) return;
+    if(swiped){ swiped = false; return; }
+    if(solo < 0) showSolo(+el.dataset.line);
     var t = tiles[+el.dataset.line];
     var ss = window.speechSynthesis;
     if(!t || !ss || !window.SpeechSynthesisUtterance) return;
@@ -634,6 +704,7 @@ body.m-learn #micBtn,body:not(.m-learn) #listenBtn{display:none}
     if(!playing) return;
     if(i >= tiles.length){ stopPlay(); return; }
     tiles.forEach(function(t, k){ t.el.classList.toggle('now', k === i); });
+    if(solo >= 0) showSolo(i);
     var u = new SpeechSynthesisUtterance(tiles[i].text);
     u.lang = 'uk-UA'; u.rate = 0.85;
     var next = function(){ setTimeout(function(){ playLine(i + 1); }, 350); };
@@ -648,7 +719,7 @@ body.m-learn #micBtn,body:not(.m-learn) #listenBtn{display:none}
     this.classList.add('on');
     this.textContent = '⏹ Зупинити';
     window.speechSynthesis.cancel();
-    playLine(0);
+    playLine(solo > 0 ? solo : 0);   // на весь екран — з поточного рядка
   });
 
   function setMode(m){
@@ -656,6 +727,7 @@ body.m-learn #micBtn,body:not(.m-learn) #listenBtn{display:none}
     if(listening) stop();
     stopPlay();
     mode = m;
+    if(!grid()) showSolo(-1);
     document.body.classList.toggle('learn', grid());
     document.body.classList.toggle('m-learn', mode === 'learn');
     document.body.classList.toggle('m-tell', mode === 'tell');
