@@ -204,12 +204,11 @@ await scenario('hero.html — павутинка: рівні предметів,
   assert.match(await page.getAttribute('#abilRadar svg', 'aria-label'), /Математика 46%.*English 97%/);
   assert.equal(await page.$$eval('#abilRadar .rd-dot', d => d.length), 6, 'вершина на кожен предмет');
   assert.ok(await page.$eval('#abilRadar', el => el.classList.contains('many')), '6 предметів — вищий блок');
-  // картинки: дочекатись, поки всі завантажаться (з урахуванням запасних)
-  await page.waitForFunction(() => [...document.querySelectorAll('#abilRadar .rd-pic img')].every(i => i.complete && i.naturalWidth > 0));
-  const pics = await page.$$eval('#abilRadar .rd-pic img', is => is.map(i => [new URL(i.src).pathname, i.className]));
-  assert.deepEqual(pics[0], ['/img/tr/do10.webp', 'cover'], 'Математика — обкладинка тесту з адмінки');
-  assert.deepEqual(pics[1], ['/img/nav/dis-bukvy.webp', ''], 'Українська — обкладинки немає (файл не знайдено) → картинка предмета');
-  assert.deepEqual(pics[2], ['/img/nav/dis-english.webp', ''], 'English — без обкладинки → картинка предмета');
+  // предмети з макета — значок з прозорим фоном (img/abil/), решта — картинка предмета
+  await page.waitForFunction(() => [...document.querySelectorAll('#abilRadar .rd-ico')].every(i => i.complete && i.naturalWidth > 0));
+  const icos = await page.$$eval('#abilRadar .rd-ico', is => is.map(i => new URL(i.src).pathname));
+  assert.deepEqual(icos.slice(0, 5), ['/img/abil/math.webp', '/img/abil/ukr.webp', '/img/abil/eng.webp', '/img/abil/yads.webp', '/img/abil/inf.webp']);
+  assert.ok(await page.$eval('#abilRadar .rd-card:last-child', c => !!c.querySelector('.rd-pic')), 'Дозвілля — квадратна картинка');
 });
 
 /* ── 4. parent.html: Здібності ── */
@@ -262,11 +261,11 @@ await scenario('hero.html — павутинка за класами: перем
   });
   await page.goto(`${BASE}/hero.html`);
   await page.waitForSelector('#abilRadar .rd-card');
-  const tabs = () => page.$$eval('#abilGrades button', bs => bs.map(b => [b.textContent, b.classList.contains('on')]));
+  const tabs = () => page.$$eval('#abilGrades option', os => os.map(o => [o.textContent, o.selected]));
   const pct = () => page.$$eval('#abilRadar .rd-card', cs => cs.map(c => c.querySelector('.rd-name').textContent + ' ' + c.querySelector('.rd-pct').textContent));
   assert.deepEqual(await tabs(), [['🎒 1 клас', true], ['2 клас', false]], 'свій клас — вибраний; 3 клас без спроб — нема');
   assert.deepEqual(await pct(), ['Математика 50%', 'Українська мова 0%', 'English 0%']);
-  await page.click('#abilGrades [data-grade="2"]');
+  await page.selectOption('#abilGrades', '2');
   assert.deepEqual(await tabs(), [['🎒 1 клас', false], ['2 клас', true]]);
   assert.deepEqual(await pct(), ['Математика 0%', 'Українська мова 0%', 'English 80%'], 'павутинка 2 класу — свої предмети');
   // є павутинка — теми предмета відкриваються поп-апом з картки, а не списком під нею
