@@ -1723,7 +1723,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script type="module" src="firebase-config.js"></script>
 <script src="sk-avatar.js?v=9"></script>
 <script src="sk-progress.js"></script>
-<script src="sk-arena-rules.js?v=26"></script>
+<script src="sk-arena-rules.js?v=27"></script>
 <script src="sk-battle.js?v=39"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
@@ -1963,6 +1963,7 @@ window.SKHERO = (function(){
   /* куди вдягти річ: обраний слот (якщо підходить) → порожній слот її типу → перший слот її типу */
   function targetSlot(base){
     if(BI.sel && BI.sel.slot && fitsSlot(base, BI.sel.slot)) return BI.sel.slot;
+    var oh = RULES.offhandSlot && RULES.offhandSlot(base, (activeIn('weaponR')||{}).base); if(oh) return oh;   // Друга зброя: у ліву, коли в правій одноручна
     var fit = BSLOTS.filter(function(d){ return d[3].indexOf(base.category)>=0 && LOCKED_SLOTS.indexOf(d[0])<0; });
     for(var i=0;i<fit.length;i++) if(!activeIn(fit[i][0])) return fit[i][0];
     return fit.length ? fit[0][0] : null;
@@ -2080,10 +2081,13 @@ window.SKHERO = (function(){
       var inst = bagItems().filter(function(x){ return x.uid===BI.sel.uid; })[0]; if(!inst) return '';
       var base = BI.byId[inst.id], slot = targetSlot(base); if(!slot) return '';
       var cur = activeIn(slot), np = profileWith(slot, inst, base);
+      var other = slot==='weaponR' ? 'weaponL' : slot==='weaponL' ? 'weaponR' : null;   // зброя, що годиться в обидві руки, — можна перекласти
+      if(other && !fitsSlot(base, other)) other = null;
       return '<div class="biprev"><div class="t">Вдягнути «'+biEsc(base.name)+'» → '+biEsc(slotDef(slot)[1])
         + (cur ? ' (замість «'+biEsc(cur.base && cur.base.name || '')+'»)' : '') + '</div>'
         + '<div class="d">'+diffHtml(B.me.p, np)+'</div>'
         + '<div class="bt"><button type="button" class="go" data-bgo="equip"'+(can?'':' disabled')+'>🔄 Вдягнути</button>'
+        + (other ? '<button type="button" class="cn" data-bgo="hand" data-hand="'+other+'">↔ '+biEsc(slotDef(other)[1])+'</button>' : '')
         + '<button type="button" class="cn" data-bgo="cancel">Скасувати</button></div></div>';
     }
     if(BI.sel.slot){
@@ -2355,6 +2359,7 @@ window.SKHERO = (function(){
       if(go){
         var act = go.getAttribute('data-bgo');
         if(act==='cancel'){ BI.sel = null; renderInv(); return; }
+        if(act==='hand' && BI.sel && BI.sel.uid){ BI.sel = {uid:BI.sel.uid, slot:go.getAttribute('data-hand')}; renderInv(); return; }
         if(act==='remove' && BI.sel && BI.sel.slot){ doSwap(BI.sel.slot, null); return; }
         if(act==='equip' && BI.sel && BI.sel.uid){
           var inst = bagItems().filter(function(x){ return x.uid===BI.sel.uid; })[0];
@@ -4462,8 +4467,9 @@ function compat(cat,slotId){if(slotId==='weaponL'&&cat==='weapon')return !!(R0()
 function R0(){return window.SKARENA||{};}
 function twoHanded(e){return !!(e&&R0().isTwoHanded&&R0().isTwoHanded(BYID[e.id]));}
 function clashE(r,l){if(!r||!l)return false;var R=R0();return R.handsClash?R.handsClash(BYID[r.id],BYID[l.id]):twoHanded(r);}
+function offhandMsg(s){if(s==='weaponL'&&EQUIP.weaponL&&EQUIP.weaponL.cat==='weapon'&&window.showToast)showToast('Друга зброя','Одноручна зброя пішла в ліву руку. Щоб замінити основну — перетягни її на праву руку.');}
 function handMsg(t){if(window.showToast)showToast('Дворучна зброя',t);}
-function firstFree(cat){var s;for(s in SLOT_CAT)if(SLOT_CAT[s]===cat&&!EQUIP[s])return s;for(s in SLOT_CAT)if(SLOT_CAT[s]===cat)return s;return null;}
+function firstFree(cat,id){var s,oh=cat==='weapon'&&id&&R0().offhandSlot&&EQUIP.weaponR?R0().offhandSlot(BYID[id],BYID[EQUIP.weaponR.id]):null;if(oh)return oh;for(s in SLOT_CAT)if(SLOT_CAT[s]===cat&&!EQUIP[s])return s;for(s in SLOT_CAT)if(SLOT_CAT[s]===cat)return s;return null;}
 function equipFromInv(u,slotId){if(inBattle())return;var inst=findInst(u);if(!inst)return;var e=entryOf(inst);if(!e||!compat(e.cat,slotId))return;var cur=EQUIP[slotId];
  if((slotId==='weaponR'||slotId==='weaponL')&&R0().fitsHand&&!R0().fitsHand(BYID[e.id],slotId)){if(window.showToast)showToast('Ліва рука','У ліву руку — лише одноручна зброя ближнього бою (не дворучна, не лук, не кастети, не жезл).');return;}
  // руки: дворучна знімає річ з лівої руки; щит знімає дворучну (зі «Хваткою велетня» дворучна + щит можна)
@@ -4526,7 +4532,7 @@ function endDrag(x,y){var t=targetAt(x,y);if(drag&&t){
 /* річ із сумки — на портрет героя: як тап — у перший відповідний слот (зілля — у вільну комірку пояса) */
 function wearFromBag(u){var i=findInv(u);if(!i)return;
  if(i.usable){var bi=firstFreeBelt();if(bi>=0)equipToBelt(u,bi);else if(window.showToast)showToast('Пояс',BELT.length?'На поясі немає вільної комірки':'Вдягни пояс із комірками, щоб класти зілля та свитки');return;}
- var s=firstFree(i.cat);if(s)equipFromInv(u,s);else if(window.showToast)showToast('Не вдягається','Цю річ не можна вдягнути на героя');}
+ var s=firstFree(i.cat,i.id);if(s){equipFromInv(u,s);offhandMsg(s);}else if(window.showToast)showToast('Не вдягається','Цю річ не можна вдягнути на героя');}
 /* сумка: перетягнута річ стає перед/після тієї, на яку її поклали; решта зсувається.
    Вкладки фільтрують той самий список — порядок однотипних речей зберігається */
 function moveInBag(u,target,after){if(inBattle())return;var a=findInst(u),b=findInst(target);if(!a||!b||a===b||a.slot||b.slot)return;
@@ -4535,7 +4541,7 @@ function cleanup(){drag=null;if(ghost)ghost.hidden=true;var c=document.querySele
 function tap(el){var src=el.getAttribute('data-src');
  if(src==='inv'){var i=findInv(el.getAttribute('data-uid'));if(!i)return;
    if(i.usable){var bi=firstFreeBelt();if(bi>=0)equipToBelt(el.getAttribute('data-uid'),bi);return;}
-   var s=firstFree(i.cat);if(s)equipFromInv(el.getAttribute('data-uid'),s);}
+   var s=firstFree(i.cat,i.id);if(s){equipFromInv(el.getAttribute('data-uid'),s);offhandMsg(s);}}
  else if(src==='belt'){unequipBelt(parseInt(el.getAttribute('data-belt'),10));}
  else if(src==='slot'){unequip(el.getAttribute('data-slot'));}}
 
