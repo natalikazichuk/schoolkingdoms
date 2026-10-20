@@ -221,7 +221,7 @@
   function wTypeNow(st) { var w = heroDisarmed(st) ? null : weaponOn(st); return (w && w.base && w.base.weaponType) || ''; }
   /* якою зброєю можна виконати вміння */
   var SKILL_WEAPONS = { 'knight.lunge': ['sword', 'dagger', 'spear'], 'knight.haft': ['spear', 'staff'],
-    'knight.shieldbreak': ['axe', 'mace', 'flail', 'staff', 'sword'], 'knight.stun': ['mace', 'flail'], 'knight.lash': ['whip', 'flail'] };
+    'knight.shieldbreak': ['axe', 'mace', 'flail', 'staff', 'sword'], 'knight.stun': ['mace', 'flail'], 'knight.lash': ['whip', 'flail'], 'knight.cleave': ['sword', 'axe'] };
   /* Розбити щит: шанс залежить від зброї — сокира найкраща, булава/кистень/посох трохи гірше, меч ще трохи гірше */
   var SHATTER_MUL = { axe: 1, mace: 0.85, flail: 0.85, staff: 0.85, sword: 0.7 };
   function skillWeaponOk(st, id) { var l = SKILL_WEAPONS[id]; return !l || l.indexOf(wTypeNow(st)) >= 0; }
