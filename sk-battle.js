@@ -259,7 +259,7 @@
       || (id === SKILL.stone.id && stoneOn(st)) || (id === SKILL.song.id && songOn(st)) || (id === SKILL.frenzy.id && frenzyOn(st))) return 'active';   // ще діє
     if (id === SKILL.cleave.id && carefulOn(st.op, st.round)) return 'careful';    // ворог обережний — Розсікти чекає, хід не марнується
     if (id === SKILL.ult.id && !(num((st.me.fx || {}).focus) > 0)) return 'focus';  // Королівська лють — потрібна концентрація
-    if (id === SKILL.ult.id && num(st.op.force) < num(st.op.max) / 2) return 'hp';   // … і в ворога ще щонайменше половина здоров'я (не добиває)
+    if (id === SKILL.ult.id && num(st.op.force) < num(st.op.max) * (V(st, id, 'hpMin') || 30) / 100) return 'hp';   // … і в ворога ще щонайменше hpMin % здоров'я (не добиває)
     if (id === SKILL.shieldbreak.id && !opShield(st) && !shieldOffNow(st.op, st.round)) return 'noshield';   // у суперника немає щита — хід не марнується
     if (id === SKILL.spark.id && num(st.me.mana) < (V(st, id, 'mana') || 5)) return 'mana';
     if (V(st, id, 'mana') && num(st.me.mana) < V(st, id, 'mana')) return 'mana';   // Берсерк 100, Благословення 50
@@ -480,7 +480,11 @@
     }
     var ult = id === SKILL.ult.id;                             // Королівська лють: блок (закрита зона чи шанс блоку щита) лише ополовинює урон; парирування не діє
     var h1 = R.strike(att, ult ? noBlock(def) : def, ult ? false : me.atk === op.block, rnd); h1.zone = me.atk; h1.tag = id; if (ult) h1.cleave = true; rec.hits.push(h1);
-    if (ult && (h1.kind === 'hit' || h1.kind === 'crit')) ultBlock(R, h1, def, me.atk === op.block, rnd);
+    if (ult && (h1.kind === 'hit' || h1.kind === 'crit')) {
+      ultBlock(R, h1, def, me.atk === op.block, rnd);
+      var cap = Math.max(1, Math.round(num(st.op.max) * (V(st, id, 'dmgCap') || 25) / 100));   // стеля: не більше dmgCap % макс. здоров'я ворога — ультою не вбити
+      if (h1.dmg > cap) { h1.calc = (h1.calc || '') + ' = ' + h1.dmg + ' · стеля ' + (V(st, id, 'dmgCap') || 25) + '% здоров\'я'; h1.dmg = cap; if (h1.magDmg) h1.magDmg = cap; else h1.physDmg = cap; h1.capped = true; }
+    }
     if (rec.aroundShield && h1.kind === 'block' && !h1.byChance) h1.calc = 'суперник закрив цю зону — удар не пройшов (щит не зачеплено)';
     if (id === SKILL.haft.id) {
       var sec = V(st, id, 'second'); rec.secNeed = sec; rec.secRoll = R.d100(rnd);
