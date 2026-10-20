@@ -269,8 +269,15 @@ await scenario('hero.html — павутинка за класами: перем
   await page.click('#abilGrades [data-grade="2"]');
   assert.deepEqual(await tabs(), [['🎒 1 клас', false], ['2 клас', true]]);
   assert.deepEqual(await pct(), ['Математика 0%', 'Українська мова 0%', 'English 80%'], 'павутинка 2 класу — свої предмети');
-  assert.equal(await page.$$eval('#abilSubjs .ab-subj', d => d.length), 3, 'список предметів теж за вибраним класом');
-  assert.match(await page.textContent('#abilSubjs'), /English.*1 з 1 тем/);
+  // є павутинка — теми предмета відкриваються поп-апом з картки, а не списком під нею
+  assert.equal(await page.$$eval('#abilSubjs .ab-subj', d => d.length), 0, 'без списку-акордеону під павутинкою');
+  await page.click('#abilRadar .rd-card:nth-of-type(3)');
+  await page.waitForSelector('#abilModal:not([hidden])');
+  assert.match(await page.textContent('#abilModalTitle'), /English/, 'поп-ап — предмет вибраного класу');
+  assert.match(await page.textContent('#abilModalSub'), /1 з 1 тем/);
+  assert.equal(await page.$$eval('#abilModalList .ab-topic[href]', d => d.length), 1, 'тема — одразу посилання');
+  await page.keyboard.press('Escape');
+  assert.ok(await page.isHidden('#abilModal'), 'Esc закриває поп-ап');
 });
 
 await browser.close();
