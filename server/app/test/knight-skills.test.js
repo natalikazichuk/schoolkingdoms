@@ -845,6 +845,12 @@ test('Третя атака: незалежно від Другої, ~30% ход
   assert.ok(n > t * 0.18 && n < t * 0.42, n + '/' + t);
 });
 
+test('Розсікти — лише мечем чи сокирою', () => {
+  const ok = (w) => SB.skillBlock(battle({ 'knight.cleave': 1 }, ['knight.cleave'], w ? [wear(w, 'weaponR')] : []), 'knight.cleave');
+  assert.strictEqual(ok(SWORD), ''); assert.strictEqual(ok(AXE), '');
+  assert.strictEqual(ok(MACE2), 'weapon'); assert.strictEqual(ok(SPEAR), 'weapon'); assert.strictEqual(ok(null), 'weapon');
+});
+
 test('Розсікти: −50 мани, удар ×2.5 крізь захист зони, ворог обережний 10 ходів (вміння чекає), +10% проти контролю', () => {
   let st, e;
   for (let k = 0; k < 20; k++) {
