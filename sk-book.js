@@ -27,7 +27,9 @@ if (!SKS) return;
 var ST = SKS.bookState({});      // стан книги (sk-skills.js bookState)
 var LOADED = false, BUSY = false;
 var OPEN = false;                // книга відкрита замість сумки
-var TAB = 1;                     // 1 | 2 | 3 | 'cls'
+var TAB = 1;                     // 1 | 2 | 3 | 'cls' (клас ще не обрано) | 'c1' | 'c2' | 'c3' (вміння класу 1–10 / 11–20 / 21–30)
+var CLS_RANGES = [['c1', 1, 10], ['c2', 11, 20], ['c3', 21, 30]];
+function clsRange(tab){ return CLS_RANGES.filter(function(r){ return r[0] === tab; })[0] || null; }
 var sel = null;                  // обране активне вміння, чекає на слот
 var lastTap = { id: null, t: 0 };
 
@@ -199,7 +201,7 @@ function rowHTML(id){
     : tile(id, { drag: L && isActive(id), lock: lock });
   return '<div class="skb-row' + (can ? ' can' : '') + (lock ? ' lock' : '') + '">' + left
     + '<div class="skb-txt" data-skb-info="' + id + '"><div class="skb-nm">' + esc(s.name) + ' <span class="skb-tag ' + (s.type === 'A' ? 'a">АКТИВНЕ' : 'p">ПАСИВНЕ') + '</span>'
-    + (TAB === 'cls' ? '<span class="skb-tag lv">рів. ' + (s.lv || 1) + '</span>' : '') + '</div>'
+    + (TAB === 'cls' || clsRange(TAB) ? '<span class="skb-tag lv">рів. ' + (s.lv || 1) + '</span>' : '') + '</div>'
     + '<div class="skb-kid">' + esc(s.kid) + '</div>' + st + '</div>'
     + (can ? '<button class="skb-learn" type="button" data-skb-learn="' + id + '"' + (BUSY ? ' disabled' : '') + '>✨ Вивчити</button>' : '') + '</div>';
 }
@@ -216,12 +218,23 @@ function renderBook(){
       + (lv > ST.lv ? '🔒 ' : '') + 'Рівень ' + lv + '</button>';
   });
   var ready = ST.lv >= SKS.CLASS_LEVEL;
-  var clsNew = ready && (!ST.cls || (f > 0 && SKS.readyFor && SKS.readyFor(ST.cls).some(function(s){ return s.lv <= ST.lv && !learned(s.id); })));
-  t += '<button class="skb-tab' + (TAB === 'cls' ? ' on' : '') + (clsNew && TAB !== 'cls' ? ' glow' : '') + '" type="button" data-skb-tab="cls">'
-    + (!ready ? '🔒 ' : ST.cls ? SKS.CLASSES[ST.cls].icon + ' ' : '✨ ') + 'Клас</button>';
+  if (ready && ST.cls) {   // клас обрано — вміння класу трьома вкладками за рівнями
+    var cc = SKS.CLASSES[ST.cls], all = SKS.readyFor ? SKS.readyFor(ST.cls) : [];
+    if (TAB === 'cls') TAB = 'c1';
+    CLS_RANGES.forEach(function(r){
+      var newHere = f > 0 && all.some(function(s){ return s.lv >= r[1] && s.lv <= r[2] && s.lv <= ST.lv && !learned(s.id); });
+      t += '<button class="skb-tab' + (TAB === r[0] ? ' on' : '') + (newHere && TAB !== r[0] ? ' glow' : '') + '" type="button" data-skb-tab="' + r[0] + '">'
+        + (r[1] > ST.lv ? '🔒 ' : cc.icon + ' ') + cc.name + ' ' + r[1] + '–' + r[2] + '</button>';
+    });
+  } else {
+    if (clsRange(TAB)) TAB = 'cls';
+    var clsNew = ready && !ST.cls;
+    t += '<button class="skb-tab' + (TAB === 'cls' ? ' on' : '') + (clsNew && TAB !== 'cls' ? ' glow' : '') + '" type="button" data-skb-tab="cls">'
+      + (!ready ? '🔒 ' : '✨ ') + 'Клас</button>';
+  }
   h += '<div class="skb-tabs">' + t + '</div><div class="skb-list">';
   if (!LOADED) h += '<div class="skb-msg">Завантаження…</div>';
-  else if (TAB === 'cls') h += clsHTML(ready);
+  else if (TAB === 'cls' || clsRange(TAB)) h += clsHTML(ready);
   else {
     if (!hero()) h += '<div class="skb-msg">Вміння вивчає сам Герой. Увійди Героєм, щоб вивчати й ставити їх на панель.</div>';
     h += groupsHTML(SKS.UNIVERSAL.filter(function(s){ return s.lv === TAB; }));
@@ -233,10 +246,11 @@ function clsHTML(ready){
   if (!ST.cls) return '<div class="skb-msg">✨ Час обрати свій шлях! Клас обирається один раз — подумай, як тобі подобається битися.</div><div class="skb-cls">'
     + Object.keys(SKS.CLASSES).map(function(k){ var c = SKS.CLASSES[k];
         return '<button class="skb-ccard" type="button" data-skb-cls="' + k + '"><span class="ci">' + c.icon + '</span><b>' + c.name + '</b><p>' + esc(c.about) + '</p></button>'; }).join('') + '</div>';
-  var c = SKS.CLASSES[ST.cls], list = SKS.readyFor ? SKS.readyFor(ST.cls).filter(function(s){ return s.lv <= ST.lv; }) : [];
-  if (!list.length) return '<div class="skb-msg">' + c.icon + ' Ти — <b>' + c.name + '</b>. Вміння класу з\'являться тут у наступному оновленні.</div>';
-  return '<div class="skb-msg">' + c.icon + ' Ти — <b>' + c.name + '</b>. Вміння класу вивчаються за очки вмінь, як і звичайні. Нові з\'являтимуться з оновленнями.</div>'
-    + groupsHTML(list);
+  var c = SKS.CLASSES[ST.cls], r = clsRange(TAB) || CLS_RANGES[0];
+  var list = SKS.readyFor ? SKS.readyFor(ST.cls).filter(function(s){ return s.lv >= r[1] && s.lv <= r[2]; }) : [];   // і ще закриті — видно, що чекає далі
+  var head = '<div class="skb-msg">' + c.icon + ' Ти — <b>' + c.name + '</b>. Вміння ' + r[1] + '–' + r[2] + ' рівня вивчаються за очки вмінь, як і звичайні.</div>';
+  if (!list.length) return head + '<div class="skb-msg">Вміння цих рівнів з\'являться в наступних оновленнях.</div>';
+  return head + groupsHTML(list);
 }
 function render(){
   var f = $('ek-flip'); if (f) f.classList.toggle('book', OPEN);
@@ -379,7 +393,7 @@ document.addEventListener('click', function(e){
   var t = e.target, b;
   if (t.closest('#skbBtn')) { OPEN = !OPEN; sel = null; render(); return; }
   if (t.closest('[data-skb-close]')) { OPEN = false; sel = null; render(); return; }
-  if ((b = t.closest('[data-skb-tab]'))) { var v = b.getAttribute('data-skb-tab'); TAB = v === 'cls' ? 'cls' : +v; renderBook(); return; }
+  if ((b = t.closest('[data-skb-tab]'))) { var v = b.getAttribute('data-skb-tab'); TAB = (v === 'cls' || clsRange(v)) ? v : +v; renderBook(); return; }
   if ((b = t.closest('[data-skb-cls]'))) { pickClass(b.getAttribute('data-skb-cls')); return; }
   if ((b = t.closest('[data-skb-pick]'))) { var k = b.getAttribute('data-skb-pick'); closeSheet();
     send('chooseClass', [k], [SKS.CLASSES[k].icon + ' Тепер ти — ' + SKS.CLASSES[k].name + '!']); return; }
