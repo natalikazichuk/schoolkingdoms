@@ -467,10 +467,9 @@
     var R = ctx.R, need = V(st, id, 'chance'), roll = R.d100(rnd), rec = { id: id, need: need, roll: roll, ok: roll <= need, dmg: 0, hits: [] };
     if (!rec.ok) { grow(st, id, false); rec.kind = 'fail'; rec.calc = 'не вдалося: 🎲 ' + roll + ' > ' + need + '%'; return rec; }
     var att = pm, def = po, k;
-    if (id === SKILL.ult.id) {                                 // Королівська лють: −мана й уся концентрація K, удар ×(1 + perK%·K), раз за бій
+    if (id === SKILL.ult.id) {                                 // Королівська лють: −мана й уся концентрація K, удар ×(1 + perK%·K); обмежує лише мана
       var fm0 = fxOf(st.me), K = num(fm0.focus), mn = V(st, id, 'mana');
       fm0.focus = 0; if (mn) { st.me.mana = Math.max(0, num(st.me.mana) - mn); rec.mana = mn; }
-      (st.me.once = st.me.once || {})[id] = 1;
       att = {}; for (k in pm) att[k] = pm[k];
       att.dmgMul = Math.round((1 + (V(st, id, 'perK') || 50) / 100 * K) * 100) / 100; rec.K = K; rec.mul = att.dmgMul;
     }

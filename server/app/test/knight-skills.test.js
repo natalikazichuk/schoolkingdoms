@@ -881,7 +881,7 @@ test('Розсікти: промах — ні мани, ні обережнос�
   assert.strictEqual(SB.skillBlock(st, 'knight.cleave'), '');
 });
 
-test('Королівська лють: потрібна концентрація й половина здоров\'я ворога; −150 мани й уся K, удар ×(1+0.5K), ворог пропускає хід; раз за бій', () => {
+test('Королівська лють: потрібна концентрація й половина здоров\'я ворога; −150 мани й уся K, удар ×(1+0.5K), ворог пропускає хід; не раз за бій', () => {
   const st0 = battle({ 'knight.ult': 1 }, ['knight.ult'], [wear(SWORD, 'weaponR')]);
   assert.strictEqual(SB.skillBlock(st0, 'knight.ult'), 'focus');
   st0.me.fx.focus = 2; st0.op.force = Math.floor(st0.op.max / 2) - 1;
@@ -895,7 +895,8 @@ test('Королівська лють: потрібна концентрація
   }
   assert.ok(e.skill.stun, 'влучила — оглушення'); assert.strictEqual(e.skill.K, 4); assert.strictEqual(e.skill.mul, 3);
   assert.strictEqual(e.skill.mana, 150);
-  assert.strictEqual(SB.skillBlock(st, 'knight.ult'), 'used', 'раз за бій');
+  assert.notStrictEqual(SB.skillBlock(st, 'knight.ult'), 'used', 'не раз за бій — обмежує лише мана й концентрація');
+  assert.strictEqual(SB.skillBlock(st, 'knight.ult'), 'focus', 'концентрацію витрачено');
   const e2 = SB.turn(ctx, st, HIT, {}, Date.now());
   assert.strictEqual(e2.opHit.kind, 'knock');
 });
