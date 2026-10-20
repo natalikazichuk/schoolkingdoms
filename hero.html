@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="hero.css?v=23">
+<link rel="stylesheet" href="hero.css?v=24">
 <script src="sk-resume.js?v=1"></script>
 <script>SKResume.go();   /* відкрили застосунок — одразу туди, де Герой зупинився (якщо не минуло 2 годин) */</script>
 <script src="sk-arena-rules.js?v=25"></script>
@@ -172,7 +172,10 @@
         <img src="img/abil/compass.webp" alt="" aria-hidden="true">
         <h3>Мої <span>здібності</span></h3>
       </div>
-      <div class="ab-grades" id="abilGrades" role="tablist" aria-label="Клас" hidden></div>
+      <label class="ab-grades" id="abilGradesWrap" hidden>
+        <span>Клас:</span>
+        <select id="abilGrades" aria-label="Клас"></select>
+      </label>
       <div class="ab-radar" id="abilRadar"></div>
       <div class="abil-top" id="abilTop"></div>
       <div class="abil-subjs" id="abilSubjs"></div>
@@ -607,10 +610,10 @@ function abilUpCard(t, i){
 function paintAbilGrade(){
   const g = ABIL.sel;
   const subjects = ABIL.subjects.filter(sj => sj.grade===g);
-  const tabs = $('abilGrades');
-  tabs.hidden = ABIL.grades.length < 2;
-  tabs.innerHTML = ABIL.grades.map(x => '<button type="button" role="tab" data-grade="'+x+'" aria-selected="'+(x===g)+'"'
-    + (x===g ? ' class="on"' : '')+'>'+(x===ABIL_GRADE ? '🎒 ' : '')+escHtml(abilGrade(x))+'</button>').join('');
+  // перемикач класів — випадаючий список (дошкілля, 1, 2, 5 клас…); свій клас — з 🎒
+  $('abilGradesWrap').hidden = ABIL.grades.length < 2;
+  $('abilGrades').innerHTML = ABIL.grades.map(x => '<option value="'+x+'"'+(x===g ? ' selected' : '')+'>'
+    + (x===ABIL_GRADE ? '🎒 ' : '')+escHtml(abilGrade(x))+'</option>').join('');
   $('abilRadar').innerHTML = abilRadar(subjects);
   $('abilRadar').classList.toggle('many', subjects.length >= 6);
   ABIL.shown = subjects;
@@ -664,10 +667,7 @@ function openAbilAll(kind){
 function closeAbilModal(){ const m=$('abilModal'); if(!m) return; m.hidden=true; document.body.classList.remove('modal-open'); }
 (function(){
   const tabs = document.getElementById('abilGrades');
-  if(tabs) tabs.addEventListener('click', function(e){
-    const b = e.target.closest('[data-grade]'); if(!b) return;
-    ABIL.sel = Number(b.getAttribute('data-grade')); paintAbilGrade();
-  });
+  if(tabs) tabs.addEventListener('change', function(){ ABIL.sel = Number(tabs.value); paintAbilGrade(); });
   const radar = document.getElementById('abilRadar');
   if(radar) radar.addEventListener('click', function(e){
     const c = e.target.closest('[data-subj]'); if(!c) return;

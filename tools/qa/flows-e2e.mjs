@@ -261,11 +261,11 @@ await scenario('hero.html — павутинка за класами: перем
   });
   await page.goto(`${BASE}/hero.html`);
   await page.waitForSelector('#abilRadar .rd-card');
-  const tabs = () => page.$$eval('#abilGrades button', bs => bs.map(b => [b.textContent, b.classList.contains('on')]));
+  const tabs = () => page.$$eval('#abilGrades option', os => os.map(o => [o.textContent, o.selected]));
   const pct = () => page.$$eval('#abilRadar .rd-card', cs => cs.map(c => c.querySelector('.rd-name').textContent + ' ' + c.querySelector('.rd-pct').textContent));
   assert.deepEqual(await tabs(), [['🎒 1 клас', true], ['2 клас', false]], 'свій клас — вибраний; 3 клас без спроб — нема');
   assert.deepEqual(await pct(), ['Математика 50%', 'Українська мова 0%', 'English 0%']);
-  await page.click('#abilGrades [data-grade="2"]');
+  await page.selectOption('#abilGrades', '2');
   assert.deepEqual(await tabs(), [['🎒 1 клас', false], ['2 клас', true]]);
   assert.deepEqual(await pct(), ['Математика 0%', 'Українська мова 0%', 'English 80%'], 'павутинка 2 класу — свої предмети');
   // є павутинка — теми предмета відкриваються поп-апом з картки, а не списком під нею
