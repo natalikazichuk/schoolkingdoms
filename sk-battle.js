@@ -478,8 +478,9 @@
       var ns = noShield(ctx, po, shieldEntry(st.op)); def = {}; for (k in po) def[k] = po[k];
       def.blockPhys = ns.blockPhys; def.blockMag = ns.blockMag; def.evade = ns.evade; def.blockSrc = ns.blockSrc; rec.aroundShield = true;
     }
-    var ult = id === SKILL.ult.id;                             // Королівська лють — без блоку: захист зони, щит і парирування не діють
+    var ult = id === SKILL.ult.id;                             // Королівська лють: блок (закрита зона чи шанс блоку щита) лише ополовинює урон; парирування не діє
     var h1 = R.strike(att, ult ? noBlock(def) : def, ult ? false : me.atk === op.block, rnd); h1.zone = me.atk; h1.tag = id; if (ult) h1.cleave = true; rec.hits.push(h1);
+    if (ult && (h1.kind === 'hit' || h1.kind === 'crit')) ultBlock(R, h1, def, me.atk === op.block, rnd);
     if (rec.aroundShield && h1.kind === 'block' && !h1.byChance) h1.calc = 'суперник закрив цю зону — удар не пройшов (щит не зачеплено)';
     if (id === SKILL.haft.id) {
       var sec = V(st, id, 'second'); rec.secNeed = sec; rec.secRoll = R.d100(rnd);
@@ -492,6 +493,7 @@
     rec.dmg = rec.hits.reduce(function (a, h) { return a + (h.dmg || 0); }, 0); rec.physDmg = rec.dmg;
     rec.kind = landed.length ? 'hit' : 'block';
     grow(st, id, landed.length > 0);
+    if (ult && h1.halfBlock) { landed = []; rec.halfBlock = true; }   // ульту заблоковано наполовину — без оглушення
     if (id === SKILL.daze.id && landed.length) {
       var fo = fxOf(st.op), had = num(fo.focus);
       if (steadyTry(R, st, rec, rnd)) rec.dazeSaved = true; else { fo.focus = 0; fo.dazed = st.round; rec.daze = true; rec.focusLost = had; }   // Стійкість ворога може врятувати; цього ходу концентрація вже не росте
@@ -667,6 +669,19 @@
     fo.careful = st.round + cn; fo.carefulPct = V(st, id, 'carefulPct') || 10; rec.careful = cn;
   }
   /* захист без блоку (Розсікти): ні шансу блоку речей, ні відскоку */
+  /* Королівська лють у блок: закрита зона або шанс блоку щита/речей — урон ×½ (крит лишається), удар не оглушує */
+  function ultBlock(R, h, def, zone, rnd) {
+    var why = zone ? 'суперник закрив цю зону' : '';
+    if (!zone) {
+      var bch = num(h.magic ? def.blockMag : def.blockPhys); if (!(bch > 0)) return;
+      h.blockNeed = Math.min(100, Math.round(bch)); h.blockRoll = R.d100(rnd);
+      if (h.blockRoll > h.blockNeed) return;
+      why = (def.evade ? 'спритно відскочив 🎲 ' : 'блок шансом 🎲 ') + h.blockRoll + ' ≤ ' + h.blockNeed + '%'; h.byChance = true;
+    }
+    var full = h.dmg; h.dmg = Math.max(1, Math.round(full / 2)); h.halfBlock = true;
+    if (h.magDmg) h.magDmg = h.dmg; else h.physDmg = h.dmg;
+    h.calc = (h.calc || '') + ' = ' + full + ' · ' + why + ' → ½';
+  }
   function noBlock(p) { var o = {}, k; for (k in p) o[k] = p[k]; o.blockPhys = 0; o.blockMag = 0; o.evade = false; return o; }
   /* Протидія: кожен свій блок (у вхідному ударі) — рідкісний контрудар ×0.5 */
   function riposteTry(ctx, v, inHit, outHit, pA, pD, blocked, rnd) {
