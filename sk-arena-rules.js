@@ -166,6 +166,12 @@
     if (!rBase || !lBase || !isTwoHanded(rBase)) return false;
     return !(BATTLE.grip && lBase.category === 'Щити');
   }
+  /* куди класти зброю без вибраного слота: з «Другою зброєю», коли в правій уже одноручна зброя
+     ближнього бою, а нова теж годиться в ліву — у ліву (замість щита); інакше — null (права рука) */
+  function offhandSlot(base, rBase) {
+    return BATTLE.dualWield && base && base.category === 'Зброя' && fitsHand(base, 'weaponL')
+      && rBase && rBase.category === 'Зброя' && fitsHand(rBase, 'weaponL') ? 'weaponL' : null;
+  }
   /* правила рук під вміння Героя: Друга зброя — зброя в лівій; Хватка велетня — дворучна + щит */
   function handsFromHero(h) {
     var s = (h && h.skills) || {}, kn = !!(h && h.heroClass === 'knight');
@@ -594,7 +600,7 @@
   root.SKARENA = {
     BATTLE: BATTLE, ZONES: ZONES, HAND_SLOTS: HAND_SLOTS, WEAR: WEAR, COMBAT_STATS: COMBAT_STATS,
     SLOT_UK: SLOT_UK, zoneOfSlot: zoneOfSlot,
-    handCats: handCats, isTwoHanded: isTwoHanded, fitsHand: fitsHand, handsFix: handsFix, handsClash: handsClash, handsFromHero: handsFromHero,
+    handCats: handCats, isTwoHanded: isTwoHanded, fitsHand: fitsHand, handsFix: handsFix, handsClash: handsClash, handsFromHero: handsFromHero, offhandSlot: offhandSlot,
     HERO_STATS: HERO_STATS, BUFF_KEYS: BUFF_KEYS, attrInfo: attrInfo,
     blockKind: blockKind, blockBy: blockBy, useEffects: useEffects, botBelt: botBelt, buffed: buffed, scrollStrike: scrollStrike,
     fighter: fighter, varyFighter: varyFighter, heroSheet: heroSheet, heroStatsOf: heroStatsOf, levelBonus: levelBonus, LEVEL_BONUS: LEVEL_BONUS, HERO_DEFAULTS: HERO_DEFAULTS, hitChance: hitChance, critChance: critChance, isMagic: isMagic,

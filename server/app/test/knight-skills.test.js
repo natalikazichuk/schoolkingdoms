@@ -971,3 +971,18 @@ test('Королівська лють у закриту зону — ½ урон
   }
   assert.ok(n > 0, 'був хід, коли суперник закрив саме зону ульти');
 });
+
+test('Друга зброя: одноручна до одноручної — у ліву руку; до дворучної чи без «Другої зброї» — у праву', () => {
+  const W = (t, two) => ({ category: 'Зброя', weaponType: t, addStats: two ? [{ stat: 'Дворучний', flag: true }] : [] });
+  const was = R.BATTLE.dualWield;
+  try {
+    R.BATTLE.dualWield = true;
+    assert.strictEqual(R.offhandSlot(W('sword'), W('axe')), 'weaponL');
+    assert.strictEqual(R.offhandSlot(W('sword'), W('sword', true)), null, 'у правій дворучна — заміна правої');
+    assert.strictEqual(R.offhandSlot(W('sword', true), W('sword')), null, 'дворучну в ліву не можна');
+    assert.strictEqual(R.offhandSlot(W('sword'), null), null, 'права порожня — у праву');
+    assert.strictEqual(R.offhandSlot(W('bow'), W('sword')), null);
+    R.BATTLE.dualWield = false;
+    assert.strictEqual(R.offhandSlot(W('sword'), W('axe')), null);
+  } finally { R.BATTLE.dualWield = was; }
+});
