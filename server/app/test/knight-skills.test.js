@@ -652,16 +652,16 @@ test('Розбити щит: лише проти щита; щит відліта
   assert.ok(!e3.opNoShield && e3.opShieldBack, 'потім щит повертається');
 });
 
-test('Стійкість ворога рятує від «Розбити щит» (~75% на 100%) і росте в нього', () => {
+test('Стійкість ворога рятує від «Розбити щит» (~60% на 100%) і росте в нього', () => {
   let saved = 0, all = 0;
   for (let i = 0; i < 300; i++) {
     const st = duel({ 'knight.shieldbreak': 1 }, ['knight.shieldbreak'], { 'knight.steady': 1 }, [wear(SHIELD, 'weaponL')], [wear(AXE, 'weaponR')]);
     SB.useSkill(ctx, st, 'knight.shieldbreak');
     const e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
     all++; if (e.skill.kind === 'saved') saved++;
-    assert.ok(e.skill.steady && e.skill.steady[1] === 75);
+    assert.ok(e.skill.steady && e.skill.steady[1] === 60);
   }
-  assert.ok(saved > all * 0.65 && saved < all * 0.85, saved + '/' + all);
+  assert.ok(saved > all * 0.5 && saved < all * 0.7, saved + '/' + all);
 });
 
 test('Стійкість Героя: встояти на ногах проти Поштовху бота (росте ✔/✖)', () => {
