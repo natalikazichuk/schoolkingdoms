@@ -478,7 +478,8 @@
       var ns = noShield(ctx, po, shieldEntry(st.op)); def = {}; for (k in po) def[k] = po[k];
       def.blockPhys = ns.blockPhys; def.blockMag = ns.blockMag; def.evade = ns.evade; def.blockSrc = ns.blockSrc; rec.aroundShield = true;
     }
-    var h1 = R.strike(att, def, me.atk === op.block, rnd); h1.zone = me.atk; h1.tag = id; rec.hits.push(h1);
+    var ult = id === SKILL.ult.id;                             // Королівська лють — без блоку: захист зони, щит і парирування не діють
+    var h1 = R.strike(att, ult ? noBlock(def) : def, ult ? false : me.atk === op.block, rnd); h1.zone = me.atk; h1.tag = id; if (ult) h1.cleave = true; rec.hits.push(h1);
     if (rec.aroundShield && h1.kind === 'block' && !h1.byChance) h1.calc = 'суперник закрив цю зону — удар не пройшов (щит не зачеплено)';
     if (id === SKILL.haft.id) {
       var sec = V(st, id, 'second'); rec.secNeed = sec; rec.secRoll = R.d100(rnd);
