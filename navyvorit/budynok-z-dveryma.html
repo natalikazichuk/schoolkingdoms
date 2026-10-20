@@ -94,6 +94,15 @@ body.flipped #hint{background:#faf5ff; border-color:#d0b3f5;}
 .dw.crossed .door:after{content:"✖"; position:absolute; top:8px; right:8px; font-size:16px; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.4);}
 .dw .dl{font-weight:800; font-size:12px; text-align:center; color:var(--soft);}
 @keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+/* намальовані двері (img/budynok-z-dveryma/): зачинені — свій колір, відчинені — двері зі світлом */
+.frame{height:auto; aspect-ratio:102/157; max-height:150px; border-radius:0; background:none; overflow:visible; justify-self:center;}
+.door{inset:0; border-radius:0; box-shadow:none; background:center/100% 100% no-repeat; transform:none !important; transition:opacity .4s; filter:drop-shadow(0 3px 3px rgba(0,0,0,.25));}
+.door:before, .door .em{display:none;}
+.inside{background:url(img/budynok-z-dveryma/door-open.webp) center/100% 100% no-repeat; padding-top:30%; font-size:28px; opacity:0; transition:opacity .4s;}
+.dw.open .inside{opacity:1;} .dw.open .door{opacity:0;}
+.dw.crossed .door{filter:grayscale(.55) brightness(.85);}
+.dw.crossed .door:after{top:18%; right:16%; font-size:20px;}
+.ch .face img{display:block; width:44px; height:52px; object-fit:contain;}
 .steps{height:10px; margin:0 -8px; background:#cdb38c; border-top:2px solid #b8996c; border-radius:0 0 10px 10px;}
 
 /* ── персонажі ── */
@@ -190,6 +199,7 @@ h1{font-size:32px; font-weight:700;}
   .riddle{font-size:14px; padding:10px 12px;}
 }
 </style>
+<link rel="stylesheet" href="nav-scroll.css">
 <script src="nav-guard.js"></script>
 </head>
 <body>
@@ -223,11 +233,9 @@ h1{font-size:32px; font-weight:700;}
     <h1>Будинок із дверима</h1>
     <p class="start-sub">Логіка · 6 завдань · знайди, хто бреше</p>
     <div class="riddle">
-      У будинку №17 — четверо дверей:
-      <div class="items"><span>🔴 червоні</span><span>🔵 сині</span><span>🟢 зелені</span><span>🟡 жовті</span></div>
-      На кожних дверях напис: <i>«Правильні двері завжди брешуть»</i>.<br>
-      Біля дверей стоять три персонажі, і кожен дає свою підказку. Але <b>один із них бреше</b>.
-      Визнач, хто бреше, — і знайди правильні двері! А потім… 🔄 навиворіт.
+      У будинку №17 — четверо дверей, і на кожних напис: <i>«Правильні двері завжди брешуть»</i>.
+      Біля дверей — три персонажі з підказками, але <b>один із них бреше</b>.
+      Знайди брехуна — і правильні двері! А потім… 🔄 навиворіт.
     </div>
     <div class="done-card" id="startDone">
       <span class="dc-ic">🏆</span>
@@ -280,6 +288,7 @@ h1{font-size:32px; font-weight:700;}
     {nm:"зелені",  Nm:"Зелені",  loc:"зелених",  em:"🟢", c:"#51cf66", d:"#37a052"},
     {nm:"жовті",   Nm:"Жовті",   loc:"жовтих",   em:"🟡", c:"#ffd43b", d:"#e0b020"}
   ];
+  var DOOR_IMG = ["red","blue","green","yellow"], CHAR_IMG = ["cat","owl","fox"];   // картинки — img/budynok-z-dveryma/
   var CHARS = [
     {em:"🐱", nm:"Кіт Мурко",  gen:"Кота Мурка"},
     {em:"🦉", nm:"Сова Софія", gen:"Сови Софії"},
@@ -505,7 +514,7 @@ h1{font-size:32px; font-weight:700;}
       var w = document.createElement("div"); w.className = "dw"; w.dataset.i = i;
       w.innerHTML = '<div class="plate">«'+RULE_TEXT[rule]+'»</div>'+
         '<div class="frame"><div class="inside">'+(qIndex===PLAN.length-1?"🏠":"⭐")+'</div>'+
-        '<div class="door" style="background:linear-gradient(180deg,'+d.c+','+d.d+')"><span class="em">'+d.em+'</span><span class="knob"></span></div></div>'+
+        '<div class="door" style="background-image:url(img/budynok-z-dveryma/door-'+DOOR_IMG[i]+'.webp)"><span class="em">'+d.em+'</span></div></div>'+
         '<div class="dl">'+d.nm+'</div>';
       w.querySelector(".frame").addEventListener("click", function(){ pickDoor(i, w); });
       doorsEl.appendChild(w);
@@ -515,7 +524,7 @@ h1{font-size:32px; font-weight:700;}
     charsEl.innerHTML = "";
     CHARS.forEach(function(c,i){
       var b = document.createElement("button"); b.type="button"; b.className="ch"; b.dataset.i=i;
-      b.innerHTML = '<span class="face">'+c.em+'</span><span class="tx"><span class="nm">'+c.nm+' каже:</span><br><span class="says">«'+text(cur.says[i])+'»</span></span><span class="mark"></span>';
+      b.innerHTML = '<span class="face"><img src="img/budynok-z-dveryma/'+CHAR_IMG[i]+'.webp" alt="'+c.em+'"></span><span class="tx"><span class="nm">'+c.nm+' каже:</span><br><span class="says">«'+text(cur.says[i])+'»</span></span><span class="mark"></span>';
       b.addEventListener("click", function(){ pickLiar(i, b); });
       charsEl.appendChild(b);
     });
@@ -682,6 +691,8 @@ h1{font-size:32px; font-weight:700;}
 <script src="../sk-rewards.js?v=4"></script>
 <script src="../sk-prize.js?v=2"></script>
 <script src="../sk-finish.js?v=6"></script>
+<script src="nav-scroll.js"></script>
+<script>NAVSCROLL.init({bg:"img/budynok-z-dveryma/start-hero.webp", frame:"img/budynok-z-dveryma/title-frame.webp", focus:[0.04, 1], top:"#60a7f5", bot:"#9c8770", play:"Підійти до дверей"});</script>
 <script src="nav-intro.js"></script>
 </body>
 </html>

@@ -54,7 +54,8 @@
     var rd = start.querySelector('.riddle');
     if(rd){ rd.appendChild(document.createElement('br')); rd.appendChild(q); }
     else play.parentNode.insertBefore(q, play);
-    if(window.NAV && NAV.fitStartBg) NAV.fitStartBg();   // картинка на весь екран — перерахувати місце
+    if(window.NAV && NAV.fitStartBg) NAV.fitStartBg();
+    if(window.NAVSCROLL) NAVSCROLL.fit();   // картинка на весь екран — перерахувати місце
   }
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
 })();
