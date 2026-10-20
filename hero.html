@@ -86,6 +86,25 @@
     <!-- усі характеристики — смуга значків під портретом: значок, число, підпис -->
     <div class="stat-badges" id="heroStatGrid" role="list" aria-label="Характеристики героя"></div>
 
+    <!-- РЕЙТИНГ (сімʼя / друзі) — під аватаром і характеристиками -->
+    <section class="rank-card">
+      <div class="rp-head">
+        <span class="rp-ic" aria-hidden="true">🏆</span>
+        <h3>Рейтинг</h3>
+        <div class="rank-tabs" role="tablist" aria-label="Чий рейтинг показати">
+          <button type="button" role="tab" class="on" data-rank="family" aria-selected="true">Сімʼя</button>
+          <button type="button" role="tab" data-rank="friends" aria-selected="false">Друзі</button>
+        </div>
+      </div>
+      <!-- за що рейтинг: навчання (тести + завдання) або арена -->
+      <div class="rank-cats" role="tablist" aria-label="За що рейтинг">
+        <button type="button" role="tab" class="on" data-cat="learn" aria-selected="true">🎓 Навчання</button>
+        <button type="button" role="tab" data-cat="arena" aria-selected="false">⚔️ Арена</button>
+      </div>
+      <ol class="rank-list" id="rankList"><li class="rank-empty">Завантаження…</li></ol>
+      <div class="rank-note" id="rankNote"></div>
+    </section>
+
     <!-- ПРИГОДИ — під рядом з аватаром, у лівій панелі -->
     <div class="adventure">
       <svg class="peaks" viewBox="0 0 280 140" preserveAspectRatio="none" aria-hidden="true">
@@ -103,24 +122,26 @@
 
   <!-- RIGHT CONTENT -->
   <main class="content">
-    <!-- РЕЙТИНГ (сімʼя / друзі) + МІЙ ПРОГРЕС — поруч, на телефоні одне під одним -->
+    <!-- ЗАДАНІ ЗАВДАННЯ + МІЙ ПРОГРЕС — поруч, на телефоні одне під одним -->
     <div class="rank-prog" style="margin-top:0">
-      <section class="rank-card">
-        <div class="rp-head">
-          <span class="rp-ic" aria-hidden="true">🏆</span>
-          <h3>Рейтинг</h3>
-          <div class="rank-tabs" role="tablist" aria-label="Чий рейтинг показати">
-            <button type="button" role="tab" class="on" data-rank="family" aria-selected="true">Сімʼя</button>
-            <button type="button" role="tab" data-rank="friends" aria-selected="false">Друзі</button>
+      <!-- ЗАДАНІ ЗАВДАННЯ (від дорослих) — дизайн у стилі блоку «Пригоди» -->
+      <section class="tasks-card">
+        <svg class="peaks" viewBox="0 0 280 140" preserveAspectRatio="none" aria-hidden="true">
+          <polygon points="0,140 60,40 110,140" fill="#5d86b8" opacity=".7"/>
+          <polygon points="80,140 150,28 220,140" fill="#486ea0" opacity=".7"/>
+          <polygon points="170,140 240,55 300,140" fill="#5d86b8" opacity=".7"/>
+        </svg>
+        <div class="tasks-head">
+          <span class="tasks-ic">📋</span>
+          <div class="tasks-tt">
+            <h3>Задані завдання</h3>
+            <p>Завдання від дорослих — виконуй та отримуй нагороди!</p>
           </div>
+          <button class="tasks-all-btn" id="tasksAllBtn" type="button" hidden aria-label="Показати всі завдання">📜 Усі <span id="tasksAllCount"></span></button>
         </div>
-        <!-- за що рейтинг: навчання (тести + завдання) або арена -->
-        <div class="rank-cats" role="tablist" aria-label="За що рейтинг">
-          <button type="button" role="tab" class="on" data-cat="learn" aria-selected="true">🎓 Навчання</button>
-          <button type="button" role="tab" data-cat="arena" aria-selected="false">⚔️ Арена</button>
+        <div class="tasks-list" id="taskList">
+          <div class="tasks-empty">Поки що завдань немає 🎉</div>
         </div>
-        <ol class="rank-list" id="rankList"><li class="rank-empty">Завантаження…</li></ol>
-        <div class="rank-note" id="rankNote"></div>
       </section>
 
       <section class="prog-card">
@@ -159,25 +180,19 @@
       <div class="abil-subjs" id="abilSubjs"></div>
     </section>
 
-    <!-- ЗАДАНІ ЗАВДАННЯ (від дорослих) — дизайн у стилі блоку «Пригоди» -->
-    <section class="tasks-card">
-      <svg class="peaks" viewBox="0 0 280 140" preserveAspectRatio="none" aria-hidden="true">
-        <polygon points="0,140 60,40 110,140" fill="#5d86b8" opacity=".7"/>
-        <polygon points="80,140 150,28 220,140" fill="#486ea0" opacity=".7"/>
-        <polygon points="170,140 240,55 300,140" fill="#5d86b8" opacity=".7"/>
-      </svg>
-      <div class="tasks-head">
-        <span class="tasks-ic">📋</span>
-        <div class="tasks-tt">
-          <h3>Задані завдання</h3>
-          <p>Завдання від дорослих — виконуй та отримуй нагороди!</p>
+    <!-- ПОП-АП: теми предмета — відкривається тапом на предмет у павутинці -->
+    <div class="tasks-modal" id="abilModal" hidden>
+      <div class="tasks-modal-bg" data-close="1"></div>
+      <div class="tasks-modal-panel" role="dialog" aria-modal="true" aria-labelledby="abilModalTitle">
+        <div class="tasks-modal-head">
+          <h3 id="abilModalTitle"></h3>
+          <button class="tasks-modal-x" data-close="1" type="button" aria-label="Закрити">✕</button>
         </div>
-        <button class="tasks-all-btn" id="tasksAllBtn" type="button" hidden aria-label="Показати всі завдання">📜 Усі <span id="tasksAllCount"></span></button>
+        <div class="ab-modal-sub" id="abilModalSub"></div>
+        <div class="ab-topics ab-modal-list" id="abilModalList"></div>
       </div>
-      <div class="tasks-list" id="taskList">
-        <div class="tasks-empty">Поки що завдань немає 🎉</div>
-      </div>
-    </section>
+    </div>
+
 
     <!-- ПОП-АП: увесь список завдань (активні + виконані) -->
     <div class="tasks-modal" id="tasksModal" hidden>
@@ -532,21 +547,21 @@ function abilRadar(subjects){
     const st = window.SKCUR && SKCUR.statByKey ? SKCUR.statByKey(sj.statKey) : null;
     const im = abilImgs(sj), imgs = im.covers.concat(im.nav), nNav = im.nav.length;
     // клас cover — квадратна обкладинка (кадр по центру); img/nav — обрізаємо знизу, там угорі назва
-    html += '<div class="rd-card" style="left:'+x.toFixed(1)+'%;top:'+y.toFixed(1)+'%;--sc:'+col(sj, i)+'">'
+    html += '<button type="button" class="rd-card" data-subj="'+i+'" aria-label="'+escHtml(name+': теми')+'" style="left:'+x.toFixed(1)+'%;top:'+y.toFixed(1)+'%;--sc:'+col(sj, i)+'">'
       + '<span class="rd-pic">'+(imgs.length
           ? '<img class="'+(im.covers.length?'cover':'')+'" src="'+escHtml(imgs[0])+'" alt="" loading="lazy" data-fb="'+escHtml(imgs.slice(1).join('|'))+'" data-nav="'+nNav+'"'
             + ' onerror="var f=(this.dataset.fb||\'\').split(\'|\').filter(Boolean);if(f.length){this.dataset.fb=f.slice(1).join(\'|\');if(f.length<=+this.dataset.nav)this.className=\'\';this.src=f[0];}else{this.remove();}">'
           : '')+'<i>'+escHtml(sj.icon)+'</i></span>'
       + '<span class="rd-name">'+escHtml(name)+'</span>'
       + (st ? '<span class="rd-stat">'+escHtml(st.label)+'</span>' : '')
-      + '<span class="rd-pct">'+vals[i]+'%</span></div>';
+      + '<span class="rd-pct">'+vals[i]+'%</span></button>';
   });
   return html;
 }
 /* стан павутинки: усі предмети, класи перемикача, вибраний клас */
-const ABIL = { subjects:[], grades:[], sel:null };
+const ABIL = { subjects:[], grades:[], sel:null, shown:[] };
 function paintAbilGrade(){
-  const g = ABIL.sel, S = SKINS.STATUS;
+  const g = ABIL.sel;
   const subjects = ABIL.subjects.filter(sj => sj.grade===g);
   const tabs = $('abilGrades');
   tabs.hidden = ABIL.grades.length < 2;
@@ -554,27 +569,53 @@ function paintAbilGrade(){
     + (x===g ? ' class="on"' : '')+'>'+(x===ABIL_GRADE ? '🎒 ' : '')+escHtml(abilGrade(x))+'</button>').join('');
   $('abilRadar').innerHTML = abilRadar(subjects);
   $('abilRadar').classList.toggle('many', subjects.length >= 6);
-  $('abilSubjs').innerHTML = subjects.map(function(sj){
-    const stat = abilStat(sj.statKey);
+  ABIL.shown = subjects;
+  // є павутинка — теми відкриваються поп-апом з неї; список-акордеон лише коли предметів < 3
+  $('abilSubjs').innerHTML = $('abilRadar').innerHTML ? '' : subjects.map(function(sj){
     return '<details class="ab-subj"'+(subjects.length===1?' open':'')+'>'
       + '<summary><span class="ab-si">'+escHtml(sj.icon)+'</span>'
-      +   '<span class="ab-sn"><b>'+escHtml(sj.subject)+'</b><small>'+sj.tried+' з '+sj.total+' тем'+(stat?' · '+escHtml(stat):'')+'</small></span>'
+      +   '<span class="ab-sn"><b>'+escHtml(sj.subject)+'</b><small>'+abilSubjSub(sj)+'</small></span>'
       +   abilStars(sj.stars)+'</summary>'
-      + '<div class="ab-topics">'+sj.topics.map(function(t){
-          const st=S[t.status];
-          return '<a class="ab-topic st-'+t.status+'"'+(t.next?' href="'+escHtml(abilHref(t.next))+'"':'')+' title="'+escHtml(st.kid)+'">'
-            + '<span class="ab-st">'+st.icon+'</span>'
-            + '<span class="ab-tx"><b>'+escHtml(t.topic)+'</b><small>'+escHtml(st.kid)+'</small></span>'
-            + abilStars(t.stars)+'</a>';
-        }).join('')+'</div></details>';
+      + '<div class="ab-topics">'+abilTopics(sj)+'</div></details>';
   }).join('');
 }
+function abilSubjSub(sj){
+  const stat = abilStat(sj.statKey);
+  return sj.tried+' з '+sj.total+' тем'+(stat?' · '+escHtml(stat):'');
+}
+/* Теми предмета — одразу посилання на тест/сторінку теми */
+function abilTopics(sj){
+  const S = SKINS.STATUS;
+  return sj.topics.map(function(t){
+    const st=S[t.status];
+    return '<a class="ab-topic st-'+t.status+'"'+(t.next?' href="'+escHtml(abilHref(t.next))+'"':'')+' title="'+escHtml(st.kid)+'">'
+      + '<span class="ab-st">'+st.icon+'</span>'
+      + '<span class="ab-tx"><b>'+escHtml(t.topic)+'</b><small>'+escHtml(st.kid)+'</small></span>'
+      + abilStars(t.stars)+'</a>';
+  }).join('');
+}
+function openAbilModal(sj){
+  const m=$('abilModal'); if(!m || !sj) return;
+  $('abilModalTitle').textContent = (sj.icon ? sj.icon+' ' : '')+sj.subject;
+  $('abilModalSub').innerHTML = abilSubjSub(sj)+' '+abilStars(sj.stars);
+  $('abilModalList').innerHTML = abilTopics(sj);
+  m.hidden=false; document.body.classList.add('modal-open');
+}
+function closeAbilModal(){ const m=$('abilModal'); if(!m) return; m.hidden=true; document.body.classList.remove('modal-open'); }
 (function(){
   const tabs = document.getElementById('abilGrades');
   if(tabs) tabs.addEventListener('click', function(e){
     const b = e.target.closest('[data-grade]'); if(!b) return;
     ABIL.sel = Number(b.getAttribute('data-grade')); paintAbilGrade();
   });
+  const radar = document.getElementById('abilRadar');
+  if(radar) radar.addEventListener('click', function(e){
+    const c = e.target.closest('[data-subj]'); if(!c) return;
+    openAbilModal(ABIL.shown[Number(c.getAttribute('data-subj'))]);
+  });
+  const modal = document.getElementById('abilModal');
+  if(modal) modal.addEventListener('click', function(e){ if(e.target.closest('[data-close]')) closeAbilModal(); });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape' && modal && !modal.hidden) closeAbilModal(); });
 })();
 async function loadAbilities(h){
   const card=$('abilCard'); if(!card || !window.SKINS || !window.SKCUR || !(window.SK && SK.listActiveTests)) return;
