@@ -721,6 +721,13 @@ var RULES = {
   'knight.daze':    { kind: 'active', perBattle: 3, p: [
     { k: 'cd', v: 4, t: 'ходів перезарядки' },
     { k: 'dmgMul', v: 50, u: '%', t: 'урону удару' }] },
+  'knight.stun':    { kind: 'active', perBattle: 4, p: [
+    { k: 'cd', v: 3, t: 'ходів перезарядки' },
+    { k: 'stun', v: 40, from: 20, u: '%', t: 'шанс оглушити, коли удар влучив: ворог пропускає наступний хід' }] },
+  'knight.lash':    { kind: 'active', perBattle: 10, p: [
+    { k: 'dmgMul', v: 75, u: '%', t: 'урону удару (щит його не блокує)' },
+    { k: 'agi', v: 40, from: 20, u: '%', t: 'менше спритності в сплутаного ворога' },
+    { k: 'turns', v: 2, from: 1, t: 'ходів сплутування: 1 (25%) → 2 (100%)' }] },
   'knight.riposte': { kind: 'const', perBattle: 4, on: 'твій блок: контрудар — ✔, ні — ✖', p: [
     { k: 'chance', v: 6, grow: true, u: '%', t: 'шанс контрудару ×0.5 після блоку' }] },
   'knight.disarm':  { kind: 'active', perBattle: 2, p: [
@@ -974,6 +981,8 @@ var FX = {
   'knight.haft':    function(v){ return 'спис чи посох · вдається в ' + v.chance + '%, другий удар — ' + v.second + '%'; },
   'knight.bless':   function(v){ return 'вдається в ' + v.chance + '% (−' + v.mana + ' мани): броня й маг. захист +' + v.defPct + '%, лікує ' + v.heal + '% щоходу, 🎲 ' + v.turnsMin + '–' + v.turnsMax + ' ходів'; },
   'knight.parry':   function(v){ return 'прокидається в ' + v.engage + '% ударів у незахищену зону: відбиває зброєю (меч — найкраще, важка зброя — зрідка)'; },
+  'knight.stun':    function(v){ return 'булава чи кистень · вдається в ' + v.chance + '%: удар ×1, влучив — оглушує в ' + v.stun + '% (ворог пропускає хід)'; },
+  'knight.lash':    function(v){ return 'кнут чи кистень · вдається в ' + v.chance + '%: удар ×' + (v.dmgMul / 100) + ' повз щит, влучив — сплутує: спритність −' + v.agi + '% на ' + v.turns + (v.turns > 1 ? ' ходи' : ' хід'); },
   'knight.daze':    function(v){ return 'вдається в ' + v.chance + '%: удар ×' + (v.dmgMul / 100) + ', ворог втрачає концентрацію'; },
   'knight.riposte': function(v){ return 'після твого блоку — контрудар ×0.5 з шансом ' + v.chance + '%'; },
   'knight.disarm':  function(v){ return 'вибиває зброю ворога: шанс від різниці у володінні зброєю (10–90%)'; },

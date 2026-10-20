@@ -86,7 +86,7 @@
      значення з sk-skills.js (SKSKILLS.skillValues — правила, типи, округлення),
      тож бій однаковий на будь-якій сторінці й не залежить від sk-skills.js. */
   var SKILL = { kick: { id: 'base.kick' }, spark: { id: 'base.spark' }, bash: { id: 'knight.bash' }, berserk: { id: 'knight.berserk' }, lunge: { id: 'knight.lunge' },
-    bless: { id: 'knight.bless' }, disarm: { id: 'knight.disarm' }, haft: { id: 'knight.haft' }, daze: { id: 'knight.daze' },
+    bless: { id: 'knight.bless' }, disarm: { id: 'knight.disarm' }, haft: { id: 'knight.haft' }, daze: { id: 'knight.daze' }, stun: { id: 'knight.stun' }, lash: { id: 'knight.lash' },
     stone: { id: 'knight.stoneskin' }, song: { id: 'knight.song' }, shieldbreak: { id: 'knight.shieldbreak' } };
   /* вміння, що діють ДО ударів ходу (не окремий удар) */
   var PRE = { 'knight.berserk': 1, 'knight.bless': 1, 'knight.disarm': 1, 'knight.lunge': 1, 'knight.stoneskin': 1, 'knight.song': 1, 'knight.shieldbreak': 1 };
@@ -160,15 +160,19 @@
   function turnBoost(st, p) {
     var f = fxOf(st.me), bz = berserkOn(st), bl = blessOn(st) ? num(f.bless.def) : 0, sg = songOn(st) ? f.song : null, wl = willOn(st);
     var add = V(st, 'base.focus', 'perLevel') * num(f.focus) + (f.bond ? V(st, 'base.bond', 'dmgPct') : 0) + (bz ? V(st, 'knight.berserk', 'dmgPct') : 0) + (sg ? num(sg.dmg) : 0);
-    if (!add && !bz && !bl && !sg && !wl) return p;
+    var tg = tangledOn(st) ? num(f.tangle.agi) : 0;
+    if (!add && !bz && !bl && !sg && !wl && !tg) return p;
     var o = {}, k; for (k in p) o[k] = p[k];
     o.dmgPct = num(o.dmgPct) + add; o.magPct = num(o.magPct) + add;
     if (sg && num(sg.acc)) o.accuracy = Math.round(num(o.accuracy) * (1 + num(sg.acc) / 100));   // Бойова пісня
     if (bl) { o.armor = Math.round(num(o.armor) * (1 + bl / 100)); o.magicResist = Math.round(num(o.magicResist) * (1 + bl / 100)); }   // Благословення
     if (wl) o.armor = Math.round(num(o.armor) * (1 + (num(f.willPct) || 100) / 100));              // Залізна воля
     if (bz) o.armor = Math.round(num(o.armor) * (1 - V(st, 'knight.berserk', 'armorCut') / 100));
+    if (tg) o.agility = Math.max(0, Math.round(num(o.agility) * (1 - tg / 100)));                   // сплутаний (Захльост)
     return o;
   }
+  /* сплутаний Захльостом: спритність −agi% з наступного ходу до tangle.until */
+  function tangledOn(st) { var f = st.me && st.me.fx; return !!(f && f.tangle && num(f.tangle.until) >= st.round && num(f.tangle.from) <= st.round); }
   /* суперник без зброї (Обеззброєння): урон зброї в руках не діє; щит лишається */
   function disarmedOn(st) { var f = st.op && st.op.fx; return !!(f && num(f.disarm) >= st.round); }
   function noWeapon(p) { var o = {}, k; for (k in p) o[k] = p[k]; o.wMin = 0; o.wMax = 0; o.magMin = 0; o.magMax = 0; return o; }
@@ -201,7 +205,7 @@
   function wTypeNow(st) { var w = heroDisarmed(st) ? null : weaponOn(st); return (w && w.base && w.base.weaponType) || ''; }
   /* якою зброєю можна виконати вміння */
   var SKILL_WEAPONS = { 'knight.lunge': ['sword', 'dagger', 'spear'], 'knight.haft': ['spear', 'staff'],
-    'knight.shieldbreak': ['axe', 'mace', 'flail', 'staff', 'sword'] };
+    'knight.shieldbreak': ['axe', 'mace', 'flail', 'staff', 'sword'], 'knight.stun': ['mace', 'flail'], 'knight.lash': ['whip', 'flail'] };
   /* Розбити щит: шанс залежить від зброї — сокира найкраща, булава/кистень/посох трохи гірше, меч ще трохи гірше */
   var SHATTER_MUL = { axe: 1, mace: 0.85, flail: 0.85, staff: 0.85, sword: 0.7 };
   function skillWeaponOk(st, id) { var l = SKILL_WEAPONS[id]; return !l || l.indexOf(wTypeNow(st)) >= 0; }
@@ -428,9 +432,13 @@
   function weaponStrike(ctx, st, id, pm, po, me, op, rnd) {
     var R = ctx.R, need = V(st, id, 'chance'), roll = R.d100(rnd), rec = { id: id, need: need, roll: roll, ok: roll <= need, dmg: 0, hits: [] };
     if (!rec.ok) { grow(st, id, false); rec.kind = 'fail'; rec.calc = 'не вдалося: 🎲 ' + roll + ' > ' + need + '%'; return rec; }
-    var att = pm;
-    if (id === SKILL.daze.id) { att = {}; for (var k in pm) att[k] = pm[k]; att.dmgMul = (V(st, id, 'dmgMul') || 50) / 100; }
-    var h1 = R.strike(att, po, me.atk === op.block, rnd); h1.zone = me.atk; rec.hits.push(h1);
+    var att = pm, def = po, k;
+    if (id === SKILL.daze.id || id === SKILL.lash.id) { att = {}; for (k in pm) att[k] = pm[k]; att.dmgMul = (V(st, id, 'dmgMul') || (id === SKILL.lash.id ? 75 : 50)) / 100; }
+    if (id === SKILL.lash.id && opShield(st)) {               // Захльост огинає щит: шанс блоку щита (і Блок щитом) не діє, броня щита — так
+      var ns = noShield(ctx, po, shieldEntry(st.op)); def = {}; for (k in po) def[k] = po[k];
+      def.blockPhys = ns.blockPhys; def.blockMag = ns.blockMag; def.evade = ns.evade; def.blockSrc = ns.blockSrc; rec.aroundShield = true;
+    }
+    var h1 = R.strike(att, def, me.atk === op.block, rnd); h1.zone = me.atk; rec.hits.push(h1);
     if (id === SKILL.haft.id) {
       var sec = V(st, id, 'second'); rec.secNeed = sec; rec.secRoll = R.d100(rnd);
       if (rec.secRoll <= sec) {
@@ -446,7 +454,23 @@
       var fo = fxOf(st.op), had = num(fo.focus);
       if (steadyTry(R, st, rec, rnd)) rec.dazeSaved = true; else { fo.focus = 0; rec.daze = true; rec.focusLost = had; }   // Стійкість ворога може врятувати
     }
+    if (id === SKILL.stun.id && landed.length) stunTry(R, st, id, rec, rnd);
+    if (id === SKILL.lash.id && landed.length) {             // сплутування: спритність −agi% на turns ходів, починаючи з наступного
+      if (steadyTry(R, st, rec, rnd)) rec.tangleSaved = true;
+      else { var tn = Math.max(1, V(st, id, 'turns') || 1); fxOf(st.op).tangle = { from: st.round + 1, until: st.round + tn, agi: V(st, id, 'agi') }; rec.tangle = true; rec.turns = tn; rec.agi = V(st, id, 'agi'); }
+    }
     return rec;
+  }
+  /* Оглушливий удар: влучив — з шансом stun % ворог пропускає НАСТУПНИЙ хід (як збитий з ніг: ні удару, ні спецдій),
+     далі 2 ходи імунітету до оглушення; поки лежить чи щойно підвівся (Поштовх, Пінок) — теж не оглушити. Стійкість рятує */
+  function stunTry(R, st, id, rec, rnd) {
+    var fo = fxOf(st.op), last = num(fo.knock);
+    if ((last && last >= st.round) || num(fo.stunImm) >= st.round) { rec.stunImmune = true; return; }
+    var need = V(st, id, 'stun'), r = R.d100(rnd);
+    rec.stunNeed = need; rec.stunRoll = r;
+    if (!(need > 0 && r <= need)) return;
+    if (steadyTry(R, st, rec, rnd)) { rec.stunSaved = true; return; }
+    rec.stun = true; fo.knock = st.round + 1; fo.stun = st.round + 1; fo.stunImm = st.round + 3;
   }
   /* збити з ніг (Пінок, Поштовх щитом): суперник пропустить наступний хід.
      Імунітет після оглушення (fx.knock — хід, коли суперник лежав): поки лежить — збити не можна
@@ -568,7 +592,7 @@
   /* активне вміння-удар (Пінок, Вогник, Поштовх, Древко, Пантелик) з перезарядкою */
   function activeStrike(ctx, v, id, can, pA, pD, mine, theirs, rnd) {
     if (!id || PRE[id] || !can || skillBlock(v, id)) return null;
-    var rec = (id === SKILL.haft.id || id === SKILL.daze.id) ? weaponStrike(ctx, v, id, pA, pD, mine, theirs, rnd)
+    var rec = (id === SKILL.haft.id || id === SKILL.daze.id || id === SKILL.stun.id || id === SKILL.lash.id) ? weaponStrike(ctx, v, id, pA, pD, mine, theirs, rnd)
       : skillStrike(ctx, v, id, pA, pD, mine.atk === theirs.block, rnd);
     var cdN = V(v, id, 'cd'); if (cdN > 0) { v.me.cd = v.me.cd || {}; v.me.cd[id] = v.round + cdN; }
     return rec;
@@ -943,6 +967,8 @@
     var meHit = down ? none('skip') : fm.feared ? none('fear') : meKnocked ? none('knock') : R.attack(lunge && lunge.att ? lunge.att : pm, po, me.atk === op.block, rng(st.bid + '|' + st.round + '|me'));
     var opHit = down ? none('skip') : fo.feared ? none('fear') : knocked ? none('knock') : R.attack(opLunge && opLunge.att ? opLunge.att : po, pm, op.atk === me.block, rng(st.bid + '|' + st.round + '|op'));
     var meAtk = !down && !fm.feared && !meKnocked, opAtk = !down && !fo.feared && !knocked;
+    if (meHit.kind === 'knock' && num(fm.stun) === st.round) meHit.stun = true;   // оглушений Оглушливим ударом, не збитий з ніг
+    if (opHit.kind === 'knock' && num(fo.stun) === st.round) opHit.stun = true;
     if (lunge && lunge.att) lungeExtra(ctx, st, lunge, meHit, pm, po, me.atk === op.block, sd(st, 'lunge'));
     if (opLunge && opLunge.att) lungeExtra(ctx, vo, opLunge, opHit, po, pm, op.atk === me.block, sd(vo, 'lunge'));
     if (meAtk) comboTry(ctx, st, meHit, pm, po, op.block, sd(st, 'combo'));
@@ -1042,7 +1068,7 @@
     if (opUp.length) e.opUp = opUp;
     // 🧪 ТИМЧАСОВО ДЛЯ ТЕСТУ: стан обох після ходу (мана, концентрація, до якого ходу діють лють / благословення / обеззброєння / оглушення)
     var snap = function (u) { var f = u.fx || {}; return { m: Math.round(num(u.mana)), f: num(f.focus), bz: num(f.berserk), bl: f.bless ? num(f.bless.until) : 0, dis: num(f.disarm), kn: num(f.knock),
-      sto: f.stone ? num(f.stone.until) : 0, sng: f.song ? num(f.song.until) : 0, wil: num(f.will), sho: num(f.shieldOff), cd: clone(u.cd || {}) }; };
+      sto: f.stone ? num(f.stone.until) : 0, sng: f.song ? num(f.song.until) : 0, wil: num(f.will), sho: num(f.shieldOff), tng: f.tangle ? num(f.tangle.until) : 0, cd: clone(u.cd || {}) }; };
     e.st = { me: snap(st.me), op: snap(st.op) };
     if (st.op.fx && st.op.fx.focus) e.opFocus = num(st.op.fx.focus);
     // ріст вмінь цього ходу: {id: [вдалих, невдалих, разом вдалих за бій, разом невдалих за бій]}
