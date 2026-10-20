@@ -857,13 +857,27 @@ test('Розсікти: −50 мани, удар ×2.5 крізь захист �
     st = sharp(battle({ 'knight.cleave': 1 }, ['knight.cleave'], [wear(SWORD, 'weaponR')]));
     SB.useSkill(ctx, st, 'knight.cleave');
     e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
-    if (e.skill.kind === 'cleave') break;
+    if (e.skill.kind === 'cleave' && !e.skill.missed) break;
   }
   assert.strictEqual(e.skill.kind, 'cleave'); assert.strictEqual(e.skill.mul, 2.5); assert.strictEqual(e.skill.mana, 50);
   assert.ok(e.meHit.hits[0].cleave && e.meHit.hits[0].kind !== 'block', 'перший удар — Розсікти, не блокується');
   assert.strictEqual(st.op.fx.careful, 1 + 10);
   assert.strictEqual(SB.skillBlock(st, 'knight.cleave'), 'careful');
   assert.ok(SB.useSkill(ctx, st, 'knight.cleave'), 'можна обрати — чекає');
+});
+
+test('Розсікти: промах — ні мани, ні обережності (вміння доступне знову)', () => {
+  let st, e;
+  for (let k = 0; k < 40; k++) {
+    st = battle({ 'knight.cleave': 1 }, ['knight.cleave'], [wear(SWORD, 'weaponR')]);
+    st.me.p.accuracy = 1; st.op.p.agility = 5000;                 // майже завжди промах
+    const m0 = st.me.mana; SB.useSkill(ctx, st, 'knight.cleave');
+    e = SB.turn(ctx, st, HIT, {}, Date.now());
+    if (e.skill.kind === 'cleave' && e.skill.missed) { assert.strictEqual(st.me.mana, m0); break; }
+  }
+  assert.ok(e.skill.missed, 'був промах');
+  assert.ok(!st.op.fx.careful, 'обережності немає');
+  assert.strictEqual(SB.skillBlock(st, 'knight.cleave'), '');
 });
 
 test('Королівська лють: потрібна концентрація й половина здоров\'я ворога; −150 мани й уся K, удар ×(1+0.5K), ворог пропускає хід; раз за бій', () => {
