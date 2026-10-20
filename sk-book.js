@@ -59,9 +59,12 @@ function plural(n, a, b, c){ n = Math.abs(n) % 100; var d = n % 10; return (n > 
 /* ── сервер ── */
 function apply(r){
   if (!r) return;
-  var h = { arena: { level: ST.lv }, skills: r.skills, skillBar: r.skillBar, heroClass: r.heroClass, skillBonus: r.skillBonus };
+  var h = { arena: { level: ST.lv }, skills: r.skills, skillBar: r.skillBar, heroClass: r.heroClass, skillBonus: r.skillBonus }, cls0 = ST.cls;
   ST = SKS.bookState(h);
+  hands({ heroClass: r.heroClass || ST.cls || cls0, skills: r.skills });
 }
+/* правила рук під вивчені вміння (Друга зброя, Хватка велетня) — у sk-arena-rules.js */
+function hands(h){ if (window.SKARENA && SKARENA.handsFromHero && h) SKARENA.handsFromHero(h); }
 function send(fn, args, okMsg){
   if (!hero()) { toast('Книга вмінь', 'Вміння вивчає сам Герой — увійди Героєм'); return Promise.resolve(); }
   if (BUSY) return Promise.resolve();
@@ -81,6 +84,7 @@ function refresh(level){
   return (SK.ready || Promise.resolve()).then(function(){ return SK.getHero(); }).then(function(h){
     var lv = ST.lv;
     ST = SKS.bookState(h || {});
+    hands(h);
     if (level != null) ST.lv = lv;           // рівень арени — той, що бачить Інвентар
     LOADED = true; render(); askClass();
   }, function(){ LOADED = true; render(); });
