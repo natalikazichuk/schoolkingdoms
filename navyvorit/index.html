@@ -336,6 +336,17 @@ body.shake #wrap{animation:bodyShake .35s .5s ease;}
 .gKey b{position:absolute; left:81%; top:70%; transform:translate(-50%,-50%) rotate(-18deg); font-family:'Fredoka',sans-serif; font-size:17px; color:#6b3d00;}
 .gLedge{display:block; width:calc(100% + 44px); margin:4px -22px 0; height:auto; pointer-events:none;}
 .gateSheet .play{margin-top:2px;}
+/* звичайні картки в рамці воріт (openSheet без класу) */
+.gateSheet.art .gWrap{padding-top:6px;}
+.gateSheet.art .gWrap > .gv{top:30px;}
+.gateSheet.art .sb{margin-top:4px;}
+.gateSheet.art .sb img{width:96px; height:96px;}
+.gateSheet.art .gRib{margin-top:-6px;}
+.gateSheet.art .gRib span{white-space:normal; font-size:clamp(16px,4.8vw,24px);}
+.gateSheet.art .sd b{color:#3b2a10;}
+.gateSheet .play{border:3px solid #f4c842 !important; background:linear-gradient(180deg,#6fdc7f,#37b24d) !important; box-shadow:0 0 0 2px #a8741c, 0 6px 0 #2b8a3e, 0 10px 16px rgba(0,0,0,.25) !important;
+  text-shadow:0 2px 0 rgba(0,0,0,.25);}
+.gateSheet .rulePair .a{background:#fffdf7; border-color:#efe2c4;}
 </style>
 </head>
 <body>
@@ -622,7 +633,7 @@ body.shake #wrap{animation:bodyShake .35s .5s ease;}
   }
 
   function openPoint(p){
-    var head = '<div class="sb">'+p.em+'</div><div class="st">'+label(p)+(isDone(p)?' ✅':'')+'</div>';
+    var head = '<div class="sb">'+(p.ic ? '<img src="'+p.ic+'" alt="'+p.em+'">' : p.em)+'</div><div class="st">'+label(p)+(isDone(p)?' ✅':'')+'</div>';
     var pair = '<div class="rulePair"><div class="a"><small>Звичайно</small>'+p.a+'</div><div class="b"><small>🔄 Навиворіт</small>'+p.b+'</div></div>';
     if(!p.href){
       openSheet(head+'<div class="sd">'+p.d+'</div>'+pair+'<div class="sd">🚧 Цей рівень ще будується. Поки що можна йти далі — наступні пункти не чекають на нього.</div>');
@@ -715,6 +726,11 @@ body.shake #wrap{animation:bodyShake .35s .5s ease;}
 
   /* ═════════ картки ═════════ */
   function openSheet(html, cls){
+    if(!cls){   // звичайна картка (рівень, розділ, замок) — у тій самій рамці, що й ворота: пергамент, плющ, назва на стрічці
+      html = '<div class="gWrap"><i class="gv l"></i><i class="gv r"></i>' + html.replace('<div class="sb">🔒</div>', '<div class="sb"><img src="img/pin-lock.webp" alt="🔒"></div>')
+        .replace(/<div class="st">([\s\S]*?)<\/div>/, '<div class="gRib"><span>$1</span></div>') + '<img class="gLedge" src="'+GV+'ledge.webp" alt=""></div>';
+      cls = "gateSheet art";
+    }
     $("sheet").className = "sheet" + (cls ? " "+cls : "");
     $("sheet").innerHTML = '<button class="sx" type="button" aria-label="Закрити">✕</button>' + html;
     $("sheet").querySelector(".sx").addEventListener("click", closeSheet);
