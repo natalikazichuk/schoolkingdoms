@@ -46,6 +46,7 @@
   NAV.buzz = function(v){ try{ if(navigator.vibrate) navigator.vibrate(v); }catch(e){} };
 
   /* ── каркас сторінки ── */
+  (function(){ var fs = document.createElement("script"); fs.src = "nav-flipfx.js"; document.head.appendChild(fs); })();   // анімація з логотипом у мить перевороту
   NAV.mount = function(c){
     cfg = c;
     var wrap = el("div"); wrap.id = "wrap";
@@ -162,7 +163,7 @@
     $("dirBadge").textContent = on ? (cfg.badgeOn||"🔄 навиворіт") : (cfg.badgeOff||"⏩ звичайний світ");
     if(cfg.onFlip) cfg.onFlip(on);
   };
-  NAV.flipAnim = function(){ var s = $("scene"); s.classList.remove("flipanim"); void s.offsetWidth; s.classList.add("flipanim"); };
+  NAV.flipAnim = function(){ if(window.navFlipLogo) navFlipLogo(); var s = $("scene"); s.classList.remove("flipanim"); void s.offsetWidth; s.classList.add("flipanim"); };
   NAV.shake = function(){ var s = $("scene"); s.classList.remove("shake"); void s.offsetWidth; s.classList.add("shake"); };
   NAV.miss = function(t){ NAV.mistakes++; NAV.snd.thud(); NAV.buzz(40); NAV.shake(); NAV.hint(t, "bad"); NAV.cool(); };
 
