@@ -715,8 +715,8 @@ test('Оглушливий удар і Захльост — лише своєю 
   assert.strictEqual(ok('knight.stun', SWORD), 'weapon'); assert.strictEqual(ok('knight.stun', WHIP), 'weapon'); assert.strictEqual(ok('knight.stun', null), 'weapon');
   assert.strictEqual(ok('knight.lash', WHIP), ''); assert.strictEqual(ok('knight.lash', FLAIL), '');
   assert.strictEqual(ok('knight.lash', MACE2), 'weapon'); assert.strictEqual(ok('knight.lash', SWORD), 'weapon');
-  assert.deepStrictEqual(JSON.parse(JSON.stringify(S.skillValues('knight.stun', 25))), { chance: 50, stun: 100 });
-  assert.strictEqual(S.skillValues('knight.stun', 100).stun, 100);   // 🧪 тимчасово для тесту (було 40)
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(S.skillValues('knight.stun', 25))), { chance: 50, stun: 20 });
+  assert.strictEqual(S.skillValues('knight.stun', 100).stun, 40);
   assert.deepStrictEqual(JSON.parse(JSON.stringify(S.skillValues('knight.lash', 100))), { chance: 100, dmgMul: 75, agi: 40, turns: 2 });
   assert.strictEqual(S.skillValues('knight.lash', 25).turns, 1);
 });
@@ -730,7 +730,7 @@ test('Оглушливий удар: влучив — ворог пропуск�
     assert.strictEqual(e.skill.id, 'knight.stun');
     assert.strictEqual(e.skill.hits[0].zone, 'head', 'у зону атаки');
     assert.ok(!(st.me.cd || {})['knight.stun'], 'без перезарядки');
-    if (e.skill.stun) got = true; else assert.ok(e.skill.stunNeed === 100 || e.skill.kind !== 'hit');
+    if (e.skill.stun) got = true; else assert.ok(e.skill.stunNeed === 40 || e.skill.kind !== 'hit');
   }
   assert.ok(got, 'за 60 спроб хоч раз оглушив (40%)');
   const r = st.round;
