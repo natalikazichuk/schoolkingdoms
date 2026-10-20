@@ -37,6 +37,13 @@
     box.appendChild(play);
     play.className = "go-btn"; play.textContent = "➜";
     if(c.play){ play.title = c.play; play.setAttribute("aria-label", c.play); }
+    /* фінальний екран — картинка гри позаду (притемнена), свої картинки замість емодзі */
+    var win = $("winScreen");
+    if(win){
+      win.style.backgroundImage = "linear-gradient(180deg,rgba(25,12,35,.35),rgba(25,12,35,.55)), url("+(c.winBg || c.bg)+")";
+      var cr = win.querySelector(".crown");
+      if(cr && c.winImg) cr.innerHTML = [].concat(c.winImg).map(function(u){ return '<img src="'+u+'" alt="">'; }).join("");
+    }
     img = new Image(); img.onload = fit; img.src = c.bg;
     window.addEventListener("resize", fit);
     window.addEventListener("load", fit);
