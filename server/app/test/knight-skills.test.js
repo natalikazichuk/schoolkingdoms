@@ -881,10 +881,12 @@ test('Розсікти: промах — ні мани, ні обережнос�
   assert.strictEqual(SB.skillBlock(st, 'knight.cleave'), '');
 });
 
-test('Королівська лють: потрібна концентрація й половина здоров\'я ворога; −150 мани й уся K, удар ×(1+0.5K), ворог пропускає хід; не раз за бій', () => {
+test('Королівська лють: потрібна концентрація й 30% здоров\'я ворога; −150 мани й уся K, удар ×(1+0.5K), ворог пропускає хід; не раз за бій', () => {
   const st0 = battle({ 'knight.ult': 1 }, ['knight.ult'], [wear(SWORD, 'weaponR')]);
   assert.strictEqual(SB.skillBlock(st0, 'knight.ult'), 'focus');
-  st0.me.fx.focus = 2; st0.op.force = Math.floor(st0.op.max / 2) - 1;
+  st0.me.fx.focus = 2; st0.op.force = Math.floor(st0.op.max * 0.4);
+  assert.notStrictEqual(SB.skillBlock(st0, 'knight.ult'), 'hp', '40% здоров\'я — ще можна');
+  st0.op.force = Math.floor(st0.op.max * 0.3) - 1;
   assert.strictEqual(SB.skillBlock(st0, 'knight.ult'), 'hp');
   let st, e;
   for (let k = 0; k < 40; k++) {
@@ -985,4 +987,16 @@ test('Друга зброя: одноручна до одноручної — у
     R.BATTLE.dualWield = false;
     assert.strictEqual(R.offhandSlot(W('sword'), W('axe')), null);
   } finally { R.BATTLE.dualWield = was; }
+});
+
+test('Королівська лють: урон не більше 25% макс. здоров\'я ворога — не вбиває', () => {
+  let n = 0;
+  for (let k = 0; k < 200; k++) {
+    const st = sharp(battle({ 'knight.ult': 1 }, ['knight.ult'], [wear(SWORD, 'weaponR')]));
+    st.op.max = 100; st.op.force = 31; st.me.fx.focus = 5; SB.useSkill(ctx, st, 'knight.ult');
+    const e = SB.turn(ctx, st, HIT, {}, Date.now());
+    if (!e.skill || e.skill.kind === 'fail' || !e.skill.hits) continue;
+    assert.ok(e.skill.hits[0].dmg <= 25, 'ульта ' + e.skill.hits[0].dmg + ' > 25'); n++;
+  }
+  assert.ok(n > 0);
 });

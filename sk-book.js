@@ -297,7 +297,7 @@ function paintBattle(bs){
       else if (why === 'swap') { cls += ' cd'; badge = '<span class="skb-cd">🔁</span>'; tip += ' · цього ходу ти вже перевдягнувся'; }
       else if (why === 'careful') { cls += ' cd'; badge = '<span class="skb-cd">👀</span>'; tip += ' · суперник обережний — спрацює, коли обережність мине'; }
       else if (why === 'focus') { cls += ' cd'; badge = '<span class="skb-cd">🕯️</span>'; tip += ' · потрібна концентрація'; }
-      else if (why === 'hp') { cls += ' cd'; badge = '<span class="skb-cd">❤️</span>'; tip += ' · у суперника вже менше половини здоров\'я'; }
+      else if (why === 'hp') { cls += ' cd'; badge = '<span class="skb-cd">❤️</span>'; tip += ' · у суперника вже менше 30% здоров\'я'; }
       else if (why) { cls += ' cd'; tip += ' · зараз не можна'; }   // будь-яка інша причина — теж сіре
       else if (sel2) tip += ' · спрацює цього ходу';
     }
