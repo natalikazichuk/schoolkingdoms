@@ -898,3 +898,17 @@ test('Королівська лють: потрібна концентрація
   const e2 = SB.turn(ctx, st, HIT, {}, Date.now());
   assert.strictEqual(e2.opHit.kind, 'knock');
 });
+
+test('Збити з пантелику: лицар-бот втрачає ВСЮ концентрацію, і цього ходу вона не відростає від твоїх ударів', () => {
+  let st, e, got = false;
+  for (let k = 0; k < 40 && !got; k++) {
+    st = sharp(duel({ 'knight.daze': 1 }, ['knight.daze'], { 'base.focus': 1 }, [], [wear(SWORD, 'weaponR')]));
+    st.op.fx.focus = 3; SB.useSkill(ctx, st, 'knight.daze');
+    e = SB.turn(ctx, st, HIT, {}, Date.now());
+    if (e.skill.daze) got = true;
+  }
+  assert.ok(got, 'збив концентрацію');
+  assert.strictEqual(e.skill.focusLost, 3);
+  assert.ok(e.meHit.dmg > 0 || e.skill.dmg > 0, 'бот отримав урон цього ходу');
+  assert.strictEqual(st.op.fx.focus, 0, 'не відросла від ударів цього ходу');
+});
