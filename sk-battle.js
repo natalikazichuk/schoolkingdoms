@@ -439,6 +439,7 @@
       def.blockPhys = ns.blockPhys; def.blockMag = ns.blockMag; def.evade = ns.evade; def.blockSrc = ns.blockSrc; rec.aroundShield = true;
     }
     var h1 = R.strike(att, def, me.atk === op.block, rnd); h1.zone = me.atk; rec.hits.push(h1);
+    if (rec.aroundShield && h1.kind === 'block' && !h1.byChance) h1.calc = 'суперник закрив цю зону — удар не пройшов (щит не зачеплено)';
     if (id === SKILL.haft.id) {
       var sec = V(st, id, 'second'); rec.secNeed = sec; rec.secRoll = R.d100(rnd);
       if (rec.secRoll <= sec) {

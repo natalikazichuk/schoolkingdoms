@@ -856,6 +856,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
   background:linear-gradient(180deg,#1f5a3a,#123825);border:2px solid #7bd88a;cursor:help;outline:none}
 .fxcol.neg .fxi{background:linear-gradient(180deg,#6a2020,#3e1212);border-color:#e85a5a}
 .fxi img{width:28px;height:28px;object-fit:contain}
+.fxi.past{opacity:.5;filter:grayscale(.7)}   /* ефект щойно скінчився: «0» — діяв минулого ходу */
 .fxi .fxn{position:absolute;right:-5px;bottom:-5px;min-width:16px;height:16px;padding:0 3px;border-radius:8px;background:#0c2247;
   border:1px solid #ffd54a;color:#ffd54a;font-size:.58rem;font-weight:900;line-height:14px;text-align:center}
 .fxi .fxtip{display:none;position:absolute;top:50%;left:calc(100% + 8px);transform:translateY(-50%);z-index:30;width:210px;
@@ -1723,7 +1724,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script src="sk-avatar.js?v=9"></script>
 <script src="sk-progress.js"></script>
 <script src="sk-arena-rules.js?v=25"></script>
-<script src="sk-battle.js?v=30"></script>
+<script src="sk-battle.js?v=31"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
    Інвентар, скриня, смітник, продане / куплене сьогодні й монети
@@ -2219,18 +2220,25 @@ window.SKHERO = (function(){
     });
     if(f.focus>0) out.push({neg:false, ic:'🕯️', n:f.focus, title:'Концентрація', text:'+'+(5*f.focus)+'% до урону. Хід без урону — шанс зосередитись ще більше; отримав урон — концентрацію збито.', left:'Доки не отримаєш урон'});
     if(f.bond && u.skv && u.skv['base.bond']) out.push({neg:false, ic:'🔗', n:'', title:"Зв'язок зі зброєю", text:'+'+(u.skv['base.bond'].dmgPct||0)+'% урону: ти добре відчуваєш свою зброю.', left:'Доки не зміниш зброю'});
-    if(f.knock && B && f.knock===B.round) out.push(f.stun===B.round ? {neg:true, ic:'💫', n:'', title:'Оглушений', text:'Оглушливий удар: цей хід — ні удару, ні вміння, ні пояса.', left:'Цей хід'}
-      : {neg:true, ic:'😵', n:'', title:'Збитий з ніг', text:'Збили з ніг — цей хід не атакує.', left:'Цей хід'});
-    if(f.tangle && B && f.tangle.until>=B.round){ var tl=f.tangle.until-B.round+1; out.push({neg:true, ic:'➰', n:tl, title:'Сплутаний', text:'Захльост сплутав ноги: спритність −'+(f.tangle.agi||0)+'% — по тобі легше влучити.', left:f.tangle.from>B.round?'З наступного ходу':'Ще '+tl+' '+(tl===1?'хід':'ходи')}); }
+    /* ефект на ходи: діє — значок із «скільки ще»; щойно скінчився — ще один хід блідий значок «0» (діяв минулого ходу) */
     var left = function(n){ return 'Ще '+n+' '+(n===1?'хід':n<5?'ходи':'ходів'); };
-    if(f.stone && B && f.stone.until>=B.round){ var sn=f.stone.until-B.round+1; out.push({neg:false, ic:'🗿', n:sn, title:'Кам\'яна шкіра', text:'Урон від ударів −'+(f.stone.cut||0)+'%.', left:left(sn)}); }
-    if(f.song && B && f.song.until>=B.round){ var gn=f.song.until-B.round+1; out.push({neg:false, ic:'🎺', n:gn, title:'Бойова пісня', text:'Точність +'+(f.song.acc||0)+'%, урон +'+(f.song.dmg||0)+'%.', left:left(gn)}); }
-    if(f.will && B && f.will>=B.round){ var wn=f.will-B.round+1; out.push({neg:false, ic:'🦾', n:wn, title:'Залізна воля', text:'Броня +'+(f.willPct||100)+'%: коли важко, ти стаєш ще міцнішим.', left:left(wn)}); }
-    if(f.shieldOff && B && f.shieldOff>=B.round){ var on=f.shieldOff-B.round+1; out.push({neg:true, ic:'💥', n:on, title:'Без щита', text:'Щит відлетів убік, рука німіє: ні шансу блоку щита, ні його броні. Потім щит повернеться сам.', left:left(on)}); }
-    if(f.bless && B && f.bless.until>=B.round){ var bs=f.bless.until-B.round+1;
-      out.push({neg:false, ic:'🙏', n:bs, title:'Благословення', text:'Броня й маг. захист +'+(f.bless.def||0)+'%, лікує '+(f.bless.heal||0)+'% здоров\'я щоходу.', left:'Ще '+bs+' '+(bs===1?'хід':bs<5?'ходи':'ходів')}); }
-    if(f.berserk && B && f.berserk>=B.round && u.skv && u.skv['knight.berserk']){ var bz=u.skv['knight.berserk'], bl=f.berserk-B.round+1;
-      out.push({neg:false, ic:'😡', n:bl, title:'Берсерк', text:'+'+(bz.dmgPct||0)+'% урону, −'+(bz.armorCut||0)+'% броні.', left:'Ще '+bl+' '+(bl===1?'хід':bl<5?'ходи':'ходів')}); }
+    var timed = function(until, make){
+      if(!B || !until) return;
+      var n = until - B.round + 1;
+      if(n >= 1) out.push(make(n));
+      else if(n === 0){ var o = make(0); o.n = 0; o.past = true; o.left = 'Діяв минулого ходу'; out.push(o); }
+    };
+    timed(f.knock, function(){ return f.stun===f.knock ? {neg:true, ic:'💫', n:'', title:'Оглушений', text:'Оглушливий удар: пропускає хід — ні удару, ні вміння, ні пояса.', left:'Цей хід'}
+      : {neg:true, ic:'😵', n:'', title:'Збитий з ніг', text:'Збили з ніг — цей хід не атакує.', left:'Цей хід'}; });
+    if(f.tangle) timed(f.tangle.until, function(n){ return {neg:true, ic:'<img src="img/skills/lash.svg" alt="">', n:n, title:'Сплутаний', text:'Захльост сплутав ноги: спритність −'+(f.tangle.agi||0)+'% — по тобі легше влучити.', left:f.tangle.from>B.round?'З наступного ходу':left(n)}; });
+    if(f.stone) timed(f.stone.until, function(n){ return {neg:false, ic:'🗿', n:n, title:'Кам\'яна шкіра', text:'Урон від ударів −'+(f.stone.cut||0)+'%.', left:left(n)}; });
+    if(f.song) timed(f.song.until, function(n){ return {neg:false, ic:'🎺', n:n, title:'Бойова пісня', text:'Точність +'+(f.song.acc||0)+'%, урон +'+(f.song.dmg||0)+'%.', left:left(n)}; });
+    timed(f.will, function(n){ return {neg:false, ic:'🦾', n:n, title:'Залізна воля', text:'Броня +'+(f.willPct||100)+'%: коли важко, ти стаєш ще міцнішим.', left:left(n)}; });
+    timed(f.shieldOff, function(n){ return {neg:true, ic:'💥', n:n, title:'Без щита', text:'Щит відлетів убік, рука німіє: ні шансу блоку щита, ні його броні. Потім щит повернеться сам.', left:left(n)}; });
+    timed(f.disarm, function(n){ return {neg:true, ic:'🤚', n:n, title:'Без зброї', text:'Зброю вибито: удар без неї.', left:left(n)}; });
+    if(f.bless) timed(f.bless.until, function(n){ return {neg:false, ic:'🙏', n:n, title:'Благословення', text:'Броня й маг. захист +'+(f.bless.def||0)+'%, лікує '+(f.bless.heal||0)+'% здоров\'я щоходу.', left:left(n)}; });
+    if(u.skv && u.skv['knight.berserk']){ var bz=u.skv['knight.berserk'];
+      timed(f.berserk, function(n){ return {neg:false, ic:'😡', n:n, title:'Берсерк', text:'+'+(bz.dmgPct||0)+'% урону, −'+(bz.armorCut||0)+'% броні.', left:left(n)}; }); }
     if(f.barrier>0) out.push({neg:false, ic:'🫧', n: f.barrier>1 ? '×'+f.barrier : '',
       title: "Бар'єр", text: "Поглине "+(f.barrier>1?f.barrier+' удари':'один удар')+", що забрав би здоров'я. Ухилився чи заблокував — бар'єр лишається.", left: 'До першого удару, що влучить'});
     if(f.fear>=imm) out.push({neg:false, ic:'😱', n:'∞', title:'Імунітет до страху', text:'Свитки страху більше не діють.', left:'До кінця бою'});
@@ -2240,7 +2248,7 @@ window.SKHERO = (function(){
   }
   function fxHtml(list){
     return list.map(function(x){
-      return '<span class="fxi" tabindex="0" aria-label="'+biEsc(x.title+': '+x.text+'. '+x.left)+'">'+x.ic
+      return '<span class="fxi'+(x.past?' past':'')+'" tabindex="0" aria-label="'+biEsc(x.title+': '+x.text+'. '+x.left)+'">'+x.ic
         + (x.n!=='' && x.n!=null ? '<span class="fxn">'+biEsc(String(x.n))+'</span>' : '')
         + '<span class="fxtip"><b>'+biEsc(x.title)+'</b>'+biEsc(x.text)+'<i>⏳ '+biEsc(x.left)+'</i></span></span>';
     }).join('');
@@ -3020,7 +3028,8 @@ window.SKHERO = (function(){
     }
     if((k.id==='knight.haft'||k.id==='knight.daze'||k.id==='knight.stun'||k.id==='knight.lash') && k.hits){
       if(k.kind==='fail') return LN+nm+': <span class="b">не вдалося</span><span class="dice">🎲 '+k.roll+' > '+k.need+'%</span></span>';
-      var hs2 = k.hits.map(function(h){ return ZONE_UA[h.zone]+': '+(h.kind==='hit'||h.kind==='crit' ? '<span class="g">−'+h.dmg+'</span>' : h.kind==='block' ? '<span class="b">блок</span>' : '<span class="b">промах</span>'); }).join(' · ');
+      // блок: «закрив зону» — суперник угадав зону захисту; «блок щитом/річчю» — спрацював шанс блоку (Захльост його обходить)
+      var hs2 = k.hits.map(function(h){ return ZONE_UA[h.zone]+': '+(h.kind==='hit'||h.kind==='crit' ? '<span class="g">−'+h.dmg+'</span>' : h.kind==='block' ? '<span class="b">'+(h.evade ? 'відскочив 💨' : h.byChance ? 'блок шансом' : (op?'ти закрив цю зону':'суперник закрив цю зону'))+'</span>' : '<span class="b">промах</span>'); }).join(' · ');
       return LN+nm+' → '+hs2
         +(k.daze ? ' · <span class="crit">збив концентрацію'+(k.focusLost?' ('+k.focusLost+')':'')+'</span>' : k.dazeSaved ? (op?' · <span class="b">ти встояв (🧱 Стійкість)</span>':' · <span class="b">суперник встояв (🧱 Стійкість)</span>') : '')
         +(k.stun ? (op?' · <span class="crit">оглушив тебе 💫</span> — ти пропустиш наступний хід':' · <span class="crit">оглушив 💫</span> — суперник пропустить наступний хід')
@@ -4071,7 +4080,7 @@ window.SKHERO = (function(){
 </script>
 
 <script src="sk-items.js?v=18"></script>
-<script src="sk-skills.js?v=35"></script>
+<script src="sk-skills.js?v=36"></script>
 <script src="sk-book.js?v=13"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
