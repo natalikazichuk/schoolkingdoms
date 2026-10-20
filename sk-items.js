@@ -488,7 +488,7 @@
      знімає річ з лівої руки; у комірках пояса — лише разові речі (зілля,
      сувої) і не більше комірок, ніж дає вдягнений пояс. Решта — у сумці.
      Речі, яких немає в каталозі, — у missing (їх не чіпаємо).
-     opts: { dualWield, isTwoHanded(base) } — з правил арени (SKARENA).
+     opts: { dualWield, isTwoHanded(base), handsClash(r, l), fitsHand(base, slot) } — з правил арени (SKARENA).
      Повертає { equip:{slot:inst}, belt:[inst|null], bag:[inst], missing:[id],
                 inventory: виправлений список (копія), fixed: чи щось виправлено }. */
   var SLOT_CATS = {
@@ -499,6 +499,7 @@
   function slotFits(base, slot, opts) {
     var cats = SLOT_CATS[slot]; if (!cats || !base) return false;
     if (slot === 'weaponL' && opts && opts.dualWield) cats = cats.concat(['Зброя']);
+    if ((slot === 'weaponR' || slot === 'weaponL') && opts && opts.fitsHand) return cats.indexOf(base.category) >= 0 && opts.fitsHand(base, slot);
     return cats.indexOf(base.category) >= 0;
   }
   function beltSlotsOf(base, inst) {
@@ -521,7 +522,8 @@
       if (i.slot && SLOT_CATS[i.slot] && !equip[i.slot] && slotFits(b, i.slot, opts)) { equip[i.slot] = i; return; }
       i.slot = null; bag.push(i);
     });
-    if (equip.weaponR && equip.weaponL && two(byId[equip.weaponR.id])) { equip.weaponL.slot = null; bag.push(equip.weaponL); delete equip.weaponL; }
+    var clash = opts.handsClash || function (r) { return two(r); };   // дворучна + річ у лівій (зі «Хваткою велетня» щит можна)
+    if (equip.weaponR && equip.weaponL && clash(byId[equip.weaponR.id], byId[equip.weaponL.id])) { equip.weaponL.slot = null; bag.push(equip.weaponL); delete equip.weaponL; }
     var bc = equip.belt ? beltSlotsOf(byId[equip.belt.id], equip.belt) : 0, belt = [];
     for (var k = 0; k < bc; k++) belt.push(null);
     beltReq.forEach(function (i) {

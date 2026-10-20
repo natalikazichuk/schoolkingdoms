@@ -77,7 +77,8 @@
     botBeltSlots: 5,   // пояс суперника: комірок (за замовчуванням порожній)
     botBeltTest: true, // ТЕСТ: класти боту в пояс свитки з каталогу (спершу — страх); false — пояс порожній
     botBeltUse: 25,    // шанс за хід, що бот використає річ із пояса (якщо є)
-    dualWield: false,  // дві зброї одночасно (поки ні: ліва рука — лише щит)
+    dualWield: false,  // дві зброї одночасно: вмикається для Героя з вмінням «Друга зброя» (handsFromHero)
+    grip: false,       // дворучна зброя + щит: вмикається для Героя з вмінням «Хватка велетня» (handsFromHero)
     xpWin: 50,         // досвід за перемогу (× коефіцієнт сили суперника)
     xpDraw: 25,        // досвід за нічию (× той самий коефіцієнт)
     xpLose: 8,         // досвід за поразку (без коефіцієнта)
@@ -153,7 +154,24 @@
     if (base && base.weaponType === 'knuckles') return false;
     return !!(base && (base.addStats || []).some(function (e) { return e && e.stat === 'Дворучний' && (e.flag || e.value == null); }));
   }
-  function fitsHand(base, slot) { var c = handCats(slot); return !!(c && base && c.indexOf(base.category) >= 0); }
+  /* у ліву руку — лише одноручна зброя ближнього бою (не дворучна, не лук, не кастети, не жезл) */
+  var NO_LEFT = { bow: 1, knuckles: 1, wand: 1 };
+  function fitsHand(base, slot) {
+    var c = handCats(slot); if (!(c && base && c.indexOf(base.category) >= 0)) return false;
+    if (slot === 'weaponL' && base.category === 'Зброя' && (isTwoHanded(base) || NO_LEFT[base.weaponType])) return false;
+    return true;
+  }
+  /* чи не вміщаються руки: дворучна в правій і будь-що в лівій; зі «Хваткою велетня» — щит можна */
+  function handsClash(rBase, lBase) {
+    if (!rBase || !lBase || !isTwoHanded(rBase)) return false;
+    return !(BATTLE.grip && lBase.category === 'Щити');
+  }
+  /* правила рук під вміння Героя: Друга зброя — зброя в лівій; Хватка велетня — дворучна + щит */
+  function handsFromHero(h) {
+    var s = (h && h.skills) || {}, kn = !!(h && h.heroClass === 'knight');
+    BATTLE.dualWield = kn && s['knight.offhand'] != null;
+    BATTLE.grip = kn && s['knight.grip'] != null;
+  }
   /* вдягнене [{base, inst}] → без того, що руками носити не можна (стара сумка могла мати
      дві зброї або дворучну зі щитом): річ не своєї руки — геть, при дворучній лівої руки нема */
   function handsFix(eq) {
@@ -161,8 +179,8 @@
       var sl = e && e.inst && e.inst.slot;
       return HAND_SLOTS.indexOf(sl) < 0 || fitsHand(e.base, sl);
     });
-    var r = out.filter(function (e) { return e.inst.slot === 'weaponR'; })[0];
-    if (r && isTwoHanded(r.base)) out = out.filter(function (e) { return e.inst.slot !== 'weaponL'; });
+    var r = out.filter(function (e) { return e.inst.slot === 'weaponR'; })[0], l = out.filter(function (e) { return e.inst.slot === 'weaponL'; })[0];
+    if (r && l && handsClash(r.base, l.base)) out = out.filter(function (e) { return e.inst.slot !== 'weaponL'; });
     return out;
   }
 
@@ -211,7 +229,8 @@
       var hand = HAND_SLOTS.indexOf(e.inst.slot) >= 0;
       if (eff.stat && eff.valueMax != null) {
         var k = skit.canon(eff.stat), lo = num(eff.valueMin != null ? eff.valueMin : eff.valueMax), hi = num(eff.valueMax);
-        if (hand && k === 'damage') { p.wMin += lo; p.wMax += hi; }
+        if (hand && k === 'damage' && e.inst.slot === 'weaponL' && e.base.category === 'Зброя') { p.lMin = num(p.lMin) + lo; p.lMax = num(p.lMax) + hi; }   // друга зброя — окремий удар лівою
+        else if (hand && k === 'damage') { p.wMin += lo; p.wMax += hi; }
         else if (hand && k === 'magicDamage') { p.magMin += lo; p.magMax += hi; }
         else add(flat, k, hi);
       }
@@ -575,7 +594,7 @@
   root.SKARENA = {
     BATTLE: BATTLE, ZONES: ZONES, HAND_SLOTS: HAND_SLOTS, WEAR: WEAR, COMBAT_STATS: COMBAT_STATS,
     SLOT_UK: SLOT_UK, zoneOfSlot: zoneOfSlot,
-    handCats: handCats, isTwoHanded: isTwoHanded, fitsHand: fitsHand, handsFix: handsFix,
+    handCats: handCats, isTwoHanded: isTwoHanded, fitsHand: fitsHand, handsFix: handsFix, handsClash: handsClash, handsFromHero: handsFromHero,
     HERO_STATS: HERO_STATS, BUFF_KEYS: BUFF_KEYS, attrInfo: attrInfo,
     blockKind: blockKind, blockBy: blockBy, useEffects: useEffects, botBelt: botBelt, buffed: buffed, scrollStrike: scrollStrike,
     fighter: fighter, varyFighter: varyFighter, heroSheet: heroSheet, heroStatsOf: heroStatsOf, levelBonus: levelBonus, LEVEL_BONUS: LEVEL_BONUS, HERO_DEFAULTS: HERO_DEFAULTS, hitChance: hitChance, critChance: critChance, isMagic: isMagic,

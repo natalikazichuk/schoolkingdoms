@@ -27,7 +27,8 @@ function battle(sk, bar, eq, opEq) {
 }
 const KN = ['knight.sword', 'knight.axe', 'knight.spear', 'knight.shield', 'knight.bash', 'knight.berserk', 'knight.fists', 'knight.brave', 'knight.care', 'knight.lunge', 'knight.enh',
   'knight.tough', 'knight.calm', 'knight.second', 'knight.haft', 'knight.bless', 'knight.parry', 'knight.daze', 'knight.riposte', 'knight.disarm',
-  'knight.stoneskin', 'knight.steady', 'knight.song', 'knight.will', 'knight.shieldbreak', 'knight.stun', 'knight.lash'];
+  'knight.stoneskin', 'knight.steady', 'knight.song', 'knight.will', 'knight.shieldbreak', 'knight.stun', 'knight.lash',
+  'knight.offhand', 'knight.grip', 'knight.frenzy', 'knight.third', 'knight.cleave', 'knight.ult'];
 
 test('Лицар: оброблені вміння (9 першого рівня + 11 з 4–16 рівня + 2 з 14–17 + 5 з 18–22), у кожного правила, значок, опис і ріст', () => {
   const ready = S.readyFor('knight').map(s => s.id);
@@ -39,7 +40,7 @@ test('Лицар: оброблені вміння (9 першого рівня +
     assert.ok(S.growTotal(s) >= 20, id);
   });
   assert.ok(!S.byId('knight.potions') && !S.byId('knight.scrolls'), 'дублі універсальних прибрано');
-  assert.ok(!S.byId('knight.frenzy').ready && !S.byId('knight.offhand').ready && !S.byId('knight.taunt').ready, 'решта ще не оброблені');
+  assert.ok(!S.byId('knight.taunt').ready, 'Провокація — лише для групових боїв, ще не оброблена');
   assert.ok(!S.byId('knight.dodge'), 'дубль Ухилення замінено Стійкістю');
 });
 
@@ -47,7 +48,7 @@ test('вивчення: лише свій клас і лише оброблен�
   const st = S.bookState({ arena: { level: 3 }, heroClass: 'knight', skills: {} });
   assert.strictEqual(S.learnBlock(st, 'knight.sword'), '');
   assert.strictEqual(S.learnBlock(st, 'knight.lunge'), 'level', 'Випад — з 5 рівня');
-  assert.strictEqual(S.learnBlock(S.bookState({ arena: { level: 20 }, heroClass: 'knight', skills: {} }), 'knight.frenzy'), 'unknown');
+  assert.strictEqual(S.learnBlock(S.bookState({ arena: { level: 30 }, heroClass: 'knight', skills: {} }), 'knight.taunt'), 'unknown');
   assert.strictEqual(S.learnBlock(S.bookState({ arena: { level: 3 }, heroClass: 'mage', skills: {} }), 'knight.sword'), 'class');
   assert.strictEqual(S.learnBlock(S.bookState({ arena: { level: 3 }, skills: {} }), 'knight.bash'), 'class');
 });
@@ -769,4 +770,111 @@ test('Захльост: удар ×0.75 повз щит (шанс блоку щ�
   const r = st.round;
   assert.deepStrictEqual(JSON.parse(JSON.stringify(st.op.fx.tangle)), { from: r, until: r + 1, agi: 40 });
   assert.ok(!(st.me.cd || {})['knight.lash'], 'без перезарядки');
+});
+
+/* ── етап 3: Друга зброя, Хватка велетня, Бойовий шал, Третя атака, Розсікти, Королівська лють ── */
+const TWO_AXE = item({ id: 'W20', name: 'Секира', category: 'Зброя', stat: 'Урон', valueMin: 8, valueMax: 10, weaponType: 'axe', addStats: [{ stat: 'Дворучний', flag: true }] });
+const DAG2 = item({ id: 'W21', name: 'Кинджал лівий', category: 'Зброя', stat: 'Урон', valueMin: 3, valueMax: 3, weaponType: 'dagger' });
+
+test('руки: Друга зброя дозволяє одноручну зброю в лівій, Хватка велетня — дворучну + щит', () => {
+  const B = R.BATTLE, d0 = B.dualWield, g0 = B.grip;
+  try {
+    R.handsFromHero({ heroClass: 'knight', skills: {} });
+    assert.ok(!R.fitsHand(DAG2, 'weaponL'), 'без вміння — ліва рука лише для щита');
+    assert.ok(R.handsClash(TWO_AXE, SHIELD), 'без Хватки дворучна знімає щит');
+    R.handsFromHero({ heroClass: 'knight', skills: { 'knight.offhand': 10, 'knight.grip': 10 } });
+    assert.ok(R.fitsHand(DAG2, 'weaponL'), 'кинджал у ліву');
+    assert.ok(!R.fitsHand(TWO_AXE, 'weaponL'), 'дворучну в ліву — ні');
+    assert.ok(!R.handsClash(TWO_AXE, SHIELD), 'дворучна + щит — можна');
+    assert.ok(R.handsClash(TWO_AXE, DAG2), 'дворучна + зброя в лівій — ні');
+    const eq = R.handsFix([wear(TWO_AXE, 'weaponR'), wear(SHIELD, 'weaponL')]);
+    assert.strictEqual(eq.length, 2, 'handsFix лишає щит із Хваткою');
+    const p = R.fighter({ health: 100 }, [wear(SWORD, 'weaponR'), wear(DAG2, 'weaponL')], K);
+    assert.strictEqual(p.wMax, 6, 'урон лівої не додається до правої'); assert.strictEqual(p.lMax, 3);
+  } finally { B.dualWield = d0; B.grip = g0; }
+});
+
+test('Друга зброя: удар лівою (×0.75) у ту саму зону, шанс = майстерність; на 100% — Друга атака й лівою', () => {
+  let left = 0, t = 0, leftSecond = 0;
+  for (let k = 0; k < 20; k++) {
+    const st = sharp(battle({ 'knight.offhand': 1, 'knight.second': 1 }, [], [wear(SWORD, 'weaponR'), wear(DAG2, 'weaponL')]));
+    for (let i = 0; i < 3 && st.status === 'live'; i++) {
+      const e = SB.turn(ctx, st, HIT, {}, Date.now()); t++;
+      const lh = e.meHit.hits.filter(h => h.left);
+      if (lh.some(h => Array.isArray(h.left))) left++;
+      if (lh.some(h => h.second)) leftSecond++;
+      lh.forEach(h => { if (h.kind === 'hit') assert.ok(/× 0\.75|0\.75/.test(h.calc || '') || h.dmg > 0); });
+    }
+  }
+  assert.strictEqual(left, t, 'на 100% — удар лівою щоходу');
+  assert.ok(leftSecond > 0, 'Друга атака й для лівої руки');
+  const s25 = battle({ 'knight.offhand': 0.25 }, [], [wear(SWORD, 'weaponR'), wear(DAG2, 'weaponL')]);
+  assert.strictEqual(S.skillValues('knight.offhand', 25).chance, 25);
+  const noL = battle({ 'knight.offhand': 1 }, [], [wear(SWORD, 'weaponR')]);
+  const e0 = SB.turn(ctx, noL, HIT, {}, Date.now());
+  assert.ok(!e0.meHit.hits.some(h => h.left), 'без зброї в лівій — нічого');
+});
+
+test('Хватка велетня: дворучна + щит — штраф 15% точності й 85% урону на 25%, без штрафу на 100%', () => {
+  const a = battle({ 'knight.grip': 0.25 }, [], [wear(TWO_AXE, 'weaponR'), wear(SHIELD, 'weaponL')]);
+  const b = battle({ 'knight.grip': 1 }, [], [wear(TWO_AXE, 'weaponR'), wear(SHIELD, 'weaponL')]);
+  const c = battle({}, [], [wear(TWO_AXE, 'weaponR'), wear(SHIELD, 'weaponL')]);
+  assert.strictEqual(a.me.p.accuracy, Math.round(c.me.p.accuracy * 0.85));
+  assert.strictEqual(c.me.p.dmgPct - a.me.p.dmgPct, 15);
+  assert.strictEqual(b.me.p.accuracy, c.me.p.accuracy); assert.strictEqual(b.me.p.dmgPct, c.me.p.dmgPct);
+});
+
+test('Бойовий шал: −100 мани лише коли вдалося, +1 удар за хід на 4 → 7 ходів; поки діє — не обрати', () => {
+  let st, e;
+  for (let k = 0; k < 20; k++) {
+    st = battle({ 'knight.frenzy': 1 }, ['knight.frenzy'], [wear(SWORD, 'weaponR')]);
+    SB.useSkill(ctx, st, 'knight.frenzy'); e = SB.turn(ctx, st, HIT, {}, Date.now());
+    if (e.skill && e.skill.kind === 'frenzy') break;
+  }
+  assert.strictEqual(e.skill.kind, 'frenzy'); assert.strictEqual(e.skill.turns, 7); assert.strictEqual(e.skill.mana, 100);
+  assert.strictEqual(st.me.fx.frenzy, 1 + 7 - 1);
+  assert.strictEqual(e.meHit.hits.length >= 2, true, 'уже цього ходу +1 удар');
+  assert.strictEqual(SB.skillBlock(st, 'knight.frenzy'), 'active');
+  assert.strictEqual(S.skillValues('knight.frenzy', 25).turns, 4);
+});
+
+test('Третя атака: незалежно від Другої, ~30% ходів на 100%', () => {
+  let n = 0, t = 0;
+  for (let k = 0; k < 60; k++) { const st = battle({ 'knight.third': 1 }, [], [wear(SWORD, 'weaponR')]);
+    for (let i = 0; i < 3 && st.status === 'live'; i++) { const e = SB.turn(ctx, st, HIT, {}, Date.now()); t++; if (e.meHit.hits.some(h => h.third)) n++; } }
+  assert.ok(n > t * 0.18 && n < t * 0.42, n + '/' + t);
+});
+
+test('Розсікти: −50 мани, удар ×2.5 крізь захист зони, ворог обережний 10 ходів (вміння чекає), +10% проти контролю', () => {
+  let st, e;
+  for (let k = 0; k < 20; k++) {
+    st = sharp(battle({ 'knight.cleave': 1 }, ['knight.cleave'], [wear(SWORD, 'weaponR')]));
+    SB.useSkill(ctx, st, 'knight.cleave');
+    e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+    if (e.skill.kind === 'cleave') break;
+  }
+  assert.strictEqual(e.skill.kind, 'cleave'); assert.strictEqual(e.skill.mul, 2.5); assert.strictEqual(e.skill.mana, 50);
+  assert.ok(e.meHit.hits[0].cleave && e.meHit.hits[0].kind !== 'block', 'перший удар — Розсікти, не блокується');
+  assert.strictEqual(st.op.fx.careful, 1 + 10);
+  assert.strictEqual(SB.skillBlock(st, 'knight.cleave'), 'careful');
+  assert.ok(SB.useSkill(ctx, st, 'knight.cleave'), 'можна обрати — чекає');
+});
+
+test('Королівська лють: потрібна концентрація й половина здоров\'я ворога; −150 мани й уся K, удар ×(1+0.5K), ворог пропускає хід; раз за бій', () => {
+  const st0 = battle({ 'knight.ult': 1 }, ['knight.ult'], [wear(SWORD, 'weaponR')]);
+  assert.strictEqual(SB.skillBlock(st0, 'knight.ult'), 'focus');
+  st0.me.fx.focus = 2; st0.op.force = Math.floor(st0.op.max / 2) - 1;
+  assert.strictEqual(SB.skillBlock(st0, 'knight.ult'), 'hp');
+  let st, e;
+  for (let k = 0; k < 40; k++) {
+    st = sharp(battle({ 'knight.ult': 1 }, ['knight.ult'], [wear(SWORD, 'weaponR')]));
+    st.me.fx.focus = 4; SB.useSkill(ctx, st, 'knight.ult');
+    e = SB.turn(ctx, st, HIT, {}, Date.now());
+    if (e.skill && e.skill.stun) break;
+  }
+  assert.ok(e.skill.stun, 'влучила — оглушення'); assert.strictEqual(e.skill.K, 4); assert.strictEqual(e.skill.mul, 3);
+  assert.strictEqual(e.skill.mana, 150);
+  assert.strictEqual(SB.skillBlock(st, 'knight.ult'), 'used', 'раз за бій');
+  const e2 = SB.turn(ctx, st, HIT, {}, Date.now());
+  assert.strictEqual(e2.opHit.kind, 'knock');
 });
