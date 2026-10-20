@@ -1723,7 +1723,7 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 <script src="sk-avatar.js?v=9"></script>
 <script src="sk-progress.js"></script>
 <script src="sk-arena-rules.js?v=25"></script>
-<script src="sk-battle.js?v=30"></script>
+<script src="sk-battle.js?v=31"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
    Інвентар, скриня, смітник, продане / куплене сьогодні й монети
@@ -2221,7 +2221,7 @@ window.SKHERO = (function(){
     if(f.bond && u.skv && u.skv['base.bond']) out.push({neg:false, ic:'🔗', n:'', title:"Зв'язок зі зброєю", text:'+'+(u.skv['base.bond'].dmgPct||0)+'% урону: ти добре відчуваєш свою зброю.', left:'Доки не зміниш зброю'});
     if(f.knock && B && f.knock===B.round) out.push(f.stun===B.round ? {neg:true, ic:'💫', n:'', title:'Оглушений', text:'Оглушливий удар: цей хід — ні удару, ні вміння, ні пояса.', left:'Цей хід'}
       : {neg:true, ic:'😵', n:'', title:'Збитий з ніг', text:'Збили з ніг — цей хід не атакує.', left:'Цей хід'});
-    if(f.tangle && B && f.tangle.until>=B.round){ var tl=f.tangle.until-B.round+1; out.push({neg:true, ic:'➰', n:tl, title:'Сплутаний', text:'Захльост сплутав ноги: спритність −'+(f.tangle.agi||0)+'% — по тобі легше влучити.', left:f.tangle.from>B.round?'З наступного ходу':'Ще '+tl+' '+(tl===1?'хід':'ходи')}); }
+    if(f.tangle && B && f.tangle.until>=B.round){ var tl=f.tangle.until-B.round+1; out.push({neg:true, ic:'<img src="img/skills/lash.svg" alt="">', n:tl, title:'Сплутаний', text:'Захльост сплутав ноги: спритність −'+(f.tangle.agi||0)+'% — по тобі легше влучити.', left:f.tangle.from>B.round?'З наступного ходу':'Ще '+tl+' '+(tl===1?'хід':'ходи')}); }
     var left = function(n){ return 'Ще '+n+' '+(n===1?'хід':n<5?'ходи':'ходів'); };
     if(f.stone && B && f.stone.until>=B.round){ var sn=f.stone.until-B.round+1; out.push({neg:false, ic:'🗿', n:sn, title:'Кам\'яна шкіра', text:'Урон від ударів −'+(f.stone.cut||0)+'%.', left:left(sn)}); }
     if(f.song && B && f.song.until>=B.round){ var gn=f.song.until-B.round+1; out.push({neg:false, ic:'🎺', n:gn, title:'Бойова пісня', text:'Точність +'+(f.song.acc||0)+'%, урон +'+(f.song.dmg||0)+'%.', left:left(gn)}); }
@@ -3020,7 +3020,8 @@ window.SKHERO = (function(){
     }
     if((k.id==='knight.haft'||k.id==='knight.daze'||k.id==='knight.stun'||k.id==='knight.lash') && k.hits){
       if(k.kind==='fail') return LN+nm+': <span class="b">не вдалося</span><span class="dice">🎲 '+k.roll+' > '+k.need+'%</span></span>';
-      var hs2 = k.hits.map(function(h){ return ZONE_UA[h.zone]+': '+(h.kind==='hit'||h.kind==='crit' ? '<span class="g">−'+h.dmg+'</span>' : h.kind==='block' ? '<span class="b">блок</span>' : '<span class="b">промах</span>'); }).join(' · ');
+      // блок: «закрив зону» — суперник угадав зону захисту; «блок щитом/річчю» — спрацював шанс блоку (Захльост його обходить)
+      var hs2 = k.hits.map(function(h){ return ZONE_UA[h.zone]+': '+(h.kind==='hit'||h.kind==='crit' ? '<span class="g">−'+h.dmg+'</span>' : h.kind==='block' ? '<span class="b">'+(h.evade ? 'відскочив 💨' : h.byChance ? 'блок шансом' : (op?'ти закрив цю зону':'суперник закрив цю зону'))+'</span>' : '<span class="b">промах</span>'); }).join(' · ');
       return LN+nm+' → '+hs2
         +(k.daze ? ' · <span class="crit">збив концентрацію'+(k.focusLost?' ('+k.focusLost+')':'')+'</span>' : k.dazeSaved ? (op?' · <span class="b">ти встояв (🧱 Стійкість)</span>':' · <span class="b">суперник встояв (🧱 Стійкість)</span>') : '')
         +(k.stun ? (op?' · <span class="crit">оглушив тебе 💫</span> — ти пропустиш наступний хід':' · <span class="crit">оглушив 💫</span> — суперник пропустить наступний хід')
@@ -4071,7 +4072,7 @@ window.SKHERO = (function(){
 </script>
 
 <script src="sk-items.js?v=18"></script>
-<script src="sk-skills.js?v=35"></script>
+<script src="sk-skills.js?v=36"></script>
 <script src="sk-book.js?v=13"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
