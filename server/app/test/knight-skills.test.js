@@ -27,9 +27,9 @@ function battle(sk, bar, eq, opEq) {
 }
 const KN = ['knight.sword', 'knight.axe', 'knight.spear', 'knight.shield', 'knight.bash', 'knight.berserk', 'knight.fists', 'knight.brave', 'knight.care', 'knight.lunge', 'knight.enh',
   'knight.tough', 'knight.calm', 'knight.second', 'knight.haft', 'knight.bless', 'knight.parry', 'knight.daze', 'knight.riposte', 'knight.disarm',
-  'knight.stoneskin', 'knight.steady', 'knight.song', 'knight.will', 'knight.shieldbreak'];
+  'knight.stoneskin', 'knight.steady', 'knight.song', 'knight.will', 'knight.shieldbreak', 'knight.stun', 'knight.lash'];
 
-test('Лицар: оброблені вміння (9 першого рівня + 11 з 4–16 рівня + 5 з 18–22), у кожного правила, значок, опис і ріст', () => {
+test('Лицар: оброблені вміння (9 першого рівня + 11 з 4–16 рівня + 2 з 14–17 + 5 з 18–22), у кожного правила, значок, опис і ріст', () => {
   const ready = S.readyFor('knight').map(s => s.id);
   assert.strictEqual(JSON.stringify(ready.slice().sort()), JSON.stringify(KN.slice().sort()));
   KN.forEach(id => {
@@ -701,4 +701,72 @@ test('Розбити щит: шанс за зброєю — сокира ×1, б
   const st25 = duel({ 'knight.shieldbreak': 0.25 }, ['knight.shieldbreak'], {}, [wear(SHIELD, 'weaponL')], [wear(AXE, 'weaponR')]);
   SB.useSkill(ctx, st25, 'knight.shieldbreak');
   assert.strictEqual(SB.turn(ctx, st25, { atk: 'head', block: 'body' }, {}, Date.now()).skill.need, 50);
+});
+
+/* ── етап 2: Оглушливий удар і Захльост ── */
+const MACE2 = item({ id: 'W8', name: 'Булава', category: 'Зброя', stat: 'Урон', valueMin: 4, valueMax: 6, weaponType: 'mace' });
+const FLAIL = item({ id: 'W9', name: 'Кистень', category: 'Зброя', stat: 'Урон', valueMin: 4, valueMax: 6, weaponType: 'flail' });
+const HIT = { atk: 'head', block: 'body' };
+const sharp = (st) => { st.me.p.accuracy = 5000; st.op.p.agility = 1; return st; };
+
+test('Оглушливий удар і Захльост — лише своєю зброєю', () => {
+  const ok = (id, w) => SB.skillBlock(battle({ [id]: 1 }, [id], w ? [wear(w, 'weaponR')] : []), id);
+  assert.strictEqual(ok('knight.stun', MACE2), ''); assert.strictEqual(ok('knight.stun', FLAIL), '');
+  assert.strictEqual(ok('knight.stun', SWORD), 'weapon'); assert.strictEqual(ok('knight.stun', WHIP), 'weapon'); assert.strictEqual(ok('knight.stun', null), 'weapon');
+  assert.strictEqual(ok('knight.lash', WHIP), ''); assert.strictEqual(ok('knight.lash', FLAIL), '');
+  assert.strictEqual(ok('knight.lash', MACE2), 'weapon'); assert.strictEqual(ok('knight.lash', SWORD), 'weapon');
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(S.skillValues('knight.stun', 25))), { chance: 50, cd: 3, stun: 20 });
+  assert.strictEqual(S.skillValues('knight.stun', 100).stun, 40);
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(S.skillValues('knight.lash', 100))), { chance: 100, dmgMul: 75, agi: 40, turns: 2 });
+  assert.strictEqual(S.skillValues('knight.lash', 25).turns, 1);
+});
+
+test('Оглушливий удар: влучив — ворог пропускає наступний хід (💫), далі 2 ходи імунітету; перезарядка 3', () => {
+  let st, e, got = false;
+  for (let k = 0; k < 60 && !got; k++) {
+    st = sharp(duel({ 'knight.stun': 1 }, ['knight.stun'], {}, [], [wear(MACE2, 'weaponR')]));
+    SB.useSkill(ctx, st, 'knight.stun');
+    e = SB.turn(ctx, st, HIT, {}, Date.now());
+    assert.strictEqual(e.skill.id, 'knight.stun');
+    assert.strictEqual(e.skill.hits[0].zone, 'head', 'у зону атаки');
+    assert.strictEqual(st.me.cd['knight.stun'], 1 + 3, 'перезарядка 3');
+    if (e.skill.stun) got = true; else assert.ok(e.skill.stunNeed === 40 || e.skill.kind !== 'hit');
+  }
+  assert.ok(got, 'за 60 спроб хоч раз оглушив (40%)');
+  const r = st.round;
+  assert.strictEqual(st.op.fx.knock, r); assert.strictEqual(st.op.fx.stun, r); assert.strictEqual(st.op.fx.stunImm, r + 2);
+  e = SB.turn(ctx, st, HIT, {}, Date.now());
+  assert.strictEqual(e.opHit.kind, 'knock'); assert.ok(e.opHit.stun, 'позначено як оглушення, не «збитий з ніг»');
+  // імунітет: ще 2 ходи після пропущеного оглушити не можна
+  st.me.cd = {}; SB.useSkill(ctx, st, 'knight.stun');
+  e = SB.turn(ctx, st, HIT, {}, Date.now());
+  if (e.skill && e.skill.kind === 'hit') assert.ok(e.skill.stunImmune && !e.skill.stun, 'імунітет');
+});
+
+test('Оглушливий удар: Стійкість ворога рятує', () => {
+  let saved = 0;
+  for (let k = 0; k < 120; k++) {
+    const st = sharp(duel({ 'knight.stun': 1 }, ['knight.stun'], { 'knight.steady': 1 }, [], [wear(MACE2, 'weaponR')]));
+    SB.useSkill(ctx, st, 'knight.stun');
+    const e = SB.turn(ctx, st, HIT, {}, Date.now());
+    if (e.skill.stunSaved) { saved++; assert.ok(!st.op.fx.stun && e.skill.steady[2]); }
+  }
+  assert.ok(saved > 0, 'Стійкість хоч раз врятувала');
+});
+
+test('Захльост: удар ×0.75 повз щит (шанс блоку щита не діє), влучив — спритність ворога −40% на 2 ходи з наступного', () => {
+  const BIG = item({ id: 'S9', name: 'Великий щит', category: 'Щити', stat: 'Броня', valueMin: 2, valueMax: 2, addStats: [{ stat: 'Шанс блоку', value: 100 }] });
+  let st, e, got = false;
+  for (let k = 0; k < 30 && !got; k++) {
+    st = sharp(duel({ 'knight.lash': 1 }, ['knight.lash'], {}, [wear(BIG, 'weaponL')], [wear(WHIP, 'weaponR')]));
+    SB.useSkill(ctx, st, 'knight.lash');
+    e = SB.turn(ctx, st, HIT, {}, Date.now());
+    assert.ok(e.skill.aroundShield, 'огинає щит');
+    assert.ok(!(e.skill.hits[0].kind === 'block' && e.skill.hits[0].byChance), 'шанс блоку щита не спрацьовує');
+    if (e.skill.tangle) got = true;
+  }
+  assert.ok(got, 'сплутав');
+  const r = st.round;
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(st.op.fx.tangle)), { from: r, until: r + 1, agi: 40 });
+  assert.ok(!(st.me.cd || {})['knight.lash'], 'без перезарядки');
 });
