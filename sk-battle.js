@@ -470,7 +470,7 @@
       var ns = noShield(ctx, po, shieldEntry(st.op)); def = {}; for (k in po) def[k] = po[k];
       def.blockPhys = ns.blockPhys; def.blockMag = ns.blockMag; def.evade = ns.evade; def.blockSrc = ns.blockSrc; rec.aroundShield = true;
     }
-    var h1 = R.strike(att, def, me.atk === op.block, rnd); h1.zone = me.atk; rec.hits.push(h1);
+    var h1 = R.strike(att, def, me.atk === op.block, rnd); h1.zone = me.atk; h1.tag = id; rec.hits.push(h1);
     if (rec.aroundShield && h1.kind === 'block' && !h1.byChance) h1.calc = 'суперник закрив цю зону — удар не пройшов (щит не зачеплено)';
     if (id === SKILL.haft.id) {
       var sec = V(st, id, 'second'); rec.secNeed = sec; rec.secRoll = R.d100(rnd);
@@ -643,14 +643,19 @@
      і ще carefulPct% встояти проти контролю. Не вдалося — звичайний удар, мана лишається */
   function cleaveTry(ctx, st, id, pm, rnd) {
     var need = V(st, id, 'chance'), roll = ctx.R.d100(rnd), rec = { id: id, need: need, roll: roll, ok: roll <= need, dmg: 0 };
-    grow(st, id, rec.ok);
-    if (!rec.ok) { rec.kind = 'fail'; return { rec: rec }; }
+    if (!rec.ok) { grow(st, id, false); rec.kind = 'fail'; return { rec: rec }; }
     var att = {}, k; for (k in pm) att[k] = pm[k];
     rec.kind = 'cleave'; rec.mul = (V(st, id, 'dmgMul') || 180) / 100; att.dmgMul = rec.mul; att.extra = 0;
+    return { rec: rec, att: att };
+  }
+  /* Розсікти влучило — лише тоді −mana і ворог обережний; промах — без мани й обережності */
+  function cleaveLanded(st, rec, hit) {
+    var id = rec.id, h0 = hit && hit.hits && hit.hits[0], ok = !!(h0 && (h0.kind === 'hit' || h0.kind === 'crit'));
+    grow(st, id, ok);
+    if (!ok) { rec.missed = true; return; }
     var mn = V(st, id, 'mana'); if (mn) { st.me.mana = Math.max(0, num(st.me.mana) - mn); rec.mana = mn; }
     var fo = fxOf(st.op), cn = V(st, id, 'careful') || 10;
     fo.careful = st.round + cn; fo.carefulPct = V(st, id, 'carefulPct') || 10; rec.careful = cn;
-    return { rec: rec, att: att };
   }
   /* захист без блоку (Розсікти): ні шансу блоку речей, ні відскоку */
   function noBlock(p) { var o = {}, k; for (k in p) o[k] = p[k]; o.blockPhys = 0; o.blockMag = 0; o.evade = false; return o; }
@@ -1047,13 +1052,15 @@
     /* Розсікти: перший удар — посилений і без блоку; решта ударів ходу (extra) — звичайні */
     var hitOf = function (cl, ln, pA, pD, blocked, seed) {
       var r0 = rng(seed);
-      if (!(cl && cl.att)) return R.attack(ln && ln.att ? ln.att : pA, pD, blocked, r0);
+      if (!(cl && cl.att)) { var a0 = R.attack(ln && ln.att ? ln.att : pA, pD, blocked, r0); if (ln && ln.att) a0.hits.forEach(function (x) { x.lunge = true; }); return a0; }
       var h = R.attack(cl.att, noBlock(pD), false, r0); h.hits.forEach(function (x) { x.cleave = true; });
       for (var i = 0; i < Math.max(0, Math.floor(num(pA.extra))); i++) addHit(h, R.strike(pA, pD, blocked, r0));
       return h;
     };
     var meHit = down ? none('skip') : fm.feared ? none('fear') : meKnocked ? none('knock') : hitOf(cleave, lunge, pm, po, me.atk === op.block, st.bid + '|' + st.round + '|me');
     var opHit = down ? none('skip') : fo.feared ? none('fear') : knocked ? none('knock') : hitOf(opCleave, opLunge, po, pm, op.atk === me.block, st.bid + '|' + st.round + '|op');
+    if (cleave && cleave.att) cleaveLanded(st, cleave.rec, meHit);
+    if (opCleave && opCleave.att) cleaveLanded(vo, opCleave.rec, opHit);
     var meAtk = !down && !fm.feared && !meKnocked, opAtk = !down && !fo.feared && !knocked;
     if (meHit.kind === 'knock' && num(fm.stun) === st.round) meHit.stun = true;   // оглушений Оглушливим ударом, не збитий з ніг
     if (opHit.kind === 'knock' && num(fo.stun) === st.round) opHit.stun = true;
