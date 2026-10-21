@@ -22,7 +22,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="hero.css?v=25">
+<link rel="stylesheet" href="hero.css?v=26">
 <script src="sk-resume.js?v=1"></script>
 <script>SKResume.go();   /* відкрили застосунок — одразу туди, де Герой зупинився (якщо не минуло 2 годин) */</script>
 <script src="sk-arena-rules.js?v=27"></script>
@@ -586,7 +586,7 @@ function abilRadar(subjects){
           ? '<img class="'+(im.covers.length?'cover':'')+'" src="'+escHtml(imgs[0])+'" alt="" loading="lazy" data-fb="'+escHtml(imgs.slice(1).join('|'))+'" data-nav="'+nNav+'"'
             + ' onerror="var f=(this.dataset.fb||\'\').split(\'|\').filter(Boolean);if(f.length){this.dataset.fb=f.slice(1).join(\'|\');if(f.length<=+this.dataset.nav)this.className=\'\';this.src=f[0];}else{this.remove();}">'
           : '')+'<i>'+escHtml(sj.icon)+'</i></span>')
-      + '<span class="rd-name">'+escHtml(name)+'</span>'
+      + '<span class="rd-name'+(Math.max.apply(null, name.split(/\s+/).map(w => w.length)) > 12 ? ' long' : '')+'">'+escHtml(name)+'</span>'
       + (st ? '<span class="rd-stat">'+escHtml(st.label)+'</span>' : '')
       + '<span class="rd-pct">'+vals[i]+'%</span></button>';
   });
@@ -873,7 +873,9 @@ async function loadTasks(){
 function syncTasksAllBtn(){
   const btn=$('tasksAllBtn'); if(!btn) return;
   const doneN = ALL_TASKS.filter(t=>(t.status||'assigned')==='approved').length;
-  const cnt=$('tasksAllCount'); if(cnt) cnt.textContent='('+ALL_TASKS.length+')';
+  // «4 з 11»: незроблені з усіх (як у списку картки)
+  const cnt=$('tasksAllCount'); if(cnt) cnt.textContent='('+(ALL_TASKS.length-doneN)+' з '+ALL_TASKS.length+')';
+  btn.setAttribute('aria-label','Показати всі завдання: '+(ALL_TASKS.length-doneN)+' незроблених з '+ALL_TASKS.length);
   btn.hidden = doneN===0;
 }
 
