@@ -10,7 +10,8 @@
    Джерела по тесту (пише test.html):
      sk_testlog_<id>   — журнал останніх спроб [{at,pct,correct,total,dur,wrong[],restarts,lv?}]
      sk_testscore_<id> — остання спроба {pct,correct,total,passed,levels?,at}
-     sk_testpass_<id>  — '1' = пройдено (старі спроби без бала)
+     sk_testpass_<id>  — '1' = пройдено (старі спроби без бала; також сторінки,
+                         відео й тренажери з «Тестів») → рахуємо як 100%
      sk_test100_<id>   — '1' = 100% / усі рівні
 
    Статуси теми (TH — пороги, PASS = SKCUR.PASS_RATIO):
@@ -90,7 +91,9 @@ function testState(test, get){
     if(nLv > 0 && lvDone > 0) out.pct = Math.max(out.pct, clampPct(lvDone / nLv * 100));
     if(full) out.pct = 100;
     out.tried = !!(score || log.length || passFlag || full || lvDone > 0);
-    if(passFlag && out.pct < TH.pass) out.pct = TH.pass;
+    /* лише мітка «пройдено», без даних про рівні — пройдено до появи журналу */
+    if(passFlag && !score && !log.length && lvDone === 0) out.pct = 100;
+    else if(passFlag && out.pct < TH.pass) out.pct = TH.pass;
     out.master = full || out.pct >= TH.master;
   } else if(log.length){
     var pcts = log.map(function(r){ return clampPct(r.pct); });
@@ -104,7 +107,8 @@ function testState(test, get){
     out.tried = true; out.pct = clampPct(score.pct); out.lastAt = Number(score.at) || 0;
     out.master = full && out.pct >= 100;
   } else if(passFlag || full){
-    out.tried = true; out.pct = full ? 100 : TH.pass; out.master = full;
+    /* лише мітка «пройдено» (до появи журналу, або сторінка/відео/тренажер без бала) — 100% */
+    out.tried = true; out.pct = 100; out.master = full;
   }
 
   out.attempts = log.length || (out.tried ? 1 : 0);
