@@ -90,3 +90,39 @@ test('сирі картинки: зберігаються лише останн�
   for (let id = 100; id < 108; id++) A.saveRaw(id, 'stand', Buffer.from('x'));
   assert.deepStrictEqual(A.rawIds(), [107, 106, 105, 104, 103]);
 });
+
+/* Герой змінив аватар, поки воркер малював: образ готовий, але Герой уже інший —
+   «в черзі» не має висіти вічно (кнопка «Одягти» лишалась неактивною) */
+test('status: готовий образ іншої бази — у колекцію, очікування знято', async () => {
+  const key = 'a'.repeat(24);
+  let doc = { avatar: 'hero:linen-boy', avatarGen: { base: 'blond-boy', key, status: 'queued', at: 1 } };
+  const job = { key, status: 'done', file: 'aaaaaaaaaaaa-x1', attempts: 1 };
+  const q = async (sql, params) => {
+    checkParams(sql, params);
+    const s = sql.replace(/\s+/g, ' ').trim();
+    if (/^(begin|commit|rollback)$/.test(s)) return { rows: [] };
+    if (/^update avatar_jobs/.test(s)) return { rows: [] };
+    if (/^select data from docs where path = \$1/.test(s)) return { rows: [{ data: doc }] };
+    if (/from avatar_jobs where key = \$1/.test(s)) return { rows: [job] };
+    if (/^update docs set data = \$2/.test(s)) { doc = JSON.parse(params[1]); return { rows: [] }; }
+    if (/^update docs set data = jsonb_set/.test(s)) return { rows: [] };
+    throw new Error('неочікуваний запит: ' + s.slice(0, 100));
+  };
+  const was = { query: db.pool.query, connect: db.pool.connect };
+  db.pool.query = q;
+  db.pool.connect = async () => ({ query: q, release() {} });
+  try {
+    const st = await A.status({ uid: 'u1' });
+    assert.strictEqual(st.gen.status, 'cancelled');
+    assert.strictEqual(st.avatar, 'hero:linen-boy');               // вибір Героя не перебито
+    assert.strictEqual(st.job, undefined);
+    assert.deepStrictEqual(doc.avatarCollection.map(x => [x.key, x.file, x.base]), [[key, job.file, 'blond-boy']]);
+    // та сама база — образ просто одягається
+    doc = { avatar: 'hero:blond-boy', avatarGen: { base: 'blond-boy', key, status: 'queued', at: 1 } };
+    const st2 = await A.status({ uid: 'u1' });
+    assert.strictEqual(st2.gen.status, 'ready');
+    assert.strictEqual(st2.avatar, 'hero:gen/' + job.file);
+  } finally {
+    Object.assign(db.pool, was);
+  }
+});
