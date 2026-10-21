@@ -513,7 +513,7 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 
 <script>
 /* ============================================================
-   ЧИТАЄМО СКЛАДИ — самодостатній тренажер. Прогрес: localStorage 'sk_sklad_v1' (простір sk_* — синхронізується per-Hero).
+   ЧИТАЄМО СКЛАДИ — самодостатній тренажер. Прогрес: localStorage 'sk_chsklady_v1' (простір sk_* — синхронізується per-Hero).
    ОЗВУЧКА складів (за бажанням): audio/sklad_<id>.mp3  (напр. МА → audio/sklad_ma.mp3)
      id = приголосна+голосна латинкою:
        М→m Т→t Н→n Л→l Р→r К→k С→s В→v З→z Б→b Г→h Д→d П→p Х→kh Ш→sh Ж→zh ; А→a О→o У→u И→y Е→e І→i
@@ -573,8 +573,9 @@ function exPic(ex){
   return '<span class="em">'+ex.e+'</span>';
 }
 
-/* стан */
-const SAVE_KEY='sk_sklad_v1';
+/* стан. Свій ключ: 'sk_sklad_v1' — це «Будиночки чисел» (sklad.html), спільний ключ
+   затирав прогрес обох тренажерів. Вивчене зі старого ключа переносимо один раз. */
+const SAVE_KEY='sk_chsklady_v1', SHARED_OLD_KEY='sk_sklad_v1';
 /* Ключ нагороди — у просторі sk_* (підкреслення), щоб синхронізувався per-Hero
    (firebase-config синхронізує лише sk_*). */
 const REWARD_KEY='sk_sklad_reward_v1';
@@ -588,7 +589,7 @@ let againShown=false;      // «ти вже читаєш склади» — по
 let winShown=false;        // «Вітаємо» — захист від повторного запуску в межах сесії
 function load(){
   try{ LEGACY_KEYS.forEach(k=>localStorage.removeItem(k)); }catch(e){}   // прибрати старе device-global протікання
-  try{const s=JSON.parse(localStorage.getItem(SAVE_KEY)); if(s){state.learned=s.learned||{}; state.soundOn=s.soundOn!==false;}}catch(e){}
+  try{const s=JSON.parse(localStorage.getItem(SAVE_KEY)||localStorage.getItem(SHARED_OLD_KEY)); if(s){state.learned=s.learned||{}; state.soundOn=s.soundOn!==false;}}catch(e){}
 }
 function save(){ try{localStorage.setItem(SAVE_KEY,JSON.stringify(state));}catch(e){} }
 function learnedCount(){ return CONS.filter(c=>state.learned[c.id]).length; }
@@ -697,13 +698,21 @@ function openWin(){ try{ if(window.skFinishRecord) skFinishRecord(); }catch(e){}
   // навіть якщо закрити через «Закрити» (а не «Грати далі»).
   try{ localStorage.setItem(REWARD_KEY,'1'); }catch(e){}
   document.getElementById('winOv').classList.add('on'); launchConfetti();
+  skpClaim('Склади прочитано!');   // нагорода з адмінки — один раз
 }
 function closeWin(){ document.getElementById('winOv').classList.remove('on');
   if(confettiRAF){ cancelAnimationFrame(confettiRAF); confettiRAF=null; } }
 function claimAndPlay(){ grantReward(); closeWin(); goGames(); }
 
 /* ══════ ПОВТОРНЕ ПРОХОДЖЕННЯ ══════ */
-function openAgain(){ const el=document.getElementById('againOv'); if(el) el.classList.add('on'); }
+function openAgain(){ const el=document.getElementById('againOv'); if(el) el.classList.add('on');
+  skpClaim('Склади прочитано!'); }   // пройшли раніше, а нагороду ще не забрали
+/* Нагорода з адмінки (sk-prize.js): поп-ап + предмет в інвентар Героя, один раз. */
+const SKP_KEY='sk_chsklady_prize_v1', SKP_HREF='chytaemo-sklady.html';
+function skpClaim(title){
+  if(!window.SKPRIZE || SKPRIZE.summary(SKP_KEY)) return;
+  SKPRIZE.claim({key:SKP_KEY, href:SKP_HREF, title:title});
+}
 function closeAgain(){ const el=document.getElementById('againOv'); if(el) el.classList.remove('on'); }
 function againPlay(){ closeAgain(); goGames(); }
 
@@ -1026,6 +1035,10 @@ refreshStart();
 <script src="../sk-avatar.js?v=9"></script>
 <script type="module" src="../firebase-config.js"></script>
 
+<script src="../sk-items.js?v=19"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=4"></script>
+<script src="../sk-prize.js?v=3"></script>
 <script src="../sk-finish.js?v=6"></script>
 <!-- однакове гортання й розмір карток у всіх тренажерах -->
 <script src="../sk-cards.js?v=2"></script>

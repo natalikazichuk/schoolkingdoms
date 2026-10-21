@@ -218,6 +218,9 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .gtile .tx b{font-family:'Fredoka';font-size:19px;display:block;line-height:1.1}
 .gtile .tx span{color:var(--soft);font-size:13px;font-weight:800}
 .gtile .go{font-size:24px;color:var(--soft)}
+.gtile.done{border-color:#9ad8b4;background:#f4fcf7}
+.gtile.done .go{color:var(--good)}
+.done-note{color:var(--good);font-family:'Fredoka';font-weight:700;font-size:15px;margin:8px 0 0}
 
 /* ══════════════ PLAY ══════════════ */
 #play{gap:14px}
@@ -413,16 +416,15 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
   <!-- ══════ GAMES ══════ -->
   <section id="games" class="screen">
     <div class="topbar"><button class="iconbtn" onclick="goStart()" title="Назад">←</button>
-      <div class="title">Ігри з тваринами<small>Хто це · який звук · чиє дитинча · знайди пару</small></div>
+      <div class="title">Ігри з тваринами<small id="gamesSub">Хто це · який звук · чиє дитинча · знайди пару</small></div>
       <button class="iconbtn sndbtn" onclick="toggleSound()" title="Звук уроку" aria-label="Звук уроку"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a8 8 0 0 1 0 12"/></svg></button></div>
     <div class="games-lock" id="gamesLock"><div class="lk">🔒</div><h3>Спочатку — усі тварини!</h3><p class="sub" id="lockText">Пізнай усіх тварин, і відкриються 4 гри.</p><button class="big-btn" style="margin-top:10px" onclick="startLearn()">🐾 Знайомитись ▶</button></div>
     <div class="games-list" id="gamesList">
-      <div class="gtile" onclick="playGame('khto')"><div class="ic" style="background:var(--red)">🔍</div><div class="tx"><b>Хто це?</b><span>Подивись і назви тварину</span></div><div class="go">▶</div></div>
-      <div class="gtile" onclick="playGame('zvuk')"><div class="ic" style="background:var(--orange)">👂</div><div class="tx"><b>Хто так говорить?</b><span>Послухай звук — вибери тварину</span></div><div class="go">▶</div></div>
-      <div class="gtile" onclick="playGame('baby')"><div class="ic" style="background:var(--green)">🐾</div><div class="tx"><b>Хто чиє дитинча?</b><span>Знайди малюка тварини</span></div><div class="go">▶</div></div>
-      <div class="gtile" onclick="playGame('para')"><div class="ic" style="background:var(--purple)">🔗</div><div class="tx"><b>Знайди пару</b><span>Тварина і її назва</span></div><div class="go">▶</div></div>
+      <div class="gtile" data-g="khto" onclick="playGame(\'khto\')"><div class="ic" style="background:var(--red)">🔍</div><div class="tx"><b>Хто це?</b><span>Подивись і назви тварину</span></div><div class="go">▶</div></div>
+      <div class="gtile" data-g="zvuk" onclick="playGame(\'zvuk\')"><div class="ic" style="background:var(--orange)">👂</div><div class="tx"><b>Хто так говорить?</b><span>Послухай звук — вибери тварину</span></div><div class="go">▶</div></div>
+      <div class="gtile" data-g="baby" onclick="playGame(\'baby\')"><div class="ic" style="background:var(--green)">🐾</div><div class="tx"><b>Хто чиє дитинча?</b><span>Знайди малюка тварини</span></div><div class="go">▶</div></div>
+      <div class="gtile" data-g="para" onclick="playGame(\'para\')"><div class="ic" style="background:var(--purple)">🔗</div><div class="tx"><b>Знайди пару</b><span>Тварина і її назва</span></div><div class="go">▶</div></div>
     </div>
-    <div class="foot">Прогрес зберігається на цьому пристрої</div>
   </section>
 
   <!-- ══════ PLAY ══════ -->
@@ -485,10 +487,10 @@ const LEGACY_KEYS=['sk-tvaryny-v1'];
 const SND_IDS=new Set(['vedmid','vovk','lysytsia','olen','lev','slon','tygr','korova','koza','vivtsya','kishka','sobaka','kin','kurka','papuha']);
 function hasSnd(a){ return SND_IDS.has(a.id); }
 const ALL=ANIMALS.length;
-let state={learned:{},soundOn:true};
+let state={learned:{},games:{},soundOn:true};
 let idx=0, userGesture=false, winShown=false;
 function load(){ try{ LEGACY_KEYS.forEach(k=>localStorage.removeItem(k)); }catch(e){}
-  try{const s=JSON.parse(localStorage.getItem(SAVE_KEY)); if(s){state.learned=s.learned||{}; state.soundOn=s.soundOn!==false;}}catch(e){} }
+  try{const s=JSON.parse(localStorage.getItem(SAVE_KEY)); if(s){state.learned=s.learned||{}; state.games=s.games||{}; state.soundOn=s.soundOn!==false;}}catch(e){} }
 function save(){ try{localStorage.setItem(SAVE_KEY,JSON.stringify(state));}catch(e){} }
 function learnedCount(){ return ANIMALS.filter(a=>state.learned[a.id]).length; }
 function allLearned(){ return learnedCount()>=ALL; }
@@ -578,6 +580,12 @@ function renderGamesHub(){
   const locked=!allLearned();
   document.getElementById('gamesLock').classList.toggle('on',locked);
   document.getElementById('gamesList').classList.toggle('locked',locked);
+  // які ігри вже зараховано (3 зірки) і скільки лишилось
+  const keys=[...document.querySelectorAll('.gtile[data-g]')].map(t=>t.dataset.g);
+  const n=keys.filter(k=>state.games[k]).length;
+  document.querySelectorAll('.gtile[data-g]').forEach(t=>t.classList.toggle('done',!!state.games[t.dataset.g]));
+  const sub=document.getElementById('gamesSub');
+  if(sub) sub.textContent = n>=keys.length ? 'Усі '+keys.length+' гри пройдено 🏆' : 'Пройдено '+n+' з '+keys.length;
   document.getElementById('lockText').textContent='Пізнано '+learnedCount()+' із '+ALL+'. Пізнай усіх тварин — і відкриються 4 гри!';
 }
 function playGame(key){ if(!allLearned())return; startGame(key); }
@@ -726,10 +734,12 @@ function endGame(){
   document.getElementById('playFb').className='feedback';
   document.getElementById('playNext').style.display='none';
   document.getElementById('playDots').innerHTML='';
+  if(stars===3 && !state.games[key]){ state.games[key]=1; save(); }   // гра зараховується за 3 зірки
   const msg=stars===3?'Ідеально!':stars===2?'Гарна робота!':'Молодець, що спробував!';
   const starHtml=[0,1,2].map(i=>'<span class="s'+(i<stars?' f':'')+'">★</span>').join('');
   body.innerHTML='<div class="result-card"><div class="big-stars">'+starHtml+'</div><h2>'+msg+'</h2>'+
-    (key==='para'?'<p class="sub">Усі пари знайдено!</p>':'<p class="sub">Правильних: <b>'+game.correct+' з '+total+'</b></p>')+'</div>'+
+    (key==='para'?'<p class="sub">Усі пари знайдено!</p>':'<p class="sub">Правильних: <b>'+game.correct+' з '+total+'</b></p>')+
+    (stars===3?'<p class="done-note">✓ Гру зараховано</p>':'<p class="sub">Щоб зарахувати гру, збери 3 зірки 💪</p>')+'</div>'+
     '<div class="btn-row" style="margin-top:14px"><button class="big-btn blue" onclick="startGame(\''+key+'\')">↻ Ще раз</button><button class="big-btn" onclick="goGames()">До ігор →</button></div>';
   try{ if(window.navigator.vibrate) navigator.vibrate(stars>=3?[40,60,40]:30); }catch(e){}
 }
@@ -830,7 +840,7 @@ window.addEventListener("load", skpRefresh);
 <script src="../sk-items.js?v=19"></script>
 <script src="../sk-curriculum.js?v=8"></script>
 <script src="../sk-rewards.js?v=4"></script>
-<script src="../sk-prize.js?v=2"></script>
+<script src="../sk-prize.js?v=3"></script>
 <script src="../sk-finish.js?v=6"></script>
 <!-- однакове гортання й розмір карток у всіх тренажерах -->
 <script src="../sk-cards.js?v=2"></script>
