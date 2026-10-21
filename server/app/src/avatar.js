@@ -79,6 +79,7 @@ const FIGHT_PAIRS = { 'linen-boy': 'linen-boy-fight', 'blond-boy': 'blond-boy-fi
 const SPEC_VERSION = 4;   // 2: дві пози (fightImage); 3: база на полотні з запасом (CANVAS_PAD); 4: описи речей і де сидять шапка/наручі
 const MAX_ATTEMPTS = 3;
 const LEASE_MIN = 10;
+const QUEUE_TIMEOUT_MIN = 10;      // довше чекає в черзі — художник не на зв'язку, завдання скасовується
 const RENDER_PER_HOUR = 20;        // нових генерацій на Героя за годину
 const MAX_IMAGE = 9 * 1024 * 1024; // байтів картинки від воркера (після base64)
 const COLLECTION_MAX = 24;         // образів у колекції Героя
@@ -711,7 +712,7 @@ function workerAuth(req) {
 }
 
 /* Завдання, яке воркер узяв і не повернув за LEASE_MIN, вертається в чергу;
-   після MAX_ATTEMPTS спроб — помилка. */
+   після MAX_ATTEMPTS спроб — помилка. Черга, яку воркер не чіпав QUEUE_TIMEOUT_MIN, — теж помилка. */
 async function sweep(q) {
   q = q || pool;
   const dead = await q.query(
@@ -719,6 +720,14 @@ async function sweep(q) {
       where status = 'working' and lease_until < now()
         and (attempts >= $1 or spec->>'engine' = 'gpt') returning key`, [MAX_ATTEMPTS]);
   for (const row of dead.rows) await markFailed(q, row.key);
+  // зависло в черзі (воркер вимкнений) — не тримати Героя в очікуванні; «Одягти» поставить знову
+  const stale = await q.query(
+    `update avatar_jobs set status = 'failed', error = $1, updated_at = now()
+      where status = 'queued' and queued_at < now() - interval '${QUEUE_TIMEOUT_MIN} minutes'
+        and not exists (select 1 from avatar_jobs w where w.status in ('working', 'done') and w.worker is distinct from 'openai'
+                          and w.updated_at > now() - interval '${QUEUE_TIMEOUT_MIN} minutes') returning key`,
+    ['Художник зараз не на звʼязку — спробуй трохи згодом']);
+  for (const row of stale.rows) await markFailed(q, row.key);
 }
 async function markFailed(q, key) {
   const hs = await q.query(`select path, data from docs where parent = 'heroes' and data->'avatarGen'->>'key' = $1
