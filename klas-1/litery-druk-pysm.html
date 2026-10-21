@@ -323,7 +323,13 @@ function drawLetter(){ if(dpos>=deck.length) reshuffle(); const x=deck[dpos]; dp
 
 function optionsFor(lvl, target){
   const pool = poolFor(lvl);
-  if(pool.length<=4) return shuffle(pool.slice());
+  /* у рівні-групі лише 4 літери — варіанти були завжди ті самі (М, Н, О, П).
+     Тепер: дві інші літери групи + одна-дві з решти абетки, щоразу інші */
+  if(pool.length<=4){
+    const own = shuffle(pool.filter(x=>x!==target)).slice(0, rnd(1,2));
+    const rest = shuffle(ALL.filter(x=>pool.indexOf(x)<0)).slice(0, 3-own.length);
+    return shuffle([target].concat(own, rest));
+  }
   const set = new Set([target]);
   while(set.size<4) set.add(pool[rnd(0,pool.length-1)]);
   return shuffle([...set]);
