@@ -146,6 +146,7 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px}
 .wc-pic{background:#f5eeda;position:relative;flex:1 1 auto;min-height:70px;display:flex;
   align-items:center;justify-content:center;padding:8px;overflow:hidden;cursor:pointer}
 .wc-emoji{font-size:clamp(54px,14vh,96px);line-height:1;filter:drop-shadow(0 5px 6px rgba(0,0,0,.12))}
+.wc-pic img{position:absolute;inset:8px;width:calc(100% - 16px);height:calc(100% - 16px);object-fit:contain;display:block}
 .wc-body{background:#fff;padding:8px 12px 12px;flex:none;text-align:center}
 /* правило-підказка теми — дрібно над завданням */
 .rule{display:inline-block;font-weight:800;font-size:12px;color:#3a5a8c;background:#eef4ff;
@@ -419,6 +420,7 @@ button.lt:active{transform:translateY(2px);box-shadow:0 2px 0 #e6dcc6}
                   дз — один звук);
      • Наголос  — натиснути наголошений голосний;
      • Модель   — обрати правильну звукову схему з трьох.
+   Малюнки слів — img/zvuk/<id>.webp (без файлу — емодзі).
    Позначення, як у шкільних зошитах: голосний — червоний, твердий
    приголосний — синій, мʼякий — зелений (перед і, я, ю, є, ь — мʼякий).
 
@@ -565,7 +567,13 @@ function startTheme(id){
 function renderTask(){
   cur=queue[qi]; taskDone=false; firstTry=true;
   const p=parse(cur);
-  document.getElementById('wcPic').innerHTML='<span class="wc-emoji">'+cur.e+'</span>';
+  // малюнок слова (img/zvuk/<id>.webp); поки вантажиться або якщо файлу нема — емодзі
+  const pic=document.getElementById('wcPic');
+  pic.innerHTML='<span class="wc-emoji">'+cur.e+'</span>';
+  const im=new Image(); im.alt=cur.w;
+  const tok=(renderTask._tok=(renderTask._tok||0)+1);
+  im.onload=()=>{ if(tok!==renderTask._tok) return; pic.innerHTML=''; pic.appendChild(im); };
+  im.src='../img/zvuk/'+cur.id+'.webp';
   document.getElementById('ruleTxt').textContent=mode.rule;
   // розмір літер — щоб навіть «кукурудза» стала в один рядок
   const card=document.querySelector('.word-card');
