@@ -224,6 +224,9 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px}
 .voice-row{display:flex;align-items:center;gap:8px;font-size:.82rem;color:var(--soft);
   font-weight:800;margin:0 0 8px;padding:6px 10px;background:#fff;border:2px solid var(--line);border-radius:12px}
 .voice-row.hidden{display:none}
+.voice-miss{margin:8px auto 0;max-width:440px;background:#fff6df;border:2px solid #f4c842;border-radius:14px;
+  padding:8px 12px;font-size:13px;font-weight:800;color:#8a5e16;line-height:1.35;text-align:center}
+.voice-miss.hidden{display:none}
 .voice-row select{font:800 .82rem 'Nunito',sans-serif;color:var(--ink);border:none;background:transparent;flex:1;min-width:0}
 
 @media(max-width:440px){
@@ -297,7 +300,6 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px}
       <button class="iconbtn sndbtn" onclick="toggleSound()" title="Звук уроку" aria-label="Звук уроку"></button>
     </div>
     <div class="theme-list" id="themeList"></div>
-    <div class="foot">Прогрес зберігається на цьому пристрої</div>
   </section>
 
   <!-- ══════ ГРА ══════ -->
@@ -312,6 +314,8 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px}
       <button class="iconbtn sndbtn" onclick="toggleSound()" title="Звук уроку" aria-label="Звук уроку"></button>
     </div>
     <div class="voice-row hidden" id="voiceRow"><span>🎙</span><select id="voiceSel" aria-label="Голос"></select></div>
+    <div class="voice-miss hidden" id="voiceMiss">🔇 На цьому пристрої немає українського голосу — слова читатиме чужий голос або не звучатимуть.
+      Додай українську мову в налаштуваннях синтезу мовлення телефона (Google «Синтез мовлення») або відкрий у Edge.</div>
 
     <div class="word-card">
       <div class="wc-pic" id="wcPic" onclick="speakWord()"></div>
@@ -375,7 +379,7 @@ const THEMES=[
     {id:'t',   w:'ТИГР'},   {id:'u',  w:'УДАВ'},  {id:'je', w:'ЄНОТ'},
     {id:'ji',  w:'ЇЖАК'}]},
   {id:'ptashky', name:'Пташки', ic:'🐔', c:'var(--yellow)', words:[
-    {id:'h',   w:'ГУСКА'},  {id:'i',  w:'ІНДИК'}, {id:'p',  w:'ПІВЕНЬ'}]},
+    {id:'h',   w:'ГУСКА', alt:['ГУСАК']},  {id:'i',  w:'ІНДИК'}, {id:'p',  w:'ПІВЕНЬ'}]},
   {id:'voda', name:'У воді', ic:'🐟', c:'var(--teal)', words:[
     {id:'y',   w:'КИТ'},    {id:'r',  w:'РАК'},   {id:'shch', w:'ЩУКА'},
     {id:'zh',  w:'ЖАБА'},   {id:'ch', w:'ЧЕРЕПАХА'}]},
@@ -464,7 +468,7 @@ function startTheme(id){
 }
 function renderWord(){
   clearRunners();
-  cur=queue[qi]; filled=0; wordDone=false;
+  cur=queue[qi]; cur.built=''; filled=0; wordDone=false;
   const letters=cur.w.split('');
   // Розмір комірок рахуємо від реальної ширини картки: 8 літер мають лягти
   // в ОДИН рядок навіть на вузькому екрані, інакше слово читається як два.
@@ -526,8 +530,10 @@ function updatePlayBar(){
 /* Дитина тисне літеру: правильна летить у комірку, зайва тремтить. */
 function pickTile(btn,ch){
   if(wordDone) return;
-  const need=cur.w[filled];
-  if(ch!==need){
+  // alt — інші правильні слова з тих самих літер (на малюнку гуска — підходить і «гусак»)
+  const built=cur.built||'';   // літера в комірку долітає з анімацією — тож рахуємо самі
+  const ok=[cur.w].concat(cur.alt||[]).some(w=>w.length===cur.w.length && w.startsWith(built) && w[filled]===ch);
+  if(!ok){
     btn.classList.add('shake');
     setTimeout(()=>btn.classList.remove('shake'),460);
     try{ if(navigator.vibrate) navigator.vibrate(25); }catch(e){}
@@ -536,6 +542,7 @@ function pickTile(btn,ch){
   const slot=document.getElementById('slot'+filled);
   btn.classList.add('used');
   flyLetter(btn,slot,ch);
+  cur.built=built+ch;
   filled++;
   if(filled>=cur.w.length) finishWord();
 }
@@ -845,6 +852,9 @@ function rankVoices(){
   chosenVoice=uk.find(v=>v.name===saved)||uk[0]||null;
   buildVoicePicker();
   document.body.classList.toggle('no-voice', ukVoices.length===0 && !('speechSynthesis' in window));
+  // голоси вже завантажились, а українського немає — синтез читає англійським голосом; кажемо про це
+  const miss=document.getElementById('voiceMiss');
+  if(miss) miss.classList.toggle('hidden', !(vs.length && !ukVoices.length));
 }
 function buildVoicePicker(){
   const row=document.getElementById('voiceRow'), sel=document.getElementById('voiceSel');
