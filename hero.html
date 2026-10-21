@@ -22,7 +22,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="hero.css?v=26">
+<link rel="stylesheet" href="hero.css?v=27">
 <script src="sk-resume.js?v=1"></script>
 <script>SKResume.go();   /* відкрили застосунок — одразу туди, де Герой зупинився (якщо не минуло 2 годин) */</script>
 <script src="sk-arena-rules.js?v=27"></script>
@@ -861,13 +861,22 @@ async function loadTasks(){
   if(!active.length){
     box.innerHTML='<div class="tasks-empty">Усі завдання виконано 🎉</div>';
   } else {
-    box.innerHTML=active.map(renderTaskItem).join('');
+    // випадаючий список: видно лише перше завдання, решта — за кнопкою «Ще N»
+    const rest=active.length-1;
+    box.innerHTML=renderTaskItem(active[0])
+      + (rest ? '<div class="tasks-more" id="tasksMore"'+(TASKS_OPEN?'':' hidden')+'>'+active.slice(1).map(renderTaskItem).join('')+'</div>'
+        + '<button type="button" class="tasks-toggle" id="tasksToggle" aria-controls="tasksMore" aria-expanded="'+TASKS_OPEN+'">'
+        + tasksToggleTxt(rest)+'</button>' : '');
   }
   syncTasksAllBtn();
   // якщо поп-ап відкритий — перемалювати і його
   const modal=$('tasksModal');
   if(modal && !modal.hidden) fillTasksModal();
 }
+
+/* розгорнуто чи згорнуто список заданих завдань (переживає перемальовування) */
+let TASKS_OPEN=false;
+function tasksToggleTxt(rest){ return TASKS_OPEN ? 'Згорнути <b aria-hidden="true">▴</b>' : 'Ще '+rest+' '+((rest%10>=1&&rest%10<=4&&(rest%100<11||rest%100>14))?'завдання':'завдань')+' <b aria-hidden="true">▾</b>'; }
 
 /* Кнопка «Усі» показується лише коли є хоч одне виконане завдання (є що ховати). */
 function syncTasksAllBtn(){
@@ -961,6 +970,14 @@ async function toggleTask(id, status, testId, btn){
    • .t-go-link[data-seen] → перед відкриттям гри позначаємо тренажер «відкрито» */
 (function(){
   function onListClick(e){
+    const tg=e.target.closest('.tasks-toggle');
+    if(tg){
+      TASKS_OPEN=!TASKS_OPEN;
+      const more=document.getElementById('tasksMore'); if(more) more.hidden=!TASKS_OPEN;
+      tg.setAttribute('aria-expanded', TASKS_OPEN);
+      tg.innerHTML=tasksToggleTxt(more ? more.children.length : 0);
+      return;
+    }
     const cb=e.target.closest('.t-check');
     if(cb && !cb.disabled){ toggleTask(cb.getAttribute('data-id'), cb.getAttribute('data-status'), cb.getAttribute('data-testid'), cb); return; }
     const go=e.target.closest('.t-go-link[data-seen]');
