@@ -17,6 +17,8 @@ install -d -m 700 "$SK/data" "$SK/migration"
 chown 1000:1000 "$SK/data" "$SK/migration"
 # образи Героїв: пише API (uid 1000), читає nginx
 install -d -m 755 -o 1000 -g 1000 "$SK/avatars"
+# mp3 озвучки (POST /api/tts): пише API, читає nginx
+install -d -m 755 -o 1000 -g 1000 "$SK/tts"
 
 if [ ! -d "$SK/repo/.git" ]; then
   git clone -q "$REPO_URL" "$SK/repo"
