@@ -441,7 +441,18 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
     var p = window.SKREWARD ? SKREWARD.claim(TR_HREF) : Promise.resolve({skipped:true});
     p.catch(function(){ return {skipped:true}; }).then(function(res){
       prizeBusy=false;
-      if(!res || res.skipped) return;                 // не Герой / офлайн — спробуємо наступного разу
+      /* нагороду не видано зараз — кажемо чому (як у «Будиночках чисел»);
+         замок не ставимо: наступного разу спробуємо ще раз */
+      if(!res || res.skipped){
+        var why=res&&res.reason;
+        if(why==="not-hero") showPrize({got:"🎁 Нагорода — для Героя. Увійди як Герой і збери ряд — вона чекатиме на тебе!"});
+        else if(why==="no-record"){
+          try{ console.warn("[Числовий ряд] для ryad.html немає запису в «Тестах» з нагородою — налаштуй її в адмінці"); }catch(e){}
+          showPrize({got:"🏆 Ти зібрав увесь ряд! Вирушай за новими досягненнями!"});
+        }
+        else showPrize({got:"🎁 Нагорода чекає на тебе — заберемо її, щойно буде звʼязок"});
+        return;
+      }
       if(res.failed){
         showPrize({got:'Нагорода не збереглась — заберемо її, щойно буде звʼязок 🎁'
           +'<span class="p-why">'+escH(res.failed.join(" · "))+'</span>'});
