@@ -50,10 +50,10 @@
     l:{say:'luh',  ua:'[л]',        w:'lion',    e:'🦁'},
     f:{say:'fuh',  ua:'[ф]',        w:'fish',    e:'🐟'},
     b:{say:'buh',  ua:'[б]',        w:'bus',     e:'🚌'},
-    w:{say:'wuh',  ua:'[в] губами', w:'web',     e:'🕸️'},
+    w:{say:'wuh',  ua:'[в] губами', w:'win',     e:'🏆'},   // web/yo-yo/jam не мали запису — синтез на телефоні мовчав
     x:{say:'ex',   ua:'[кс]',       w:'box',     e:'📦'},
-    y:{say:'yuh',  ua:'[й]',        w:'yo-yo',   e:'🪀'},
-    j:{say:'juh',  ua:'[дж]',       w:'jam',     e:'🍯'},
+    y:{say:'yuh',  ua:'[й]',        w:'yes',     e:'👍'},
+    j:{say:'juh',  ua:'[дж]',       w:'jump',    e:'🤸'},
     sh:{say:'shuh', ua:'[ш]',        w:'ship',    e:'🚢'},
     ch:{say:'chuh',ua:'[ч]',        w:'chip',    e:'🍟'},
     th:{say:'thuh',  ua:'язик між зубами', w:'thumb', e:'👍'},

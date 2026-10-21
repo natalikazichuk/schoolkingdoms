@@ -441,15 +441,11 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
     var p = window.SKREWARD ? SKREWARD.claim(TR_HREF) : Promise.resolve({skipped:true});
     p.catch(function(){ return {skipped:true}; }).then(function(res){
       prizeBusy=false;
-      /* нагороду не видано зараз — кажемо чому (як у «Будиночках чисел»);
-         замок не ставимо: наступного разу спробуємо ще раз */
+      /* нагороду не видано — кажемо чому (раніше екран просто мовчав); замок не ставимо */
       if(!res || res.skipped){
         var why=res&&res.reason;
-        if(why==="not-hero") showPrize({got:"🎁 Нагорода — для Героя. Увійди як Герой і збери ряд — вона чекатиме на тебе!"});
-        else if(why==="no-record"){
-          try{ console.warn("[Числовий ряд] для ryad.html немає запису в «Тестах» з нагородою — налаштуй її в адмінці"); }catch(e){}
-          showPrize({got:"🏆 Ти зібрав увесь ряд! Вирушай за новими досягненнями!"});
-        }
+        if(why==="not-hero") showPrize({got:"🎁 Нагорода — для Героя. Увійди як Герой і пройди ряд — вона чекатиме на тебе!"});
+        else if(why==="no-record") showPrize({got:"🏆 Ти пройшов увесь ряд! Вирушай за новими досягненнями!"});
         else showPrize({got:"🎁 Нагорода чекає на тебе — заберемо її, щойно буде звʼязок"});
         return;
       }
@@ -463,10 +459,12 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
         try{ if(!localStorage.getItem(PRIZE_KEY)) localStorage.setItem(PRIZE_KEY, JSON.stringify({at:Date.now()})); }catch(e){}
         if(res.restored && res.items && res.items.length)
           showPrize({got:"Ось твоя нагорода: "+escH(res.items.map(function(x){return x.name;}).join(", "))+"!", items:res.items});
+        else showPrize({got:"🎁 Нагороду за ряд ти вже отримав раніше — молодець!"});
         return;
       }
       var names=(res.items||[]).map(function(x){ return x.name; });
-      showPrize({got: names.length ? "🎁 Ти отримав: "+escH(names.join(", "))+"!" : "🎁 Ти отримав нагороду!",
+      showPrize({got: names.length ? "🎁 Ти отримав: "+escH(names.join(", "))+"!"
+                   : ((res.coins>0||res.stat) ? "🎁 Ти отримав нагороду!" : "🏆 Ти пройшов увесь ряд! Вирушай за новими досягненнями!"),
                  coins:res.coins, stat:res.stat, items:res.items});
       try{ localStorage.setItem(PRIZE_KEY, JSON.stringify({at:Date.now(), coins:res.coins||0, names:names,
         stat:res.stat?{label:res.stat.label,value:res.stat.value}:null})); }catch(e){}

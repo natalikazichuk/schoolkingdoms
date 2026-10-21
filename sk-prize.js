@@ -8,7 +8,7 @@
    сторінка могла показати картку «Ти отримав нагороду — …».
 
    Підключення (після firebase-config / sk-items / sk-curriculum / sk-rewards):
-     <script src="../sk-prize.js?v=2"></script>
+     <script src="../sk-prize.js?v=3"></script>
 
    API:
      SKPRIZE.summary(key)            → null | {} | {coins, names[], stat}
@@ -153,7 +153,9 @@
           : '<div class="skp-got">' + esc(opt.alreadyText || 'Нагороду за цей тренажер ти вже отримав 🏅') + '</div>';
       } else {
         var names = (res.items || []).map(function (x) { return x.name; });
-        html = '<div class="skp-got">' + (names.length ? '🎁 Ти отримав: ' + esc(names.join(', ')) + '!' : '🎁 Ти отримав нагороду!') + '</div>';
+        var empty = !names.length && !(res.coins > 0) && !res.stat;   // в адмінці нагороду не налаштовано
+        html = '<div class="skp-got">' + (names.length ? '🎁 Ти отримав: ' + esc(names.join(', ')) + '!'
+          : empty ? esc(opt.doneText || 'Молодець! Ти пройшов увесь тренажер 🎉') : '🎁 Ти отримав нагороду!') + '</div>';
         if (res.coins > 0) html += '<span class="skp-chip skp-coins">+' + res.coins + ' 🪙 монет</span>';
         if (res.stat) html += '<span class="skp-chip skp-stat">✨ +' + esc(res.stat.value) + ' до «' + esc(res.stat.label) + '»</span>';
         html += itemsHtml(res.items);

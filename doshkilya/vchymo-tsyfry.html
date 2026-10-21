@@ -346,6 +346,13 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .mem.up{color:#fff;background:var(--purple)}
 .mem.matched{background:var(--good);color:#fff;pointer-events:none;box-shadow:0 5px 0 #37a052}
 .mem.wrong{background:var(--bad);color:#fff}
+/* «Знайди пару»: цифри відкриті (теплі плитки), доміно з крапками — закриті (сині) */
+.mem.numc{background:#ffe6b8;color:#8a4b00;box-shadow:0 5px 0 #f0bd6a}
+.mem.numc.sel{background:var(--orange,#ff9f43);color:#fff;box-shadow:0 0 0 4px #fff,0 0 0 7px var(--orange,#ff9f43)}
+.mem.dotc{background:#6f86d6;box-shadow:0 5px 0 #4e64b4}
+.mem.dotc.up{background:var(--purple);color:#fff}
+.mem.matched.numc,.mem.matched.dotc{background:var(--good);color:#fff;box-shadow:0 5px 0 #37a052}
+.mem.wrong.numc,.mem.wrong.dotc{background:var(--bad);color:#fff}
 
 .feedback{border-radius:18px;padding:10px;text-align:center;font-weight:800;font-size:16px;display:none}
 .feedback.on{display:block}
@@ -512,7 +519,6 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
       <div class="gtile" data-g="para" onclick="playGame('para')"><div class="ic" style="--c:var(--purple)">🧩</div><div class="tx"><b>Знайди пару</b><span>Цифра і стільки ж крапок</span></div><div class="go">▶</div></div>
       <div class="gtile" data-g="propushchene" onclick="playGame('propushchene')"><div class="ic" style="--c:var(--blue)"><span class="gapU">?</span></div><div class="tx"><b>Пропущене число</b><span>Якої цифри не вистачає?</span></div><div class="go">▶</div></div>
     </div>
-    <div class="foot">Прогрес зберігається на цьому пристрої</div>
   </section>
 
   <!-- ══════ PLAY ══════ -->
@@ -1187,36 +1193,51 @@ function renderPara(r){
   const body=document.getElementById('playBody');
   body.innerHTML='<div class="qbox" style="padding:14px">'+
       '<p class="qlabel">🃏 Знайди пару!</p>'+
-      '<p class="q-sub" style="margin:0 0 12px">Цифра і стільки ж крапок</p>'+
+      '<p class="q-sub" style="margin:0 0 12px">Обери цифру і знайди доміно зі стільки ж крапок</p>'+
       '<div class="mem-grid" id="memGrid"></div>'+
     '</div>';
   const g=document.getElementById('memGrid');
   r.cards.forEach((c,i)=>{
     const b=document.createElement('button');
-    b.className='mem'; b.dataset.i=i;
+    b.className='mem '+(c.kind==='num'?'numc':'dotc'); b.dataset.i=i;
+    if(c.kind==='num') b.innerHTML=faceHTML(c);       // цифри видно одразу
     b.onclick=()=>tapMem(i,b);
     g.appendChild(b);
   });
 }
 let memBusy=false;
+/* Пара — одна цифра + одне доміно. Цифру обираємо (вона й так відкрита),
+   доміно перевертаємо; не збіглось — доміно закривається, пробуємо ще. */
 function tapMem(i,btn){
-  const r=game.rounds[0];
-  if(memBusy || btn.classList.contains('matched') || r.open.some(o=>o.i===i))return;
-  btn.classList.add('up');
-  btn.innerHTML=faceHTML(r.cards[i]);
-  r.open.push({i,card:r.cards[i],btn});
+  const r=game.rounds[0], c=r.cards[i];
+  if(memBusy || btn.classList.contains('matched'))return;
+  const prev=r.open.find(o=>o.card.kind===c.kind);
+  if(prev){
+    if(prev.i===i)return;
+    if(c.kind==='dots')return;                     // одне доміно вже відкрите — чекаємо цифру
+    prev.btn.classList.remove('sel'); r.open=r.open.filter(o=>o!==prev);
+  }
+  if(c.kind==='num') btn.classList.add('sel');
+  else { btn.classList.add('up'); btn.innerHTML=faceHTML(c); }
+  r.open.push({i,card:c,btn});
   if(r.open.length<2)return;
   memBusy=true;
   const [a,b]=r.open;
   if(a.card.k===b.card.k){
     setTimeout(()=>{
-      a.btn.classList.add('matched'); b.btn.classList.add('matched');
+      [a,b].forEach(o=>{ o.btn.classList.remove('sel','up'); o.btn.classList.add('matched'); });
       r.open=[]; memBusy=false; r.matched++;
       if(r.matched>=r.total){ game.correct=game.rounds.length; finishRound(true); }
     },420);
   } else {
     a.btn.classList.add('wrong'); b.btn.classList.add('wrong');
-    setTimeout(()=>{ memBusy=false; startGame(game.key); },650);  // помилка → гра пам'яті з початку
+    setTimeout(()=>{
+      [a,b].forEach(o=>{
+        o.btn.classList.remove('wrong','sel','up');
+        if(o.card.kind==='dots') o.btn.innerHTML='';
+      });
+      r.open=[]; memBusy=false;
+    },800);
   }
 }
 

@@ -289,33 +289,33 @@ await scenario('Дошкілля «Читаємо склади» — поп-ап
     window.SKREWARD = { claim: async href => { window.__claims.push(href); return window.__res; },
                         hasLoot: () => true, norm: x => x, WHEEL: [40, 30, 20, 10] };` }));
   await page.goto(`${BASE}/doshkilya/chytaemo-sklady.html`);
-  await page.waitForFunction(() => typeof openWin === 'function' && window.SKREWARD);
-  const pop = () => page.evaluate(() => ({
-    got: document.getElementById('winGot').style.display === 'none' ? '' : document.getElementById('winGot').textContent,
-    coins: document.getElementById('winCoins').style.display === 'none' ? '' : document.getElementById('winCoins').textContent,
-    stat: document.getElementById('winStat').style.display === 'none' ? '' : document.getElementById('winStat').textContent,
-    items: [...document.querySelectorAll('#winReward .rname')].map(x => x.textContent),
-    open: document.getElementById('winOv').classList.contains('on'),
-    lock: localStorage.getItem('sk_sklad_reward_v1') }));
+  await page.waitForFunction(() => typeof openWin === 'function' && window.SKREWARD && window.SKPRIZE);
+  const KEY = 'sk_chsklady_prize_v1';
+  const run = res => page.evaluate(async ([res, KEY]) => {
+    document.querySelectorAll('.skp-ov').forEach(x => x.remove());
+    localStorage.removeItem(KEY); window.__res = res; openWin();
+    await new Promise(r => { const t = setInterval(() => { if (!document.querySelector('.skp-wait')) { clearInterval(t); r(); } }, 20); });
+    const q = s => [...document.querySelectorAll(s)].map(x => x.textContent.trim());
+    return { win: document.getElementById('winOv').classList.contains('on'),
+      got: q('.skp-got').join(''), note: q('.skp-note').join(''), chips: q('.skp-chip'),
+      items: q('.skp-name'), lock: localStorage.getItem(KEY) };
+  }, [res, KEY]);
   // а) нагорода є: монети + предмет + характеристика — показуємо саме їх і ставимо замок
-  await page.evaluate(() => { window.__res = { coins: 15, items: [{ name: 'Чарівний буквар', img: 'img/items/IT-001.webp', bonus: 1 }],
-    stat: { label: "Здоров'я", value: 2 } }; return openWin(); });
-  let p = await pop();
-  assert.equal(p.open, true, 'поп-ап відкрито');
-  assert.equal(p.got, 'Ти отримав: Чарівний буквар!');
-  assert.match(p.coins, /\+15/);
-  assert.match(p.stat, /\+2 до «Здоров'я»/);
+  let p = await run({ coins: 15, items: [{ name: 'Чарівний буквар', img: 'img/items/IT-001.webp', bonus: 1 }],
+    stat: { label: "Здоров'я", value: 2 } });
+  assert.equal(p.win, true, 'свято відкрито');
+  assert.equal(p.got, '🎁 Ти отримав: Чарівний буквар!');
+  assert.deepEqual(p.chips, ['+15 🪙 монет', "✨ +2 до «Здоров'я»"]);
   assert.deepEqual(p.items, ['Чарівний буквар']);
   assert.equal(JSON.parse(p.lock).coins, 15, 'замок нагороди з тим, що видано');
   assert.deepEqual(await page.evaluate(() => window.__claims), ['chytaemo-sklady.html'], 'нагорода — за записом цієї сторінки');
   // б) у «Тестах» немає запису з нагородою — свято без вигаданих монет, замок не ставимо
-  await page.evaluate(() => { localStorage.removeItem('sk_sklad_reward_v1'); closeWin(); window.__res = { skipped: true, reason: 'no-record' }; return openWin(); });
-  p = await pop();
-  assert.deepEqual([p.got, p.coins, p.stat, p.items, p.lock], ['', '', '', [], null]);
+  p = await run({ skipped: true, reason: 'no-record' });
+  assert.deepEqual([p.chips, p.items, p.note, p.lock], [[], [], '', null]);
+  assert.match(p.got, /Молодець/);
   // в) не Герой — пояснюємо, замок не ставимо
-  await page.evaluate(() => { closeWin(); window.__res = { skipped: true, reason: 'not-hero' }; return openWin(); });
-  p = await pop();
-  assert.match(p.got, /для Героя/);
+  p = await run({ skipped: true, reason: 'not-hero' });
+  assert.match(p.note, /Увійди як Герой/);
   assert.equal(p.lock, null);
 });
 

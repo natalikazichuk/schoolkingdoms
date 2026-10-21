@@ -139,9 +139,10 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px;ma
 .play-top{display:flex;align-items:center;gap:10px;margin-bottom:8px;padding-right:52px}
 .dots{display:flex;gap:5px;flex:1}
 .dot{flex:1;min-width:10px;height:11px;border-radius:4px;background:#ecdfca}
-.dot.ok{background:var(--green)} .dot.no{background:var(--bad)}
-.dot.now{background:var(--coral)}
-.round-label{text-align:center;font-family:'Fredoka';font-weight:700;color:var(--coral);font-size:14px;margin-bottom:10px}
+/* пройдене — блідо-зелене, помилка — червона, поточне питання — яскраво-зелене з обвідкою */
+.dot.ok{background:#9ad8b4} .dot.no{background:var(--bad)}
+.dot.now{background:var(--green);box-shadow:0 0 0 2px #fff,0 0 0 4px var(--green);transform:scaleY(1.25)}
+.round-label{text-align:center;font-family:'Fredoka';font-weight:700;color:var(--good);font-size:14px;margin-bottom:10px}
 .round-label .lab{color:var(--soft);font-family:'Nunito';font-weight:800;font-size:12px;display:block;margin-top:2px}
 .qcard{background:#fff;border-radius:24px;border:4px solid #fff;box-shadow:var(--e2);padding:12px}
 .qlab{text-align:center;font-family:'Fredoka';font-weight:600;font-size:15px;color:var(--soft);margin-bottom:8px}
@@ -322,7 +323,13 @@ function drawLetter(){ if(dpos>=deck.length) reshuffle(); const x=deck[dpos]; dp
 
 function optionsFor(lvl, target){
   const pool = poolFor(lvl);
-  if(pool.length<=4) return shuffle(pool.slice());
+  /* у рівні-групі лише 4 літери — варіанти були завжди ті самі (М, Н, О, П).
+     Тепер: дві інші літери групи + одна-дві з решти абетки, щоразу інші */
+  if(pool.length<=4){
+    const own = shuffle(pool.filter(x=>x!==target)).slice(0, rnd(1,2));
+    const rest = shuffle(ALL.filter(x=>pool.indexOf(x)<0)).slice(0, 3-own.length);
+    return shuffle([target].concat(own, rest));
+  }
   const set = new Set([target]);
   while(set.size<4) set.add(pool[rnd(0,pool.length-1)]);
   return shuffle([...set]);

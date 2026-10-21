@@ -107,6 +107,9 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .progress-line .pt{font-weight:800;font-size:12px;color:var(--soft);margin:3px 2px 0;display:block}
 
 /* вибір голосу */
+.voice-miss{margin:8px auto 0;max-width:440px;background:#fff6df;border:2px solid #f4c842;border-radius:14px;
+  padding:8px 12px;font-size:13px;font-weight:800;color:#8a5e16;line-height:1.35;text-align:center}
+.voice-miss.hidden{display:none}
 .voice-row{display:flex;align-items:center;gap:8px;font-size:.82rem;color:var(--soft);
   font-weight:800;margin:0 0 10px;padding:6px 10px;background:#fff;border:2px solid var(--line);border-radius:12px}
 .voice-row.hidden{display:none}
@@ -309,11 +312,6 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .win-emoji{font-size:46px;line-height:1}
 .win-title{font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:24px;color:var(--green);margin:6px 0 2px}
 .win-sub{color:var(--ink);font-weight:800;font-size:15px;margin:0 0 14px}
-.win-got{font-family:'Fredoka';font-weight:700;font-size:17px;color:var(--green);margin:0 0 12px;line-height:1.2}
-.win-why{display:block;margin-top:6px;font-family:'Nunito',sans-serif;font-weight:700;
-  font-size:11px;color:var(--soft);word-break:break-word}
-.win-stat{display:inline-flex;align-items:center;gap:8px;background:#eaf7ef;border:2px solid #9ad8b4;
-  color:#1f7a4d;font-family:'Fredoka';font-weight:700;font-size:16px;padding:7px 16px;border-radius:999px;margin:0 0 10px}
 .win-coins{display:inline-flex;align-items:center;gap:8px;background:#fff6df;border:2px solid #f4c842;
   color:#8a5e16;font-family:'Fredoka';font-weight:700;font-size:20px;padding:8px 18px;border-radius:999px;margin-bottom:16px}
 .reward-item{position:relative;display:flex;align-items:center;gap:14px;text-align:left;background:#fff;
@@ -419,6 +417,8 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
       <button class="iconbtn sndbtn" onclick="toggleSound()" title="Звук">🔊</button>
     </div>
     <div class="voice-row hidden" id="voiceRow"><span>🎙</span><select id="voiceSel" aria-label="Голос"></select></div>
+    <div class="voice-miss hidden" id="voiceMiss">🔇 На цьому пристрої немає українського голосу, тож склади не звучать.
+      Відкрий тренажер у браузері Edge або додай українську мову мовлення в налаштуваннях системи.</div>
     <div class="card-stage">
       <div class="letter-card" id="sylCard" onclick="speakAll()">
         <button class="lc-speak" id="cardSpeak" onclick="event.stopPropagation();speakAll()" aria-label="Слухати">🔊</button>
@@ -447,7 +447,6 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
       <div class="gtile" onclick="playGame('para')"><div class="ic" style="background:var(--purple)">🔗</div><div class="tx"><b>Знайди пару</b><span>Склад і малюнок</span></div><div class="go">▶</div></div>
       <div class="gtile" onclick="playGame('propushchena')"><div class="ic" style="background:var(--blue)">🕳️</div><div class="tx"><b>Пропущений склад</b><span>Якого складу бракує?</span></div><div class="go">▶</div></div>
     </div>
-    <div class="foot">Прогрес зберігається на цьому пристрої</div>
   </section>
 
   <!-- PLAY -->
@@ -481,11 +480,16 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
     <div class="win-emoji">🎉</div>
     <div class="win-title">Ти прочитав усі склади!</div>
     <div class="win-sub">Тепер ти вмієш складати букви у склади!</div>
-    <!-- нагорода з адмінки (sk-rewards.js): заповнює claimAndFill() -->
-    <div class="win-got" id="winGot" style="display:none"></div>
-    <div class="win-coins" id="winCoins" style="display:none">+0 <span>🪙</span> монет</div>
-    <div class="win-stat" id="winStat" style="display:none"></div>
-    <div id="winReward"></div>
+    <div class="win-coins">+10 <span>🪙</span> монет</div>
+    <div class="reward-item">
+      <span class="reward-new">НОВЕ</span>
+      <div class="pic">📖</div>
+      <div class="rx">
+        <div class="rname">Чарівний буквар</div>
+        <span class="rstat">📖 Читання складів</span>
+        <div class="rmeta">Книги · твоя перша нагорода</div>
+      </div>
+    </div>
     <div class="win-actions">
       <button class="big-btn" onclick="claimAndPlay()">🎮 Грати далі</button>
       <button class="win-close" onclick="closeWin()">Закрити</button>
@@ -513,7 +517,7 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 
 <script>
 /* ============================================================
-   ЧИТАЄМО СКЛАДИ — самодостатній тренажер. Прогрес: localStorage 'sk_sklad_v1' (простір sk_* — синхронізується per-Hero).
+   ЧИТАЄМО СКЛАДИ — самодостатній тренажер. Прогрес: localStorage 'sk_chsklady_v1' (простір sk_* — синхронізується per-Hero).
    ОЗВУЧКА складів (за бажанням): audio/sklad_<id>.mp3  (напр. МА → audio/sklad_ma.mp3)
      id = приголосна+голосна латинкою:
        М→m Т→t Н→n Л→l Р→r К→k С→s В→v З→z Б→b Г→h Д→d П→p Х→kh Ш→sh Ж→zh ; А→a О→o У→u И→y Е→e І→i
@@ -573,8 +577,9 @@ function exPic(ex){
   return '<span class="em">'+ex.e+'</span>';
 }
 
-/* стан */
-const SAVE_KEY='sk_sklad_v1';
+/* стан. Свій ключ: 'sk_sklad_v1' — це «Будиночки чисел» (sklad.html), спільний ключ
+   затирав прогрес обох тренажерів. Вивчене зі старого ключа переносимо один раз. */
+const SAVE_KEY='sk_chsklady_v1', SHARED_OLD_KEY='sk_sklad_v1';
 /* Ключ нагороди — у просторі sk_* (підкреслення), щоб синхронізувався per-Hero
    (firebase-config синхронізує лише sk_*). */
 const REWARD_KEY='sk_sklad_reward_v1';
@@ -588,7 +593,7 @@ let againShown=false;      // «ти вже читаєш склади» — по
 let winShown=false;        // «Вітаємо» — захист від повторного запуску в межах сесії
 function load(){
   try{ LEGACY_KEYS.forEach(k=>localStorage.removeItem(k)); }catch(e){}   // прибрати старе device-global протікання
-  try{const s=JSON.parse(localStorage.getItem(SAVE_KEY)); if(s){state.learned=s.learned||{}; state.soundOn=s.soundOn!==false;}}catch(e){}
+  try{const s=JSON.parse(localStorage.getItem(SAVE_KEY)||localStorage.getItem(SHARED_OLD_KEY)); if(s){state.learned=s.learned||{}; state.soundOn=s.soundOn!==false;}}catch(e){}
 }
 function save(){ try{localStorage.setItem(SAVE_KEY,JSON.stringify(state));}catch(e){} }
 function learnedCount(){ return CONS.filter(c=>state.learned[c.id]).length; }
@@ -692,75 +697,34 @@ function printTable(){
 
 /* ══════ СВЯТКОВА НАГОРОДА ══════ */
 let confettiRAF=null;
-/* Перше повне проходження: зараховуємо запис, показуємо свято й забираємо
-   нагороду, налаштовану в адмінці (монети, предмет в інвентар, характеристика) —
-   так само, як у «Вчимо літери». Замок REWARD_KEY ставимо лише коли нагорода
-   справді збереглась: офлайн чи не Герой — наступного разу спробуємо ще раз. */
-async function openWin(){
-  try{ if(window.skFinishRecord) skFinishRecord(); }catch(e){}
+function openWin(){ try{ if(window.skFinishRecord) skFinishRecord(); }catch(e){}
+  // Позначаємо показ одразу при відкритті — щоб попап більше не зʼявлявся
+  // навіть якщо закрити через «Закрити» (а не «Грати далі»).
+  try{ localStorage.setItem(REWARD_KEY,'1'); }catch(e){}
   document.getElementById('winOv').classList.add('on'); launchConfetti();
-  const res=await claimAndFill();
-  if(res && !res.skipped && !res.failed){
-    try{ localStorage.setItem(REWARD_KEY, JSON.stringify({ at:Date.now(), coins:res.coins||0,
-      names:(res.items||[]).map(function(i){return i.name;}) })); }catch(e){}
-  }
+  skpClaim('Склади прочитано!');   // нагорода з адмінки — один раз
 }
 function closeWin(){ document.getElementById('winOv').classList.remove('on');
   if(confettiRAF){ cancelAnimationFrame(confettiRAF); confettiRAF=null; } }
-function claimAndPlay(){ closeWin(); goGames(); }   // нагороду вже видано в openWin()
+function claimAndPlay(){ grantReward(); closeWin(); goGames(); }
 
 /* ══════ ПОВТОРНЕ ПРОХОДЖЕННЯ ══════ */
-function openAgain(){ const el=document.getElementById('againOv'); if(el) el.classList.add('on'); }
+function openAgain(){ const el=document.getElementById('againOv'); if(el) el.classList.add('on');
+  skpClaim('Склади прочитано!'); }   // пройшли раніше, а нагороду ще не забрали
+/* Нагорода з адмінки (sk-prize.js): поп-ап + предмет в інвентар Героя, один раз. */
+const SKP_KEY='sk_chsklady_prize_v1', SKP_HREF='chytaemo-sklady.html';
+function skpClaim(title){
+  if(!window.SKPRIZE || SKPRIZE.summary(SKP_KEY)) return;
+  SKPRIZE.claim({key:SKP_KEY, href:SKP_HREF, title:title});
+}
 function closeAgain(){ const el=document.getElementById('againOv'); if(el) el.classList.remove('on'); }
 function againPlay(){ closeAgain(); goGames(); }
 
-/* Ім'я цієї сторінки — за ним sk-rewards знаходить запис у «Тестах» з нагородою. */
-const TR_HREF=(location.pathname.split('/').pop()||'').toLowerCase()||'chytaemo-sklady.html';
-function escH(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
-
-/* Забрати нагороду й наповнити попап тим, що справді видано. */
-async function claimAndFill(){
-  function bonusTxt(b){ return b>1.15?'+20%':(b>1?'+10%':(b<1?'−10%':'')); }
-  const coinsEl=document.getElementById('winCoins'), gotEl=document.getElementById('winGot');
-  const statEl=document.getElementById('winStat'), rewrap=document.getElementById('winReward');
-  const say=t=>{ if(gotEl){ gotEl.style.display=''; gotEl.textContent=t; } };
-  // повторне відкриття: прибрати вміст попереднього разу
-  if(gotEl){ gotEl.style.display='none'; gotEl.textContent=''; }
-  if(coinsEl) coinsEl.style.display='none';
-  if(statEl){ statEl.style.display='none'; statEl.textContent=''; }
-  if(rewrap) rewrap.innerHTML='';
-  let res=null;
-  try{ if(window.SKREWARD) res=await SKREWARD.claim(TR_HREF); }catch(e){ res=null; }
-  if(!res || res.skipped){
-    const why=res&&res.reason;
-    if(why==='not-hero') say('🎁 Нагорода — для Героя. Увійди як Герой — і вона чекатиме на тебе!');
-    else if(why==='no-record'){
-      try{ console.warn('[Читаємо склади] для chytaemo-sklady.html немає запису в «Тестах» з нагородою — налаштуй її в адмінці'); }catch(e){}
-    }
-    else say('🎁 Нагорода чекає на тебе — заберемо її, щойно буде звʼязок');
-    return res||{skipped:true};
-  }
-  if(res.failed){
-    if(gotEl){ gotEl.style.display='';
-      gotEl.innerHTML='Нагорода не збереглась — заберемо її, щойно буде звʼязок 🎁'
-        +'<span class="win-why">'+escH(res.failed.join(' · '))+'</span>'; }
-    return res;
-  }
-  if(res.already){ say('Нагороду вже отримано 🎁'); return res; }
-  if(res.coins>0 && coinsEl){ coinsEl.style.display=''; coinsEl.innerHTML='+'+res.coins+' <span>🪙</span> монет'; }
-  if(res.stat && statEl){ statEl.style.display=''; statEl.textContent='✨ +'+res.stat.value+' до «'+res.stat.label+'»'; }
-  if(res.items && res.items.length){
-    say('Ти отримав: '+res.items.map(function(x){return x.name;}).join(', ')+'!');
-    if(rewrap) rewrap.innerHTML=res.items.map(function(it){
-      const b=bonusTxt(it.bonus);
-      return '<div class="reward-item"><span class="reward-new">НОВЕ</span>'
-        +'<div class="pic"><img src="'+escH(it.img)+'" alt="'+escH(it.name)+'" onerror="this.onerror=null;this.parentNode.textContent=\'🎁\'"></div>'
-        +'<div class="rx"><div class="rname">'+escH(it.name)+'</div>'
-        +(b?'<span class="rstat">✨ Бонус '+b+'</span>':'')
-        +'<div class="rmeta">Додано в інвентар героя</div></div></div>';
-    }).join('');
-  } else if(res.coins>0 || res.stat) say('Ти отримав нагороду!');
-  return res;
+/* Нарахування нагороди. Поки система нагород (sk-rewards.js) та збереження
+   інвентаря не реалізовані — лише позначаємо, що нагороду показано (один раз). */
+function grantReward(){
+  try{ localStorage.setItem(REWARD_KEY,'1'); }catch(e){}
+  // TODO(sk-rewards): SK.awardReward({coins:10, items:[...]}) — one-time, at completion
 }
 
 function launchConfetti(){
@@ -877,7 +841,8 @@ function renderChoice(r){
     const shown=r.syl.map((s,i)=>i===r.pos?'<span class="gap">?</span>':s).join('<span class="dot">·</span>');
     top='<p class="qlabel">Гра · Пропущений склад</p>'+skPic(r.img,r.emoji)+
         '<div class="q-word" style="font-size:30px">'+shown+'</div>'+
-        '<button class="q-speak" onclick="playAudio(null,\''+esc(r.speak)+'\',null)">🔊 '+r.word+'</button>'+
+        // без написаного слова на кнопці — інакше воно підказує пропущений склад
+        '<button class="q-speak" onclick="playAudio(null,\''+esc(r.speak)+'\',null)">🔊 Послухати</button>'+
         '<p class="q-sub">Якого складу бракує?</p>';
   }
   body.innerHTML='<div class="qbox">'+top+'</div><div class="opts" id="optWrap"></div>';
@@ -1052,6 +1017,9 @@ function rankVoices(){
   chosenVoice=uk.find(v=>v.name===saved)||uk[0]||null;
   buildVoicePicker();
   document.body.classList.toggle('no-voice', ukVoices.length===0 && !('speechSynthesis' in window));
+  // голоси вже завантажились, а українського немає (часто Firefox/Chrome на компʼютері) — кажемо про це
+  const miss=document.getElementById('voiceMiss');
+  if(miss) miss.classList.toggle('hidden', !(vs.length && !ukVoices.length));
 }
 function buildVoicePicker(){
   const row=document.getElementById('voiceRow'), sel=document.getElementById('voiceSel');
@@ -1071,14 +1039,14 @@ if(!state.soundOn) document.querySelectorAll('.sndbtn').forEach(b=>{b.classList.
 refreshStart();
 </script>
 
-<!-- Firebase: кнопка «Вийти» у футері й видача нагороди -->
+<!-- Firebase лише для кнопки «Вийти» у спільному футері -->
 <script src="../sk-avatar.js?v=9"></script>
 <script type="module" src="../firebase-config.js"></script>
-<!-- нагорода з адмінки: каталог речей + карта + видача -->
+
 <script src="../sk-items.js?v=19"></script>
 <script src="../sk-curriculum.js?v=8"></script>
 <script src="../sk-rewards.js?v=4"></script>
-
+<script src="../sk-prize.js?v=3"></script>
 <script src="../sk-finish.js?v=6"></script>
 <!-- однакове гортання й розмір карток у всіх тренажерах -->
 <script src="../sk-cards.js?v=2"></script>

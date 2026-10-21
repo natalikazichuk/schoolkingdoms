@@ -61,7 +61,7 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
 /* ── будиночок ── */
 #houseWrap{flex:1 1 auto; display:flex; flex-direction:column; align-items:center;
   justify-content:center; gap:8px; padding:6px 12px; min-height:0;}
-#hint{font-weight:800; font-size:14px; color:var(--soft); min-height:20px; text-align:center;}
+#hint{font-weight:800; font-size:clamp(17px,2.8vh,22px); color:var(--ink); min-height:24px; text-align:center; line-height:1.25;}
 #hint b{color:var(--blue); font-family:'Fredoka'; font-weight:700;}
 
 #house{display:flex; flex-direction:column; align-items:center;
@@ -651,7 +651,9 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
       p.classList.add("wrong");
       target.classList.add("bad");
       hintEl.innerHTML="Порахуй ще: разом має вийти <b>"+N+"</b> 🤔";
+      locked=true;                                  // пауза після помилки — без швидкого перебору клацанням
       setTimeout(function(){
+        locked=false;
         p.classList.remove("wrong");
         target.classList.remove("bad");
         hintEl.innerHTML="Скільки треба, щоб разом було <b>"+N+"</b>?";
@@ -692,6 +694,9 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
     var finale=!wasAll && allDone();               // щойно заселено останній — окремий фінальний екран
     document.querySelector("#winScreen .crown").textContent = finale ? "🏆" : "🏡";
     if(finale) document.getElementById("winTitle").textContent="Усі будиночки заселено!";
+    // усе пройдено — головна кнопка веде до наступного завдання (туди, звідки прийшли)
+    goOn = allDone() && !wasAll;
+    if(goOn) document.getElementById("nextBtn").textContent="До наступного завдання ▶";
     document.getElementById("winProg").innerHTML=progText();
     document.getElementById("prize").classList.remove("on");
     if(allDone() && !prizeSummary()){
@@ -730,7 +735,9 @@ h1,h2,.disp,.title,.cta,.opt,.piece,.win,#roofNum{font-family:'Fredoka',sans-ser
     syncPick(); refreshStart();
     document.getElementById("startScreen").classList.remove("hidden");
   });
+  var goOn=false;
   document.getElementById("nextBtn").addEventListener("click", function(){
+    if(goOn){ goBack(); return; }
     var idx=HOUSES.indexOf(N);
     if(idx<HOUSES.length-1) N=HOUSES[idx+1];
     syncPick();
