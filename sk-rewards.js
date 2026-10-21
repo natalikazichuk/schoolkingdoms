@@ -28,7 +28,7 @@
 
    Підключення на сторінці тренажера (звичайні скрипти, після firebase-config):
      <script src="../sk-items.js?v=19"></script>
-     <script src="../sk-rewards.js?v=4"></script>
+     <script src="../sk-rewards.js?v=5"></script>
    і виклик у момент повного проходження:
      const res = await SKREWARD.claim();
 
@@ -312,7 +312,10 @@
        'vchymo-litery.html') або обʼєкт:
          { href, rec, recordId, skipStat }
          rec       — запис уже на руках (test.html), не шукаємо його вдруге;
-         skipStat  — характеристику видає сама сторінка (test.html). */
+         skipStat  — характеристику видає сама сторінка (test.html);
+         restoreOnly — лише повернути загублений предмет уже виданої
+                     нагороди; нову не видавати (інакше з repeat кожен
+                     такий виклик тихо давав би нагороду ще раз). */
     claim: function (opt) {
       if (typeof opt !== 'object' || !opt) opt = { href: opt };
       if (busy) return Promise.resolve({ skipped: true, reason: 'busy' });
@@ -329,6 +332,7 @@
         return found.then(function (rec) {
           if (!rec) return { skipped: true, reason: 'no-record' };
           var repeat = norm(rec.rewards).repeat;
+          if (opt.restoreOnly) return wasClaimed(rec) ? restoreLost(rec) : { skipped: true, reason: 'restore-only' };
           if (!repeat && wasClaimed(rec)) return restoreLost(rec);
 
           if (!repeat) markClaimed(rec);          // спершу замок, потім видача

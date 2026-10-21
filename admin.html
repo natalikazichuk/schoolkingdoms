@@ -475,6 +475,7 @@
   .cc-rw .tr-reward .rw-coins{width:84px}
   .cc-rw .tr-reward .rw-chance{width:84px}
   .cc-rw.rw-off{opacity:.45}
+  .rw-warn{color:#c0392b;font-weight:800}
   .cc-rw .rw-range{flex:0 0 auto;font-size:.72rem;font-weight:800;color:var(--muted);min-width:58px;white-space:nowrap}
   .cc-rw .rw-on{flex:0 0 auto;width:18px;height:18px;margin:0;accent-color:var(--ok);cursor:pointer}
   .cc-rw .rw-del{flex:0 0 auto;height:30px;padding:0 9px}
@@ -845,7 +846,7 @@
 <!-- Спільна карта королівства (звичайний скрипт — до інлайну нижче) -->
 <script src="sk-curriculum.js?v=8"></script>
 <!-- Нагороди: нормалізація й шанси колеса — спільні з видачею (test.html, тренажери) -->
-<script src="sk-rewards.js?v=4"></script>
+<script src="sk-rewards.js?v=5"></script>
 
 <!-- Firebase / SK API (модуль, deferred) -->
 <script type="module" src="firebase-config.js"></script>
@@ -2138,9 +2139,21 @@ function cardRewardsHtml(o, fmt){
   });
   h += '<div class="cc-sec">➕ Додаткові нагороди <span class="hint">кожна випадає за своїм шансом; монети з колесом складаються</span></div>'
     + (xs ? '<div class="cc-rw">' + xs + '</div>' : '')
-    + '<div class="cc-q"><button class="btn xs" id="cardXAdd" type="button">＋ Додати нагороду</button></div>';
+    + '<div class="cc-q"><button class="btn xs" id="cardXAdd" type="button">＋ Додати нагороду</button></div>'
+    + '<div class="cc-q"><span class="hint rw-warn" id="rwWarn">' + rwWarnHtml(rw) + '</span></div>';
   return h;
 }
+/* Заповнене, але вимкнене — дитина цього не отримає. Кажемо прямо, бо
+   приглушений рядок легко не помітити (так «загубились» предмети Календаря). */
+function rwWarnHtml(rw){
+  const filled = s => !!(s.item || s.coins);
+  const w = [];
+  if(!rw.wheel.on && rw.wheel.slots.some(filled)) w.push('🎡 колесо вимкнене — його предмети й монети не видаються');
+  const off = rw.extras.filter(x => !x.on && filled(x)).length;
+  if(off) w.push('➕ ' + off + ' додатков' + (off === 1 ? 'а нагорода без галочки — не видається' : 'і нагороди без галочки — не видаються'));
+  return w.length ? '⚠️ ' + w.join('; ') : '';
+}
+function updRwWarn(o){ const e = document.getElementById('rwWarn'); if(e) e.innerHTML = rwWarnHtml(cardRw(o)); }
 /* rewards запису в новому вигляді {wheel, extras, repeat}: старий масив
    слотів перетворюється тут же (колесо увімкнене, якщо щось виставлено). */
 function cardRw(o){
@@ -2299,9 +2312,16 @@ function onCardInput(e){
     case 'rwRepeat': cardRw(o).repeat = !!v; break;
     case 'wItem':
     case 'wCoins': {
-      const slot = cardRw(o).wheel.slots[Number(el.dataset.r) || 0]; if(!slot) break;
+      const rw = cardRw(o), slot = rw.wheel.slots[Number(el.dataset.r) || 0]; if(!slot) break;
       if(f === 'wItem') slot.item = v.trim();
       else { slot.coins = Math.max(0, Math.floor(Number(v) || 0)); rwRangeUpd(el, slot.coins); }
+      /* Вписали пункт колеса — отже, колесо потрібне: вмикаємо саме. */
+      if(!rw.wheel.on && (slot.item || slot.coins)){
+        rw.wheel.on = true;
+        const sw = document.querySelector('#mapCardBody [data-cf="wheelOn"]'); if(sw) sw.checked = true;
+        const box = el.closest('.cc-rw'); if(box) box.classList.remove('rw-off');
+      }
+      updRwWarn(o);
       break;
     }
     case 'xOn':
@@ -2309,10 +2329,18 @@ function onCardInput(e){
     case 'xChance':
     case 'xCoins': {
       const x = cardRw(o).extras[Number(el.dataset.r) || 0]; if(!x) break;
-      if(f === 'xOn'){ x.on = !!v; const row = el.closest('.tr-reward'); if(row) row.classList.toggle('x-off', !x.on); }
+      const row = el.closest('.tr-reward');
+      if(f === 'xOn'){ x.on = !!v; if(row) row.classList.toggle('x-off', !x.on); }
       else if(f === 'xItem')  x.item = v.trim();
       else if(f === 'xCoins'){ x.coins = Math.max(0, Math.floor(Number(v) || 0)); rwRangeUpd(el, x.coins); }
       else                    x.chance = Math.max(0, Math.min(100, Math.round((Number(v) || 0) / 10) * 10));
+      /* Вписали предмет чи монети — ставимо галочку самі (зняти її можна вручну). */
+      if((f === 'xItem' || f === 'xCoins') && !x.on && (x.item || x.coins)){
+        x.on = true;
+        const cb = row && row.querySelector('[data-cf="xOn"]'); if(cb) cb.checked = true;
+        if(row) row.classList.remove('x-off');
+      }
+      updRwWarn(o);
       break;
     }
   }
@@ -2322,10 +2350,10 @@ function rwRangeUpd(el, c){
   const sp = el.parentNode && el.parentNode.querySelector('.rw-range');
   if(sp) sp.textContent = coinRange(c);
 }
-/* Додаткові нагороди: додати рядок (галка за замовчуванням вимкнена) / прибрати. */
+/* Додаткові нагороди: додати рядок (галка одразу стоїть) / прибрати. */
 function cardXAdd(){
   const o = cardObj(); if(!o) return;
-  cardRw(o).extras.push({ on:false, item:'', chance:100, coins:0 });
+  cardRw(o).extras.push({ on:true, item:'', chance:100, coins:0 });
   renderCard();
 }
 function cardXDel(r){
