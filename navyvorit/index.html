@@ -135,6 +135,9 @@ body.flipped .pin.lb-l .lbl, body.flipped .pin.lb-r .lbl{transform:translateY(-5
 .flipBtn{display:flex; align-items:center; justify-content:center; gap:10px;}
 .flipBtn .fsym{flex:none; width:46px; height:44px; margin:-10px 0; background:url(img/flip-symbol.webp) center/contain no-repeat; filter:drop-shadow(0 2px 3px rgba(0,0,0,.3));}
 .flipBtn .fsym.spin{animation:fsSpin .7s ease-in-out;}
+.cardFlip{animation:cardFlip .7s ease-in-out both;}
+@keyframes cardFlip{0%{transform:perspective(700px) rotateX(0)} 50%{transform:perspective(700px) rotateX(90deg)} 100%{transform:perspective(700px) rotateX(0)}}
+@media (prefers-reduced-motion: reduce){.cardFlip{animation:none;}}
 @keyframes fsSpin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
 body.flipped .flipBtn{background:linear-gradient(180deg,#74c0fc,#4dabf7); box-shadow:0 6px 0 var(--accent-d);}
 
@@ -694,6 +697,11 @@ body.shake #wrap{animation:bodyShake .35s .5s ease;}
     var fs = $("flipBtn").querySelector(".fsym"); fs.classList.remove("spin"); void fs.offsetWidth; fs.classList.add("spin");
     $("subtitle").textContent = on ? "🔄 навиворіт!" : "🗺️ 6 розділів · 30 рівнів";
     renderGateCard();
+    // картки розділів і ворота теж перекидаються — видно, що світ справді перевернувся
+    document.querySelectorAll(".chCard,.gateCard,#intro").forEach(function(el, i){
+      el.classList.remove("cardFlip"); void el.offsetWidth;
+      el.style.animationDelay = (i*70)+"ms"; el.classList.add("cardFlip");
+    });
     var c = cur >= 0 && CH[cur];
     if(c && c.imgNav){                                             // карта розділу має окремий малюнок «навиворіт»
       var w = $("world"); w.classList.remove("swap"); void w.offsetWidth; w.classList.add("swap");

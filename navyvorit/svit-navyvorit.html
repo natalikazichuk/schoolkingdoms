@@ -462,7 +462,19 @@ body{background:linear-gradient(180deg,rgba(40,20,10,.04),rgba(40,20,10,.1)), ur
   }
   function hideBasket(){ basketEl.style.opacity = 0; }
   function selectTool(t){ toolBtns.forEach(function(b){ b.classList.toggle("sel", b.dataset.t===t); }); }
-  function setZones(on){ choosing=on; sceneEl.classList.toggle("choosing", on); selectTool(on ? "basket" : null); }
+  /* зони «над / під яблуком» — від того, де яблуко справді висить (після перевороту дерева
+     воно зміщується, і стала зона «під яблуком» лягала просто на яблуко) */
+  function placeZones(){
+    var a = appleEl.getBoundingClientRect(), s = sceneEl.getBoundingClientRect();
+    if(!a.width || !s.width) return;
+    var zh = s.width * 0.22, gap = zh * 0.62, x = (a.left + a.width/2 - s.left) / s.width * 100;
+    var up = Math.max(zh/2, a.top - s.top - gap), dn = Math.min(s.height - zh/2, a.bottom - s.top + gap);
+    [["up", up], ["down", dn]].forEach(function(p){
+      var z = document.querySelector('.zone[data-z="'+p[0]+'"]');
+      z.style.left = x.toFixed(1) + "%"; z.style.top = (p[1] / s.height * 100).toFixed(1) + "%";
+    });
+  }
+  function setZones(on){ if(on) placeZones(); choosing=on; sceneEl.classList.toggle("choosing", on); selectTool(on ? "basket" : null); }
   function wrong(txt){
     mistakes++; thud(); buzz(40); NAVGuard.cool([$("tools"), sceneEl]);
     sceneEl.classList.remove("shake"); void sceneEl.offsetWidth; sceneEl.classList.add("shake");
