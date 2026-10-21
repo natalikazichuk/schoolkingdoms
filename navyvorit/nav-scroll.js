@@ -37,12 +37,17 @@
     box.appendChild(play);
     play.className = "go-btn"; play.textContent = "➜";
     if(c.play){ play.title = c.play; play.setAttribute("aria-label", c.play); }
+    /* завдання — вгорі, на місці плашки режиму; записник прибрано (nav-play.css) */
+    if(c.hintTop){
+      var top = $("top"), hint = $("hint"), badge = $("dirBadge");
+      if(top && hint){ top.insertBefore(hint, badge || $("menuBtn")); document.body.classList.add("hintTop"); }
+    }
     /* фінальний екран — картинка гри позаду (притемнена), свої картинки замість емодзі */
     var win = $("winScreen");
     if(win){
       win.style.backgroundImage = "linear-gradient(180deg,rgba(25,12,35,.35),rgba(25,12,35,.55)), url("+(c.winBg || c.bg)+")";
       var cr = win.querySelector(".crown");
-      if(cr && c.winImg) cr.innerHTML = [].concat(c.winImg).map(function(u){ return '<img src="'+u+'" alt="">'; }).join("");
+      if(cr && c.winImg) cr.innerHTML = [].concat(c.winImg).map(function(u){ return '<img src="'+u+'" alt="" style="height:120px; width:auto">'; }).join("");
     }
     img = new Image(); img.onload = fit; img.src = c.bg;
     window.addEventListener("resize", fit);
