@@ -217,8 +217,8 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px}
 .listen-btn{flex:1;border:none;background:var(--yellow);color:var(--ink);font-family:'Fredoka';
   border-radius:14px;padding:12px;font-size:17px;cursor:pointer;box-shadow:0 5px 0 #e0b90f}
 .listen-btn:active{transform:translateY(3px);box-shadow:0 2px 0 #e0b90f}
-.next-btn{flex:1;display:none}
-.next-btn.on{display:block}
+/* пауза після помилки — щоб не тицяли навмання */
+#ansBox.lock{pointer-events:none;opacity:.55;transition:opacity .2s}
 
 /* ── підсумок раунду ── */
 .round-card{background:#fff;border:3px solid var(--line);border-radius:22px;padding:22px 18px;text-align:center;box-shadow:var(--e2)}
@@ -370,7 +370,6 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px}
 
     <div class="play-actions">
       <button class="listen-btn" id="listenBtn" onclick="speakTask()">🔊 Послухати</button>
-      <button class="big-btn success next-btn" id="nextBtn" onclick="nextTask()">Далі →</button>
     </div>
   </section>
 
@@ -425,9 +424,14 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px}
      • Послідовність — розставити події по порядку.
    Календар — справжній, поточного року.
 
-   Раунд — 8 завдань. Помилка без штрафу: варіант тремтить,
-   зʼявляється підказка, можна пробувати ще. Тема зараховується
-   після GOAL розвʼязаних завдань.
+   Раунд — 10 завдань, наступне відкривається саме після правильної
+   відповіді. Помилка: варіант тремтить, зʼявляється підказка, і кнопки
+   на WRONG_PAUSE «засинають» (щоб не тицяти навмання). MAX_MISS помилок
+   за раунд — раунд спочатку, а зароблений у ньому прогрес забираємо.
+   Тема зараховується після GOAL розвʼязаних завдань.
+
+   Нагорода «при кожному проходженні» (repeat в адмінці): після видачі
+   прогрес обнуляється, і наступне повне проходження дає її знову.
 
    Прогрес: sk_kalendar_v1 (простір sk_* — синхронізується per-Hero).
    Нагорода за повне проходження — sk-rewards.js, як в інших тренажерах.
@@ -481,7 +485,9 @@ const MODES=[
   {id:'seq',    name:'Послідовність',   ic:'🔢', c:'var(--purple)',
    desc:'Що спочатку, а що потім?',       rule:'Натискай події по порядку'}
 ];
-const ROUND=8, GOAL=10;
+const ROUND=10, GOAL=10;
+const MAX_MISS=3;          // стільки помилок за раунд — і раунд спочатку
+const WRONG_PAUSE=1500;    // мс: після помилки кнопки ненадовго «засинають»
 const ALL=MODES.length*GOAL;
 const Y=new Date().getFullYear();
 
@@ -661,12 +667,13 @@ const SAVE_KEY='sk_kalendar_v1';
 const PRIZE_KEY='sk_kalendar_prize_v1';   // нагороду вже показано (і що саме)
 const TR_HREF=(location.pathname.split('/').pop()||'').toLowerCase()||'kalendar.html';
 
-let state={done:{},soundOn:true};
+let state={done:{},soundOn:true,again:false};
 let mode=null, qi=0, cur=null, taskDone=false, firstTry=true, rightFirst=0, seqPos=0, lastQ='';
+let miss=0, roundGain=0, playT=null;   // помилки й зароблений прогрес раунду; таймер автопереходу
 
 function load(){
   try{ const s=JSON.parse(localStorage.getItem(SAVE_KEY));
-    if(s){ state.done=s.done||{}; state.soundOn=s.soundOn!==false; } }catch(e){}
+    if(s){ state.done=s.done||{}; state.soundOn=s.soundOn!==false; state.again=!!s.again; } }catch(e){}
 }
 function save(){ try{ localStorage.setItem(SAVE_KEY,JSON.stringify(state)); }catch(e){} }
 function modeDone(m){ return Math.min(GOAL, Number(state.done[m.id])||0); }
@@ -680,8 +687,9 @@ function show(id){
   document.getElementById(id).classList.add('on');
   window.scrollTo(0,0);
 }
-function goStart(){ stopAudio(); show('start'); refreshStart(); }
-function goThemes(){ stopAudio(); show('themes'); renderThemes(); }
+function goStart(){ stopTimer(); stopAudio(); show('start'); refreshStart(); }
+function goThemes(){ stopTimer(); stopAudio(); show('themes'); renderThemes(); }
+function stopTimer(){ if(playT){ clearTimeout(playT); playT=null; } }
 function exitTrainer(){ stopAudio(); if(history.length>1) history.back(); else location.href=(window.skBackUrl?skBackUrl('tests.html'):'../tests.html'); }
 
 window.addEventListener('load',()=>{ if(window.skReportProgress) skReportProgress(doneCount(), ALL); });   // sk-finish.js підключено нижче
@@ -711,14 +719,15 @@ function renderThemes(){
   const sub=document.getElementById('themesSub');
   if(sub) sub.textContent='Виконано '+doneCount()+' з '+ALL;
   // усе позаду, а нагорода ще не бралась (або предмет загубився)
-  if(allDone() && !localStorage.getItem(PRIZE_KEY)) setTimeout(openPrize,500);
+  if(allDone() && prizeDue()) setTimeout(openPrize,500);
   else if(allDone()) checkLostPrize();
 }
 
 /* ══════ ГРА ══════ */
 function startTheme(id){
   mode=MODES.find(m=>m.id===id); if(!mode) return;
-  qi=0; rightFirst=0; lastQ='';
+  stopTimer();
+  qi=0; rightFirst=0; lastQ=''; miss=0; roundGain=0;
   show('play');
   renderTask();
 }
@@ -731,7 +740,7 @@ function renderTask(){
   document.getElementById('ruleTxt').textContent=mode.rule;
   document.getElementById('qTxt').textContent=cur.q;
   const fb=document.getElementById('fbTxt'); fb.className='fb'; fb.textContent='';
-  document.getElementById('nextBtn').classList.remove('on');
+  document.getElementById('ansBox').classList.remove('lock');
   // висота клітинок календаря — щоб аркуш уміщався над відповідями
   const vis=document.getElementById('vis');
   vis.style.setProperty('--ch', Math.max(20, Math.min(34, Math.floor(((vis.clientHeight||240)-62)/6)))+'px');
@@ -782,26 +791,49 @@ function pickCard(btn,i){
   if(seqPos>=cur.items.length) solved();
 }
 function wrong(el){
-  firstTry=false;
+  firstTry=false; miss++;
   el.classList.add('shake');
   setTimeout(()=>el.classList.remove('shake'),460);
   try{ if(navigator.vibrate) navigator.vibrate(25); }catch(e){}
-  const fb=document.getElementById('fbTxt');
+  const fb=document.getElementById('fbTxt'), box=document.getElementById('ansBox');
+  box.classList.add('lock');                       // пауза: подумай, а не тицяй далі
+  updatePlayBar();
+  stopTimer();
+  if(miss>=MAX_MISS){                              // забагато помилок — раунд спочатку
+    taskDone=true;
+    fb.className='fb bad'; fb.textContent='😕 '+MAX_MISS+' помилки — починаємо раунд спочатку!';
+    playAudio(null, 'Три помилки. Починаємо раунд спочатку!', 'listenBtn');
+    playT=setTimeout(restartRound,2600);
+    return;
+  }
   fb.className='fb bad'; fb.textContent='🤔 '+cur.hint;
+  playT=setTimeout(()=>{ playT=null; box.classList.remove('lock'); },WRONG_PAUSE);
+}
+/* Раунд спочатку: прогрес, зароблений у ньому, забираємо — інакше тицянням
+   навмання все одно можна «пройти» тренажер. */
+function restartRound(){
+  stopTimer(); stopAudio();
+  if(roundGain){ state.done[mode.id]=Math.max(0,(Number(state.done[mode.id])||0)-roundGain); save(); }
+  qi=0; rightFirst=0; miss=0; roundGain=0;
+  renderTask();
 }
 function solved(){
   const fb=document.getElementById('fbTxt');
   fb.className='fb good'; fb.textContent='✓ '+cur.ok;
   taskDone=true;
   if(firstTry) rightFirst++;
-  state.done[mode.id]=Math.min(GOAL,(Number(state.done[mode.id])||0)+1); save();
-  document.getElementById('nextBtn').classList.add('on');
+  const was=Number(state.done[mode.id])||0, now=Math.min(GOAL,was+1);
+  roundGain+=now-was;
+  state.done[mode.id]=now; save();
+  stopTimer();
+  document.getElementById('ansBox').classList.remove('lock');
   updatePlayBar();
   try{ if(navigator.vibrate) navigator.vibrate([40,60,40]); }catch(e){}
-  setTimeout(()=>playAudio(null, cur.ok, 'listenBtn'), 380);
+  // наступне питання — само, без кнопки «Далі»; після помилок — довше, щоб дочитати пояснення
+  playT=setTimeout(nextTask, firstTry?1300:2400);
 }
 function nextTask(){
-  stopAudio();
+  stopTimer(); stopAudio();
   qi++;
   if(qi>=ROUND){ showRound(); return; }
   renderTask();
@@ -814,16 +846,26 @@ function showRound(){
   document.getElementById('roundTxt').textContent='З першої спроби: '+rightFirst+' з '+ROUND
     +' · «'+mode.name+'»: '+d+' з '+GOAL;
   show('round');
-  if(allDone() && !localStorage.getItem(PRIZE_KEY)) setTimeout(openPrize,500);
+  if(allDone() && prizeDue()) setTimeout(openPrize,500);
 }
 function updatePlayBar(){
   const i=qi+(taskDone?1:0);
   document.getElementById('playBar').style.width=Math.round(i/ROUND*100)+'%';
-  document.getElementById('playPt').textContent=mode.name+' · '+Math.min(qi+1,ROUND)+' / '+ROUND;
+  const hearts='❤️'.repeat(Math.max(0,MAX_MISS-miss))+'🤍'.repeat(Math.min(MAX_MISS,miss));
+  document.getElementById('playPt').textContent=mode.name+' · '+Math.min(qi+1,ROUND)+' / '+ROUND+' · '+hearts;
 }
 
 /* ══════ НАГОРОДА ЗА ПОВНЕ ПРОХОДЖЕННЯ ══════ */
 let confettiRAF=null, prizeShown=false, lostChecked=false;
+/* Нагороду треба видати: ще не брали — або вона «за кожне проходження»
+   і це нове коло після обнулення (state.again). */
+function prizeDue(){
+  const p=prizeSummary();
+  if(!p || state.again) return true;
+  // до v2 (жовтень 2026) колесо/додаткові нагороди тут не доходили — хто отримав
+  // лише характеристику, пробує ще раз (sk-rewards сам не дасть зайвого)
+  return !p.v && !(p.names && p.names.length) && !p.coins;
+}
 async function openPrize(){
   if(prizeShown) return;
   prizeShown=true;
@@ -835,9 +877,14 @@ async function openPrize(){
   const res=await claimAndFill();
   if(res && !res.skipped && !res.failed){
     try{ localStorage.setItem(PRIZE_KEY, JSON.stringify({
-      at:Date.now(), coins:res.coins||0,
+      v:2, at:Date.now(), coins:res.coins||0,
       names:(res.items||[]).map(function(i){return i.name;}),
       stat:res.stat?{label:res.stat.label,value:res.stat.value}:null })); }catch(e){}
+    // нагорода за кожне проходження — обнуляємо прогрес, щоб пройти ще коло
+    state.again=!!res.repeat;
+    if(res.repeat) state.done={};
+    save();
+    prizeShown=false;
     refreshStart();
   } else prizeShown=false;
 }
@@ -892,7 +939,8 @@ async function checkLostPrize(){
   if(lostChecked || !window.SKREWARD) return;
   lostChecked=true;
   let res=null;
-  try{ res=await SKREWARD.claim(TR_HREF); }catch(e){ res=null; }
+  // restoreOnly: лише повернути загублений предмет — нову нагороду тут не видаємо
+  try{ res=await SKREWARD.claim({href:TR_HREF, restoreOnly:true}); }catch(e){ res=null; }
   if(!res || !res.restored || !res.items || !res.items.length) return;
   fillWin({emoji:'🎁', title:'Ось твоя нагорода!', sub:'Вона не встигла зберегтись минулого разу.',
            action:'🗓️ Тренуватись ще', onAction:'winPlay()'});
@@ -1051,7 +1099,7 @@ refreshStart();
 <script type="module" src="../firebase-config.js"></script>
 <script src="../sk-items.js?v=19"></script>
 <script src="../sk-curriculum.js?v=8"></script>
-<script src="../sk-rewards.js?v=4"></script>
+<script src="../sk-rewards.js?v=5"></script>
 
 <script src="../sk-finish.js?v=6"></script>
 <!-- надійна озвучка синтезатором на телефоні (Android) -->
