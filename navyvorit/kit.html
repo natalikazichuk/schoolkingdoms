@@ -10,9 +10,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
-<link rel="stylesheet" href="nav-common.css">
-<link rel="stylesheet" href="nav-scroll.css">
-<link rel="stylesheet" href="nav-play.css">
+<link rel="stylesheet" href="nav-common.css?v=2">
+<link rel="stylesheet" href="nav-scroll.css?v=3">
+<link rel="stylesheet" href="nav-play.css?v=3">
 <style>
 /* ── кімната зі скринями ── */
 #scene{height:230px; background:linear-gradient(180deg,#ffe8c2 0%,#fff3dc 60%,#d8b383 60%,#c79c66 100%);}
@@ -50,6 +50,14 @@ body.flipped .chest .nm{color:#4a3a6a;}
 .chest.open:after{content:""; position:absolute; left:-4px; right:-4px; bottom:0; height:132%; background:url(img/kit/chest-open.webp) center bottom/contain no-repeat;}
 .chest .in{z-index:1; top:-34px;}
 .chest .in img{display:block; width:40px; height:40px; object-fit:contain; filter:drop-shadow(0 0 6px rgba(120,200,255,.9));}
+/* відповідь — торканням скрині */
+#panel .opt.viaChest{display:none;}
+.chest{cursor:pointer; transition:transform .15s, filter .3s;}
+.chest:not(.open):not(.bad):hover{transform:translateY(-3px);}
+.chest.tap{animation:chestTap .35s;}
+@keyframes chestTap{40%{transform:scale(.9)}100%{transform:none}}
+.chest.bad{filter:grayscale(.85) brightness(.75) drop-shadow(0 4px 3px rgba(0,0,0,.25)); animation:chestNo .4s; cursor:default;}
+@keyframes chestNo{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
 .opts .opt{white-space:nowrap; padding:11px 6px; text-align:center;}   /* «🟥 Червона» — в один рядок */
 body{background:linear-gradient(180deg,rgba(40,20,10,.05),rgba(40,20,10,.12)), url(img/kit/page-bg.webp) center/cover no-repeat fixed, #6b3f22;}   /* фон сторінки гри — горище художника */
 /* ── редизайн за макетом: сцена без рамки, просто на горищі; великий кіт і скрині ── */
@@ -72,7 +80,7 @@ body.flipped #cat{right:auto; max-width:50%;} body.flipped #owl{max-width:50%;}
 </head>
 <body>
 <script src="../sk-footer.js?v=6" data-base="../" data-back="self"></script>
-<script src="nav-common.js"></script>
+<script src="nav-common.js?v=2"></script>
 <script>
 (function(){
   "use strict";
@@ -125,8 +133,29 @@ body.flipped #cat{right:auto; max-width:50%;} body.flipped #owl{max-width:50%;}
   function say(who, text, tag){ var s = NAV.$(who+"Say"); s.innerHTML = '<span class="tag">'+tag+'</span>«'+text+'»'; s.classList.add("on"); }
   function stmt(s, list){ var c = list.filter(function(x){ return x.id===s.c; })[0]; return (s.not ? "Скарб не в " : "Скарб у ")+c.loc+" скрині"; }
   function holds(s, x){ return s.not ? x!==s.c : x===s.c; }
+  /* відповідь — торканням скрині: кнопки-скрині ховаємо, скриня «натискає» свою кнопку
+     (кнопка без скрині, як «Скарбу немає», лишається) */
+  var CHEST_TX = {};   // текст кнопки → id скрині
+  function markChests(opts){ CHEST_TX = {}; opts.forEach(function(o){ if(o.id) CHEST_TX[o.tx] = o.id; }); return opts; }
+  function chestBtn(id){
+    return [].filter.call(document.querySelectorAll("#panel .opt"), function(b){ return CHEST_TX[b.textContent] === id; })[0];
+  }
+  function syncChests(){
+    [].forEach.call(document.querySelectorAll("#panel .opt"), function(b){
+      var id = CHEST_TX[b.textContent]; if(!id) return;
+      if(!b.classList.contains("viaChest")) b.classList.add("viaChest");   // без зайвих змін — інакше спостерігач зациклиться
+      var ch = NAV.$("ch-"+id); if(ch) ch.classList.toggle("bad", b.classList.contains("bad"));
+    });
+  }
+  new MutationObserver(syncChests).observe(NAV.$("panel"), {childList:true, subtree:true, attributes:true, attributeFilter:["class"]});
+  NAV.$("chests").addEventListener("click", function(e){
+    var ch = e.target.closest(".chest"); if(!ch || ch.classList.contains("open")) return;
+    var b = chestBtn(ch.id.slice(3)); if(!b || b.disabled) return;
+    ch.classList.remove("tap"); void ch.offsetWidth; ch.classList.add("tap");
+    b.click();
+  });
   function chestOpts(list, win, why){
-    return list.map(function(c){ return c.id===win ? {tx:c.em+" "+c.nm, ok:true, id:c.id} : {tx:c.em+" "+c.nm, why:why(c), id:c.id}; });
+    return markChests(list.map(function(c){ return c.id===win ? {tx:c.em+" "+c.nm, ok:true, id:c.id} : {tx:c.em+" "+c.nm, why:why(c), id:c.id}; }));
   }
 
   function startGame(){
@@ -137,11 +166,11 @@ body.flipped #cat{right:auto; max-width:50%;} body.flipped #owl{max-width:50%;}
     setTimeout(function(){
       var s = {not:true, c:"l"};
       say("cat", stmt(s, C2), "🐈‍⬛ кіт-брехун:");
-      NAV.question("Де скарб?", [
-        {tx:"⬅️ У лівій скрині", ok:true},
-        {tx:"➡️ У правій скрині", why:"Кіт сказав «не в лівій» — але ж він бреше! Значить, правда навпаки."},
+      NAV.question("Де скарб? Торкнись скрині 👆", markChests([
+        {tx:"⬅️ У лівій скрині", ok:true, id:"l"},
+        {tx:"➡️ У правій скрині", id:"p", why:"Кіт сказав «не в лівій» — але ж він бреше! Значить, правда навпаки."},
         {tx:"🤷 Скарбу немає", why:"Скарб точно є в одній зі скринь. Кіт бреше лише про те, де саме."}
-      ], function(){
+      ]), function(){
         openAll(C2, "l", function(){
           log.push("🐈‍⬛ «не в лівій» → скарб <b>у лівій</b> 💎"); renderLog();
           NAV.hint("Так! Кіт бреше — тож правда навпаки.","good");
@@ -158,7 +187,7 @@ body.flipped #cat{right:auto; max-width:50%;} body.flipped #owl{max-width:50%;}
     NAV.hint("Тепер скринь три! Кіт знову підказує…");
     setTimeout(function(){
       say("cat", stmt(s, C3), "🐈‍⬛ кіт-брехун:");
-      NAV.question("У якій скрині скарб?", chestOpts(C3, c.id, function(){
+      NAV.question("Де скарб? Торкнись скрині 👆", chestOpts(C3, c.id, function(){
         return "Кіт бреше: «не в "+c.loc+"» насправді означає — саме в "+c.loc+" скрині!";
       }), function(){
         openAll(C3, c.id, function(){
@@ -200,7 +229,7 @@ body.flipped #cat{right:auto; max-width:50%;} body.flipped #owl{max-width:50%;}
     NAV.hint("Кіт тепер <b>каже правду</b>, а сова <b>бреше</b>. Перевір кожну скриню!");
     NAV.busy = false;
     setTimeout(function(){
-      NAV.question("У якій скрині скарб?", chestOpts(C3, win, function(c){
+      NAV.question("Де скарб? Торкнись скрині 👆", chestOpts(C3, win, function(c){
         if(!holds(cat, c.id)) return "Кіт тепер правдивий: він сказав «"+stmt(cat, C3)+"» — тож не в "+c.loc+".";
         return "Сова бреше! Вона сказала «"+stmt(owl, C3)+"» — для "+c.loc+" скрині це була б правда, а сова правди не каже.";
       }), function(){
@@ -229,8 +258,8 @@ body.flipped #cat{right:auto; max-width:50%;} body.flipped #owl{max-width:50%;}
 <script src="../sk-rewards.js?v=4"></script>
 <script src="../sk-prize.js?v=3"></script>
 <script src="../sk-finish.js?v=6"></script>
-<script src="nav-scroll.js"></script>
-<script>NAVSCROLL.init({winImg:["img/kit/chest-open.webp","img/kit/gem.webp"], bg:"img/kit/start-hero.webp", frame:"img/kit/title-frame.webp", focus:[0.04, 1], top:"#5d2e22", bot:"#5a3420", play:"До скринь"});</script>
-<script src="nav-intro.js"></script>
+<script src="nav-scroll.js?v=3"></script>
+<script>NAVSCROLL.init({hintTop:true, winImg:["img/kit/chest-open.webp","img/kit/gem.webp"], bg:"img/kit/start-hero.webp", frame:"img/kit/title-frame.webp", focus:[0.04, 1], top:"#5d2e22", bot:"#5a3420", play:"До скринь"});</script>
+<script src="nav-intro.js?v=3"></script>
 </body>
 </html>
