@@ -107,6 +107,9 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
 .progress-line .pt{font-weight:800;font-size:12px;color:var(--soft);margin:3px 2px 0;display:block}
 
 /* вибір голосу */
+.voice-miss{margin:8px auto 0;max-width:440px;background:#fff6df;border:2px solid #f4c842;border-radius:14px;
+  padding:8px 12px;font-size:13px;font-weight:800;color:#8a5e16;line-height:1.35;text-align:center}
+.voice-miss.hidden{display:none}
 .voice-row{display:flex;align-items:center;gap:8px;font-size:.82rem;color:var(--soft);
   font-weight:800;margin:0 0 10px;padding:6px 10px;background:#fff;border:2px solid var(--line);border-radius:12px}
 .voice-row.hidden{display:none}
@@ -414,6 +417,8 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
       <button class="iconbtn sndbtn" onclick="toggleSound()" title="Звук">🔊</button>
     </div>
     <div class="voice-row hidden" id="voiceRow"><span>🎙</span><select id="voiceSel" aria-label="Голос"></select></div>
+    <div class="voice-miss hidden" id="voiceMiss">🔇 На цьому пристрої немає українського голосу, тож склади не звучать.
+      Відкрий тренажер у браузері Edge або додай українську мову мовлення в налаштуваннях системи.</div>
     <div class="card-stage">
       <div class="letter-card" id="sylCard" onclick="speakAll()">
         <button class="lc-speak" id="cardSpeak" onclick="event.stopPropagation();speakAll()" aria-label="Слухати">🔊</button>
@@ -442,7 +447,6 @@ h1,h2,h3,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.
       <div class="gtile" onclick="playGame('para')"><div class="ic" style="background:var(--purple)">🔗</div><div class="tx"><b>Знайди пару</b><span>Склад і малюнок</span></div><div class="go">▶</div></div>
       <div class="gtile" onclick="playGame('propushchena')"><div class="ic" style="background:var(--blue)">🕳️</div><div class="tx"><b>Пропущений склад</b><span>Якого складу бракує?</span></div><div class="go">▶</div></div>
     </div>
-    <div class="foot">Прогрес зберігається на цьому пристрої</div>
   </section>
 
   <!-- PLAY -->
@@ -1012,6 +1016,9 @@ function rankVoices(){
   chosenVoice=uk.find(v=>v.name===saved)||uk[0]||null;
   buildVoicePicker();
   document.body.classList.toggle('no-voice', ukVoices.length===0 && !('speechSynthesis' in window));
+  // голоси вже завантажились, а українського немає (часто Firefox/Chrome на компʼютері) — кажемо про це
+  const miss=document.getElementById('voiceMiss');
+  if(miss) miss.classList.toggle('hidden', !(vs.length && !ukVoices.length));
 }
 function buildVoicePicker(){
   const row=document.getElementById('voiceRow'), sel=document.getElementById('voiceSel');

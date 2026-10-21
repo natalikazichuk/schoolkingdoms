@@ -488,7 +488,7 @@ const SND_IDS=new Set(['vedmid','vovk','lysytsia','olen','lev','slon','tygr','ko
 function hasSnd(a){ return SND_IDS.has(a.id); }
 const ALL=ANIMALS.length;
 let state={learned:{},games:{},soundOn:true};
-let idx=0, userGesture=false, winShown=false;
+let idx=0, userGesture=false, winShown=false, winTimer=null;
 function load(){ try{ LEGACY_KEYS.forEach(k=>localStorage.removeItem(k)); }catch(e){}
   try{const s=JSON.parse(localStorage.getItem(SAVE_KEY)); if(s){state.learned=s.learned||{}; state.games=s.games||{}; state.soundOn=s.soundOn!==false;}}catch(e){} }
 function save(){ try{localStorage.setItem(SAVE_KEY,JSON.stringify(state));}catch(e){} }
@@ -544,7 +544,11 @@ function renderCard(){
   document.getElementById('prevB').disabled=idx<=0;
   document.getElementById('nextB').disabled=idx>=ALL-1;
   updateLearnBar();
-  if(allLearned() && userGesture && idx===ALL-1 && !winShown){ winShown=true; setTimeout(openWin,450); }
+  /* остання картка: даємо роздивитись і послухати тварину, а вже потім — вітання
+     (раніше попап вискакував за пів секунди); перегорнули — таймер скасовано */
+  clearTimeout(winTimer);
+  if(allLearned() && userGesture && idx===ALL-1 && !winShown)
+    winTimer=setTimeout(()=>{ if(idx===ALL-1 && !winShown && document.getElementById('learn').classList.contains('on')){ winShown=true; openWin(); } },5000);
   if(userGesture) speakCard();
 }
 function cardTap(e){
