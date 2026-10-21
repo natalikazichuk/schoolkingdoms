@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Календар — тренажер для 1 класу</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<style>
+:root{
+  --ink:#2c2b3a;--soft:#6b6a7d;--paper:#fff9ef;--line:#ece3d2;--card:#fff;
+  --red:#ff6b6b;--orange:#ffa94d;--yellow:#ffd43b;--green:#51cf66;--teal:#22b8cf;
+  --blue:#4dabf7;--indigo:#748ffc;--purple:#cc5de8;--pink:#f783ac;
+  --good:#37b26f;--good-bg:#e4f7ec;--bad:#e06666;--bad-bg:#fbe7e7;
+
+  /* ── ті самі ролі кольорів, що у «Вчимо літери» ── */
+  --coral:#ff7a5c;          /* слово / поточне завдання */
+  --primary:var(--blue);    /* основна дія */
+  --success:var(--green);   /* успіх */
+  --learn:var(--teal);      /* прогрес навчання */
+  --nav:#16294f;
+
+  --e1:0 1px 3px rgba(44,43,58,.14);
+  --e2:0 5px 16px rgba(44,43,58,.10);
+  --e3:0 12px 28px rgba(44,43,58,.16);
+  --shadow:0 6px 0 rgba(44,43,58,.13);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  font-family:'Nunito',system-ui,sans-serif;color:var(--ink);
+  background:
+    radial-gradient(circle at 12% 8%,rgba(255,212,59,.28),transparent 42%),
+    radial-gradient(circle at 88% 14%,rgba(77,171,247,.26),transparent 44%),
+    radial-gradient(circle at 78% 92%,rgba(204,93,232,.22),transparent 46%),
+    radial-gradient(circle at 8% 86%,rgba(81,207,102,.24),transparent 44%),
+    var(--paper);
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  padding:14px;padding-bottom:calc(82px + env(safe-area-inset-bottom));
+}
+.wrap{width:100%;max-width:540px;flex:1;display:flex;flex-direction:column}
+h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px}
+.screen{display:none;flex:1;flex-direction:column}
+.screen.on{display:flex;animation:pop .32s ease}
+@keyframes pop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ── дрібні кнопки ── */
+.iconbtn{width:44px;height:44px;border:2px solid var(--line);background:#fff;border-radius:14px;
+  font-size:20px;cursor:pointer;display:grid;place-items:center;flex:none;color:var(--ink)}
+.iconbtn.off{opacity:.4}
+.iconbtn:active{transform:translateY(2px)}
+.sndbtn svg{width:22px;height:22px;display:block}
+.big-btn{border:none;border-radius:18px;padding:16px 20px;font-family:'Fredoka';font-size:20px;
+  cursor:pointer;color:#fff;background:var(--primary);box-shadow:0 6px 0 #2f8fd6;width:100%}
+.big-btn:active{transform:translateY(3px);box-shadow:0 3px 0 #2f8fd6}
+.big-btn.success{background:var(--success);box-shadow:0 6px 0 #37a052}
+.big-btn.success:active{box-shadow:0 3px 0 #37a052}
+
+/* ══════════════ СТАРТ ══════════════ */
+#start{justify-content:flex-start;text-align:center;gap:11px;padding-top:6px;position:relative}
+#start.screen{min-height:0}
+#start.screen.on{flex:0 0 auto;height:calc(100dvh - 96px - env(safe-area-inset-bottom));overflow-y:auto}
+.start-top{position:absolute;top:22px;left:0;z-index:5}
+.abc-blocks{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:6px 0 2px}
+.ab{position:relative;width:64px;height:64px;border-radius:18px;display:grid;place-items:center;
+  font-family:'Fredoka';font-weight:700;font-size:34px;color:#fff;transform:rotate(var(--r));
+  box-shadow:0 6px 0 rgba(0,0,0,.14),inset 0 -5px 0 rgba(0,0,0,.12),inset 0 3px 0 rgba(255,255,255,.28)}
+.ab:nth-child(1){background:var(--red);--r:-7deg}.ab:nth-child(2){background:var(--orange);--r:5deg}
+.ab:nth-child(3){background:var(--green);--r:-4deg}.ab:nth-child(4){background:var(--blue);--r:6deg}
+.ab:nth-child(5){background:var(--purple);--r:-5deg}
+#start h1{font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:38px;margin:8px 0 0;line-height:1.05;color:#1e3a6b}
+.sub{color:var(--soft);font-weight:800;margin:0;font-size:16px}
+.rhyme{background:#fff;border:3px dashed #cdd8ea;border-radius:20px;padding:13px 18px;
+  font-style:italic;color:#3a5a8c;font-weight:800;max-width:400px;margin:2px auto 0;box-shadow:var(--e1)}
+.start-hero{max-width:440px;width:100%;margin:0 auto;flex:1 1 auto;min-height:120px;
+  max-height:clamp(170px,34vh,340px);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.start-hero img{max-width:100%;max-height:100%;width:auto;height:auto;display:block}
+.hero-stub{font-size:clamp(70px,22vw,120px);line-height:1;opacity:.5;filter:drop-shadow(0 6px 8px rgba(0,0,0,.12))}
+.start-btns{display:flex;flex-direction:column;gap:10px;max-width:440px;margin:2px auto 0;width:100%}
+
+/* картка «тренажер пройдено» — як в інших тренажерах */
+.done-card{display:none;align-items:center;gap:12px;max-width:440px;width:100%;margin:2px auto 0;
+  background:linear-gradient(180deg,#fffdf4,#fff6df);border:3px solid #f4c842;border-radius:20px;
+  padding:10px 14px;text-align:left;box-shadow:0 0 0 3px #fff9e6,var(--e2)}
+.done-card.on{display:flex}
+.done-card .dc-ic{font-size:30px;flex:none;animation:dctrophy 2.4s ease-in-out infinite}
+@keyframes dctrophy{0%,100%{transform:rotate(0)}45%{transform:rotate(-8deg) scale(1.08)}70%{transform:rotate(6deg)}}
+.done-card .dc-body{flex:1;min-width:0}
+.done-card .dc-got{font-family:'Fredoka';font-weight:700;font-size:15px;color:#8a5e16;line-height:1.2}
+.done-card .dc-go{font-weight:800;font-size:12px;color:var(--soft);margin-top:3px;line-height:1.25}
+
+.prog-card{display:flex;align-items:center;gap:12px;background:#fff;border:3px solid var(--line);
+  border-radius:20px;padding:12px 16px;max-width:440px;margin:2px auto 0;width:100%;box-shadow:var(--e2)}
+.prog-card .pc-ic{font-size:26px;flex:none}
+.prog-card .pc-body{flex:1;min-width:0;text-align:left}
+.prog-card .pc-txt{font-family:'Fredoka';font-weight:700;color:var(--ink);font-size:16px;margin-bottom:7px}
+.prog-card .pc-bar{height:12px;background:#efe6d3;border-radius:999px;overflow:hidden}
+.prog-card .pc-bar>span{display:block;height:100%;width:0;border-radius:999px;
+  background:linear-gradient(90deg,#51cf66,#94e08a);transition:width .5s ease}
+.prog-card .pc-star{font-size:22px;flex:none;filter:grayscale(1) opacity(.55);transition:filter .3s}
+.prog-card.done{border-color:#f4c842;box-shadow:0 0 0 3px #fff3c9,var(--e2)}
+.prog-card.done .pc-star{filter:none;animation:pcstar 1.2s ease-in-out infinite}
+@keyframes pcstar{0%,100%{transform:scale(1)}50%{transform:scale(1.18) rotate(8deg)}}
+
+/* ── верхня панель ── */
+.topbar{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.topbar .title{flex:1;min-width:0;font-family:'Fredoka';font-size:20px;line-height:1.1}
+.topbar .title small{display:block;font-family:'Nunito';font-weight:800;font-size:12px;color:var(--soft)}
+.progress-line{flex:1;min-width:0}
+.bar{height:12px;background:#f0e7d6;border-radius:8px;overflow:hidden}
+.bar>span{display:block;height:100%;background:linear-gradient(90deg,var(--learn),#63d3e3);
+  border-radius:8px;transition:width .45s}
+.progress-line .pt{font-weight:800;font-size:12px;color:var(--soft);margin:3px 2px 0;display:block}
+
+/* ══════════════ ТЕМИ ══════════════ */
+#themes{gap:12px}
+.theme-list{display:flex;flex-direction:column;gap:12px}
+.ttile{display:flex;align-items:center;gap:14px;background:#fff;border:3px solid var(--line);
+  border-radius:20px;padding:14px;cursor:pointer;box-shadow:var(--shadow);transition:transform .12s}
+.ttile:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(44,43,58,.13)}
+.ttile.done{border-color:#9ad8b4;background:#f4fcf7}
+.ttile .ic{width:60px;height:60px;border-radius:18px;flex:none;display:grid;place-items:center;
+  font-size:30px;background:var(--c,var(--blue));box-shadow:inset 0 -4px 0 rgba(0,0,0,.12)}
+.ttile .tx{flex:1;min-width:0}
+.ttile .tx b{font-family:'Fredoka';font-size:19px;display:block;line-height:1.1}
+.ttile .tx span{color:var(--soft);font-size:13px;font-weight:800}
+.ttile .tbar{height:8px;background:#efe6d3;border-radius:999px;overflow:hidden;margin-top:6px}
+.ttile .tbar>i{display:block;height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#51cf66,#94e08a)}
+.ttile .go{font-size:24px;color:var(--soft)}
+.ttile.done .go{color:var(--good)}
+.foot{text-align:center;color:var(--soft);font-size:12px;font-weight:800;padding:12px 0 2px}
+
+/* ══════════════ ГРА ══════════════ */
+#play{gap:10px}
+#play.screen{min-height:0}
+#play.screen.on{flex:0 0 auto;height:calc(100dvh - 96px - env(safe-area-inset-bottom))}
+.word-card{background:var(--card);border-radius:28px;box-shadow:var(--e2);border:4px solid #fff;
+  overflow:hidden;display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
+/* верхня частина картки — малюнок завдання: календар, стрічка днів або слоти */
+.vis{background:#f5eeda;position:relative;flex:1 1 auto;min-height:90px;display:flex;
+  align-items:center;justify-content:center;padding:10px;overflow:hidden;cursor:pointer}
+.wc-body{background:#fff;padding:8px 12px 12px;flex:none;text-align:center}
+.rule{display:inline-block;font-weight:800;font-size:12px;color:#3a5a8c;background:#eef4ff;
+  border-radius:999px;padding:4px 12px;margin:0 0 6px}
+.q{font-family:'Fredoka';font-weight:600;font-size:18px;color:var(--ink);margin:2px 0 10px;line-height:1.25}
+@keyframes tshake{10%,90%{transform:translateX(-2px)}20%,80%{transform:translateX(4px)}30%,50%,70%{transform:translateX(-7px)}40%,60%{transform:translateX(7px)}}
+
+/* ── великий малюнок (місяць, свято) ── */
+.bigc{text-align:center}
+.bigc .em{font-size:clamp(50px,12vh,84px);line-height:1;display:block;filter:drop-shadow(0 5px 6px rgba(0,0,0,.12))}
+.bigc b{display:block;font-family:'Fredoka';font-size:26px;color:#1e3a6b;margin-top:6px}
+
+/* ── аркуш календаря ── */
+.cal{background:#fff;border-radius:16px;padding:8px 8px 10px;box-shadow:var(--e1);width:100%;max-width:340px;cursor:default}
+.cal-h{font-family:'Fredoka';font-weight:700;font-size:18px;text-align:center;color:#1e3a6b;margin:0 0 6px}
+.cal-g{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal-g .wd{font-weight:800;font-size:11px;color:var(--soft);text-align:center}
+.cal-g .wd.we{color:#d9480f}
+.cal-g .c{height:var(--ch,30px);display:grid;place-items:center;border-radius:8px;font-family:'Fredoka';
+  font-weight:600;font-size:15px;background:#faf4e6;border:none;color:var(--ink);padding:0}
+.cal-g .c.we{color:#d9480f}
+.cal-g .c.e{background:none}
+.cal-g button.c{cursor:pointer;box-shadow:0 2px 0 #e6dcc6}
+.cal-g button.c:active{transform:translateY(1px);box-shadow:none}
+.cal-g .c.mark{background:var(--coral);color:#fff}
+.cal-g .c.right{background:var(--success);color:#fff}
+.cal-g .c.shake{animation:tshake .45s cubic-bezier(.36,.07,.19,.97);background:var(--bad-bg)}
+
+/* ── стрічка «учора — сьогодні — завтра» ── */
+.strip{display:flex;gap:6px;justify-content:center;width:100%;cursor:default}
+.cell{background:#fff;border-radius:14px;box-shadow:var(--e1);padding:8px 4px;min-width:82px;max-width:112px;
+  flex:1 1 0;text-align:center;border:3px solid transparent}
+.cell small{display:block;font-weight:800;font-size:10px;color:var(--soft);text-transform:uppercase}
+.cell .em{font-size:24px;display:block;line-height:1.2}
+.cell b{font-family:'Fredoka';font-weight:600;font-size:15px;display:block;margin-top:2px;line-height:1.15}
+.cell.now{border-color:var(--blue)}
+.cell.ask{border:3px dashed var(--coral)}
+.cell.ask b{color:var(--coral);font-size:22px}
+.cell.ok{border-color:var(--good);background:var(--good-bg)}
+.cell.ok b{color:var(--good);font-size:15px}
+
+/* ── кнопки-відповіді ── */
+.opts{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.opt{min-width:64px;height:56px;border:none;border-radius:16px;background:var(--blue);color:#fff;
+  font-family:'Fredoka';font-weight:700;font-size:26px;cursor:pointer;box-shadow:0 5px 0 #2f8fd6;padding:0 14px}
+.opt:active{transform:translateY(3px);box-shadow:0 2px 0 #2f8fd6}
+.opt.shake{animation:tshake .45s cubic-bezier(.36,.07,.19,.97);background:var(--bad);box-shadow:0 5px 0 #b34a4a}
+.opt.right{background:var(--success);box-shadow:0 5px 0 #37a052}
+.opt.off{opacity:.35;pointer-events:none}
+.opts.words{display:grid;grid-template-columns:1fr 1fr}
+.opts.words .opt{font-size:18px;font-weight:600;height:50px;min-width:0;padding:0 6px}
+
+/* ── послідовність подій: слоти й картки ── */
+.slots{display:flex;gap:6px;justify-content:center;width:100%;cursor:default}
+.slot{flex:1 1 0;max-width:96px;min-height:84px;border:3px dashed #d9cdb5;border-radius:14px;background:#fffdf7;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;font-size:11px;
+  padding:4px 3px;text-align:center;line-height:1.1;color:var(--ink)}
+.slot .n{font-family:'Fredoka';color:#bdb7ab;font-size:22px}
+.slot .em{font-size:28px;line-height:1.1}
+.slot.full{border-style:solid;border-color:var(--good);background:var(--good-bg)}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.card{border:3px solid var(--line);background:#fff;border-radius:14px;padding:6px 8px;font:800 14px 'Nunito',sans-serif;
+  display:flex;align-items:center;gap:6px;cursor:pointer;box-shadow:0 4px 0 rgba(44,43,58,.10);color:var(--ink);
+  text-align:left;min-height:50px;line-height:1.15}
+.card .em{font-size:24px;flex:none}
+.card:active{transform:translateY(2px)}
+.card.used{opacity:.22;pointer-events:none;box-shadow:none}
+.card.shake{animation:tshake .45s cubic-bezier(.36,.07,.19,.97);border-color:var(--bad);background:var(--bad-bg)}
+
+.fb{min-height:20px;font-weight:800;font-size:14px;line-height:1.3;margin:8px 0 0}
+.fb.good{color:var(--good)}
+.fb.bad{color:var(--bad)}
+
+.play-actions{display:flex;gap:8px;align-items:center;flex:none}
+.listen-btn{flex:1;border:none;background:var(--yellow);color:var(--ink);font-family:'Fredoka';
+  border-radius:14px;padding:12px;font-size:17px;cursor:pointer;box-shadow:0 5px 0 #e0b90f}
+.listen-btn:active{transform:translateY(3px);box-shadow:0 2px 0 #e0b90f}
+.next-btn{flex:1;display:none}
+.next-btn.on{display:block}
+
+/* ── підсумок раунду ── */
+.round-card{background:#fff;border:3px solid var(--line);border-radius:22px;padding:22px 18px;text-align:center;box-shadow:var(--e2)}
+.round-card .re{font-size:52px;line-height:1}
+.round-card h2{margin:8px 0 4px;color:#1e3a6b;font-size:26px}
+.round-card p{margin:0 0 14px;color:var(--soft);font-weight:800}
+.round-btns{display:flex;flex-direction:column;gap:10px}
+.ghost-btn{border:3px solid var(--line);background:#fff;color:var(--ink);border-radius:18px;padding:12px 18px;
+  font-family:'Fredoka';font-size:18px;cursor:pointer}
+
+/* ══════════════ СВЯТО Й НАГОРОДА ══════════════ */
+.win-ov{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
+  padding:18px;background:rgba(28,27,42,.62);overflow:hidden}
+.win-ov.on{display:flex}
+.win-confetti{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.win-card{position:relative;z-index:1;width:100%;max-width:400px;background:var(--paper);
+  border-radius:26px;padding:24px 20px 20px;text-align:center;box-shadow:var(--e3);
+  animation:winpop .42s cubic-bezier(.2,1.35,.4,1) both}
+@keyframes winpop{from{opacity:0;transform:scale(.82) translateY(18px)}to{opacity:1;transform:none}}
+.win-emoji{font-size:46px;line-height:1}
+.win-title{font-family:'Comfortaa','Fredoka',sans-serif;font-weight:700;font-size:24px;color:var(--coral);margin:6px 0 2px}
+.win-sub{color:var(--ink);font-weight:800;font-size:15px;margin:0 0 14px}
+.win-got{font-family:'Fredoka';font-weight:700;font-size:17px;color:var(--coral);margin:0 0 12px;line-height:1.2}
+.win-why{display:block;margin-top:6px;font-family:'Nunito',sans-serif;font-weight:700;
+  font-size:11px;color:var(--soft);word-break:break-word}
+.win-coins{display:inline-flex;align-items:center;gap:8px;background:#fff6df;border:2px solid #f4c842;
+  color:#8a5e16;font-family:'Fredoka';font-weight:700;font-size:20px;padding:8px 18px;border-radius:999px;margin-bottom:16px}
+.win-stat{display:inline-flex;align-items:center;gap:8px;background:#eaf7ef;border:2px solid #9ad8b4;
+  color:#1f7a4d;font-family:'Fredoka';font-weight:700;font-size:16px;padding:7px 16px;border-radius:999px;margin:0 0 10px}
+.reward-item{position:relative;display:flex;align-items:center;gap:14px;text-align:left;background:#fff;
+  border:3px solid var(--line);border-radius:20px;padding:14px;box-shadow:var(--e2);margin-bottom:18px}
+.reward-new{position:absolute;top:-9px;left:12px;background:var(--coral);color:#fff;font-family:'Fredoka';
+  font-weight:700;font-size:10px;letter-spacing:.5px;padding:2px 9px;border-radius:8px}
+.reward-item .pic{width:88px;height:88px;flex:none;border-radius:16px;display:grid;place-items:center;
+  font-size:46px;background:linear-gradient(160deg,#efe4ff,#d3bcff);box-shadow:inset 0 -4px 0 rgba(0,0,0,.08)}
+.reward-item .pic img{width:100%;height:100%;object-fit:contain;padding:8px}
+.reward-item .rx{flex:1;min-width:0}
+.reward-item .rname{font-family:'Fredoka';font-weight:700;font-size:17px;color:var(--ink);margin-bottom:5px;line-height:1.15}
+.reward-item .rmeta{color:var(--soft);font-weight:700;font-size:12px;margin-top:5px}
+.win-actions{display:flex;flex-direction:column;gap:8px}
+.win-close{background:none;border:none;color:var(--soft);font-family:'Nunito',sans-serif;font-weight:800;
+  font-size:15px;cursor:pointer;padding:6px}
+
+.no-voice .listen-btn,.no-voice .voice-row{display:none!important}
+.voice-row{display:flex;align-items:center;gap:8px;font-size:.82rem;color:var(--soft);
+  font-weight:800;margin:0 0 8px;padding:6px 10px;background:#fff;border:2px solid var(--line);border-radius:12px}
+.voice-row.hidden{display:none}
+.voice-row select{font:800 .82rem 'Nunito',sans-serif;color:var(--ink);border:none;background:transparent;flex:1;min-width:0}
+
+
+@media(max-width:440px){
+  .abc-blocks{gap:8px;margin:2px 0;padding-left:48px}
+  .ab{width:52px;height:52px;border-radius:14px;font-size:28px}
+  #start{gap:8px;padding-top:8px}
+  #start h1{font-size:30px}
+  .sub{font-size:14px}
+  .rhyme{padding:9px 14px;font-size:14px;border-radius:16px}
+  .start-btns{gap:8px}
+  #start .big-btn{padding:13px 18px;font-size:18px}
+  .prog-card{padding:10px 14px}
+  .prog-card .pc-txt{margin-bottom:5px}
+  .cell{min-width:64px;padding:6px 3px}
+}
+@media (max-height:700px){
+  .wc-body{padding:6px 10px 8px}
+  .q{font-size:16px;margin-bottom:6px}
+  .opt{height:48px;font-size:22px}
+  .opts.words .opt{height:44px;font-size:16px}
+  .slot{min-height:70px}
+  .listen-btn{padding:10px;font-size:16px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ══════ СТАРТ ══════ -->
+  <section id="start" class="screen on">
+    <div class="start-top">
+      <button class="iconbtn" onclick="exitTrainer()" title="Назад" aria-label="Назад">←</button>
+    </div>
+    <div class="abc-blocks">
+      <div class="ab">Д</div><div class="ab">А</div><div class="ab">Т</div><div class="ab">А</div><div class="ab">🗓️</div>
+    </div>
+    <h1>Календар</h1>
+    <p class="sub">1 клас · місяці, дата, учора й завтра · <span id="startCount">40</span> завдань</p>
+    <p class="rhyme" id="startRhyme">Рік — як потяг із дванадцяти вагонів:<br>у кожному вагоні — свій місяць!</p>
+
+    <div class="done-card" id="startDone">
+      <span class="dc-ic">🏆</span>
+      <div class="dc-body">
+        <div class="dc-got" id="doneGot">Тренажер пройдено!</div>
+        <div class="dc-go" id="doneGo">Вирушай за новими досягненнями!</div>
+      </div>
+    </div>
+
+    <!-- Обкладинка: поки файлу немає, показуємо тимчасовий знак, щоб екран
+         не зяяв порожнечею. Досить покласти img/tr/kalendar.webp. -->
+    <div class="start-hero" id="startHero">
+      <img src="../img/tr/kalendar.webp?v=1" alt=""
+           onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('div'),{className:'hero-stub',textContent:'🗓️'}))">
+    </div>
+
+    <div class="start-btns">
+      <button class="big-btn" id="startBtn" onclick="goThemes()">🗓️ Почати ▶</button>
+    </div>
+
+    <div class="prog-card" id="startProgCard">
+      <span class="pc-ic">📗</span>
+      <div class="pc-body">
+        <div class="pc-txt" id="startProgTxt">Виконано 0 з 40</div>
+        <div class="pc-bar"><span id="startProgFill" style="width:0%"></span></div>
+      </div>
+      <span class="pc-star">⭐</span>
+    </div>
+  </section>
+
+  <!-- ══════ ТЕМИ ══════ -->
+  <section id="themes" class="screen">
+    <div class="topbar">
+      <button class="iconbtn" onclick="goStart()" title="Назад">←</button>
+      <div class="title">Обери завдання<small id="themesSub">Місяці, дата, учора й завтра</small></div>
+      <button class="iconbtn sndbtn" onclick="toggleSound()" title="Звук уроку" aria-label="Звук уроку"></button>
+    </div>
+    <div class="theme-list" id="themeList"></div>
+    <div class="foot">Прогрес зберігається на цьому пристрої</div>
+  </section>
+
+  <!-- ══════ ГРА ══════ -->
+  <section id="play" class="screen">
+    <div class="topbar">
+      <button class="iconbtn" onclick="goThemes()" title="До завдань">←</button>
+      <div class="progress-line">
+        <div class="bar"><span id="playBar" style="width:0%"></span></div>
+        <span class="pt" id="playPt">0 / 0</span>
+      </div>
+      <button class="iconbtn sndbtn" onclick="toggleSound()" title="Звук уроку" aria-label="Звук уроку"></button>
+    </div>
+    <div class="voice-row hidden" id="voiceRow"><span>🎙</span><select id="voiceSel" aria-label="Голос"></select></div>
+
+    <div class="word-card">
+      <div class="vis" id="vis"></div>
+      <div class="wc-body">
+        <div class="rule" id="ruleTxt"></div>
+        <div class="q" id="qTxt"></div>
+        <div id="ansBox"></div>
+        <div class="fb" id="fbTxt"></div>
+      </div>
+    </div>
+
+    <div class="play-actions">
+      <button class="listen-btn" id="listenBtn" onclick="speakTask()">🔊 Послухати</button>
+      <button class="big-btn success next-btn" id="nextBtn" onclick="nextTask()">Далі →</button>
+    </div>
+  </section>
+
+  <!-- ══════ ПІДСУМОК РАУНДУ ══════ -->
+  <section id="round" class="screen">
+    <div class="topbar">
+      <button class="iconbtn" onclick="goThemes()" title="До завдань">←</button>
+      <div class="title" id="roundTitle">Раунд завершено</div>
+    </div>
+    <div class="round-card">
+      <div class="re" id="roundEmoji">🌟</div>
+      <h2 id="roundHead">Молодець!</h2>
+      <p id="roundTxt"></p>
+      <div class="round-btns">
+        <button class="big-btn success" onclick="startTheme(mode.id)">▶ Ще раунд</button>
+        <button class="ghost-btn" onclick="goThemes()">Інші завдання</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- ══════ СВЯТО: усі завдання виконано ══════ -->
+<div class="win-ov" id="winOv" onclick="if(event.target===this)closeWin()">
+  <canvas class="win-confetti" id="winConfetti"></canvas>
+  <div class="win-card">
+    <div class="win-emoji">🏆</div>
+    <div class="win-title">Усі завдання виконано!</div>
+    <div class="win-sub">Ти знаєш місяці, читаєш календар і не плутаєш учора й завтра!</div>
+    <div class="win-got" id="winGot" style="display:none"></div>
+    <div class="win-coins" id="winCoins" style="display:none">+0 <span>🪙</span> монет</div>
+    <div class="win-stat" id="winStat" style="display:none"></div>
+    <div id="winReward"></div>
+    <div class="win-actions">
+      <button class="big-btn success" onclick="winPlay()">🗓️ Тренуватись ще</button>
+      <button class="win-close" onclick="closeWin()">Закрити</button>
+    </div>
+  </div>
+</div>
+
+<script src="../sk-footer.js?v=6" data-base="../" data-back="tests.html"></script>
+
+<script>
+/* ============================================================
+   КАЛЕНДАР — 1 клас.
+
+   Чотири види завдань, кожне генерується випадково:
+     • Місяці     — порядок місяців, пори року, номер місяця, свята;
+     • Дата       — аркуш календаря: знайти число, день тижня,
+                    скільки днів у місяці, «через тиждень»;
+     • Учора й завтра — дні тижня і числа (з переходом через місяць);
+     • Послідовність — розставити події по порядку.
+   Календар — справжній, поточного року.
+
+   Раунд — 8 завдань. Помилка без штрафу: варіант тремтить,
+   зʼявляється підказка, можна пробувати ще. Тема зараховується
+   після GOAL розвʼязаних завдань.
+
+   Прогрес: sk_kalendar_v1 (простір sk_* — синхронізується per-Hero).
+   Нагорода за повне проходження — sk-rewards.js, як в інших тренажерах.
+   ============================================================ */
+
+const MONTHS=['січень','лютий','березень','квітень','травень','червень','липень','серпень','вересень','жовтень','листопад','грудень'];
+const M_GEN=['січня','лютого','березня','квітня','травня','червня','липня','серпня','вересня','жовтня','листопада','грудня'];
+const M_LOC=['січні','лютому','березні','квітні','травні','червні','липні','серпні','вересні','жовтні','листопаді','грудні'];
+const M_EMO=['⛄','❄️','🌷','🌱','🌼','🍓','☀️','🌻','🍎','🍂','🍁','🎄'];
+const SEASONS=[
+  {n:'зима',  e:'❄️', ms:[11,0,1]},
+  {n:'весна', e:'🌷', ms:[2,3,4]},
+  {n:'літо',  e:'☀️', ms:[5,6,7]},
+  {n:'осінь', e:'🍂', ms:[8,9,10]}
+];
+const HOLIDAYS=[
+  {n:'Новий рік',              d:1,  m:0, e:'🎆'},
+  {n:'День знань',             d:1,  m:8, e:'🔔'},
+  {n:'Різдво',                 d:25, m:11, e:'🎄'},
+  {n:'День Незалежності України', d:24, m:7, e:'🇺🇦'},
+  {n:'День захисту дітей',     d:1,  m:5, e:'🧒'},
+  {n:'Міжнародний жіночий день', d:8, m:2, e:'💐'}
+];
+/* дні тижня з понеділка, як у шкільному календарі */
+const DAYS=['понеділок','вівторок','середа','четвер','пʼятниця','субота','неділя'];
+const D_SHORT=['Пн','Вт','Ср','Чт','Пт','Сб','Нд'];
+const D_GEN_PL=['понеділків','вівторків','серед','четвергів','пʼятниць','субот','неділь'];
+const OFF={'-2':'позавчора','-1':'учора','0':'сьогодні','1':'завтра','2':'післязавтра'};
+
+/* події для «Послідовності»; months/days збираються з поточних даних */
+const SEQS=[
+  {n:'Ранок',      items:[['🛏️','прокинутись'],['🪥','умитись'],['🥣','поснідати'],['🎒','піти до школи']]},
+  {n:'Доба',       items:[['🌅','ранок'],['☀️','день'],['🌇','вечір'],['🌙','ніч']]},
+  {n:'Пори року',  q:'Почни із зими.', items:[['❄️','зима'],['🌷','весна'],['☀️','літо'],['🍂','осінь']]},
+  {n:'Рослина',    items:[['🌰','посадили насіння'],['🌱','виріс паросток'],['🌸','розквітла квітка'],['🍎','достигло яблуко']]},
+  {n:'Курча',      items:[['🥚','яйце'],['🐣','курча вилуплюється'],['🐥','курча'],['🐔','курка']]},
+  {n:'Пиріг',      items:[['🛒','купили борошно'],['🥧','спекли пиріг'],['🍽️','накрили на стіл'],['😋','зʼїли пиріг']]},
+  {n:'Людина',     items:[['👶','немовля'],['🧒','дитина'],['🧑','дорослий'],['👵','бабуся']]},
+  {n:'Час',        items:[['⏪','позавчора'],['◀️','учора'],['📍','сьогодні'],['▶️','завтра']]},
+  {n:'Місяці',     gen:'months'},
+  {n:'Дні тижня',  gen:'days'}
+];
+
+const MODES=[
+  {id:'months', name:'Місяці',          ic:'🍂', c:'var(--orange)',
+   desc:'Порядок, пори року, свята',      rule:'У році 12 місяців, перший — січень'},
+  {id:'date',   name:'Дата',            ic:'🗓️', c:'var(--blue)',
+   desc:'Читаємо календар',               rule:'Дата — це число і місяць: 1 вересня'},
+  {id:'days',   name:'Учора й завтра',  ic:'⏰', c:'var(--teal)',
+   desc:'Учора, сьогодні, завтра',        rule:'Учора → сьогодні → завтра'},
+  {id:'seq',    name:'Послідовність',   ic:'🔢', c:'var(--purple)',
+   desc:'Що спочатку, а що потім?',       rule:'Натискай події по порядку'}
+];
+const ROUND=8, GOAL=10;
+const ALL=MODES.length*GOAL;
+const Y=new Date().getFullYear();
+
+/* ══════ ДАТИ ══════ */
+function dim(y,m){ return new Date(y,m+1,0).getDate(); }            // днів у місяці
+function wd(y,m,d){ return (new Date(y,m,d).getDay()+6)%7; }        // 0 — понеділок
+function dstr(d,m){ return d+' '+M_GEN[m]; }
+function seasonOf(m){ return SEASONS.find(s=>s.ms.indexOf(m)>=0); }
+
+/* ══════ МАЛЮНКИ ЗАВДАНЬ ══════ */
+function bigHTML(em,txt){ return '<div class="bigc"><span class="em">'+em+'</span>'+(txt?'<b>'+txt+'</b>':'')+'</div>'; }
+/* аркуш календаря; o.mark — виділене число, o.tap — числа-кнопки */
+function calHTML(m,o){
+  o=o||{};
+  const first=wd(Y,m,1), n=dim(Y,m);
+  let h='<div class="cal"><div class="cal-h">'+M_EMO[m]+' '+capFirst(MONTHS[m])+' '+Y+'</div><div class="cal-g">';
+  h+=D_SHORT.map((s,i)=>'<div class="wd'+(i>4?' we':'')+'">'+s+'</div>').join('');
+  for(let i=0;i<first;i++) h+='<div class="c e"></div>';
+  for(let d=1;d<=n;d++){
+    const cls='c'+(((first+d-1)%7)>4?' we':'')+(o.mark===d?' mark':'');
+    h+= o.tap ? '<button class="'+cls+'" data-d="'+d+'" onclick="pickDay(this,'+d+')">'+d+'</button>'
+              : '<div class="'+cls+'">'+d+'</div>';
+  }
+  return h+'</div></div>';
+}
+/* стрічка клітинок: {lab, em, val, ask, now} */
+function stripHTML(cells){
+  return '<div class="strip">'+cells.map(function(c,i){
+    return '<div class="cell'+(c.ask?' ask':'')+(c.now?' now':'')+'" id="cell'+i+'">'
+      +(c.lab?'<small>'+c.lab+'</small>':'')+(c.em?'<span class="em">'+c.em+'</span>':'')
+      +'<b>'+(c.ask?'?':c.val)+'</b></div>';
+  }).join('')+'</div>';
+}
+
+/* Варіанти відповіді: правильна + близькі помилки + випадкові з pool. */
+function pickOpts(ans,near,pool,n,ordered){
+  const seen={}, out=[];
+  [ans].concat(near||[], shuffle(pool||[])).forEach(x=>{ x=String(x); if(!seen[x] && out.length<(n||4)){ seen[x]=1; out.push(x); } });
+  if(ordered && pool) return out.sort((a,b)=>pool.indexOf(a)-pool.indexOf(b));
+  if(ordered) return out.sort((a,b)=>parseInt(a,10)-parseInt(b,10));
+  return shuffle(out);
+}
+
+/* ══════ ГЕНЕРАТОРИ ЗАВДАНЬ ══════
+   Завдання: {vis, q, ans, opts, ok, hint} — вибір із варіантів;
+             {type:'grid', ans:<число>} — натиснути число на календарі;
+             {type:'seq', items} — розставити події. */
+function genMonths(){
+  const m=randInt(12), k=randInt(6);
+  if(k===0){
+    const a=MONTHS[(m+1)%12];
+    return {vis:stripHTML([{em:M_EMO[m],val:MONTHS[m]},{ask:1}]),
+      q:'Який місяць іде після '+M_GEN[m]+'?', ans:a,
+      opts:pickOpts(a,[MONTHS[(m+11)%12],MONTHS[(m+2)%12]],MONTHS),
+      ok:'Після '+M_GEN[m]+' — '+a+'.', hint:'Назви місяці по черзі: … '+MONTHS[(m+11)%12]+', '+MONTHS[m]+', а далі?'};
+  }
+  if(k===1){
+    const a=MONTHS[(m+11)%12];
+    return {vis:stripHTML([{ask:1},{em:M_EMO[m],val:MONTHS[m]}]),
+      q:'Який місяць був до '+M_GEN[m]+'?', ans:a,
+      opts:pickOpts(a,[MONTHS[(m+1)%12],MONTHS[(m+10)%12]],MONTHS),
+      ok:'Спершу '+a+', а потім '+MONTHS[m]+'.', hint:'Назви місяці по черзі й зупинись перед «'+MONTHS[m]+'».'};
+  }
+  if(k===2){
+    const s=seasonOf(m);
+    return {vis:bigHTML(M_EMO[m],capFirst(MONTHS[m])),
+      q:'Яка пора року — '+MONTHS[m]+'?', ans:s.n, opts:SEASONS.map(x=>x.n),
+      ok:capFirst(s.n)+': '+s.ms.map(i=>MONTHS[i]).join(', ')+'.',
+      hint:'Згадай, яка погода в '+M_LOC[m]+'.'};
+  }
+  if(k===3){
+    const a=(m+1)+'-й', near=[m,m+2].filter(x=>x>=1&&x<=12).map(x=>x+'-й');
+    return {vis:bigHTML(M_EMO[m],capFirst(MONTHS[m])),
+      q:'Котрий за порядком місяць '+MONTHS[m]+'?', ans:a,
+      opts:pickOpts(a,near,['1-й','2-й','3-й','4-й','5-й','6-й','7-й','8-й','9-й','10-й','11-й','12-й'],4,true),
+      ok:capFirst(MONTHS[m])+' — '+(m+1)+'-й місяць року.', hint:'Рахуй від січня: січень — 1-й, лютий — 2-й…'};
+  }
+  if(k===4){
+    const a=MONTHS[m];
+    return {vis:bigHTML('🔢',(m+1)+'-й місяць'),
+      q:'Як називається '+(m+1)+'-й місяць року?', ans:a,
+      opts:pickOpts(a,[MONTHS[(m+11)%12],MONTHS[(m+1)%12]],MONTHS),
+      ok:(m+1)+'-й місяць — '+a+'.', hint:'Рахуй на пальчиках від січня.'};
+  }
+  const h=HOLIDAYS[randInt(HOLIDAYS.length)], a=MONTHS[h.m];
+  return {vis:bigHTML(h.e,h.n),
+    q:'У якому місяці '+h.n+'?', ans:a,
+    opts:pickOpts(a,[MONTHS[(h.m+11)%12],MONTHS[(h.m+1)%12]],MONTHS),
+    ok:h.n+' — '+dstr(h.d,h.m)+'.', hint:'Подумай, яка тоді пора року.'};
+}
+
+function genDate(){
+  const m=randInt(12), n=dim(Y,m), k=randInt(5);
+  if(k===0){
+    const d=1+randInt(n);
+    return {type:'grid', vis:calHTML(m,{tap:true}), ans:d,
+      q:'Знайди на календарі '+dstr(d,m)+'.',
+      ok:dstr(d,m)+' '+Y+' — це '+DAYS[wd(Y,m,d)]+'.', hint:'Шукай число '+d+'.'};
+  }
+  if(k===1){
+    const d=1+randInt(n), w=wd(Y,m,d), a=DAYS[w];
+    return {vis:calHTML(m,{mark:d}), ans:a,
+      q:'Який день тижня '+dstr(d,m)+'?',
+      opts:pickOpts(a,[DAYS[(w+1)%7],DAYS[(w+6)%7]],DAYS,4,true),
+      ok:dstr(d,m)+' — '+a+'.', hint:'Подивись, у якому стовпчику стоїть число '+d+': Пн, Вт, Ср…'};
+  }
+  if(k===2){
+    const a=String(n);
+    return {vis:calHTML(m), ans:a,
+      q:'Скільки днів у '+M_LOC[m]+'?', opts:['28','29','30','31'].filter(x=>x!=='29'||m===1),
+      ok:'У '+M_LOC[m]+' '+n+' '+plural(n,'день','дні','днів')+'.', hint:'Подивись на останнє число місяця.'};
+  }
+  if(k===3){
+    const d=1+randInt(n-7), a=String(d+7);
+    return {vis:calHTML(m,{mark:d}), ans:a,
+      q:'Яке число буде через тиждень після '+dstr(d,m)+'?',
+      opts:pickOpts(a,[d+6,d+8,d+1],[],4,true),
+      ok:'У тижні 7 днів: '+d+' + 7 = '+(d+7)+'.', hint:'У тижні 7 днів. Опустись у календарі на рядок нижче.'};
+  }
+  const w=randInt(7);
+  let cnt=0; for(let d=1;d<=n;d++) if(wd(Y,m,d)===w) cnt++;
+  const a=String(cnt);
+  return {vis:calHTML(m), ans:a,
+    q:'Скільки '+D_GEN_PL[w]+' у '+M_LOC[m]+'?', opts:['3','4','5','6'],
+    ok:'У стовпчику «'+D_SHORT[w]+'» '+cnt+' '+plural(cnt,'число','числа','чисел')+'.',
+    hint:'Порахуй числа в стовпчику «'+D_SHORT[w]+'».'};
+}
+
+function genDays(){
+  if(randInt(5)<3){                                   // дні тижня
+    const pairs=[[0,1],[0,-1],[-1,0],[1,0],[0,2],[0,-2],[-1,1],[1,-1]];
+    const pr=pairs[randInt(pairs.length)], kn=pr[0], as=pr[1];
+    const w=randInt(7), day=o=>DAYS[(w+o-kn+14)%7];
+    const lo=Math.min(kn,as,0), hi=Math.max(kn,as,0), cells=[];
+    for(let o=lo;o<=hi;o++) cells.push({lab:OFF[o], val:o===kn?day(o):'…', ask:o===as, now:o===0});
+    const a=day(as), ai=DAYS.indexOf(a);
+    const verb=as<0?'був ':(as>0?'буде ':'');
+    return {vis:stripHTML(cells), ans:a, cells:cells, cellVals:cells.map((c,i)=>day(lo+i)),
+      q:capFirst(OFF[kn])+' — '+day(kn)+'. Який день тижня '+verb+OFF[as]+'?',
+      opts:pickOpts(a,[day(kn),DAYS[(ai+1)%7],DAYS[(ai+6)%7]],DAYS,4,true),
+      ok:capFirst(cells.map((c,i)=>c.lab+' — '+day(lo+i)).join(', '))+'.',
+      hint:'Учора → сьогодні → завтра. Назви дні тижня по черзі.'};
+  }
+  // числа: завтра чи вчора, часто — на межі місяців
+  const as=randInt(2)?1:-1, m=randInt(12), n=dim(Y,m), edge=randInt(2)===0;
+  const d = edge ? (as>0?n:1) : 2+randInt(n-2);
+  const t=new Date(Y,m,d+as), a=dstr(t.getDate(),t.getMonth());
+  const near=[dstr(d-as>=1&&d-as<=n?d-as:d,m)];
+  if(edge) near.push(as>0 ? dstr(1,m) : dstr(dim(Y,(m+11)%12),m));
+  else near.push(dstr(d+2*as,m));
+  const cells=[{lab:'сьогодні', val:dstr(d,m), now:true}];
+  if(as>0) cells.push({lab:'завтра', ask:1}); else cells.unshift({lab:'учора', ask:1});
+  return {vis:stripHTML(cells), ans:a, cells:cells, cellVals:cells.map(c=>c.ask?a:c.val),
+    q:'Сьогодні '+dstr(d,m)+'. Яке число '+(as>0?'буде завтра':'було вчора')+'?',
+    opts:pickOpts(a,near,[],3),
+    ok: edge ? ('У '+M_LOC[m]+' '+n+' '+plural(n,'день','дні','днів')+', тож '
+                +(as>0 ? 'після '+dstr(n,m)+' настає '+a : 'перед 1 '+M_GEN[m]+' було '+a)+'.')
+             : (capFirst(as>0?'завтра':'учора')+' — '+a+'.'),
+    hint: edge ? 'Подумай, скільки днів у '+M_LOC[(as>0?m:(m+11)%12)]+'.' : (as>0?'Завтра — на один день більше.':'Учора — на один день менше.')};
+}
+
+function genSeq(){
+  const s=SEQS[randInt(SEQS.length)];
+  let items;
+  if(s.gen==='months'){ const m=randInt(12); items=[0,1,2,3].map(i=>[M_EMO[(m+i)%12],MONTHS[(m+i)%12]]); }
+  else if(s.gen==='days'){ const w=randInt(7); items=[0,1,2,3].map(i=>['🗓️',DAYS[(w+i)%7]]); }
+  else items=s.items;
+  return {type:'seq', items:items,
+    vis:'<div class="slots">'+items.map((x,i)=>'<div class="slot" id="slot'+i+'"><span class="n">'+(i+1)+'</span></div>').join('')+'</div>',
+    q:'Що спочатку, а що потім? Натискай по порядку.'+(s.q?' '+s.q:''),
+    ok:items.map(x=>x[1]).join(' → '), hint:'Що буває раніше?'};
+}
+const GENS={months:genMonths, date:genDate, days:genDays, seq:genSeq};
+
+/* ══════ СТАН ══════ */
+const SAVE_KEY='sk_kalendar_v1';
+const PRIZE_KEY='sk_kalendar_prize_v1';   // нагороду вже показано (і що саме)
+const TR_HREF=(location.pathname.split('/').pop()||'').toLowerCase()||'kalendar.html';
+
+let state={done:{},soundOn:true};
+let mode=null, qi=0, cur=null, taskDone=false, firstTry=true, rightFirst=0, seqPos=0, lastQ='';
+
+function load(){
+  try{ const s=JSON.parse(localStorage.getItem(SAVE_KEY));
+    if(s){ state.done=s.done||{}; state.soundOn=s.soundOn!==false; } }catch(e){}
+}
+function save(){ try{ localStorage.setItem(SAVE_KEY,JSON.stringify(state)); }catch(e){} }
+function modeDone(m){ return Math.min(GOAL, Number(state.done[m.id])||0); }
+function doneCount(){ return MODES.reduce((a,m)=>a+modeDone(m),0); }
+function allDone(){ return doneCount()>=ALL; }
+load();
+
+/* ══════ ЕКРАНИ ══════ */
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+  window.scrollTo(0,0);
+}
+function goStart(){ stopAudio(); show('start'); refreshStart(); }
+function goThemes(){ stopAudio(); show('themes'); renderThemes(); }
+function exitTrainer(){ stopAudio(); if(history.length>1) history.back(); else location.href=(window.skBackUrl?skBackUrl('tests.html'):'../tests.html'); }
+
+window.addEventListener('load',()=>{ if(window.skReportProgress) skReportProgress(doneCount(), ALL); });   // sk-finish.js підключено нижче
+function refreshStart(){
+  if(window.skReportProgress) skReportProgress(doneCount(), ALL);   // прогрес для картки в «Навчанні»
+  const n=doneCount(), done=n>=ALL;
+  document.getElementById('startCount').textContent=ALL;
+  document.getElementById('startProgTxt').textContent = done ? '🎉 Усі завдання виконано!' : ('Виконано '+n+' з '+ALL);
+  const fill=document.getElementById('startProgFill'); if(fill) fill.style.width=Math.round(n/ALL*100)+'%';
+  const card=document.getElementById('startProgCard'); if(card) card.classList.toggle('done',done);
+  const sb=document.getElementById('startBtn');
+  if(sb) sb.textContent = n ? '🗓️ Продовжити ▶' : '🗓️ Почати ▶';
+  renderDoneCard();
+}
+
+/* ══════ ТЕМИ (види завдань) ══════ */
+function renderThemes(){
+  const box=document.getElementById('themeList');
+  box.innerHTML=MODES.map(function(m){
+    const d=modeDone(m), full=d>=GOAL;
+    return '<div class="ttile'+(full?' done':'')+'" onclick="startTheme(\''+m.id+'\')">'
+      +'<div class="ic" style="background:'+m.c+'">'+m.ic+'</div>'
+      +'<div class="tx"><b>'+m.name+'</b><span>'+(full?'тему пройдено ✓':(m.desc+' · '+d+' з '+GOAL))+'</span>'
+      +'<div class="tbar"><i style="width:'+Math.round(d/GOAL*100)+'%"></i></div></div>'
+      +'<div class="go">'+(full?'✓':'▶')+'</div></div>';
+  }).join('');
+  const sub=document.getElementById('themesSub');
+  if(sub) sub.textContent='Виконано '+doneCount()+' з '+ALL;
+  // усе позаду, а нагорода ще не бралась (або предмет загубився)
+  if(allDone() && !localStorage.getItem(PRIZE_KEY)) setTimeout(openPrize,500);
+  else if(allDone()) checkLostPrize();
+}
+
+/* ══════ ГРА ══════ */
+function startTheme(id){
+  mode=MODES.find(m=>m.id===id); if(!mode) return;
+  qi=0; rightFirst=0; lastQ='';
+  show('play');
+  renderTask();
+}
+function renderTask(){
+  // те саме питання двічі поспіль не ставимо
+  for(let i=0;i<6;i++){ cur=GENS[mode.id](); if(cur.q+cur.ans!==lastQ) break; }
+  lastQ=cur.q+cur.ans;
+  taskDone=false; firstTry=true; seqPos=0;
+  document.getElementById('vis').innerHTML=cur.vis;
+  document.getElementById('ruleTxt').textContent=mode.rule;
+  document.getElementById('qTxt').textContent=cur.q;
+  const fb=document.getElementById('fbTxt'); fb.className='fb'; fb.textContent='';
+  document.getElementById('nextBtn').classList.remove('on');
+  // висота клітинок календаря — щоб аркуш уміщався над відповідями
+  const vis=document.getElementById('vis');
+  vis.style.setProperty('--ch', Math.max(20, Math.min(34, Math.floor(((vis.clientHeight||240)-62)/6)))+'px');
+
+  const ans=document.getElementById('ansBox');
+  if(cur.type==='grid') ans.innerHTML='';
+  else if(cur.type==='seq'){
+    const order=shuffle(cur.items.map((x,i)=>i));
+    ans.innerHTML='<div class="cards">'+order.map(i=>
+      '<button class="card" onclick="pickCard(this,'+i+')"><span class="em">'+cur.items[i][0]+'</span><span>'+cur.items[i][1]+'</span></button>').join('')+'</div>';
+  } else {
+    const words=cur.opts.some(o=>o.length>3);
+    ans.innerHTML='<div class="opts'+(words?' words':'')+'">'+cur.opts.map((o,i)=>
+      '<button class="opt" onclick="pickOpt(this,'+i+')">'+o+'</button>').join('')+'</div>';
+  }
+  updatePlayBar();
+  speakTask();
+}
+
+/* ── відповіді ── */
+function pickOpt(btn,i){
+  if(taskDone) return;
+  if(cur.opts[i]!==cur.ans){ wrong(btn); return; }
+  btn.classList.add('right');
+  document.querySelectorAll('#ansBox .opt').forEach(b=>{ if(b!==btn) b.classList.add('off'); });
+  // у стрічці «учора — завтра» відкриваємо всі клітинки
+  if(cur.cells) cur.cells.forEach(function(c,k){
+    const el=document.getElementById('cell'+k); if(!el) return;
+    el.querySelector('b').textContent=cur.cellVals[k];
+    if(c.ask) el.classList.add('ok');
+  });
+  solved();
+}
+function pickDay(btn,d){
+  if(taskDone) return;
+  if(d!==cur.ans){ wrong(btn); return; }
+  btn.classList.add('right');
+  solved();
+}
+function pickCard(btn,i){
+  if(taskDone) return;
+  if(i!==seqPos){ wrong(btn); return; }
+  btn.classList.add('used');
+  const slot=document.getElementById('slot'+seqPos);
+  if(slot){ slot.classList.add('full');
+    slot.innerHTML='<span class="em">'+cur.items[i][0]+'</span>'+cur.items[i][1]; }
+  seqPos++;
+  if(seqPos>=cur.items.length) solved();
+}
+function wrong(el){
+  firstTry=false;
+  el.classList.add('shake');
+  setTimeout(()=>el.classList.remove('shake'),460);
+  try{ if(navigator.vibrate) navigator.vibrate(25); }catch(e){}
+  const fb=document.getElementById('fbTxt');
+  fb.className='fb bad'; fb.textContent='🤔 '+cur.hint;
+}
+function solved(){
+  const fb=document.getElementById('fbTxt');
+  fb.className='fb good'; fb.textContent='✓ '+cur.ok;
+  taskDone=true;
+  if(firstTry) rightFirst++;
+  state.done[mode.id]=Math.min(GOAL,(Number(state.done[mode.id])||0)+1); save();
+  document.getElementById('nextBtn').classList.add('on');
+  updatePlayBar();
+  try{ if(navigator.vibrate) navigator.vibrate([40,60,40]); }catch(e){}
+  setTimeout(()=>playAudio(null, cur.ok, 'listenBtn'), 380);
+}
+function nextTask(){
+  stopAudio();
+  qi++;
+  if(qi>=ROUND){ showRound(); return; }
+  renderTask();
+}
+function showRound(){
+  const d=modeDone(mode);
+  document.getElementById('roundTitle').textContent=mode.name;
+  document.getElementById('roundEmoji').textContent = rightFirst===ROUND ? '🏅' : (rightFirst>=ROUND/2 ? '🌟' : '💪');
+  document.getElementById('roundHead').textContent = rightFirst===ROUND ? 'Без жодної помилки!' : 'Молодець!';
+  document.getElementById('roundTxt').textContent='З першої спроби: '+rightFirst+' з '+ROUND
+    +' · «'+mode.name+'»: '+d+' з '+GOAL;
+  show('round');
+  if(allDone() && !localStorage.getItem(PRIZE_KEY)) setTimeout(openPrize,500);
+}
+function updatePlayBar(){
+  const i=qi+(taskDone?1:0);
+  document.getElementById('playBar').style.width=Math.round(i/ROUND*100)+'%';
+  document.getElementById('playPt').textContent=mode.name+' · '+Math.min(qi+1,ROUND)+' / '+ROUND;
+}
+
+/* ══════ НАГОРОДА ЗА ПОВНЕ ПРОХОДЖЕННЯ ══════ */
+let confettiRAF=null, prizeShown=false, lostChecked=false;
+async function openPrize(){
+  if(prizeShown) return;
+  prizeShown=true;
+  try{ if(window.skFinishRecord) skFinishRecord(); }catch(e){}
+  fillWin({emoji:'🏆', title:'Усі завдання виконано!', sub:'Ти знаєш місяці, читаєш календар і не плутаєш учора й завтра!',
+           action:'🗓️ Тренуватись ще', onAction:'winPlay()'});
+  document.getElementById('winOv').classList.add('on');
+  launchConfetti();
+  const res=await claimAndFill();
+  if(res && !res.skipped && !res.failed){
+    try{ localStorage.setItem(PRIZE_KEY, JSON.stringify({
+      at:Date.now(), coins:res.coins||0,
+      names:(res.items||[]).map(function(i){return i.name;}),
+      stat:res.stat?{label:res.stat.label,value:res.stat.value}:null })); }catch(e){}
+    refreshStart();
+  } else prizeShown=false;
+}
+function fillWin(o){
+  const q=id=>document.getElementById(id);
+  const ov=q('winOv');
+  ov.querySelector('.win-emoji').textContent=o.emoji;
+  ov.querySelector('.win-title').textContent=o.title;
+  ov.querySelector('.win-sub').textContent=o.sub;
+  const btn=ov.querySelector('.win-actions .big-btn');
+  btn.textContent=o.action; btn.setAttribute('onclick',o.onAction);
+  const got=q('winGot'), coins=q('winCoins'), stat=q('winStat'), rew=q('winReward');
+  if(got){ got.style.display=o.got?'':'none'; got.textContent=o.got||''; }
+  if(coins) coins.style.display='none';
+  if(stat){ stat.style.display='none'; stat.textContent=''; }
+  if(rew) rew.innerHTML='';
+}
+async function claimAndFill(){
+  function bonusTxt(b){ return b>1.15?'+20%':(b>1?'+10%':(b<1?'−10%':'')); }
+  const coinsEl=document.getElementById('winCoins');
+  const gotEl=document.getElementById('winGot');
+  const statEl=document.getElementById('winStat');
+  const rewrap=document.getElementById('winReward');
+  let res=null;
+  try{ if(window.SKREWARD) res=await SKREWARD.claim(TR_HREF); }catch(e){ res=null; }
+  if(!res || res.skipped) return res||{skipped:true};
+  if(res.failed){
+    if(gotEl){ gotEl.style.display='';
+      gotEl.innerHTML='Нагорода не збереглась — заберемо її, щойно буде звʼязок 🎁'
+        +'<span class="win-why">'+escH(res.failed.join(' · '))+'</span>'; }
+    return res;
+  }
+  if(res.already){ if(gotEl){ gotEl.style.display=''; gotEl.textContent='Нагороду вже отримано 🎁'; } return res; }
+  if(res.coins>0 && coinsEl){ coinsEl.style.display=''; coinsEl.innerHTML='+'+res.coins+' <span>🪙</span> монет'; }
+  if(res.stat && statEl){ statEl.style.display=''; statEl.textContent='✨ +'+res.stat.value+' до «'+res.stat.label+'»'; }
+  if(res.items && res.items.length){
+    if(gotEl){ gotEl.style.display=''; gotEl.textContent='Ти отримав: '+res.items.map(x=>x.name).join(', ')+'!'; }
+    if(rewrap) rewrap.innerHTML=res.items.map(function(it){
+      const b=bonusTxt(it.bonus);
+      return '<div class="reward-item"><span class="reward-new">НОВЕ</span>'
+        +'<div class="pic"><img src="'+escH(it.img)+'" alt="'+escH(it.name)+'" onerror="this.onerror=null;this.parentNode.textContent=\'🎁\'"></div>'
+        +'<div class="rx"><div class="rname">'+escH(it.name)+'</div>'
+        +(b?'<span class="rstat">✨ Бонус '+b+'</span>':'')
+        +'<div class="rmeta">Додано в інвентар героя</div></div></div>'; }).join('');
+  } else if((res.coins>0 || res.stat) && gotEl){
+    gotEl.style.display=''; gotEl.textContent='Ти отримав нагороду!';
+  }
+  return res;
+}
+/* Нагороду вже брали — звіряємо, чи предмет справді в інвентарі. */
+async function checkLostPrize(){
+  if(lostChecked || !window.SKREWARD) return;
+  lostChecked=true;
+  let res=null;
+  try{ res=await SKREWARD.claim(TR_HREF); }catch(e){ res=null; }
+  if(!res || !res.restored || !res.items || !res.items.length) return;
+  fillWin({emoji:'🎁', title:'Ось твоя нагорода!', sub:'Вона не встигла зберегтись минулого разу.',
+           action:'🗓️ Тренуватись ще', onAction:'winPlay()'});
+  const gotEl=document.getElementById('winGot'), rewrap=document.getElementById('winReward');
+  if(gotEl){ gotEl.style.display=''; gotEl.textContent='Ти отримав: '+res.items.map(x=>x.name).join(', ')+'!'; }
+  if(rewrap) rewrap.innerHTML=res.items.map(function(it){
+    return '<div class="reward-item"><span class="reward-new">НОВЕ</span>'
+      +'<div class="pic"><img src="'+escH(it.img)+'" alt="'+escH(it.name)+'" onerror="this.onerror=null;this.parentNode.textContent=\'🎁\'"></div>'
+      +'<div class="rx"><div class="rname">'+escH(it.name)+'</div>'
+      +'<div class="rmeta">Додано в інвентар героя</div></div></div>'; }).join('');
+  document.getElementById('winOv').classList.add('on');
+}
+function closeWin(){
+  document.getElementById('winOv').classList.remove('on');
+  if(confettiRAF){ cancelAnimationFrame(confettiRAF); confettiRAF=null; }
+}
+function winPlay(){ closeWin(); goThemes(); }
+
+/* Що саме отримано за тренажер — для картки на стартовому екрані. */
+function prizeSummary(){
+  let raw=null;
+  try{ raw=localStorage.getItem(PRIZE_KEY); }catch(e){}
+  if(!raw) return null;
+  if(raw.charAt(0)!=='{') return {};
+  try{ return JSON.parse(raw)||{}; }catch(e){ return {}; }
+}
+function renderDoneCard(){
+  const card=document.getElementById('startDone'); if(!card) return;
+  const p=prizeSummary();
+  card.classList.toggle('on',!!p);
+  const rhyme=document.getElementById('startRhyme');
+  if(rhyme) rhyme.style.display = p ? 'none' : '';
+  if(!p) return;
+  document.getElementById('doneGot').textContent = (p.names && p.names.length)
+    ? ('Ти отримав нагороду — '+p.names.join(', ')+'!')
+    : 'Тренажер пройдено — нагороду отримано!';
+  const bits=[];
+  if(p.coins) bits.push(p.coins+' 🪙');
+  if(p.stat && p.stat.value){
+    const ic=(String(p.stat.label||'').match(/[\u{1F300}-\u{1FAFF}☀-➿❤️]+/u)||[''])[0];
+    bits.push('+'+p.stat.value+' '+(ic||p.stat.label));
+  }
+  bits.push('Вирушай за новими досягненнями!');
+  document.getElementById('doneGo').textContent = bits.join(' · ');
+}
+
+function launchConfetti(){
+  const cv=document.getElementById('winConfetti'); if(!cv) return;
+  const ctx=cv.getContext('2d'); const dpr=Math.min(window.devicePixelRatio||1,2);
+  const W=cv.clientWidth, H=cv.clientHeight;
+  cv.width=W*dpr; cv.height=H*dpr; ctx.scale(dpr,dpr);
+  const cols=['#ff7a5c','#4dabf7','#51cf66','#ffd43b','#cc5de8','#22b8cf'];
+  const parts=[];
+  for(let i=0;i<140;i++){
+    parts.push({x:Math.random()*W, y:-20-Math.random()*H*0.5, w:6+Math.random()*7, h:8+Math.random()*8,
+      vy:2+Math.random()*3.5, vx:-1.5+Math.random()*3, rot:Math.random()*Math.PI, vr:-0.2+Math.random()*0.4,
+      c:cols[i%cols.length], sway:Math.random()*6.28});
+  }
+  const start=performance.now(), DUR=2600;
+  function frame(t){
+    const el=t-start; ctx.clearRect(0,0,W,H);
+    parts.forEach(p=>{ p.sway+=0.05; p.x+=p.vx+Math.sin(p.sway)*0.6; p.y+=p.vy; p.rot+=p.vr;
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot);
+      ctx.fillStyle=p.c; ctx.globalAlpha=el>DUR-600?Math.max(0,(DUR-el)/600):1;
+      ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h); ctx.restore(); });
+    if(el<DUR){ confettiRAF=requestAnimationFrame(frame); } else { ctx.clearRect(0,0,W,H); confettiRAF=null; }
+  }
+  if(confettiRAF) cancelAnimationFrame(confettiRAF);
+  confettiRAF=requestAnimationFrame(frame);
+}
+
+/* ══════ ДОПОМІЖНІ ══════ */
+function randInt(n){ return Math.floor(Math.random()*n); }
+function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=randInt(i+1);[a[i],a[j]]=[a[j],a[i]];} return a; }
+function capFirst(w){ return w.charAt(0).toUpperCase()+w.slice(1); }
+function plural(n,one,few,many){ const a=n%10, b=n%100;
+  return (a===1&&b!==11)?one:((a>=2&&a<=4&&(b<12||b>14))?few:many); }
+function escH(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+
+/* ══════ АУДІО ══════
+   Озвучуємо синтезом українською: питання — на старті, пояснення — після відповіді. */
+function speakTask(){
+  if(!cur) return;
+  playAudio(null, taskDone ? cur.ok : cur.q, 'listenBtn');
+}
+let curAudio=null, ukVoices=[], chosenVoice=null;
+function playAudio(url,text,btnId){
+  if(!state.soundOn) return;
+  stopAudio();
+  const on=()=>setSpeakOn(btnId,true), off=()=>setSpeakOn(btnId,false);
+  if(url){
+    const a=new Audio(); let fell=false; a.src=url;
+    a.onplaying=on; a.onended=off;
+    a.onerror=()=>{ if(!fell){fell=true; speakTTS(text,btnId);} };
+    curAudio=a;
+    const pr=a.play();
+    if(pr&&pr.catch) pr.catch(()=>{ if(!fell){fell=true; speakTTS(text,btnId);} });
+  } else speakTTS(text,btnId);
+}
+function speakTTS(text,btnId){
+  if(!('speechSynthesis' in window)||!text) return;
+  try{ speechSynthesis.cancel(); }catch(e){}
+  const u=new SpeechSynthesisUtterance(text);
+  if(chosenVoice){ u.voice=chosenVoice; u.lang=chosenVoice.lang; } else { u.lang='uk-UA'; }
+  u.rate=0.85; u.pitch=1.05;
+  u.onstart=()=>setSpeakOn(btnId,true);
+  u.onend=()=>setSpeakOn(btnId,false);
+  try{ speechSynthesis.speak(u); }catch(e){}
+}
+function stopAudio(){
+  if(curAudio){ try{curAudio.pause();curAudio.currentTime=0;}catch(e){} curAudio=null; }
+  if('speechSynthesis' in window){ try{speechSynthesis.cancel();}catch(e){} }
+  setSpeakOn('listenBtn',false);
+}
+function setSpeakOn(btnId,on){ if(!btnId)return; const b=document.getElementById(btnId); if(b)b.classList.toggle('on',!!on); }
+
+const SND_ON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a8 8 0 0 1 0 12"/></svg>';
+const SND_OFF='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 9l4 6M21 9l-4 6"/></svg>';
+function renderSndBtns(){
+  document.querySelectorAll('.sndbtn').forEach(b=>{ b.classList.toggle('off',!state.soundOn); b.innerHTML=state.soundOn?SND_ON:SND_OFF; });
+}
+function toggleSound(){ state.soundOn=!state.soundOn; save(); if(!state.soundOn) stopAudio(); renderSndBtns(); }
+
+function rankVoices(){
+  const vs=(window.speechSynthesis?speechSynthesis.getVoices():[])||[];
+  const uk=vs.filter(v=>/uk|ukrain/i.test(v.lang)||/україн|ukrain/i.test(v.name));
+  const score=v=>(/natural|neural|online|premium|enhanced/i.test(v.name)?3:/google/i.test(v.name)?2:1);
+  uk.sort((a,b)=>score(b)-score(a));
+  ukVoices=uk;
+  const saved=localStorage.getItem('sk_kalendar_voice');
+  chosenVoice=uk.find(v=>v.name===saved)||uk[0]||null;
+  buildVoicePicker();
+  document.body.classList.toggle('no-voice', ukVoices.length===0 && !('speechSynthesis' in window));
+}
+function buildVoicePicker(){
+  const row=document.getElementById('voiceRow'), sel=document.getElementById('voiceSel');
+  if(!row||!sel)return;
+  if(ukVoices.length<2){ row.classList.add('hidden'); return; }
+  row.classList.remove('hidden');
+  sel.innerHTML=ukVoices.map(v=>'<option value="'+v.name+'">'+v.name.replace(/\s*\(.*?\)\s*$/,'')+'</option>').join('');
+  if(chosenVoice) sel.value=chosenVoice.name;
+  sel.onchange=()=>{ chosenVoice=ukVoices.find(v=>v.name===sel.value)||null;
+    if(chosenVoice) localStorage.setItem('sk_kalendar_voice',chosenVoice.name); speakTask(); };
+}
+rankVoices();
+if('speechSynthesis' in window) speechSynthesis.onvoiceschanged=rankVoices;
+
+/* ── старт ── */
+renderSndBtns();
+refreshStart();
+</script>
+
+
+<!-- Firebase лише для кнопки «Вийти» у спільному футері -->
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=19"></script>
+<script src="../sk-curriculum.js?v=8"></script>
+<script src="../sk-rewards.js?v=4"></script>
+
+<script src="../sk-finish.js?v=6"></script>
+<!-- надійна озвучка синтезатором на телефоні (Android) -->
+<script src="../sk-voice.js?v=1"></script>
+</body>
+</html>
