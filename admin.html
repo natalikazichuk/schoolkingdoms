@@ -453,6 +453,7 @@
   .bel-badge{display:inline-block;font-size:.66rem;font-weight:800;border-radius:6px;padding:1px 6px;
     margin-left:6px;background:#fdf5e0;color:var(--gold-ink);vertical-align:middle}
   .bel-badge.tr{background:#eaf1fb;color:#2f5ea8}
+  .bel-badge.new{background:#ffd43b;color:#5c4400}
   @media(max-width:560px){ .bel-row .bel-name{flex:1 1 100%} .bel-row select{flex:1 1 30%} }
   /* ── Картка запису: щільний вигляд, щоб уся форма влазила в екран ── */
   .cc-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
@@ -1827,6 +1828,7 @@ function renderMapRecs(){
     let badge = '';
     if(o.hidden)          badge += ' <span class="bel-badge">сховано</span>';
     if(o.active === false) badge += ' <span class="bel-badge">вимкнено</span>';
+    if(o.markNew)          badge += ' <span class="bel-badge new">НОВИЙ</span>';
     /* Запис лежить у розділі цього предмета, але його власні клас/предмет
        кажуть інше — дитина його тут не побачить, поки картку не виправлять. */
     if(r.viaMap){
@@ -2211,6 +2213,8 @@ function cardBodyHtml(o){
   /* Прапорці — одним рядком. У тесті з рівнями помилка завжди повертає на
      початок рівня (вбудоване правило); для тесту одним списком це вибір. */
   let flags = cswitch('active', o.active !== false, 'Активний (показувати дитині)');
+  flags += cswitch('markNew', o.markNew, '🆕 Новий',
+    'Увімкнено: на плитці тесту чи тренажера — жовтий напис «НОВИЙ». Зніміть, коли новинка набридне.');
   if(!isTest) flags += cswitch('blank', o.blank, '↗ Відкривати окремою вкладкою');
   if(isTest){
     flags += (o.format === 'levels')
@@ -2282,6 +2286,7 @@ function onCardInput(e){
     case 'statMode':  o.statMode = v; updStatTotal(o); break;
     case 'statValue': o.statValue = Math.max(0, Math.floor(Number(v) || 0)); updStatTotal(o); break;
     case 'active':    o.active = !!v; break;
+    case 'markNew':   o.markNew = !!v; break;
     case 'imgCard':   o.imgCard = v.trim(); break;
     case 'icon':      o.icon = v; break;
     case 'desc':      o.desc = v; break;
