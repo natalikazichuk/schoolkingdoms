@@ -178,6 +178,10 @@ function placementRules(on) {
   const has = slot => on.some(s => s.slot === slot);
   const r = [];
   if (has('helmet')) r.push('The headwear sits firmly ON the head: its inner rim touches the hair and forehead, no gap and no floating above the head; the head size stays the same.');
+  /* шолом із наносником: пластина «з'їжджала» на око (звіт 21.10) */
+  if (has('helmet')) r.push('A helmet sits straight and centred on the head, not tilted or shifted to one side; its lower rim rests just above the eyebrows. '
+    + 'If it has a nose guard (a metal nasal bar), the bar hangs straight down the vertical centre line of the face, exactly over the bridge of the nose between the eyes, '
+    + 'ending at the tip of the nose; the eyes stay fully visible on both sides of it.');
   /* «Шкільний жакет» малювався жилетом без рукавів, пояс — низько на стегнах поверх одягу (звіти 11.10, 17.10) */
   if (has('armor')) r.push('The outer garment keeps its sleeves exactly as on its picture: a jacket, blazer or coat has full-length sleeves down to the wrists — never turn it into a sleeveless vest.');
   if (has('belt')) r.push('The belt sits at the natural waist (navel height), not low on the hips'
@@ -795,6 +799,7 @@ async function absolute(spec, req) {
   const baseImage = pad ? await canvasImage(spec.base, 'stand') : spec.baseImage;
   const fightImage = spec.fightImage && pad ? await canvasImage(spec.base, 'fight') : spec.fightImage;
   return Object.assign({}, spec, {
+    prompt: promptOf(spec.slots),   // свіжа підказка: «перемалювати» старий набір — уже з новими правилами
     baseImage: abs(baseImage),
     fightImage: abs(fightImage),
     slots: spec.slots.map(s => Object.assign({}, s, { item: s.item && Object.assign({}, s.item, { image: abs(s.item.image) }) }))
