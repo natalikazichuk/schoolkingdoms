@@ -17,6 +17,7 @@
    GET|POST /api/admin/reader                         — токен для Claude (читання / зміни), лише адмін
    POST /api/admin/doc/set                            — правка документа (адмін), журнал adminLog
    POST /api/avatar/worker/*                          — воркер образів (server/AVATAR-WORKER.md)
+   POST /api/tts          {text, lang}                → {url} — mp3 озвучки, коли в браузері нема голосу (src/tts.js)
    GET  /api/health
 
    Сесія — HttpOnly cookie sk_session (у базі лише sha256 від токена).
@@ -32,6 +33,7 @@ const skills = require('./skills');
 const avatar = require('./avatar');
 const openaiImage = require('./openai-image');
 const settings = require('./settings');
+const tts = require('./tts');
 
 const PORT = Number(process.env.PORT || 3000);
 const MAX_BODY = 4 * 1024 * 1024;
@@ -541,6 +543,10 @@ const ROUTES = {
   'POST /api/admin/hero/reset-class': async (req, user, b) => { await requireAdmin(user); return skillRoute(() => skills.resetClass(b.id))(req, user, b); },
   'POST /api/admin/hero/test-class': async (req, user, b) => { await requireAdmin(user); return skillRoute(() => skills.testClass(b.id, b))(req, user, b); },
   'POST /api/admin/hero/set-level': async (req, user, b) => { await requireAdmin(user); return skillRoute(() => skills.setLevel(b.id, b))(req, user, b); },
+  'POST /api/tts': async (req, user, b) => {
+    try { return [await tts.speak(b, String(req.headers['x-real-ip'] || req.socket.remoteAddress || ''))]; }
+    catch (e) { if (e instanceof tts.TtsError) throw new ApiError(e.status, e.code, e.message); throw e; }
+  },
   'GET /api/health': async () => {
     await pool.query('select 1');
     return [{ ok: true, version: process.env.APP_VERSION || 'dev' }];
