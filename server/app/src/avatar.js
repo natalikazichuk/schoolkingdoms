@@ -76,7 +76,7 @@ const FACE_DEFAULT = { left: 0.2, top: 0, size: 0.6 };
 const FIGHT_PAIRS = { 'linen-boy': 'linen-boy-fight', 'blond-boy': 'blond-boy-fight', 'chestnut-boy': 'chestnut-boy-fight' };
 
 // версія набору й промпту: змінив PROMPT/SLOTS — підніми, і старий кеш не підхопиться
-const SPEC_VERSION = 4;   // 2: дві пози (fightImage); 3: база на полотні з запасом (CANVAS_PAD); 4: описи речей і де сидять шапка/наручі
+const SPEC_VERSION = 5;   // 2: дві пози (fightImage); 3: база на полотні з запасом (CANVAS_PAD); 4: описи речей і де сидять шапка/наручі; 5: рукави верхнього одягу, пояс на талії під ним
 const MAX_ATTEMPTS = 3;
 const LEASE_MIN = 10;
 const QUEUE_TIMEOUT_MIN = 10;      // довше чекає в черзі — художник не на зв'язку, завдання скасовується
@@ -176,6 +176,10 @@ function placementRules(on) {
   const has = slot => on.some(s => s.slot === slot);
   const r = [];
   if (has('helmet')) r.push('The headwear sits firmly ON the head: its inner rim touches the hair and forehead, no gap and no floating above the head; the head size stays the same.');
+  /* «Шкільний жакет» малювався жилетом без рукавів, пояс — низько на стегнах поверх одягу (звіти 11.10, 17.10) */
+  if (has('armor')) r.push('The outer garment keeps its sleeves exactly as on its picture: a jacket, blazer or coat has full-length sleeves down to the wrists — never turn it into a sleeveless vest.');
+  if (has('belt')) r.push('The belt sits at the natural waist (navel height), not low on the hips'
+    + (has('armor') ? ', and it is worn UNDER the outer garment: the jacket or armour hem overlaps the belt, only the buckle may peek through the open front.' : '.'));
   if (has('bracers')) r.push('Bracers are separate armour pieces strapped around BOTH forearms between wrist and elbow, clearly visible over the sleeves'
     + (has('gloves') ? ', above the gloves (gloves cover only the hands).' : '; the hands stay bare.'));
   return r;

@@ -400,3 +400,13 @@ test('промпт: шапка сидить на голові, наручі ок
   assert.doesNotMatch(A.buildSpec(hero('hero:linen-boy', {}), ITEMS).prompt, /headwear sits|Bracers are/);
 });
 
+
+test('промпт: верхній одяг з рукавами, пояс на талії під ним', () => {
+  const items = Object.assign({}, ITEMS, { 'IT-J1': { name: 'Шкільний жакет' }, 'IT-P1': { name: 'Шкільний пояс' } });
+  const both = A.buildSpec(hero('hero:linen-boy', { armor: 'IT-J1', belt: 'IT-P1' }), items).prompt;
+  assert.match(both, /never turn it into a sleeveless vest/);
+  assert.match(both, /belt sits at the natural waist.*UNDER the outer garment/);
+  const beltOnly = A.buildSpec(hero('hero:linen-boy', { belt: 'IT-P1' }), items).prompt;
+  assert.match(beltOnly, /belt sits at the natural waist/);
+  assert.doesNotMatch(beltOnly, /UNDER the outer garment|sleeveless/);
+});
