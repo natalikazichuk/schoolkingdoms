@@ -38,7 +38,7 @@ test('тест: майстер — лише ≥90% двічі поспіль', (
 test('тест: без журналу — старі мітки sk_testscore / sk_testpass', () => {
   assert.equal(I.testState({ id: 'a' }, getter({ sk_testscore_a: { pct: 70, at: NOW } })).pct, 70);
   const p = I.testState({ id: 'a' }, getter({ sk_testpass_a: '1' }));
-  assert.equal(p.tried, true); assert.equal(p.passed, true); assert.equal(p.pct, 55);
+  assert.equal(p.tried, true); assert.equal(p.passed, true); assert.equal(p.pct, 100);
 });
 
 test('тест із рівнями: володіння = частка рівнів, без тренду між рівнями', () => {
@@ -48,6 +48,9 @@ test('тест із рівнями: володіння = частка рівні
   assert.equal(s.pct, 50);
   assert.equal(s.trend, 'flat');
   assert.equal(I.testState(t, getter({ sk_test100_L: '1' })).master, true);
+  // лише мітка «пройдено» без даних про рівні (до журналу) — 100%; з частиною рівнів — їхня частка
+  assert.equal(I.testState(t, getter({ sk_testpass_L: '1' })).pct, 100);
+  assert.equal(I.testState(t, getter({ sk_testpass_L: '1', sk_lvtest_L_done: [0, 1, 2] })).pct, 75);
 });
 
 test('тема: статуси new / repeat / learn / good / master / stale', () => {

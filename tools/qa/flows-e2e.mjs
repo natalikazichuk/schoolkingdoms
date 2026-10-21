@@ -14,6 +14,7 @@
      4. parent.html — «Здібності»: лічильники, рекомендація, «➕ Задати»
      5. hero.html   — павутинка: рівень предметів, картки, обкладинки й запасні картинки
      6. hero.html   — павутинка за класами: перемикач, свій клас першим, інші — лише зі спробами
+     7. doshkilya/chytaemo-sklady.html — поп-ап показує нагороду з адмінки, замок лише після видачі
 
    Падіння (код виходу 1): будь-яка перевірка не справдилась або помилка JS.
    Запуск:  node tools/qa/flows-e2e.mjs        (з кореня; потрібен playwright)
@@ -277,6 +278,45 @@ await scenario('hero.html — павутинка за класами: перем
   assert.equal(await page.$$eval('#abilModalList .ab-topic[href]', d => d.length), 1, 'тема — одразу посилання');
   await page.keyboard.press('Escape');
   assert.ok(await page.isHidden('#abilModal'), 'Esc закриває поп-ап');
+});
+
+/* ── 7. doshkilya/chytaemo-sklady.html: нагорода з адмінки в поп-апі ── видачу (sk-rewards.js)
+   підміняємо заглушкою: сценарій перевіряє, що поп-ап показує САМЕ видане і коли ставить замок */
+await scenario('Дошкілля «Читаємо склади» — поп-ап показує нагороду з адмінки', async (page, withSK) => {
+  await withSK(`return { ready: Promise.resolve({ uid: 'h1' }), isHeroSession: () => true };`);
+  await page.route('**/sk-rewards.js*', r => r.fulfill({ contentType: 'text/javascript', body: `
+    window.__claims = [];
+    window.SKREWARD = { claim: async href => { window.__claims.push(href); return window.__res; },
+                        hasLoot: () => true, norm: x => x, WHEEL: [40, 30, 20, 10] };` }));
+  await page.goto(`${BASE}/doshkilya/chytaemo-sklady.html`);
+  await page.waitForFunction(() => typeof openWin === 'function' && window.SKREWARD && window.SKPRIZE);
+  const KEY = 'sk_chsklady_prize_v1';
+  const run = res => page.evaluate(async ([res, KEY]) => {
+    document.querySelectorAll('.skp-ov').forEach(x => x.remove());
+    localStorage.removeItem(KEY); window.__res = res; openWin();
+    await new Promise(r => { const t = setInterval(() => { if (!document.querySelector('.skp-wait')) { clearInterval(t); r(); } }, 20); });
+    const q = s => [...document.querySelectorAll(s)].map(x => x.textContent.trim());
+    return { win: document.getElementById('winOv').classList.contains('on'),
+      got: q('.skp-got').join(''), note: q('.skp-note').join(''), chips: q('.skp-chip'),
+      items: q('.skp-name'), lock: localStorage.getItem(KEY) };
+  }, [res, KEY]);
+  // а) нагорода є: монети + предмет + характеристика — показуємо саме їх і ставимо замок
+  let p = await run({ coins: 15, items: [{ name: 'Чарівний буквар', img: 'img/items/IT-001.webp', bonus: 1 }],
+    stat: { label: "Здоров'я", value: 2 } });
+  assert.equal(p.win, true, 'свято відкрито');
+  assert.equal(p.got, '🎁 Ти отримав: Чарівний буквар!');
+  assert.deepEqual(p.chips, ['+15 🪙 монет', "✨ +2 до «Здоров'я»"]);
+  assert.deepEqual(p.items, ['Чарівний буквар']);
+  assert.equal(JSON.parse(p.lock).coins, 15, 'замок нагороди з тим, що видано');
+  assert.deepEqual(await page.evaluate(() => window.__claims), ['chytaemo-sklady.html'], 'нагорода — за записом цієї сторінки');
+  // б) у «Тестах» немає запису з нагородою — свято без вигаданих монет, замок не ставимо
+  p = await run({ skipped: true, reason: 'no-record' });
+  assert.deepEqual([p.chips, p.items, p.note, p.lock], [[], [], '', null]);
+  assert.match(p.got, /Молодець/);
+  // в) не Герой — пояснюємо, замок не ставимо
+  p = await run({ skipped: true, reason: 'not-hero' });
+  assert.match(p.note, /Увійди як Герой/);
+  assert.equal(p.lock, null);
 });
 
 await browser.close();

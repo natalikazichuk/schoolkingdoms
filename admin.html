@@ -112,6 +112,7 @@
   .badge.subject{background:#eaf1fb;color:#2f5ea8;border-color:#c2d4ef}
   .badge.stat{background:#fdf5e0;color:var(--gold-ink);border-color:#f0dca8}
   .badge.reward{background:#e8f6ee;color:#1f7a4d;border-color:#bde2ce}
+  .badge.noloot{background:#fdecea;color:#a33a2b;border-color:#f3c4bc}
   .test-card .actions{display:flex;gap:8px;align-items:center}
 
   /* Загальний підсумок над списком */
@@ -3684,6 +3685,13 @@ function testCardHtml(t){
   const rewardBadge = t.stat
     ? `<span class="badge reward">${esc(statLabel(t.stat))} ${st}</span>`
     : '';
+  /* Нагорода за проходження (колесо / додаткові) — щоб одразу було видно
+     записи, які нічого не видадуть дитині: поп-ап покаже лише «Молодець». */
+  const hasLoot = !!(window.SKREWARD && SKREWARD.hasLoot(t.rewards));
+  const lootBadge = hasLoot
+    ? '<span class="badge reward" title="Нагорода за проходження налаштована">🎁 нагорода</span>'
+    : (t.stat && Number(t.statValue) > 0) ? ''
+    : '<span class="badge noloot" title="Ні нагороди за проходження, ні характеристики: дитина отримає лише привітання">⚠ без нагороди</span>';
   return `
       <div class="test-card" data-id="${t.id}">
         <div>
@@ -3695,6 +3703,7 @@ function testCardHtml(t){
             ${isLv ? `<span class="badge">🧩 ${lv.length} рівнів</span>` : ''}
             <span class="badge">${qn} пит.</span>
             ${rewardBadge}
+            ${lootBadge}
           </div>
         </div>
         <div class="actions">
