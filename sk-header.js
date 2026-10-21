@@ -141,6 +141,7 @@
         +'border:1px solid rgba(242,199,92,.42);border-radius:999px;padding:4px 11px;'
         +'font-weight:800;font-size:.82rem;color:#eaf1ff;white-space:nowrap}'
       +'.sk-hd__stat b{color:#F2C75C}'
+      +'.sk-hd__sic{width:20px;height:20px;margin:-3px 0;flex:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}'
       /* стат, підсилений вдягненими речами */
       +'.sk-hd__stat b.up{color:#7CE38B}'
       /* гість */
@@ -418,7 +419,8 @@
      Показуємо підсумок «база + вдягнені речі» — так само, як вікно
      екіпіровки на арені (SKIT.combine). Спершу малюємо базу (миттєво),
      потім, коли прочитано інвентар і каталог, — з урахуванням речей. */
-  var STAT_KEYS = [['❤️','health'],['🔮','mana'],['🏃','agility'],['🎯','accuracy']];
+  /* [файл img/stats/<файл>.webp, ключ, підпис] — ті самі медальйони, що на головній */
+  var STAT_KEYS = [['hp','health',"Здоровʼя"],['mp','mana','Мана'],['agi','agility','Спритність'],['acc','accuracy','Точність']];
   function renderStats(h, gear){
     var box = document.getElementById('skHdStats');
     if(!box) return;
@@ -427,7 +429,7 @@
       var v = (gear && gear[s[1]] != null) ? gear[s[1]] : base;
       var diff = v - base;
       var tip = diff ? ' title="'+base+(diff > 0 ? ' + ' : ' − ')+Math.abs(diff)+' від речей"' : '';
-      return '<span class="sk-hd__stat"'+tip+'>'+s[0]+' <b'+(diff > 0 ? ' class="up"' : '')+'>'+v+'</b></span>';
+      return '<span class="sk-hd__stat"'+(tip || ' title="'+s[2]+'"')+'><img class="sk-hd__sic" src="'+BASE+'img/stats/'+s[0]+'.webp" alt="'+s[2]+'"> <b'+(diff > 0 ? ' class="up"' : '')+'>'+v+'</b></span>';
     });
     /* Були зірочки (XP) — дитині незрозуміло, та й XP тепер
        росте лише з батьківських завдань. Показуємо монети: їх
