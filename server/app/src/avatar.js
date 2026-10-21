@@ -236,6 +236,42 @@ async function setAvatar(c, uid, hero, token, gen) {
   await writeDoc(c, 'heroes/' + uid, next);
   return next;
 }
+/* готовий образ, який Герой уже не чекає (змінив аватар): у колекцію, без зміни аватара */
+async function setAside(c, p, hero, file) {
+  const g = hero.avatarGen || {};
+  const next = Object.assign({}, hero, { avatarGen: Object.assign({}, g, { status: 'cancelled' }), updatedAt: { $ts: Date.now() } });
+  if (file) next.avatarCollection = addToCollection(hero, Object.assign({ key: g.key, file, base: g.base, at: Date.now() },
+    g.engine ? { engine: g.engine } : {}));
+  await writeDoc(c, p, next);
+  return next;
+}
+/* Герой «в черзі», а завдання вже готове / скасоване / зникло — розвʼязати стан:
+   готовий образ тієї самої бази — одягнути, інакше — у колекцію й зняти очікування.
+   Вертає оновленого Героя */
+async function settle(uid, key) {
+  const c = await pool.connect();
+  try {
+    await c.query('begin');
+    const r = await c.query('select data from docs where path = $1 for update', ['heroes/' + uid]);
+    const hero = r.rows.length && r.rows[0].data, g = hero && hero.avatarGen;
+    let out = hero || null;
+    if (g && g.key === key && g.status === 'queued') {
+      const j = (await c.query('select status, file from avatar_jobs where key = $1', [key])).rows[0];
+      if (j && j.status === 'done' && j.file && standOf(baseOf(hero)) === g.base) {
+        out = await setAvatar(c, uid, hero, genToken(j.file), Object.assign({}, g, { status: 'ready', file: j.file, readyAt: Date.now() }));
+      } else if (!j || j.status === 'done' || j.status === 'cancelled') {
+        out = await setAside(c, 'heroes/' + uid, hero, j && j.status === 'done' ? j.file : null);
+      }
+    }
+    await c.query('commit');
+    return out;
+  } catch (e) {
+    await c.query('rollback').catch(() => {});
+    throw e;
+  } finally {
+    c.release();
+  }
+}
 const waitingSql = `parent = 'heroes' and data->'avatarGen'->>'key' = $1 and data->'avatarGen'->>'status' = 'queued'`;
 
 async function position(q, key) {
@@ -345,7 +381,12 @@ async function status(user) {
   if (photoStale(g)) g = (await failPhoto(user.uid, g.key, 'Сервер перезапустився — спробуй ще раз')) || g;
   const out = { avatar: hero.avatar || null, gen: g, gpt: gptAllowed(hero) && openai.configured() };
   if (g && g.key && (g.status === 'queued' || g.status === 'failed') && g.kind !== 'photo') {
-    const j = (await pool.query('select status, attempts, error from avatar_jobs where key = $1', [g.key])).rows[0];
+    let j = (await pool.query('select status, attempts, error from avatar_jobs where key = $1', [g.key])).rows[0];
+    if (g.status === 'queued' && (!j || j.status === 'done' || j.status === 'cancelled')) {
+      const h = await settle(user.uid, g.key);
+      if (h) { g = out.gen = h.avatarGen || null; out.avatar = h.avatar || null; }
+      j = null;
+    }
     if (j) {
       out.job = { status: j.status, attempts: j.attempts };
       if (j.status === 'queued') out.job.position = await position(pool, g.key);
@@ -978,8 +1019,13 @@ async function applyResult(body) {
     for (const h of hs.rows) {
       const g = h.data.avatarGen || {};
       const wearing = g.status === 'ready' && GEN_RE.test(String(h.data.avatar || ''));
-      // поки малювалось, Герой обрав інший аватар — не перебиваємо його вибір
-      if ((g.status !== 'queued' && g.status !== 'failed' && !wearing) || standOf(baseOf(h.data)) !== g.base) continue;
+      // поки малювалось, Герой обрав інший аватар — не перебиваємо його вибір,
+      // але образ кладемо в колекцію й знімаємо «в черзі» (інакше кнопка чекала б вічно)
+      if (standOf(baseOf(h.data)) !== g.base) {
+        if (g.status === 'queued' || g.status === 'failed') await setAside(c, h.path, h.data, file);
+        continue;
+      }
+      if (g.status !== 'queued' && g.status !== 'failed' && !wearing) continue;
       await setAvatar(c, h.path.split('/')[1], h.data, genToken(file),
         Object.assign({}, g, { status: 'ready', file, readyAt: Date.now() }));
       heroes++;
