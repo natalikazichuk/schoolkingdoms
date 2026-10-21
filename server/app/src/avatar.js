@@ -53,8 +53,10 @@ const SLOTS = [
 // ліва рука — щит або друга зброя (дворучний бій)
 function slotLabel(s, item) {
   if (s.slot !== 'weaponL') return { label: s.label, en: s.en };
+  /* у «Щитах» є й не щити (плащ матадора, кришталева куля): слово «shield» змушувало
+     модель малювати щит — тож лише «річ у лівій руці», а що саме — каже опис і малюнок */
   return item && item.category === 'Щити'
-    ? { label: 'щит у лівій руці', en: 'shield held in the left hand' }
+    ? { label: 'захист у лівій руці', en: 'defensive item held in the left hand, drawn exactly as on its picture' }
     : { label: 'зброя в лівій руці', en: 'weapon held in the left hand' };
 }
 
@@ -76,7 +78,7 @@ const FACE_DEFAULT = { left: 0.2, top: 0, size: 0.6 };
 const FIGHT_PAIRS = { 'linen-boy': 'linen-boy-fight', 'blond-boy': 'blond-boy-fight', 'chestnut-boy': 'chestnut-boy-fight' };
 
 // версія набору й промпту: змінив PROMPT/SLOTS — підніми, і старий кеш не підхопиться
-const SPEC_VERSION = 5;   // 2: дві пози (fightImage); 3: база на полотні з запасом (CANVAS_PAD); 4: описи речей і де сидять шапка/наручі; 5: рукави верхнього одягу, пояс на талії під ним
+const SPEC_VERSION = 5;   // 2: дві пози (fightImage); 3: база на полотні з запасом (CANVAS_PAD); 4: описи речей і де сидять шапка/наручі; 5: рукави верхнього одягу, пояс на талії під ним, не-щити в лівій руці
 const MAX_ATTEMPTS = 3;
 const LEASE_MIN = 10;
 const QUEUE_TIMEOUT_MIN = 10;      // довше чекає в черзі — художник не на зв'язку, завдання скасовується
@@ -180,6 +182,8 @@ function placementRules(on) {
   if (has('armor')) r.push('The outer garment keeps its sleeves exactly as on its picture: a jacket, blazer or coat has full-length sleeves down to the wrists — never turn it into a sleeveless vest.');
   if (has('belt')) r.push('The belt sits at the natural waist (navel height), not low on the hips'
     + (has('armor') ? ', and it is worn UNDER the outer garment: the jacket or armour hem overlaps the belt, only the buckle may peek through the open front.' : '.'));
+  if (on.some(s => s.slot === 'weaponL' && s.item.category === 'Щити'))
+    r.push('The left-hand item keeps the exact shape and material of its picture: a cloth cape stays soft fabric, an orb stays a sphere — draw a shield only if the picture is a shield.');
   if (has('bracers')) r.push('Bracers are separate armour pieces strapped around BOTH forearms between wrist and elbow, clearly visible over the sleeves'
     + (has('gloves') ? ', above the gloves (gloves cover only the hands).' : '; the hands stay bare.'));
   return r;

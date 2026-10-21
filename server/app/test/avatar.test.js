@@ -35,7 +35,7 @@ test('набір: 10 слотів з підписами, кільця не ма�
   assert.strictEqual(by.helmet.label, 'головний убір');
   assert.deepStrictEqual(by.helmet.item, { id: 'IT-001', name: 'шляпа', category: 'Шоломи', weaponType: null, look: null, image: 'img/items/IT-001.webp' });
   assert.strictEqual(by.weaponR.item.image, null);
-  assert.strictEqual(by.weaponL.label, 'щит у лівій руці');
+  assert.strictEqual(by.weaponL.label, 'захист у лівій руці');
   assert.strictEqual(by.boots.item, null);
   assert.match(s.prompt, /headwear: "шляпа"/);
   assert.match(s.prompt, /weapon held in the right hand: "Меч новачка" \(Меч\)/);
@@ -307,7 +307,7 @@ test('«Одягти GPT»: доступ за логіном/іменем, ок�
   const p = A.gptPrompt(spec.slots, true);
   assert.match(p, /Image 2 is a sheet of 2 items in a grid of 1 row\(s\) × 2 column/);
   assert.match(p, /cell 1 → headwear: "шляпа"/);
-  assert.match(p, /cell 2 → shield held in the left hand/);
+  assert.match(p, /cell 2 → defensive item held in the left hand/);
   assert.match(p, /weapon held in the right hand: "Меч новачка" \(Меч\) \(no picture/);
   assert.match(p, /Image 3 is the same character already dressed/);
   assert.deepStrictEqual(A.sheetGrid(8), { cols: 3, rows: 3 });
@@ -409,4 +409,12 @@ test('промпт: верхній одяг з рукавами, пояс на �
   const beltOnly = A.buildSpec(hero('hero:linen-boy', { belt: 'IT-P1' }), items).prompt;
   assert.match(beltOnly, /belt sits at the natural waist/);
   assert.doesNotMatch(beltOnly, /UNDER the outer garment|sleeveless/);
+});
+
+test('промпт: річ із «Щитів» не обовʼязково щит (плащ матадора)', () => {
+  const items = Object.assign({}, ITEMS, { 'IT-C1': { name: 'Плащ матадора', category: 'Щити', look: 'a red matador cape' } });
+  const p = A.buildSpec(hero('hero:linen-boy', { weaponL: 'IT-C1' }), items).prompt;
+  assert.doesNotMatch(p, /shield held/);
+  assert.match(p, /defensive item held in the left hand, drawn exactly as on its picture: "Плащ матадора" — a red matador cape/);
+  assert.match(p, /draw a shield only if the picture is a shield/);
 });
