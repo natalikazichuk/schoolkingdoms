@@ -103,6 +103,12 @@ h1{font-size:1.5rem;text-align:center}
 .tile .w{padding:0 1px;margin:0;border-radius:4px}
 .tile.nopic .cap{flex:1;display:flex;flex-wrap:wrap;align-content:center;justify-content:center;font-size:.95rem;padding:6px}
 .tile.nopic::after{content:none}
+/* вірш — одна картка на строфу: картинка (або кілька, сіткою) і рядки під нею */
+.tile .pics{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:minmax(0,1fr);gap:2px}
+.tile .pics img{width:100%;height:100%;min-height:0;object-fit:cover;display:block}
+.tile.stz .cap{font-size:.8rem;line-height:1.2;padding:4px 4px 6px}
+.tile.stz .cap .l{display:block}
+.tile.stz.nopic .cap{flex-direction:column;flex-wrap:nowrap}
 
 /* вибір тексту */
 .pick{display:flex;justify-content:center}
@@ -180,6 +186,9 @@ body.solo .tile.big .cap{flex:none;font-size:clamp(1.6rem,8vw,2.8rem);line-heigh
 body.solo .tile.big .w{padding:0 3px;margin:0 1px;border-radius:8px}
 body.solo .tile.big.nopic .cap{flex:1;font-size:clamp(2rem,10vw,3.4rem)}
 body.solo .tile.big::after{font-size:1.4rem;top:8px;right:10px}
+body.solo .tile.big .pics img{object-fit:contain;background:#fdf6e8}
+body.solo .tile.big.stz .cap{font-size:clamp(1.05rem,5.2vw,1.7rem);line-height:1.3}
+body.solo .tile.big.stz.nopic .cap{font-size:clamp(1.3rem,6.5vw,2.2rem)}
 </style>
 </head>
 <body>
@@ -209,9 +218,9 @@ body.solo .tile.big::after{font-size:1.4rem;top:8px;right:10px}
 
   <div class="learn-grid" id="grid"></div>
   <div class="solo-bar">
-    <button type="button" id="soPrev" aria-label="Попередній рядок">◀</button>
+    <button type="button" id="soPrev" aria-label="Попередня картка">◀</button>
     <span id="soNo">1 / 1</span>
-    <button type="button" id="soNext" aria-label="Наступний рядок">▶</button>
+    <button type="button" id="soNext" aria-label="Наступна картка">▶</button>
     <button type="button" id="soGrid" aria-label="Усі картки" title="Усі картки">▦</button>
   </div>
 
@@ -272,8 +281,9 @@ body.solo .tile.big::after{font-size:1.4rem;top:8px;right:10px}
   var playing = false;   // learn: «Слухати вірш» — озвучуємо рядки по черзі
   var pages = [], pageCount = 0, page = 0;   // read: строфи — сторінки по 4 рядки
   var autoPos = -1, flipTimer = 0;
-  var tiles = [];        // learn: [{el, from, to}] — картка рядка й діапазон його слів
-  var solo = -1;         // learn/tell: картка на весь екран (індекс рядка), -1 — уся сітка
+  var tiles = [];        // learn: [{el, from, to}] — картка (рядка або строфи) й діапазон її слів
+  var solo = -1;         // learn/tell: картка на весь екран (індекс картки), -1 — уся сітка
+  function byStanza(){ return TEXT.kind === 'poem'; }   // вірш учимо строфами, текст — реченнями
 
   var $ = function(id){ return document.getElementById(id); };
   var words = [];        // [{el, norm}]
@@ -351,11 +361,17 @@ body.solo .tile.big::after{font-size:1.4rem;top:8px;right:10px}
       var st = document.createElement('div');
       st.className = 'stanza';
       pages.push(st);
+      if(grid() && byStanza()){
+        stanzaTile(lines, lineNo, gridEl);
+        lineNo += lines.length;
+        pageCount++;
+        return;
+      }
       lines.forEach(function(line){
         if(grid()){
           var tile = document.createElement('div');
           tile.className = 'tile';
-          tile.dataset.line = lineNo;
+          tile.dataset.line = tiles.length;
           var cap = document.createElement('div');
           cap.className = 'cap';
           var from = words.length;
@@ -381,8 +397,17 @@ body.solo .tile.big::after{font-size:1.4rem;top:8px;right:10px}
       if(!grid()) box.appendChild(st);
       pageCount++;
     });
+    /* Строфи — дві колонки; до 4 строф — на одному екрані, більше — гортаються. */
+    if(grid() && byStanza()){
+      var many = tiles.length > 4;
+      gridEl.style.gridTemplateColumns = tiles.length > 1 ? 'repeat(2,minmax(0,1fr))' : 'minmax(0,1fr)';
+      gridEl.style.gridTemplateRows = many ? 'none' : 'repeat(' + Math.ceil(tiles.length / 2) + ',minmax(0,1fr))';
+      gridEl.style.gridAutoRows = many ? 'minmax(230px,auto)' : '';
+      gridEl.style.overflowY = many ? 'auto' : '';
+    }
     /* Сітка: до 15 рядків — усі на одному екрані; довший текст — гортається. */
-    if(grid()){
+    else if(grid()){
+      gridEl.style.gridTemplateColumns = '';
       var rows = Math.ceil(tiles.length / 3);
       gridEl.style.gridTemplateRows = tiles.length <= 15 ? 'repeat(' + rows + ',minmax(0,1fr))' : 'none';
       gridEl.style.gridAutoRows = tiles.length <= 15 ? '' : 'minmax(120px,auto)';
@@ -393,6 +418,39 @@ body.solo .tile.big::after{font-size:1.4rem;top:8px;right:10px}
     if(!grid()) showPage(0);
     else if(solo >= 0) showSolo(solo);
   }
+  /* Картка строфи: картинки її рядків (різні — сіткою, однакові — одна)
+     і всі рядки строфи. Озвучка картки — уся строфа. */
+  function stanzaTile(lines, first, gridEl){
+    var tile = document.createElement('div');
+    tile.className = 'tile stz';
+    tile.dataset.line = tiles.length;
+    var pics = [];
+    lines.forEach(function(l, k){ var p = TEXT.pics[first + k]; if(p && pics.indexOf(p) < 0) pics.push(p); });
+    if(pics.length){
+      var box = tile;
+      if(pics.length > 1){ box = document.createElement('div'); box.className = 'pics'; tile.appendChild(box); }
+      pics.slice(0, 4).forEach(function(src){
+        var img = document.createElement('img');
+        img.src = src;
+        img.alt = '';
+        img.onerror = function(){ this.style.visibility = 'hidden'; };
+        box.appendChild(img);
+      });
+    } else tile.classList.add('nopic');
+    var cap = document.createElement('div');
+    cap.className = 'cap';
+    var from = words.length;
+    lines.forEach(function(line){
+      var l = document.createElement('span');
+      l.className = 'l';
+      fillLine(l, line);
+      cap.appendChild(l);
+    });
+    tile.appendChild(cap);
+    gridEl.appendChild(tile);
+    tiles.push({el: tile, from: from, to: words.length, text: lines.join(' ')});
+  }
+
   /* Рівень підказки у «Вивчити вірш»: ще не сказані слова показуємо повністю,
      першою літерою або ховаємо; сказане — завжди повністю й зеленим. */
   function applyLevel(){
@@ -639,8 +697,8 @@ body.solo .tile.big::after{font-size:1.4rem;top:8px;right:10px}
 
   /* Одна картка на весь екран: велика картинка й рядок, гортаємо ◀ ▶ або свайпом. */
   function showSolo(n){
-    if(!tiles.length){ solo = -1; }
-    else solo = Math.max(0, Math.min(tiles.length - 1, n));
+    if(!tiles.length || n < 0){ solo = -1; }   // -1 — назад до сітки (не обрізати до 0)
+    else solo = Math.min(tiles.length - 1, n);
     document.body.classList.toggle('solo', solo >= 0);
     $('soloBtn').classList.toggle('on', solo >= 0);
     tiles.forEach(function(t, k){ t.el.classList.toggle('big', k === solo); });
@@ -739,10 +797,11 @@ body.solo .tile.big::after{font-size:1.4rem;top:8px;right:10px}
   document.querySelectorAll('.tab').forEach(function(b){
     b.addEventListener('click', function(){ setMode(b.dataset.mode); });
   });
-  document.querySelectorAll('.lvl').forEach(function(b){
+  // лише кнопки рівнів: «⛶» теж має клас .lvl, але рівня не міняє
+  document.querySelectorAll('.lvl[data-level]').forEach(function(b){
     b.addEventListener('click', function(){
       level = b.dataset.level;
-      document.querySelectorAll('.lvl').forEach(function(x){ x.classList.toggle('on', x === b); });
+      document.querySelectorAll('.lvl[data-level]').forEach(function(x){ x.classList.toggle('on', x === b); });
       applyLevel();
     });
   });
