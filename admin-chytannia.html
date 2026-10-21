@@ -45,6 +45,9 @@
   .chk{display:flex;align-items:center;gap:8px;font-weight:800;color:var(--ink);cursor:pointer;margin-bottom:10px}
   .chk input{width:auto}
   textarea#fText{min-height:260px;font-size:1rem}
+  .stressbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 6px}
+  .stressbar .btn{padding:6px 12px;font-size:.9rem}
+  .stressbar .hint{font-size:.78rem;color:var(--muted)}
   textarea#fPics{min-height:120px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.82rem}
 
   /* Попередній перегляд */
@@ -161,6 +164,8 @@ function renderEditor(){
     +  '<label class="chk"><input id="fActive" type="checkbox"' + (M.active !== false ? ' checked' : '') + '> Показувати дітям</label>'
     +'</div>'
     +'<div class="field"><label for="fText">Текст *</label>'
+    +  '<div class="stressbar"><button class="btn ghost" id="btnStress" type="button" title="Наголос над голосною (Ctrl+\')">а́ Наголос</button>'
+    +  '<span class="hint">Постав курсор після наголошеної голосної (або виділи її) і натисни. Ще раз — прибрати.</span></div>'
     +  '<textarea id="fText" placeholder="Вірш: кожен рядок — з нового рядка, строфи — через порожній рядок.&#10;Текст: абзаци — через порожній рядок.">' + esc(M.text) + '</textarea>'
     +  '<div class="note">Вірш: строфа = сторінка в тренажері. Текст: абзац ділиться на речення й сторінки приблизно по 30 слів.</div></div>'
     +'<div class="field"><label for="fPics">Картинки до рядків (для «Вчити» / «Розказати»)</label>'
@@ -171,11 +176,39 @@ function renderEditor(){
     +'<div class="msg" id="msg"></div>'
     +'<h2 style="margin-top:18px">👁 Як побачить дитина</h2><div id="preview"></div>';
   el('#btnSave').addEventListener('click', save);
+  // кнопка не забирає фокус з тексту — курсор і виділення лишаються на місці
+  el('#btnStress').addEventListener('mousedown', function(e){ e.preventDefault(); });
+  el('#btnStress').addEventListener('click', function(){ toggleStress(el('#fText')); });
+  el('#fText').addEventListener('keydown', function(e){
+    if((e.ctrlKey || e.metaKey) && (e.key === "'" || e.code === 'Quote')){ e.preventDefault(); toggleStress(this); }
+  });
   el('#btnCancel').addEventListener('click', function(){ M = null; renderEditor(); });
   ['#fTitle','#fAuthor','#fKind','#fText','#fPics'].forEach(function(s){
     el(s).addEventListener('input', function(){ readForm(); renderPreview(); });
   });
   renderPreview();
+}
+
+/* Наголос — знак U+0301 одразу ПІСЛЯ наголошеної голосної (за́мок). Його бачить дитина
+   над літерою, озвучка читає слово з цим наголосом, а розпізнавання голосу
+   в тренажері знак ігнорує (norm() лишає тільки літери). */
+var STRESS = '\u0301', VOWELS = 'аеєиіїоуюяАЕЄИІЇОУЮЯ';
+function isVowel(c){ return !!c && VOWELS.indexOf(c) >= 0; }
+function toggleStress(ta){
+  var t = ta.value, a = ta.selectionStart, b = ta.selectionEnd, at = -1;
+  if(b - a === 1 && isVowel(t[a])) at = a + 1;                       // виділена одна голосна
+  else if(t[a - 1] === STRESS){                                      // курсор одразу після наголосу — прибрати
+    ta.setRangeText('', a - 1, a, 'end');
+    ta.dispatchEvent(new Event('input'));
+    return;
+  }
+  else if(isVowel(t[a - 1])) at = a;                                 // курсор після голосної
+  else if(isVowel(t[a])) at = a + 1;                                 // курсор перед голосною
+  if(at < 0){ setMsg('Постав курсор одразу після наголошеної голосної (або виділи її).', false); return; }
+  if(t[at] === STRESS) ta.setRangeText('', at, at + 1, 'end');       // уже є — прибрати
+  else ta.setRangeText(STRESS, at, at, 'end');
+  ta.focus();
+  ta.dispatchEvent(new Event('input'));
 }
 
 function readForm(){
