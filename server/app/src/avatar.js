@@ -81,7 +81,7 @@ const FIGHT_PAIRS = { 'linen-boy': 'linen-boy-fight', 'blond-boy': 'blond-boy-fi
 const SPEC_VERSION = 5;   // 2: дві пози (fightImage); 3: база на полотні з запасом (CANVAS_PAD); 4: описи речей і де сидять шапка/наручі; 5: рукави верхнього одягу, пояс на талії під ним, не-щити в лівій руці
 const MAX_ATTEMPTS = 3;
 const LEASE_MIN = 10;
-const QUEUE_TIMEOUT_MIN = 10;      // довше чекає в черзі — художник не на зв'язку, завдання скасовується
+const MAX_RENDER_MIN = 120;        // від натискання «Одягти» до готового образу — не довше; далі завдання — помилка
 const RENDER_PER_HOUR = 20;        // нових генерацій на Героя за годину
 const MAX_IMAGE = 9 * 1024 * 1024; // байтів картинки від воркера (після base64)
 const COLLECTION_MAX = 24;         // образів у колекції Героя
@@ -178,6 +178,10 @@ function placementRules(on) {
   const has = slot => on.some(s => s.slot === slot);
   const r = [];
   if (has('helmet')) r.push('The headwear sits firmly ON the head: its inner rim touches the hair and forehead, no gap and no floating above the head; the head size stays the same.');
+  /* шолом із наносником: пластина «з'їжджала» на око (звіт 21.10) */
+  if (has('helmet')) r.push('A helmet sits straight and centred on the head, not tilted or shifted to one side; its lower rim rests just above the eyebrows. '
+    + 'If it has a nose guard (a metal nasal bar), the bar hangs straight down the vertical centre line of the face, exactly over the bridge of the nose between the eyes, '
+    + 'ending at the tip of the nose; the eyes stay fully visible on both sides of it.');
   /* «Шкільний жакет» малювався жилетом без рукавів, пояс — низько на стегнах поверх одягу (звіти 11.10, 17.10) */
   if (has('armor')) r.push('The outer garment keeps its sleeves exactly as on its picture: a jacket, blazer or coat has full-length sleeves down to the wrists — never turn it into a sleeveless vest.');
   if (has('belt')) r.push('The belt sits at the natural waist (navel height), not low on the hips'
@@ -761,7 +765,7 @@ function workerAuth(req) {
 }
 
 /* Завдання, яке воркер узяв і не повернув за LEASE_MIN, вертається в чергу;
-   після MAX_ATTEMPTS спроб — помилка. Черга, яку воркер не чіпав QUEUE_TIMEOUT_MIN, — теж помилка. */
+   після MAX_ATTEMPTS спроб — помилка. Не готове за MAX_RENDER_MIN (у черзі чи в роботі) — теж помилка. */
 async function sweep(q) {
   q = q || pool;
   const dead = await q.query(
@@ -769,13 +773,13 @@ async function sweep(q) {
       where status = 'working' and lease_until < now()
         and (attempts >= $1 or spec->>'engine' = 'gpt') returning key`, [MAX_ATTEMPTS]);
   for (const row of dead.rows) await markFailed(q, row.key);
-  // зависло в черзі (воркер вимкнений) — не тримати Героя в очікуванні; «Одягти» поставить знову
+  // не готове за MAX_RENDER_MIN (воркер вимкнений чи довга черга) — не тримати Героя в очікуванні;
+  // «Одягти» поставить знову. Воркер, що ще малює, на heartbeat отримає «aborted»
   const stale = await q.query(
-    `update avatar_jobs set status = 'failed', error = $1, updated_at = now()
-      where status = 'queued' and queued_at < now() - interval '${QUEUE_TIMEOUT_MIN} minutes'
-        and not exists (select 1 from avatar_jobs w where w.status in ('working', 'done') and w.worker is distinct from 'openai'
-                          and w.updated_at > now() - interval '${QUEUE_TIMEOUT_MIN} minutes') returning key`,
-    ['Художник зараз не на звʼязку — спробуй трохи згодом']);
+    `update avatar_jobs set status = 'failed', error = $1, lease_until = null, updated_at = now()
+      where status in ('queued', 'working') and coalesce(spec->>'engine', '') <> 'gpt'
+        and queued_at < now() - interval '${MAX_RENDER_MIN} minutes' returning key`,
+    ['Образ не встиг намалюватись за 2 години — спробуй ще раз']);
   for (const row of stale.rows) await markFailed(q, row.key);
 }
 async function markFailed(q, key) {
@@ -795,6 +799,7 @@ async function absolute(spec, req) {
   const baseImage = pad ? await canvasImage(spec.base, 'stand') : spec.baseImage;
   const fightImage = spec.fightImage && pad ? await canvasImage(spec.base, 'fight') : spec.fightImage;
   return Object.assign({}, spec, {
+    prompt: promptOf(spec.slots),   // свіжа підказка: «перемалювати» старий набір — уже з новими правилами
     baseImage: abs(baseImage),
     fightImage: abs(fightImage),
     slots: spec.slots.map(s => Object.assign({}, s, { item: s.item && Object.assign({}, s.item, { image: abs(s.item.image) }) }))
@@ -839,9 +844,9 @@ async function fail(req, body) {
     if (j.status !== 'working') throw new AvatarError('aborted', 'Завдання вже не в роботі');
     const err = String(body.error || 'worker error').slice(0, 500);
     const again = body.retry !== false && j.attempts < MAX_ATTEMPTS;
+    // queued_at не скидаємо: MAX_RENDER_MIN рахується від натискання, а не від спроби
     await c.query(
-      `update avatar_jobs set status = $2, error = $3, lease_until = null, updated_at = now(),
-              queued_at = case when $2 = 'queued' then now() else queued_at end
+      `update avatar_jobs set status = $2, error = $3, lease_until = null, updated_at = now()
         where id = $1`, [j.id, again ? 'queued' : 'failed', err]);
     if (!again) await markFailed(c, j.key);
     await c.query('commit');
