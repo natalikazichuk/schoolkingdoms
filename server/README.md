@@ -38,6 +38,8 @@
 ```sh
 sudo /srv/sk/repo/server/deploy.sh main        # оновити сайт з GitHub
 sudo /srv/sk/repo/server/backup.sh             # копія бази зараз
+sudo /srv/sk/repo/server/tools/restore-doc.sh list                       # карта (curriculum/map) у кожній копії
+sudo /srv/sk/repo/server/tools/restore-doc.sh sk-2026-10-21_0317.sql.gz  # повернути з копії лише карту
 cd /srv/sk/repo/server
 sudo docker compose -p sk --env-file /srv/sk/.env logs -f app          # логи API
 sudo docker compose -p sk --env-file /srv/sk/.env exec db psql -U sk sk # консоль бази

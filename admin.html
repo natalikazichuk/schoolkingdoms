@@ -1017,7 +1017,11 @@ const SK_API = {
   remove:      (id)=> window.SK.deleteTest(id),
   setActive:   (id,a)=> window.SK.setTestActive(id, a),
   getMap:      ()  => window.SK.getCurriculum(),
-  saveMap:     (m) => window.SK.saveCurriculum(m),
+  /* Карта не прочиталась із бази — в MAP лише запасна (1 клас). Писати її
+     не можна: саме так вона вже раз затерла справжню структуру. */
+  saveMap:     (m, o) => MAP_LOAD_ERR
+    ? Promise.reject(new Error('Карта не завантажилась з бази — перезавантаж сторінку, інакше збереження зітре структуру'))
+    : window.SK.saveCurriculum(m, o),
   getGames:    ()  => window.SK.getGames(),
   saveGames:   (g) => window.SK.saveGames(g),
   listItems:   ()  => (window.SK.listActiveItems ? window.SK.listActiveItems() : Promise.resolve([])),
@@ -1749,7 +1753,7 @@ function mapAutoSave(){
       await SK_API.saveMap(window.SKCUR.normalize(MAP));
       MAP_FROM_DB = true;
       toast('Структуру збережено ✔');
-    }catch(e){ console.error(e); toast('Не вдалося зберегти структуру', true); }
+    }catch(e){ console.error(e); toast('Не вдалося зберегти структуру' + (e && e.message ? ': ' + e.message : ''), true); }
   }, 700);
 }
 
@@ -2930,7 +2934,12 @@ async function saveMap(){
   if(!checkMap()){ toast('Спершу виправ помилки ✘'); return; }
   try {
     const clean = window.SKCUR.normalize(MAP);
-    await SK_API.saveMap(clean);
+    try { await SK_API.saveMap(clean); }
+    catch(e){
+      /* Класи чи розділи видалено свідомо — лише тоді, з підтвердженням. */
+      if(!e || e.code !== 'map-shrink' || !confirm(e.message + '\n\nВидалення навмисне? Зберегти все одно?')) throw e;
+      await SK_API.saveMap(clean, { allowShrink:true });
+    }
     MAP = clean;
     MAP_FROM_DB = true;
 
@@ -2938,7 +2947,7 @@ async function saveMap(){
     toast('Карту збережено ✔');
   } catch(e){
     console.error(e);
-    toast('Не вдалося зберегти карту');
+    toast('Не вдалося зберегти карту' + (e && e.message ? ': ' + e.message : ''), true);
   }
 }
 
@@ -3609,10 +3618,15 @@ async function loadTests(){
 let MAP_FROM_DB = false;      // карта справді прийшла з бази (а не запасна)
 let MAP_MIGRATED = 0;         // скільки посилань «назва → id» замінила міграція
 let MAP_UNRESOLVED = [];      // посилання, які ні на що не вказують
+let MAP_LOAD_ERR = false;     // база не віддала карту (помилка, а не «документа немає»)
 async function ensureMap(){
   if(MAP) return MAP;
   let d = null;
-  try { d = await SK_API.getMap(); } catch(e){ d = null; }
+  try { d = await SK_API.getMap(); MAP_LOAD_ERR = false; }
+  catch(e){
+    console.error(e); d = null; MAP_LOAD_ERR = true;
+    toast('⚠️ Карта не завантажилась з бази — показано запасну, збереження вимкнено. Перезавантаж сторінку.', true);
+  }
   MAP_FROM_DB = !!(d && Array.isArray(d.tiers) && d.tiers.length);
   MAP = window.SKCUR.normalize(MAP_FROM_DB ? d : window.SKCUR.DEFAULT_MAP);
 
