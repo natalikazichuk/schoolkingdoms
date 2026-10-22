@@ -15,6 +15,7 @@
      5. hero.html   — павутинка: рівень предметів, картки, обкладинки й запасні картинки
      6. hero.html   — павутинка за класами: перемикач, свій клас першим, інші — лише зі спробами
      7. doshkilya/chytaemo-sklady.html — поп-ап показує нагороду з адмінки, замок лише після видачі
+     8. tests.html  — клас, предмет і тема, яких немає в карті, беруться з полів тесту
 
    Падіння (код виходу 1): будь-яка перевірка не справдилась або помилка JS.
    Запуск:  node tools/qa/flows-e2e.mjs        (з кореня; потрібен playwright)
@@ -317,6 +318,37 @@ await scenario('Дошкілля «Читаємо склади» — поп-ап
   p = await run({ skipped: true, reason: 'not-hero' });
   assert.match(p.note, /Увійди як Герой/);
   assert.equal(p.lock, null);
+});
+
+/* ── 8. tests.html: структура з полів тестів ──
+   Карти в базі немає → запасна (лише 1 клас). Так було, коли карту затерли:
+   тести 2 і 5 класу лежали в базі, а класи стояли порожні. */
+await scenario('tests.html — клас/предмет/тема поза картою беруться з полів тесту', async (page, withSK) => {
+  const more = [
+    { id: 'm2', title: 'Множення на 2', subject: 'Математика', grade: 2, topic: 'Таблиця множення' },
+    { id: 'h5', title: 'Скарби минулого', subject: 'Історія', grade: 5, topic: 'Археологія', stat: 'strength' },
+    { id: 'e2', title: 'Colors', subject: 'Engl', grade: 2, topic: '1 семестр' }];
+  await withSK(`return { ready: Promise.resolve({ uid: 'p1' }), isHeroSession: () => false,
+    getCurriculum: async () => null, listActiveTests: async () => ${JSON.stringify(TESTS.concat(more))} };`);
+  await page.goto(`${BASE}/tests.html`);
+  await page.waitForSelector('[data-grade="5"]');
+  for (const g of ['2', '5'])
+    assert.equal(await page.$eval(`[data-grade="${g}"]`, el => el.classList.contains('locked')), false, g + ' клас відкритий');
+  await page.click('[data-grade="5"]');
+  await page.waitForSelector('[data-subj]');
+  const subj = await page.$$eval('[data-subj]', els => els.map(e => e.textContent));
+  assert.ok(subj.some(t => /Історія/.test(t)), 'предмет «Історія» у 5 класі: ' + subj.join(' | '));
+  await page.click('[data-subj^="auto-"]');
+  await page.waitForSelector('[data-testid="h5"]');
+  // 2 клас: «Engl» — це English (не новий предмет), тема з тесту
+  await page.goto(`${BASE}/tests.html#open=junior&grade=g2`);
+  await page.waitForSelector('[data-subj]');
+  const s2 = await page.$$eval('[data-subj]', els => els.map(e => e.textContent.trim()));
+  assert.ok(!s2.some(t => /^Engl\b(?!ish)/.test(t)), 'без предмета-двійника «Engl»: ' + s2.join(' | '));
+  await page.click('[data-subj="math"]');
+  await page.waitForSelector('[data-testid="m2"]');
+  const groups = await page.$$eval('.tg-name', els => els.map(e => e.textContent));
+  assert.ok(groups.includes('Таблиця множення'), 'тема з тесту: ' + groups.join(' | '));
 });
 
 await browser.close();

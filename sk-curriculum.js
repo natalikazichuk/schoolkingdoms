@@ -23,8 +23,11 @@
          Раніше вона була написана двічі — у tests.html (три правила) і в
          admin.html/checkMap (одне правило), і копії розійшлися: перевірка
          звітувала про «сиріт», яких у дитини видно нормально, і мовчала про
-         тести, що реально випадали через клас/предмет/однакову назву. */
-var API_VERSION = 7;
+         тести, що реально випадали через клас/предмет/однакову назву.
+     8 — + withTests(map,tests): карта — надбудова над полями тестів. Клас,
+         предмет і розділ, яких у карті немає, беруться з grade/subject/topic
+         самого тесту; placeTests робить це сам (opts.strict — лише карта). */
+var API_VERSION = 8;
 
 var PASS_RATIO = 0.55;
 
@@ -371,9 +374,101 @@ function migrateRefs(map, tests){
                                         показаний, цей не показується ніде
      unresolved[{ref,topic,subject}]              — посилання ні на що не вказує
      byId      {testId:{subject,topic}}           — де саме опинився тест      */
-function placeTests(map, tests){
-  var tiers = Array.isArray(map) ? map : ((map && map.tiers) || []);
+/* ─── СТРУКТУРА З ПОЛІВ ТЕСТІВ ───
+   Карта задає порядок, ланцюги, оформлення й порожні («Скоро») класи, але
+   НЕ є єдиним джерелом структури. Тест сам знає свій клас, предмет і тему —
+   чого з цього немає в карті, додаємо (з позначкою auto:true) у копію карти.
+   Раніше тест без місця в карті потрапляв у «Інші тести» 1 класу, а коли
+   карту затерли запасною (лише 1 клас), 2–5 класи стали порожніми, хоча
+   тести з grade 2…5 лежали в базі.
+   Нові розділи стають у кінець предмета, нові предмети — у кінець класу. */
+function gradeOfTest(t){ return (t.grade == null || t.grade === '') ? 1 : Number(t.grade); }
+function tierKind(t){
+  var v = norm((t && t.id) + ' ' + (t && t.name));
+  if(v.indexOf('preschool') >= 0 || v.indexOf('дошкіл') >= 0) return 'preschool';
+  if(v.indexOf('junior') >= 0 || v.indexOf('молодш') >= 0) return 'junior';
+  if(v.indexOf('senior') >= 0 || v.indexOf('старш') >= 0) return 'senior';
+  return '';
+}
+/* Предмет за назвою з тесту: спершу звичайне зіставлення (keys/назва), далі —
+   скорочення («Engl» → English), щоб не плодити предмети-двійники. */
+function findSubj(list, name){
+  var i, v = norm(name);
+  for(i = 0; i < list.length; i++) if(subjectMatches(list[i], name)) return list[i];
+  if(v.length >= 3) for(i = 0; i < list.length; i++) if(norm(list[i].name).indexOf(v) === 0) return list[i];
+  return null;
+}
+function withTests(map, tests){
+  var isArr = Array.isArray(map);
+  var out = clone(isArr ? { tiers: map } : (map || { tiers: [] }));
+  if(!Array.isArray(out.tiers)) out.tiers = [];
+  var tiers = out.tiers, allSubj = [];
+  tiers.forEach(function(tr){
+    if(!Array.isArray(tr.grades)) tr.grades = [];
+    tr.grades.forEach(function(g){
+      if(!Array.isArray(g.subjects)) g.subjects = [];
+      g.subjects.forEach(function(sj){ if(!Array.isArray(sj.topics)) sj.topics = []; allSubj.push(sj); });
+    });
+  });
+
+  function gradeFor(n){
+    var i, j, gs;
+    for(i = 0; i < tiers.length; i++){
+      gs = tiers[i].grades;
+      for(j = 0; j < gs.length; j++) if(Number(gs[j].gradeNum) === n) return gs[j];
+    }
+    var want = n <= 0 ? 'preschool' : (n <= 4 ? 'junior' : 'senior'), tr = null;
+    for(i = 0; i < tiers.length && !tr; i++) if(tierKind(tiers[i]) === want) tr = tiers[i];
+    if(!tr && n > 0) for(i = tiers.length - 1; i >= 0 && !tr; i--) if(tierKind(tiers[i]) !== 'preschool') tr = tiers[i];
+    if(!tr){
+      tr = { id: want, icon: '📚', name: n <= 0 ? 'Дошкільнятко' : (n + ' клас'), status: 'wip', note: '', grades: [], auto: true };
+      tiers.push(tr);
+    }
+    var g = { id: 'g' + n, name: n <= 0 ? 'Дошкільнятко' : (n + ' клас'), status: 'wip', gradeNum: n, subjects: [], auto: true };
+    tr.grades.push(g);
+    tr.grades.sort(function(a, b){ return Number(a.gradeNum) - Number(b.gradeNum); });
+    return g;
+  }
+  /* Скорочення («Engl») дописуємо в keys копії: далі розкладка зіставляє
+     предмет тесту звичайним subjectMatches. */
+  function learn(sj, name){
+    if(!subjectMatches(sj, name)){ sj.keys = (sj.keys || []).concat([String(name).trim()]); }
+    return sj;
+  }
+  function subjFor(g, t){
+    var sj = findSubj(g.subjects, t.subject);
+    if(sj) return learn(sj, t.subject);
+    var tpl = findSubj(allSubj, t.subject);          // той самий предмет в іншому класі
+    if(tpl){
+      sj = learn(clone(tpl), t.subject); sj.topics = [];
+    } else {
+      var name = String(t.subject).trim(), key = statKeyFrom(t.stat);
+      sj = { id: 'auto-' + norm(name).replace(/[^a-zа-яіїєґ0-9]+/gi, '-'), icon: '📘', name: name,
+             accent: '#5C6BC0', statKey: key, stat: key ? statLabel(key) : '—', keys: [name], topics: [] };
+    }
+    sj.auto = true;
+    g.subjects.push(sj); allSubj.push(sj);
+    return sj;
+  }
+
+  (tests || []).forEach(function(t){
+    if(!t || !t.id || !t.title || !String(t.subject || '').trim()) return;
+    var n = gradeOfTest(t);
+    if(!isFinite(n)) return;
+    var sj = subjFor(gradeFor(n), t);
+    var tn = norm(t.topic);
+    if(!tn) return;                                    // без теми — у предмет без розділу
+    for(var i = 0; i < sj.topics.length; i++) if(norm(sj.topics[i].topic) === tn) return;
+    sj.topics.push({ topic: String(t.topic).trim(), chain: false, chainGroup: '', tests: [], auto: true });
+  });
+  return isArr ? out.tiers : out;
+}
+
+/* opts.strict — розкласти лише за картою, без додавання структури з тестів. */
+function placeTests(map, tests, opts){
   var all   = (tests || []).filter(function(t){ return t && t.id; });
+  if(!(opts && opts.strict)) map = withTests(map, all);
+  var tiers = Array.isArray(map) ? map : ((map && map.tiers) || []);
   var idx   = indexTests(all);
 
   var usedId = {}, takenTitle = {};
@@ -506,6 +601,7 @@ var API = {
   indexTests: indexTests,
   findTest: findTest,
   placeTests: placeTests,
+  withTests: withTests,
   migrateRefs: migrateRefs,
   ready: null,
   loaded: false      // true = карта прийшла з бази, false = запасна

@@ -844,7 +844,7 @@
 <div class="toast" id="toast"></div>
 
 <!-- Спільна карта королівства (звичайний скрипт — до інлайну нижче) -->
-<script src="sk-curriculum.js?v=8"></script>
+<script src="sk-curriculum.js?v=9"></script>
 <!-- Нагороди: нормалізація й шанси колеса — спільні з видачею (test.html, тренажери) -->
 <script src="sk-rewards.js?v=5"></script>
 
@@ -2872,6 +2872,20 @@ function checkMap(){
   if(P.leftovers.length){
     warns.push('Не в жодному розділі (підуть у предмет за ключами або в «Інші тести»): '
       + P.leftovers.map(t => t.title).join(', '));
+  }
+  /* Дитина бачить і те, чого в карті немає: клас, предмет чи розділ із полів
+     самого тесту (SKCUR.withTests). Кажемо, що саме додалось «з тестів» —
+     «Розкласти по розділах» закріпить це в карті (порядок, ланцюги). */
+  const auto = [];
+  P.topics.concat(P.subjects).forEach(b => {
+    if(!b.tests.length) return;
+    const where = b.grade.auto ? b.grade.name : b.subj.auto ? b.grade.name + ' · ' + b.subj.name
+      : (b.topic && b.topic.auto) ? b.grade.name + ' · ' + b.subj.name + ' · «' + b.topic.topic + '»' : '';
+    if(where && !auto.includes(where)) auto.push(where);
+  });
+  if(auto.length){
+    warns.push('Немає в карті, показано з полів тестів (' + auto.length + '): ' + auto.join('; ')
+      + '. Щоб задати порядок і ланцюги — «Розкласти по розділах».');
   }
 
   let html = '';
