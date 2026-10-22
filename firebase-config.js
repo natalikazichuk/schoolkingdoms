@@ -902,23 +902,43 @@ const SK = {
   // ── КАРТА КОРОЛІВСТВА (ступені → класи → предмети → розділи → тести) ──
   // Один документ curriculum/map. Читають tests.html / test.html, пише адмінка.
   // Немає документа → null, і сторінки беруть запасну карту з sk-curriculum.js.
+  // Помилку читання НЕ ковтаємо: раніше збій мережі теж давав null, адмінка
+  // вважала, що карти в базі немає, відкривала запасну (лише 1 клас) і першим
+  // же збереженням тесту записувала її поверх справжньої — зникли 2–5 класи
+  // й розділи. sk-curriculum.js сам ловить помилку і бере запасну лише для показу.
   async getCurriculum() {
-    try {
-      const s = await getDoc(doc(db, 'curriculum', 'map'));
-      return s.exists() ? s.data() : null;
-    } catch (e) { return null; }
+    const s = await getDoc(doc(db, 'curriculum', 'map'));
+    return s.exists() ? s.data() : null;
   },
 
-  async saveCurriculum(map) {
+  // opts.allowShrink — свідоме видалення класів / розділів (адмін підтвердив).
+  async saveCurriculum(map, opts) {
     if (!map || typeof map !== 'object') throw new Error('empty-curriculum');
     const data = Object.assign({}, map);
     data.updatedAt = serverTimestamp();
-    // Перед перезаписом кладемо попередню версію в curriculum/map_prev —
-    // щоб випадкове збереження не губило карту безповоротно.
-    try {
-      const prev = await getDoc(doc(db, 'curriculum', 'map'));
-      if (prev.exists()) await setDoc(doc(db, 'curriculum', 'map_prev'), prev.data());
-    } catch (e) { console.warn('map_prev backup failed', e); }
+    // Попередню версію читаємо обовʼязково: не прочиталась — не пишемо наосліп.
+    const prev = await getDoc(doc(db, 'curriculum', 'map'));
+    if (prev.exists()) {
+      // Запобіжник: нова карта не може мовчки втратити класи чи купу розділів.
+      const size = m => {
+        let g = 0, t = 0;
+        ((m && m.tiers) || []).forEach(tr => (tr.grades || []).forEach(gr => {
+          g++; (gr.subjects || []).forEach(sj => { t += (sj.topics || []).length; });
+        }));
+        return { g, t };
+      };
+      const a = size(prev.data()), b = size(data);
+      if (!(opts && opts.allowShrink) && (b.g < a.g || b.t < a.t - 3)) {
+        const e = new Error('Нова карта менша за ту, що в базі: класів ' + a.g + ' → ' + b.g
+          + ', розділів ' + a.t + ' → ' + b.t + '. Не зберігаю, щоб не стерти структуру.');
+        e.code = 'map-shrink';
+        throw e;
+      }
+      // Копія попередньої версії в curriculum/map_prev — щоб випадкове
+      // збереження не губило карту безповоротно.
+      try { await setDoc(doc(db, 'curriculum', 'map_prev'), prev.data()); }
+      catch (e) { console.warn('map_prev backup failed', e); }
+    }
     await setDoc(doc(db, 'curriculum', 'map'), data);
     return true;
   },
