@@ -84,6 +84,7 @@
   .acc td{font-weight:600;color:var(--ink);word-break:break-all}
   .acc a{color:var(--primary-ink);cursor:pointer;text-decoration:underline}
   .acc td.dt{white-space:nowrap;word-break:normal}
+  .btn.del{color:var(--danger);border-color:var(--danger);background:transparent}
   .accwrap{overflow-x:auto;border:1px solid var(--border);border-radius:14px}
   .pill{font-size:.7rem;font-weight:800;padding:2px 8px;border-radius:999px;border:1px solid var(--border);white-space:nowrap}
   .pill.hero{background:#f3edfc;color:#6b3fa0}
@@ -116,7 +117,7 @@
       body: body ? JSON.stringify(body) : undefined
     }).then(function(r){
       return r.json().catch(function(){ return {}; }).then(function(j){
-        if(!r.ok) throw new Error((j.error && j.error.code) || ('HTTP ' + r.status));
+        if(!r.ok) throw new Error((j.error && (j.error.message || j.error.code)) || ('HTTP ' + r.status));
         return j;
       });
     });
@@ -210,7 +211,7 @@
   function accHTML(){
     if(!S.acc) return '<div class="empty">Завантаження…</div>';
     return '<div class="crumbs">🔑 Акаунти <span class="muted">паролі не показуються</span></div><div class="accwrap"><table class="acc"><thead><tr>'
-      + '<th>Email / логін</th><th>Хто</th><th>Останній вхід</th><th>Створено</th><th>Пароль</th><th>Сесій</th></tr></thead><tbody>'
+      + '<th>Email / логін</th><th>Хто</th><th>Останній вхід</th><th>Створено</th><th>Пароль</th><th>Сесій</th><th></th></tr></thead><tbody>'
       + S.acc.map(function(a){
         var hero = /@hero\.schoolkingdom\.app$/.test(a.email);
         var link = a.has_hero ? 'heroes/' + a.uid : a.has_user ? 'users/' + a.uid : '';
@@ -219,7 +220,8 @@
           + '<td><span class="pill ' + (hero ? 'hero">герой' : 'parent">дорослий') + '</span></td>'
           + '<td class="dt">' + esc(when(a.last_login)) + '</td><td class="dt">' + esc(when(a.created_at)) + '</td>'
           + '<td>' + (a.pass_format === 'firebase' ? '<span class="pill old" title="Ще не входив на новому сервері">з Firebase</span>' : 'новий') + '</td>'
-          + '<td>' + a.sessions + '</td></tr>';
+          + '<td>' + a.sessions + '</td>'
+          + '<td><button class="btn xs del" data-del="' + esc(a.uid) + '" title="Видалити акаунт">🗑 Видалити</button></td></tr>';
       }).join('') + '</tbody></table></div>';
   }
   function render(){
@@ -250,14 +252,34 @@
     S.view = 'acc'; render();
     api('GET', 'accounts').then(function(r){ S.acc = r.accounts; render(); }, fail);
   }
+  /* видалення: спершу сервер показує, що зникне (dry), потім треба ввести логін / email */
+  function delAcc(uid){
+    api('POST', 'account/delete', { uid:uid, dry:true }).then(function(r){
+      var hero = /@hero\.schoolkingdom\.app$/.test(r.email);
+      var name = hero ? r.email.split('@')[0] : r.email;
+      var msg = 'Видалити акаунт «' + name + '» назавжди?\n\n';
+      if(r.heroes.length) msg += 'Разом з ' + (hero ? 'Героєм' : 'Героями (' + r.heroes.length + ')') + ':\n'
+        + r.heroes.map(function(h){ return '  • ' + (h.name || h.id) + (h.login ? ' (' + h.login + ')' : ''); }).join('\n') + '\n\n';
+      msg += 'Акаунтів: ' + r.accounts.length + ', документів: ' + r.docs + '. Повернути можна лише з копії бази.\n\n'
+        + 'Щоб підтвердити, введи: ' + name;
+      var typed = prompt(msg);
+      if(typed == null) return;
+      if(typed.trim().toLowerCase() !== name.toLowerCase()) return SKADMIN.toast('Не збігається — нічого не видалено', true);
+      return api('POST', 'account/delete', { uid:uid, confirm:r.email }).then(function(d){
+        SKADMIN.toast('Видалено: акаунтів ' + d.accounts.length + ', документів ' + d.docs);
+        return loadInfo().then(openAcc);
+      });
+    }).catch(fail);
+  }
   function loadInfo(){
     return api('GET', 'collections').then(function(r){ S.info = r; render(); });
   }
 
   var qTimer = null;
   root.addEventListener('click', function(e){
-    var t = e.target.closest('[data-coll],[data-path],[data-acc],#prev,#next,#copy,#back');
+    var t = e.target.closest('[data-coll],[data-path],[data-acc],[data-del],#prev,#next,#copy,#back');
     if(!t) return;
+    if(t.dataset.del) return delAcc(t.dataset.del);
     if(t.dataset.coll) return openColl(t.dataset.coll);
     if(t.dataset.path) return openDoc(t.dataset.path);
     if(t.dataset.acc) return openAcc();
@@ -281,7 +303,7 @@
 
   SKADMIN.header({
     name:'База даних',
-    sub:'School Kingdom · перегляд (лише читання)',
+    sub:'School Kingdom · перегляд бази й видалення акаунтів',
     nav:[ { href:'admin.html', label:'🏠 Головна (Адмінка)' },
           { id:'btnReload', label:'🔄 Оновити' } ]
   });
