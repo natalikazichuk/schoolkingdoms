@@ -28,7 +28,7 @@
 
    Підключення на сторінці тренажера (звичайні скрипти, після firebase-config):
      <script src="../sk-items.js?v=19"></script>
-     <script src="../sk-rewards.js?v=5"></script>
+     <script src="../sk-rewards.js?v=6"></script>
    і виклик у момент повного проходження:
      const res = await SKREWARD.claim();
 
@@ -102,7 +102,15 @@
     return byId.then(function (rec) {
       if (rec) return rec;
       var me = fileOf(hrefFallback || location.pathname);
+      /* Одна сторінка може бути кількома записами (english-1-litery.html?m=1…10):
+         спершу шукаємо запис саме з цими параметрами, далі — лише за файлом. */
+      var full = String(hrefFallback || '').toLowerCase().split('#')[0].split('/').pop();
       return SK.listTests().then(function (all) {
+        if (full.indexOf('?') > 0) {
+          for (var j = 0; j < (all || []).length; j++) {
+            if (String(all[j].linkHref || '').toLowerCase().split('#')[0].split('/').pop() === full) return all[j];
+          }
+        }
         for (var i = 0; i < (all || []).length; i++) {
           if (fileOf(all[i].linkHref) === me) return all[i];
         }
