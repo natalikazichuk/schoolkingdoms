@@ -457,6 +457,65 @@ async function adminAccounts(user) {
   return [{ accounts: r.rows }];
 }
 
+/* видалення акаунта з адмінки (admin-db.html). Дорослий — разом з усіма його Героями
+   (heroes.parentUid); Герой — лише він. Стирається: рядки accounts (сесії — cascade),
+   users/<uid>, heroes/<id> з підколекціями, heroCards/<id>, inviteCodes і friendships цих
+   Героїв. dry: true — нічого не стирає, лише показує, що буде видалено (для вікна
+   підтвердження). confirm — email акаунта, як захист від випадкового кліку. Адмінів і себе не
+   видаляємо. Токену Claude маршрут закритий. Журнал adminLog: що саме стерто (дані
+   users/heroes повністю, решта — шляхи); повернути можна з копії бази. */
+async function adminAccountDelete(user, b) {
+  if (user && user.reader) throw deny();
+  await requireAdmin(user);
+  const uid = String((b && b.uid) || '');
+  if (!uid) throw new ApiError(400, 'invalid-argument', 'uid');
+  if (uid === user.uid) throw new ApiError(400, 'failed-precondition', 'Не можна видалити власний акаунт');
+  const c = await pool.connect();
+  try {
+    await c.query('begin');
+    const acc = (await c.query('select uid, email from accounts where uid = $1 for update', [uid])).rows[0];
+    if (!acc) throw new ApiError(404, 'not-found', 'Акаунт не знайдено');
+    if (!b.dry && String(b.confirm || '').trim().toLowerCase() !== acc.email)
+      throw new ApiError(400, 'invalid-argument', 'Підтвердження не збігається з email акаунта');
+    const me = (await c.query('select data from docs where path = $1', ['users/' + uid])).rows[0];
+    if (me && me.data && me.data.role === 'admin') throw new ApiError(400, 'failed-precondition', 'Акаунт адміністратора видалити не можна');
+    // Герої: сам uid (якщо це Герой) + усі Герої дорослого
+    const heroIds = (await c.query(
+      `select id from docs where parent = 'heroes' and (id = $1 or data->>'parentUid' = $1)`, [uid])).rows.map(r => r.id);
+    const uids = [...new Set([uid, ...heroIds])];
+    const kept = (await c.query(
+      `select path, data from docs where path = any($1)`,
+      [[...uids.map(u => 'users/' + u), ...heroIds.map(h => 'heroes/' + h)]])).rows;
+    const del = await c.query(
+      `delete from docs where path = any($1)
+          or path like any($2)
+          or (parent = 'inviteCodes' and (data->>'heroId' = any($3) or data->>'parentUid' = $4))
+          or (parent = 'friendships' and exists (select 1 from jsonb_array_elements_text(
+                case when jsonb_typeof(data->'heroes') = 'array' then data->'heroes' else '[]'::jsonb end) h where h = any($3)))
+        returning path`,
+      [[...uids.map(u => 'users/' + u), ...heroIds.map(h => 'heroes/' + h), ...heroIds.map(h => 'heroCards/' + h)],
+       [...uids.map(u => 'users/' + u.replace(/[%_\\]/g, '\\$&') + '/%'), ...heroIds.map(h => 'heroes/' + h.replace(/[%_\\]/g, '\\$&') + '/%')],
+       heroIds, uid]);
+    const accs = (await c.query('delete from accounts where uid = any($1) returning email', [uids])).rows.map(r => r.email);
+    if (b.dry) {
+      await c.query('rollback');
+      return [{ dry: true, email: acc.email, accounts: accs, heroes: kept.filter(r => r.path.startsWith('heroes/'))
+        .map(r => ({ id: r.path.slice(7), name: (r.data && r.data.name) || '', login: (r.data && r.data.login) || '' })), docs: del.rowCount }];
+    }
+    const logId = Date.now().toString(36) + '-' + crypto.randomBytes(3).toString('hex');
+    await c.query(`insert into docs (path, parent, id, data) values ($1, 'adminLog', $2, $3)`,
+      ['adminLog/' + logId, logId, JSON.stringify({ at: Date.now(), by: user.email || user.uid, action: 'account-delete',
+        accounts: accs, paths: del.rows.map(r => r.path), before: Object.fromEntries(kept.map(r => [r.path, r.data])) })]);
+    await c.query('commit');
+    return [{ ok: true, accounts: accs, docs: del.rowCount, log: 'adminLog/' + logId }];
+  } catch (e) {
+    await c.query('rollback').catch(() => {});
+    throw e;
+  } finally {
+    c.release();
+  }
+}
+
 /* книга вмінь: помилки SkillError → коди API */
 const SKILL_STATUS = { unauthenticated: 401, 'permission-denied': 403, 'invalid-argument': 400, 'failed-precondition': 409 };
 function skillRoute(fn) {
@@ -539,6 +598,7 @@ const ROUTES = {
   'POST /api/admin/doc': (req, user, b) => adminDoc(user, b),
   'POST /api/admin/doc/set': (req, user, b) => adminDocSet(user, b),
   'GET /api/admin/accounts': (req, user) => adminAccounts(user),
+  'POST /api/admin/account/delete': (req, user, b) => adminAccountDelete(user, b),
   'GET /api/admin/heroes': async (req, user) => { await requireAdmin(user); return [{ heroes: await skills.heroList() }]; },
   'POST /api/admin/hero/reset-class': async (req, user, b) => { await requireAdmin(user); return skillRoute(() => skills.resetClass(b.id))(req, user, b); },
   'POST /api/admin/hero/test-class': async (req, user, b) => { await requireAdmin(user); return skillRoute(() => skills.testClass(b.id, b))(req, user, b); },
