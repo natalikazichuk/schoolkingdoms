@@ -51,8 +51,8 @@
     cfg = c;
     var wrap = el("div"); wrap.id = "wrap";
     wrap.innerHTML =
-      '<div id="top"><div class="pill"><span class="lab">'+(c.stepLabel||"Крок")+'</span><span class="val" id="qNum">1/'+(c.steps||1)+'</span></div>'+
-        '<div id="dirBadge">'+(c.badgeOff||"⏩ звичайний світ")+'</div><div id="spacer"></div><button id="menuBtn" type="button">☰ Меню</button></div>'+
+      '<div id="top"><button id="menuBtn" type="button" title="Назад" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="pill"><span class="lab">'+(c.stepLabel||"Крок")+'</span><span class="val" id="qNum">1/'+(c.steps||1)+'</span></div>'+
+        '<div id="dirBadge">'+(c.badgeOff||"⏩ звичайний світ")+'</div><div id="spacer"></div></div>'+
       '<div id="barWrap"><div id="bar"><div id="barFill"></div></div></div>'+
       '<div id="main"><div id="scene">'+(c.scene||"")+'</div><div id="hint"></div>'+(c.afterScene||"")+'<div id="panel"></div></div>'+
       '<div class="screen'+(c.startBg ? ' picbg' : '')+'" id="startScreen"'+(c.startBg ? ' style="background-image:url('+c.startBg+'), '+(c.startBase || 'linear-gradient(180deg,#7cc0ff 0 45%,#c9a376 45% 100%)')+'"' : '')+'>'+
