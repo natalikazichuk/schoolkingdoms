@@ -831,6 +831,8 @@
       <br>Ілюстрація (необов'язково, у питанні):
       <code style="color:var(--gold)">"visual": { "type":"number-line", "from":1, "to":10, "highlight":[4] }</code> або
       <code style="color:var(--gold)">{ "type":"number-blocks", "value":6, "groups":[2,4] }</code>
+      <br>Плитка-сторінка:
+      <code style="color:var(--gold)">{ title, subject, grade, topic, format:"html", linkHref:"klas-1/….html?m=1", icon, stat, statValue, rewards }</code>
     </p>
     <textarea id="importText" placeholder='[{ "title": "…", "subject": "Математика", "stat": "accuracy", "questions": [ … ] }]'></textarea>
     <div class="toolbar" style="margin-top:14px">
@@ -846,7 +848,7 @@
 <!-- Спільна карта королівства (звичайний скрипт — до інлайну нижче) -->
 <script src="sk-curriculum.js?v=9"></script>
 <!-- Нагороди: нормалізація й шанси колеса — спільні з видачею (test.html, тренажери) -->
-<script src="sk-rewards.js?v=5"></script>
+<script src="sk-rewards.js?v=6"></script>
 
 <!-- Firebase / SK API (модуль, deferred) -->
 <script type="module" src="firebase-config.js"></script>
@@ -4428,6 +4430,21 @@ function normalizeImported(raw){
     statValue: Math.max(0, +raw.statValue || 0),
     active: raw.active !== false,
   };
+  /* 🔗 Файл HTML / 🎬 Video: замість питань — посилання на сторінку
+     (кілька плиток однієї сторінки — різні ?параметри в linkHref). */
+  const fmt = String(raw.format || '');
+  if (fmt === 'html' || fmt === 'link' || fmt === 'video'){
+    const href = String(raw.linkHref || '').trim();
+    if (!href) return null;
+    Object.assign(base, {
+      format: fmt === 'video' ? 'video' : 'html', linkHref: href,
+      icon: String(raw.icon || (fmt === 'video' ? '🎬' : '🔗')), desc: String(raw.desc || ''),
+      imgCard: String(raw.imgCard || ''), blank: raw.blank == null ? fmt === 'video' : !!raw.blank,
+      questions: [], levels: []
+    });
+    if (raw.rewards && typeof raw.rewards === 'object') base.rewards = raw.rewards;
+    return base;
+  }
   const asLevels = raw.format === 'levels' || (Array.isArray(raw.levels) && raw.levels.length);
   // ЗБЕРІГАЄМО генератор випадкових прикладів (інакше тести стають статичними!)
   let gen = null;
