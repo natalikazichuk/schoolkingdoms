@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="uk">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+<title>School & Numbers! Вчимо літери</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Nunito:wght@800;900&display=swap">
+<style>
+/* Layout: a school-notebook page — ruled paper, crayon-colored letter tiles, one activity at a time under a tab strip */
+:root {
+  --paper: #fbfcff;
+  --rule: #dbe5f6;
+  --margin: #f2b8b8;
+  --ink: #1f2a44;
+  --ink-soft: #5b6680;
+  --card: #ffffff;
+  --line: #d6dceb;
+  --c-h: #e4572e; --c-b: #2e86de; --c-g: #3aa65b; --c-n: #8e5bd6; --c-f: #f0a202; --c-t: #e0457b;
+  --ok: #2f9e5a; --no: #d64545;
+  --display: "Nunito", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --body: "Andika", "Trebuchet MS", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #161b29; --rule: #222a3d; --margin: #5a2f36; --ink: #eef2fb; --ink-soft: #a5afc6; --card: #1e2536; --line: #323c55;
+  --ok: #4cc27f; --no: #ef6b6b; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #161b29; --rule: #222a3d; --margin: #5a2f36; --ink: #eef2fb; --ink-soft: #a5afc6; --card: #1e2536; --line: #323c55;
+  --ok: #4cc27f; --no: #ef6b6b; color-scheme: dark }
+
+body {
+  background: var(--paper);
+  background-image: linear-gradient(90deg, transparent 38px, var(--margin) 38px, var(--margin) 40px, transparent 40px),
+                    repeating-linear-gradient(var(--paper) 0 31px, var(--rule) 31px 32px);
+  color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 48px;
+}
+.wrap { max-width: 860px; margin: 0 auto; display: grid; gap: 20px; }
+header { display: grid; gap: 4px; padding-left: 36px; }
+.eyebrow { font-family: var(--display); font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+h1 { font-family: var(--display); font-weight: 900; font-size: clamp(34px, 7vw, 52px); line-height: 1.05; margin: 0; text-wrap: balance; }
+h1 span:nth-child(1){color:var(--c-h)} h1 span:nth-child(2){color:var(--c-b)} h1 span:nth-child(3){color:var(--c-g)} h1 span:nth-child(4){color:var(--c-n)} h1 span:nth-child(5){color:var(--c-f)} h1 span:nth-child(6){color:var(--c-t)}
+.sub { margin: 0; color: var(--ink-soft); max-width: 60ch; }
+
+nav { display: flex; flex-wrap: wrap; gap: 8px; }
+nav button { font: 700 15px var(--body); color: var(--ink); background: var(--card); border: 2px solid var(--line); border-radius: 999px; padding: 8px 14px; cursor: pointer; }
+nav button[aria-selected="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+button:focus-visible, .tile:focus-visible { outline: 3px solid var(--c-b); outline-offset: 2px; }
+
+section.panel { background: var(--card); border: 2px solid var(--line); border-radius: 18px; padding: 20px; display: grid; gap: 16px; }
+.how { margin: 0; color: var(--ink-soft); font-size: 15px; }
+h2 { font-family: var(--display); font-size: 26px; margin: 0; }
+
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 12px; }
+.tile { --c: var(--ink); border: 3px solid var(--c); border-radius: 16px; background: var(--card); color: var(--ink); padding: 12px 8px; cursor: pointer; display: grid; justify-items: center; gap: 2px; font: inherit; }
+.tile .big { font-family: var(--body); font-weight: 700; font-size: 54px; line-height: 1; color: var(--c); }
+.tile .pic { font-size: 34px; line-height: 1.2; }
+.tile .word { font-weight: 700; font-size: 18px; }
+.tile .word b { color: var(--c); }
+.tile.playing { transform: scale(1.05); box-shadow: 0 6px 0 var(--c); }
+
+.big-q { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+.speak { font: 800 18px var(--display); background: var(--c-b); color: #fff; border: 0; border-radius: 14px; padding: 12px 18px; cursor: pointer; }
+.choices { display: flex; flex-wrap: wrap; gap: 12px; }
+.choice { font: 700 44px var(--body); min-width: 86px; padding: 8px 18px; border-radius: 16px; border: 3px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+.choice.pic { font-size: 46px; }
+.choice.right { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, var(--card)); }
+.choice.wrong { border-color: var(--no); animation: shake .3s; }
+@keyframes shake { 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
+.score { font-family: var(--display); font-size: 18px; display: flex; gap: 4px; flex-wrap: wrap; min-height: 28px; color: var(--c-f); }
+.feedback { font-weight: 700; min-height: 26px; }
+
+.trace-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.trace-tools button, .ghost { font: 700 15px var(--body); background: var(--card); color: var(--ink); border: 2px solid var(--line); border-radius: 12px; padding: 8px 12px; cursor: pointer; }
+.trace-tools button.on { border-color: var(--ink); }
+.canvas-box { max-width: 100%; overflow: hidden; border-radius: 14px; border: 2px dashed var(--line); background: var(--paper); touch-action: none; }
+canvas { display: block; width: 100%; height: auto; touch-action: none; }
+
+.dialog { display: grid; gap: 10px; }
+.bubble { max-width: 80%; padding: 10px 14px; border-radius: 16px; font-size: 19px; }
+.bubble.t { background: color-mix(in srgb, var(--c-b) 16%, var(--card)); justify-self: start; border-bottom-left-radius: 4px; }
+.bubble.k { background: color-mix(in srgb, var(--c-g) 18%, var(--card)); justify-self: end; border-bottom-right-radius: 4px; }
+.answers { display: flex; flex-wrap: wrap; gap: 8px; }
+.answers button { font: 700 18px var(--body); padding: 10px 14px; border-radius: 14px; border: 2px solid var(--c-g); background: var(--card); color: var(--ink); cursor: pointer; }
+input#kidname { font: 700 20px var(--body); padding: 8px 12px; border-radius: 12px; border: 2px solid var(--line); background: var(--paper); color: var(--ink); width: min(240px, 100%); }
+.printbar { display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; padding:12px 14px; border:2px solid var(--ink); border-radius:16px; background:var(--card); }
+.printbtn { font:800 17px var(--display); background:var(--ink); color:var(--paper); border:0; border-radius:12px; padding:11px 18px; cursor:pointer; }
+.printbtn:disabled { opacity:.6; cursor:default; }
+.printbar .note { flex:1 1 220px; }
+.note { font-size: 14px; color: var(--ink-soft); margin: 0; }
+footer { padding-left: 36px; }
+@media (max-width: 480px) { header, footer { padding-left: 30px; } .choice { font-size: 36px; min-width: 70px; } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <a href="../" style="color:var(--ink-soft);font-size:15px">← Усі модулі</a>
+  <div class="printbar">
+    <button class="printbtn" id="print-btn">Роздрукувати аркуші (PDF, A4)</button>
+    <p class="note" id="print-note">8 аркушів для друку: обведення літер, «з'єднай» і «Read and draw». Файл збережеться, далі відкрийте його й надрукуйте.</p>
+  </div>
+  <header>
+    <div class="eyebrow">Модуль 3 · School & Numbers · American English</div>
+    <h1><span>S</span><span>E</span><span>D</span><span>B</span><span>P</span><span>T</span> — Вчимо літери</h1>
+    <p class="sub">Школа й числа 1–10. Літери модуля зі слів теми: scissors, eight, desk, book, pencil, ten. Натискайте, слухайте, грайте, обводьте пальцем.</p>
+  </header>
+
+  <nav role="tablist" aria-label="Вправи">
+    <button role="tab" data-tab="letters" aria-selected="true">1. Літери</button>
+    <button role="tab" data-tab="listen" aria-selected="false">2. Слухай і обирай</button>
+    <button role="tab" data-tab="match" aria-selected="false">3. Число й предмет</button>
+    <button role="tab" data-tab="trace" aria-selected="false">4. Обведи</button>
+    <button role="tab" data-tab="talk" aria-selected="false">5. What's this?</button>
+  </nav>
+
+  <section class="panel" id="p-letters">
+    <h2>Meet the letters</h2>
+    <p class="how">Натисни на картку: діктор назве літеру й слово. Повторюйте вголос разом із дитиною й показуйте жест.</p>
+    <div class="tiles" id="tiles"></div>
+  </section>
+
+  <section class="panel" id="p-listen" hidden>
+    <h2>Listen and tap</h2>
+    <p class="how">Натисни «Слухати», почуй слово і вибери, з якої літери воно починається.</p>
+    <div class="big-q"><button class="speak" id="listen-play">▶ Слухати</button><span class="note" id="listen-count"></span></div>
+    <div class="choices" id="listen-choices"></div>
+    <div class="feedback" id="listen-fb" aria-live="polite"></div>
+    <div class="score" id="listen-score" aria-label="Зірочки"></div>
+  </section>
+
+  <section class="panel" id="p-match" hidden>
+    <h2>Numbers and school things</h2>
+    <p class="how">Послухай або прочитай слово й торкнися потрібної цифри чи картинки.</p>
+    <div class="big-q"><span id="match-word" style="font:700 40px var(--body)"></span><button class="ghost" id="match-say">▶ Послухати</button></div>
+    <div class="choices" id="match-choices"></div>
+    <div class="feedback" id="match-fb" aria-live="polite"></div>
+    <div class="score" id="match-score"></div>
+  </section>
+
+  <section class="panel" id="p-trace" hidden>
+    <h2>Trace the letter</h2>
+    <p class="how">Обведи пунктирну літеру пальцем або мишкою зверху вниз, зліва направо. Спочатку велику, потім малу.</p>
+    <div class="trace-tools" id="trace-letters"></div>
+    <div class="trace-tools">
+      <button id="trace-case">Aa: велика</button>
+      <button id="trace-clear">Стерти</button>
+      <button id="trace-say">▶ Послухати</button>
+      <button id="trace-done">Готово ★</button>
+    </div>
+    <div class="canvas-box"><canvas id="pad" width="800" height="420" aria-label="Поле для обведення літери"></canvas></div>
+    <div class="feedback" id="trace-fb" aria-live="polite"></div>
+  </section>
+
+  <section class="panel" id="p-talk" hidden>
+    <h2>What's this? How many?</h2>
+    <p class="how">Teddy показує шкільні речі й просить порахувати. Дитина відповідає вголос, а потім натискає відповідь.</p>
+    <label class="note" for="kidname">Ім'я дитини англійською (для відповіді):</label>
+    <input id="kidname" value="Anna" autocomplete="off">
+    <div class="dialog" id="dialog"></div>
+    <div class="answers" id="answers"></div>
+    <button class="ghost" id="talk-restart" style="justify-self:start">Почати знову</button>
+  </section>
+
+  <footer><p class="note" id="voice-note">Звук працює через синтезатор мови браузера (американська вимова, якщо вона є на пристрої). Аркуші для друку — окремим PDF.</p></footer>
+</div>
+
+<script>
+const L = [
+  {"up": "S", "low": "s", "word": "scissors", "pic": "✂️", "c": "--c-h", "ua": "ножиці"},
+  {"up": "E", "low": "e", "word": "eight", "pic": "8️⃣", "c": "--c-b", "ua": "вісім"},
+  {"up": "D", "low": "d", "word": "desk", "pic": "🪑", "c": "--c-g", "ua": "парта"},
+  {"up": "B", "low": "b", "word": "book", "pic": "📘", "c": "--c-n", "ua": "книжка"},
+  {"up": "P", "low": "p", "word": "pencil", "pic": "✏️", "c": "--c-f", "ua": "олівець"},
+  {"up": "T", "low": "t", "word": "ten", "pic": "🔟", "c": "--c-t", "ua": "десять"}
+];
+const extraWords = [["seven", "S", "7️⃣"], ["sock", "S", "🧦"], ["egg", "E", "🥚"], ["elephant", "E", "🐘"], ["dog", "D", "🐶"], ["duck", "D", "🦆"], ["bag", "B", "🎒"], ["bus", "B", "🚌"], ["pen", "P", "🖊️"], ["pig", "P", "🐷"], ["two", "T", "2️⃣"], ["three", "T", "3️⃣"]];
+const VOCAB = [["one", "1", "один"], ["two", "2", "два"], ["three", "3", "три"], ["four", "4", "чотири"], ["five", "5", "п'ять"], ["six", "6", "шість"], ["seven", "7", "сім"], ["eight", "8", "вісім"], ["nine", "9", "дев'ять"], ["ten", "10", "десять"], ["pencil", "✏️", "олівець"], ["crayon", "🖍️", "воскова крейда"], ["book", "📘", "книжка"], ["backpack", "🎒", "рюкзак"], ["scissors", "✂️", "ножиці"]];
+
+/* speech */
+let voice = null;
+function pickVoice(){ try { const vs = speechSynthesis.getVoices(); voice = vs.find(v=>v.lang==="en-US" && /Samantha|Google US|Aria|Jenny|Allison/i.test(v.name)) || vs.find(v=>v.lang==="en-US") || vs.find(v=>v.lang && v.lang.startsWith("en")) || null; } catch(e){} }
+try { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; } catch(e) { document.getElementById("voice-note").textContent = "На цьому пристрої озвучення недоступне — читайте слова вголос самі. Аркуші для друку — окремим PDF."; }
+function say(text){ try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = "en-US"; if (voice) u.voice = voice; u.rate = .82; speechSynthesis.speak(u); } catch(e){} }
+const shuffle = a => a.map(x=>[Math.random(),x]).sort((p,q)=>p[0]-q[0]).map(p=>p[1]);
+const color = k => `var(${k})`;
+
+/* tabs */
+const tabs = document.querySelectorAll("nav button");
+tabs.forEach(b => b.addEventListener("click", () => {
+  tabs.forEach(x => x.setAttribute("aria-selected", x===b));
+  document.querySelectorAll("section.panel").forEach(p => p.hidden = p.id !== "p-"+b.dataset.tab);
+  if (b.dataset.tab === "trace") drawGuide();
+}));
+
+/* 1. letters */
+const tiles = document.getElementById("tiles");
+L.forEach(l => {
+  const t = document.createElement("button");
+  t.className = "tile"; t.style.setProperty("--c", color(l.c));
+  t.innerHTML = `<span class="big">${l.up}${l.low}</span><span class="pic" aria-hidden="true">${l.pic}</span><span class="word"><b>${l.low}</b>${l.word.slice(1)}</span><span class="note">${l.ua}</span>`;
+  t.addEventListener("click", () => { document.querySelectorAll(".tile").forEach(x=>x.classList.remove("playing")); t.classList.add("playing"); say(`${l.up}. ${l.up} is for ${l.word}. ${l.word}!`); });
+  tiles.appendChild(t);
+});
+
+/* 2. listen */
+const pool = [...L.map(l=>[l.word,l.up,l.pic]), ...extraWords];
+let lq = null, lStars = 0, lRound = 0;
+function newListen(){
+  lRound++; lq = pool[Math.floor(Math.random()*pool.length)];
+  const others = shuffle(L.map(l=>l.up).filter(u=>u!==lq[1])).slice(0,2);
+  const box = document.getElementById("listen-choices"); box.innerHTML = "";
+  shuffle([lq[1], ...others]).forEach(u => {
+    const l = L.find(x=>x.up===u); const b = document.createElement("button");
+    b.className = "choice"; b.textContent = u + l.low; b.style.color = color(l.c);
+    b.onclick = () => {
+      if (u === lq[1]) { b.classList.add("right"); lStars++; document.getElementById("listen-fb").textContent = `Great job! ${lq[0]} ${lq[2]}`; say(`Yes! ${lq[0]}`); renderStars("listen-score", lStars); setTimeout(()=>{ newListen(); say(lq[0]); }, 1400); }
+      else { b.classList.remove("wrong"); void b.offsetWidth; b.classList.add("wrong"); document.getElementById("listen-fb").textContent = "Try again! Послухай ще раз."; say(lq[0]); }
+    };
+    box.appendChild(b);
+  });
+  document.getElementById("listen-fb").textContent = "";
+  document.getElementById("listen-count").textContent = `Слово ${lRound}`;
+}
+document.getElementById("listen-play").onclick = () => say(lq[0]);
+function renderStars(id, n){ document.getElementById(id).textContent = "★".repeat(Math.min(n, 20)) + (n>20 ? ` ×${n}` : ""); }
+newListen();
+
+/* 3. match: word -> picture */
+let mq = null, mStars = 0;
+function newMatch(){
+  mq = VOCAB[Math.floor(Math.random()*VOCAB.length)];
+  document.getElementById("match-word").textContent = mq[0];
+  const others = shuffle(VOCAB.filter(x=>x!==mq)).slice(0,2);
+  const box = document.getElementById("match-choices"); box.innerHTML = "";
+  shuffle([mq, ...others]).forEach(v => {
+    const b = document.createElement("button"); b.className = "choice pic"; b.textContent = v[1]; b.setAttribute("aria-label", v[2]);
+    b.onclick = () => {
+      if (v === mq) { b.classList.add("right"); mStars++; renderStars("match-score", mStars); document.getElementById("match-fb").textContent = `Yes! ${mq[0]} — ${mq[2]}`; say(`Yes! ${mq[0]}!`); setTimeout(newMatch, 1400); }
+      else { b.classList.remove("wrong"); void b.offsetWidth; b.classList.add("wrong"); document.getElementById("match-fb").textContent = "Oops! Спробуй ще."; }
+    };
+    box.appendChild(b);
+  });
+  document.getElementById("match-fb").textContent = "";
+}
+document.getElementById("match-say").onclick = () => say(mq[0]);
+newMatch();
+
+/* 4. trace */
+const pad = document.getElementById("pad"), ctx = pad.getContext("2d");
+let cur = L[0], upper = true, drawing = false, last = null;
+const tl = document.getElementById("trace-letters");
+L.forEach((l,i) => { const b = document.createElement("button"); b.textContent = l.up + l.low; b.style.color = color(l.c); if(!i) b.classList.add("on");
+  b.onclick = () => { cur = l; tl.querySelectorAll("button").forEach(x=>x.classList.toggle("on", x===b)); drawGuide(); }; tl.appendChild(b); });
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function drawGuide(){
+  const W = pad.width, H = pad.height; ctx.clearRect(0,0,W,H);
+  // three-line writing guide
+  ctx.setLineDash([]); ctx.lineWidth = 2; ctx.strokeStyle = css("--rule") || "#dbe5f6";
+  [70, 210, 330].forEach(y => { ctx.beginPath(); ctx.moveTo(20,y); ctx.lineTo(W-20,y); ctx.stroke(); });
+  ctx.setLineDash([10,10]); ctx.beginPath(); ctx.moveTo(20,200); ctx.lineTo(W-20,200); ctx.stroke();
+  const ch = upper ? cur.up : cur.low;
+  ctx.font = `700 ${upper ? 300 : 300}px Andika, "Trebuchet MS", sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+  ctx.setLineDash([14,12]); ctx.lineWidth = 5; ctx.strokeStyle = css("--ink-soft") || "#888";
+  ctx.strokeText(ch, W/2, 330);
+  ctx.setLineDash([]);
+  document.getElementById("trace-case").textContent = upper ? "Aa: велика" : "Aa: мала";
+  document.getElementById("trace-fb").textContent = "";
+}
+function pos(e){ const r = pad.getBoundingClientRect(); return [ (e.clientX-r.left)*pad.width/r.width, (e.clientY-r.top)*pad.height/r.height ]; }
+pad.addEventListener("pointerdown", e => { drawing = true; last = pos(e); pad.setPointerCapture(e.pointerId); });
+pad.addEventListener("pointermove", e => { if(!drawing) return; const p = pos(e);
+  ctx.strokeStyle = css(cur.c); ctx.lineWidth = 16; ctx.lineCap = "round"; ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(...last); ctx.lineTo(...p); ctx.stroke(); last = p; });
+["pointerup","pointercancel","pointerleave"].forEach(ev => pad.addEventListener(ev, () => drawing = false));
+document.getElementById("trace-case").onclick = () => { upper = !upper; drawGuide(); };
+document.getElementById("trace-clear").onclick = drawGuide;
+document.getElementById("trace-say").onclick = () => say(`${cur.up}. ${cur.up} is for ${cur.word}.`);
+document.getElementById("trace-done").onclick = () => { document.getElementById("trace-fb").textContent = `Well done! ★ ${upper ? "Тепер спробуй малу літеру." : "Обери наступну літеру."}`; say("Well done!"); };
+document.fonts && document.fonts.ready.then(drawGuide); drawGuide();
+
+/* 5. dialogue */
+const steps = [
+  {"t": "Hello, {n}! Let's go to school! 🏫", "opts": ["Let's go!", "Goodbye!"], "ok": 0},
+  {"t": "What's this? ✏️", "opts": ["It's a pencil.", "It's a book."], "ok": 0},
+  {"t": "And what's this? 📘", "opts": ["It's a bag.", "It's a book."], "ok": 1},
+  {"t": "How many? 🍎🍎🍎", "opts": ["Three.", "Five."], "ok": 0},
+  {"t": "How many? ⭐⭐⭐⭐⭐", "opts": ["Two.", "Five."], "ok": 1},
+  {"t": "Open your book, please!", "opts": ["OK!", "I'm a girl."], "ok": 0},
+  {"t": "Happy Thanksgiving! 🦃 What are you thankful for?", "opts": ["I'm thankful for my family.", "I'm thankful for my friends."], "ok": -1},
+  {"t": "Stand up! Good job! Goodbye!", "opts": ["Goodbye, Teddy!", "Hello!"], "ok": 0}
+];
+let si = 0;
+const dlg = document.getElementById("dialog"), ans = document.getElementById("answers");
+const nm = () => (document.getElementById("kidname").value.trim() || "Anna");
+function bubble(text, who){ const d = document.createElement("div"); d.className = "bubble " + who; d.textContent = (who==="t" ? "🧸 " : "") + text; dlg.appendChild(d); }
+function step(){
+  ans.innerHTML = "";
+  if (si >= steps.length) { bubble("★ ★ ★ Super! You can count to ten!", "t"); say("Super!"); return; }
+  const s = steps[si], line = s.t.replace("{n}", nm()); bubble(line, "t"); say(line);
+  s.opts.forEach((o,i) => { const b = document.createElement("button"); const txt = o.replace("{n}", nm()); b.textContent = txt;
+    b.onclick = () => { if (s.ok === -1 || i === s.ok) { bubble(txt, "k"); say(txt); si++; setTimeout(step, 1300); } else { b.style.borderColor = color("--no"); say("Hmm, try again!"); } };
+    ans.appendChild(b); });
+}
+document.getElementById("talk-restart").onclick = () => { si = 0; dlg.innerHTML = ""; step(); };
+step();
+/* print: save the worksheet PDF for printing */
+(async () => {
+  const btn = document.getElementById("print-btn"), note = document.getElementById("print-note");
+  btn.addEventListener("click", async () => {
+    let dl = null;
+    try { dl = await (window.claude?.use ? window.claude.use("downloads") : null); } catch(e) {}
+    if (!dl) { const a = document.createElement("a"); a.href = "worksheets.pdf"; a.target = "_blank"; a.rel = "noopener"; document.body.appendChild(a); a.click(); a.remove(); note.textContent = "PDF відкрито в новій вкладці: натисніть «Друк» там."; return; }
+    btn.disabled = true; const old = btn.textContent; btn.textContent = "Готую файл…";
+    try {
+      const res = await fetch("worksheets.pdf"); if (!res.ok) throw new Error("fetch");
+      const blob = await res.blob();
+      await dl.save({ filename: "Module3-School-worksheets.pdf", data: blob });
+      note.textContent = "Файл збережено. Відкрийте його й натисніть «Друк».";
+    } catch(e) {
+      note.textContent = e && e.code === "declined" ? "Збереження скасовано. Натисніть кнопку ще раз, коли будете готові." : "Не вдалося зберегти файл. Спробуйте ще раз за хвилину.";
+    } finally { btn.disabled = false; btn.textContent = old; }
+  });
+})();
+</script>
