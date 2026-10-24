@@ -565,7 +565,7 @@
      вдалося — удар скасовано, вдале очко; ні — навчання на помилках. */
   function triggerHits(ctx, st, id, opHit, rnd, mark) {
     if (!hasSk(st, id)) return 0;
-    var eng = V(st, id, 'engage'), need = V(st, id, 'chance'), n = 0;
+    var eng = V(st, id, 'engage'), need = V(st, id, 'chance') + (id === 'base.dodge' ? perkOf(st, 'dodgeUp') : 0), n = 0;   // Спритний ухил (Слідопит)
     (opHit.hits || []).forEach(function (h) {
       if (h.kind !== 'hit' && h.kind !== 'crit') return;
       if (h.cleave && id === 'base.shield') return;               // Розсікти: щит не блокує

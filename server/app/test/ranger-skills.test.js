@@ -148,3 +148,33 @@ test('Перевага «Швидкий спис»: добиваєш — з ша
   assert.ok(tries > 80 && ok > 3 && ok < 45, 'шанс 10%: ' + ok + ' з ' + tries);
 });
 
+
+test('Ухилення, Торгівля й Зілля — загальні вміння: окремих у Слідопита немає', () => {
+  ['dodge', 'trade', 'potions'].forEach(k => {
+    assert.strictEqual(S.byId('ranger.' + k), null, 'ranger.' + k);
+    assert.ok(S.byId('base.' + k), 'base.' + k);
+  });
+});
+
+test('Перевага «Спритний ухил»: Ухилення Слідопита спрацьовує з 20%, а не 15%', () => {
+  assert.strictEqual(R.perk('ranger', 'dodgeUp'), 5);
+  const need = (st) => {
+    st.op.p.accuracy = 5000; st.me.p.agility = 1;
+    const e = SB.turn(ctx, st, HIT, {}, Date.now());
+    const h = e.opHit.hits.find(x => x.skillDodge);
+    return h ? Number(/≤ (\d+)%$/.exec(h.dodgeCalc)[1]) : null;
+  };
+  let r = null, k = null;
+  for (let i = 0; i < 300 && (r == null || k == null); i++) {
+    if (r == null) r = need(battle({ 'base.dodge': 1 }, []));
+    if (k == null) k = need(asKnight({ 'base.dodge': 1 }));
+  }
+  assert.strictEqual(k, 15, 'Лицар');
+  assert.strictEqual(r, 20, 'Слідопит');
+});
+
+test('Переваги «поки не діє» (soon): записані, але без числа — бій їх не бачить', () => {
+  const soon = R.CLASS_PERKS.knight.filter(q => q.soon);
+  assert.strictEqual(soon.length, 3);
+  soon.forEach(q => { assert.strictEqual(q.v, undefined, q.id); assert.strictEqual(R.perk('knight', q.id), 0); });
+});

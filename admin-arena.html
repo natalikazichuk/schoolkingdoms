@@ -13,8 +13,8 @@
 <script src="sk-admin.js?v=1"></script>
 <script src="sk-curriculum.js?v=9"></script>
 <script src="sk-items.js?v=22"></script>
-<script src="sk-arena-rules.js?v=28"></script>
-<script src="sk-skills.js?v=52"></script>
+<script src="sk-arena-rules.js?v=30"></script>
+<script src="sk-skills.js?v=53"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -953,7 +953,7 @@ function perksHTML(){
       +row('Ресурс',esc(c.res))
       +row('Концентрація','«'+esc(c.conc)+'»')
       +row('Ріст за рівень',lb?'+'+lb.health+' ❤️ здоров\'я, +'+lb.mana+' 🔮 мани (з '+(S.CLASS_LEVEL||3)+' рівня)':'—')
-      +row('Переваги',perks.length?perks.map(function(q){return '<div>'+q.icon+' <b>'+esc(q.name)+'</b> — '+esc(q.text)+'</div>';}).join(''):'<span class="hint">ще немає</span>')
+      +row('Переваги',perks.length?perks.map(function(q){return '<div'+(q.soon?' style="opacity:.6"':'')+'>'+q.icon+' <b>'+esc(q.name)+'</b> — '+esc(q.text)+(q.soon?' <span class="hint">⏳ поки не додано — на балансування класів</span>':'')+'</div>';}).join(''):'<span class="hint">ще немає</span>')
       +row('Вміння готові до бою',ready.length?ready.length+' (спільних '+sh.length+', унікальних '+uq.length+')':'<span class="hint">ще немає</span>')
       +(sh.length?row('Спільні — як у Лицаря',sh.map(function(s){return s.icon+' '+esc(s.name);}).join(' · ')):'')
       +'</tbody></table>';
@@ -1014,14 +1014,15 @@ function hadmLoad(){
 function keepScroll(fn){var y=window.scrollY;fn();window.scrollTo(0,y);}
 function heroAdminHTML(){
   if(!HADM.list&&!HADM.err)hadmLoad();
-  var opts=Object.keys(SKSKILLS.CLASSES).filter(function(k){return SKSKILLS.readyFor(k).length;}).map(function(k){var c=SKSKILLS.CLASSES[k];return '<option value="'+k+'">'+c.icon+' '+esc(c.name)+'</option>';}).join('');
+  var clsKeys=Object.keys(SKSKILLS.CLASSES).filter(function(k){return SKSKILLS.readyFor(k).length;});
+  var opts=function(cur){return (cur?'':'<option value="" selected>— клас не вибрано</option>')+clsKeys.map(function(k){var c=SKSKILLS.CLASSES[k];return '<option value="'+k+'"'+(k===cur?' selected':'')+'>'+c.icon+' '+esc(c.name)+'</option>';}).join('');};   // обрано поточний клас Героя
   var rows=(HADM.list||[]).map(function(h){
     var c=h.cls&&SKSKILLS.CLASSES[h.cls];
     var sk=h.skills.map(function(x){var s=SKSKILLS.byId(x.id);return (s?s.icon+' ':'')+esc(s?s.name:x.id)+' '+x.pct+'%';}).join(' · ');
     return '<tr><td><b>'+esc(h.name||'—')+'</b><br><span class="key">'+esc(h.id)+'</span></td><td class="num">'+h.lv+'</td>'
       +'<td>'+(c?c.icon+' '+esc(c.name):'—')+'</td><td style="font-size:.8rem">'+(sk||'—')+'</td>'
       +'<td><button type="button" class="btn-ghost" data-hadm="reset" data-id="'+esc(h.id)+'"'+(h.cls?'':' disabled')+'>↺ Скинути клас</button>'
-      +'<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap"><select id="hadm-cls-'+esc(h.id)+'" aria-label="Клас">'+opts+'</select>'
+      +'<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap"><select id="hadm-cls-'+esc(h.id)+'" aria-label="Клас">'+opts(h.cls)+'</select>'
       +'<input type="number" id="hadm-pct-'+esc(h.id)+'" value="50" min="25" max="100" style="width:64px" aria-label="Майстерність %">'
       +'<button type="button" class="btn-ghost" data-hadm="test" data-id="'+esc(h.id)+'">🧪 Клас + вміння</button></div>'
       +'<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap"><input type="number" id="hadm-lv-'+esc(h.id)+'" value="'+h.lv+'" min="1" max="30" style="width:64px" aria-label="Рівень арени">'
@@ -1053,6 +1054,7 @@ root.addEventListener('click',function(e){
     p=hadmApi('POST','hero/set-level',{id:id,addPoints:1});
   } else {
     var cls=document.getElementById('hadm-cls-'+id).value,pct=+document.getElementById('hadm-pct-'+id).value||50;
+    if(!cls){alert('Спершу обери клас');return;}   // «клас не вибрано» — є лише в Героя без класу
     if(!confirm('Дати Героєві «'+(h.name||id)+'» клас '+SKSKILLS.CLASSES[cls].name+' і всі його оброблені вміння на '+pct+'%?'))return;
     p=hadmApi('POST','hero/test-class',{id:id,cls:cls,pct:pct});
   }

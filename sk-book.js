@@ -250,7 +250,7 @@ function perksOf(cls){ var R = window.SKARENA; return (R && R.CLASS_PERKS && R.C
 function perksHTML(cls, short){
   var l = perksOf(cls); if (!l.length) return '';
   return '<div class="skb-perks"><b>' + (short ? 'Переваги:' : '🏰 Твої переваги класу — діють самі, вчити не треба:') + '</b><ul>'
-    + l.map(function(q){ return '<li>' + q.icon + ' <b>' + esc(q.name) + '</b>' + (short ? '' : ' — ' + esc(q.text)) + '</li>'; }).join('') + '</ul></div>';
+    + l.map(function(q){ return '<li' + (q.soon ? ' class="soon"' : '') + '>' + q.icon + ' <b>' + esc(q.name) + '</b>' + (short ? '' : ' — ' + esc(q.text)) + (q.soon ? ' <i>(⏳ поки не діє)</i>' : '') + '</li>'; }).join('') + '</ul></div>';
 }
 function clsHTML(ready){
   if (!ready) return '<div class="skb-msg">🔒 На ' + SKS.CLASS_LEVEL + ' рівні ти обереш свій шлях: Лицар, Слідопит, Чарівник чи Цілитель. Тоді тут з\'являться вміння класу.</div>';
