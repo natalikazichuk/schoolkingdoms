@@ -569,7 +569,7 @@ function imgPrevHtml(val, id){
   if(/^https?:\/\//i.test(val)){
     src=val; note='⚠️ Картинку не знайдено за цим посиланням';
   } else if(id){
-    src='img/items/'+id+'.webp';
+    src='img/items/'+id+'.webp'+(UPT[id]?'?t='+UPT[id]:'');   // щойно залита — повз кеш браузера
     note='ℹ️ Файлу img/items/'+id+'.webp ще немає — залий його або встав посилання https://…';
   } else {
     return '<span class="img-prev-err" style="display:block;color:var(--muted)">Встав повне посилання (https://…) на зображення.</span>';
@@ -697,6 +697,7 @@ function renderEditor(){
     +'</div>'
     +'<div class="msg" id="msg"></div>';
   renderAddStats();
+  if(UPIMG) upPreview();   // оброблена, ще не збережена картинка не зникає при перемальовуванні форми
 }
 
 /* ---- форма -> модель ---- */
@@ -780,7 +781,7 @@ function editorClick(e){
   var act=b.getAttribute('data-act');
   if(act==='save'){ doSave(); return; }
   if(act==='prompt'){ collectForm(); var bx=el('#m_pbox'); if(bx.innerHTML){ bx.innerHTML=''; return; } bx.innerHTML=editorPromptHtml(); editorPromptUpdate(); return; }
-  if(act==='upsend'){ upSend(); return; }
+  if(act==='upsend'){ upSend(); return; }   // результат показує сам
   if(act==='upcancel'){ UPIMG=null; upShow(''); return; }
   if(act==='pcopy'){ copyText(el('#m_pout'), el('#m_pmsg')); return; }
   if(act==='close'){ closeEditor(); return; }
@@ -807,7 +808,11 @@ function doSave(){
     setMsg('Предмет з кодом «'+clean.id+'» уже існує. Обери інший код.', false); return;
   }
   setMsg('💾 Зберігаємо…', true);
+  // оброблену картинку, яку забули «⬆ Зберегти на сайт», зберігаємо разом із річчю
+  var up=null;
   SK.saveItem(clean).then(function(){
+    return UPIMG ? upSend().then(function(r){ up=r; }) : null;
+  }).then(function(){
     return SK.listItems({fresh:true});
   }).then(function(list){
     ITEMS=list||[];
@@ -815,19 +820,21 @@ function doSave(){
     var saved=ITEMS.filter(function(x){ return x.id===clean.id; })[0];
     if(saved){ loadIntoEditor(saved); } else { M=blankItem(); renderEditor(); }
     renderView();
-    setMsg('✅ Збережено!', true);
+    if(up && !up.ok) setMsg('✅ Річ збережено, ⚠️ але картинку — ні: '+up.err+'. Перетягни її ще раз.', false);
+    else setMsg(up ? '✅ Збережено разом із картинкою!'+(up.shadowed?' ⚠️ Але в репозиторії вже є img/items/'+clean.id+'.webp — у грі показується він.':'') : '✅ Збережено!', true);
   }).catch(function(err){ setMsg('⚠️ Помилка збереження: '+(err&&err.message||err), false); });
 }
 
 /* форма редактора: схована, відкривається кнопкою «＋ Новий предмет» (нагорі) або ✏️ у рядку */
 function openEditor(it){
+  UPIMG=null;
   if(it){ loadIntoEditor(it); }
   else { M=blankItem(); if(GRADE!=null) M.grade=GRADE; renderEditor(); }
   var t=el('#editorTitle'); if(t) t.textContent=it?('✏️ Редагувати: '+(it.name||it.id)):'＋ Нова річ';
   var m=el('#editorModal'); m.hidden=false; m.scrollTop=0; document.body.classList.add('emodal-open');
   var f=el(it?'#m_name':'#m_category')||el('#m_name'); if(f) try{ f.focus({preventScroll:true}); }catch(_){ f.focus(); }
 }
-function closeEditor(){ el('#editorModal').hidden=true; document.body.classList.remove('emodal-open'); M=blankItem(); renderEditor(); }
+function closeEditor(){ UPIMG=null; el('#editorModal').hidden=true; document.body.classList.remove('emodal-open'); M=blankItem(); renderEditor(); }
 
 /* підтвердження видалення — вікно на сторінці (стандартний confirm браузер може мовчки блокувати) */
 function askDelete(it){
@@ -989,7 +996,7 @@ function promptUpdate(){
    Браузер сам готує файл (як tools/item-image.py): біле тло чи намальована «шахівниця» → прозоре,
    сіра тінь на білому → напівпрозора; річ — по центру з полями, 512×512 WebP. Потім
    POST api/admin/item-image → nginx віддає її як img/items/<код>.webp (якщо в репозиторії такого файлу немає). */
-var UPIMG=null;
+var UPIMG=null, UPT={};
 function imgLoad(file){
   return new Promise(function(ok, fail){ var im=new Image(), u=URL.createObjectURL(file);
     im.onload=function(){ ok(im); setTimeout(function(){ URL.revokeObjectURL(u); }, 1000); }; im.onerror=function(){ fail(new Error('Не вдалося відкрити картинку')); }; im.src=u; });
@@ -1038,26 +1045,30 @@ function upShow(html){ var r=el('#m_upres'); if(r) r.innerHTML=html; }
 function upFile(file){
   if(!file || !/^image\//.test(file.type)){ upShow('<div class="msg err">Потрібна картинка (PNG, JPG чи WebP).</div>'); return; }
   upShow('<div class="inline-note">⏳ Обробляю картинку…</div>');
-  imgLoad(file).then(function(im){ UPIMG=prepImage(im); UPIMG.file=file;
-    upShow('<div class="uprev"><div class="pic"><img src="'+UPIMG.url+'" alt=""></div><div><div class="inline-note">'+esc(UPIMG.mode)+' · 512×512 WebP · '+Math.round(UPIMG.url.length*0.75/1024)+' КБ</div>'
-      +'<div class="savebar" style="margin-top:8px"><button class="btn gold" type="button" data-act="upsend">⬆ Зберегти картинку на сайт</button>'
-      +'<button class="btn ghost" type="button" data-act="upcancel">Скасувати</button></div></div></div>');
+  imgLoad(file).then(function(im){ UPIMG=prepImage(im); UPIMG.file=file; upPreview();
   }).catch(function(e){ upShow('<div class="msg err">⚠️ '+esc(e.message||e)+'</div>'); });
 }
+function upPreview(){
+    upShow('<div class="uprev"><div class="pic"><img src="'+UPIMG.url+'" alt=""></div><div><div class="inline-note">'+esc(UPIMG.mode)+' · 512×512 WebP · '+Math.round(UPIMG.url.length*0.75/1024)+' КБ</div>'
+      +'<div class="savebar" style="margin-top:8px"><button class="btn gold" type="button" data-act="upsend">⬆ Зберегти картинку на сайт</button>'
+      +'<button class="btn ghost" type="button" data-act="upcancel">Скасувати</button></div>'
+      +'<div class="inline-note">Або просто «💾 Зберегти» річ — картинка збережеться разом із нею.</div></div></div>');
+}
+/* → Promise {ok:true} | {ok:false, err} (повідомлення вже показано під картинкою) */
 function upSend(){
   collectForm(); var id=(M.id||'').trim();
-  if(!UPIMG || !id){ upShow('<div class="msg err">Спершу вкажи код предмета.</div>'); return; }
+  if(!UPIMG || !id){ upShow('<div class="msg err">Спершу вкажи код предмета.</div>'); return Promise.resolve({ok:false, err:'немає коду предмета'}); }
   upShow('<div class="inline-note">⏳ Зберігаю…</div>');
   // разом із готовою картинкою — оригінал в архів на сервері (як завантажили)
   var orig=new Promise(function(ok){ var fr=new FileReader(); fr.onload=function(){ ok(fr.result); }; fr.onerror=function(){ ok(null); }; fr.readAsDataURL(UPIMG.file); });
-  orig.then(function(o){ return fetch('api/admin/item-image', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'},
+  return orig.then(function(o){ return fetch('api/admin/item-image', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'},
       body:JSON.stringify({ id:id, data:UPIMG.url, orig:o, origType:UPIMG.file.type }) }); })
     .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(j){ if(!r.ok) throw new Error((j.error&&(j.error.message||j.error.code))||('HTTP '+r.status)); return j; }); })
-    .then(function(j){ UPIMG=null;
+    .then(function(j){ UPIMG=null; UPT[id]=Date.now();
       var p=el('#imgprev'); if(p) p.innerHTML='<img src="img/items/'+esc(id)+'.webp?t='+Date.now()+'" alt="" style="max-width:120px;max-height:120px">';
       upShow('<div class="msg ok">✅ Картинку збережено: img/items/'+esc(id)+'.webp'+(j.shadowed?' — ⚠️ але в репозиторії вже є файл з цим кодом, у грі показується він':'')
-        +(j.original?'<br>📦 Оригінал в архіві: '+esc(j.original):'')+'</div>'); })
-    .catch(function(e){ upShow('<div class="msg err">⚠️ Не вдалося зберегти: '+esc(e.message||e)+'</div>'); });
+        +(j.original?'<br>📦 Оригінал в архіві: '+esc(j.original):'')+'</div>'); return {ok:true, shadowed:!!j.shadowed}; })
+    .catch(function(e){ upShow('<div class="msg err">⚠️ Не вдалося зберегти: '+esc(e.message||e)+'</div>'); return {ok:false, err:String(e.message||e)}; });
 }
 
 /* у вікні редактора: промт для цієї речі (категорія, вид зброї й назва — з форми) */
