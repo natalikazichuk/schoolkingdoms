@@ -1024,7 +1024,7 @@ function upShow(html){ var r=el('#m_upres'); if(r) r.innerHTML=html; }
 function upFile(file){
   if(!file || !/^image\//.test(file.type)){ upShow('<div class="msg err">Потрібна картинка (PNG, JPG чи WebP).</div>'); return; }
   upShow('<div class="inline-note">⏳ Обробляю картинку…</div>');
-  imgLoad(file).then(function(im){ UPIMG=prepImage(im);
+  imgLoad(file).then(function(im){ UPIMG=prepImage(im); UPIMG.file=file;
     upShow('<div class="uprev"><div class="pic"><img src="'+UPIMG.url+'" alt=""></div><div><div class="inline-note">'+esc(UPIMG.mode)+' · 512×512 WebP · '+Math.round(UPIMG.url.length*0.75/1024)+' КБ</div>'
       +'<div class="savebar" style="margin-top:8px"><button class="btn gold" type="button" data-act="upsend">⬆ Зберегти картинку на сайт</button>'
       +'<button class="btn ghost" type="button" data-act="upcancel">Скасувати</button></div></div></div>');
@@ -1034,11 +1034,15 @@ function upSend(){
   collectForm(); var id=(M.id||'').trim();
   if(!UPIMG || !id){ upShow('<div class="msg err">Спершу вкажи код предмета.</div>'); return; }
   upShow('<div class="inline-note">⏳ Зберігаю…</div>');
-  fetch('api/admin/item-image', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ id:id, data:UPIMG.url }) })
+  // разом із готовою картинкою — оригінал в архів на сервері (як завантажили)
+  var orig=new Promise(function(ok){ var fr=new FileReader(); fr.onload=function(){ ok(fr.result); }; fr.onerror=function(){ ok(null); }; fr.readAsDataURL(UPIMG.file); });
+  orig.then(function(o){ return fetch('api/admin/item-image', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ id:id, data:UPIMG.url, orig:o, origType:UPIMG.file.type }) }); })
     .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(j){ if(!r.ok) throw new Error((j.error&&(j.error.message||j.error.code))||('HTTP '+r.status)); return j; }); })
     .then(function(j){ UPIMG=null;
       var p=el('#imgprev'); if(p) p.innerHTML='<img src="img/items/'+esc(id)+'.webp?t='+Date.now()+'" alt="" style="max-width:120px;max-height:120px">';
-      upShow('<div class="msg ok">✅ Картинку збережено: img/items/'+esc(id)+'.webp'+(j.shadowed?' — ⚠️ але в репозиторії вже є файл з цим кодом, у грі показується він':'')+'</div>'); })
+      upShow('<div class="msg ok">✅ Картинку збережено: img/items/'+esc(id)+'.webp'+(j.shadowed?' — ⚠️ але в репозиторії вже є файл з цим кодом, у грі показується він':'')
+        +(j.original?'<br>📦 Оригінал в архіві: '+esc(j.original):'')+'</div>'); })
     .catch(function(e){ upShow('<div class="msg err">⚠️ Не вдалося зберегти: '+esc(e.message||e)+'</div>'); });
 }
 

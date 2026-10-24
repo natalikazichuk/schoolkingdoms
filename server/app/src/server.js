@@ -630,7 +630,7 @@ const server = http.createServer(async (req, res) => {
       const origin = req.headers.origin;
       if (origin && originHost(origin) !== req.headers.host) throw new ApiError(403, 'permission-denied', 'bad origin');
     }
-    const body = req.method === 'POST' ? await readBody(req, url === '/api/avatar/worker/result' ? MAX_BODY_AVATAR : MAX_BODY) : {};
+    const body = req.method === 'POST' ? await readBody(req, url === '/api/avatar/worker/result' || url === '/api/admin/item-image' ? MAX_BODY_AVATAR : MAX_BODY) : {};
     const reader = readerFrom(req);
     if (reader && !readerAllows(reader, req.method + ' ' + url))
       throw new ApiError(403, 'permission-denied', reader.write ? 'Цей маршрут токену недоступний' : 'Токен лише для читання');
