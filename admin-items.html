@@ -538,11 +538,20 @@ function renderList(){
 }
 
 /* ---- datalist категорій ---- */
-function catOptions(){
+/* категорія — випадний список: стандартні + ті, що вже є в базі (+ поточна); «✏️ Інша…» — вписати свою */
+function catList(){
   var seen={}, out=[];
-  CATEGORIES.forEach(function(c){ if(!seen[c]){ seen[c]=1; out.push('<option value="'+esc(c)+'">'); } });
-  ITEMS.forEach(function(it){ var c=(it.category||'').trim(); if(c && !seen[c]){ seen[c]=1; out.push('<option value="'+esc(c)+'">'); } });
-  return out.join('');
+  CATEGORIES.forEach(function(c){ if(!seen[c]){ seen[c]=1; out.push(c); } });
+  ITEMS.forEach(function(it){ var c=(it.category||'').trim(); if(c && !seen[c]){ seen[c]=1; out.push(c); } });
+  return out;
+}
+function catField(){
+  var cur=(M.category||'').trim(), list=catList();
+  if(M._catOther) return '<input type="text" id="m_category" value="'+esc(cur)+'" placeholder="Назва нової категорії">';
+  if(cur && list.indexOf(cur)<0) list.push(cur);
+  return '<select id="m_category">'+(cur?'':'<option value="" selected disabled>— вибери категорію —</option>')
+    +list.map(function(c){ return '<option value="'+esc(c)+'"'+(c===cur?' selected':'')+'>'+esc(c)+'</option>'; }).join('')
+    +'<option value="__other">✏️ Інша…</option></select>';
 }
 
 /* прев'ю картинки */
@@ -642,7 +651,7 @@ function renderEditor(){
   el('#editor').innerHTML=
      '<div class="grid">'
     +  idField
-    +'  <div class="field"><label>Категорія</label><input type="text" id="m_category" list="catlist" value="'+esc(M.category||'')+'"><datalist id="catlist">'+catOptions()+'</datalist></div>'
+    +'  <div class="field"><label>Категорія</label>'+catField()+'</div>'
     +'</div>'
     +weaponBlock()
     +'<div class="field"><label>Назва</label><input type="text" id="m_name" value="'+esc(M.name||'')+'" placeholder="Напр.: Сталевий шолом"></div>'
@@ -748,6 +757,7 @@ function editorInput(e){
   if(el('#m_pout')) editorPromptUpdate();   // промт у вікні оновлюється разом із назвою й описом
   if(t && t.id==='m_img'){ var p=el('#imgprev'); if(p) p.innerHTML=imgPrevHtml(t.value, M.id); }
   if(t && t.closest && t.closest('#addstats')){ collectAddStats(); }
+  if(t && t.id==='m_category' && t.value==='__other'){ collectForm(); M.category=''; M._catOther=true; renderEditor(); var ci=el('#m_category'); if(ci) ci.focus(); return; }
   if(t && t.id==='m_category'){
     var was=!!el('#m_wtype'), now=String(t.value||'').trim()===WEAPON_CAT;
     if(was!==now){ collectForm(); renderEditor(); var c=el('#m_category'); if(c){ c.focus(); var n=c.value.length; try{ c.setSelectionRange(n,n); }catch(_){ } } }
