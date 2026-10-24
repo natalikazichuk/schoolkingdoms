@@ -18,7 +18,7 @@
    ============================================================ */
 'use strict';
 
-const VERSION = 'sk-offline-v18';
+const VERSION = 'sk-offline-v19';
 const CACHE   = VERSION;
 
 /* Спільне для ігротеки й ігор. Шляхи — від кореня сайту (теки sw.js). */
@@ -172,10 +172,10 @@ async function pageStrategy(event){
    довантажується у фоні (наступного разу вже буде вона). Раніше й вони
    чекали мережу до 4 с, і сайт із кешем вантажився так само повільно. */
 const MEDIA_RE = /\.(?:png|jpe?g|webp|gif|svg|ico|mp3|wav|ogg|woff2?)$/i;
-/* Картинки словника (img/en/) і речей (img/items/) адмінка замінює під тією самою назвою —
+/* Картинки словника (img/en/), речей (img/items/) і обкладинки (img/tr/) замінюють під тією самою назвою —
    їх завжди звіряємо з сервером (cache:'no-cache' → 304, якщо не мінялись),
    інакше нова картинка з'являлась би лише з наступного разу. */
-const FRESH_RE = /\/img\/(?:en|items)\//;
+const FRESH_RE = /\/img\/(?:en|items|tr)\//;
 async function localAssetStrategy(event){
   const req = event.request;
   const cache = await caches.open(CACHE);
