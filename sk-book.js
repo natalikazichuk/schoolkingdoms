@@ -291,7 +291,7 @@ function paintBattle(bs){
     var cls = 'skb-slot full skb-bt', badge = '', tip = s.name + ' — ' + SKS.effectText(id, p / 100);
     if (b) {
       // обране вміння на перезарядці / без мани — теж сіре: цього ходу не спрацює, але вибір лишається
-      var cd = (b.me.cd || {})[id], sel2 = b.me.skill === id;
+      var cd = (b.me.cd || {})[id], tog = (b.me.tog || []).indexOf(id) >= 0, sel2 = b.me.skill === id || tog;
       if (sel2) cls += ' on';
       var why = window.SKBATTLE ? SKBATTLE.skillBlock(b, id) : '';
       if (why === 'cd') { cls += ' cd'; badge = '<span class="skb-cd">' + (cd - b.round + 1) + '</span>'; tip += sel2 ? ' · обрано, спрацює після перезарядки' : ' · перезарядка'; }
@@ -305,8 +305,13 @@ function paintBattle(bs){
       else if (why === 'swap') { cls += ' cd'; badge = '<span class="skb-cd">🔁</span>'; tip += ' · цього ходу ти вже перевдягнувся'; }
       else if (why === 'careful') { cls += ' cd'; badge = '<span class="skb-cd">👀</span>'; tip += ' · суперник обережний — спрацює, коли обережність мине'; }
       else if (why === 'focus') { cls += ' cd'; badge = '<span class="skb-cd">🕯️</span>'; tip += ' · потрібна концентрація'; }
+      else if (why === 'locked') { cls += ' on cd'; badge = '<span class="skb-cd">🐾</span>'; tip += ' · зачаївся після Засідки'; }
+      else if (why === 'camo') { cls += ' cd'; badge = '<span class="skb-cd">🌿</span>'; tip += ' · лише з увімкненим Камуфляжем'; }
+      else if (why === 'blind') { cls += ' cd'; badge = '<span class="skb-cd">🫳</span>'; tip += ' · суперник ще сліпий чи оговтується'; }
+      else if (why === 'full') { cls += ' cd'; badge = '<span class="skb-cd">❤️</span>'; tip += ' · здоров\'я повне'; }
       else if (why === 'hp') { cls += ' cd'; badge = '<span class="skb-cd">❤️</span>'; tip += ' · у суперника вже менше 30% здоров\'я'; }
       else if (why) { cls += ' cd'; tip += ' · зараз не можна'; }   // будь-яка інша причина — теж сіре
+      else if (tog) tip += ' · увімкнено (мана щоходу) · ще раз — вимкнути';
       else if (sel2) tip += ' · спрацює цього ходу';
     }
     var cls2 = 'skb-sk' + (s.type === 'A' ? ' act' : '') + (p >= 100 ? ' max' : '');
