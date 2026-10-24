@@ -108,7 +108,7 @@ function drawAsk(){
   var cards = Object.keys(SKS.CLASSES).map(function(k){
     var c = SKS.CLASSES[k], ex = SKS.forClass(k).filter(function(x){ return x.lv <= 2; }).slice(0, 4).map(function(x){ return esc(x.name); }).join(' · ');
     return '<button class="skb-ccard' + (PICK === k ? ' on' : '') + '" type="button" data-skb-ask="' + k + '"><span class="ci">' + c.icon + '</span><b>' + c.name + '</b>'
-      + '<p>' + esc(c.about) + '</p><p class="ex">⭐ Головне: ' + esc(c.stat) + '<br>📖 ' + ex + '</p></button>';
+      + '<p>' + esc(c.about) + '</p><p class="ex">⭐ Головне: ' + esc(c.stat) + '<br>📖 ' + ex + '</p>' + perksHTML(k, true) + '</button>';
   }).join('');
   var c = PICK && SKS.CLASSES[PICK];
   w.innerHTML = '<div class="skb-ask-card"><div class="skb-ask-h">✨ Час обрати свій шлях!</div>'
@@ -245,14 +245,22 @@ function renderBook(){
   }
   host.innerHTML = h + '</div>';
 }
+/* переваги класу (SKARENA.CLASS_PERKS): діють самі, щойно обрано клас */
+function perksOf(cls){ var R = window.SKARENA; return (R && R.CLASS_PERKS && R.CLASS_PERKS[cls]) || []; }
+function perksHTML(cls, short){
+  var l = perksOf(cls); if (!l.length) return '';
+  return '<div class="skb-perks"><b>' + (short ? 'Переваги:' : '🏰 Твої переваги класу — діють самі, вчити не треба:') + '</b><ul>'
+    + l.map(function(q){ return '<li' + (q.soon ? ' class="soon"' : '') + '>' + q.icon + ' <b>' + esc(q.name) + '</b>' + (short ? '' : ' — ' + esc(q.text)) + (q.soon ? ' <i>(⏳ поки не діє)</i>' : '') + '</li>'; }).join('') + '</ul></div>';
+}
 function clsHTML(ready){
   if (!ready) return '<div class="skb-msg">🔒 На ' + SKS.CLASS_LEVEL + ' рівні ти обереш свій шлях: Лицар, Слідопит, Чарівник чи Цілитель. Тоді тут з\'являться вміння класу.</div>';
   if (!ST.cls) return '<div class="skb-msg">✨ Час обрати свій шлях! Клас обирається один раз — подумай, як тобі подобається битися.</div><div class="skb-cls">'
     + Object.keys(SKS.CLASSES).map(function(k){ var c = SKS.CLASSES[k];
-        return '<button class="skb-ccard" type="button" data-skb-cls="' + k + '"><span class="ci">' + c.icon + '</span><b>' + c.name + '</b><p>' + esc(c.about) + '</p></button>'; }).join('') + '</div>';
+        return '<button class="skb-ccard" type="button" data-skb-cls="' + k + '"><span class="ci">' + c.icon + '</span><b>' + c.name + '</b><p>' + esc(c.about) + '</p>' + perksHTML(k, true) + '</button>'; }).join('') + '</div>';
   var c = SKS.CLASSES[ST.cls], r = clsRange(TAB) || CLS_RANGES[0];
   var list = SKS.readyFor ? SKS.readyFor(ST.cls).filter(function(s){ return s.lv >= r[1] && s.lv <= r[2]; }) : [];   // і ще закриті — видно, що чекає далі
-  var head = '<div class="skb-msg">' + c.icon + ' Ти — <b>' + c.name + '</b>. Вміння ' + r[1] + '–' + r[2] + ' рівня вивчаються за очки вмінь, як і звичайні.</div>';
+  var head = '<div class="skb-msg">' + c.icon + ' Ти — <b>' + c.name + '</b>. Вміння ' + r[1] + '–' + r[2] + ' рівня вивчаються за очки вмінь, як і звичайні.</div>'
+    + (r === CLS_RANGES[0] ? perksHTML(ST.cls) : '');
   if (!list.length) return head + '<div class="skb-msg">Вміння цих рівнів з\'являться в наступних оновленнях.</div>';
   return head + groupsHTML(list);
 }
@@ -283,7 +291,7 @@ function paintBattle(bs){
     var cls = 'skb-slot full skb-bt', badge = '', tip = s.name + ' — ' + SKS.effectText(id, p / 100);
     if (b) {
       // обране вміння на перезарядці / без мани — теж сіре: цього ходу не спрацює, але вибір лишається
-      var cd = (b.me.cd || {})[id], sel2 = b.me.skill === id;
+      var cd = (b.me.cd || {})[id], tog = (b.me.tog || []).indexOf(id) >= 0, sel2 = b.me.skill === id || tog;
       if (sel2) cls += ' on';
       var why = window.SKBATTLE ? SKBATTLE.skillBlock(b, id) : '';
       if (why === 'cd') { cls += ' cd'; badge = '<span class="skb-cd">' + (cd - b.round + 1) + '</span>'; tip += sel2 ? ' · обрано, спрацює після перезарядки' : ' · перезарядка'; }
@@ -297,8 +305,13 @@ function paintBattle(bs){
       else if (why === 'swap') { cls += ' cd'; badge = '<span class="skb-cd">🔁</span>'; tip += ' · цього ходу ти вже перевдягнувся'; }
       else if (why === 'careful') { cls += ' cd'; badge = '<span class="skb-cd">👀</span>'; tip += ' · суперник обережний — спрацює, коли обережність мине'; }
       else if (why === 'focus') { cls += ' cd'; badge = '<span class="skb-cd">🕯️</span>'; tip += ' · потрібна концентрація'; }
+      else if (why === 'locked') { cls += ' on cd'; badge = '<span class="skb-cd">🐾</span>'; tip += ' · зачаївся після Засідки'; }
+      else if (why === 'camo') { cls += ' cd'; badge = '<span class="skb-cd">🌿</span>'; tip += ' · лише з увімкненим Камуфляжем'; }
+      else if (why === 'blind') { cls += ' cd'; badge = '<span class="skb-cd">🫳</span>'; tip += ' · суперник ще сліпий чи оговтується'; }
+      else if (why === 'full') { cls += ' cd'; badge = '<span class="skb-cd">❤️</span>'; tip += ' · здоров\'я повне'; }
       else if (why === 'hp') { cls += ' cd'; badge = '<span class="skb-cd">❤️</span>'; tip += ' · у суперника вже менше 30% здоров\'я'; }
       else if (why) { cls += ' cd'; tip += ' · зараз не можна'; }   // будь-яка інша причина — теж сіре
+      else if (tog) tip += ' · увімкнено (мана щоходу) · ще раз — вимкнути';
       else if (sel2) tip += ' · спрацює цього ходу';
     }
     var cls2 = 'skb-sk' + (s.type === 'A' ? ' act' : '') + (p >= 100 ? ' max' : '');

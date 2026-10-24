@@ -1,4 +1,4 @@
-/* 🏹 Слідопит, етап 1: Кинджал, Спис, Кнут, Майстер зброї, Сховатись, Обеззброєння, Голі руки, Хоробрість */
+/* 🏹 Слідопит: спільні вміння (як у Лицаря), унікальні (Майстер зброї, Сховатись) і переваги класу */
 const test = require('node:test');
 const assert = require('node:assert');
 const path = require('path'), fs = require('fs'), vm = require('vm');
@@ -36,34 +36,86 @@ test('Слідопит етап 1: у кожного вміння правила
   RG.forEach(id => assert.ok(ready.includes(id), id + ' у списку готових'));
 });
 
-test('Кинджал: крит +3…15%; Спис: урон +2…8; Майстер зброї: урон будь-якою зброєю; лише в Слідопита', () => {
-  const a = battle({}, [], [wear(DAGGER, 'weaponR')]), b = battle({ 'ranger.dagger': 1 }, [], [wear(DAGGER, 'weaponR')]);
-  assert.strictEqual(b.me.p.critPct - a.me.p.critPct, 15);
-  const c = battle({}, [], [wear(SPEAR, 'weaponR')]), d = battle({ 'ranger.spear': 0.25 }, [], [wear(SPEAR, 'weaponR')]);
-  assert.strictEqual(d.me.p.dmgFlat - (c.me.p.dmgFlat || 0), 2);
-  const e = battle({}, [], [wear(SWORD, 'weaponR')]), f = battle({ 'ranger.wmaster': 1 }, [], [wear(SWORD, 'weaponR')]);
-  assert.strictEqual(f.me.p.dmgPct - e.me.p.dmgPct, 15);
-  const g = battle({ 'ranger.wmaster': 1 }, []);
-  assert.strictEqual(g.me.p.dmgPct, battle({}, []).me.p.dmgPct, 'без зброї — не діє');
+
+function asKnight(sk, eq, opEq) {
+  const st = battle({}, [], eq, opEq);
+  return SB.create(ctx, { bid: 'kn-' + (n++), me: { name: 'Я', stats: { health: 400, accuracy: 60, agility: 50, mana: 500 }, eq: eq || [], sk, skv: skvOf(sk), bar: [], cls: 'knight' },
+    op: { f: { name: 'Бот', level: 3 }, p: R.fighter({ health: 400, accuracy: 50, agility: 50, mana: 0 }, opEq || [], K) } });
+}
+const SHARED = ['dagger', 'spear', 'whip', 'fists', 'disarm', 'brave'];
+
+test('Спільні вміння: у Слідопита ті самі правила, опис і значок, що в Лицаря', () => {
+  SHARED.forEach(k => {
+    const r = S.byId('ranger.' + k), kn = S.byId('knight.' + k);
+    assert.strictEqual(r.name, kn.name);
+    assert.strictEqual(r.formula, kn.formula, k + ' опис');
+    assert.strictEqual(r.icon, kn.icon, k + ' значок');
+    [25, 60, 100].forEach(p => assert.deepStrictEqual(S.skillValues('ranger.' + k, p), S.skillValues('knight.' + k, p), k + ' числа на ' + p + '%'));
+    assert.strictEqual(S.effectText('ranger.' + k, 0.7), S.effectText('knight.' + k, 0.7));
+  });
 });
 
-test('Голі руки: без зброї +урон і часом ще удар 👊', () => {
-  const st = battle({ 'ranger.fists': 1 }, []);
-  assert.strictEqual(st.me.p.dmgFlat, 4);
-  let extra = 0;
-  for (let k = 0; k < 60; k++) { const s = battle({ 'ranger.fists': 1 }, []); s.me.p.accuracy = 5000; const e = SB.turn(ctx, s, HIT, {}, Date.now()); extra += e.meHit.hits.filter(h => h.fist2).length; }
-  assert.ok(extra > 2 && extra < 30, 'ще удар ~20%: ' + extra);
+test('Спільні вміння в бою: Кинджал і Спис Слідопита дають те саме, що в Лицаря (+ перевага класу окремо)', () => {
+  const r = battle({ 'ranger.spear': 1 }, [], [wear(SPEAR, 'weaponR')]), k = asKnight({ 'knight.spear': 1 }, [wear(SPEAR, 'weaponR')]);
+  assert.strictEqual(r.me.p.dmgPct, k.me.p.dmgPct, 'Спис: урон однаковий');
+  const rd = battle({ 'ranger.dagger': 1 }, [], [wear(DAGGER, 'weaponR')]), kd = asKnight({ 'knight.dagger': 1 }, [wear(DAGGER, 'weaponR')]);
+  assert.strictEqual(rd.me.p.dmgPct, kd.me.p.dmgPct);
+  assert.strictEqual(rd.me.p.critPct - kd.me.p.critPct, 5, 'Кинджал: +5% криту — перевага Слідопита «Майстер кинджала»');
 });
 
-test('Кнут: шанс блоку щита ворога проти твоїх ударів менший', () => {
+test('Спільні вміння ростуть у вміння Героя (ranger.*), а не в Лицаря', () => {
+  const st = battle({ 'ranger.dagger': 0.5 }, [], [wear(DAGGER, 'weaponR')]);
+  st.me.p.accuracy = 5000; st.op.p.agility = 1;
+  for (let k = 0; k < 3; k++) SB.turn(ctx, st, HIT, {}, Date.now());
+  assert.ok((st.me.grow['ranger.dagger'] || 0) > 0, 'ріст Кинджала Слідопита');
+  assert.ok(!st.me.grow['knight.dagger'], 'не в Лицаря');
+});
+
+test('Обеззброєння Слідопита = Лицаря: вибиває зброю; перезарядка під власною кнопкою', () => {
+  let ok = 0;
+  for (let k = 0; k < 30; k++) {
+    const st = battle({ 'ranger.disarm': 1 }, ['ranger.disarm'], [wear(SWORD, 'weaponR')]);
+    st.op.p.wMin = 3; st.op.p.wMax = 6;
+    assert.strictEqual(SB.skillBlock(st, 'ranger.disarm'), '');
+    assert.ok(SB.useSkill(ctx, st, 'ranger.disarm'));
+    const e = SB.turn(ctx, st, HIT, {}, Date.now());
+    assert.strictEqual(e.skill.id, 'knight.disarm');
+    if (e.skill.kind === 'disarm') { ok++; assert.ok(e.opDisarmed); }
+    assert.strictEqual(SB.skillBlock(st, 'ranger.disarm'), 'cd', 'перезарядка видна й для кнопки Слідопита');
+    assert.ok((st.me.grow['ranger.disarm'] || 0) + (st.me.growF['ranger.disarm'] || 0) === 1, 'ріст — у ranger.disarm');
+  }
+  assert.ok(ok > 0);
+});
+
+test('Перевага «Хльосткий кнут»: з кнутом щит ворога блокує рідше (без вміння Кнут)', () => {
   let a = 0, b = 0;
   for (let k = 0; k < 150; k++) {
-    const s1 = battle({}, [], [wear(WHIP, 'weaponR')], [wear(SHIELD, 'weaponL')]), s2 = battle({ 'ranger.whip': 1 }, [], [wear(WHIP, 'weaponR')], [wear(SHIELD, 'weaponL')]);
+    const s1 = asKnight({}, [wear(WHIP, 'weaponR')], [wear(SHIELD, 'weaponL')]), s2 = battle({}, [], [wear(WHIP, 'weaponR')], [wear(SHIELD, 'weaponL')]);
     [s1, s2].forEach(s => { s.me.p.accuracy = 5000; });
     a += SB.turn(ctx, s1, HIT, {}, Date.now()).meHit.hits.filter(h => h.byChance).length;
     b += SB.turn(ctx, s2, HIT, {}, Date.now()).meHit.hits.filter(h => h.byChance).length;
   }
-  assert.ok(b < a, 'з кнутом блоків менше: ' + b + ' < ' + a);
+  assert.ok(b < a, 'Слідопит із кнутом: блоків менше: ' + b + ' < ' + a);
+});
+
+test('Перевага «Легка хода»: без щита спритність +5%, зі щитом — ні', () => {
+  const a = asKnight({}), b = battle({}, []);
+  assert.strictEqual(b.me.p.agility, Math.round(a.me.p.agility * 1.05));
+  const c = battle({}, [], [wear(SHIELD, 'weaponL')]), d = asKnight({}, [wear(SHIELD, 'weaponL')]);
+  assert.strictEqual(c.me.p.agility, d.me.p.agility);
+});
+
+test('Майстер зброї (унікальне): урон будь-якою зброєю; без зброї — ні', () => {
+  const e = battle({}, [], [wear(SWORD, 'weaponR')]), f = battle({ 'ranger.wmaster': 1 }, [], [wear(SWORD, 'weaponR')]);
+  assert.strictEqual(f.me.p.dmgPct - e.me.p.dmgPct, 15);
+  assert.strictEqual(battle({ 'ranger.wmaster': 1 }, []).me.p.dmgPct, battle({}, []).me.p.dmgPct);
+});
+
+test('Переваги класів: дані для книги й адмінки', () => {
+  assert.ok(R.CLASS_PERKS.knight.length && R.CLASS_PERKS.ranger.length);
+  R.CLASS_PERKS.ranger.forEach(q => assert.ok(q.id && q.icon && q.name && q.text, q.id));
+  assert.strictEqual(R.perk('ranger', 'daggerCrit'), 5);
+  assert.strictEqual(R.perk('knight', 'daggerCrit'), 0);
 });
 
 test('Сховатись: раз за бій; удари ворога часто пролітають повз 🫥, твої ×1.3', () => {
@@ -83,25 +135,10 @@ test('Сховатись: раз за бій; удари ворога часто
   assert.ok(miss > landed, 'на 100% — ~70% ударів повз: ' + miss + ' / ' + landed);
 });
 
-test('Обеззброєння Слідопита: зброю не вибиває, урон ворога −40% на 2 ходи, перезарядка 4', () => {
-  const st = battle({ 'ranger.disarm': 1 }, ['ranger.disarm']);
-  st.op.p.accuracy = 5000; st.me.p.agility = 1;
-  SB.useSkill(ctx, st, 'ranger.disarm');
-  const e = SB.turn(ctx, st, HIT, {}, Date.now());
-  assert.strictEqual(e.skill.kind, 'weak'); assert.strictEqual(e.skill.cut, 40);
-  assert.ok(!e.opDisarmed, 'зброю не вибито');
-  assert.ok(e.opHit.hits.filter(h => h.dmg > 0).every(h => h.weak && h.weak[1] === 40));
-  const e2 = SB.turn(ctx, st, HIT, {}, Date.now());
-  assert.ok(e2.opHit.hits.filter(h => h.dmg > 0).every(h => h.weak), 'і наступного ходу');
-  assert.strictEqual(SB.skillBlock(st, 'ranger.disarm'), 'cd');
-  const e3 = SB.turn(ctx, st, HIT, {}, Date.now());
-  assert.ok(!e3.opHit.hits.some(h => h.weak), 'на третій хід — уже ні');
-});
-
-test('Спис: добиваєш — з шансом встигаєш першим, удару ворога немає', () => {
+test('Перевага «Швидкий спис»: добиваєш — з шансом 10% встигаєш першим, удару ворога немає', () => {
   let ok = 0, tries = 0;
   for (let k = 0; k < 200; k++) {
-    const st = battle({ 'ranger.spear': 1 }, [], [wear(SPEAR, 'weaponR')]);
+    const st = battle({}, [], [wear(SPEAR, 'weaponR')]);
     st.me.p.accuracy = 5000; st.op.p.agility = 1; st.op.force = 1;
     const e = SB.turn(ctx, st, HIT, {}, Date.now());
     if (!e.spearFirst) continue;
@@ -111,13 +148,239 @@ test('Спис: добиваєш — з шансом встигаєш перши
   assert.ok(tries > 80 && ok > 3 && ok < 45, 'шанс 10%: ' + ok + ' з ' + tries);
 });
 
-test('Хоробрість Слідопита: росте від свитка страху й зменшує шанс страху', () => {
-  const v = S.skillValues('ranger.brave', 100);
-  assert.strictEqual(v.resPct, 60);
+
+test('Ухилення, Торгівля й Зілля — загальні вміння: окремих у Слідопита немає', () => {
+  ['dodge', 'trade', 'potions'].forEach(k => {
+    assert.strictEqual(S.byId('ranger.' + k), null, 'ranger.' + k);
+    assert.ok(S.byId('base.' + k), 'base.' + k);
+  });
 });
 
-test('Слідопит не чіпає Лицаря: у Лицаря без зброї — Голі руки Лицаря', () => {
-  const st = SB.create(ctx, { bid: 'kx', me: { name: 'Я', stats: { health: 400, accuracy: 60, agility: 50, mana: 0 }, eq: [], sk: { 'ranger.fists': 1 }, skv: skvOf({ 'ranger.fists': 1 }), bar: [], cls: 'knight' },
-    op: { f: { name: 'Бот', level: 3 }, p: R.fighter({ health: 400, accuracy: 50, agility: 50 }, [], K) } });
-  assert.ok(!st.me.p.dmgFlat, 'Лицар із чужим вмінням — без ефекту');
+test('Перевага «Спритний ухил»: Ухилення Слідопита спрацьовує з 20%, а не 15%', () => {
+  assert.strictEqual(R.perk('ranger', 'dodgeUp'), 5);
+  const need = (st) => {
+    st.op.p.accuracy = 5000; st.me.p.agility = 1;
+    const e = SB.turn(ctx, st, HIT, {}, Date.now());
+    const h = e.opHit.hits.find(x => x.skillDodge);
+    return h ? Number(/≤ (\d+)%$/.exec(h.dodgeCalc)[1]) : null;
+  };
+  let r = null, k = null;
+  for (let i = 0; i < 300 && (r == null || k == null); i++) {
+    if (r == null) r = need(battle({ 'base.dodge': 1 }, []));
+    if (k == null) k = need(asKnight({ 'base.dodge': 1 }));
+  }
+  assert.strictEqual(k, 15, 'Лицар');
+  assert.strictEqual(r, 20, 'Слідопит');
+});
+
+test('Переваги «поки не діє» (soon): записані, але без числа — бій їх не бачить', () => {
+  const soon = R.CLASS_PERKS.knight.filter(q => q.soon);
+  assert.strictEqual(soon.length, 4);
+  soon.forEach(q => { assert.strictEqual(q.v, undefined, q.id); assert.strictEqual(R.perk('knight', q.id), 0); });
+});
+
+/* ── етап 2: рівні 5–11 ── */
+const RG2 = ['ranger.lunge', 'ranger.calm', 'ranger.second', 'ranger.camo', 'ranger.poison', 'ranger.bandage', 'ranger.lash'];
+test('Слідопит етап 2: Випад, Незворушність, Друга атака, Камуфляж, Отрута, Перев\'язка, Захльост — готові', () => {
+  const ready = S.readyFor('ranger').map(s => s.id);
+  RG2.forEach(id => { const s = S.byId(id); assert.ok(s && s.ready && s.icon && S.effectText(id, 0.5), id); assert.ok(ready.includes(id), id); });
+  assert.strictEqual(S.byId('ranger.lash').lv, 11);
+});
+
+test('Спільні етапу 2: Випад, Незворушність, Друга атака, Захльост — числа й назви як у Лицаря', () => {
+  ['lunge', 'calm', 'second', 'lash'].forEach(k => {
+    assert.strictEqual(S.byId('ranger.' + k).name, S.byId('knight.' + k).name);
+    assert.strictEqual(S.byId('ranger.' + k).formula, S.byId('knight.' + k).formula);
+    [25, 100].forEach(p => assert.deepStrictEqual(S.skillValues('ranger.' + k, p), S.skillValues('knight.' + k, p)));
+  });
+});
+
+test('Захльост Слідопита з кнутом: працює як у Лицаря, ріст — у вміння Слідопита; без кнута — чекає', () => {
+  let tangled = 0;
+  for (let k = 0; k < 30 && !tangled; k++) {
+    const st = battle({ 'ranger.lash': 1 }, ['ranger.lash'], [wear(WHIP, 'weaponR')]);
+    st.me.p.accuracy = 5000; st.op.p.agility = 1;
+    assert.ok(SB.useSkill(ctx, st, 'ranger.lash'));
+    const e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+    assert.strictEqual(e.skill.id, 'knight.lash');
+    assert.ok((st.me.grow || {})['ranger.lash'] || (st.me.growF || {})['ranger.lash'], 'ріст іде у вміння Слідопита');
+    if (e.skill.tangle) tangled++;
+  }
+  assert.ok(tangled, 'сплутує');
+  assert.strictEqual(SB.skillBlock(battle({ 'ranger.lash': 1 }, ['ranger.lash'], [wear(SWORD, 'weaponR')]), 'ranger.lash'), 'weapon');
+});
+
+test('Перевага «Точний випад»: Випадом Слідопита шанс криту +15%', () => {
+  const st = battle({ 'ranger.lunge': 1 }, ['ranger.lunge'], [wear(DAGGER, 'weaponR')]);
+  SB.useSkill(ctx, st, 'ranger.lunge');
+  const e = SB.turn(ctx, st, HIT, {}, Date.now());
+  assert.strictEqual(e.skill.kind, 'lunge');
+  assert.strictEqual(e.skill.critPlus, 15);
+});
+
+test('Незворушність Слідопита: від удару концентрація з шансом не скидається', () => {
+  let kept = 0, lost = 0;
+  for (let k = 0; k < 60; k++) {
+    const st = battle({ 'base.focus': 1, 'ranger.calm': 1 }, []);
+    st.me.fx.focus = 3; st.op.p.accuracy = 5000; st.me.p.agility = 1;
+    const e = SB.turn(ctx, st, HIT, {}, Date.now());
+    if (!(e.opHit.dmg > 0) || !e.calm) continue;
+    assert.strictEqual(e.calm[3], 'reset');
+    if (e.calm[2]) { kept++; assert.ok(st.me.fx.focus >= 3); } else { lost++; assert.strictEqual(st.me.fx.focus, 0); }
+  }
+  assert.ok(kept > 5 && lost > 5, kept + ' / ' + lost);
+  const st = battle({ 'base.focus': 1 }, []); st.me.fx.focus = 3; st.op.p.accuracy = 5000; st.me.p.agility = 1;
+  const e = SB.turn(ctx, st, HIT, {}, Date.now());
+  if (e.opHit.dmg > 0) assert.strictEqual(st.me.fx.focus, 0, 'без Незворушності — скидається вся');
+});
+
+
+/* ── крок 3: перемикачі, Камуфляж, Засідка, отрута, Перев'язка, Пісок в очі, Лук, Влучний постріл ── */
+const BOW = item({ id: 'B1', name: 'Лук', category: 'Зброя', stat: 'Урон', valueMin: 4, valueMax: 6, weaponType: 'bow' });
+const turnOf = (st, ch) => SB.turn(ctx, st, ch || HIT, {}, Date.now());
+
+test('Крок 3: нові вміння готові, перестановки на місці', () => {
+  ['ranger.bow', 'ranger.sand', 'ranger.ambush', 'ranger.fire2', 'ranger.aimed'].forEach(id => assert.ok(S.byId(id).ready, id));
+  assert.strictEqual(S.byId('ranger.sand').lv, 4);
+  assert.strictEqual(S.byId('ranger.disarm').lv, 17);
+  assert.strictEqual(S.byId('ranger.dual').lv, 13);
+  assert.strictEqual(S.byId('ranger.ult').name, 'Спустити звіра');
+});
+
+test('Камуфляж — перемикач: дії ходу не забирає, −7 мани щоходу, урон ×1.3; без мани вимикається', () => {
+  const st = battle({ 'ranger.camo': 1, 'ranger.hide': 1 }, ['ranger.camo', 'ranger.hide']);
+  assert.ok(SB.useSkill(ctx, st, 'ranger.camo'));
+  assert.strictEqual(JSON.stringify(st.me.tog), JSON.stringify(['ranger.camo']));
+  assert.strictEqual(st.me.skill || null, null, 'дію ходу не займає');
+  assert.ok(SB.useSkill(ctx, st, 'ranger.hide'), 'разом з активним вмінням');
+  const m0 = st.me.mana, e = turnOf(st);
+  assert.strictEqual(m0 - st.me.mana, 7);
+  assert.strictEqual(JSON.stringify(e.tog), JSON.stringify([{ id: 'ranger.camo', cost: 7 }]));
+  e.meHit.hits.filter(h => h.kind === 'hit' || h.kind === 'crit').forEach(h => assert.strictEqual(h.mul, Math.round(1.3 * 1.3 * 100) / 100, 'Сховатись × Камуфляж'));
+  st.me.mana = 3;
+  const e2 = turnOf(st);
+  assert.ok(e2.tog[0].off, 'не вистачило мани — вимкнувся');
+  assert.strictEqual(JSON.stringify(st.me.tog), JSON.stringify([]));
+  assert.ok(SB.useSkill(ctx, st, 'ranger.camo')); assert.ok(SB.useSkill(ctx, st, 'ranger.camo')); assert.strictEqual(JSON.stringify(st.me.tog), JSON.stringify([]), 'ще раз — вимкнути');
+});
+
+test('Камуфляж: Ухилення +10% (лише якщо вивчене)', () => {
+  let need = null;
+  for (let k = 0; k < 300 && need == null; k++) {
+    const st = battle({ 'ranger.camo': 1, 'base.dodge': 1 }, ['ranger.camo']);
+    SB.useSkill(ctx, st, 'ranger.camo'); st.op.p.accuracy = 5000; st.me.p.agility = 1;
+    const h = turnOf(st).opHit.hits.find(x => x.skillDodge);
+    if (h) need = Number(/≤ (\d+)%$/.exec(h.dodgeCalc)[1]);
+  }
+  assert.strictEqual(need, 30, '15 + 5 (Спритний ухил) + 10 (Камуфляж)');
+});
+
+test('Другий запал: без нього — один перемикач', () => {
+  const st = battle({ 'ranger.camo': 1 }, ['ranger.camo']);
+  st.me.tog = ['x.other'];
+  assert.strictEqual(SB.useSkill(ctx, st, 'ranger.camo'), false);
+  const s2 = battle({ 'ranger.camo': 1, 'ranger.fire2': 1 }, ['ranger.camo']);
+  s2.me.tog = ['x.other'];
+  assert.ok(SB.useSkill(ctx, s2, 'ranger.camo'));
+});
+
+test('Засідка: лише з Камуфляжем; удар ×3 не уникнути; −50 мани; Камуфляж 5 ходів не діє, на 6-й — знову', () => {
+  const st = battle({ 'ranger.camo': 1, 'ranger.ambush': 1, 'base.weapons': 1 }, ['ranger.camo', 'ranger.ambush']);
+  assert.strictEqual(SB.skillBlock(st, 'ranger.ambush'), 'camo');
+  SB.useSkill(ctx, st, 'ranger.camo'); SB.useSkill(ctx, st, 'ranger.ambush');
+  st.me.p.accuracy = 1; st.op.p.agility = 5000; st.op.p.blockPhys = 100;
+  const m0 = st.me.mana, e = turnOf(st, { atk: 'head', block: 'body' });
+  assert.strictEqual(e.skill.kind, 'ambush');
+  assert.strictEqual(m0 - st.me.mana, 7 + 50);
+  const h0 = e.meHit.hits[0];
+  assert.ok(h0.ambush && (h0.kind === 'hit' || h0.kind === 'crit'), 'влучив, хоч точність 1 і блок 100%');
+  assert.strictEqual(h0.mul, 3);
+  for (let r = 0; r < 5; r++) { assert.strictEqual(SB.useSkill(ctx, st, 'ranger.camo'), false, 'не вимкнути'); const m = st.me.mana, x = turnOf(st); assert.ok(x.tog[0].locked, 'зачаївся'); assert.strictEqual(st.me.mana, m); }
+  const m6 = st.me.mana, x6 = turnOf(st);
+  assert.strictEqual(x6.tog[0].cost, 7); assert.strictEqual(m6 - st.me.mana, 7);
+});
+
+test('Змастити зброю: −50 мани, удари +10% отрутою; отруєння 5%/хід 3 ходи; далі імунітет 100 → 90 → 80…', () => {
+  let done = false;
+  for (let k = 0; k < 200 && !done; k++) {
+    const st = battle({ 'ranger.poison': 1 }, ['ranger.poison'], [wear(DAGGER, 'weaponR')]);
+    st.me.p.accuracy = 5000; st.op.p.agility = 1; st.op.p.accuracy = 1; st.op.force = st.op.max = 100000;
+    SB.useSkill(ctx, st, 'ranger.poison');
+    const m0 = st.me.mana, e = turnOf(st, { atk: 'head', block: 'body' });
+    assert.strictEqual(e.skill.kind, 'venom'); assert.strictEqual(m0 - st.me.mana, 50); assert.strictEqual(e.skill.turns, 5);
+    const h = e.meHit.hits.find(x => x.venom);
+    if (h) assert.ok(h.venom >= 1);
+    assert.strictEqual(SB.skillBlock(st, 'ranger.poison'), 'active');
+    let p = e.meHit.hits.some(x => x.poisoned) ? e : null;
+    for (let r = 0; r < 4 && !p; r++) { const x = turnOf(st); if (x.meHit.hits.some(y => y.poisoned)) p = x; }
+    if (!p) continue;
+    const r0 = p.r, tick = Math.round(st.op.max * 0.05);
+    assert.strictEqual(p.poison, tick);
+    const t2 = turnOf(st), t3 = turnOf(st);
+    assert.strictEqual(t2.poison, tick); assert.strictEqual(t3.poison, tick);
+    assert.strictEqual(st.op.fx.pimm, r0 + 3);
+    const res = (round) => { const d = round - st.op.fx.pimm; return d < 3 ? 100 : Math.max(0, 100 - 10 * (d - 2)); };
+    assert.strictEqual(res(r0 + 5), 100); assert.strictEqual(res(r0 + 6), 90); assert.strictEqual(res(r0 + 7), 80);
+    done = true;
+  }
+  assert.ok(done, 'хоч раз отруїв');
+});
+
+test('Антидот з пояса: знімає отруту й дає імунітет', () => {
+  const st = battle({}, []);
+  st.me.fx = st.me.fx || { buffs: {}, barrier: 0, fear: 0 };
+  st.me.fx.poison = { from: 1, until: 3, tick: 5 };
+  const ANT = item({ id: 'AN', name: 'Антидот', category: 'Зілля', stat: 'Антидот', valueMin: 1, valueMax: 1 });
+  st.me.belt = [{ uid: 'a1', id: 'AN', bonus: 1, idx: 0, base: ANT, used: false }];
+  st.me.use = 'a1'; st.me.useRound = st.round;
+  const e = turnOf(st);
+  const fx = (e.uses || [])[0] && e.uses[0].fx.find(x => x.type === 'antidote');
+  assert.ok(fx && fx.cured, 'антидот спрацював');
+  assert.ok(!st.me.fx.poison); assert.strictEqual(st.me.fx.pimm, 1);
+});
+
+test('Перев\'язка: −15 мани, лікує 10%; на 100% знімає отруту (і з повним здоров\'ям), +50% опору', () => {
+  const st = battle({ 'ranger.bandage': 1 }, ['ranger.bandage']);
+  assert.strictEqual(SB.skillBlock(st, 'ranger.bandage'), 'full');
+  st.me.fx = st.me.fx || { buffs: {}, barrier: 0, fear: 0 }; st.me.fx.poison = { from: 1, until: 3, tick: 5 };
+  assert.strictEqual(SB.skillBlock(st, 'ranger.bandage'), '', 'отруєний — можна й з повним здоров\'ям');
+  st.me.force = 100; st.op.p.accuracy = 1;
+  SB.useSkill(ctx, st, 'ranger.bandage');
+  const m0 = st.me.mana, e = turnOf(st);
+  assert.strictEqual(e.skill.kind, 'bandage'); assert.ok(e.skill.cleansed); assert.strictEqual(m0 - st.me.mana, 15);
+  assert.strictEqual(e.skill.heal, Math.round(st.me.max * 0.1));
+  assert.strictEqual(SB.skillBlock(st, 'ranger.bandage'), 'cd');
+  assert.strictEqual(st.me.fx.bres.pct, 50);
+});
+
+test('Пісок в очі: ворог сліпий — точність і спритність падають; потім імунітет', () => {
+  const st = battle({ 'ranger.sand': 1 }, ['ranger.sand']);
+  const acc0 = st.op.p.accuracy;
+  SB.useSkill(ctx, st, 'ranger.sand');
+  const m0 = st.me.mana, e = turnOf(st);
+  assert.strictEqual(e.skill.kind, 'blind'); assert.strictEqual(m0 - st.me.mana, 20); assert.strictEqual(e.skill.turns, 3);
+  assert.strictEqual(e.skill.acc, 40);
+  assert.ok(st.op.fx.blind || e.r < 3);
+  assert.strictEqual(SB.skillBlock(st, 'ranger.sand'), 'cd');
+  assert.ok(acc0 > 0);
+});
+
+test('Лук: вміння зброї — точність і урон з луком', () => {
+  const a = battle({}, [], [wear(BOW, 'weaponR')]), b = battle({ 'ranger.bow': 1 }, [], [wear(BOW, 'weaponR')]);
+  assert.strictEqual(b.me.p.accuracy, Math.round(a.me.p.accuracy * 1.2));
+  assert.strictEqual(b.me.p.dmgPct - a.me.p.dmgPct, 10);
+});
+
+test('Влучний постріл: лише з луком; постріл ×1.5, −30 мани; стріла застрягає — ворог б\'є слабше', () => {
+  assert.strictEqual(SB.skillBlock(battle({ 'ranger.aimed': 1 }, ['ranger.aimed'], [wear(DAGGER, 'weaponR')]), 'ranger.aimed'), 'weapon');
+  let stuck = 0;
+  for (let k = 0; k < 30 && !stuck; k++) {
+    const st = battle({ 'ranger.aimed': 1 }, ['ranger.aimed'], [wear(BOW, 'weaponR')]);
+    st.me.p.accuracy = 5000; st.op.p.agility = 1;
+    SB.useSkill(ctx, st, 'ranger.aimed');
+    const m0 = st.me.mana, e = turnOf(st, { atk: 'head', block: 'body' });
+    assert.strictEqual(e.skill.id, 'ranger.aimed'); assert.strictEqual(e.skill.mul, 1.5); assert.strictEqual(m0 - st.me.mana, 30);
+    if (e.skill.arrow) { stuck++; assert.strictEqual(st.op.fx.arrow.weak, 25); assert.strictEqual(st.op.fx.arrow.from, e.r + 1); }
+  }
+  assert.ok(stuck);
 });

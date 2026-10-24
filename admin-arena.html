@@ -12,9 +12,9 @@
 <link rel="stylesheet" href="sk-admin.css?v=2">
 <script src="sk-admin.js?v=1"></script>
 <script src="sk-curriculum.js?v=9"></script>
-<script src="sk-items.js?v=19"></script>
-<script src="sk-arena-rules.js?v=27"></script>
-<script src="sk-skills.js?v=51"></script>
+<script src="sk-items.js?v=22"></script>
+<script src="sk-arena-rules.js?v=32"></script>
+<script src="sk-skills.js?v=55"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -164,7 +164,7 @@
 var root=document.getElementById('root');
 var esc=SKADMIN.esc;
 var TAB='hero';
-try{ if(location.hash==='#items') TAB='items'; else if(location.hash==='#mech') TAB='mech'; else if(location.hash==='#plan') TAB='plan'; else if(location.hash==='#skmech') TAB='skmech'; }catch(e){}
+try{ if(location.hash==='#items') TAB='items'; else if(location.hash==='#mech') TAB='mech'; else if(location.hash==='#plan') TAB='plan'; else if(location.hash==='#skmech') TAB='skmech'; else if(location.hash==='#perks') TAB='perks'; }catch(e){}
 var ITEMS=[],TESTS=[],ITEMS_ERR=null,TESTS_ERR=null;
 
 /* Стартові значення — копія defaultHero() з firebase-config.js. */
@@ -283,8 +283,9 @@ function collect(items){
       if(SKIT.isFlagEntry(e)){(flags[e.stat]=flags[e.stat]||[]).push(it);return;}
       var r2=slot(SKIT.canon(e.stat),e.stat);r2.asAdd++;r2.cats[it.category||'—']=1;
       var v=e.value!=null?Number(e.value):null;
-      if(v!=null&&!isNaN(v))range(r2,v,v,!!e.pct);
-      r2.items.push({id:it.id,name:it.name,how:'додаткова',val:(v!=null?'+'+v+(e.pct?'%':''):'—'),on:on});
+      var pc=!!e.pct||SKIT.isPctStat(e.stat);
+      if(v!=null&&!isNaN(v))range(r2,v,v,pc);
+      r2.items.push({id:it.id,name:it.name,how:'додаткова',val:(v!=null?'+'+v+(pc?'%':''):'—'),on:on});
     });
   });
   var out=Object.keys(map).map(function(k){return map[k];});
@@ -331,7 +332,7 @@ function bestSet(items,key,pct,bonus){
 /* ══ малювання ══ */
 function tabsHTML(){
   function b(id,ttl){return '<button class="tab'+(TAB===id?' on':'')+'" data-tab="'+id+'">'+ttl+'</button>';}
-  return '<div class="tabs">'+b('hero','🦸 Базові характеристики Героя')+b('items','🎒 Характеристики речей')+b('mech','⚙️ Механіка')+b('skmech','🧠 Механіка вмінь')+b('plan','📋 План')+'</div>';
+  return '<div class="tabs">'+b('hero','🦸 Базові характеристики Героя')+b('items','🎒 Характеристики речей')+b('mech','⚙️ Механіка')+b('skmech','🧠 Механіка вмінь')+b('perks','🏰 Переваги класів')+b('plan','📋 План')+'</div>';
 }
 
 /* Розгортаний список записів, від найщедрішого: видно, хто дає найбільше. */
@@ -389,7 +390,7 @@ function itemAttrs(){
   (ITEMS||[]).forEach(function(it){
     var c=!!it.consumable;
     if(it.stat)add(SKIT.canon(it.stat),false,it.stat,c);
-    (it.addStats||[]).forEach(function(e){if(SKIT.isFlagEntry(e))return;add(SKIT.canon(e.stat),!!e.pct,e.stat,c);});
+    (it.addStats||[]).forEach(function(e){if(SKIT.isFlagEntry(e))return;add(SKIT.canon(e.stat),!!e.pct||SKIT.isPctStat(e.stat),e.stat,c);});
   });
   /* лише на зіллях / свитках — атрибут працює як разовий ефект з пояса */
   order.forEach(function(id){var a=map[id];a.cons=a.n>0&&a.nItem<=0;});
@@ -930,6 +931,36 @@ function skmCard(sk){
     +(open?detForm(id,[],'Коментар / завдання'):'')
     +'</div>';
 }
+/* ══ 🏰 ПЕРЕВАГИ КЛАСІВ ══════════════════════════════════════
+   Чотири шари: базові вміння (усім), спільні вміння (однакова назва — однакова механіка),
+   унікальні вміння класу і переваги класу — діють самі, щойно обрано клас. Лише перегляд:
+   переваги — SKARENA.CLASS_PERKS (sk-arena-rules.js), ріст за рівень — SKARENA.LEVEL_BONUS. */
+function perksHTML(){
+  var R=window.SKARENA||{},S=window.SKSKILLS;
+  if(!S||!R.CLASS_PERKS)return '<section class="sec"><p class="hint">Не завантажився sk-arena-rules.js чи sk-skills.js.</p></section>';
+  var same=S.SAME||{},LB=R.LEVEL_BONUS||{};
+  var intro='<section class="sec"><h2>🏰 Переваги класів</h2><ul class="exl">'
+    +'<li><b>Базові вміння</b> — для всіх (Ухилення, Концентрація, Пінок…).</li>'
+    +'<li><b>Спільні вміння</b> — однакова назва в кількох класах = <b>однакова механіка й числа</b> (беруться з вміння Лицаря).</li>'
+    +'<li><b>Унікальні вміння</b> — є лише в одному класі.</li>'
+    +'<li><b>Переваги класу</b> — діють самі, щойно Герой обрав клас: без очок і без вивчення. Саме тут записано, чим клас кращий за інших.</li></ul>'
+    +'<p class="hint">Лише перегляд. Числа переваг — у <span class="key">sk-arena-rules.js</span> (CLASS_PERKS), ріст за рівень — LEVEL_BONUS.</p></section>';
+  var cards=Object.keys(S.CLASSES).map(function(cls){
+    var c=S.CLASSES[cls],lb=LB[cls],perks=R.CLASS_PERKS[cls]||[],ready=S.readyFor?S.readyFor(cls):[];
+    var sh=ready.filter(function(s){return same[s.id];}),uq=ready.filter(function(s){return !same[s.id];});
+    var row=function(a,b){return '<tr><td>'+a+'</td><td>'+b+'</td></tr>';};
+    var t='<table class="st"><tbody>'
+      +row('Ресурс',esc(c.res))
+      +row('Концентрація','«'+esc(c.conc)+'»')
+      +row('Ріст за рівень',lb?'+'+lb.health+' ❤️ здоров\'я, +'+lb.mana+' 🔮 мани (з '+(S.CLASS_LEVEL||3)+' рівня)':'—')
+      +row('Переваги',perks.length?perks.map(function(q){return '<div'+(q.soon?' style="opacity:.6"':'')+'>'+q.icon+' <b>'+esc(q.name)+'</b> — '+esc(q.text)+(q.soon?' <span class="hint">⏳ поки не додано — на балансування класів</span>':'')+'</div>';}).join(''):'<span class="hint">ще немає</span>')
+      +row('Вміння готові до бою',ready.length?ready.length+' (спільних '+sh.length+', унікальних '+uq.length+')':'<span class="hint">ще немає</span>')
+      +(sh.length?row('Спільні — як у Лицаря',sh.map(function(s){return s.icon+' '+esc(s.name);}).join(' · ')):'')
+      +'</tbody></table>';
+    return '<section class="sec"><h2>'+c.icon+' '+esc(c.name)+'</h2><p class="hint">'+esc(c.about||'')+'</p><div class="tblwrap">'+t+'</div></section>';
+  }).join('');
+  return intro+cards;
+}
 function skmHTML(){
   if(!window.SKSKILLS||!SKSKILLS.UNIVERSAL)return '<section class="sec"><p class="hint">Не завантажився sk-skills.js.</p></section>';
   if(!PLAN_LOADED){loadPlan();return '<div class="empty">Завантаження…</div>';}
@@ -983,14 +1014,15 @@ function hadmLoad(){
 function keepScroll(fn){var y=window.scrollY;fn();window.scrollTo(0,y);}
 function heroAdminHTML(){
   if(!HADM.list&&!HADM.err)hadmLoad();
-  var opts=Object.keys(SKSKILLS.CLASSES).filter(function(k){return SKSKILLS.readyFor(k).length;}).map(function(k){var c=SKSKILLS.CLASSES[k];return '<option value="'+k+'">'+c.icon+' '+esc(c.name)+'</option>';}).join('');
+  var clsKeys=Object.keys(SKSKILLS.CLASSES).filter(function(k){return SKSKILLS.readyFor(k).length;});
+  var opts=function(cur){return (cur?'':'<option value="" selected>— клас не вибрано</option>')+clsKeys.map(function(k){var c=SKSKILLS.CLASSES[k];return '<option value="'+k+'"'+(k===cur?' selected':'')+'>'+c.icon+' '+esc(c.name)+'</option>';}).join('');};   // обрано поточний клас Героя
   var rows=(HADM.list||[]).map(function(h){
     var c=h.cls&&SKSKILLS.CLASSES[h.cls];
     var sk=h.skills.map(function(x){var s=SKSKILLS.byId(x.id);return (s?s.icon+' ':'')+esc(s?s.name:x.id)+' '+x.pct+'%';}).join(' · ');
     return '<tr><td><b>'+esc(h.name||'—')+'</b><br><span class="key">'+esc(h.id)+'</span></td><td class="num">'+h.lv+'</td>'
       +'<td>'+(c?c.icon+' '+esc(c.name):'—')+'</td><td style="font-size:.8rem">'+(sk||'—')+'</td>'
       +'<td><button type="button" class="btn-ghost" data-hadm="reset" data-id="'+esc(h.id)+'"'+(h.cls?'':' disabled')+'>↺ Скинути клас</button>'
-      +'<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap"><select id="hadm-cls-'+esc(h.id)+'" aria-label="Клас">'+opts+'</select>'
+      +'<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap"><select id="hadm-cls-'+esc(h.id)+'" aria-label="Клас">'+opts(h.cls)+'</select>'
       +'<input type="number" id="hadm-pct-'+esc(h.id)+'" value="50" min="25" max="100" style="width:64px" aria-label="Майстерність %">'
       +'<button type="button" class="btn-ghost" data-hadm="test" data-id="'+esc(h.id)+'">🧪 Клас + вміння</button></div>'
       +'<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap"><input type="number" id="hadm-lv-'+esc(h.id)+'" value="'+h.lv+'" min="1" max="30" style="width:64px" aria-label="Рівень арени">'
@@ -1022,6 +1054,7 @@ root.addEventListener('click',function(e){
     p=hadmApi('POST','hero/set-level',{id:id,addPoints:1});
   } else {
     var cls=document.getElementById('hadm-cls-'+id).value,pct=+document.getElementById('hadm-pct-'+id).value||50;
+    if(!cls){alert('Спершу обери клас');return;}   // «клас не вибрано» — є лише в Героя без класу
     if(!confirm('Дати Героєві «'+(h.name||id)+'» клас '+SKSKILLS.CLASSES[cls].name+' і всі його оброблені вміння на '+pct+'%?'))return;
     p=hadmApi('POST','hero/test-class',{id:id,cls:cls,pct:pct});
   }
@@ -1063,7 +1096,7 @@ function bindSkm(){
 function render(){
   root.innerHTML='<h1>⚔️ Арена · характеристики</h1>'
     +'<p class="sub">Які характеристики є в Героя і що до них можна додати предметами.</p>'
-    +tabsHTML()+(TAB==='items'?itemsHTML():TAB==='mech'?mechHTML():TAB==='plan'?planHTML():TAB==='skmech'?skmHTML():heroHTML());
+    +tabsHTML()+(TAB==='items'?itemsHTML():TAB==='mech'?mechHTML():TAB==='plan'?planHTML():TAB==='skmech'?skmHTML():TAB==='perks'?perksHTML():heroHTML());
   root.querySelectorAll('.tab[data-tab]').forEach(function(b){b.onclick=function(){
     TAB=b.getAttribute('data-tab');try{history.replaceState(null,'','#'+TAB);}catch(e){}render();};});
   bindPlan();bindSkm();

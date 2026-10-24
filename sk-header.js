@@ -419,6 +419,28 @@
      Показуємо підсумок «база + вдягнені речі» — так само, як вікно
      екіпіровки на арені (SKIT.combine). Спершу малюємо базу (миттєво),
      потім, коли прочитано інвентар і каталог, — з урахуванням речей. */
+  /* ── РЕСУРС КЛАСУ: лише відображення. У формулах, базі й коді це завжди мана;
+     Слідопит бачить її як 🔥 Запал (вогняна іконка й смужка). window.SKRES:
+       of(cls) → {key:'fire'|'mp', name:'Запал'|'Мана', gen:'Запалу'|'мани', lc:'запал'|'мана'}
+       apply(cls) — html.res-fire + заміна вже намальованих іконок img/stats/mp.webp */
+  var RES = {
+    mp:   { key: 'mp',   name: 'Мана',  gen: 'мани',   lc: 'мана' },
+    fire: { key: 'fire', name: 'Запал', gen: 'Запалу', lc: 'запал' }
+  };
+  var resCls = null;
+  window.SKRES = {
+    of: function(cls){ return RES[(cls === undefined ? resCls : cls) === 'ranger' ? 'fire' : 'mp']; },
+    apply: function(cls){
+      resCls = cls || null;
+      var fire = resCls === 'ranger', r = RES[fire ? 'fire' : 'mp'];
+      document.documentElement.classList.toggle('res-fire', fire);
+      var from = fire ? '/mp.webp' : '/fire.webp', to = fire ? '/fire.webp' : '/mp.webp';
+      Array.prototype.forEach.call(document.querySelectorAll('img[src*="stats' + from + '"]'), function(im){
+        im.src = im.getAttribute('src').replace(from, to); if (im.alt) im.alt = r.name; });
+      Array.prototype.forEach.call(document.querySelectorAll('[data-res-name]'), function(el){ el.textContent = r.name; });
+      Array.prototype.forEach.call(document.querySelectorAll('[data-res-title]'), function(el){ el.title = r.name; });
+    }
+  };
   /* [файл img/stats/<файл>.webp, ключ, підпис] — ті самі медальйони, що на головній */
   var STAT_KEYS = [['hp','health',"Здоровʼя"],['mp','mana','Мана'],['agi','agility','Спритність'],['acc','accuracy','Точність']];
   function renderStats(h, gear){
@@ -429,7 +451,8 @@
       var v = (gear && gear[s[1]] != null) ? gear[s[1]] : base;
       var diff = v - base;
       var tip = diff ? ' title="'+base+(diff > 0 ? ' + ' : ' − ')+Math.abs(diff)+' від речей"' : '';
-      return '<span class="sk-hd__stat"'+(tip || ' title="'+s[2]+'"')+'><img class="sk-hd__sic" src="'+BASE+'img/stats/'+s[0]+'.webp" alt="'+s[2]+'"> <b'+(diff > 0 ? ' class="up"' : '')+'>'+v+'</b></span>';
+      var res = s[0] === 'mp' ? window.SKRES.of(h.heroClass || null) : null, lbl = res ? res.name : s[2];   // Слідопит: мана → 🔥 Запал
+      return '<span class="sk-hd__stat"'+(tip || ' title="'+lbl+'"')+'><img class="sk-hd__sic" src="'+BASE+'img/stats/'+(res ? res.key : s[0])+'.webp" alt="'+lbl+'"> <b'+(diff > 0 ? ' class="up"' : '')+'>'+v+'</b></span>';
     });
     /* Були зірочки (XP) — дитині незрозуміло, та й XP тепер
        росте лише з батьківських завдань. Показуємо монети: їх
@@ -447,7 +470,7 @@
     if(window.SKIT) return Promise.resolve(window.SKIT);
     if(!skitP) skitP = new Promise(function(res){
       var s = document.createElement('script');
-      s.src = BASE + 'sk-items.js?v=19';
+      s.src = BASE + 'sk-items.js?v=22';
       s.onload = function(){ res(window.SKIT || null); };
       s.onerror = function(){ res(null); };
       document.head.appendChild(s);
@@ -463,7 +486,7 @@
   var rulesP = null;
   function needRules(){
     if(window.SKARENA && window.SKARENA.heroSheet) return Promise.resolve(window.SKARENA);
-    if(!rulesP) rulesP = loadScript('sk-arena-rules.js?v=27').then(function(){ return window.SKARENA || null; });
+    if(!rulesP) rulesP = loadScript('sk-arena-rules.js?v=31').then(function(){ return window.SKARENA || null; });
     return rulesP;
   }
   function sheetOf(h){
@@ -486,6 +509,7 @@
     SK.getHero().then(function(h){
       if(!h){ showGuest(); return; }
       lastHero = h;
+      try{ window.SKRES.apply(h.heroClass || null); }catch(e){}
       /* клас Героя → підсвітити відповідний ступінь */
       if(h.grade != null && Number(h.grade) !== activeGrade){
         activeGrade = Number(h.grade);
@@ -517,8 +541,8 @@
   }
   function battleDeps(){
     return Promise.all([
-      window.SKARENA  ? true : loadScript('sk-arena-rules.js?v=27'),
-      window.SKBATTLE ? true : loadScript('sk-battle.js?v=41'),
+      window.SKARENA  ? true : loadScript('sk-arena-rules.js?v=31'),
+      window.SKBATTLE ? true : loadScript('sk-battle.js?v=44'),
       needSKIT()
     ]).then(function(){ return !!(window.SKARENA && window.SKBATTLE && window.SKIT); });
   }

@@ -104,7 +104,7 @@
     { key: 'fear',        label: 'Страх',                 emoji: '😱', base: 0, arena: 'свиток: суперник у цьому ході не атакує й не робить спецдій. Перший спрацьовує з шансом 90%, далі — 50% (опір); після двох спрацювань — імунітет' },
     { key: 'barrier',     label: "Бар'єр",                emoji: '🫧', base: 0, arena: 'свиток: поглинає один удар, що забрав би здоров\'я (ухилився чи заблокував — бар\'єр лишається)' },
     { key: 'stun',        label: 'Оглушення',             emoji: '💫', base: 0, arena: null },
-    { key: 'antidote',    label: 'Антидот',               emoji: '🧪', base: 0, arena: null }
+    { key: 'antidote',    label: 'Антидот',               emoji: '🧪', base: 0, arena: 'зілля: знімає отруту; далі імунітет до отрути — 3 ходи повний, потім опір 90%, 80% … 0%' }
   ];
   /* характеристики Героя (зберігаються в heroes/{id}) — що вони роблять на арені */
   var HERO_STATS = {
@@ -290,6 +290,32 @@
   var LEVEL_BONUS = { pre: { health: 4, mana: 4 }, knight: { health: 6, mana: 3 }, ranger: { health: 5, mana: 4 },
     healer: { health: 4, mana: 5 }, mage: { health: 3, mana: 6 } };
   var CLASS_FROM = 3;   // = SKSKILLS.CLASS_LEVEL
+  /* ── ПЕРЕВАГИ КЛАСУ ──
+     Діють самі, щойно обрано клас (без очок і без вивчення). Вміння з однаковою назвою в усіх
+     класах однакові — те, чим клас кращий за інших, записано лише тут.
+     v — числа для бою (sk-battle.js читає їх звідси), text — опис для книги й адмінки.
+     Ріст за рівень (LEVEL_BONUS) і правило концентрації — теж переваги класу, адмінка показує їх поруч. */
+  var CLASS_PERKS = {
+    knight: [
+      { id: 'conc', icon: '🧱', name: 'Стійкість', text: 'концентрація росте, коли тебе б\'ють; у хід без урону — спадає' },
+      /* soon — записано на балансування класів, у бою поки не діє (без v); коли запрацює — v і прибрати soon */
+      { id: 'shieldMaster', icon: '🛡️', name: 'Майстер щита', soon: true, text: 'зі щитом шанс блоку +5%' },
+      { id: 'heavyArmor', icon: '🪨', name: 'Важкі обладунки', soon: true, text: 'важка броня менше знижує спритність' },
+      { id: 'hardened', icon: '⚔️', name: 'Загартований', soon: true, text: 'опір контролю +5% навіть без вміння Стійкість' },
+      { id: 'potionPro', icon: '🧪', name: 'Знавець зілль', soon: true, text: 'зілля з пояса діють сильніше (на скільки — вирішимо на балансуванні)' }
+    ],
+    ranger: [
+      { id: 'conc', icon: '🎯', name: 'Приціл', text: 'концентрація росте в спокійний хід; урон її скидає' },
+      { id: 'daggerCrit', icon: '🗡️', name: 'Майстер кинджала', v: 5, text: 'з кинджалом у руці шанс криту +5%' },
+      { id: 'spearFirst', icon: '🔱', name: 'Швидкий спис', v: 10, text: 'зі списом: якщо твої удари цього ходу добивають ворога — 10% встигнути першим (його удару не буде)' },
+      { id: 'whipCut', icon: '➰', name: 'Хльосткий кнут', v: 15, text: 'з кнутом: шанс блоку ворога щитом і речами на 15% менший' },
+      { id: 'archer', icon: '🏹', name: 'Природжений стрілець', text: 'Лук і Влучний постріл — лише в Слідопита' },
+      { id: 'lungeCrit', icon: '🗡️', name: 'Точний випад', v: 15, text: 'Випадом шанс криту +15%' },
+      { id: 'dodgeUp', icon: '💨', name: 'Спритний ухил', v: 5, text: 'Ухилення (загальне вміння): коли прокинулось, ухиляєшся на 5% частіше (15% → 20%)' },
+      { id: 'lightStep', icon: '🍃', name: 'Легка хода', v: 5, text: 'без щита спритність +5% — по тобі трохи рідше влучають' }
+    ]
+  };
+  function perk(cls, id) { var l = CLASS_PERKS[cls] || []; for (var i = 0; i < l.length; i++) if (l[i].id === id) return num(l[i].v); return 0; }
   function levelBonus(level, cls) {
     var lv = Math.max(1, Math.floor(num(level) || 1)), o = { health: 0, mana: 0 };
     for (var k = 2; k <= lv; k++) {
@@ -460,7 +486,8 @@
     function ret(o) { for (var k in o) out[k] = o[k]; return out; }
     // 1) влучив?
     out.hitNeed = pctOf(hitChance(att, def)); out.hitRoll = d100(rnd);
-    if (out.hitRoll > out.hitNeed) return ret({ dmg: 0, kind: 'dodge', crit: false, calc: 'промах: 🎲 ' + out.hitRoll + ' > ' + out.hitNeed + '%' });
+    if (att.sure) out.sure = true;                               // Камуфляж: удар не промахується
+    else if (out.hitRoll > out.hitNeed) return ret({ dmg: 0, kind: 'dodge', crit: false, calc: 'промах: 🎲 ' + out.hitRoll + ' > ' + out.hitNeed + '%' });
     function critCheck() { out.critNeed = pctOf(critChance(att)); out.critRoll = d100(rnd); return out.critRoll <= out.critNeed; }
     // 2) заблокував? щит приймає удар; ПІСЛЯ блоку — перевірка, чи удар був критичним
     //    (від цього залежить знос щита: shieldCritBlock замість shieldBlock)
@@ -603,7 +630,7 @@
     handCats: handCats, isTwoHanded: isTwoHanded, fitsHand: fitsHand, handsFix: handsFix, handsClash: handsClash, handsFromHero: handsFromHero, offhandSlot: offhandSlot,
     HERO_STATS: HERO_STATS, BUFF_KEYS: BUFF_KEYS, attrInfo: attrInfo,
     blockKind: blockKind, blockBy: blockBy, useEffects: useEffects, botBelt: botBelt, buffed: buffed, scrollStrike: scrollStrike,
-    fighter: fighter, varyFighter: varyFighter, heroSheet: heroSheet, heroStatsOf: heroStatsOf, levelBonus: levelBonus, LEVEL_BONUS: LEVEL_BONUS, HERO_DEFAULTS: HERO_DEFAULTS, hitChance: hitChance, critChance: critChance, isMagic: isMagic,
+    fighter: fighter, varyFighter: varyFighter, heroSheet: heroSheet, heroStatsOf: heroStatsOf, levelBonus: levelBonus, LEVEL_BONUS: LEVEL_BONUS, CLASS_PERKS: CLASS_PERKS, perk: perk, HERO_DEFAULTS: HERO_DEFAULTS, hitChance: hitChance, critChance: critChance, isMagic: isMagic,
     strike: strike, attack: attack, d100: d100, armorPass: armorPass,
     power: power, xpCoef: xpCoef, xpNeed: xpNeed, itemPower: itemPower, botItems: botItems
   };

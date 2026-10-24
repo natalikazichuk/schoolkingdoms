@@ -13,7 +13,7 @@
      Порядок важливий: ПІСЛЯ sk-styles.css і ДО локальних стилів нижче. -->
 <link rel="stylesheet" href="sk-admin.css?v=2">
 <script src="sk-admin.js?v=1"></script>
-<script src="sk-items.js?v=19"></script>
+<script src="sk-items.js?v=22"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -85,7 +85,21 @@
 
   /* Форма: .field, інпути, .mini, .msg, .empty, гейт — у sk-admin.css. */
   .topact{display:flex;justify-content:flex-end;margin:0 0 12px}
-  #editorPanel[hidden]{display:none}
+  /* редактор речі — вікно поверх сторінки (і «＋ Нова річ», і ✏️ у рядку) */
+  .dropzone{margin-top:8px;padding:14px;border:2px dashed var(--border);border-radius:14px;text-align:center;font-weight:700;color:var(--muted)}
+  .dropzone.over{border-color:var(--gold-deep);background:rgba(240,180,40,.08);color:var(--ink)}
+  .uprev{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:8px}
+  .uprev .pic{width:128px;height:128px;border-radius:12px;background:#1b2440 repeating-conic-gradient(#25304f 0 25%,#1b2440 0 50%) 0 0/16px 16px;display:grid;place-items:center}
+  .uprev .pic img{width:100%;height:100%;object-fit:contain}
+  .emodal{position:fixed;inset:0;z-index:250;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;
+    background:rgba(10,16,32,.55);overflow-y:auto;overscroll-behavior:contain}
+  .emodal[hidden]{display:none}
+  .emodal .panel{width:100%;max-width:760px;margin:0;position:relative;box-shadow:0 18px 50px rgba(0,0,0,.35)}
+  .emodal .ex{position:absolute;top:10px;right:10px;width:36px;height:36px;border-radius:50%;border:1px solid var(--border);
+    background:var(--card);color:var(--ink);font-size:1.1rem;cursor:pointer;line-height:1}
+  .emodal .ex:hover{border-color:var(--gold-deep)}
+  body.emodal-open{overflow:hidden}
+  @media (max-width:560px){.emodal{padding:10px 8px}}
   .askdel{position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(10,16,32,.55)}
   .askdel-card{width:100%;max-width:420px;background:var(--card,#fff);color:var(--ink,#20232e);border-radius:18px;padding:18px;box-shadow:0 18px 50px rgba(0,0,0,.35)}
   .askdel-card h3{margin:0 0 8px;font-family:'Fredoka',sans-serif}
@@ -99,6 +113,8 @@
   .img-prev{margin-top:8px}
   .img-prev-el{max-height:120px;max-width:100%;border-radius:10px;display:block;
     border:1px solid var(--border);background:#f5eeda}
+  /* «шахівниця» під прев'ю — щоб одразу було видно, де прозоро, а де лишилось біле */
+  .img-prev img{background:repeating-conic-gradient(#d9d2c0 0 25%,#fff 0 50%) 0 0/16px 16px}
   .img-prev-err{display:none;color:var(--danger);font-weight:800;font-size:.82rem}
 
   /* Клас-кнопки (велика квадратна сітка) */
@@ -400,7 +416,8 @@ function addPills(it){
   var a=(it&&it.addStats)||[]; if(!a.length) return '';
   return a.map(function(e){
     if(isFlagStat(e)){ var ic=(e.stat==='Разовий предмет')?'🧪':'✋'; return '<span class="pill flag">'+ic+' '+esc(e.stat)+'</span>'; }
-    var v=(e.value!=null?('+'+e.value+(e.pct?'%':'')):(e.pct?'%':''));
+    var pc=e.pct||!!(window.SKIT&&SKIT.isPctStat(e.stat));
+    var v=(e.value!=null?('+'+e.value+(pc?'%':'')):(pc?'%':''));
     return '<span class="pill add">'+esc(e.stat)+(v?' '+esc(v):'')+'</span>';
   }).join('');
 }
@@ -529,11 +546,20 @@ function renderList(){
 }
 
 /* ---- datalist категорій ---- */
-function catOptions(){
+/* категорія — випадний список: стандартні + ті, що вже є в базі (+ поточна); «✏️ Інша…» — вписати свою */
+function catList(){
   var seen={}, out=[];
-  CATEGORIES.forEach(function(c){ if(!seen[c]){ seen[c]=1; out.push('<option value="'+esc(c)+'">'); } });
-  ITEMS.forEach(function(it){ var c=(it.category||'').trim(); if(c && !seen[c]){ seen[c]=1; out.push('<option value="'+esc(c)+'">'); } });
-  return out.join('');
+  CATEGORIES.forEach(function(c){ if(!seen[c]){ seen[c]=1; out.push(c); } });
+  ITEMS.forEach(function(it){ var c=(it.category||'').trim(); if(c && !seen[c]){ seen[c]=1; out.push(c); } });
+  return out;
+}
+function catField(){
+  var cur=(M.category||'').trim(), list=catList();
+  if(M._catOther) return '<input type="text" id="m_category" value="'+esc(cur)+'" placeholder="Назва нової категорії">';
+  if(cur && list.indexOf(cur)<0) list.push(cur);
+  return '<select id="m_category">'+(cur?'':'<option value="" selected disabled>— вибери категорію —</option>')
+    +list.map(function(c){ return '<option value="'+esc(c)+'"'+(c===cur?' selected':'')+'>'+esc(c)+'</option>'; }).join('')
+    +'<option value="__other">✏️ Інша…</option></select>';
 }
 
 /* прев'ю картинки */
@@ -543,7 +569,7 @@ function imgPrevHtml(val, id){
   if(/^https?:\/\//i.test(val)){
     src=val; note='⚠️ Картинку не знайдено за цим посиланням';
   } else if(id){
-    src='img/items/'+id+'.webp';
+    src='img/items/'+id+'.webp'+(UPT[id]?'?t='+UPT[id]:'');   // щойно залита — повз кеш браузера
     note='ℹ️ Файлу img/items/'+id+'.webp ще немає — залий його або встав посилання https://…';
   } else {
     return '<span class="img-prev-err" style="display:block;color:var(--muted)">Встав повне посилання (https://…) на зображення.</span>';
@@ -566,13 +592,13 @@ function gradeOptions(sel){
 }
 /* ---- редактор додаткових навичок ---- */
 function addStatRow(e,i){
-  var isFlag=isFlagStat(e);
+  var isFlag=isFlagStat(e), pctFix=!isFlag&&window.SKIT&&SKIT.isPctStat(e.stat);
   var opts=FLAG_STATS.filter(function(f){ return f!==TWO_HANDED; }).map(function(f){ return '<option value="'+esc(f)+'"'+(e.stat===f?' selected':'')+'>'+esc(f)+' (прапорець)</option>'; }).join('');
   ADD_STAT_LABELS.forEach(function(s){ opts+='<option value="'+esc(s)+'"'+(e.stat===s?' selected':'')+'>'+esc(s)+'</option>'; });
   return '<div class="asrow" data-i="'+i+'">'
     +'<select class="as-stat">'+opts+'</select>'
     +'<input type="number" class="as-val" value="'+((isFlag||e.value==null)?'':esc(e.value))+'" placeholder="к-сть"'+(isFlag?' disabled':'')+'>'
-    +'<label class="chk as-pctl"><input type="checkbox" class="as-pct"'+(e.pct?' checked':'')+(isFlag?' disabled':'')+'>%</label>'
+    +'<label class="chk as-pctl"'+(pctFix?' title="Шанс — завжди у відсотках"':'')+'><input type="checkbox" class="as-pct"'+((e.pct||pctFix)?' checked':'')+((isFlag||pctFix)?' disabled':'')+'>%</label>'
     +'<button class="mini danger" type="button" data-act="rmstat" data-i="'+i+'">✕</button>'
   +'</div>';
 }
@@ -587,7 +613,7 @@ function collectAddStats(){
   host.querySelectorAll('.asrow').forEach(function(row){
     var stat=row.querySelector('.as-stat').value;
     if(FLAG_STATS.indexOf(stat)>=0){ out.push({stat:stat,flag:true}); return; }
-    out.push({ stat:stat, value:toNum(row.querySelector('.as-val').value), pct:row.querySelector('.as-pct').checked });
+    out.push({ stat:stat, value:toNum(row.querySelector('.as-val').value), pct:row.querySelector('.as-pct').checked||!!(window.SKIT&&SKIT.isPctStat(stat)) });
   });
   M.addStats=out;
 }
@@ -633,7 +659,7 @@ function renderEditor(){
   el('#editor').innerHTML=
      '<div class="grid">'
     +  idField
-    +'  <div class="field"><label>Категорія</label><input type="text" id="m_category" list="catlist" value="'+esc(M.category||'')+'"><datalist id="catlist">'+catOptions()+'</datalist></div>'
+    +'  <div class="field"><label>Категорія</label>'+catField()+'</div>'
     +'</div>'
     +weaponBlock()
     +'<div class="field"><label>Назва</label><input type="text" id="m_name" value="'+esc(M.name||'')+'" placeholder="Напр.: Сталевий шолом"></div>'
@@ -644,7 +670,13 @@ function renderEditor(){
     +'<div class="field"><label>Картинка</label>'
       +'<div class="inline-note" style="margin-bottom:6px">За замовчуванням береться <b>img/items/'+esc(M.id||'&lt;id&gt;')+'.webp</b>. Посилання нижче — лише щоб перевизначити.</div>'
       +'<input type="text" id="m_img" value="'+esc(M.img||'')+'" placeholder="https://…/item.png (необов’язково)">'
-      +'<div class="img-prev" id="imgprev">'+imgPrevHtml(M.img, M.id)+'</div></div>'
+      +'<div class="img-prev" id="imgprev">'+imgPrevHtml(M.img, M.id)+'</div>'
+      +'<div class="dropzone" id="m_drop">📁 Перетягни картинку сюди або <label class="btn ghost" style="display:inline-flex;margin:0 4px">вибери файл'
+        +'<input type="file" id="m_file" accept="image/png,image/jpeg,image/webp" hidden></label>'
+        +'<div class="inline-note">Біле тло чи намальована «шахівниця» приберуться самі; картинка стане 512×512 з прозорим тлом.</div></div>'
+      +'<div id="m_upres"></div>'
+      +'<button class="btn ghost" type="button" data-act="prompt" style="margin-top:8px;align-self:flex-start">🎨 Промт для картинки цієї речі</button>'
+      +'<div id="m_pbox"></div></div>'
     +'<div class="grid">'
     +'  <div class="field"><label>Характеристика</label><select id="m_stat">'+statOptions(M.stat)+'</select></div>'
     +'  <div class="field" style="justify-content:flex-end"><label class="chk" style="margin-bottom:10px"><input type="checkbox" id="m_ranged"'+(M._ranged?' checked':'')+'> Діапазон (зброя/урон, напр. 4–12)</label></div>'
@@ -665,6 +697,7 @@ function renderEditor(){
     +'</div>'
     +'<div class="msg" id="msg"></div>';
   renderAddStats();
+  if(UPIMG) upPreview();   // оброблена, ще не збережена картинка не зникає при перемальовуванні форми
 }
 
 /* ---- форма -> модель ---- */
@@ -734,8 +767,10 @@ function setMsg(text, ok){
 /* ---- дії редактора ---- */
 function editorInput(e){
   var t=e.target;
+  if(el('#m_pout')) editorPromptUpdate();   // промт у вікні оновлюється разом із назвою й описом
   if(t && t.id==='m_img'){ var p=el('#imgprev'); if(p) p.innerHTML=imgPrevHtml(t.value, M.id); }
   if(t && t.closest && t.closest('#addstats')){ collectAddStats(); }
+  if(t && t.id==='m_category' && t.value==='__other'){ collectForm(); M.category=''; M._catOther=true; renderEditor(); var ci=el('#m_category'); if(ci) ci.focus(); return; }
   if(t && t.id==='m_category'){
     var was=!!el('#m_wtype'), now=String(t.value||'').trim()===WEAPON_CAT;
     if(was!==now){ collectForm(); renderEditor(); var c=el('#m_category'); if(c){ c.focus(); var n=c.value.length; try{ c.setSelectionRange(n,n); }catch(_){ } } }
@@ -745,6 +780,10 @@ function editorClick(e){
   var b=e.target.closest('[data-act]'); if(!b) return;
   var act=b.getAttribute('data-act');
   if(act==='save'){ doSave(); return; }
+  if(act==='prompt'){ collectForm(); var bx=el('#m_pbox'); if(bx.innerHTML){ bx.innerHTML=''; return; } bx.innerHTML=editorPromptHtml(); editorPromptUpdate(); return; }
+  if(act==='upsend'){ upSend(); return; }   // результат показує сам
+  if(act==='upcancel'){ UPIMG=null; upShow(''); return; }
+  if(act==='pcopy'){ copyText(el('#m_pout'), el('#m_pmsg')); return; }
   if(act==='close'){ closeEditor(); return; }
   if(act==='delcur'){ if(!M._isNew) doDelete(M.id); return; }
   if(act==='addstat'){ collectAddStats(); M.addStats=M.addStats||[]; M.addStats.push({stat:ADD_STAT_LABELS[0],value:null,pct:false}); renderAddStats(); return; }
@@ -752,6 +791,8 @@ function editorClick(e){
 }
 function editorChange(e){
   var t=e.target;
+  if(t && t.hasAttribute && t.hasAttribute('data-pe')){ editorPromptUpdate(); return; }
+  if(t && t.id==='m_file'){ upFile(t.files && t.files[0]); t.value=''; return; }
   if(t && t.id==='m_ranged'){ collectForm(); renderEditor(); return; }
   if(t && t.id==='m_stat' && isWeapon(M) && window.SKIT){ var od=SKIT.defaultDmgType(M.weaponType,M.stat); collectForm(); if(!M.dmgType||M.dmgType===od) M.dmgType=SKIT.defaultDmgType(M.weaponType,M.stat); renderEditor(); return; }
   if(t && t.id==='m_wtype'){ collectForm(); M.dmgType=window.SKIT?SKIT.defaultDmgType(M.weaponType,M.stat):null; renderEditor(); return; }
@@ -767,7 +808,11 @@ function doSave(){
     setMsg('Предмет з кодом «'+clean.id+'» уже існує. Обери інший код.', false); return;
   }
   setMsg('💾 Зберігаємо…', true);
+  // оброблену картинку, яку забули «⬆ Зберегти на сайт», зберігаємо разом із річчю
+  var up=null;
   SK.saveItem(clean).then(function(){
+    return UPIMG ? upSend().then(function(r){ up=r; }) : null;
+  }).then(function(){
     return SK.listItems({fresh:true});
   }).then(function(list){
     ITEMS=list||[];
@@ -775,19 +820,21 @@ function doSave(){
     var saved=ITEMS.filter(function(x){ return x.id===clean.id; })[0];
     if(saved){ loadIntoEditor(saved); } else { M=blankItem(); renderEditor(); }
     renderView();
-    setMsg('✅ Збережено!', true);
+    if(up && !up.ok) setMsg('✅ Річ збережено, ⚠️ але картинку — ні: '+up.err+'. Перетягни її ще раз.', false);
+    else setMsg(up ? '✅ Збережено разом із картинкою!'+(up.shadowed?' ⚠️ Але в репозиторії вже є img/items/'+clean.id+'.webp — у грі показується він.':'') : '✅ Збережено!', true);
   }).catch(function(err){ setMsg('⚠️ Помилка збереження: '+(err&&err.message||err), false); });
 }
 
 /* форма редактора: схована, відкривається кнопкою «＋ Новий предмет» (нагорі) або ✏️ у рядку */
 function openEditor(it){
+  UPIMG=null;
   if(it){ loadIntoEditor(it); }
   else { M=blankItem(); if(GRADE!=null) M.grade=GRADE; renderEditor(); }
-  var t=el('#editorTitle'); if(t) t.textContent=it?('✏️ Редагувати: '+(it.name||it.id)):'＋ Новий предмет';
-  el('#editorPanel').hidden=false;
-  window.scrollTo(0, el('#editorPanel').offsetTop-10);
+  var t=el('#editorTitle'); if(t) t.textContent=it?('✏️ Редагувати: '+(it.name||it.id)):'＋ Нова річ';
+  var m=el('#editorModal'); m.hidden=false; m.scrollTop=0; document.body.classList.add('emodal-open');
+  var f=el(it?'#m_name':'#m_category')||el('#m_name'); if(f) try{ f.focus({preventScroll:true}); }catch(_){ f.focus(); }
 }
-function closeEditor(){ el('#editorPanel').hidden=true; M=blankItem(); renderEditor(); }
+function closeEditor(){ UPIMG=null; el('#editorModal').hidden=true; document.body.classList.remove('emodal-open'); M=blankItem(); renderEditor(); }
 
 /* підтвердження видалення — вікно на сторінці (стандартний confirm браузер може мовчки блокувати) */
 function askDelete(it){
@@ -917,12 +964,147 @@ function doSeed(mode){
   step();
 }
 
+/* ---- 🎨 ПРОМТ ДЛЯ КАРТИНКИ РЕЧІ ----
+   Шаблон — SKIT.imagePrompt (sk-items.js): один стиль для всіх речей магазину.
+   Поля — для будь-якої речі (і ще не створеної); з редактора — «🎨 Промт для картинки цієї речі». */
+function promptPanelHtml(){
+  if(!window.SKIT||!SKIT.imagePrompt) return '';
+  var cats=CATEGORIES.map(function(c){ return '<option value="'+esc(c)+'">'+esc(c)+'</option>'; }).join('');
+  var ws='<option value="">—</option>'+SKIT.WEAPON_TYPES.map(function(w){ return '<option value="'+w.key+'">'+w.icon+' '+esc(w.label)+'</option>'; }).join('');
+  var ts=SKIT.PROMPT_TIERS.map(function(t){ return '<option value="'+t.key+'">'+esc(t.label)+'</option>'; }).join('');
+  return '<div class="panel" id="promptPanel"><h2>🎨 Промт для картинки речі</h2>'
+    +'<p class="sub">Один стиль для всіх речей: напівреалістичний 3D, м\'яке світло, <b>прозоре тло</b> і легка напівпрозора тінь під річчю. '
+    +'Заповни поля, скопіюй промт у ChatGPT (чи інший генератор), отриману PNG завантаж як <b>img/items/&lt;код&gt;.webp</b> (512×512).</p>'
+    +'<div class="grid weapon-box w3" style="background:none;border:0;padding:0">'
+      +'<div class="field"><label for="pb_cat">Категорія</label><select id="pb_cat" data-pb>'+cats+'</select></div>'
+      +'<div class="field"><label for="pb_w">Вид зброї</label><select id="pb_w" data-pb>'+ws+'</select></div>'
+      +'<div class="field"><label for="pb_tier">Рідкісність</label><select id="pb_tier" data-pb>'+ts+'</select></div>'
+    +'</div>'
+    +'<div class="field"><label for="pb_name">Назва</label><input type="text" id="pb_name" data-pb placeholder="Напр.: Мисливський лук"></div>'
+    +'<div class="field"><label for="pb_desc">Як виглядає (краще англійською; порожньо — візьметься назва)</label>'
+      +'<textarea id="pb_desc" data-pb rows="2" placeholder="a sturdy hunter\'s recurve bow of dark wood, leather-wrapped grip"></textarea></div>'
+    +'<div class="field"><label for="pb_out">Промт</label><textarea id="pb_out" rows="14" readonly style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.78rem"></textarea></div>'
+    +'<div class="savebar"><button class="btn gold" type="button" id="pb_copy">📋 Копіювати промт</button><span class="inline-note" id="pb_msg"></span></div>'
+    +'</div>';
+}
+function promptUpdate(){
+  var o=el('#pb_out'); if(!o) return;
+  o.value=SKIT.imagePrompt({ category:el('#pb_cat').value, weaponType:el('#pb_w').value, tier:el('#pb_tier').value,
+    name:el('#pb_name').value.trim(), desc:el('#pb_desc').value });
+}
+/* ---- 📁 КАРТИНКА З КОМПʼЮТЕРА ----
+   Браузер сам готує файл (як tools/item-image.py): біле тло чи намальована «шахівниця» → прозоре,
+   сіра тінь на білому → напівпрозора; річ — по центру з полями, 512×512 WebP. Потім
+   POST api/admin/item-image → nginx віддає її як img/items/<код>.webp (якщо в репозиторії такого файлу немає). */
+var UPIMG=null, UPT={};
+function imgLoad(file){
+  return new Promise(function(ok, fail){ var im=new Image(), u=URL.createObjectURL(file);
+    im.onload=function(){ ok(im); setTimeout(function(){ URL.revokeObjectURL(u); }, 1000); }; im.onerror=function(){ fail(new Error('Не вдалося відкрити картинку')); }; im.src=u; });
+}
+function prepImage(im){
+  var k=Math.min(1, 1024/Math.max(im.naturalWidth, im.naturalHeight)), w=Math.round(im.naturalWidth*k), h=Math.round(im.naturalHeight*k);
+  var c=document.createElement('canvas'); c.width=w; c.height=h; var g=c.getContext('2d'); g.drawImage(im, 0, 0, w, h);
+  var d=g.getImageData(0, 0, w, h), p=d.data, i, x, y, mode;
+  var light=function(j, lo){ var r=p[j], gg=p[j+1], b=p[j+2], mn=Math.min(r,gg,b); return mn>=lo && Math.max(r,gg,b)-mn<=18; };
+  var minA=255; for(i=3;i<p.length;i+=4) if(p[i]<minA) minA=p[i];
+  if(minA<250) mode='вже прозоре';
+  else {
+    var bv=[], at=function(xx,yy){ var j=(yy*w+xx)*4; return (p[j]+p[j+1]+p[j+2])/3; };
+    for(x=0;x<w;x+=2){ bv.push(at(x,0)); bv.push(at(x,h-1)); } for(y=0;y<h;y+=2){ bv.push(at(0,y)); bv.push(at(w-1,y)); }
+    var lt=bv.filter(function(v){ return v>=180; }), checker=lt.length>0.8*bv.length && Math.max.apply(null,lt)-Math.min.apply(null,lt)>=20;
+    var keep=!checker, lo=checker?175:150, seen=new Uint8Array(w*h), q=[];
+    for(x=0;x<w;x++){ q.push(x, 0, x, h-1); } for(y=0;y<h;y++){ q.push(0, y, w-1, y); }
+    while(q.length){ y=q.pop(); x=q.pop(); if(x<0||y<0||x>=w||y>=h) continue; var n=y*w+x; if(seen[n]) continue;
+      var j=n*4; if(!light(j, lo)) continue; seen[n]=1; q.push(x+1, y, x-1, y, x, y+1, x, y-1); }
+    // білі «дірки» всередині речі (між шнурками, у петлях): замкнена світла ділянка > 0,15% кадру — теж тло; дрібні блиски лишаються
+    var hlo=keep?238:175, minA=Math.max(40, w*h*0.0015), mark=new Uint8Array(w*h);
+    for(var n0=0;n0<w*h;n0++){
+      if(seen[n0]||mark[n0]||!light(n0*4, hlo)) continue;
+      var comp=[], st=[n0]; mark[n0]=1;
+      while(st.length){ var k=st.pop(), kx=k%w, ky=(k-kx)/w; comp.push(k);
+        [[kx+1,ky],[kx-1,ky],[kx,ky+1],[kx,ky-1]].forEach(function(t){ if(t[0]<0||t[1]<0||t[0]>=w||t[1]>=h) return; var kk=t[1]*w+t[0];
+          if(!seen[kk]&&!mark[kk]&&light(kk*4, hlo)){ mark[kk]=1; st.push(kk); } }); }
+      if(comp.length>=minA) comp.forEach(function(k){ seen[k]=1; });
+    }
+    for(var nn=0;nn<w*h;nn++){ if(!seen[nn]) continue; var jj=nn*4;
+      var a=keep?Math.min(150, Math.max(0, (250-(p[jj]+p[jj+1]+p[jj+2])/3)*2.2)):0;
+      p[jj]=30; p[jj+1]=30; p[jj+2]=40; p[jj+3]=a; }
+    g.putImageData(d, 0, 0); mode=checker?'«шахівницю» прибрано':'біле тло → прозоре, тінь напівпрозора';
+  }
+  // межі речі → по центру квадрата з полями 6%, 512×512
+  var x0=w, y0=h, x1=-1, y1=-1; for(y=0;y<h;y++) for(x=0;x<w;x++) if(p[(y*w+x)*4+3]>20){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; }
+  if(x1<0) throw new Error('На картинці не знайшлося речі');
+  var bw=x1-x0+1, bh=y1-y0+1, side=Math.max(bw, bh)/0.88, o=document.createElement('canvas'); o.width=512; o.height=512;
+  var og=o.getContext('2d'), s=512/side; og.imageSmoothingQuality='high';
+  og.drawImage(c, x0, y0, bw, bh, (512-bw*s)/2, (512-bh*s)/2, bw*s, bh*s);
+  var url=o.toDataURL('image/webp', 0.92);
+  if(url.indexOf('data:image/webp')!==0) throw new Error('Цей браузер не вміє зберігати WebP — спробуй у Chrome чи Opera');
+  return { url:url, mode:mode };
+}
+function upShow(html){ var r=el('#m_upres'); if(r) r.innerHTML=html; }
+function upFile(file){
+  if(!file || !/^image\//.test(file.type)){ upShow('<div class="msg err">Потрібна картинка (PNG, JPG чи WebP).</div>'); return; }
+  upShow('<div class="inline-note">⏳ Обробляю картинку…</div>');
+  imgLoad(file).then(function(im){ UPIMG=prepImage(im); UPIMG.file=file; upPreview();
+  }).catch(function(e){ upShow('<div class="msg err">⚠️ '+esc(e.message||e)+'</div>'); });
+}
+function upPreview(){
+    upShow('<div class="uprev"><div class="pic"><img src="'+UPIMG.url+'" alt=""></div><div><div class="inline-note">'+esc(UPIMG.mode)+' · 512×512 WebP · '+Math.round(UPIMG.url.length*0.75/1024)+' КБ</div>'
+      +'<div class="savebar" style="margin-top:8px"><button class="btn gold" type="button" data-act="upsend">⬆ Зберегти картинку на сайт</button>'
+      +'<button class="btn ghost" type="button" data-act="upcancel">Скасувати</button></div>'
+      +'<div class="inline-note">Або просто «💾 Зберегти» річ — картинка збережеться разом із нею.</div></div></div>');
+}
+/* → Promise {ok:true} | {ok:false, err} (повідомлення вже показано під картинкою) */
+function upSend(){
+  collectForm(); var id=(M.id||'').trim();
+  if(!UPIMG || !id){ upShow('<div class="msg err">Спершу вкажи код предмета.</div>'); return Promise.resolve({ok:false, err:'немає коду предмета'}); }
+  upShow('<div class="inline-note">⏳ Зберігаю…</div>');
+  // разом із готовою картинкою — оригінал в архів на сервері (як завантажили)
+  var orig=new Promise(function(ok){ var fr=new FileReader(); fr.onload=function(){ ok(fr.result); }; fr.onerror=function(){ ok(null); }; fr.readAsDataURL(UPIMG.file); });
+  return orig.then(function(o){ return fetch('api/admin/item-image', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ id:id, data:UPIMG.url, orig:o, origType:UPIMG.file.type }) }); })
+    .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(j){ if(!r.ok) throw new Error((j.error&&(j.error.message||j.error.code))||('HTTP '+r.status)); return j; }); })
+    .then(function(j){ UPIMG=null; UPT[id]=Date.now();
+      var p=el('#imgprev'); if(p) p.innerHTML='<img src="img/items/'+esc(id)+'.webp?t='+Date.now()+'" alt="" style="max-width:120px;max-height:120px">';
+      upShow('<div class="msg ok">✅ Картинку збережено: img/items/'+esc(id)+'.webp'+(j.shadowed?' — ⚠️ але в репозиторії вже є файл з цим кодом, у грі показується він':'')
+        +(j.original?'<br>📦 Оригінал в архіві: '+esc(j.original):'')+'</div>'); return {ok:true, shadowed:!!j.shadowed}; })
+    .catch(function(e){ upShow('<div class="msg err">⚠️ Не вдалося зберегти: '+esc(e.message||e)+'</div>'); return {ok:false, err:String(e.message||e)}; });
+}
+
+/* у вікні редактора: промт для цієї речі (категорія, вид зброї й назва — з форми) */
+function editorPromptHtml(){
+  var ts=SKIT.PROMPT_TIERS.map(function(t){ return '<option value="'+t.key+'">'+esc(t.label)+'</option>'; }).join('');
+  return '<div class="weapon-box" style="margin-top:10px">'
+    +'<div class="field"><label for="m_ptier">Рідкісність</label><select id="m_ptier" data-pe>'+ts+'</select></div>'
+    +'<div class="field"><label for="m_pdesc">Як виглядає (краще англійською; порожньо — візьметься назва)</label><textarea id="m_pdesc" data-pe rows="2"></textarea></div>'
+    +'<div class="field"><textarea id="m_pout" rows="10" readonly style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.76rem"></textarea></div>'
+    +'<div class="savebar"><button class="btn gold" type="button" data-act="pcopy">📋 Копіювати промт</button><span class="inline-note" id="m_pmsg"></span></div></div>';
+}
+function editorPromptUpdate(){
+  var o=el('#m_pout'); if(!o) return;
+  var cat=el('#m_category')?el('#m_category').value:M.category, wt=el('#m_wtype')?el('#m_wtype').value:M.weaponType;
+  o.value=SKIT.imagePrompt({ category:cat, weaponType:wt, name:(el('#m_name')||{}).value||M.name||'', tier:el('#m_ptier').value, desc:el('#m_pdesc').value });
+}
+function copyText(o, m){
+  o.select();
+  var ok=function(){ if(m){ m.textContent='✅ Скопійовано'; setTimeout(function(){ m.textContent=''; }, 2000); } };
+  if(navigator.clipboard) navigator.clipboard.writeText(o.value).then(ok, function(){ document.execCommand('copy'); ok(); });
+  else { document.execCommand('copy'); ok(); }
+}
+function promptBind(){
+  var p=el('#promptPanel'); if(!p) return;
+  p.addEventListener('input', function(e){ if(e.target.hasAttribute('data-pb')) promptUpdate(); });
+  p.addEventListener('change', function(e){ if(e.target.hasAttribute('data-pb')) promptUpdate(); });
+  el('#pb_copy').addEventListener('click', function(){ copyText(el('#pb_out'), el('#pb_msg')); });
+  promptUpdate();
+}
+
 /* ---- каркас після перевірки доступу ---- */
 function renderAdminUI(){
   root.innerHTML=
      '<h1>🛡 Предмети та екіпіровка</h1>'
     +'<p class="sub">Броня, зброя, зілля й свитки — згруповані за класами (1–11). Кожен предмет має стабільний код (IT-XXX), за яким ігри й тренажери видаватимуть його гравцю. Картинки підтягуються автоматично з <b>img/items/&lt;id&gt;.webp</b>.</p>'
-    +'<div class="topact"><button class="btn gold" id="topNew">＋ Новий предмет</button></div>'
+    +'<div class="topact"><button class="btn gold" id="topNew">＋ Нова річ</button></div>'
     +'<div class="panel"><h2 id="listTitle">🗂 Класи</h2>'
       +'<div id="gradeGrid" class="gradegrid"></div>'
       +'<div id="gradeView" style="display:none">'
@@ -932,7 +1114,10 @@ function renderAdminUI(){
         +'<div class="ilist" id="itemList"></div>'
       +'</div>'
     +'</div>'
-    +'<div class="panel" id="editorPanel" hidden><h2 id="editorTitle">✏️ Редактор предмета</h2><div id="editor"></div></div>'
+    +'<div class="emodal" id="editorModal" hidden><div class="panel" id="editorPanel" role="dialog" aria-modal="true" aria-labelledby="editorTitle">'
+      +'<button class="ex" type="button" id="editorX" aria-label="Закрити">✕</button>'
+      +'<h2 id="editorTitle">✏️ Редактор предмета</h2><div id="editor"></div></div></div>'
+    +promptPanelHtml()
     +'<div class="panel"><h2>🌱 Стартовий набір / оновлення</h2>'
       +'<p class="sub">Набір містить '+((typeof SEED_ITEMS!=="undefined"&&SEED_ITEMS.length)||0)+' предметів (з цінами, класами й додатковими навичками).</p>'
       +'<div class="savebar">'
@@ -964,6 +1149,12 @@ function renderAdminUI(){
   M=blankItem();
   renderView(); renderEditor();   // форма схована, доки не натиснуто «Новий» чи ✏️
   el('#topNew').addEventListener('click', function(){ openEditor(null); });
+  el('#editorX').addEventListener('click', closeEditor);
+  // перетягнути картинку у вікно речі
+  var ed=el('#editor'), dz=function(e){ return e.target.closest && e.target.closest('#m_drop'); };
+  ed.addEventListener('dragover', function(e){ var z=dz(e); if(!z) return; e.preventDefault(); z.classList.add('over'); });
+  ed.addEventListener('dragleave', function(e){ var z=dz(e); if(z) z.classList.remove('over'); });
+  ed.addEventListener('drop', function(e){ var z=dz(e); if(!z) return; e.preventDefault(); z.classList.remove('over'); upFile(e.dataTransfer.files && e.dataTransfer.files[0]); });
 
   el('#gradeGrid').addEventListener('click', function(e){
     var b=e.target.closest('[data-grade]'); if(!b) return;
@@ -979,6 +1170,7 @@ function renderAdminUI(){
   el('#editor').addEventListener('click', editorClick);
   el('#editor').addEventListener('input', editorInput);
   el('#editor').addEventListener('change', editorChange);
+  promptBind();
   document.querySelectorAll('[data-seed]').forEach(function(b){
     b.addEventListener('click', function(){ doSeed(b.getAttribute('data-seed')); });
   });

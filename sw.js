@@ -18,14 +18,14 @@
    ============================================================ */
 'use strict';
 
-const VERSION = 'sk-offline-v14';
+const VERSION = 'sk-offline-v17';
 const CACHE   = VERSION;
 
 /* Спільне для ігротеки й ігор. Шляхи — від кореня сайту (теки sw.js). */
 const CORE = [
   'igry.html',
   'sk-styles.css', 'sk-game.css', 'sk-game-chalk.css',
-  'sk-header.js?v=14', 'sk-footer.js?v=6', 'sk-resume.js?v=1', 'sk-finish.js?v=6', 'sk-report.js?v=7',
+  'sk-header.js?v=16', 'sk-footer.js?v=6', 'sk-resume.js?v=1', 'sk-finish.js?v=6', 'sk-report.js?v=7',
   'sk-zadachi.js', 'sk-voice.js', 'sk-activity.js?v=1', 'sk-curriculum.js?v=9', 'firebase-config.js', 'sk-fb.js?v=3',
   'manifest.webmanifest', 'favicon-32.png', 'apple-touch-icon.png',
   'icon-192.png', 'icon-512.png', 'logo-small.png'
@@ -172,10 +172,10 @@ async function pageStrategy(event){
    довантажується у фоні (наступного разу вже буде вона). Раніше й вони
    чекали мережу до 4 с, і сайт із кешем вантажився так само повільно. */
 const MEDIA_RE = /\.(?:png|jpe?g|webp|gif|svg|ico|mp3|wav|ogg|woff2?)$/i;
-/* Картинки словника (img/en/) адмінка замінює під тією самою назвою —
+/* Картинки словника (img/en/) і речей (img/items/) адмінка замінює під тією самою назвою —
    їх завжди звіряємо з сервером (cache:'no-cache' → 304, якщо не мінялись),
    інакше нова картинка з'являлась би лише з наступного разу. */
-const FRESH_RE = /\/img\/en\//;
+const FRESH_RE = /\/img\/(?:en|items)\//;
 async function localAssetStrategy(event){
   const req = event.request;
   const cache = await caches.open(CACHE);

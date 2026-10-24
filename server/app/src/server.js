@@ -28,6 +28,7 @@ const crypto = require('crypto');
 const { pool, migrate, splitPath, isCollPath } = require('./db');
 const { allowed } = require('./rules');
 const V = require('./values');
+const itemImg = require('./itemimg');
 const passwords = require('./passwords');
 const skills = require('./skills');
 const avatar = require('./avatar');
@@ -603,6 +604,11 @@ const ROUTES = {
   'POST /api/admin/hero/reset-class': async (req, user, b) => { await requireAdmin(user); return skillRoute(() => skills.resetClass(b.id))(req, user, b); },
   'POST /api/admin/hero/test-class': async (req, user, b) => { await requireAdmin(user); return skillRoute(() => skills.testClass(b.id, b))(req, user, b); },
   'POST /api/admin/hero/set-level': async (req, user, b) => { await requireAdmin(user); return skillRoute(() => skills.setLevel(b.id, b))(req, user, b); },
+  'POST /api/admin/item-image': async (req, user, b) => {   // картинка речі з адмінки «Предмети» (itemimg.js)
+    await requireAdmin(user);
+    try { return [itemImg.save(b)]; }
+    catch (e) { if (e instanceof itemImg.ItemImgError) throw new ApiError(400, e.code, e.message); throw e; }
+  },
   'POST /api/tts': async (req, user, b) => {
     try { return [await tts.speak(b, String(req.headers['x-real-ip'] || req.socket.remoteAddress || ''))]; }
     catch (e) { if (e instanceof tts.TtsError) throw new ApiError(e.status, e.code, e.message); throw e; }
@@ -624,7 +630,7 @@ const server = http.createServer(async (req, res) => {
       const origin = req.headers.origin;
       if (origin && originHost(origin) !== req.headers.host) throw new ApiError(403, 'permission-denied', 'bad origin');
     }
-    const body = req.method === 'POST' ? await readBody(req, url === '/api/avatar/worker/result' ? MAX_BODY_AVATAR : MAX_BODY) : {};
+    const body = req.method === 'POST' ? await readBody(req, url === '/api/avatar/worker/result' || url === '/api/admin/item-image' ? MAX_BODY_AVATAR : MAX_BODY) : {};
     const reader = readerFrom(req);
     if (reader && !readerAllows(reader, req.method + ' ' + url))
       throw new ApiError(403, 'permission-denied', reader.write ? 'Цей маршрут токену недоступний' : 'Токен лише для читання');

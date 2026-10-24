@@ -106,6 +106,9 @@
   }
 
   function isFlagEntry(e) { return !!(e && (e.flag || FLAG_STATS.indexOf(e.stat) >= 0)); }
+  /* шанси (крит, блок) — завжди у відсотках, незалежно від галочки «%» у записі речі */
+  var PCT_ALWAYS = { critDamage: 1, block: 1 };
+  function isPctStat(name) { return !!PCT_ALWAYS[STAT_MAP[name] || name]; }
   function canon(name) { return STAT_MAP[name] || name; }
   function floor(n) { return Math.floor(n); }
 
@@ -169,7 +172,7 @@
     var f = inst.bonus;
     var addStats = (base.addStats || []).map(function (e) {
       if (isFlagEntry(e)) return { stat: e.stat, flag: true };
-      return { stat: e.stat, value: scaleStat(e.value, f), pct: !!e.pct };
+      return { stat: e.stat, value: scaleStat(e.value, f), pct: !!e.pct || isPctStat(e.stat) };
     });
     return {
       id: base.id,
@@ -654,11 +657,69 @@
     SLOT_CATS: SLOT_CATS, slotFits: slotFits, bagView: bagView, applyView: applyView, diffInv: diffInv, applyDiff: applyDiff, shopStock: shopStock, isHealthPotion: isHealthPotion
   };
 
+  /* ── ПРОМТ ДЛЯ КАРТИНКИ РЕЧІ ──
+     Один шаблон для всіх речей магазину (img/items/<id>.webp), щоб стиль не розходився:
+     напівреалістичний 3D, м'яке світло, легка тінь під річчю. Генератор малює на ЧИСТО БІЛОМУ тлі
+     (прозорість ChatGPT часто підробляє намальованою «шахівницею»); прозорим його робимо самі —
+     tools/item-image.py: біле → прозоре, тінь стає напівпрозорою.
+     imagePrompt({name, category, weaponType, desc, tier}) → текст для генератора (ChatGPT тощо).
+     Ним користується адмінка «Предмети» (🎨 Промт для картинки) і навичка Claude
+     .claude/skills/item-image-prompt — змінюєш стиль, міняй тут. */
+  var PROMPT_CATS = { 'Зброя': 'weapon', 'Щити': 'shield', 'Шоломи': 'helmet', 'Обладунки': 'body armor', 'Рукавиці': 'gloves (a pair)',
+    'Наручі': 'bracers (a pair)', 'Пояси': 'belt', 'Штани': 'pants', 'Взуття': 'boots (a pair)', 'Кільце': 'ring', 'Амулет': 'amulet',
+    'Зелья': 'potion in a glass bottle', 'Зілля': 'potion in a glass bottle', 'Свиток': 'magic scroll' };
+  var PROMPT_WEAPONS = { sword: 'sword', dagger: 'dagger', axe: 'axe', mace: 'mace', flail: 'flail', spear: 'spear', whip: 'whip', staff: 'staff',
+    wand: 'magic wand', knuckles: 'pair of brass knuckles', bow: 'bow', exotic: 'unusual improvised weapon' };
+  var PROMPT_TIERS = [
+    { key: 'common',    label: 'Звичайна',   en: 'common — simple, plain materials, no ornament, no glow' },
+    { key: 'uncommon',  label: 'Незвичайна', en: 'uncommon — better materials, small decorative details, no glow' },
+    { key: 'rare',      label: 'Рідкісна',   en: 'rare — fine materials, noticeable ornament, polished finish, no glow' },
+    { key: 'epic',      label: 'Епічна',     en: 'epic — precious metals or gems, rich ornament, a faint magical glow' },
+    { key: 'legendary', label: 'Легендарна', en: 'legendary — masterwork, gold and gems, intricate ornament, a soft magical aura' }
+  ];
+  function imagePrompt(o) {
+    o = o || {};
+    var cat = PROMPT_CATS[o.category] || 'item', w = o.category === 'Зброя' && PROMPT_WEAPONS[o.weaponType];
+    var tier = PROMPT_TIERS.filter(function (t) { return t.key === o.tier; })[0] || PROMPT_TIERS[0];
+    var what = (o.desc && String(o.desc).trim()) || (o.name ? '«' + o.name + '»' : 'a ' + (w || cat));
+    var long = w && /^(bow|spear|staff|whip|flail)$/.test(o.weaponType);
+    var pair = /pair/.test(cat + (w || ''));
+    return [
+      'Generate a NEW image from scratch (do not edit or reuse any previous image). Follow every rule below exactly.',
+      '',
+      'MOST IMPORTANT RULES',
+      '1. The WHOLE item must be inside the picture with empty space around it: at least 12% margin on every side.',
+      '   Nothing may touch or cross the edges. Do NOT crop, do NOT zoom in. The item takes about 70% of the image.',
+      '2. Background: plain solid pure white (#FFFFFF), perfectly flat and even.',
+      '   Do NOT draw a checkerboard / transparency grid, no gradient, no floor, no scenery, no frame.',
+      '3. Exactly one ' + (pair ? 'pair of items' : 'item') + '. No hands, no characters, no text, no letters, no logos, no watermark.',
+      '',
+      'ITEM: ' + what + (o.name && o.desc ? ' (item name: «' + o.name + '»)' : ''),
+      'TYPE: ' + (w ? w + ' (' + cat + ')' : cat),
+      'TIER: ' + tier.en,
+      '',
+      'STYLE (fantasy RPG inventory icon for a children\'s educational game)',
+      '- Semi-realistic stylized 3D render, like a polished mobile RPG; friendly and kid-appropriate, nothing scary.',
+      '- Soft studio lighting from the upper left, gentle rim light, clear readable silhouette.',
+      '- Rich but natural colors, crisp material detail (wood grain, leather stitching, metal scratches, fabric weave).',
+      '',
+      'COMPOSITION',
+      '- Three-quarter view, centered, shown in full from end to end.',
+      long ? '- Long item: place it diagonally from the lower-left corner area to the upper-right, still with margins on all sides.'
+           : '- Slight diagonal tilt for a dynamic look.',
+      '- A soft light-grey contact shadow directly under the item (blurred, subtle), on the white background.',
+      '',
+      'OUTPUT: square 1:1, 1024×1024.'
+    ].join('\n');
+  }
+
   var SKIT = {
+    imagePrompt: imagePrompt, PROMPT_TIERS: PROMPT_TIERS,
     BONUS_TABLE: BONUS_TABLE,
     STAT_MAP: STAT_MAP,
     FLAG_STATS: FLAG_STATS,
     isFlagEntry: isFlagEntry,
+    isPctStat: isPctStat,
     canon: canon,
     rollBonus: rollBonus,
     makeInstance: makeInstance,
