@@ -43,9 +43,29 @@ def bg_mask(im, lo):
         q.extend(((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)))
     return m
 
+def holes(im, m, lo):
+    """білі «дірки» всередині речі (між шнурками, у петлях): до краю не дотягуються, тож заливка
+    від країв їх не бачить. Замкнена світла ділянка, більша за 0,15% кадру, — теж тло;
+    дрібні блиски на металі лишаються."""
+    w, h = im.size; px = im.load(); seen = bytearray(w * h); minA = max(40, w * h * 0.0015)
+    for sy in range(h):
+        for sx in range(w):
+            n0 = sy * w + sx
+            if seen[n0] or m[n0] or not is_light_neutral(px[sx, sy], lo): continue
+            comp = []; q = [(sx, sy)]; seen[n0] = 1
+            while q:
+                x, y = q.pop(); comp.append(y * w + x)
+                for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    if 0 <= nx < w and 0 <= ny < h:
+                        k = ny * w + nx
+                        if not seen[k] and not m[k] and is_light_neutral(px[nx, ny], lo): seen[k] = 1; q.append((nx, ny))
+            if len(comp) >= minA:
+                for k in comp: m[k] = 1
+    return m
+
 def clear_bg(im, keep_shadow):
     """тло → прозоре; на білому тлі сіра тінь стає напівпрозорою темною (видно на будь-якому фоні)"""
-    w, h = im.size; px = im.load(); m = bg_mask(im, 150 if keep_shadow else 175)
+    w, h = im.size; px = im.load(); m = holes(im, bg_mask(im, 150 if keep_shadow else 175), 238 if keep_shadow else 175)
     for y in range(h):
         for x in range(w):
             if not m[y * w + x]: continue

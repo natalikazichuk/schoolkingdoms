@@ -1005,9 +1005,20 @@ function prepImage(im){
     var keep=!checker, lo=checker?175:150, seen=new Uint8Array(w*h), q=[];
     for(x=0;x<w;x++){ q.push(x, 0, x, h-1); } for(y=0;y<h;y++){ q.push(0, y, w-1, y); }
     while(q.length){ y=q.pop(); x=q.pop(); if(x<0||y<0||x>=w||y>=h) continue; var n=y*w+x; if(seen[n]) continue;
-      var j=n*4; if(!light(j, lo)) continue; seen[n]=1;
-      var a=keep?Math.min(150, Math.max(0, (250-(p[j]+p[j+1]+p[j+2])/3)*2.2)):0;
-      p[j]=30; p[j+1]=30; p[j+2]=40; p[j+3]=a; q.push(x+1, y, x-1, y, x, y+1, x, y-1); }
+      var j=n*4; if(!light(j, lo)) continue; seen[n]=1; q.push(x+1, y, x-1, y, x, y+1, x, y-1); }
+    // білі «дірки» всередині речі (між шнурками, у петлях): замкнена світла ділянка > 0,15% кадру — теж тло; дрібні блиски лишаються
+    var hlo=keep?238:175, minA=Math.max(40, w*h*0.0015), mark=new Uint8Array(w*h);
+    for(var n0=0;n0<w*h;n0++){
+      if(seen[n0]||mark[n0]||!light(n0*4, hlo)) continue;
+      var comp=[], st=[n0]; mark[n0]=1;
+      while(st.length){ var k=st.pop(), kx=k%w, ky=(k-kx)/w; comp.push(k);
+        [[kx+1,ky],[kx-1,ky],[kx,ky+1],[kx,ky-1]].forEach(function(t){ if(t[0]<0||t[1]<0||t[0]>=w||t[1]>=h) return; var kk=t[1]*w+t[0];
+          if(!seen[kk]&&!mark[kk]&&light(kk*4, hlo)){ mark[kk]=1; st.push(kk); } }); }
+      if(comp.length>=minA) comp.forEach(function(k){ seen[k]=1; });
+    }
+    for(var nn=0;nn<w*h;nn++){ if(!seen[nn]) continue; var jj=nn*4;
+      var a=keep?Math.min(150, Math.max(0, (250-(p[jj]+p[jj+1]+p[jj+2])/3)*2.2)):0;
+      p[jj]=30; p[jj+1]=30; p[jj+2]=40; p[jj+3]=a; }
     g.putImageData(d, 0, 0); mode=checker?'«шахівницю» прибрано':'біле тло → прозоре, тінь напівпрозора';
   }
   // межі речі → по центру квадрата з полями 6%, 512×512
