@@ -33,7 +33,25 @@ body.flipped #sign{border-color:#8e3fb0; color:#8e3fb0;}
 #wallet .v{font-family:'Fredoka'; font-weight:700; font-size:22px; color:#b07a10;}
 .log .r .res{white-space:nowrap;}
 .log .r.good{color:var(--good);} .log .r.bad{color:var(--bad);}
+
+/* ═════ картинки художника (img/bank/) ═════ */
+/* сцена — банк художника; пропорція картинки, щоб табличка над дверима (48 % / 46 %) завжди була на місці */
+#scene{height:auto; aspect-ratio:760/388; background:#9fd0f5 url(img/bank/scene-bg.webp) center/100% 100% no-repeat; border:3px solid #e3c27a; box-shadow:0 0 0 2px #c9a05a, 0 8px 16px rgba(60,30,10,.25);}
+body.flipped #scene{background:#cdb8ff url(img/bank/scene-bg.webp) center/100% 100% no-repeat;}
+#scene:before{content:""; position:absolute; inset:0; background:rgba(150,90,230,.3); opacity:0; transition:opacity .6s; pointer-events:none; z-index:1;}   /* 🔄 — фіолетовий світ */
+body.flipped #scene:before{opacity:1;}
+.bank{display:none;}
+#sign{top:46%; left:48%; transform:translate(-50%,-50%); font-family:'Fredoka','Nunito',sans-serif; font-size:12px; padding:2px 8px; background:#fffdf6; border-color:#c9a05a; color:#24418f; box-shadow:0 2px 4px rgba(0,0,0,.25);}
+@keyframes signFlip{50%{transform:translate(-50%,-50%) rotateX(90deg)}}
+/* відвідувачі — звірятка художника, ідуть бруківкою праворуч */
+#visitor{bottom:4%; font-size:0;}
+#visitor img{height:76px; width:auto; display:block; filter:drop-shadow(0 4px 3px rgba(0,0,0,.3));}
+#bubble{bottom:auto; top:6%; z-index:4;}
+/* табличка з назвою на старті — художника, вища за стандартну */
+#startScreen.scrolled .titlebox{aspect-ratio:621/220; width:min(100%,370px);}
+#startScreen.scrolled .titlebox h1{left:14%; right:16%; top:40%; bottom:15%;}
 </style>
+<link rel="stylesheet" href="nav-scroll.css?v=7">
 </head>
 <body>
 <script src="../sk-footer.js?v=6" data-base="../" data-back="self"></script>
@@ -44,6 +62,7 @@ body.flipped #sign{border-color:#8e3fb0; color:#8e3fb0;}
   var TOTAL = 7;
   var SIGN = { off:"«Не залишайте тут свої гроші»", on:"«Залишайте тут свої гроші»" };
   /* відвідувачі: до перевороту нагороду дають тим, хто ЗАЛИШАЄ монети; після — тим, хто НЕ залишає */
+  var VIS_IMG = {"🐱":"cat","🦊":"fox","🦉":"owl","🐸":"frog","🐻":"bear","🐰":"bunny"};   // картинки img/bank/visitor-*.webp
   var VIS1 = [
     {em:"🐱", nm:"Кіт",  f:false, leave:true,  c:5},
     {em:"🦊", nm:"Лис",  f:false, leave:false, c:5},
@@ -96,7 +115,7 @@ body.flipped #sign{border-color:#8e3fb0; color:#8e3fb0;}
     if(vi >= list.length) return;   // відвідувачі скінчились — кнопку натиснули ще раз, поки йде перехід
     var v = list[vi], vis = NAV.$("visitor");
     NAV.busy = true; bubble("");
-    vis.style.transition = "none"; vis.style.left = "-50px"; vis.textContent = v.em; vis.getBoundingClientRect(); vis.style.transition = "";
+    vis.style.transition = "none"; vis.style.left = "-50px"; vis.innerHTML = '<img src="img/bank/visitor-'+(VIS_IMG[v.em]||"cat")+'.webp" alt="'+v.em+'">'; vis.getBoundingClientRect(); vis.style.transition = "";
     vis.style.left = "calc(50% - 20px)";
     setTimeout(function(){
       var rew = rewardFor(v.leave);
@@ -209,6 +228,8 @@ body.flipped #sign{border-color:#8e3fb0; color:#8e3fb0;}
 <script src="../sk-rewards.js?v=6"></script>
 <script src="../sk-prize.js?v=3"></script>
 <script src="../sk-finish.js?v=6"></script>
+<script src="nav-scroll.js?v=3"></script>
+<script>NAVSCROLL.init({winImg:["img/bank/medal.webp","img/bank/coins.webp"], bg:"img/bank/start-hero.webp", frame:"img/bank/title-frame.webp", focus:[0.2, 0.92], top:"#4fa6f0", bot:"#796758", play:"До банку"});</script>
 <script src="nav-intro.js?v=3"></script>
 </body>
 </html>
