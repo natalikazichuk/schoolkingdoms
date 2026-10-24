@@ -172,3 +172,9 @@ test('Перевага «Спритний ухил»: Ухилення Слід�
   assert.strictEqual(k, 15, 'Лицар');
   assert.strictEqual(r, 20, 'Слідопит');
 });
+
+test('Переваги «поки не діє» (soon): записані, але без числа — бій їх не бачить', () => {
+  const soon = R.CLASS_PERKS.knight.filter(q => q.soon);
+  assert.strictEqual(soon.length, 3);
+  soon.forEach(q => { assert.strictEqual(q.v, undefined, q.id); assert.strictEqual(R.perk('knight', q.id), 0); });
+});
