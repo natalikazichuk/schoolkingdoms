@@ -30,6 +30,7 @@
 | `/srv/sk/pgdata` | дані PostgreSQL |
 | `/srv/sk/backups` | щоденні копії бази (03:17, зберігаються 14 днів) |
 | `/srv/sk/avatars` | згенеровані образи Героїв (`/img/ava/gen/`); у копії бази не входять — за потреби перемальовуються |
+| `/srv/sk/avatars/upload/img/items` | картинки речей, завантажені в адмінці «Предмети» (nginx віддає їх як `/img/items/`, якщо в репозиторії такого файлу немає) |
 | `/srv/sk/data/hash-config.json` | параметри паролів Firebase |
 | `/srv/sk/migration` | вивантаження з Firebase (`firestore.json`, `users.json`) |
 
