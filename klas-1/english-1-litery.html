@@ -69,7 +69,6 @@ h1,h2,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px
    обкладинка модуля, зелена «Грати», картки-кнопки, аркуші, прогрес. */
 #start.screen.on{animation:fade .3s ease}
 @keyframes fade{from{opacity:0}to{opacity:1}}
-.start-sub{color:var(--soft);font-weight:800;margin:0;font-size:16px}
 .start-bg{position:fixed;inset:0;z-index:-1;background:url(../test-bg.webp) center bottom/cover no-repeat,#8fd0ff}
 .banner{position:relative;width:100%;max-width:400px;margin:40px auto 0;padding:18px 16px 12px;text-align:center;
   background:linear-gradient(180deg,#fffaf0,#f7e5c0);border:4px solid #e3a93b;border-radius:24px;
@@ -158,17 +157,25 @@ h1,h2,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px
 }
 
 /* ══ МЕНЮ МОДУЛІВ (сторінка без ?m=) ══ */
-#menu{text-align:center;gap:10px}
-#menu h1{font-family:'Comfortaa','Fredoka',sans-serif;font-size:30px;line-height:1.1;color:#1e3a6b;margin-top:8px}
-.mods{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:6px;text-align:left}
-.mod{display:block;text-decoration:none;color:var(--ink);border:3px solid var(--line);background:#fff;border-radius:18px;
-  padding:11px 12px;font-family:'Fredoka';font-weight:600;font-size:16px;line-height:1.2;box-shadow:var(--shadow)}
-.mod:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(44,43,58,.13)}
-.mod .n{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--blue);margin-bottom:3px}
-.mod .ltr{display:block;margin-top:4px;font-size:14px;letter-spacing:2px;color:#1e3a6b}
-.mod .tag{display:block;margin-top:5px;font-family:'Nunito';font-weight:800;font-size:11.5px;color:var(--soft)}
-.mod.done{border-color:var(--good);background:var(--good-bg)}
+#menu{text-align:center;gap:14px;position:relative}
+#menu.screen.on{animation:fade .3s ease}
+.mods{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;width:100%;max-width:440px;margin:0 auto;text-align:left}
+.mod{position:relative;display:flex;flex-direction:column;gap:6px;padding:8px 8px 10px;text-decoration:none;color:#1e3a6b;
+  background:linear-gradient(180deg,#fffaf0,#f7e8c8);border:3px solid #e3b14f;border-radius:20px;
+  box-shadow:inset 0 0 0 2px #fff6dc,0 6px 0 rgba(120,80,20,.22),0 10px 18px rgba(30,40,80,.15)}
+.mod:active{transform:translateY(3px);box-shadow:inset 0 0 0 2px #fff6dc,0 3px 0 rgba(120,80,20,.22)}
+.mod .cv{display:block;width:100%;aspect-ratio:1/1;border-radius:14px;overflow:hidden;background:#dff0ff;border:2px solid #fff}
+.mod .cv img{display:block;width:100%;height:100%;object-fit:cover}
+.mod .cv.no{display:grid;place-items:center;font-family:'Fredoka';font-weight:700;font-size:26px;letter-spacing:3px;color:#1e3a6b}
+.mod .n{font-family:'Fredoka';font-weight:700;font-size:12px;letter-spacing:.06em;color:#b9791a}
+.mod .t{font-family:'Fredoka';font-weight:700;font-size:16px;line-height:1.15;margin-top:-4px}
+.mod .bar{height:9px;background:#ead9b4;border-radius:999px;overflow:hidden}
+.mod .bar span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--green),var(--teal))}
+.mod .tag{font-weight:800;font-size:11.5px;color:#7a6440}
+.mod.done{border-color:#4cbf6b;background:linear-gradient(180deg,#f3fff5,#dcf5e2)}
 .mod.done .n{color:var(--good)}
+.mod .ok{position:absolute;top:-8px;right:-8px;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;
+  background:#37b26f;color:#fff;font-size:18px;font-weight:800;border:3px solid #fff;box-shadow:0 3px 6px rgba(0,0,0,.2)}
 
 /* ══ ВЕРХНЯ ПАНЕЛЬ (карта / гра) ══ */
 .topbar{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-right:52px}
@@ -281,8 +288,15 @@ h1,h2,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px
     <div class="start-top">
       <button class="iconbtn" type="button" onclick="exitPage()" title="Назад" aria-label="Назад">←</button>
     </div>
-    <h1>English · 1 клас</h1>
-    <p class="start-sub">Вчимо літери · 10 модулів</p>
+    <div class="start-bg" aria-hidden="true"></div>
+    <div class="banner"><span class="bm">English 1</span><span class="bt">Вчимо літери</span><span class="bs">10 модулів · <span class="nw">American English</span></span></div>
+    <div class="prog-card">
+      <span class="pc-ic">🏅</span>
+      <div class="pc-body">
+        <div class="pc-txt" id="menuProgTxt"></div>
+        <div class="pc-bar"><span id="menuProgFill"></span></div>
+      </div>
+    </div>
     <div class="mods" id="mods"></div>
   </section>
 
@@ -637,14 +651,21 @@ function stepBack(){
 /* меню модулів — коли сторінку відкрито без ?m= */
 function drawMenu(){
   const back = param("skback");
+  let all = 0;
   $("mods").innerHTML = MODS.map(m => {
-    const st = readState(m.n), k = st.done.filter(Boolean).length, all = k >= N;
+    const st = readState(m.n), k = st.done.filter(Boolean).length, done = k >= N;
+    if(done) all++;
     const href = SELF + "?m=" + m.n + (back ? "&skback=" + encodeURIComponent(back) : "");
-    return `<a class="mod${all ? " done" : ""}" href="${esc(href)}">` +
-      `<span class="n">${all ? "✓ " : ""}МОДУЛЬ ${m.n}</span>${esc(m.t)}` +
-      `<span class="ltr">${m.L.map(l => l[0]).join(" ")}</span>` +
-      `<span class="tag">${all ? "🏆 пройдено" : (k ? "пройдено " + k + " з " + N : esc(m.ua))}</span></a>`;
+    const ltr = m.L.map(l => l[0]).join(" ");
+    return `<a class="mod${done ? " done" : ""}" href="${esc(href)}">` + (done ? `<span class="ok">✓</span>` : "") +
+      `<span class="cv"><img src="../img/tr/english-1-m${String(m.n).padStart(2, "0")}.webp" alt="" loading="lazy"` +
+      ` onerror="this.parentNode.classList.add('no');this.parentNode.textContent='${ltr}'"></span>` +
+      `<span class="n">MODULE ${m.n}</span><span class="t">${esc(m.t)}</span>` +
+      `<span class="bar"><span style="width:${k * 100 / N}%"></span></span>` +
+      `<span class="tag">${done ? "🏆 пройдено" : (k ? "пройдено " + k + " з " + N : "літери " + ltr)}</span></a>`;
   }).join("");
+  $("menuProgTxt").textContent = all >= MODS.length ? "🎉 Усі модулі пройдено!" : "Пройдено " + all + " з " + MODS.length + " модулів";
+  $("menuProgFill").style.width = (all * 100 / MODS.length) + "%";
 }
 
 function refreshStart(){
