@@ -106,6 +106,9 @@
   }
 
   function isFlagEntry(e) { return !!(e && (e.flag || FLAG_STATS.indexOf(e.stat) >= 0)); }
+  /* шанси (крит, блок) — завжди у відсотках, незалежно від галочки «%» у записі речі */
+  var PCT_ALWAYS = { critDamage: 1, block: 1 };
+  function isPctStat(name) { return !!PCT_ALWAYS[STAT_MAP[name] || name]; }
   function canon(name) { return STAT_MAP[name] || name; }
   function floor(n) { return Math.floor(n); }
 
@@ -169,7 +172,7 @@
     var f = inst.bonus;
     var addStats = (base.addStats || []).map(function (e) {
       if (isFlagEntry(e)) return { stat: e.stat, flag: true };
-      return { stat: e.stat, value: scaleStat(e.value, f), pct: !!e.pct };
+      return { stat: e.stat, value: scaleStat(e.value, f), pct: !!e.pct || isPctStat(e.stat) };
     });
     return {
       id: base.id,
@@ -716,6 +719,7 @@
     STAT_MAP: STAT_MAP,
     FLAG_STATS: FLAG_STATS,
     isFlagEntry: isFlagEntry,
+    isPctStat: isPctStat,
     canon: canon,
     rollBonus: rollBonus,
     makeInstance: makeInstance,

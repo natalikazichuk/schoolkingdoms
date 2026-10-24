@@ -13,7 +13,7 @@
      Порядок важливий: ПІСЛЯ sk-styles.css і ДО локальних стилів нижче. -->
 <link rel="stylesheet" href="sk-admin.css?v=2">
 <script src="sk-admin.js?v=1"></script>
-<script src="sk-items.js?v=21"></script>
+<script src="sk-items.js?v=22"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -414,7 +414,8 @@ function addPills(it){
   var a=(it&&it.addStats)||[]; if(!a.length) return '';
   return a.map(function(e){
     if(isFlagStat(e)){ var ic=(e.stat==='Разовий предмет')?'🧪':'✋'; return '<span class="pill flag">'+ic+' '+esc(e.stat)+'</span>'; }
-    var v=(e.value!=null?('+'+e.value+(e.pct?'%':'')):(e.pct?'%':''));
+    var pc=e.pct||!!(window.SKIT&&SKIT.isPctStat(e.stat));
+    var v=(e.value!=null?('+'+e.value+(pc?'%':'')):(pc?'%':''));
     return '<span class="pill add">'+esc(e.stat)+(v?' '+esc(v):'')+'</span>';
   }).join('');
 }
@@ -589,13 +590,13 @@ function gradeOptions(sel){
 }
 /* ---- редактор додаткових навичок ---- */
 function addStatRow(e,i){
-  var isFlag=isFlagStat(e);
+  var isFlag=isFlagStat(e), pctFix=!isFlag&&window.SKIT&&SKIT.isPctStat(e.stat);
   var opts=FLAG_STATS.filter(function(f){ return f!==TWO_HANDED; }).map(function(f){ return '<option value="'+esc(f)+'"'+(e.stat===f?' selected':'')+'>'+esc(f)+' (прапорець)</option>'; }).join('');
   ADD_STAT_LABELS.forEach(function(s){ opts+='<option value="'+esc(s)+'"'+(e.stat===s?' selected':'')+'>'+esc(s)+'</option>'; });
   return '<div class="asrow" data-i="'+i+'">'
     +'<select class="as-stat">'+opts+'</select>'
     +'<input type="number" class="as-val" value="'+((isFlag||e.value==null)?'':esc(e.value))+'" placeholder="к-сть"'+(isFlag?' disabled':'')+'>'
-    +'<label class="chk as-pctl"><input type="checkbox" class="as-pct"'+(e.pct?' checked':'')+(isFlag?' disabled':'')+'>%</label>'
+    +'<label class="chk as-pctl"'+(pctFix?' title="Шанс — завжди у відсотках"':'')+'><input type="checkbox" class="as-pct"'+((e.pct||pctFix)?' checked':'')+((isFlag||pctFix)?' disabled':'')+'>%</label>'
     +'<button class="mini danger" type="button" data-act="rmstat" data-i="'+i+'">✕</button>'
   +'</div>';
 }
@@ -610,7 +611,7 @@ function collectAddStats(){
   host.querySelectorAll('.asrow').forEach(function(row){
     var stat=row.querySelector('.as-stat').value;
     if(FLAG_STATS.indexOf(stat)>=0){ out.push({stat:stat,flag:true}); return; }
-    out.push({ stat:stat, value:toNum(row.querySelector('.as-val').value), pct:row.querySelector('.as-pct').checked });
+    out.push({ stat:stat, value:toNum(row.querySelector('.as-val').value), pct:row.querySelector('.as-pct').checked||!!(window.SKIT&&SKIT.isPctStat(stat)) });
   });
   M.addStats=out;
 }

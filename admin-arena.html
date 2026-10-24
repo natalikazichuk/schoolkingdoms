@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="sk-admin.css?v=2">
 <script src="sk-admin.js?v=1"></script>
 <script src="sk-curriculum.js?v=9"></script>
-<script src="sk-items.js?v=21"></script>
+<script src="sk-items.js?v=22"></script>
 <script src="sk-arena-rules.js?v=28"></script>
 <script src="sk-skills.js?v=52"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -283,8 +283,9 @@ function collect(items){
       if(SKIT.isFlagEntry(e)){(flags[e.stat]=flags[e.stat]||[]).push(it);return;}
       var r2=slot(SKIT.canon(e.stat),e.stat);r2.asAdd++;r2.cats[it.category||'—']=1;
       var v=e.value!=null?Number(e.value):null;
-      if(v!=null&&!isNaN(v))range(r2,v,v,!!e.pct);
-      r2.items.push({id:it.id,name:it.name,how:'додаткова',val:(v!=null?'+'+v+(e.pct?'%':''):'—'),on:on});
+      var pc=!!e.pct||SKIT.isPctStat(e.stat);
+      if(v!=null&&!isNaN(v))range(r2,v,v,pc);
+      r2.items.push({id:it.id,name:it.name,how:'додаткова',val:(v!=null?'+'+v+(pc?'%':''):'—'),on:on});
     });
   });
   var out=Object.keys(map).map(function(k){return map[k];});
@@ -389,7 +390,7 @@ function itemAttrs(){
   (ITEMS||[]).forEach(function(it){
     var c=!!it.consumable;
     if(it.stat)add(SKIT.canon(it.stat),false,it.stat,c);
-    (it.addStats||[]).forEach(function(e){if(SKIT.isFlagEntry(e))return;add(SKIT.canon(e.stat),!!e.pct,e.stat,c);});
+    (it.addStats||[]).forEach(function(e){if(SKIT.isFlagEntry(e))return;add(SKIT.canon(e.stat),!!e.pct||SKIT.isPctStat(e.stat),e.stat,c);});
   });
   /* лише на зіллях / свитках — атрибут працює як разовий ефект з пояса */
   order.forEach(function(id){var a=map[id];a.cons=a.n>0&&a.nItem<=0;});
