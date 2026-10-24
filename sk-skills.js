@@ -35,10 +35,10 @@
 'use strict';
 
 var CLASSES = {
-  knight: { name:'Лицар',    icon:'🛡️', res:'перезарядка', conc:'Стійкість',      stat:"здоров'я",
-            about:"Блок, контратака, оглушення. Не витрачає ману: активні вміння мають перезарядку." },
-  ranger: { name:'Слідопит', icon:'🏹', res:'перезарядка', conc:'Приціл',         stat:'спритність',
-            about:'Крити, ухилення, отрута, засідки. Не витрачає ману: активні вміння мають перезарядку.' },
+  knight: { name:'Лицар',    icon:'🛡️', res:'мана — лише на сильні вміння, решта на перезарядці', conc:'Стійкість',      stat:"здоров'я",
+            about:"Блок, контратака, оглушення. Витривалий: ману витрачає рідко, тож довгий бій — на його користь." },
+  ranger: { name:'Слідопит', icon:'🏹', res:'🔥 Запал (та сама мана) — витрачає постійно', conc:'Приціл',         stat:'спритність',
+            about:'Крити, ухилення, отрута, засідки. Тисне з перших ходів і постійно витрачає 🔥 Запал (ману).' },
   mage:   { name:'Чарівник', icon:'🔮', res:'мана',        conc:'Зосередженість', stat:'мана',
             about:'Магічний урон і послаблення ворога. Закляття коштують ману.' },
   healer: { name:'Цілитель', icon:'✨', res:'мана',        conc:'Спокій',         stat:"мана і здоров'я",
@@ -685,27 +685,11 @@ var RULES = {
     { k: 'dmgPct', v: 10, grow: true, u: '%', t: 'урону, поки зв\'язок є' },
     { k: 'turns', v: 5, t: 'ходів поспіль однією зброєю, щоб зв\'язок з\'явився' }] },
   /* ── 🏹 Слідопит, вміння 1 рівня класу ── */
-  'ranger.dagger':  { kind: 'const', perBattle: 30, on: 'удар кинджалом: влучив — ✔, промах чи блок — ✖', p: [
-    { k: 'critPct', v: 15, from: 3, u: '%', t: 'шансу криту з кинджалом' }] },
-  'ranger.spear':   { kind: 'const', perBattle: 30, on: 'удар списом: влучив — ✔, промах чи блок — ✖', p: [
-    { k: 'dmgFlat', v: 8, from: 2, t: 'урону зі списом' },
-    { k: 'first', v: 10, grow: true, u: '%', t: 'шанс ударити першим, коли твої удари добивають ворога' }] },
-  'ranger.whip':    { kind: 'const', perBattle: 30, on: 'удар кнутом: влучив — ✔, промах чи блок — ✖', p: [
-    { k: 'blockCut', v: 30, from: 10, u: '%', t: 'менше шансу блоку ворога (щит і речі) проти твого удару' }] },
   'ranger.wmaster': { kind: 'const', perBattle: 15, on: 'удар зброєю: влучив — ✔, промах чи блок — ✖ (росте вдвічі повільніше)', p: [
     { k: 'dmgPct', v: 15, from: 2, u: '%', t: 'урону будь-якою зброєю' }] },
   'ranger.hide':    { kind: 'active', perBattle: 1, p: [
     { k: 'hitCut', v: 70, from: 30, u: '%', t: 'шанс, що удар ворога, який влучив, пролетить повз (цього ходу)' },
     { k: 'dmgMul', v: 130, u: '%', t: 'урону твоїх ударів цього ходу' }] },
-  'ranger.disarm':  { kind: 'active', perBattle: 2, p: [
-    { k: 'dmgCut', v: 40, from: 20, u: '%', t: 'менше урону ворога' },
-    { k: 'turns', v: 2, t: 'ходів (цей і наступний)' },
-    { k: 'cd', v: 4, t: 'ходів перезарядки' }] },
-  'ranger.fists':   { kind: 'const', perBattle: 30, on: 'удар без зброї чи кастетами: влучив — ✔, промах чи блок — ✖', p: [
-    { k: 'dmgFlat', v: 4, from: 1, t: 'урону без зброї' },
-    { k: 'combo', v: 20, from: 5, u: '%', t: 'шанс ще одного удару в ту саму зону' }] },
-  'ranger.brave':   { kind: 'const', perBattle: 1, on: 'свиток страху проти тебе: встояв — ✔, злякався — ✖', p: [
-    { k: 'resPct', v: 60, grow: true, u: '%', t: 'менше шансу, що страх подіє' }] },
   /* ── 🛡️ Лицар, вміння 1 рівня класу ── */
   'knight.sword':   { kind: 'const', perBattle: 30, on: 'удар мечем: влучив — ✔, промах чи блок — ✖', p: [
     { k: 'accPct', v: 20, grow: true, u: '%', t: 'точності з мечем' },
@@ -911,7 +895,7 @@ function pointsForLevel(lv) {
 
 /* значки класових вмінь (у книзі й у бою) */
 /* власні картинки вмінь (плитки в книзі й на панелі), коли емодзі не підходить або збігається з іншим */
-var ICON_IMG = { 'knight.shieldbreak': 'img/skills/shieldbreak.svg', 'knight.lash': 'img/skills/lash.svg', 'ranger.whip': 'img/skills/lash.svg' };
+var ICON_IMG = { 'knight.shieldbreak': 'img/skills/shieldbreak.svg', 'knight.lash': 'img/skills/lash.svg' };
 function esc1(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 /* значок вміння для плитки: картинка або емодзі */
 function iconHtml(id) {
@@ -919,8 +903,7 @@ function iconHtml(id) {
   return src ? '<img class="skb-ic" src="' + src + '" alt="' + esc1(s ? s.name : '') + '" draggable="false">' : (s ? s.icon : '⚡');
 }
 var ICONS = {
-  'ranger.dagger': '🗡️', 'ranger.spear': '🔱', 'ranger.whip': '➰', 'ranger.wmaster': '⚔️', 'ranger.hide': '🫥',
-  'ranger.disarm': '🤚', 'ranger.fists': '👊', 'ranger.brave': '🦁',
+  'ranger.wmaster': '⚔️', 'ranger.hide': '🫥',
   'knight.sword': '⚔️', 'knight.axe': '🪓', 'knight.spear': '🔱', 'knight.dagger': '🗡️', 'knight.mace': '🔨', 'knight.flail': '⛓️', 'knight.whip': '➰', 'knight.staff': '🦯', 'knight.shield': '🛡️', 'knight.bash': '💥',
   'knight.berserk': '😡', 'knight.fists': '👊', 'knight.brave': '🦁', 'knight.care': '🧰',
   'knight.lunge': '🗡️', 'knight.enh': '💪', 'knight.calm': '🧘', 'knight.tough': '🪨', 'knight.second': '⚡', 'knight.haft': '🔱',
@@ -966,8 +949,16 @@ var TESTED = {
 };
 /* класове вміння готове до бою, коли має правила (RULES): лише такі можна вивчити.
    Рядки «Механіки вмінь» для них — з формули й правил. */
+/* СПІЛЬНІ ВМІННЯ: однакова назва в різних класах — однакова механіка, числа, опис і значок
+   (беруться з вміння Лицаря). Те, чим клас кращий, — у перевагах класу (SKARENA.CLASS_PERKS).
+   Той самий список — у sk-battle.js (SAME). */
+var SAME = { 'ranger.dagger': 'knight.dagger', 'ranger.spear': 'knight.spear', 'ranger.whip': 'knight.whip',
+  'ranger.fists': 'knight.fists', 'ranger.disarm': 'knight.disarm', 'ranger.brave': 'knight.brave' };
+Object.keys(SAME).forEach(function(id){ RULES[id] = RULES[SAME[id]]; if (ICON_IMG[SAME[id]]) ICON_IMG[id] = ICON_IMG[SAME[id]]; });
 SKILLS.forEach(function(s){
-  s.icon = ICONS[s.id] || CLASSES[s.cls].icon;
+  var c = SAME[s.id], src = c && SKILLS.filter(function(x){ return x.id === c; })[0];
+  if (src) { s.formula = src.formula; s.desc = src.desc; s.kid = src.kid; s.cost = src.cost; s.same = c; if (!(s.id in TESTED) && TESTED[c]) TESTED[s.id] = TESTED[c]; }
+  s.icon = ICONS[s.id] || (c && ICONS[c]) || CLASSES[s.cls].icon;
   var r = RULES[s.id];
   s.ready = !!r;
   s.tested = TESTED[s.id] || '';
@@ -1082,14 +1073,8 @@ var FX = {
   'knight.ult':     function(v){ return 'вдається в ' + v.chance + '%: удар ×(1 + ' + (v.perK / 100) + '·K) і ворог пропускає хід; у блок — ½ урону без оглушення (−' + v.mana + ' мани й уся концентрація); лише поки у ворога ≥ ' + (v.hpMin || 30) + '% здоров\'я; урон не більше ' + (v.dmgCap || 25) + '% його здоров\'я'; },
   'knight.daze':    function(v){ return 'вдається в ' + v.chance + '%: удар ×' + (v.dmgMul / 100) + ', ворог втрачає концентрацію'; },
   'knight.riposte': function(v){ return 'після твого блоку — контрудар ×0.5 з шансом ' + v.chance + '%'; },
-  'ranger.dagger':  function(v){ return 'з кинджалом: крит +' + v.critPct + '%'; },
-  'ranger.spear':   function(v){ return 'зі списом: урон +' + v.dmgFlat + '; добиваєш — ' + v.first + '% встигнути першим'; },
-  'ranger.whip':    function(v){ return 'з кнутом: шанс блоку ворога −' + v.blockCut + '%'; },
   'ranger.wmaster': function(v){ return 'урон будь-якою зброєю +' + v.dmgPct + '%'; },
   'ranger.hide':    function(v){ return 'вдається в ' + v.chance + '% (раз за бій): цього ходу удар ворога з шансом ' + v.hitCut + '% пролітає повз, твої удари ×' + (v.dmgMul / 100); },
-  'ranger.disarm':  function(v){ return 'вдається в ' + v.chance + '%: урон ворога −' + v.dmgCut + '% на ' + v.turns + ' ходи (перезар. ' + v.cd + ')'; },
-  'ranger.fists':   function(v){ return 'без зброї: урон +' + v.dmgFlat + ', ' + v.combo + '% ще одного удару'; },
-  'ranger.brave':   function(v){ return 'страх діє на ' + v.resPct + '% рідше'; },
   'knight.disarm':  function(v){ return 'вибиває зброю ворога: шанс від різниці у володінні зброєю (10–90%)'; },
   'knight.lunge':   function(v){ return 'меч, кинджал чи спис · вдається в ' + v.chance + '%: удар ×' + (1 + v.dmgPct / 100) + ', броня ворога ' + v.armor + '%' + (v.extra ? ', ' + v.extra + '% — ще один удар' : ''); },
   'knight.enh':     function(v){ return 'фізичний урон +' + v.dmgPct + '%'; },
@@ -1102,7 +1087,7 @@ var FX = {
   'knight.brave':   function(v){ return 'страх діє на ' + v.resPct + '% рідше'; },
   'knight.care':    function(v){ return v.savePct + '% зносу речей у бою не рахується'; }
 };
-function effectText(id, m) { return FX[id] ? FX[id](skillValues(id, Math.round(Math.max(0, Math.min(1, m)) * 100))) : ''; }
+function effectText(id, m) { var f = FX[id] || FX[SAME[id]]; return f ? f(skillValues(id, Math.round(Math.max(0, Math.min(1, m)) * 100))) : ''; }
 
 window.SKSKILLS = {
   VERSION: 23,
@@ -1131,7 +1116,7 @@ window.SKSKILLS = {
   learnBlock: learnBlock,
   mastery: mastery,
   barBlock: barBlock,
-  effectText: effectText,
+  effectText: effectText, SAME: SAME,
   iconHtml: iconHtml,
   forClass: function(cls){ return SKILLS.filter(function(s){ return s.cls === cls; }); },
   readyFor: function(cls){ return SKILLS.filter(function(s){ return s.cls === cls && s.ready; }); }
