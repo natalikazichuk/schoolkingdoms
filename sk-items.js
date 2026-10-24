@@ -656,7 +656,9 @@
 
   /* ── ПРОМТ ДЛЯ КАРТИНКИ РЕЧІ ──
      Один шаблон для всіх речей магазину (img/items/<id>.webp), щоб стиль не розходився:
-     напівреалістичний 3D, м'яке світло, прозоре тло, легка напівпрозора тінь під річчю.
+     напівреалістичний 3D, м'яке світло, легка тінь під річчю. Генератор малює на ЧИСТО БІЛОМУ тлі
+     (прозорість ChatGPT часто підробляє намальованою «шахівницею»); прозорим його робимо самі —
+     tools/item-image.py: біле → прозоре, тінь стає напівпрозорою.
      imagePrompt({name, category, weaponType, desc, tier}) → текст для генератора (ChatGPT тощо).
      Ним користується адмінка «Предмети» (🎨 Промт для картинки) і навичка Claude
      .claude/skills/item-image-prompt — змінюєш стиль, міняй тут. */
@@ -678,30 +680,33 @@
     var tier = PROMPT_TIERS.filter(function (t) { return t.key === o.tier; })[0] || PROMPT_TIERS[0];
     var what = (o.desc && String(o.desc).trim()) || (o.name ? '«' + o.name + '»' : 'a ' + (w || cat));
     var long = w && /^(bow|spear|staff|whip|flail)$/.test(o.weaponType);
+    var pair = /pair/.test(cat + (w || ''));
     return [
-      'Create ONE fantasy RPG inventory item icon for a children\'s educational game.',
+      'Generate a NEW image from scratch (do not edit or reuse any previous image). Follow every rule below exactly.',
+      '',
+      'MOST IMPORTANT RULES',
+      '1. The WHOLE item must be inside the picture with empty space around it: at least 12% margin on every side.',
+      '   Nothing may touch or cross the edges. Do NOT crop, do NOT zoom in. The item takes about 70% of the image.',
+      '2. Background: plain solid pure white (#FFFFFF), perfectly flat and even.',
+      '   Do NOT draw a checkerboard / transparency grid, no gradient, no floor, no scenery, no frame.',
+      '3. Exactly one ' + (pair ? 'pair of items' : 'item') + '. No hands, no characters, no text, no letters, no logos, no watermark.',
       '',
       'ITEM: ' + what + (o.name && o.desc ? ' (item name: «' + o.name + '»)' : ''),
       'TYPE: ' + (w ? w + ' (' + cat + ')' : cat),
       'TIER: ' + tier.en,
       '',
-      'STYLE',
-      '- Semi-realistic stylized 3D render, like a polished mobile RPG; friendly and kid-appropriate, no gore, nothing scary.',
+      'STYLE (fantasy RPG inventory icon for a children\'s educational game)',
+      '- Semi-realistic stylized 3D render, like a polished mobile RPG; friendly and kid-appropriate, nothing scary.',
       '- Soft studio lighting from the upper left, gentle rim light, clear readable silhouette.',
       '- Rich but natural colors, crisp material detail (wood grain, leather stitching, metal scratches, fabric weave).',
       '',
       'COMPOSITION',
-      '- Exactly one object' + (/pair/.test(cat + (w || '')) ? ' (shown as a pair)' : '') + '; no hands, no characters, no text, no UI frame, no watermark.',
-      '- Three-quarter view, centered, the whole item fully visible and not cropped, filling about 80% of a square canvas.',
-      long ? '- Long item: place it diagonally from lower-left to upper-right.' : '- Slight diagonal tilt for a dynamic look.',
+      '- Three-quarter view, centered, shown in full from end to end.',
+      long ? '- Long item: place it diagonally from the lower-left corner area to the upper-right, still with margins on all sides.'
+           : '- Slight diagonal tilt for a dynamic look.',
+      '- A soft light-grey contact shadow directly under the item (blurred, subtle), on the white background.',
       '',
-      'BACKGROUND & SHADOW',
-      '- Fully transparent background (PNG with alpha): no floor, no backdrop, no vignette, no color behind the item.',
-      '- A soft, semi-transparent contact shadow right under the item (light grey, about 25% opacity, blurred edges),',
-      '  so the item looks grounded on any background color.',
-      '',
-      'OUTPUT',
-      '- Square 1:1, 1024×1024 PNG with transparency.'
+      'OUTPUT: square 1:1, 1024×1024.'
     ].join('\n');
   }
 
