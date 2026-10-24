@@ -1014,14 +1014,15 @@ function hadmLoad(){
 function keepScroll(fn){var y=window.scrollY;fn();window.scrollTo(0,y);}
 function heroAdminHTML(){
   if(!HADM.list&&!HADM.err)hadmLoad();
-  var opts=Object.keys(SKSKILLS.CLASSES).filter(function(k){return SKSKILLS.readyFor(k).length;}).map(function(k){var c=SKSKILLS.CLASSES[k];return '<option value="'+k+'">'+c.icon+' '+esc(c.name)+'</option>';}).join('');
+  var clsKeys=Object.keys(SKSKILLS.CLASSES).filter(function(k){return SKSKILLS.readyFor(k).length;});
+  var opts=function(cur){return clsKeys.map(function(k){var c=SKSKILLS.CLASSES[k];return '<option value="'+k+'"'+(k===cur?' selected':'')+'>'+c.icon+' '+esc(c.name)+'</option>';}).join('');};   // обрано поточний клас Героя
   var rows=(HADM.list||[]).map(function(h){
     var c=h.cls&&SKSKILLS.CLASSES[h.cls];
     var sk=h.skills.map(function(x){var s=SKSKILLS.byId(x.id);return (s?s.icon+' ':'')+esc(s?s.name:x.id)+' '+x.pct+'%';}).join(' · ');
     return '<tr><td><b>'+esc(h.name||'—')+'</b><br><span class="key">'+esc(h.id)+'</span></td><td class="num">'+h.lv+'</td>'
       +'<td>'+(c?c.icon+' '+esc(c.name):'—')+'</td><td style="font-size:.8rem">'+(sk||'—')+'</td>'
       +'<td><button type="button" class="btn-ghost" data-hadm="reset" data-id="'+esc(h.id)+'"'+(h.cls?'':' disabled')+'>↺ Скинути клас</button>'
-      +'<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap"><select id="hadm-cls-'+esc(h.id)+'" aria-label="Клас">'+opts+'</select>'
+      +'<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap"><select id="hadm-cls-'+esc(h.id)+'" aria-label="Клас">'+opts(h.cls)+'</select>'
       +'<input type="number" id="hadm-pct-'+esc(h.id)+'" value="50" min="25" max="100" style="width:64px" aria-label="Майстерність %">'
       +'<button type="button" class="btn-ghost" data-hadm="test" data-id="'+esc(h.id)+'">🧪 Клас + вміння</button></div>'
       +'<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap"><input type="number" id="hadm-lv-'+esc(h.id)+'" value="'+h.lv+'" min="1" max="30" style="width:64px" aria-label="Рівень арени">'
