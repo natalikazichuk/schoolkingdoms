@@ -13,7 +13,7 @@
      Порядок важливий: ПІСЛЯ sk-styles.css і ДО локальних стилів нижче. -->
 <link rel="stylesheet" href="sk-admin.css?v=2">
 <script src="sk-admin.js?v=1"></script>
-<script src="sk-items.js?v=19"></script>
+<script src="sk-items.js?v=20"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -644,7 +644,8 @@ function renderEditor(){
     +'<div class="field"><label>Картинка</label>'
       +'<div class="inline-note" style="margin-bottom:6px">За замовчуванням береться <b>img/items/'+esc(M.id||'&lt;id&gt;')+'.webp</b>. Посилання нижче — лише щоб перевизначити.</div>'
       +'<input type="text" id="m_img" value="'+esc(M.img||'')+'" placeholder="https://…/item.png (необов’язково)">'
-      +'<div class="img-prev" id="imgprev">'+imgPrevHtml(M.img, M.id)+'</div></div>'
+      +'<div class="img-prev" id="imgprev">'+imgPrevHtml(M.img, M.id)+'</div>'
+      +'<button class="btn ghost" type="button" data-act="prompt" style="margin-top:8px;align-self:flex-start">🎨 Промт для картинки цієї речі</button></div>'
     +'<div class="grid">'
     +'  <div class="field"><label>Характеристика</label><select id="m_stat">'+statOptions(M.stat)+'</select></div>'
     +'  <div class="field" style="justify-content:flex-end"><label class="chk" style="margin-bottom:10px"><input type="checkbox" id="m_ranged"'+(M._ranged?' checked':'')+'> Діапазон (зброя/урон, напр. 4–12)</label></div>'
@@ -745,6 +746,7 @@ function editorClick(e){
   var b=e.target.closest('[data-act]'); if(!b) return;
   var act=b.getAttribute('data-act');
   if(act==='save'){ doSave(); return; }
+  if(act==='prompt'){ collectForm(); promptFrom(M); return; }
   if(act==='close'){ closeEditor(); return; }
   if(act==='delcur'){ if(!M._isNew) doDelete(M.id); return; }
   if(act==='addstat'){ collectAddStats(); M.addStats=M.addStats||[]; M.addStats.push({stat:ADD_STAT_LABELS[0],value:null,pct:false}); renderAddStats(); return; }
@@ -917,6 +919,52 @@ function doSeed(mode){
   step();
 }
 
+/* ---- 🎨 ПРОМТ ДЛЯ КАРТИНКИ РЕЧІ ----
+   Шаблон — SKIT.imagePrompt (sk-items.js): один стиль для всіх речей магазину.
+   Поля — для будь-якої речі (і ще не створеної); з редактора — «🎨 Промт для картинки цієї речі». */
+function promptPanelHtml(){
+  if(!window.SKIT||!SKIT.imagePrompt) return '';
+  var cats=CATEGORIES.map(function(c){ return '<option value="'+esc(c)+'">'+esc(c)+'</option>'; }).join('');
+  var ws='<option value="">—</option>'+SKIT.WEAPON_TYPES.map(function(w){ return '<option value="'+w.key+'">'+w.icon+' '+esc(w.label)+'</option>'; }).join('');
+  var ts=SKIT.PROMPT_TIERS.map(function(t){ return '<option value="'+t.key+'">'+esc(t.label)+'</option>'; }).join('');
+  return '<div class="panel" id="promptPanel"><h2>🎨 Промт для картинки речі</h2>'
+    +'<p class="sub">Один стиль для всіх речей: напівреалістичний 3D, м\'яке світло, <b>прозоре тло</b> і легка напівпрозора тінь під річчю. '
+    +'Заповни поля, скопіюй промт у ChatGPT (чи інший генератор), отриману PNG завантаж як <b>img/items/&lt;код&gt;.webp</b> (512×512).</p>'
+    +'<div class="grid weapon-box w3" style="background:none;border:0;padding:0">'
+      +'<div class="field"><label for="pb_cat">Категорія</label><select id="pb_cat" data-pb>'+cats+'</select></div>'
+      +'<div class="field"><label for="pb_w">Вид зброї</label><select id="pb_w" data-pb>'+ws+'</select></div>'
+      +'<div class="field"><label for="pb_tier">Рідкісність</label><select id="pb_tier" data-pb>'+ts+'</select></div>'
+    +'</div>'
+    +'<div class="field"><label for="pb_name">Назва</label><input type="text" id="pb_name" data-pb placeholder="Напр.: Мисливський лук"></div>'
+    +'<div class="field"><label for="pb_desc">Як виглядає (краще англійською; порожньо — візьметься назва)</label>'
+      +'<textarea id="pb_desc" data-pb rows="2" placeholder="a sturdy hunter\'s recurve bow of dark wood, leather-wrapped grip"></textarea></div>'
+    +'<div class="field"><label for="pb_out">Промт</label><textarea id="pb_out" rows="14" readonly style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.78rem"></textarea></div>'
+    +'<div class="savebar"><button class="btn gold" type="button" id="pb_copy">📋 Копіювати промт</button><span class="inline-note" id="pb_msg"></span></div>'
+    +'</div>';
+}
+function promptUpdate(){
+  var o=el('#pb_out'); if(!o) return;
+  o.value=SKIT.imagePrompt({ category:el('#pb_cat').value, weaponType:el('#pb_w').value, tier:el('#pb_tier').value,
+    name:el('#pb_name').value.trim(), desc:el('#pb_desc').value });
+}
+function promptFrom(it){
+  if(!el('#pb_out')) return;
+  el('#pb_cat').value=it.category||CATEGORIES[0]; el('#pb_w').value=it.weaponType||''; el('#pb_name').value=it.name||'';
+  promptUpdate(); el('#promptPanel').scrollIntoView({behavior:'smooth', block:'start'});
+}
+function promptBind(){
+  var p=el('#promptPanel'); if(!p) return;
+  p.addEventListener('input', function(e){ if(e.target.hasAttribute('data-pb')) promptUpdate(); });
+  p.addEventListener('change', function(e){ if(e.target.hasAttribute('data-pb')) promptUpdate(); });
+  el('#pb_copy').addEventListener('click', function(){
+    var o=el('#pb_out'), m=el('#pb_msg'); o.select();
+    var ok=function(){ m.textContent='✅ Скопійовано'; setTimeout(function(){ m.textContent=''; }, 2000); };
+    if(navigator.clipboard) navigator.clipboard.writeText(o.value).then(ok, function(){ document.execCommand('copy'); ok(); });
+    else { document.execCommand('copy'); ok(); }
+  });
+  promptUpdate();
+}
+
 /* ---- каркас після перевірки доступу ---- */
 function renderAdminUI(){
   root.innerHTML=
@@ -933,6 +981,7 @@ function renderAdminUI(){
       +'</div>'
     +'</div>'
     +'<div class="panel" id="editorPanel" hidden><h2 id="editorTitle">✏️ Редактор предмета</h2><div id="editor"></div></div>'
+    +promptPanelHtml()
     +'<div class="panel"><h2>🌱 Стартовий набір / оновлення</h2>'
       +'<p class="sub">Набір містить '+((typeof SEED_ITEMS!=="undefined"&&SEED_ITEMS.length)||0)+' предметів (з цінами, класами й додатковими навичками).</p>'
       +'<div class="savebar">'
@@ -979,6 +1028,7 @@ function renderAdminUI(){
   el('#editor').addEventListener('click', editorClick);
   el('#editor').addEventListener('input', editorInput);
   el('#editor').addEventListener('change', editorChange);
+  promptBind();
   document.querySelectorAll('[data-seed]').forEach(function(b){
     b.addEventListener('click', function(){ doSeed(b.getAttribute('data-seed')); });
   });

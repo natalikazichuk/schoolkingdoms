@@ -654,7 +654,59 @@
     SLOT_CATS: SLOT_CATS, slotFits: slotFits, bagView: bagView, applyView: applyView, diffInv: diffInv, applyDiff: applyDiff, shopStock: shopStock, isHealthPotion: isHealthPotion
   };
 
+  /* ── ПРОМТ ДЛЯ КАРТИНКИ РЕЧІ ──
+     Один шаблон для всіх речей магазину (img/items/<id>.webp), щоб стиль не розходився:
+     напівреалістичний 3D, м'яке світло, прозоре тло, легка напівпрозора тінь під річчю.
+     imagePrompt({name, category, weaponType, desc, tier}) → текст для генератора (ChatGPT тощо).
+     Ним користується адмінка «Предмети» (🎨 Промт для картинки) і навичка Claude
+     .claude/skills/item-image-prompt — змінюєш стиль, міняй тут. */
+  var PROMPT_CATS = { 'Зброя': 'weapon', 'Щити': 'shield', 'Шоломи': 'helmet', 'Обладунки': 'body armor', 'Рукавиці': 'gloves (a pair)',
+    'Наручі': 'bracers (a pair)', 'Пояси': 'belt', 'Штани': 'pants', 'Взуття': 'boots (a pair)', 'Кільце': 'ring', 'Амулет': 'amulet',
+    'Зелья': 'potion in a glass bottle', 'Зілля': 'potion in a glass bottle', 'Свиток': 'magic scroll' };
+  var PROMPT_WEAPONS = { sword: 'sword', dagger: 'dagger', axe: 'axe', mace: 'mace', flail: 'flail', spear: 'spear', whip: 'whip', staff: 'staff',
+    wand: 'magic wand', knuckles: 'pair of brass knuckles', bow: 'bow', exotic: 'unusual improvised weapon' };
+  var PROMPT_TIERS = [
+    { key: 'common',    label: 'Звичайна',   en: 'common — simple, plain materials, no ornament, no glow' },
+    { key: 'uncommon',  label: 'Незвичайна', en: 'uncommon — better materials, small decorative details, no glow' },
+    { key: 'rare',      label: 'Рідкісна',   en: 'rare — fine materials, noticeable ornament, polished finish, no glow' },
+    { key: 'epic',      label: 'Епічна',     en: 'epic — precious metals or gems, rich ornament, a faint magical glow' },
+    { key: 'legendary', label: 'Легендарна', en: 'legendary — masterwork, gold and gems, intricate ornament, a soft magical aura' }
+  ];
+  function imagePrompt(o) {
+    o = o || {};
+    var cat = PROMPT_CATS[o.category] || 'item', w = o.category === 'Зброя' && PROMPT_WEAPONS[o.weaponType];
+    var tier = PROMPT_TIERS.filter(function (t) { return t.key === o.tier; })[0] || PROMPT_TIERS[0];
+    var what = (o.desc && String(o.desc).trim()) || (o.name ? '«' + o.name + '»' : 'a ' + (w || cat));
+    var long = w && /^(bow|spear|staff|whip|flail)$/.test(o.weaponType);
+    return [
+      'Create ONE fantasy RPG inventory item icon for a children\'s educational game.',
+      '',
+      'ITEM: ' + what + (o.name && o.desc ? ' (item name: «' + o.name + '»)' : ''),
+      'TYPE: ' + (w ? w + ' (' + cat + ')' : cat),
+      'TIER: ' + tier.en,
+      '',
+      'STYLE',
+      '- Semi-realistic stylized 3D render, like a polished mobile RPG; friendly and kid-appropriate, no gore, nothing scary.',
+      '- Soft studio lighting from the upper left, gentle rim light, clear readable silhouette.',
+      '- Rich but natural colors, crisp material detail (wood grain, leather stitching, metal scratches, fabric weave).',
+      '',
+      'COMPOSITION',
+      '- Exactly one object' + (/pair/.test(cat + (w || '')) ? ' (shown as a pair)' : '') + '; no hands, no characters, no text, no UI frame, no watermark.',
+      '- Three-quarter view, centered, the whole item fully visible and not cropped, filling about 80% of a square canvas.',
+      long ? '- Long item: place it diagonally from lower-left to upper-right.' : '- Slight diagonal tilt for a dynamic look.',
+      '',
+      'BACKGROUND & SHADOW',
+      '- Fully transparent background (PNG with alpha): no floor, no backdrop, no vignette, no color behind the item.',
+      '- A soft, semi-transparent contact shadow right under the item (light grey, about 25% opacity, blurred edges),',
+      '  so the item looks grounded on any background color.',
+      '',
+      'OUTPUT',
+      '- Square 1:1, 1024×1024 PNG with transparency.'
+    ].join('\n');
+  }
+
   var SKIT = {
+    imagePrompt: imagePrompt, PROMPT_TIERS: PROMPT_TIERS,
     BONUS_TABLE: BONUS_TABLE,
     STAT_MAP: STAT_MAP,
     FLAG_STATS: FLAG_STATS,
