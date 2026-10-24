@@ -309,6 +309,7 @@
       { id: 'spearFirst', icon: '🔱', name: 'Швидкий спис', v: 10, text: 'зі списом: якщо твої удари цього ходу добивають ворога — 10% встигнути першим (його удару не буде)' },
       { id: 'whipCut', icon: '➰', name: 'Хльосткий кнут', v: 15, text: 'з кнутом: шанс блоку ворога щитом і речами на 15% менший' },
       { id: 'archer', icon: '🏹', name: 'Природжений стрілець', text: 'Влучний постріл і Злива стріл — лише в Слідопита й лише з луком (запрацює з цими вміннями)' },
+      { id: 'lungeCrit', icon: '🗡️', name: 'Точний випад', v: 15, text: 'Випадом шанс криту +15%' },
       { id: 'dodgeUp', icon: '💨', name: 'Спритний ухил', v: 5, text: 'Ухилення (загальне вміння): коли прокинулось, ухиляєшся на 5% частіше (15% → 20%)' },
       { id: 'lightStep', icon: '🍃', name: 'Легка хода', v: 5, text: 'без щита спритність +5% — по тобі трохи рідше влучають' }
     ]
@@ -484,7 +485,8 @@
     function ret(o) { for (var k in o) out[k] = o[k]; return out; }
     // 1) влучив?
     out.hitNeed = pctOf(hitChance(att, def)); out.hitRoll = d100(rnd);
-    if (out.hitRoll > out.hitNeed) return ret({ dmg: 0, kind: 'dodge', crit: false, calc: 'промах: 🎲 ' + out.hitRoll + ' > ' + out.hitNeed + '%' });
+    if (att.sure) out.sure = true;                               // Камуфляж: удар не промахується
+    else if (out.hitRoll > out.hitNeed) return ret({ dmg: 0, kind: 'dodge', crit: false, calc: 'промах: 🎲 ' + out.hitRoll + ' > ' + out.hitNeed + '%' });
     function critCheck() { out.critNeed = pctOf(critChance(att)); out.critRoll = d100(rnd); return out.critRoll <= out.critNeed; }
     // 2) заблокував? щит приймає удар; ПІСЛЯ блоку — перевірка, чи удар був критичним
     //    (від цього залежить знос щита: shieldCritBlock замість shieldBlock)

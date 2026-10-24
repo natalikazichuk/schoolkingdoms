@@ -89,14 +89,15 @@
     bless: { id: 'knight.bless' }, disarm: { id: 'knight.disarm' }, haft: { id: 'knight.haft' }, daze: { id: 'knight.daze' }, stun: { id: 'knight.stun' }, lash: { id: 'knight.lash' },
     frenzy: { id: 'knight.frenzy' }, cleave: { id: 'knight.cleave' }, ult: { id: 'knight.ult' },
     stone: { id: 'knight.stoneskin' }, song: { id: 'knight.song' }, shieldbreak: { id: 'knight.shieldbreak' },
-    rhide: { id: 'ranger.hide' } };
+    rhide: { id: 'ranger.hide' }, poison: { id: 'ranger.poison' }, bandage: { id: 'ranger.bandage' } };
   /* вміння, що діють ДО ударів ходу (не окремий удар) */
-  var PRE = { 'knight.berserk': 1, 'knight.bless': 1, 'knight.disarm': 1, 'knight.lunge': 1, 'knight.stoneskin': 1, 'knight.song': 1, 'knight.shieldbreak': 1, 'knight.frenzy': 1, 'knight.cleave': 1, 'ranger.hide': 1 };
+  var PRE = { 'knight.berserk': 1, 'knight.bless': 1, 'knight.disarm': 1, 'knight.lunge': 1, 'knight.stoneskin': 1, 'knight.song': 1, 'knight.shieldbreak': 1, 'knight.frenzy': 1, 'knight.cleave': 1, 'ranger.hide': 1, 'ranger.poison': 1, 'ranger.bandage': 1 };
   /* СПІЛЬНІ ВМІННЯ: однакова назва в різних класах — однакова механіка й числа. Код пише id Лицаря,
      а в Героя іншого класу вміння лежить під своїм id — SAME зводить їх докупи (ріст іде у вміння Героя).
      Те, чим клас кращий, — не тут, а в перевагах класу (SKARENA.CLASS_PERKS). */
   var SAME = { 'ranger.dagger': 'knight.dagger', 'ranger.spear': 'knight.spear', 'ranger.whip': 'knight.whip',
-    'ranger.fists': 'knight.fists', 'ranger.disarm': 'knight.disarm', 'ranger.brave': 'knight.brave' };
+    'ranger.fists': 'knight.fists', 'ranger.disarm': 'knight.disarm', 'ranger.brave': 'knight.brave',
+    'ranger.lunge': 'knight.lunge', 'ranger.calm': 'knight.calm', 'ranger.second': 'knight.second', 'ranger.lash': 'knight.lash' };
   function canon(id) { return SAME[id] || id; }
   function skId(st, id) {                                    // id вміння так, як воно лежить у бійця
     var s = st.me && st.me.sk; if (!s || s[id] != null) return id;
@@ -286,6 +287,7 @@
     if (id === SKILL.spark.id && num(st.me.mana) < (V(st, id, 'mana') || 5)) return 'mana';
     if (V(st, id, 'mana') && num(st.me.mana) < V(st, id, 'mana')) return 'mana';   // Берсерк 100, Благословення 50
     if (id === SKILL.bash.id && !shieldOn(st)) return 'shield';
+    if (id === SKILL.bandage.id && !(num(st.me.force) < num(st.me.max))) return 'full';   // Перев'язка: здоров'я повне — чекає
     if (!skillWeaponOk(st, id)) return 'weapon';                   // Випад, Удар древком — лише своєю зброєю (не вибитою)
     return '';
   }
@@ -295,7 +297,7 @@
     if (!isLive(st)) return false;
     if (id == null) { if (st.me.skill) { st.me.skill = null; st.rev++; return true; } return false; }
     var why = skillBlock(st, id);
-    if (why && why !== 'cd' && why !== 'mana' && why !== 'shield' && why !== 'weapon' && why !== 'active' && why !== 'noshield' && why !== 'careful' && why !== 'focus' && why !== 'hp') return false;
+    if (why && why !== 'cd' && why !== 'mana' && why !== 'shield' && why !== 'weapon' && why !== 'active' && why !== 'noshield' && why !== 'careful' && why !== 'focus' && why !== 'hp' && why !== 'full') return false;
     if (beltChosen(st)) { st.me.use = null; st.swapRound = 0; }   // вміння замість речі з пояса
     st.me.skill = id; st.rev++;
     return true;
@@ -366,6 +368,7 @@
     var att = {}, k; for (k in pm) att[k] = pm[k];
     rec.kind = 'lunge'; rec.mul = Math.round((1 + V(st, id, 'dmgPct') / 100) * 100) / 100; rec.armor = V(st, id, 'armor');
     att.dmgMul = rec.mul; att.armorPct = rec.armor;
+    var lc = perkOf(st, 'lungeCrit'); if (lc) { att.critPct = num(att.critPct) + lc; rec.critPlus = lc; }   // перевага Слідопита «Точний випад»
     var ex = V(st, id, 'extra');
     if (ex > 0) { rec.exNeed = ex; rec.exRoll = ctx.R.d100(rnd); rec.extra = rec.exRoll <= ex; }
     return { rec: rec, att: att };
@@ -681,6 +684,54 @@
       inHit.kind = ks.indexOf('crit') >= 0 ? 'crit' : ks.indexOf('hit') >= 0 ? 'hit' : ks.indexOf('block') >= 0 ? 'block' : 'dodge';
     }
   }
+  /* Камуфляж (пасивне): перший хід, коли боєць б'є, — удари не промахуються, урон ×dmgMul% → профіль атаки */
+  function camoBoost(v, p, atk) {
+    var f = fxOf(v.me);
+    if (!atk || !hasSk(v, 'ranger.camo') || f.camo) return p;
+    f.camo = v.round;
+    var o = clone(p); o.sure = true; o.dmgMul = (num(p.dmgMul) || 1) * (V(v, 'ranger.camo', 'dmgMul') || 130) / 100;
+    return o;
+  }
+  function camoLanded(v, hit) {                                 // журнал і ріст: усі удари ходу Камуфляжу
+    if (num((v.me.fx || {}).camo) !== v.round || !hit || !hit.hits) return;
+    hit.hits.forEach(function (h) { h.camo = true; });
+    grow(v, 'ranger.camo', hit.hits.some(function (h) { return h.kind === 'hit' || h.kind === 'crit'; }));
+  }
+  /* Отрута: шанс 50% → 100% — клинок отруєно цього ходу (перезарядка — за кожну спробу);
+     влучив хоч одним ударом (poisonLand) — ворог отруєний turns ходів, щоходу −pct% його макс. здоров'я (poisonTick) */
+  function poisonTry(ctx, st, id, rnd) {
+    var need = V(st, id, 'chance'), roll = ctx.R.d100(rnd), rec = { id: id, need: need, roll: roll, ok: roll <= need, dmg: 0 };
+    var cdN = V(st, id, 'cd'); if (cdN > 0) { st.me.cd = st.me.cd || {}; st.me.cd[id] = st.round + cdN; }
+    if (!rec.ok) { grow(st, id, false); rec.kind = 'fail'; return rec; }
+    rec.kind = 'poisonArm'; rec.pct = V(st, id, 'pct'); rec.turns = V(st, id, 'turns') || 3;
+    return rec;
+  }
+  function poisonLand(st, rec, hit) {
+    if (!rec || rec.kind !== 'poisonArm') return;
+    var ok = (hit.hits || []).some(function (h) { return (h.kind === 'hit' || h.kind === 'crit') && num(h.dmg) > 0; });
+    grow(st, rec.id, ok);
+    if (!ok) { rec.kind = 'poisonMiss'; return; }
+    fxOf(st.op).poison = { from: st.round, until: st.round + rec.turns - 1, pct: rec.pct };
+    rec.kind = 'poison';
+  }
+  function poisonTick(u, round) {                               // → скільки забрала отрута цього ходу
+    var p = u.fx && u.fx.poison;
+    if (!p || round < p.from || round > p.until) return 0;
+    var d = Math.max(1, Math.round(num(u.max) * num(p.pct) / 100));
+    u.force -= d;
+    return d;
+  }
+  /* Перев'язка: шанс 50% → 100% — ще до ударів лікує heal% макс. здоров'я, без мани; перезарядка — за кожну спробу */
+  function bandageTry(ctx, st, id, rnd) {
+    var need = V(st, id, 'chance'), roll = ctx.R.d100(rnd), rec = { id: id, need: need, roll: roll, ok: roll <= need, dmg: 0 };
+    grow(st, id, rec.ok);
+    var cdN = V(st, id, 'cd'); if (cdN > 0) { st.me.cd = st.me.cd || {}; st.me.cd[id] = st.round + cdN; }
+    if (!rec.ok) { rec.kind = 'fail'; return rec; }
+    var was = st.me.force;
+    st.me.force = Math.min(st.me.max, st.me.force + Math.round(st.me.max * V(st, id, 'heal') / 100));
+    rec.kind = 'bandage'; rec.pct = V(st, id, 'heal'); rec.heal = Math.max(0, Math.round(st.me.force - was));
+    return rec;
+  }
   /* Перевага Слідопита «Швидкий спис»: якщо твої удари цього ходу добивають ворога — з шансом ти встигаєш першим,
      і його удар цього ходу не відбувається → запис для журналу або null */
   function spearFirst(ctx, st, myDmg, rnd) {
@@ -780,7 +831,14 @@
       if (!(kr <= keep)) f.focus = num(f.focus) - 1;
       return rec;
     }
-    if (dmgIn > 0) { f.focus = 0; if (eng) grow(v, 'base.focus', false); }
+    if (dmgIn > 0) {
+      if (eng) grow(v, 'base.focus', false);
+      if (!(num(f.focus) > 0)) return null;
+      var keep2 = hasSk(v, 'knight.calm') ? V(v, 'knight.calm', 'keepPct') : 0, kr2 = keep2 ? ctx.R.d100(rndC) : 101;   // Незворушність: з шансом концентрація не скидається
+      if (keep2) grow(v, 'knight.calm', kr2 <= keep2);
+      if (!(kr2 <= keep2)) f.focus = 0;
+      return keep2 ? [kr2, keep2, kr2 <= keep2, 'reset'] : null;
+    }
     else if (eng) { grow(v, 'base.focus', true); if (num(f.focus) < cap) f.focus = num(f.focus) + 1; }
     return null;
   }
@@ -1115,6 +1173,11 @@
     var opRec = preBuff(ctx, vo, osid, opCan, sd(vo, 'skill'));
     // Слідопит: Сховатись і Обеззброєння (ворог б'є слабше) — до ударів, діють уже цього ходу
     if (sid === SKILL.rhide.id && canAct && !skillBlock(st, sid)) skillRec = hideTry(ctx, st, sid, sd(st, 'skill'));
+    // Перев'язка й Отрута — теж до ударів (Отрута діє, лише коли клинок влучить цього ходу)
+    if (sid === SKILL.bandage.id && canAct && !skillBlock(st, sid)) skillRec = bandageTry(ctx, st, sid, sd(st, 'skill'));
+    if (osid === SKILL.bandage.id && opCan && !skillBlock(vo, osid)) opRec = bandageTry(ctx, vo, osid, sd(vo, 'skill'));
+    if (sid === SKILL.poison.id && canAct && !skillBlock(st, sid)) skillRec = poisonTry(ctx, st, sid, sd(st, 'skill'));
+    if (osid === SKILL.poison.id && opCan && !skillBlock(vo, osid)) opRec = poisonTry(ctx, vo, osid, sd(vo, 'skill'));
     var blessHeal = down ? 0 : blessTick(st), opBlessHeal = down ? 0 : blessTick(vo);
     var meWill = down ? null : willTry(ctx, st, sd(st, 'will')), opWill = down ? null : willTry(ctx, vo, sd(vo, 'will'));   // Залізна воля — сама, до ударів (здоров'я < 20%)
     var pm = R.buffed ? R.buffed(st.me.p, fm.buffs) : st.me.p, po = R.buffed ? R.buffed(st.op.p, fo.buffs) : st.op.p;
@@ -1132,6 +1195,7 @@
     if (meNoShield) pm = noShield(ctx, pm, shieldEntry(st.me));
     pm = turnBoost(st, pm); po = turnBoost(vo, po);
     if (hideOn(st)) { pm = clone(pm); pm.dmgMul = (V(st, 'ranger.hide', 'dmgMul') || 130) / 100; }   // сховався — твої удари цього ходу сильніші
+    pm = camoBoost(st, pm, !down && !fm.feared && !meKnocked); po = camoBoost(vo, po, !down && !fo.feared && !knocked);   // Камуфляж — перший хід, коли б'єш
     // Кистень: шанс блоку щита суперника проти твоїх ударів менший
     // перевага Слідопита «Хльосткий кнут»: з кнутом шанс блоку суперника менший (разом із Кистенем — множаться)
     var flailCut = function (v, pD) {
@@ -1206,6 +1270,8 @@
     applyDodge(ctx, vo, meHit, sd(vo, 'dodge'));
     applyParry(ctx, vo, meHit, me.atk !== op.block, sd(vo, 'parry'));
     applyShield(ctx, vo, meHit, sd(vo, 'shield'));
+    camoLanded(st, meHit); camoLanded(vo, opHit);
+    poisonLand(st, skillRec, meHit); poisonLand(vo, opRec, opHit);   // Отрута: клинок влучив — ворог отруєний
     // Міцне тіло: росте від кожного удару суперника, що завдав урону — після ухилення, парирування й щита (у бота — в межах бою)
     if (opAtk) (opHit.hits || []).forEach(function (h) { if ((h.kind === 'hit' || h.kind === 'crit') && num(h.dmg) > 0) grow(st, 'knight.tough', true); });
     if (meAtk && st.op.up) (meHit.hits || []).forEach(function (h) { if ((h.kind === 'hit' || h.kind === 'crit') && num(h.dmg) > 0) grow(vo, 'knight.tough', true); });
@@ -1238,6 +1304,7 @@
     var broke = checkBreaks(ctx, st);
     st.op.force -= meHit.dmg + (skillRec ? skillRec.dmg : 0);
     st.me.force -= opHit.dmg + (opRec ? opRec.dmg : 0);
+    var psnOp = down ? 0 : poisonTick(st.op, st.round), psnMe = down ? 0 : poisonTick(st.me, st.round);   // отрута — наприкінці ходу, броня не захищає
     // концентрація кожного: Лицар — росте від урону; решта — у спокійний хід
     var calmRec = focusTick(ctx, st, opHit.dmg + (opRec ? opRec.dmg : 0), down, sd(st, 'focus'), sd(st, 'calm'));
     var opCalm = focusTick(ctx, vo, meHit.dmg + (skillRec ? skillRec.dmg : 0), down, sd(vo, 'focus'), sd(vo, 'calm'));
@@ -1271,7 +1338,7 @@
     if (opUp.length) e.opUp = opUp;
     // 🧪 ТИМЧАСОВО ДЛЯ ТЕСТУ: стан обох після ходу (мана, концентрація, до якого ходу діють лють / благословення / обеззброєння / оглушення)
     var snap = function (u) { var f = u.fx || {}; return { m: Math.round(num(u.mana)), f: num(f.focus), bz: num(f.berserk), bl: f.bless ? num(f.bless.until) : 0, dis: num(f.disarm), kn: num(f.knock),
-      sto: f.stone ? num(f.stone.until) : 0, sng: f.song ? num(f.song.until) : 0, wil: num(f.will), sho: num(f.shieldOff), tng: f.tangle ? num(f.tangle.until) : 0, frz: num(f.frenzy), car: num(f.careful), cd: clone(u.cd || {}) }; };
+      sto: f.stone ? num(f.stone.until) : 0, sng: f.song ? num(f.song.until) : 0, wil: num(f.will), sho: num(f.shieldOff), tng: f.tangle ? num(f.tangle.until) : 0, frz: num(f.frenzy), car: num(f.careful), psn: f.poison ? num(f.poison.until) : 0, cd: clone(u.cd || {}) }; };
     e.st = { me: snap(st.me), op: snap(st.op) };
     if (st.op.fx && st.op.fx.focus) e.opFocus = num(st.op.fx.focus);
     // ріст вмінь цього ходу: {id: [вдалих, невдалих, разом вдалих за бій, разом невдалих за бій]}
@@ -1286,6 +1353,8 @@
     e.hp = [Math.max(0, Math.round(st.me.force)), st.me.max, Math.max(0, Math.round(st.op.force)), st.op.max];
     if (first) e.first = first;
     if (first1) e.spearFirst = first1;
+    if (psnOp) e.poison = psnOp;
+    if (psnMe) e.mePoison = psnMe;
     st.log.push(e);
     st.rev++;
     if (st.me.force <= 0 || st.op.force <= 0) finish(ctx, st, { meDown: st.me.force <= 0, opDown: st.op.force <= 0, now: now });
