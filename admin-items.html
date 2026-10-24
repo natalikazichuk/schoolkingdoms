@@ -85,7 +85,16 @@
 
   /* Форма: .field, інпути, .mini, .msg, .empty, гейт — у sk-admin.css. */
   .topact{display:flex;justify-content:flex-end;margin:0 0 12px}
-  #editorPanel[hidden]{display:none}
+  /* редактор речі — вікно поверх сторінки (і «＋ Нова річ», і ✏️ у рядку) */
+  .emodal{position:fixed;inset:0;z-index:250;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;
+    background:rgba(10,16,32,.55);overflow-y:auto;overscroll-behavior:contain}
+  .emodal[hidden]{display:none}
+  .emodal .panel{width:100%;max-width:760px;margin:0;position:relative;box-shadow:0 18px 50px rgba(0,0,0,.35)}
+  .emodal .ex{position:absolute;top:10px;right:10px;width:36px;height:36px;border-radius:50%;border:1px solid var(--border);
+    background:var(--card);color:var(--ink);font-size:1.1rem;cursor:pointer;line-height:1}
+  .emodal .ex:hover{border-color:var(--gold-deep)}
+  body.emodal-open{overflow:hidden}
+  @media (max-width:560px){.emodal{padding:10px 8px}}
   .askdel{position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(10,16,32,.55)}
   .askdel-card{width:100%;max-width:420px;background:var(--card,#fff);color:var(--ink,#20232e);border-radius:18px;padding:18px;box-shadow:0 18px 50px rgba(0,0,0,.35)}
   .askdel-card h3{margin:0 0 8px;font-family:'Fredoka',sans-serif}
@@ -645,7 +654,8 @@ function renderEditor(){
       +'<div class="inline-note" style="margin-bottom:6px">За замовчуванням береться <b>img/items/'+esc(M.id||'&lt;id&gt;')+'.webp</b>. Посилання нижче — лише щоб перевизначити.</div>'
       +'<input type="text" id="m_img" value="'+esc(M.img||'')+'" placeholder="https://…/item.png (необов’язково)">'
       +'<div class="img-prev" id="imgprev">'+imgPrevHtml(M.img, M.id)+'</div>'
-      +'<button class="btn ghost" type="button" data-act="prompt" style="margin-top:8px;align-self:flex-start">🎨 Промт для картинки цієї речі</button></div>'
+      +'<button class="btn ghost" type="button" data-act="prompt" style="margin-top:8px;align-self:flex-start">🎨 Промт для картинки цієї речі</button>'
+      +'<div id="m_pbox"></div></div>'
     +'<div class="grid">'
     +'  <div class="field"><label>Характеристика</label><select id="m_stat">'+statOptions(M.stat)+'</select></div>'
     +'  <div class="field" style="justify-content:flex-end"><label class="chk" style="margin-bottom:10px"><input type="checkbox" id="m_ranged"'+(M._ranged?' checked':'')+'> Діапазон (зброя/урон, напр. 4–12)</label></div>'
@@ -735,6 +745,7 @@ function setMsg(text, ok){
 /* ---- дії редактора ---- */
 function editorInput(e){
   var t=e.target;
+  if(el('#m_pout')) editorPromptUpdate();   // промт у вікні оновлюється разом із назвою й описом
   if(t && t.id==='m_img'){ var p=el('#imgprev'); if(p) p.innerHTML=imgPrevHtml(t.value, M.id); }
   if(t && t.closest && t.closest('#addstats')){ collectAddStats(); }
   if(t && t.id==='m_category'){
@@ -746,7 +757,8 @@ function editorClick(e){
   var b=e.target.closest('[data-act]'); if(!b) return;
   var act=b.getAttribute('data-act');
   if(act==='save'){ doSave(); return; }
-  if(act==='prompt'){ collectForm(); promptFrom(M); return; }
+  if(act==='prompt'){ collectForm(); var bx=el('#m_pbox'); if(bx.innerHTML){ bx.innerHTML=''; return; } bx.innerHTML=editorPromptHtml(); editorPromptUpdate(); return; }
+  if(act==='pcopy'){ copyText(el('#m_pout'), el('#m_pmsg')); return; }
   if(act==='close'){ closeEditor(); return; }
   if(act==='delcur'){ if(!M._isNew) doDelete(M.id); return; }
   if(act==='addstat'){ collectAddStats(); M.addStats=M.addStats||[]; M.addStats.push({stat:ADD_STAT_LABELS[0],value:null,pct:false}); renderAddStats(); return; }
@@ -754,6 +766,7 @@ function editorClick(e){
 }
 function editorChange(e){
   var t=e.target;
+  if(t && t.hasAttribute && t.hasAttribute('data-pe')){ editorPromptUpdate(); return; }
   if(t && t.id==='m_ranged'){ collectForm(); renderEditor(); return; }
   if(t && t.id==='m_stat' && isWeapon(M) && window.SKIT){ var od=SKIT.defaultDmgType(M.weaponType,M.stat); collectForm(); if(!M.dmgType||M.dmgType===od) M.dmgType=SKIT.defaultDmgType(M.weaponType,M.stat); renderEditor(); return; }
   if(t && t.id==='m_wtype'){ collectForm(); M.dmgType=window.SKIT?SKIT.defaultDmgType(M.weaponType,M.stat):null; renderEditor(); return; }
@@ -785,11 +798,11 @@ function doSave(){
 function openEditor(it){
   if(it){ loadIntoEditor(it); }
   else { M=blankItem(); if(GRADE!=null) M.grade=GRADE; renderEditor(); }
-  var t=el('#editorTitle'); if(t) t.textContent=it?('✏️ Редагувати: '+(it.name||it.id)):'＋ Новий предмет';
-  el('#editorPanel').hidden=false;
-  window.scrollTo(0, el('#editorPanel').offsetTop-10);
+  var t=el('#editorTitle'); if(t) t.textContent=it?('✏️ Редагувати: '+(it.name||it.id)):'＋ Нова річ';
+  var m=el('#editorModal'); m.hidden=false; m.scrollTop=0; document.body.classList.add('emodal-open');
+  var f=el(it?'#m_name':'#m_category')||el('#m_name'); if(f) try{ f.focus({preventScroll:true}); }catch(_){ f.focus(); }
 }
-function closeEditor(){ el('#editorPanel').hidden=true; M=blankItem(); renderEditor(); }
+function closeEditor(){ el('#editorModal').hidden=true; document.body.classList.remove('emodal-open'); M=blankItem(); renderEditor(); }
 
 /* підтвердження видалення — вікно на сторінці (стандартний confirm браузер може мовчки блокувати) */
 function askDelete(it){
@@ -947,21 +960,31 @@ function promptUpdate(){
   o.value=SKIT.imagePrompt({ category:el('#pb_cat').value, weaponType:el('#pb_w').value, tier:el('#pb_tier').value,
     name:el('#pb_name').value.trim(), desc:el('#pb_desc').value });
 }
-function promptFrom(it){
-  if(!el('#pb_out')) return;
-  el('#pb_cat').value=it.category||CATEGORIES[0]; el('#pb_w').value=it.weaponType||''; el('#pb_name').value=it.name||'';
-  promptUpdate(); el('#promptPanel').scrollIntoView({behavior:'smooth', block:'start'});
+/* у вікні редактора: промт для цієї речі (категорія, вид зброї й назва — з форми) */
+function editorPromptHtml(){
+  var ts=SKIT.PROMPT_TIERS.map(function(t){ return '<option value="'+t.key+'">'+esc(t.label)+'</option>'; }).join('');
+  return '<div class="weapon-box" style="margin-top:10px">'
+    +'<div class="field"><label for="m_ptier">Рідкісність</label><select id="m_ptier" data-pe>'+ts+'</select></div>'
+    +'<div class="field"><label for="m_pdesc">Як виглядає (краще англійською; порожньо — візьметься назва)</label><textarea id="m_pdesc" data-pe rows="2"></textarea></div>'
+    +'<div class="field"><textarea id="m_pout" rows="10" readonly style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.76rem"></textarea></div>'
+    +'<div class="savebar"><button class="btn gold" type="button" data-act="pcopy">📋 Копіювати промт</button><span class="inline-note" id="m_pmsg"></span></div></div>';
+}
+function editorPromptUpdate(){
+  var o=el('#m_pout'); if(!o) return;
+  var cat=el('#m_category')?el('#m_category').value:M.category, wt=el('#m_wtype')?el('#m_wtype').value:M.weaponType;
+  o.value=SKIT.imagePrompt({ category:cat, weaponType:wt, name:(el('#m_name')||{}).value||M.name||'', tier:el('#m_ptier').value, desc:el('#m_pdesc').value });
+}
+function copyText(o, m){
+  o.select();
+  var ok=function(){ if(m){ m.textContent='✅ Скопійовано'; setTimeout(function(){ m.textContent=''; }, 2000); } };
+  if(navigator.clipboard) navigator.clipboard.writeText(o.value).then(ok, function(){ document.execCommand('copy'); ok(); });
+  else { document.execCommand('copy'); ok(); }
 }
 function promptBind(){
   var p=el('#promptPanel'); if(!p) return;
   p.addEventListener('input', function(e){ if(e.target.hasAttribute('data-pb')) promptUpdate(); });
   p.addEventListener('change', function(e){ if(e.target.hasAttribute('data-pb')) promptUpdate(); });
-  el('#pb_copy').addEventListener('click', function(){
-    var o=el('#pb_out'), m=el('#pb_msg'); o.select();
-    var ok=function(){ m.textContent='✅ Скопійовано'; setTimeout(function(){ m.textContent=''; }, 2000); };
-    if(navigator.clipboard) navigator.clipboard.writeText(o.value).then(ok, function(){ document.execCommand('copy'); ok(); });
-    else { document.execCommand('copy'); ok(); }
-  });
+  el('#pb_copy').addEventListener('click', function(){ copyText(el('#pb_out'), el('#pb_msg')); });
   promptUpdate();
 }
 
@@ -970,7 +993,7 @@ function renderAdminUI(){
   root.innerHTML=
      '<h1>🛡 Предмети та екіпіровка</h1>'
     +'<p class="sub">Броня, зброя, зілля й свитки — згруповані за класами (1–11). Кожен предмет має стабільний код (IT-XXX), за яким ігри й тренажери видаватимуть його гравцю. Картинки підтягуються автоматично з <b>img/items/&lt;id&gt;.webp</b>.</p>'
-    +'<div class="topact"><button class="btn gold" id="topNew">＋ Новий предмет</button></div>'
+    +'<div class="topact"><button class="btn gold" id="topNew">＋ Нова річ</button></div>'
     +'<div class="panel"><h2 id="listTitle">🗂 Класи</h2>'
       +'<div id="gradeGrid" class="gradegrid"></div>'
       +'<div id="gradeView" style="display:none">'
@@ -980,7 +1003,9 @@ function renderAdminUI(){
         +'<div class="ilist" id="itemList"></div>'
       +'</div>'
     +'</div>'
-    +'<div class="panel" id="editorPanel" hidden><h2 id="editorTitle">✏️ Редактор предмета</h2><div id="editor"></div></div>'
+    +'<div class="emodal" id="editorModal" hidden><div class="panel" id="editorPanel" role="dialog" aria-modal="true" aria-labelledby="editorTitle">'
+      +'<button class="ex" type="button" id="editorX" aria-label="Закрити">✕</button>'
+      +'<h2 id="editorTitle">✏️ Редактор предмета</h2><div id="editor"></div></div></div>'
     +promptPanelHtml()
     +'<div class="panel"><h2>🌱 Стартовий набір / оновлення</h2>'
       +'<p class="sub">Набір містить '+((typeof SEED_ITEMS!=="undefined"&&SEED_ITEMS.length)||0)+' предметів (з цінами, класами й додатковими навичками).</p>'
@@ -1013,6 +1038,7 @@ function renderAdminUI(){
   M=blankItem();
   renderView(); renderEditor();   // форма схована, доки не натиснуто «Новий» чи ✏️
   el('#topNew').addEventListener('click', function(){ openEditor(null); });
+  el('#editorX').addEventListener('click', closeEditor);
 
   el('#gradeGrid').addEventListener('click', function(e){
     var b=e.target.closest('[data-grade]'); if(!b) return;
