@@ -89,13 +89,28 @@
     bless: { id: 'knight.bless' }, disarm: { id: 'knight.disarm' }, haft: { id: 'knight.haft' }, daze: { id: 'knight.daze' }, stun: { id: 'knight.stun' }, lash: { id: 'knight.lash' },
     frenzy: { id: 'knight.frenzy' }, cleave: { id: 'knight.cleave' }, ult: { id: 'knight.ult' },
     stone: { id: 'knight.stoneskin' }, song: { id: 'knight.song' }, shieldbreak: { id: 'knight.shieldbreak' },
-    rhide: { id: 'ranger.hide' }, rdisarm: { id: 'ranger.disarm' } };
+    rhide: { id: 'ranger.hide' } };
   /* вміння, що діють ДО ударів ходу (не окремий удар) */
-  var PRE = { 'knight.berserk': 1, 'knight.bless': 1, 'knight.disarm': 1, 'knight.lunge': 1, 'knight.stoneskin': 1, 'knight.song': 1, 'knight.shieldbreak': 1, 'knight.frenzy': 1, 'knight.cleave': 1, 'ranger.hide': 1, 'ranger.disarm': 1 };
-  function V(st, id, k) { var v = st.me && st.me.skv && st.me.skv[id]; return v && v[k] != null ? num(v[k]) : 0; }
-  function hasSk(st, id) { var s = st.me && st.me.sk; return !!(s && s[id] != null); }
+  var PRE = { 'knight.berserk': 1, 'knight.bless': 1, 'knight.disarm': 1, 'knight.lunge': 1, 'knight.stoneskin': 1, 'knight.song': 1, 'knight.shieldbreak': 1, 'knight.frenzy': 1, 'knight.cleave': 1, 'ranger.hide': 1 };
+  /* СПІЛЬНІ ВМІННЯ: однакова назва в різних класах — однакова механіка й числа. Код пише id Лицаря,
+     а в Героя іншого класу вміння лежить під своїм id — SAME зводить їх докупи (ріст іде у вміння Героя).
+     Те, чим клас кращий, — не тут, а в перевагах класу (SKARENA.CLASS_PERKS). */
+  var SAME = { 'ranger.dagger': 'knight.dagger', 'ranger.spear': 'knight.spear', 'ranger.whip': 'knight.whip',
+    'ranger.fists': 'knight.fists', 'ranger.disarm': 'knight.disarm', 'ranger.brave': 'knight.brave' };
+  function canon(id) { return SAME[id] || id; }
+  function skId(st, id) {                                    // id вміння так, як воно лежить у бійця
+    var s = st.me && st.me.sk; if (!s || s[id] != null) return id;
+    for (var k in SAME) if (SAME[k] === id && s[k] != null) return k;
+    return id;
+  }
+  function V(st, id, k) { var v = st.me && st.me.skv && st.me.skv[skId(st, id)]; return v && v[k] != null ? num(v[k]) : 0; }
+  function hasSk(st, id) { var s = st.me && st.me.sk; return !!(s && s[skId(st, id)] != null); }
+  /* переваги класу бійця — знімок на старті бою (st.me.perk = {id: число}), як і вміння */
+  function perksOf(R, cls) { var o = {}; ((R.CLASS_PERKS || {})[cls] || []).forEach(function (q) { if (q.v != null) o[q.id] = num(q.v); }); return o; }
+  function perkOf(st, id) { var p = st.me && st.me.perk; return p ? num(p[id]) : 0; }
   function grow(st, id, ok) {
     if (!hasSk(st, id)) return;
+    id = skId(st, id);
     var g = ok ? (st.me.grow || (st.me.grow = {})) : (st.me.growF || (st.me.growF = {}));
     g[id] = (g[id] || 0) + 1;
   }
@@ -115,11 +130,8 @@
     dagger: 'knight.dagger', mace: 'knight.mace', flail: 'knight.flail', whip: 'knight.whip', staff: 'knight.staff' };
   /* ліва рука вільна: ні щита, ні другої речі (зламане не рахується) */
   function leftFree(st) { return !(st.me.eq || []).some(function (e) { return !e.off && !e.broken && e.slot === 'weaponL'; }); }
-  /* Слідопит: свої вміння зброї — Кинджал, Спис, Кнут і Голі руки (без зброї чи з кастетами) */
-  var RANGER_WEAPON = { dagger: 'ranger.dagger', spear: 'ranger.spear', whip: 'ranger.whip', knuckles: 'ranger.fists' };
   function weaponSkill(st) {
     var w = weaponOn(st);
-    if (st.me && st.me.cls === 'ranger') return w ? (w.base && RANGER_WEAPON[w.base.weaponType]) || null : 'ranger.fists';
     if (!w) return 'knight.fists';
     return (w.base && WEAPON_SKILL[w.base.weaponType]) || null;
   }
@@ -147,10 +159,10 @@
       if (gd < 100) p.dmgPct = num(p.dmgPct) - (100 - gd);
       p.grip = [gp, gd];
     }
-    // Слідопит: Кинджал — крит, Спис — урон, Голі руки — урон без зброї, Майстер зброї — урон будь-якою зброєю
-    if (ws === 'ranger.dagger' && hasSk(st, ws)) p.critPct = num(p.critPct) + V(st, ws, 'critPct');
-    if (ws === 'ranger.spear' && hasSk(st, ws)) p.dmgFlat = num(p.dmgFlat) + V(st, ws, 'dmgFlat');
-    if (ws === 'ranger.fists' && hasSk(st, ws)) p.dmgFlat = num(p.dmgFlat) + V(st, ws, 'dmgFlat');
+    // Слідопит: Майстер зброї — урон будь-якою зброєю; переваги класу — крит з кинджалом, легка хода без щита
+    var wt0 = (weaponOn(st) || { base: {} }).base.weaponType;
+    if (wt0 === 'dagger' && perkOf(st, 'daggerCrit')) p.critPct = num(p.critPct) + perkOf(st, 'daggerCrit');
+    if (!shieldEntry(st.me) && perkOf(st, 'lightStep')) p.agility = Math.round(num(p.agility) * (1 + perkOf(st, 'lightStep') / 100));
     if (weaponOn(st) && hasSk(st, 'ranger.wmaster')) p.dmgPct = num(p.dmgPct) + V(st, 'ranger.wmaster', 'dmgPct');
     if (V(st, 'knight.tough', 'hpPct')) p.hp = Math.round(num(p.hp) * (1 + V(st, 'knight.tough', 'hpPct') / 100));   // Міцне тіло: + максимум здоров'я
     var bp = shieldOn(st) ? V(st, 'knight.shield', 'blockPct') : 0;      // Блок щитом: + до «шансу блоку» щита
@@ -258,7 +270,8 @@
   /* чому активне вміння зараз не можна ('' — можна) */
   function skillBlock(st, id) {
     if (!isLive(st)) return 'over';
-    if ((st.me.bar || []).indexOf(id) < 0 || !hasSk(st, id)) return 'none';
+    id = canon(id);                                               // спільне вміння іншого класу — як у Лицаря (перезарядка теж під його id)
+    if ((st.me.bar || []).map(canon).indexOf(id) < 0 || !hasSk(st, id)) return 'none';
     if (knockedNow(st, st.me)) return 'knock';                   // оглушений — спецдій немає
     if (swapped(st)) return 'swap';                              // цього ходу вже перевдягнувся
     var cd = (st.me.cd || {})[id];
@@ -451,10 +464,10 @@
     var rec = { id: id, dmg: 0 };
     if (!opHasWeapon(po)) { rec.kind = 'noweapon'; rec.ok = false; return rec; }
     if (disarmedOn(st)) { rec.kind = 'immune'; rec.ok = false; return rec; }
-    var ws = weaponSkill(st), my = ws && hasSk(st, ws) ? Math.round(num(st.me.sk[ws]) * 100) : 0;
+    var ws = weaponSkill(st), my = ws && hasSk(st, ws) ? Math.round(num(st.me.sk[skId(st, ws)]) * 100) : 0;
     // володіння ворога: його вміння зброї в руці (бот-Лицар, Герой); немає вмінь — рівень × 5 (до 100)
     var tv = { me: st.op, op: st.me, round: st.round }, tws = weaponSkill(tv);
-    var opl = tws && hasSk(tv, tws) ? Math.round(num(st.op.sk[tws]) * 100) : Math.min(100, Math.max(0, num(st.op.f && st.op.f.level) * 5));
+    var opl = tws && hasSk(tv, tws) ? Math.round(num(st.op.sk[skId(tv, tws)]) * 100) : Math.min(100, Math.max(0, num(st.op.f && st.op.f.level) * 5));
     var need = Math.max(10, Math.min(90, Math.round(50 + (my - opl) / 2))), roll = ctx.R.d100(rnd);
     rec.need = need; rec.roll = roll; rec.ok = roll <= need; rec.my = my; rec.opl = opl;
     grow(st, id, rec.ok);
@@ -668,43 +681,11 @@
       inHit.kind = ks.indexOf('crit') >= 0 ? 'crit' : ks.indexOf('hit') >= 0 ? 'hit' : ks.indexOf('block') >= 0 ? 'block' : 'dodge';
     }
   }
-  /* Обеззброєння Слідопита: зброю не вибиває — ворог turns ходів б'є слабше (урон −dmgCut %); перезарядка cd */
-  function weakTry(ctx, st, id, rnd) {
-    var need = V(st, id, 'chance'), roll = ctx.R.d100(rnd), rec = { id: id, need: need, roll: roll, ok: roll <= need, dmg: 0 };
-    grow(st, id, rec.ok);
-    var cdN = V(st, id, 'cd'); if (cdN > 0) { st.me.cd = st.me.cd || {}; st.me.cd[id] = st.round + cdN; }
-    if (!rec.ok) { rec.kind = 'fail'; return rec; }
-    var n = Math.max(1, V(st, id, 'turns') || 2);
-    fxOf(st.op).weak = { until: st.round + n - 1, cut: V(st, id, 'dmgCut') };
-    var mn = V(st, id, 'mana'); if (mn) { st.me.mana = Math.max(0, num(st.me.mana) - mn); rec.mana = mn; }
-    rec.kind = 'weak'; rec.turns = n; rec.cut = V(st, id, 'dmgCut');
-    return rec;
-  }
-  function weakOn(u, round) { var f = u && u.fx; return !!(f && f.weak && num(f.weak.until) >= round); }
-  function weakCut(u, round, hit) {                              // u — той, хто б'є слабше
-    if (!hit || !weakOn(u, round)) return;
-    var cut = num(u.fx.weak.cut), hs = hit.hits && hit.hits.length ? hit.hits : null;
-    var f = function (h) {
-      if (!(num(h.dmg) > 0)) return;
-      var was = h.dmg; h.dmg = Math.max(1, Math.round(was * (1 - cut / 100))); h.weak = [was, cut];
-      var k = h.dmg / was; if (h.magDmg) h.magDmg = Math.round(h.magDmg * k); if (h.physDmg) h.physDmg = h.dmg - num(h.magDmg);
-    };
-    if (hs) { hs.forEach(f); hit.dmg = hs.reduce(function (a, h) { return a + (h.dmg || 0); }, 0); if (hit.physDmg != null) hit.physDmg = hit.dmg; }
-    else f(hit);
-  }
-  /* Голі руки Слідопита: без зброї чи з кастетами — з шансом combo % ще удар у ту саму зону */
-  function fistsTry(ctx, v, hit, pA, pD, blocked, rnd) {
-    var id = 'ranger.fists';
-    if (weaponSkill(v) !== id || !hasSk(v, id) || !hit.hits) return;
-    var n = V(v, id, 'combo'), d = ctx.R.d100(rnd);
-    if (d <= n) { var h = ctx.R.strike(pA, pD, blocked, rnd); h.fist2 = [d, n]; addHit(hit, h); }
-  }
-  /* Спис Слідопита: якщо твої удари цього ходу добивають ворога — з шансом first % ти встигаєш першим,
+  /* Перевага Слідопита «Швидкий спис»: якщо твої удари цього ходу добивають ворога — з шансом ти встигаєш першим,
      і його удар цього ходу не відбувається → запис для журналу або null */
   function spearFirst(ctx, st, myDmg, rnd) {
-    var id = 'ranger.spear';
-    if (weaponSkill(st) !== id || !hasSk(st, id) || !(myDmg >= st.op.force) || !(st.op.force > 0)) return null;
-    var need = V(st, id, 'first'); if (!(need > 0)) return null;
+    var need = perkOf(st, 'spearFirst');
+    if (!(need > 0) || wTypeNow(st) !== 'spear' || !(myDmg >= st.op.force) || !(st.op.force > 0)) return null;
     var r = ctx.R.d100(rnd);
     return { roll: r, need: need, ok: r <= need };
   }
@@ -727,7 +708,7 @@
     if (r > need) { grow(v, id, false); return; }
     var h = ctx.R.strike(att, pD, blocked, rnd); h.left = [r, need]; addHit(hit, h);
     grow(v, id, h.kind === 'hit' || h.kind === 'crit');
-    if (num(v.me.sk[id]) >= 1) { secondTry(ctx, v, hit, att, pD, blocked, rnd, true); thirdTry(ctx, v, hit, att, pD, blocked, rnd, true); }
+    if (num(v.me.sk[skId(v, id)]) >= 1) { secondTry(ctx, v, hit, att, pD, blocked, rnd, true); thirdTry(ctx, v, hit, att, pD, blocked, rnd, true); }
   }
   /* Розсікти: посилення ОСНОВНОГО (першого) удару ходу — урон ×dmgMul, захист зони, шанс блоку й парирування не діють
      (промах і ухилення — так). Вдалося — −mana; ворог стає обережним на careful ходів: Розсікти на нього не діє,
@@ -932,11 +913,11 @@
         if (immune) { r.immune = true; }
         else {
           r.need = Math.min(100, Math.round(100 * (ft.fear ? (B.fearNext != null ? B.fearNext : 0.5) : (B.fearFirst != null ? B.fearFirst : 0.9)) + num(ef.bonus)));
-          var brave = side === 'op' ? V(st, 'knight.brave', 'resPct') || V(st, 'ranger.brave', 'resPct') : 0;   // Хоробрість Героя (Лицар, Слідопит): страх діє рідше
+          var brave = side === 'op' ? V(st, 'knight.brave', 'resPct') : 0;   // Хоробрість Героя: страх діє рідше
           if (brave) { r.need = Math.round(r.need * (1 - brave / 100)); r.brave = brave; }
           r.roll = R.d100(rnd);
           r.ok = r.roll <= r.need;
-          if (side === 'op') { grow(st, 'knight.brave', !r.ok); grow(st, 'ranger.brave', !r.ok); }
+          if (side === 'op') grow(st, 'knight.brave', !r.ok);
           if (r.ok) { ft.fear++; ft.feared = true; r.immuneNow = ft.fear >= (B.fearImmune || 2); }
         }
       } else if (ef.type === 'barrier') {
@@ -989,12 +970,12 @@
         last: null, atk: null, block: null,
         // вміння: {id: м 0…1} лише вивчені; панель — лише вивчені активні
         sk: skillSnap(o.me.sk), skv: skillVals(o.me.sk, o.me.skv), bar: (o.me.bar || []).filter(function (id) { return id && o.me.sk && o.me.sk[id] != null; }),
-        skill: null, cd: {}, once: {}, grow: {}, growF: {}, bond: { uid: null, n: 0 }, cls: o.me.cls || null },
+        skill: null, cd: {}, once: {}, grow: {}, growF: {}, bond: { uid: null, n: 0 }, cls: o.me.cls || null, perk: perksOf(ctx.R, o.me.cls) },
       op: { f: o.op.f, p: o.op.p, atk: null, block: null, fx: { buffs: {}, barrier: 0, fear: 0 }, belt: beltLite(o.op.belt), use: null,
         // вміння суперника (бот-Лицар): ті самі поля, що в Героя; без вмінь — бот як раніше
         eq: o.op.eq && o.op.eq.length && o.op.eq[0].inst ? eqLite(o.op.eq) : [], cls: o.op.cls || null,
         sk: skillSnap(o.op.sk), skv: skillVals(o.op.sk, o.op.skv), bar: (o.op.bar || []).filter(function (id) { return id && o.op.sk && o.op.sk[id] != null; }),
-        skill: null, cd: {}, once: {}, mana: 0 },
+        skill: null, cd: {}, once: {}, mana: 0, perk: perksOf(ctx.R, o.op.cls) },
       wear: newWear(), swapRound: 0, played: 0, missed: 0, log: [], summary: null
     };
     st.me.p = profile(ctx, st);
@@ -1126,7 +1107,7 @@
     fm.bond = !!(hasSk(st, 'base.bond') && wpn && bd.n >= (V(st, 'base.bond', 'turns') || 5));
     var knocked = fo.knock === st.round;                  // суперника збили з ніг минулого ходу — не атакує
     var meShieldBack = num(fm.shieldOff) && num(fm.shieldOff) === st.round - 1, opShieldBack = num(fo.shieldOff) && num(fo.shieldOff) === st.round - 1;   // рука відійшла — щит знову в руці
-    var sid = st.me.skill, canAct = !auto && !down && !fm.feared && !meKnocked;
+    var sid = st.me.skill ? canon(st.me.skill) : null, canAct = !auto && !down && !fm.feared && !meKnocked;
     if (!oi && st.op.ai) st.op.skill = botSkill(st, vo);                          // бот обирає вміння сам
     var osid = oi ? null : st.op.skill, opCan = !down && !fo.feared && !knocked;   // бот: пояс АБО вміння
     // Берсерк, Благословення — до ударів: діють уже цього ходу
@@ -1134,7 +1115,6 @@
     var opRec = preBuff(ctx, vo, osid, opCan, sd(vo, 'skill'));
     // Слідопит: Сховатись і Обеззброєння (ворог б'є слабше) — до ударів, діють уже цього ходу
     if (sid === SKILL.rhide.id && canAct && !skillBlock(st, sid)) skillRec = hideTry(ctx, st, sid, sd(st, 'skill'));
-    if (sid === SKILL.rdisarm.id && canAct && !skillBlock(st, sid)) skillRec = weakTry(ctx, st, sid, sd(st, 'skill'));
     var blessHeal = down ? 0 : blessTick(st), opBlessHeal = down ? 0 : blessTick(vo);
     var meWill = down ? null : willTry(ctx, st, sd(st, 'will')), opWill = down ? null : willTry(ctx, vo, sd(vo, 'will'));   // Залізна воля — сама, до ударів (здоров'я < 20%)
     var pm = R.buffed ? R.buffed(st.me.p, fm.buffs) : st.me.p, po = R.buffed ? R.buffed(st.op.p, fo.buffs) : st.op.p;
@@ -1153,11 +1133,12 @@
     pm = turnBoost(st, pm); po = turnBoost(vo, po);
     if (hideOn(st)) { pm = clone(pm); pm.dmgMul = (V(st, 'ranger.hide', 'dmgMul') || 130) / 100; }   // сховався — твої удари цього ходу сильніші
     // Кистень: шанс блоку щита суперника проти твоїх ударів менший
-    // Кнут Слідопита: шанс блоку суперника проти твоїх ударів менший на blockCut %
+    // перевага Слідопита «Хльосткий кнут»: з кнутом шанс блоку суперника менший (разом із Кистенем — множаться)
     var flailCut = function (v, pD) {
-      var ws = weaponSkill(v), cut = ws === 'knight.flail' ? V(v, ws, 'shieldCut') : ws === 'ranger.whip' ? V(v, ws, 'blockCut') : 0;
-      if (!cut || !hasSk(v, ws) || !(num(pD.blockPhys) > 0)) return pD;
-      var o = {}, k; for (k in pD) o[k] = pD[k]; o.blockPhys = Math.round(num(pD.blockPhys) * (1 - cut / 100) * 10) / 10; return o;
+      var ws = weaponSkill(v), cut = ws === 'knight.flail' && hasSk(v, ws) ? V(v, ws, 'shieldCut') : 0;
+      var wc = wTypeNow(v) === 'whip' ? perkOf(v, 'whipCut') : 0;
+      if ((!cut && !wc) || !(num(pD.blockPhys) > 0)) return pD;
+      var o = {}, k; for (k in pD) o[k] = pD[k]; o.blockPhys = Math.round(num(pD.blockPhys) * (1 - cut / 100) * (1 - wc / 100) * 10) / 10; return o;
     };
     var poA = flailCut(st, po), pmA = flailCut(vo, pm);
     // Випад — посилює основний удар цього ходу
@@ -1184,7 +1165,6 @@
     if (lunge && lunge.att) lungeExtra(ctx, st, lunge, meHit, pm, poA, me.atk === op.block, sd(st, 'lunge'));
     if (opLunge && opLunge.att) lungeExtra(ctx, vo, opLunge, opHit, po, pmA, op.atk === me.block, sd(vo, 'lunge'));
     if (meAtk) comboTry(ctx, st, meHit, pm, poA, op.block, sd(st, 'combo'));
-    if (meAtk) fistsTry(ctx, st, meHit, pm, poA, me.atk === op.block, sd(st, 'combo'));
     if (opAtk) comboTry(ctx, vo, opHit, po, pmA, me.block, sd(vo, 'combo'));
     // Друга атака: з шансом — ще один звичайний удар у ту саму зону
     if (meAtk) secondTry(ctx, st, meHit, pm, poA, me.atk === op.block, sd(st, 'second'));
@@ -1237,12 +1217,10 @@
     if (r1) skillRec = r1;
     var r2 = activeStrike(ctx, vo, osid, opCan, po, pmA, op, me, sd(vo, 'skill'));
     if (r2) opRec = r2;
-    if (sid && (st.me.bar || []).indexOf(sid) < 0) st.me.skill = null;   // вибір лишається на наступний хід
+    if (sid && (st.me.bar || []).map(canon).indexOf(sid) < 0) st.me.skill = null;   // вибір лишається на наступний хід
     if (osid && (st.op.bar || []).indexOf(osid) < 0) st.op.skill = null;
     // Кам'яна шкіра: урон по тому, хто під нею, −cut% (до бар'єра)
     stoneCut(st, opHit); stoneCut(vo, meHit);
-    weakCut(st.op, st.round, opHit); weakCut(st.me, st.round, meHit);   // Обеззброєння Слідопита: б'є слабше
-    if (opRec && opRec.dmg > 0) weakCut(st.op, st.round, opRec);
     if (skillRec && skillRec.dmg > 0) stoneCut(vo, skillRec);
     if (opRec && opRec.dmg > 0) stoneCut(st, opRec);
     if (skillRec && skillRec.dmg > 0) { var sh = { dmg: skillRec.dmg, kind: 'hit', hits: [skillRec] }; applyBarrier(fo, sh); skillRec.dmg = sh.dmg; }

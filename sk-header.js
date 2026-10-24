@@ -463,7 +463,7 @@
   var rulesP = null;
   function needRules(){
     if(window.SKARENA && window.SKARENA.heroSheet) return Promise.resolve(window.SKARENA);
-    if(!rulesP) rulesP = loadScript('sk-arena-rules.js?v=27').then(function(){ return window.SKARENA || null; });
+    if(!rulesP) rulesP = loadScript('sk-arena-rules.js?v=28').then(function(){ return window.SKARENA || null; });
     return rulesP;
   }
   function sheetOf(h){
@@ -517,8 +517,8 @@
   }
   function battleDeps(){
     return Promise.all([
-      window.SKARENA  ? true : loadScript('sk-arena-rules.js?v=27'),
-      window.SKBATTLE ? true : loadScript('sk-battle.js?v=41'),
+      window.SKARENA  ? true : loadScript('sk-arena-rules.js?v=28'),
+      window.SKBATTLE ? true : loadScript('sk-battle.js?v=42'),
       needSKIT()
     ]).then(function(){ return !!(window.SKARENA && window.SKBATTLE && window.SKIT); });
   }

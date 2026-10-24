@@ -108,7 +108,7 @@ function drawAsk(){
   var cards = Object.keys(SKS.CLASSES).map(function(k){
     var c = SKS.CLASSES[k], ex = SKS.forClass(k).filter(function(x){ return x.lv <= 2; }).slice(0, 4).map(function(x){ return esc(x.name); }).join(' · ');
     return '<button class="skb-ccard' + (PICK === k ? ' on' : '') + '" type="button" data-skb-ask="' + k + '"><span class="ci">' + c.icon + '</span><b>' + c.name + '</b>'
-      + '<p>' + esc(c.about) + '</p><p class="ex">⭐ Головне: ' + esc(c.stat) + '<br>📖 ' + ex + '</p></button>';
+      + '<p>' + esc(c.about) + '</p><p class="ex">⭐ Головне: ' + esc(c.stat) + '<br>📖 ' + ex + '</p>' + perksHTML(k, true) + '</button>';
   }).join('');
   var c = PICK && SKS.CLASSES[PICK];
   w.innerHTML = '<div class="skb-ask-card"><div class="skb-ask-h">✨ Час обрати свій шлях!</div>'
@@ -245,14 +245,22 @@ function renderBook(){
   }
   host.innerHTML = h + '</div>';
 }
+/* переваги класу (SKARENA.CLASS_PERKS): діють самі, щойно обрано клас */
+function perksOf(cls){ var R = window.SKARENA; return (R && R.CLASS_PERKS && R.CLASS_PERKS[cls]) || []; }
+function perksHTML(cls, short){
+  var l = perksOf(cls); if (!l.length) return '';
+  return '<div class="skb-perks"><b>' + (short ? 'Переваги:' : '🏰 Твої переваги класу — діють самі, вчити не треба:') + '</b><ul>'
+    + l.map(function(q){ return '<li>' + q.icon + ' <b>' + esc(q.name) + '</b>' + (short ? '' : ' — ' + esc(q.text)) + '</li>'; }).join('') + '</ul></div>';
+}
 function clsHTML(ready){
   if (!ready) return '<div class="skb-msg">🔒 На ' + SKS.CLASS_LEVEL + ' рівні ти обереш свій шлях: Лицар, Слідопит, Чарівник чи Цілитель. Тоді тут з\'являться вміння класу.</div>';
   if (!ST.cls) return '<div class="skb-msg">✨ Час обрати свій шлях! Клас обирається один раз — подумай, як тобі подобається битися.</div><div class="skb-cls">'
     + Object.keys(SKS.CLASSES).map(function(k){ var c = SKS.CLASSES[k];
-        return '<button class="skb-ccard" type="button" data-skb-cls="' + k + '"><span class="ci">' + c.icon + '</span><b>' + c.name + '</b><p>' + esc(c.about) + '</p></button>'; }).join('') + '</div>';
+        return '<button class="skb-ccard" type="button" data-skb-cls="' + k + '"><span class="ci">' + c.icon + '</span><b>' + c.name + '</b><p>' + esc(c.about) + '</p>' + perksHTML(k, true) + '</button>'; }).join('') + '</div>';
   var c = SKS.CLASSES[ST.cls], r = clsRange(TAB) || CLS_RANGES[0];
   var list = SKS.readyFor ? SKS.readyFor(ST.cls).filter(function(s){ return s.lv >= r[1] && s.lv <= r[2]; }) : [];   // і ще закриті — видно, що чекає далі
-  var head = '<div class="skb-msg">' + c.icon + ' Ти — <b>' + c.name + '</b>. Вміння ' + r[1] + '–' + r[2] + ' рівня вивчаються за очки вмінь, як і звичайні.</div>';
+  var head = '<div class="skb-msg">' + c.icon + ' Ти — <b>' + c.name + '</b>. Вміння ' + r[1] + '–' + r[2] + ' рівня вивчаються за очки вмінь, як і звичайні.</div>'
+    + (r === CLS_RANGES[0] ? perksHTML(ST.cls) : '');
   if (!list.length) return head + '<div class="skb-msg">Вміння цих рівнів з\'являться в наступних оновленнях.</div>';
   return head + groupsHTML(list);
 }
