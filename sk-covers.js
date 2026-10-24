@@ -27,6 +27,17 @@
   var TITLE_IMG = [
     /* English */
     [/дні тижня|days of (the )?week/,  'eng-days-of-week', /англ|english/],
+    /* English 1 · «Вчимо літери» (klas-1/english-1-litery.html?m=N) і тести «перевір себе» до модулів */
+    [/module 1\b.*hello/,              'english-1-m01',    /англ|english/],
+    [/module 2\b.*colou?rs/,           'english-1-m02',    /англ|english/],
+    [/module 3\b.*school/,             'english-1-m03',    /англ|english/],
+    [/module 4\b.*body/,               'english-1-m04',    /англ|english/],
+    [/module 5\b.*winter/,             'english-1-m05',    /англ|english/],
+    [/module 6\b.*family/,             'english-1-m06',    /англ|english/],
+    [/module 7\b.*animals/,            'english-1-m07',    /англ|english/],
+    [/module 8\b.*food/,               'english-1-m08',    /англ|english/],
+    [/module 9\b.*toys/,               'english-1-m09',    /англ|english/],
+    [/module 10\b.*(weather|summer)/,  'english-1-m10',    /англ|english/],
     [/fly ?high/,                      'flyhigh-2-test',   /англ|english/],   // тести Fly High 2
     /* Інформатика 1 кл. */
     [/миш.*клавіатур/,                 'inf1-mysha-klaviatura'],
