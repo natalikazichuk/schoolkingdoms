@@ -636,6 +636,24 @@ test('Обеззброєння ботом: зброя Героя летить у
   assert.ok(!w.off && st.me.p.wMax > 0);
 });
 
+test('Обеззброєння ботом: через хід вибита зброя Героя сама повертається в руку', () => {
+  let st = null, r0 = 0;
+  for (let i = 0; i < 60 && !st; i++) {
+    const t = duel({}, [], { 'knight.disarm': 1, 'knight.sword': 1 }, [wear(SWORD, 'weaponR', 'bw')], [wear(SWORD, 'weaponR', 'hw')]);
+    t.op.bar = ['knight.disarm']; t.op.ai = { use: 100, smart: false };
+    const e = SB.turn(ctx, t, { atk: 'head', block: 'body' }, {}, Date.now());
+    if (e.opSkill && e.opSkill.kind === 'disarm') { st = t; r0 = e.r; }
+  }
+  assert.ok(st, 'бот вибив зброю');
+  st.op.bar = []; st.op.ai = null;
+  const w = st.me.eq.filter(e => e.uid === 'hw')[0];
+  const e1 = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+  assert.strictEqual(e1.r, r0 + 1); assert.ok(w.off, 'наступного ходу ще в сумці'); assert.ok(e1.meDisarmed); assert.ok(!e1.rearm);
+  const e2 = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+  assert.strictEqual(e2.rearm, SWORD.name, 'через хід — знову в руці');
+  assert.ok(!w.off && st.me.p.wMax > 0); assert.ok(!e2.meDisarmed);
+});
+
 test('Розбити щит: лише проти щита; щит відлітає на цей і наступний хід, потім повертається сам', () => {
   const none = duel({ 'knight.shieldbreak': 1 }, ['knight.shieldbreak'], {}, [], [wear(AXE, 'weaponR')]);
   assert.strictEqual(SB.skillBlock(none, 'knight.shieldbreak'), 'noshield', 'без щита — не марнує хід');

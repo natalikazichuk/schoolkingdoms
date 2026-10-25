@@ -486,10 +486,11 @@
     grow(st, id, rec.ok);
     if (rec.ok) {
       rec.kind = 'disarm';
-      if (st.mirror) {                                       // вибили зброю в Героя: вона летить у сумку — вдягнути її знову можна самому (дія ходу)
+      if (st.mirror) {                                       // вибили зброю в Героя: летить у сумку; через хід повертається в руку сама (rearm), або вдягни раніше сам (дія ходу)
         var hv = { me: st.op, op: st.me, round: st.round }, wr = (st.op.eq || []).filter(function (e) { return !e.off && e.slot === 'weaponR'; })[0];
-        if (wr) { wr.w1 = wearOf(ctx, wr, st.wear || {}); wr.off = true; rec.toBag = (wr.base && wr.base.name) || ''; var np = profile(ctx, hv); np.hp = st.op.p.hp; st.op.p = np; }
-        fxOf(st.op).disarm = st.round;                       // цього ходу — уже без зброї
+        if (wr) { wr.w1 = wearOf(ctx, wr, st.wear || {}); wr.off = true; rec.toBag = (wr.base && wr.base.name) || ''; var np = profile(ctx, hv); np.hp = st.op.p.hp; st.op.p = np;
+          fxOf(st.op).pickup = { uid: wr.uid, at: st.round + 2 }; rec.back = st.round + 2; }
+        fxOf(st.op).disarm = st.round + 1;                   // без зброї цей і наступний хід — як бот
       } else fxOf(st.op).disarm = st.round + 1;              // бот підбирає зброю через хід
     } else rec.kind = 'fail';
     var cdN = V(st, id, 'cd'); if (cdN > 0) { st.me.cd = st.me.cd || {}; st.me.cd[id] = st.round + cdN; }
@@ -1247,6 +1248,7 @@
     var me = (choice && choice.atk && choice.block) ? { atk: choice.atk, block: choice.block } : autoChoice(st);
     var op = botChoice(st);
     var R = ctx.R, fm = fxOf(st.me), fo = fxOf(st.op);
+    var rearmed = rearm(ctx, st);                                   // вибита зброя — знову в руці (через хід)
     var g0 = clone(st.me.grow || {}), f0 = clone(st.me.growF || {});   // для журналу: ріст вмінь за цей хід
     // 1) пояс — до ударів. Обидва щось використали — 🎲 хто перший (свиток страху першого
     //    може зірвати дію другого). Бот бере річ із пояса сам (botUse, BATTLE.botBeltUse).
@@ -1482,6 +1484,7 @@
     if (psnMe) e.mePoison = psnMe;
     if (meTog && meTog.length) e.tog = meTog;
     if (opWipe) e.opWipe = opWipe;
+    if (rearmed != null) e.rearm = rearmed;
     st.log.push(e);
     st.rev++;
     if (st.me.force <= 0 || st.op.force <= 0) finish(ctx, st, { meDown: st.me.force <= 0, opDown: st.op.force <= 0, now: now });
@@ -1532,7 +1535,7 @@
     }
     var np = profile(ctx, st);
     st.me.p = np; st.me.max = np.hp; st.me.force = Math.min(st.me.force, np.hp);
-    if (inst && slot === 'weaponR' && st.me.fx && st.me.fx.disarm) delete st.me.fx.disarm;   // вибиту зброю вдягнув сам — одразу знову в руці
+    if (inst && slot === 'weaponR' && st.me.fx && st.me.fx.disarm) { delete st.me.fx.disarm; delete st.me.fx.pickup; }   // вибиту зброю вдягнув сам — одразу знову в руці
     st.swapRound = st.round;
     st.me.use = null; st.me.skill = null;                          // перевдягання — і є дія ходу: пояс і вміння знято
     var nm = function (x) { return (x && x.base && x.base.name) || ''; };
@@ -1541,6 +1544,23 @@
     st.log.push({ t: 'swap', r: st.round, text: text });
     st.rev++;
     return text;
+  }
+
+  /* вибита зброя Героя повертається в руку сама через хід (як у бота) — якщо права рука ще вільна
+     і зброя не заважає речі в лівій. Вдягнув раніше сам — повертати нічого. → назва для журналу або null */
+  function rearm(ctx, st) {
+    var f = st.me.fx, p = f && f.pickup; if (!p || st.round < num(p.at)) return null;
+    delete f.pickup;
+    var e = (st.me.eq || []).filter(function (x) { return x.uid === p.uid; })[0];
+    if (!e || !e.off || e.broken || activeIn(st, 'weaponR')) return null;
+    var R = ctx.R, ll = activeIn(st, 'weaponL'), clash = R.handsClash || function (r) { return !!(R.isTwoHanded && R.isTwoHanded(r)); };
+    if (ll && clash(e.base, ll.base)) return null;
+    var used = Math.max(0, (e.w1 || 0) - (e.w0 || 0));
+    e.slot = 'weaponR'; e.inst.slot = 'weaponR'; e.off = false; delete e.w1;
+    e.w0 = wearOf(ctx, e, st.wear) - used;
+    var np = profile(ctx, st); st.me.p = np; st.me.max = np.hp; st.me.force = Math.min(st.me.force, np.hp);
+    if (f.disarm) delete f.disarm;
+    return (e.base && e.base.name) || '';
   }
 
   /* ── здатися: поразка, без досвіду; знос — як є ── */
