@@ -752,20 +752,19 @@ html.res-fire .avablk .hpwrap b.mn{color:#ffb070}
   75%{transform:translate(-50%,-50%) translate(0,-10px) scale(.6);opacity:.55}
   100%{transform:translate(-50%,-50%) translate(-42px,0) scale(.85);opacity:.9}}
 @media (max-width:640px){.stun i{font-size:1.15rem}}
-/* осліплений (Пісок в очі): фігура «запилена» й вицвіла, над головою кружляє пісок — поки діє.
-   Не пов'язка на очах: аватари різні, і де саме очі — наперед не відомо */
-.figwrap.blinded img{filter:sepia(.75) saturate(.7) brightness(.85) blur(.6px);transition:filter .3s}
-.blindf{position:absolute;top:13%;left:50%;width:0;height:0;z-index:41;pointer-events:none}
-.blindf i{position:absolute;left:0;top:0;width:9px;height:9px;border-radius:50%;
-  background:radial-gradient(circle at 35% 35%,#ffe7a8,#d4a24c 60%,#9a6b26);box-shadow:0 0 6px rgba(255,214,120,.8);animation:sandorb 1.8s linear infinite}
-.blindf i:nth-child(2){animation-delay:-.36s;width:6px;height:6px}.blindf i:nth-child(3){animation-delay:-.72s}
-.blindf i:nth-child(4){animation-delay:-1.08s;width:7px;height:7px}.blindf i:nth-child(5){animation-delay:-1.44s;width:5px;height:5px}
-@keyframes sandorb{
-  0%{transform:translate(-50%,-50%) translate(-38px,2px);opacity:.9}
-  25%{transform:translate(-50%,-50%) translate(0,12px) scale(1.2);opacity:1}
-  50%{transform:translate(-50%,-50%) translate(38px,0);opacity:.9}
-  75%{transform:translate(-50%,-50%) translate(0,-10px) scale(.7);opacity:.6}
-  100%{transform:translate(-50%,-50%) translate(-38px,2px);opacity:.9}}
+/* осліплений (Пісок в очі): піщана завіса на всю фігуру (піщинки летять навскіс), фігура вицвітає,
+   угорі — плашка «сліпий · N ходів». Не прив'язано до голови: аватари різні, де очі — наперед не відомо */
+.figwrap.blinded img{filter:sepia(.8) saturate(.65) brightness(.82) blur(.7px);transition:filter .3s}
+.blindf{position:absolute;inset:0;z-index:41;pointer-events:none;overflow:hidden;border-radius:inherit}
+.blindf::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 30%,rgba(232,190,110,.42),rgba(196,146,64,.22) 55%,rgba(150,105,40,.12));animation:sandveil 3s ease-in-out infinite}
+.blindf::after{content:'';position:absolute;inset:-40% -40%;
+  background-image:radial-gradient(circle,rgba(255,226,150,.95) 0 1.6px,transparent 2.2px),radial-gradient(circle,rgba(214,160,72,.9) 0 1.2px,transparent 1.8px);
+  background-size:26px 22px,17px 19px;background-position:0 0,9px 7px;animation:sanddrift 1.9s linear infinite;opacity:.85}
+.blindf b{position:absolute;top:6px;left:50%;transform:translateX(-50%);white-space:nowrap;font:800 .72rem/1 'Nunito',sans-serif;color:#3b2405;
+  background:linear-gradient(180deg,#ffe6a6,#e4b25a);border:2px solid #fff3cf;border-radius:999px;padding:3px 9px;box-shadow:0 2px 6px rgba(0,0,0,.45)}
+@keyframes sanddrift{from{transform:translate(0,0)}to{transform:translate(-26px,22px)}}
+@keyframes sandveil{0%,100%{opacity:.8}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.blindf::after,.blindf::before{animation:none}}
 @keyframes floatup{
   0%{opacity:0;transform:translate(-50%,16px) scale(.55)}
   11%{opacity:1;transform:translate(-50%,-2px) scale(1.2)}
@@ -2345,8 +2344,9 @@ window.SKHERO = (function(){
       var card = document.querySelector('#'+x[0]+'Scene .figwrap'); if(!card) return;
       var b = x[1] && x[1].fx && x[1].fx.blind, on = B.status!=='over' && !!b && b.from<=B.round && b.until>=B.round;
       var el = card.querySelector('.blindf');
-      if(on && !el){ el = document.createElement('div'); el.className='blindf'; el.innerHTML='<i></i><i></i><i></i><i></i><i></i>'; el.title='Осліплений — гірше влучає й не ухиляється'; card.appendChild(el); }
+      if(on && !el){ el = document.createElement('div'); el.className='blindf'; el.title='Осліплений — гірше влучає й не ухиляється'; card.appendChild(el); }
       else if(!on && el) el.remove();
+      if(on){ var nl = b.until - B.round + 1; el.innerHTML = '<b>🫳 сліпий · '+nl+' '+(nl===1?'хід':'ходи')+'</b>'; }
       card.classList.toggle('blinded', on);
     });
     [['p', B.me], ['o', B.op]].forEach(function(x){
