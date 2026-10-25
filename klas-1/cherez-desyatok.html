@@ -177,6 +177,14 @@ h1,h2,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px
 
 /* після помилки замість завдання — правильний крок (видно над дошкою) */
 .task.no{color:var(--bad);font-size:25px}
+/* сердечка (рівні з «життями»): помилка забирає одне, усі втрачено — рівень спочатку */
+.hearts{display:flex;justify-content:center;gap:4px;margin:-4px 0 6px;font-size:24px;line-height:1}
+.hearts span{transition:opacity .3s,filter .3s}
+.hearts span.off{opacity:.35;filter:grayscale(1)}
+.hearts span.lost{animation:heartLost .6s ease}
+@keyframes heartLost{0%{transform:scale(1)}30%{transform:scale(1.45)}60%{transform:scale(.8) rotate(-12deg)}100%{transform:none}}
+.opt.no{animation:optShake .4s ease}
+@keyframes optShake{0%,100%{transform:none}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 .task small{display:block;font-family:'Nunito';font-size:14px;font-weight:800;color:var(--soft);margin-top:2px}
 
 /* результат рівня */
@@ -247,6 +255,7 @@ h1,h2,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px
       <span class="score" id="p-score">✓ 0</span>
     </div>
     <div class="qbar"><i id="p-bar"></i></div>
+    <div class="hearts hide" id="p-hearts" aria-label="Сердечка"></div>
     <div class="task" id="p-task"></div>
     <div class="board" id="p-board"></div>
     <div class="opts" id="p-opts"></div>
@@ -283,6 +292,8 @@ h1,h2,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px
    «пропущене число» в розкладі, «швидко» (одразу відповідь, а при
    помилці — підказка з розкладом) і «чемпіон» (усе разом).
    Рівень пройдено — 80% прикладів без помилки.
+   Рівні з lives: помилку не підказуємо — кнопка червоніє, пауза, нові
+   варіанти; кожна помилка забирає ❤️, усі втрачено — рівень спочатку.
    Прогрес: localStorage 'sk_game_cherez_desyatok' (простір sk_*,
    синхронізується в heroes/{id}.progress). Нагорода — лише з адмінки.
    ============================================================ */
@@ -292,7 +303,7 @@ const LEVELS = [
   {t:"Додаємо: усі приклади",   s:"+ крок за кроком", mode:"guided", set:"add"},
   {t:"Віднімаємо через 10",     s:"− крок за кроком", mode:"guided", set:"subE"},
   {t:"Віднімаємо: усі приклади",s:"− крок за кроком", mode:"guided", set:"sub"},
-  {t:"Додаємо і віднімаємо",    s:"± крок за кроком", mode:"guided", set:"mix"},
+  {t:"Додаємо і віднімаємо",    s:"± крок за кроком", mode:"guided", set:"mix", lives:5},
   {t:"Пропущене число",         s:"знайди ?",         mode:"blank",  set:"mix"},
   {t:"Швидко додаємо",          s:"+ одразу",         mode:"fast",   set:"add"},
   {t:"Швидко віднімаємо",       s:"− одразу",         mode:"fast",   set:"sub"},
@@ -401,6 +412,7 @@ function hintLine(e){ return `${e.a} ${e.op} ${e.b} = ${e.a} ${e.op} ${e.p} ${e.
 let L = 0, qi = 0, correct = 0, ex = null, exErr = false, busy = true;
 let Q = null;        // поточне питання: {kind, step, ans, lo, hi}
 let run = 0;         // «покоління» гри — скасовує відкладені кроки після виходу
+let lives = 0;       // сердечка рівня (0 — рівень без сердечок)
 
 function later(fn, ms){ const id = run; setTimeout(() => { if(id === run) fn(); }, ms); }
 
@@ -452,6 +464,8 @@ function drawMap(){
 function startLevel(i){
   stopRound();
   L = i; qi = 0; correct = 0;
+  lives = LEVELS[i].lives || 0;
+  drawHearts();
   deck = []; dpos = 0; lastEx = null;
   $("p-title").textContent = LEVELS[i].t;
   $("p-eyebrow").textContent = `Рівень ${i+1} з 10 · ${QN(i)} прикладів`;
@@ -464,6 +478,14 @@ function updateHud(){
   $("p-num").textContent = Math.min(qi+1, QN(L));
   $("p-score").textContent = "✓ " + correct;
   $("p-bar").style.width = (qi / QN(L) * 100).toFixed(1) + "%";
+}
+
+function drawHearts(lost){
+  const max = LEVELS[L].lives || 0, h = $("p-hearts");
+  h.classList.toggle("hide", !max);
+  let s = "";
+  for(let k=0;k<max;k++) s += `<span class="${k<lives?"":"off"}${k===lives&&lost?" lost":""}">❤️</span>`;
+  h.innerHTML = s;
 }
 
 /* новий приклад: вибір варіанта для рівня */
@@ -504,16 +526,23 @@ function ask(){
     task = add ? "Додай через десяток" : "Відніми через десяток";
     $("p-board").innerHTML = fastHTML(e, "ask");
   }
-  Q.ans = ans;
+  Q.ans = ans; Q.lo = lo; Q.hi = hi; Q.task = task;
   $("p-task").textContent = task; $("p-task").className = "task";
+  drawOpts();
+  busy = false;
+}
+/* варіанти відповіді; після помилки — інший набір чи порядок, ніж був */
+function drawOpts(){
+  const was = [...$("p-opts").children].map(b => b.textContent).join();
+  let vs;
+  for(let t=0;t<12;t++){ vs = optsNear(Q.ans, Q.lo, Q.hi); if(vs.join() !== was) break; }
   $("p-opts").innerHTML = "";
-  optsNear(ans, lo, hi).forEach(v => {
+  vs.forEach(v => {
     const b = document.createElement("button");
     b.className = "opt"; b.type = "button"; b.textContent = v;
     b.onclick = () => tapOpt(b, v);
     $("p-opts").appendChild(b);
   });
-  busy = false;
 }
 function lockOpts(){ [...$("p-opts").children].forEach(b => b.disabled = true); }
 
@@ -535,6 +564,22 @@ function tapOpt(btn, v){
   if(ok){
     btn.classList.add("ok");
     later(advance, 380);
+  }else if(lives > 0){
+    // рівень із сердечками: відповідь не підказуємо — червона кнопка, пауза, нові варіанти
+    exErr = true; lives--;
+    btn.classList.add("no");
+    drawHearts(true);
+    $("p-task").className = "task no";
+    if(lives === 0){
+      $("p-task").textContent = "💔 Сердечка закінчилися — починаємо спочатку!";
+      later(() => startLevel(L), 2200);
+      return;
+    }
+    $("p-task").textContent = "Ні, спробуй ще раз!";
+    later(() => {
+      $("p-task").textContent = Q.task; $("p-task").className = "task";
+      drawOpts(); busy = false;
+    }, 1100);
   }else{
     exErr = true;
     btn.classList.add("no");
