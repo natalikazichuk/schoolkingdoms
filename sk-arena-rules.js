@@ -184,8 +184,8 @@
   }
   /* правила рук під вміння Героя: Друга зброя — зброя в лівій; Хватка велетня — дворучна + щит */
   function handsFromHero(h) {
-    var s = (h && h.skills) || {}, kn = !!(h && h.heroClass === 'knight');
-    BATTLE.dualWield = kn && s['knight.offhand'] != null;
+    var s = (h && h.skills) || {}, kn = !!(h && h.heroClass === 'knight'), rg = !!(h && h.heroClass === 'ranger');
+    BATTLE.dualWield = (kn && s['knight.offhand'] != null) || (rg && s['ranger.dual'] != null);   // Слідопит: «Друга зброя» — спільна з Лицарем
     BATTLE.grip = kn && s['knight.grip'] != null;
   }
   /* вдягнене [{base, inst}] → без того, що руками носити не можна (стара сумка могла мати

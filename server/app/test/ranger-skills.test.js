@@ -529,3 +529,64 @@ test('Опір типу урону — кінцеве зменшення: кул
   const dg = battle({}, [], [wear(DAGGER, 'weaponR')]); assert.strictEqual(dg.me.p.dmgType, 'pierce', 'кинджал — колючий');
   assert.strictEqual(R.resCut(100, 'slash', { resSlash: 50 }).dmg, 67, 'стеля 33% навіть якщо в профілі більше');
 });
+
+test('Слідопит: спільні з Лицарем — Збити з пантелику, Друга зброя, Посилений урон, Третя атака', () => {
+  ['ranger.daze', 'ranger.dual', 'ranger.enh', 'ranger.third'].forEach(id => { const s = S.byId(id); assert.ok(s.ready, id); assert.ok(s.same, id + ' спільне'); });
+  // Посилений урон — у профілі
+  assert.ok(battle({ 'ranger.enh': 1 }, [], [wear(DAGGER, 'weaponR')]).me.p.dmgPct > battle({}, [], [wear(DAGGER, 'weaponR')]).me.p.dmgPct);
+  // Третя атака — бувають треті удари, ріст іде у вміння Слідопита
+  let third = 0; const st3 = battle({ 'ranger.third': 1 }, [], [wear(DAGGER, 'weaponR')]);
+  st3.me.p.accuracy = 5000; st3.op.p.agility = 1; st3.op.force = 99999;
+  for (let k = 0; k < 40 && st3.status === 'live'; k++) { const e = turnOf(st3, HIT); if (e.meHit.hits.some(h => h.third)) third++; }
+  assert.ok(third > 0); assert.ok((st3.me.grow['ranger.third'] || 0) + (st3.me.growF['ranger.third'] || 0) > 0);
+  // Збити з пантелику — влучив: концентрація ворога 0
+  let dz = 0;
+  for (let k = 0; k < 20 && !dz; k++) { const st = battle({ 'ranger.daze': 1 }, ['ranger.daze'], [wear(DAGGER, 'weaponR')]);
+    st.me.p.accuracy = 5000; st.op.p.agility = 1; st.op.fx.focus = 3; SB.useSkill(ctx, st, 'ranger.daze');
+    const e = turnOf(st, { atk: 'head', block: 'body' }); if (e.skill && e.skill.daze) { dz++; assert.strictEqual(st.op.fx.focus, 0); } }
+  assert.ok(dz);
+  // Друга зброя — кинджал у ліву, удар лівою
+  const B = R.BATTLE, d0 = B.dualWield;
+  try {
+    R.handsFromHero({ heroClass: 'ranger', skills: {} }); assert.ok(!R.fitsHand(DAGGER, 'weaponL'));
+    R.handsFromHero({ heroClass: 'ranger', skills: { 'ranger.dual': 5 } }); assert.ok(R.fitsHand(DAGGER, 'weaponL'), 'Слідопит: кинджал у ліву');
+    const DAG2 = Object.assign({}, DAGGER, { id: 'D2' });
+    const st = battle({ 'ranger.dual': 1 }, [], [wear(DAGGER, 'weaponR'), wear(DAG2, 'weaponL')]);
+    st.me.p.accuracy = 5000; st.op.p.agility = 1;
+    const e = turnOf(st, HIT); assert.ok(e.meHit.hits.some(h => h.left), 'удар лівою');
+  } finally { B.dualWield = d0; }
+});
+
+test('Поспіх: перемикач −30 мани щоходу; щоходу ще один звичайний удар ×0.7 (25%) → ×1 (100%); і в хід із Піском; не запускає Другу атаку', () => {
+  assert.strictEqual(S.skillValues('ranger.haste', 25).dmgMul, 70); assert.strictEqual(S.skillValues('ranger.haste', 100).dmgMul, 100);
+  const st = battle({ 'ranger.haste': 1, 'ranger.sand': 1 }, ['ranger.haste', 'ranger.sand'], [wear(DAGGER, 'weaponR')]);
+  st.me.p.accuracy = 5000; st.op.p.agility = 1; st.op.force = 99999;
+  assert.ok(SB.useSkill(ctx, st, 'ranger.haste'));
+  SB.useSkill(ctx, st, 'ranger.sand');
+  const m0 = st.me.mana, e = turnOf(st, { atk: 'head', block: 'body' });
+  const hs = e.meHit.hits.filter(h => h.haste);
+  assert.strictEqual(hs.length, 1, 'рівно один удар Поспіху');
+  assert.ok(m0 - st.me.mana >= 30, 'мана за хід');
+  assert.ok(!hs[0].second && !hs[0].third);
+  assert.ok(e.meHit.hits.filter(h => h.second).length <= 1, 'Друга атака — не від Поспіху');
+  // 25%: удар ×0.7
+  const s25 = battle({ 'ranger.haste': 0.25 }, ['ranger.haste'], [wear(DAGGER, 'weaponR')]);
+  s25.me.p.accuracy = 5000; s25.op.p.agility = 1; SB.useSkill(ctx, s25, 'ranger.haste');
+  s25.op.force = 99999; let h25 = null;
+  for (let k = 0; k < 20 && !h25; k++) { const e25 = turnOf(s25, { atk: ['head', 'legs', 'arms', 'body'][k % 4], block: 'body' }); h25 = e25.meHit.hits.filter(h => h.haste && h.kind === 'hit')[0]; }
+  assert.ok(h25 && /× 0\.7/.test(h25.calc), h25 && h25.calc);
+  // збитий з ніг — удару немає
+  const sk = battle({ 'ranger.haste': 1 }, ['ranger.haste'], [wear(DAGGER, 'weaponR')]); SB.useSkill(ctx, sk, 'ranger.haste');
+  sk.me.fx.knock = sk.round;
+  const ek = turnOf(sk, { atk: 'head', block: 'body' });
+  assert.ok(!(ek.meHit.hits || []).some(h => h.haste), 'збитий з ніг — без Поспіху');
+});
+
+test('Поспіх і Камуфляж разом — лише з Другим запалом; другий дорожчий', () => {
+  const st = battle({ 'ranger.haste': 1, 'ranger.camo': 1 }, ['ranger.haste', 'ranger.camo']);
+  assert.ok(SB.useSkill(ctx, st, 'ranger.camo')); assert.ok(!SB.useSkill(ctx, st, 'ranger.haste'), 'без Другого запалу — один перемикач');
+  const s2 = battle({ 'ranger.haste': 1, 'ranger.camo': 1, 'ranger.fire2': 0.25 }, ['ranger.haste', 'ranger.camo']);
+  SB.useSkill(ctx, s2, 'ranger.camo'); assert.ok(SB.useSkill(ctx, s2, 'ranger.haste'));
+  const m0 = s2.me.mana; turnOf(s2, { atk: 'head', block: 'body' });
+  assert.strictEqual(m0 - s2.me.mana, 7 + 60, 'Камуфляж 7 + Поспіх ×2');
+});
