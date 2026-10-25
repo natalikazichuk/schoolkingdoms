@@ -319,8 +319,8 @@ test('Змастити зброю: −50 мани, удари +10% отруто�
     const t2 = turnOf(st), t3 = turnOf(st);
     assert.strictEqual(t2.poison, tick); assert.strictEqual(t3.poison, tick);
     assert.strictEqual(st.op.fx.pimm, r0 + 3);
-    const res = (round) => { const d = round - st.op.fx.pimm; return d < 3 ? 100 : Math.max(0, 100 - 10 * (d - 2)); };
-    assert.strictEqual(res(r0 + 5), 100); assert.strictEqual(res(r0 + 6), 90); assert.strictEqual(res(r0 + 7), 80);
+    const res = (round) => SB.poisonRes(st.op, round, 'chance');   // отрута минула: 100%, далі щоходу −10%
+    assert.strictEqual(res(r0 + 3), 100); assert.strictEqual(res(r0 + 4), 90); assert.strictEqual(res(r0 + 5), 80); assert.strictEqual(res(r0 + 13), 0);
     done = true;
   }
   assert.ok(done, 'хоч раз отруїв');
@@ -336,7 +336,9 @@ test('Антидот з пояса: знімає отруту й дає імун
   const e = turnOf(st);
   const fx = (e.uses || [])[0] && e.uses[0].fx.find(x => x.type === 'antidote');
   assert.ok(fx && fx.cured, 'антидот спрацював');
-  assert.ok(!st.me.fx.poison); assert.strictEqual(st.me.fx.pimm, 1);
+  assert.ok(!st.me.fx.poison); assert.strictEqual(st.me.fx.pimm, 1); assert.strictEqual(st.me.fx.pimmHold, 2);
+  const res = (r) => SB.poisonRes(st.me, r, 'chance');          // антидот: 2 ходи 100%, далі −10%
+  assert.strictEqual(res(1), 100); assert.strictEqual(res(2), 100); assert.strictEqual(res(3), 90); assert.strictEqual(res(4), 80);
 });
 
 test('Перев\'язка: −15 мани, лікує 10%; на 100% знімає отруту (і з повним здоров\'ям), +50% опору', () => {
@@ -421,4 +423,31 @@ test('Змащена зброя: зняв / замінив клинок — от
   turnOf(st, { atk: 'head', block: 'body' });
   assert.ok(SB.swap(ctx, st, 'weaponR', was.inst, DAGGER), 'повернув той самий');
   for (let k = 0; k < 2; k++) { const e = turnOf(st, { atk: k ? 'legs' : 'head', block: 'body' }); assert.ok(!e.meHit.hits.some(h => h.venom)); }
+});
+
+test('Опір отруті з речей: свій опір — нижня межа спаду; урон отрутою й тіки — лише свій + Перев\'язка', () => {
+  const AM = item({ id: 'AM1', name: 'Амулет', category: 'Амулет', stat: 'Броня', valueMin: 1, valueMax: 1, addStats: [{ stat: 'Опір отруті', value: 30 }] });
+  const st = battle({}, [], [wear(AM, 'amulet')]);
+  assert.strictEqual(st.me.p.resPoison, 30, 'опір з речі');
+  assert.strictEqual(SB.poisonRes(st.me, 1, 'dmg'), 30); assert.strictEqual(SB.poisonRes(st.me, 1, 'chance'), 30);
+  st.me.fx.pimm = 5; st.me.fx.pimmHold = 0;                      // отрута минула на 4-му ходу
+  assert.strictEqual(SB.poisonRes(st.me, 5, 'chance'), 100);
+  assert.strictEqual(SB.poisonRes(st.me, 10, 'chance'), 50);
+  assert.strictEqual(SB.poisonRes(st.me, 20, 'chance'), 30, 'не нижче свого');
+  assert.strictEqual(SB.poisonRes(st.me, 6, 'dmg'), 30, 'урон отрутою — лише свій');
+  st.me.fx.bres = { until: 99, pct: 50 };
+  assert.strictEqual(SB.poisonRes(st.me, 20, 'dmg'), 80, 'свій + Перев\'язка');
+  assert.strictEqual(SB.poisonRes(st.me, 20, 'chance'), 80);
+  assert.strictEqual(S.byId('ranger.poison') && K.isPctStat('Опір отруті'), true, 'завжди у відсотках');
+  assert.ok(K.dmgType('poison'), 'тип урону «Отрута»');
+});
+
+test('Поки отруєний — удруге не отруїти', () => {
+  const st = battle({ 'ranger.poison': 1 }, ['ranger.poison'], [wear(DAGGER, 'weaponR')]);
+  st.me.p.accuracy = 5000; st.op.p.agility = 1; st.op.p.accuracy = 1; st.op.force = st.op.max = 100000;
+  SB.useSkill(ctx, st, 'ranger.poison'); turnOf(st, { atk: 'head', block: 'body' });
+  st.op.fx.poison = { from: st.round, until: st.round + 2, tick: 5 };
+  st.me.fx.venom.ch = 100;                                        // навіть зі 100% шансом
+  const e = turnOf(st, { atk: 'legs', block: 'body' });
+  assert.ok(!e.meHit.hits.some(h => h.poisonTry || h.poisoned));
 });

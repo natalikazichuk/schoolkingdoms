@@ -56,7 +56,14 @@
     "Бар'єр": 'barrier',
     'Антидот': 'antidote',
     'Оглушення': 'stun',
-    'Маг. Резист ': 'magicResist'
+    'Маг. Резист ': 'magicResist',
+    /* опір стихіям і отруті (завжди %): від свого типу урону. На арені зараз діє «Опір отруті» */
+    'Опір отруті': 'resPoison',
+    'Опір вогню': 'resFire',
+    'Опір холоду': 'resCold',
+    'Опір струму': 'resShock',
+    'Опір світлу': 'resLight',
+    'Опір темряві': 'resDark'
   };
   var FLAG_STATS = ['Дворучний', 'Разовий предмет'];
 
@@ -87,8 +94,10 @@
     { key: 'bash',   label: 'Тупий',    icon: '🪨' },
     { key: 'magic',  label: 'Магічний', icon: '✨' },
     /* стихії — на майбутнє (вогняні мечі, крижані посохи, світлі й темні чари) */
+    { key: 'poison', label: 'Отрута',   icon: '🐍' },
     { key: 'fire',   label: 'Вогонь',   icon: '🔥' },
     { key: 'cold',   label: 'Холод',    icon: '❄️' },
+    { key: 'shock',  label: 'Струм (блискавка)', icon: '⚡' },
     { key: 'light',  label: 'Світло',   icon: '☀️' },
     { key: 'dark',   label: 'Темрява',  icon: '🌑' }
   ];
@@ -107,7 +116,7 @@
 
   function isFlagEntry(e) { return !!(e && (e.flag || FLAG_STATS.indexOf(e.stat) >= 0)); }
   /* шанси (крит, блок) — завжди у відсотках, незалежно від галочки «%» у записі речі */
-  var PCT_ALWAYS = { critDamage: 1, block: 1 };
+  var PCT_ALWAYS = { critDamage: 1, block: 1, resPoison: 1, resFire: 1, resCold: 1, resShock: 1, resLight: 1, resDark: 1 };
   function isPctStat(name) { return !!PCT_ALWAYS[STAT_MAP[name] || name]; }
   function canon(name) { return STAT_MAP[name] || name; }
   function floor(n) { return Math.floor(n); }

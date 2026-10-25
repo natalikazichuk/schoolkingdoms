@@ -765,20 +765,27 @@
   }
   /* ── ОТРУТА ──
      Змастити зброю: шанс 50% → 100%; вдалося — −mana, зброя змащена turns ходів. Кожен удар, що завдав урону, —
-     ще +pct% урону отрутою (опір зменшує, не більше ніж наполовину) і шанс chance2% отруїти (× (1 − опір)).
-     Отруєний: 3 ходи −tick% макс. здоров'я наприкінці ходу. Отрута минула чи антидот — імунітет fx.pimm:
-     3 ходи повний опір, далі 90%, 80% … 0%. Перев'язка на 100% — ще +50% опору на 5 ходів (fx.bres). */
+     ще +pct% урону отрутою і шанс chance2% отруїти. Отруєний: 3 ходи −tick% макс. здоров'я наприкінці ходу;
+     поки отруєний — удруге не отруїти.
+     ОПІР ОТРУТІ (poisonRes):
+       свій (base) — «Опір отруті» з речей (p.resPoison), згодом і з вмінь;
+       Перев'язка на 100% — +50% на 5 ходів (fx.bres);
+       після отруєння (fx.pimm — з якого ходу, fx.pimmHold — скільки ходів тримає 100%): отрута минула — 100%, далі
+       щоходу −10%; антидот — 2 ходи 100%, далі −10%; не нижче свого.
+       'dmg'    — урон отрутою з удару й тіки: свій + Перев'язка;
+       'chance' — шанс отруїти: max(свій, після отруєння) + Перев'язка. Разом не більше 100%. */
   /* отрута — на КОНКРЕТНОМУ клинку (uid): клинок покинув руку (зняв, замінив, вибили, зламався) — отрута зникла,
      повернув ту саму зброю — вона вже чиста (щоб не маніпулювати перевдяганням) */
   function venomOn(st) { var f = st.me && st.me.fx, w = weaponOn(st);
     return !!(f && f.venom && num(f.venom.until) >= st.round && w && w.uid === f.venom.uid && !heroDisarmed(st)); }
   function poisoned(u, round) { var p = u && u.fx && u.fx.poison; return !!(p && num(p.until) >= round); }
-  function poisonRes(u, round) {
-    var f = u && u.fx; if (!f) return 0;
-    var r = 0, d = f.pimm != null ? round - num(f.pimm) : -1;
-    if (d >= 0) r = d < 3 ? 100 : Math.max(0, 100 - 10 * (d - 2));
-    if (f.bres && num(f.bres.until) >= round) r += num(f.bres.pct) || 50;
-    return Math.min(100, r);
+  function poisonRes(u, round, kind) {
+    var f = (u && u.fx) || {}, base = Math.max(0, Math.min(100, num(u && u.p && u.p.resPoison)));
+    var band = f.bres && num(f.bres.until) >= round ? (num(f.bres.pct) || 50) : 0;
+    if (kind === 'dmg') return Math.min(100, base + band);
+    var after = 0, d = f.pimm != null ? round - num(f.pimm) : -1;
+    if (d >= 0) { var hold = num(f.pimmHold), k = hold ? Math.max(0, d - hold + 1) : d; after = Math.max(0, 100 - 10 * k); }
+    return Math.min(100, Math.max(base, after) + band);
   }
   function venomTry(ctx, st, id, rnd) {
     var need = V(st, id, 'chance'), roll = ctx.R.d100(rnd), rec = { id: id, need: need, roll: roll, ok: roll <= need, dmg: 0 };
@@ -793,7 +800,7 @@
   }
   function venomHits(ctx, v, hit, rnd) {                        // v — той, чия зброя змащена; hit — його удари
     if (!venomOn(v) || !wTypeNow(v) || !hit || !hit.hits) return;   // отрута на клинку: зброю вибито (б'є кулаками) — не діє
-    var vn = v.me.fx.venom, res = poisonRes(v.op, v.round), cut = Math.min(res, 50);
+    var vn = v.me.fx.venom, res = poisonRes(v.op, v.round, 'chance'), cut = poisonRes(v.op, v.round, 'dmg');
     hit.hits.forEach(function (h) {
       if ((h.kind !== 'hit' && h.kind !== 'crit') || !(num(h.dmg) > 0)) return;
       var x = Math.round(h.dmg * num(vn.pct) / 100 * (1 - cut / 100));
@@ -808,9 +815,9 @@
   function poisonTick(u, round) {                               // → скільки забрала отрута цього ходу
     var f = u.fx, p = f && f.poison;
     if (!p || round < num(p.from) || round > num(p.until)) return 0;
-    var d = Math.round(num(u.max) * (num(p.tick) || 5) / 100 * (1 - poisonRes(u, round) / 100));
+    var d = Math.round(num(u.max) * (num(p.tick) || 5) / 100 * (1 - poisonRes(u, round, 'dmg') / 100));
     if (d > 0) u.force -= d;
-    if (round >= num(p.until)) { delete f.poison; f.pimm = round + 1; }   // минула — далі імунітет
+    if (round >= num(p.until)) { delete f.poison; f.pimm = round + 1; f.pimmHold = 0; }   // минула — далі опір 100% і спад
     return d;
   }
   /* Перев'язка: шанс 50% → 100%; вдалося — −mana, ще до ударів лікує heal%; на 100% — знімає отруту й +50% опору на 5 ходів */
@@ -1105,7 +1112,7 @@
       } else if (ef.type === 'barrier') {
         fa.barrier += ef.n; r.n = ef.n;
       } else if (ef.key === 'antidote') {                       // антидот: знімає отруту, далі імунітет (3 ходи повний, потім слабшає)
-        r.type = 'antidote'; r.cured = !!fa.poison; delete fa.poison; fa.pimm = st.round;
+        r.type = 'antidote'; r.cured = !!fa.poison; delete fa.poison; fa.pimm = st.round; fa.pimmHold = 2;   // 2 ходи 100%, потім спад
       } else { r.key = ef.key; }
       rec.fx.push(r);
     });
@@ -1473,7 +1480,7 @@
     if (opUp.length) e.opUp = opUp;
     // 🧪 ТИМЧАСОВО ДЛЯ ТЕСТУ: стан обох після ходу (мана, концентрація, до якого ходу діють лють / благословення / обеззброєння / оглушення)
     var snap = function (u) { var f = u.fx || {}; return { m: Math.round(num(u.mana)), f: num(f.focus), bz: num(f.berserk), bl: f.bless ? num(f.bless.until) : 0, dis: num(f.disarm), kn: num(f.knock),
-      sto: f.stone ? num(f.stone.until) : 0, sng: f.song ? num(f.song.until) : 0, wil: num(f.will), sho: num(f.shieldOff), tng: f.tangle ? num(f.tangle.until) : 0, frz: num(f.frenzy), car: num(f.careful), psn: f.poison ? num(f.poison.until) : 0, pres: poisonRes(u, st.round), ven: f.venom ? num(f.venom.until) : 0, bld: f.blind ? num(f.blind.until) : 0, tog: (u.tog || []).slice(), cd: clone(u.cd || {}) }; };
+      sto: f.stone ? num(f.stone.until) : 0, sng: f.song ? num(f.song.until) : 0, wil: num(f.will), sho: num(f.shieldOff), tng: f.tangle ? num(f.tangle.until) : 0, frz: num(f.frenzy), car: num(f.careful), psn: f.poison ? num(f.poison.until) : 0, pres: poisonRes(u, st.round, 'chance'), ven: f.venom ? num(f.venom.until) : 0, bld: f.blind ? num(f.blind.until) : 0, tog: (u.tog || []).slice(), cd: clone(u.cd || {}) }; };
     e.st = { me: snap(st.me), op: snap(st.op) };
     if (st.op.fx && st.op.fx.focus) e.opFocus = num(st.op.fx.focus);
     // ріст вмінь цього ходу: {id: [вдалих, невдалих, разом вдалих за бій, разом невдалих за бій]}
@@ -1693,6 +1700,7 @@
     rng: rng, newBid: newBid, newWear: newWear, isLive: isLive, turnMs: turnMs,
     eqLite: eqLite, profile: profile, wearOf: wearOf, itemWear: itemWear, leftDur: leftDur, activeIn: activeIn,
     create: create, botChoice: botChoice, autoChoice: autoChoice, turn: turn, catchUp: catchUp,
+    poisonRes: poisonRes,
     swap: swap, useBelt: useBelt, beltItem: beltItem, beltLite: beltLite, applyUse: applyUse, fxOf: fxOf,
     surrender: surrender, finish: finish, applyToHero: applyToHero, lockLive: lockLive, noticeText: noticeText,
     SKILL: SKILL, useSkill: useSkill, skillBlock: skillBlock, berserkOn: berserkOn, blessOn: blessOn, disarmedOn: disarmedOn, SKILL_WEAPONS: SKILL_WEAPONS, SHATTER_MUL: SHATTER_MUL, PARRY: PARRY, swapped: swapped, beltChosen: beltChosen, knockedNow: knockedNow
