@@ -25,7 +25,30 @@ body.flipped #scene{background:radial-gradient(circle at 50% 55%,#d0bfff 0%,#795
 #lamps3{position:absolute; top:12px; right:10px; display:flex; gap:5px;}
 #lamps3 .l{width:22px; height:22px; border-radius:50%; background:#5c5f66; border:2px solid #2b2d31; color:#fff; font-size:11px; font-weight:800; line-height:18px; text-align:center;}
 #lamps3 .l.on{background:radial-gradient(circle at 40% 35%,#fff9db,#ffd43b 55%,#f59f00); box-shadow:0 0 10px 3px rgba(255,212,59,.75); color:#5c3d00;}
+
+/* ═════ картинки художника (img/sertse-svitu/) ═════ */
+/* зала Серця: серце над п'єдесталом, кристали — на підлозі */
+#scene{height:240px; background:#472d44 url(img/sertse-svitu/scene-bg.webp) center/cover no-repeat;}
+body.flipped #scene{background:#ae9bcc url(img/sertse-svitu/scene-bg.webp) center/cover no-repeat;}
+#scene{border:3px solid #e3c27a; box-shadow:0 0 0 2px #c9a05a, 0 8px 16px rgba(60,30,10,.25);}
+#scene:before{content:""; position:absolute; inset:0; background:rgba(150,90,230,.3); opacity:0; transition:opacity .6s; pointer-events:none; z-index:0;}   /* 🔄 — фіолетовий світ */
+body.flipped #scene:before{opacity:1;}
+#scene > *{z-index:1;}   /* усе — над фіолетовим шаром 🔄 */
+/* серце художника: спить, доки не засвічено всі три кристали */
+#heart{top:12px; width:120px; height:auto; aspect-ratio:1; margin-left:-60px; font-size:0; background:url(img/sertse-svitu/heart-sleep.webp) center/contain no-repeat; filter:drop-shadow(0 6px 10px rgba(80,0,120,.5));}
+#heart.awake{background-image:url(img/sertse-svitu/heart-awake.webp); filter:drop-shadow(0 0 16px rgba(255,200,255,.8));}
+/* кристали художника: згаслий / засвічений */
+.gm .c{width:40px; height:auto; aspect-ratio:147/235; transform:none; border:0; border-radius:0; background:url(img/sertse-svitu/gem-off.webp) center/contain no-repeat; filter:drop-shadow(0 3px 3px rgba(0,0,0,.4));}
+.gm.on .c{background:url(img/sertse-svitu/gem-on.webp) center/contain no-repeat; box-shadow:none; filter:drop-shadow(0 0 10px rgba(255,212,59,.9));}
+/* маленькі лампи — з «Чотирьох важелів» */
+#lamps3 .l{width:18px; height:31px; border:0; border-radius:0; background:url(img/chotyry-vazheli/lamp-off.webp) center/contain no-repeat; line-height:40px; font-size:10px; text-shadow:0 0 3px #000;}
+#lamps3 .l.on{background:url(img/chotyry-vazheli/lamp-on.webp) center/contain no-repeat; box-shadow:none; color:#5c3d00; text-shadow:0 0 3px #fff3bf;}
+/* табличка з назвою на старті — художника */
+#startScreen.scrolled .titlebox{aspect-ratio:829/256; width:min(100%,370px);}
+#startScreen.scrolled .titlebox h1{left:12%; right:17%; top:40%; bottom:13%;}
+body{background:linear-gradient(180deg,rgba(255,250,240,.10),rgba(255,250,240,.35)), url(img/sertse-svitu/page-bg.webp) center/cover no-repeat fixed, var(--paper);}   /* фон сторінки гри — малюнок художника */
 </style>
+<link rel="stylesheet" href="nav-scroll.css?v=7">
 </head>
 <body>
 <script src="../sk-footer.js?v=6" data-base="../" data-back="self"></script>
@@ -49,7 +72,7 @@ body.flipped #scene{background:radial-gradient(circle at 50% 55%,#d0bfff 0%,#795
       "У логіці «якщо… то…» перевіряй по черзі: спершу те, що відомо напевно, потім — що з нього випливає.",
       "🔄 Навиворіт правило діє <b>у зворотний бік</b>: множення стає діленням, а мешканець, що завжди бреше, каже протилежне до правди."
     ],
-    scene:'<div id="heart">💜</div><div id="lamps3"></div><div id="gems"></div>',
+    scene:'<div id="heart"></div><div id="lamps3"></div><div id="gems"></div>',
     afterScene:'<div class="log" id="log"></div>',
     onStart:startGame
   });
@@ -63,6 +86,7 @@ body.flipped #scene{background:radial-gradient(circle at 50% 55%,#d0bfff 0%,#795
   function gems(){
     var b = NAV.$("gems"); b.innerHTML = "";
     G.forEach(function(n, i){ b.appendChild(NAV.el("div","gm"+(lit[i]?" on":""),'<div class="c"></div>'+n)); });
+    NAV.$("heart").classList.toggle("awake", lit.every(Boolean));   // усі три кристали — Серце прокидається
   }
   function light(i){ lit[i] = true; gems(); NAV.snd.chime(); }
   function lamps(st){
@@ -162,6 +186,8 @@ body.flipped #scene{background:radial-gradient(circle at 50% 55%,#d0bfff 0%,#795
 <script src="../sk-rewards.js?v=6"></script>
 <script src="../sk-prize.js?v=3"></script>
 <script src="../sk-finish.js?v=6"></script>
+<script src="nav-scroll.js?v=3"></script>
+<script>NAVSCROLL.init({winImg:"img/sertse-svitu/heart-awake.webp", bg:"img/sertse-svitu/start-hero.webp", frame:"img/sertse-svitu/title-frame.webp", focus:[0.06, 0.72], top:"#472d44", bot:"#7b5f6c", play:"До Серця"});</script>
 <script src="nav-intro.js?v=3"></script>
 </body>
 </html>
