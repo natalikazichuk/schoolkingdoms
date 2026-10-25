@@ -272,6 +272,8 @@ function render(){
    тап по вмінню (arena.html → bindSkills) обирає його на хід: окремий удар у ту
    саму зону, що й основний. Без бою — просто показ панелі з книги. */
 var BS = null;
+/* колір ефекту перемикача (ободок і хвилі на панелі бою) */
+var TOG_FX = { 'ranger.camo': '#c6e84a' };   // Камуфляж — листяний жовто-зелений (не плутати з зеленим «обрано на хід»)
 function paintBattle(bs){
   if (bs !== undefined) BS = bs;
   var aw = $('skbAsk');
@@ -287,9 +289,12 @@ function paintBattle(bs){
     any = true;
     var p = b ? Math.round(Number(b.me.sk[id] || 0) * 100) : pct(id);
     var cls = 'skb-slot full skb-bt', badge = '', tip = s.name + ' — ' + SKS.effectText(id, p / 100);
+    var isTog = !!(SKS.RULES && SKS.RULES[id] && SKS.RULES[id].kind === 'toggle'), fxc = TOG_FX[id] || '#c6e84a';   // перемикач: діє щоходу
+    if (isTog) cls += ' togk';
     if (b) {
       // обране вміння на перезарядці / без мани — теж сіре: цього ходу не спрацює, але вибір лишається
       var cd = (b.me.cd || {})[id], tog = (b.me.tog || []).indexOf(id) >= 0, sel2 = b.me.skill === id || tog;
+      if (tog) cls += ' tog';
       if (sel2) cls += ' on';
       var why = window.SKBATTLE ? SKBATTLE.skillBlock(b, id) : '';
       if (why === 'cd') { cls += ' cd'; badge = '<span class="skb-cd">' + (cd - b.round + 1) + '</span>'; tip += sel2 ? ' · обрано, спрацює після перезарядки' : ' · перезарядка'; }
@@ -313,7 +318,7 @@ function paintBattle(bs){
       else if (sel2) tip += ' · спрацює цього ходу';
     }
     var cls2 = 'skb-sk' + (s.type === 'A' ? ' act' : '') + (p >= 100 ? ' max' : '');
-    h += '<div class="' + cls + '" data-skb-use="' + id + '" title="' + esc(tip) + '"><span class="k">' + (i + 1) + '</span>'
+    h += '<div class="' + cls + '" data-skb-use="' + id + '" title="' + esc(tip) + '"' + (isTog ? ' style="--fx:' + fxc + '"' : '') + '><span class="k">' + (i + 1) + '</span>' + (isTog ? '<span class="skb-wave"></span><span class="skb-togm" title="Перемикач: діє щоходу, поки увімкнено">⟳</span>' : '')
       + '<div class="' + cls2 + '" style="--p:' + p + '"><div class="in">' + (SKS.iconHtml ? SKS.iconHtml(id) : s.icon) + '</div></div>' + badge + '</div>';
   }
   var hint = !any ? 'Постав вміння:<br>Інвентар → 📖'
