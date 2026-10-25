@@ -947,7 +947,9 @@
     if (!id || PRE[id] || !can || skillBlock(v, id)) return null;
     var rec = (id === SKILL.haft.id || id === SKILL.daze.id || id === SKILL.stun.id || id === SKILL.lash.id || id === SKILL.ult.id || id === SKILL.aimed.id) ? weaponStrike(ctx, v, id, pA, pD, mine, theirs, rnd)
       : skillStrike(ctx, v, id, pA, pD, mine.atk === theirs.block, rnd);
-    var cdN = V(v, id, 'cd'); if (cdN > 0) { v.me.cd = v.me.cd || {}; v.me.cd[id] = v.round + cdN; }
+    var cdN = V(v, id, 'cd');
+    if (id === SKILL.aimed.id && rec && rec.kind === 'fail') cdN = 0;   // Влучний постріл: перезарядка лише після вдалого пострілу (не вдалося — можна знову наступного ходу)
+    if (cdN > 0) { v.me.cd = v.me.cd || {}; v.me.cd[id] = v.round + cdN; }
     return rec;
   }
   /* скільки ударів цього ходу влучило й завдало урону (основні, друга/третя атака, ліва, удар вмінням) */

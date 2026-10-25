@@ -387,6 +387,18 @@ test('Влучний постріл: лише з луком; постріл ×1.
   assert.ok(stuck);
 });
 
+test('Влучний постріл: не вдалося — без перезарядки й без мани; вдалий — перезарядка', () => {
+  let fail = 0, ok = 0;
+  for (let k = 0; k < 60 && (!fail || !ok); k++) {
+    const st = battle({ 'ranger.aimed': 0 }, ['ranger.aimed'], [wear(BOW, 'weaponR')]);
+    SB.useSkill(ctx, st, 'ranger.aimed');
+    const m0 = st.me.mana, e = turnOf(st, { atk: 'head', block: 'body' });
+    if (e.skill.kind === 'fail') { fail++; assert.ok(!(st.me.cd && st.me.cd['ranger.aimed'] > st.round), 'не вдалося — без перезарядки'); assert.strictEqual(m0 - st.me.mana, 0); }
+    else { ok++; assert.ok(st.me.cd['ranger.aimed'] > st.round, 'вдалий — перезарядка'); }
+  }
+  assert.ok(fail && ok);
+});
+
 test('Перемикачі живуть лише в бою: новий бій — усе вимкнене; кінець бою вимикає', () => {
   const st = battle({ 'ranger.camo': 1 }, ['ranger.camo']);
   SB.useSkill(ctx, st, 'ranger.camo');
