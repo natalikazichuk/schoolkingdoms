@@ -489,14 +489,31 @@ test('Мисливський азарт: влучив більше — +1, пр�
   }
 });
 
-test('Опори: тестова річ з усіма опорами 10%…110% — усі у %, складаються в профіль (не більше 100%)', () => {
-  const names = ['Опір отруті', 'Опір вогню', 'Опір холоду', 'Опір струму', 'Опір світлу', 'Опір темряві', 'Опір колючому', 'Опір рублячому', 'Опір тупому', 'Опір магії', 'Опір стихіям'];
-  const keys = ['resPoison', 'resFire', 'resCold', 'resShock', 'resLight', 'resDark', 'resPierce', 'resSlash', 'resBash', 'resMagic', 'resElem'];
+test('Опори: тестова річ з усіма опорами 10%…100% — усі у %; з речей разом ≤ 33% (отрута — окремо, до 100%)', () => {
+  const names = ['Опір отруті', 'Опір вогню', 'Опір холоду', 'Опір струму', 'Опір світлу', 'Опір темряві', 'Опір колючому', 'Опір рублячому', 'Опір тупому', 'Опір магії'];
+  const keys = ['resPoison', 'resFire', 'resCold', 'resShock', 'resLight', 'resDark', 'resPierce', 'resSlash', 'resBash', 'resMagic'];
   const TEST = item({ id: 'RES-TEST', name: 'Амулет усіх опорів (тест)', category: 'Амулет', stat: 'Броня', valueMin: 1, valueMax: 1,
     addStats: names.map((s, i) => ({ stat: s, value: (i + 1) * 10 })) });
   names.forEach((s, i) => { assert.strictEqual(K.canon(s), keys[i], s); assert.ok(K.isPctStat(s), s + ' — завжди %'); });
+  assert.strictEqual(K.canon('Опір стихіям'), 'Опір стихіям', 'загального опору поки немає');
   const st = battle({}, [], [wear(TEST, 'amulet')]);
-  keys.forEach((k, i) => assert.strictEqual(st.me.p[k], Math.min(100, (i + 1) * 10), k));
-  const RING = item({ id: 'RES-R', name: 'Кільце', category: 'Кільце', stat: 'Броня', valueMin: 1, valueMax: 1, addStats: [{ stat: 'Опір отруті', value: 25 }] });
-  assert.strictEqual(battle({}, [], [wear(TEST, 'amulet'), wear(RING, 'ring1')]).me.p.resPoison, 35, 'з двох речей — складаються');
+  keys.forEach((k, i) => assert.strictEqual(st.me.p[k], k === 'resPoison' ? 10 : Math.min(33, (i + 1) * 10), k));
+  const R20 = item({ id: 'RES-R', name: 'Кільце', category: 'Кільце', stat: 'Броня', valueMin: 1, valueMax: 1, addStats: [{ stat: 'Опір тупому', value: 20 }] });
+  assert.strictEqual(battle({}, [], [wear(R20, 'ring1'), wear(Object.assign({}, R20, { id: 'RES-R2' }), 'ring2')]).me.p.resBash, 33, 'дві речі по 20% — разом лише 33%');
+});
+
+test('Опір типу урону — кінцеве зменшення: кулаки (тупий) по захиснику з Опором тупому 30%', () => {
+  const R30 = item({ id: 'RB30', name: 'Кільце', category: 'Кільце', stat: 'Броня', valueMin: 0, valueMax: 0, addStats: [{ stat: 'Опір тупому', value: 30 }] });
+  const st = battle({}, []);
+  st.op.p = R.fighter({ health: 400, accuracy: 50, agility: 50, mana: 0 }, [wear(R30, 'ring1')], K);
+  assert.strictEqual(st.op.p.resBash, 30);
+  assert.strictEqual(st.me.p.dmgType, 'bash', 'без зброї — тупий');
+  st.me.p.accuracy = 5000; st.op.p.agility = 1;
+  let seen = 0;
+  for (let k = 0; k < 10 && !seen; k++) { const e = turnOf(st, { atk: k % 2 ? 'legs' : 'head', block: 'body' });
+    e.meHit.hits.filter(h => h.kind === 'hit' || h.kind === 'crit').forEach(h => { assert.strictEqual(h.res, 30); assert.ok(/опір/.test(h.calc)); seen++; }); }
+  assert.ok(seen);
+  const sw = battle({}, [], [wear(SWORD, 'weaponR')]); assert.strictEqual(sw.me.p.dmgType, 'slash', 'меч — рублячий');
+  const dg = battle({}, [], [wear(DAGGER, 'weaponR')]); assert.strictEqual(dg.me.p.dmgType, 'pierce', 'кинджал — колючий');
+  assert.strictEqual(R.resCut(100, 'slash', { resSlash: 50 }).dmg, 67, 'стеля 33% навіть якщо в профілі більше');
 });

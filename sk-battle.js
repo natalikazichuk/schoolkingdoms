@@ -223,7 +223,7 @@
   function tangledOn(st) { var f = st.me && st.me.fx; return !!(f && f.tangle && num(f.tangle.until) >= st.round && num(f.tangle.from) <= st.round); }
   /* суперник без зброї (Обеззброєння): урон зброї в руках не діє; щит лишається */
   function disarmedOn(st) { var f = st.op && st.op.fx; return !!(f && num(f.disarm) >= st.round); }
-  function noWeapon(p) { var o = {}, k; for (k in p) o[k] = p[k]; o.wMin = 0; o.wMax = 0; o.magMin = 0; o.magMax = 0; return o; }
+  function noWeapon(p) { var o = {}, k; for (k in p) o[k] = p[k]; o.wMin = 0; o.wMax = 0; o.magMin = 0; o.magMax = 0; o.dmgType = 'bash'; return o; }   // без зброї — кулаки (тупий)
   function opHasWeapon(p) { return num(p && p.wMax) > 0 || num(p && p.magMax) > 0; }
   /* без щита («Розбити щит»): мінус броня й маг. захист щита, мінус його шанс блоку (і Блок щитом), без відскоку */
   function noShield(ctx, p, e) {
@@ -341,11 +341,12 @@
     var pass = R.armorPass ? R.armorPass(raw, defV) : 1;
     var pctV = magic ? num(pm.magPct) : 0;                       // Пінок не залежить від зброї
     var dmg = Math.max(1, Math.round(raw * pass * (1 + pctV / 100)));
+    var rk = R.resCut ? R.resCut(dmg, magic ? 'magic' : 'bash', po) : { r: 0 }; if (rk.r) { dmg = rk.dmg; rec.res = rk.r; }   // Вогник — магія, Пінок — тупий: опір останнім
     grow(st, id, true); if (magic) grow(st, 'base.magic', true);
     rec.kind = 'hit'; rec.dmg = dmg; rec.magic = magic; rec.raw = raw;
     if (magic) rec.magDmg = dmg; else rec.physDmg = dmg;
     rec.calc = (magic ? '✨маг. ' : '') + raw + (defV > 0 ? ' × ' + Math.round(pass * 100) + '% (' + (magic ? 'маг. захист ' : 'броня ') + defV + ')' : '')
-      + (pctV ? ' × ' + Math.round(100 + pctV) + '%' : '');
+      + (pctV ? ' × ' + Math.round(100 + pctV) + '%' : '') + (rec.res ? ' × ' + (100 - rec.res) + '% опір' : '');
     if (!magic) knockTry(st, id, rec, R, rnd);                    // Пінок може збити з ніг
     return rec;
   }
