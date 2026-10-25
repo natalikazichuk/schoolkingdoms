@@ -492,6 +492,7 @@
           fxOf(st.op).pickup = { uid: wr.uid, at: st.round + 2 }; rec.back = st.round + 2; }
         fxOf(st.op).disarm = st.round + 1;                   // без зброї цей і наступний хід — як бот
       } else fxOf(st.op).disarm = st.round + 1;              // бот підбирає зброю через хід
+      delete fxOf(st.op).venom;                              // вибита зброя — отрута з клинка зникла
     } else rec.kind = 'fail';
     var cdN = V(st, id, 'cd'); if (cdN > 0) { st.me.cd = st.me.cd || {}; st.me.cd[id] = st.round + cdN; }
     return rec;
@@ -767,7 +768,10 @@
      ще +pct% урону отрутою (опір зменшує, не більше ніж наполовину) і шанс chance2% отруїти (× (1 − опір)).
      Отруєний: 3 ходи −tick% макс. здоров'я наприкінці ходу. Отрута минула чи антидот — імунітет fx.pimm:
      3 ходи повний опір, далі 90%, 80% … 0%. Перев'язка на 100% — ще +50% опору на 5 ходів (fx.bres). */
-  function venomOn(st) { var f = st.me && st.me.fx; return !!(f && f.venom && num(f.venom.until) >= st.round); }
+  /* отрута — на КОНКРЕТНОМУ клинку (uid): клинок покинув руку (зняв, замінив, вибили, зламався) — отрута зникла,
+     повернув ту саму зброю — вона вже чиста (щоб не маніпулювати перевдяганням) */
+  function venomOn(st) { var f = st.me && st.me.fx, w = weaponOn(st);
+    return !!(f && f.venom && num(f.venom.until) >= st.round && w && w.uid === f.venom.uid && !heroDisarmed(st)); }
   function poisoned(u, round) { var p = u && u.fx && u.fx.poison; return !!(p && num(p.until) >= round); }
   function poisonRes(u, round) {
     var f = u && u.fx; if (!f) return 0;
@@ -782,12 +786,13 @@
     if (!rec.ok) { rec.kind = 'fail'; return rec; }
     var mn = V(st, id, 'mana'); if (mn) { st.me.mana = Math.max(0, num(st.me.mana) - mn); rec.mana = mn; }
     rec.turns = V(st, id, 'turns') || 2; rec.pct = V(st, id, 'pct'); rec.chance2 = V(st, id, 'chance2');
-    fxOf(st.me).venom = { until: st.round + rec.turns - 1, pct: rec.pct, ch: rec.chance2, tick: V(st, id, 'tick') || 5 };
+    fxOf(st.me).venom = { until: st.round + rec.turns - 1, pct: rec.pct, ch: rec.chance2, tick: V(st, id, 'tick') || 5, uid: (weaponOn(st) || {}).uid };
+    st.me.skill = null;                                          // змастив — вибір знято (як Берсерк): нові 50 мани — лише свідомо
     rec.kind = 'venom';
     return rec;
   }
   function venomHits(ctx, v, hit, rnd) {                        // v — той, чия зброя змащена; hit — його удари
-    if (!venomOn(v) || !hit || !hit.hits) return;
+    if (!venomOn(v) || !wTypeNow(v) || !hit || !hit.hits) return;   // отрута на клинку: зброю вибито (б'є кулаками) — не діє
     var vn = v.me.fx.venom, res = poisonRes(v.op, v.round), cut = Math.min(res, 50);
     hit.hits.forEach(function (h) {
       if ((h.kind !== 'hit' && h.kind !== 'crit') || !(num(h.dmg) > 0)) return;
@@ -1538,6 +1543,7 @@
     }
     var np = profile(ctx, st);
     st.me.p = np; st.me.max = np.hp; st.me.force = Math.min(st.me.force, np.hp);
+    var fv = st.me.fx && st.me.fx.venom; if (fv && (weaponOn(st) || {}).uid !== fv.uid) delete st.me.fx.venom;   // змащений клинок зняли / замінили — отрута зникла
     if (inst && slot === 'weaponR' && st.me.fx && st.me.fx.disarm) { delete st.me.fx.disarm; delete st.me.fx.pickup; }   // вибиту зброю вдягнув сам — одразу знову в руці
     st.swapRound = st.round;
     st.me.use = null; st.me.skill = null;                          // перевдягання — і є дія ходу: пояс і вміння знято
