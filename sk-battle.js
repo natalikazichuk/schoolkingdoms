@@ -98,7 +98,8 @@
      Те, чим клас кращий, — не тут, а в перевагах класу (SKARENA.CLASS_PERKS). */
   var SAME = { 'ranger.dagger': 'knight.dagger', 'ranger.spear': 'knight.spear', 'ranger.whip': 'knight.whip',
     'ranger.fists': 'knight.fists', 'ranger.disarm': 'knight.disarm', 'ranger.brave': 'knight.brave',
-    'ranger.lunge': 'knight.lunge', 'ranger.calm': 'knight.calm', 'ranger.second': 'knight.second', 'ranger.lash': 'knight.lash' };
+    'ranger.lunge': 'knight.lunge', 'ranger.calm': 'knight.calm', 'ranger.second': 'knight.second', 'ranger.lash': 'knight.lash',
+    'ranger.daze': 'knight.daze', 'ranger.dual': 'knight.offhand', 'ranger.enh': 'knight.enh', 'ranger.third': 'knight.third' };
   function canon(id) { return SAME[id] || id; }
   function skId(st, id) {                                    // id вміння так, як воно лежить у бійця
     var s = st.me && st.me.sk; if (!s || s[id] != null) return id;

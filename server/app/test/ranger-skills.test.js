@@ -529,3 +529,30 @@ test('Опір типу урону — кінцеве зменшення: кул
   const dg = battle({}, [], [wear(DAGGER, 'weaponR')]); assert.strictEqual(dg.me.p.dmgType, 'pierce', 'кинджал — колючий');
   assert.strictEqual(R.resCut(100, 'slash', { resSlash: 50 }).dmg, 67, 'стеля 33% навіть якщо в профілі більше');
 });
+
+test('Слідопит: спільні з Лицарем — Збити з пантелику, Друга зброя, Посилений урон, Третя атака', () => {
+  ['ranger.daze', 'ranger.dual', 'ranger.enh', 'ranger.third'].forEach(id => { const s = S.byId(id); assert.ok(s.ready, id); assert.ok(s.same, id + ' спільне'); });
+  // Посилений урон — у профілі
+  assert.ok(battle({ 'ranger.enh': 1 }, [], [wear(DAGGER, 'weaponR')]).me.p.dmgPct > battle({}, [], [wear(DAGGER, 'weaponR')]).me.p.dmgPct);
+  // Третя атака — бувають треті удари, ріст іде у вміння Слідопита
+  let third = 0; const st3 = battle({ 'ranger.third': 1 }, [], [wear(DAGGER, 'weaponR')]);
+  st3.me.p.accuracy = 5000; st3.op.p.agility = 1; st3.op.force = 99999;
+  for (let k = 0; k < 40 && st3.status === 'live'; k++) { const e = turnOf(st3, HIT); if (e.meHit.hits.some(h => h.third)) third++; }
+  assert.ok(third > 0); assert.ok((st3.me.grow['ranger.third'] || 0) + (st3.me.growF['ranger.third'] || 0) > 0);
+  // Збити з пантелику — влучив: концентрація ворога 0
+  let dz = 0;
+  for (let k = 0; k < 20 && !dz; k++) { const st = battle({ 'ranger.daze': 1 }, ['ranger.daze'], [wear(DAGGER, 'weaponR')]);
+    st.me.p.accuracy = 5000; st.op.p.agility = 1; st.op.fx.focus = 3; SB.useSkill(ctx, st, 'ranger.daze');
+    const e = turnOf(st, { atk: 'head', block: 'body' }); if (e.skill && e.skill.daze) { dz++; assert.strictEqual(st.op.fx.focus, 0); } }
+  assert.ok(dz);
+  // Друга зброя — кинджал у ліву, удар лівою
+  const B = R.BATTLE, d0 = B.dualWield;
+  try {
+    R.handsFromHero({ heroClass: 'ranger', skills: {} }); assert.ok(!R.fitsHand(DAGGER, 'weaponL'));
+    R.handsFromHero({ heroClass: 'ranger', skills: { 'ranger.dual': 5 } }); assert.ok(R.fitsHand(DAGGER, 'weaponL'), 'Слідопит: кинджал у ліву');
+    const DAG2 = Object.assign({}, DAGGER, { id: 'D2' });
+    const st = battle({ 'ranger.dual': 1 }, [], [wear(DAGGER, 'weaponR'), wear(DAG2, 'weaponL')]);
+    st.me.p.accuracy = 5000; st.op.p.agility = 1;
+    const e = turnOf(st, HIT); assert.ok(e.meHit.hits.some(h => h.left), 'удар лівою');
+  } finally { B.dualWield = d0; }
+});

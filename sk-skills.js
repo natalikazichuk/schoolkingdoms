@@ -1022,8 +1022,8 @@ var TESTED = {
    Той самий список — у sk-battle.js (SAME). */
 var SAME = { 'ranger.dagger': 'knight.dagger', 'ranger.spear': 'knight.spear', 'ranger.whip': 'knight.whip',
   'ranger.fists': 'knight.fists', 'ranger.disarm': 'knight.disarm', 'ranger.brave': 'knight.brave',
-  'ranger.lunge': 'knight.lunge', 'ranger.calm': 'knight.calm', 'ranger.second': 'knight.second', 'ranger.lash': 'knight.lash' };
-/* Збити з пантелику й Друга зброя Слідопита стануть спільними (daze, offhand), коли до них дійдемо */
+  'ranger.lunge': 'knight.lunge', 'ranger.calm': 'knight.calm', 'ranger.second': 'knight.second', 'ranger.lash': 'knight.lash',
+  'ranger.daze': 'knight.daze', 'ranger.dual': 'knight.offhand', 'ranger.enh': 'knight.enh', 'ranger.third': 'knight.third' };
 Object.keys(SAME).forEach(function(id){ RULES[id] = RULES[SAME[id]]; if (ICON_IMG[SAME[id]]) ICON_IMG[id] = ICON_IMG[SAME[id]]; });
 SKILLS.forEach(function(s){
   var c = SAME[s.id], src = c && SKILLS.filter(function(x){ return x.id === c; })[0];
