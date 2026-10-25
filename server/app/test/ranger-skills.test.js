@@ -464,3 +464,27 @@ test('Цілитель: Стійкість до отрут — до свого �
   const st = mk({ 'healer.poisonres': 1 });
   assert.strictEqual(SB.poisonRes(st.me, 1, 'dmg'), 40);
 });
+
+test('Мисливський азарт: влучив більше — +1, пропустив більше — −1 (не скидання), без вміння — урон скидає', () => {
+  assert.ok(S.byId('ranger.zeal').ready && S.byId('ranger.zeal').lv === 3);
+  const mk = (sk) => { const st = battle(Object.assign({ 'base.focus': 1 }, sk), []); st.me.fx.focus = 3; return st; };
+  // в тебе влучили, ти — ні: −1 з азартом, скидання без нього
+  for (let k = 0; k < 20; k++) {
+    const a = mk({ 'ranger.zeal': 1 }); a.op.p.accuracy = 5000; a.me.p.agility = 1; a.me.p.accuracy = 1; a.op.p.agility = 5000;
+    const e = turnOf(a, { atk: 'head', block: 'body' });
+    const mine = e.meHit.hits.filter(h => (h.kind === 'hit' || h.kind === 'crit') && h.dmg > 0).length, theirs = e.opHit.hits.filter(h => (h.kind === 'hit' || h.kind === 'crit') && h.dmg > 0).length;
+    if (theirs > mine) { assert.strictEqual(a.me.fx.focus, 2, 'азарт: −1'); break; }
+  }
+  for (let k = 0; k < 20; k++) {
+    const b = mk({}); b.op.p.accuracy = 5000; b.me.p.agility = 1;
+    const e = turnOf(b, { atk: 'head', block: 'body' });
+    if (e.opHit.dmg > 0) { assert.strictEqual(b.me.fx.focus, 0, 'без азарту — скидання'); break; }
+  }
+  // ти влучив, в тебе — ні: +1
+  for (let k = 0; k < 20; k++) {
+    const c = mk({ 'ranger.zeal': 1 }); c.me.p.accuracy = 5000; c.op.p.agility = 1; c.op.p.accuracy = 1; c.me.p.agility = 5000;
+    const e = turnOf(c, { atk: 'head', block: 'body' });
+    const theirs = e.opHit.hits.filter(h => (h.kind === 'hit' || h.kind === 'crit') && h.dmg > 0).length, mine = e.meHit.hits.filter(h => (h.kind === 'hit' || h.kind === 'crit') && h.dmg > 0).length;
+    if (mine > theirs) { assert.strictEqual(c.me.fx.focus, 4, 'азарт: +1'); break; }
+  }
+});

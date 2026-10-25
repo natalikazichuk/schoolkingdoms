@@ -949,13 +949,37 @@
     var cdN = V(v, id, 'cd'); if (cdN > 0) { v.me.cd = v.me.cd || {}; v.me.cd[id] = v.round + cdN; }
     return rec;
   }
+  /* скільки ударів цього ходу влучило й завдало урону (основні, друга/третя атака, ліва, удар вмінням) */
+  function landedN(hit, rec) {
+    var n = ((hit && hit.hits) || []).filter(function (h) { return (h.kind === 'hit' || h.kind === 'crit') && num(h.dmg) > 0; }).length;
+    if (rec && rec.hits) n += rec.hits.filter(function (h) { return (h.kind === 'hit' || h.kind === 'crit') && num(h.dmg) > 0; }).length;
+    else if (rec && rec.kind === 'hit' && num(rec.dmg) > 0) n++;
+    return n;
+  }
   /* концентрація: Лицар («Стійкість») — росте від урону (+1), у хід без урону −1, Незворушність тримає;
-     решта — росте в спокійний хід, урон скидає. → запис Незворушності для журналу або null */
-  function focusTick(ctx, v, dmgIn, down, rndF, rndC) {
+     Слідопит із «Мисливським азартом» — рахунок ходу: влучив більше, ніж пропустив, — +1, порівну — 0
+     (з шансом tie% теж +1), пропустив більше — −1 (Незворушність тримає);
+     решта — росте в спокійний хід, урон скидає. mine / theirs — влучні удари свої й суперника */
+  function focusTick(ctx, v, dmgIn, down, rndF, rndC, mine, theirs) {
     if (!hasSk(v, 'base.focus')) return null;
     var f = fxOf(v.me), cap = V(v, 'base.focus', 'cap') || 3;
     if (num(f.dazed) === v.round) return null;                 // збили з пантелику цього ходу — концентрація не росте й не спадає
     var eng = !down && ctx.R.d100(rndF) <= V(v, 'base.focus', 'engage');
+    if (hasSk(v, 'ranger.zeal') && !down) {
+      var dz = num(mine) - num(theirs), zid = 'ranger.zeal';
+      if (dz > 0 || !(num(theirs) > 0) || (dz === 0 && ctx.R.d100(rndC) <= V(v, zid, 'tie'))) {   // влучив більше; 0:0 — як спокійний хід (+1); нічия — з шансом tie%
+        grow(v, zid, true);
+        if (eng) { grow(v, 'base.focus', true); if (num(f.focus) < cap) f.focus = num(f.focus) + 1; }
+        return null;
+      }
+      if (dz === 0) return null;
+      grow(v, zid, false); if (eng) grow(v, 'base.focus', false);
+      if (!(num(f.focus) > 0)) return null;
+      var kz = hasSk(v, 'knight.calm') ? V(v, 'knight.calm', 'keepPct') : 0, krz = kz ? ctx.R.d100(rndC) : 101;
+      if (kz) grow(v, 'knight.calm', krz <= kz);
+      if (!(krz <= kz)) f.focus = num(f.focus) - 1;
+      return kz ? [krz, kz, krz <= kz] : null;
+    }
     if (v.me.cls === 'knight') {
       if (dmgIn > 0) { if (eng) { grow(v, 'base.focus', true); if (num(f.focus) < cap) f.focus = num(f.focus) + 1; } return null; }
       if (!(num(f.focus) > 0) || down) return null;
@@ -1451,8 +1475,9 @@
     st.me.force -= opHit.dmg + (opRec ? opRec.dmg : 0);
     var psnOp = down ? 0 : poisonTick(st.op, st.round), psnMe = down ? 0 : poisonTick(st.me, st.round);   // отрута — наприкінці ходу, броня не захищає
     // концентрація кожного: Лицар — росте від урону; решта — у спокійний хід
-    var calmRec = focusTick(ctx, st, opHit.dmg + (opRec ? opRec.dmg : 0), down, sd(st, 'focus'), sd(st, 'calm'));
-    var opCalm = focusTick(ctx, vo, meHit.dmg + (skillRec ? skillRec.dmg : 0), down, sd(vo, 'focus'), sd(vo, 'calm'));
+    var meN = landedN(meHit, skillRec), opN = landedN(opHit, opRec);   // для «Мисливського азарту»: рахунок влучань ходу
+    var calmRec = focusTick(ctx, st, opHit.dmg + (opRec ? opRec.dmg : 0), down, sd(st, 'focus'), sd(st, 'calm'), meN, opN);
+    var opCalm = focusTick(ctx, vo, meHit.dmg + (skillRec ? skillRec.dmg : 0), down, sd(vo, 'focus'), sd(vo, 'calm'), opN, meN);
     var opG0 = clone(st.op.sk || {}); botGrowth(st);
     var opUp = Object.keys(st.op.sk || {}).filter(function (id) { return st.op.sk[id] !== opG0[id]; }).map(function (id) { return [id, Math.round(st.op.sk[id] * 100)]; });
     tickBuffs(st.me); tickBuffs(st.op);
