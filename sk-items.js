@@ -63,7 +63,13 @@
     'Опір холоду': 'resCold',
     'Опір струму': 'resShock',
     'Опір світлу': 'resLight',
-    'Опір темряві': 'resDark'
+    'Опір темряві': 'resDark',
+    /* опір фізичним типам і магії (%), загальний — усім стихіям (вогонь, холод, струм, світло, темрява) */
+    'Опір колючому': 'resPierce',
+    'Опір рублячому': 'resSlash',
+    'Опір тупому': 'resBash',
+    'Опір магії': 'resMagic',
+    'Опір стихіям': 'resElem'
   };
   var FLAG_STATS = ['Дворучний', 'Разовий предмет'];
 
@@ -116,7 +122,7 @@
 
   function isFlagEntry(e) { return !!(e && (e.flag || FLAG_STATS.indexOf(e.stat) >= 0)); }
   /* шанси (крит, блок) — завжди у відсотках, незалежно від галочки «%» у записі речі */
-  var PCT_ALWAYS = { critDamage: 1, block: 1, resPoison: 1, resFire: 1, resCold: 1, resShock: 1, resLight: 1, resDark: 1 };
+  var PCT_ALWAYS = { critDamage: 1, block: 1, resPoison: 1, resFire: 1, resCold: 1, resShock: 1, resLight: 1, resDark: 1, resPierce: 1, resSlash: 1, resBash: 1, resMagic: 1, resElem: 1 };
   function isPctStat(name) { return !!PCT_ALWAYS[STAT_MAP[name] || name]; }
   function canon(name) { return STAT_MAP[name] || name; }
   function floor(n) { return Math.floor(n); }
