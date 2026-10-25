@@ -488,3 +488,15 @@ test('Мисливський азарт: влучив більше — +1, пр�
     if (mine > theirs) { assert.strictEqual(c.me.fx.focus, 4, 'азарт: +1'); break; }
   }
 });
+
+test('Опори: тестова річ з усіма опорами 10%…110% — усі у %, складаються в профіль (не більше 100%)', () => {
+  const names = ['Опір отруті', 'Опір вогню', 'Опір холоду', 'Опір струму', 'Опір світлу', 'Опір темряві', 'Опір колючому', 'Опір рублячому', 'Опір тупому', 'Опір магії', 'Опір стихіям'];
+  const keys = ['resPoison', 'resFire', 'resCold', 'resShock', 'resLight', 'resDark', 'resPierce', 'resSlash', 'resBash', 'resMagic', 'resElem'];
+  const TEST = item({ id: 'RES-TEST', name: 'Амулет усіх опорів (тест)', category: 'Амулет', stat: 'Броня', valueMin: 1, valueMax: 1,
+    addStats: names.map((s, i) => ({ stat: s, value: (i + 1) * 10 })) });
+  names.forEach((s, i) => { assert.strictEqual(K.canon(s), keys[i], s); assert.ok(K.isPctStat(s), s + ' — завжди %'); });
+  const st = battle({}, [], [wear(TEST, 'amulet')]);
+  keys.forEach((k, i) => assert.strictEqual(st.me.p[k], Math.min(100, (i + 1) * 10), k));
+  const RING = item({ id: 'RES-R', name: 'Кільце', category: 'Кільце', stat: 'Броня', valueMin: 1, valueMax: 1, addStats: [{ stat: 'Опір отруті', value: 25 }] });
+  assert.strictEqual(battle({}, [], [wear(TEST, 'amulet'), wear(RING, 'ring1')]).me.p.resPoison, 35, 'з двох речей — складаються');
+});

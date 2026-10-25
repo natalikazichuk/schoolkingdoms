@@ -110,7 +110,12 @@
     { key: 'resCold',     label: 'Опір холоду',           emoji: '❄️', base: 0, arena: null },
     { key: 'resShock',    label: 'Опір струму',           emoji: '⚡', base: 0, arena: null },
     { key: 'resLight',    label: 'Опір світлу',           emoji: '☀️', base: 0, arena: null },
-    { key: 'resDark',     label: 'Опір темряві',          emoji: '🌑', base: 0, arena: null }
+    { key: 'resDark',     label: 'Опір темряві',          emoji: '🌑', base: 0, arena: null },
+    { key: 'resPierce',   label: 'Опір колючому',         emoji: '📌', base: 0, arena: null },
+    { key: 'resSlash',    label: 'Опір рублячому',        emoji: '🪚', base: 0, arena: null },
+    { key: 'resBash',     label: 'Опір тупому',           emoji: '🪨', base: 0, arena: null },
+    { key: 'resMagic',    label: 'Опір магії',            emoji: '✨', base: 0, arena: null },
+    { key: 'resElem',     label: 'Опір стихіям',          emoji: '🌈', base: 0, arena: null }
   ];
   /* характеристики Героя (зберігаються в heroes/{id}) — що вони роблять на арені */
   var HERO_STATS = {
@@ -271,7 +276,7 @@
     p.magPct = pct.magicDamage || 0;
     p.critPct = (pct.critDamage || 0) + (flat.critDamage || 0);
     p.extra = Math.max(0, Math.floor(flat.extraAttack || 0));
-    ['resPoison', 'resFire', 'resCold', 'resShock', 'resLight', 'resDark'].forEach(function (k) { var r = (pct[k] || 0) + (flat[k] || 0); if (r) p[k] = Math.max(0, Math.min(100, r)); });   // опір стихіям (%)
+    ['resPoison', 'resFire', 'resCold', 'resShock', 'resLight', 'resDark', 'resPierce', 'resSlash', 'resBash', 'resMagic', 'resElem'].forEach(function (k) { var r = (pct[k] || 0) + (flat[k] || 0); if (r) p[k] = Math.max(0, Math.min(100, r)); });   // опір стихіям (%)
     // щит зі спритністю (плащ матадора, кришка…): усі «Шанси блоку» з речей разом і навпіл —
     // однаково проти фізичних і магічних ударів; це не блок, а відскок (evade)
     var lh = (equipped || []).filter(function (e) {
