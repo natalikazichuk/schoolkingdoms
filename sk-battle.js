@@ -279,7 +279,7 @@
     if (!isLive(st)) return 'over';
     id = canon(id);                                               // спільне вміння іншого класу — як у Лицаря (перезарядка теж під його id)
     if ((st.me.bar || []).map(canon).indexOf(id) < 0 || !hasSk(st, id)) return 'none';
-    if (TOG[id]) return id === 'ranger.camo' && camoLocked(st) ? 'locked' : '';   // перемикач: дії ходу не забирає
+    if (TOG[id]) return id === 'ranger.camo' && camoLocked(st) ? 'locked' : id === 'ranger.hunter' && togOn(st, id) && blindOn(st) ? 'eyeblind' : '';   // перемикач: дії ходу не забирає; Око осліплене — не діє (мана йде), вимкнути можна
     if (knockedNow(st, st.me)) return 'knock';                   // оглушений — спецдій немає
     if (swapped(st)) return 'swap';                              // цього ходу вже перевдягнувся
     var cd = (st.me.cd || {})[id];
@@ -307,7 +307,7 @@
   function useSkill(ctx, st, id) {
     if (!isLive(st)) return false;
     if (id == null) { if (st.me.skill) { st.me.skill = null; st.rev++; return true; } return false; }
-    if (TOG[canon(id)]) { var tw = skillBlock(st, id); return tw && tw !== 'locked' && tw !== 'knock' && tw !== 'swap' ? false : toggleSkill(st, canon(id)); }   // перемикач: увімкнути / вимкнути
+    if (TOG[canon(id)]) { var tw = skillBlock(st, id); return tw && tw !== 'locked' && tw !== 'knock' && tw !== 'swap' && tw !== 'eyeblind' ? false : toggleSkill(st, canon(id)); }   // перемикач: увімкнути / вимкнути
     var why = skillBlock(st, id);
     if (why && why !== 'cd' && why !== 'mana' && why !== 'shield' && why !== 'weapon' && why !== 'active' && why !== 'noshield' && why !== 'careful' && why !== 'focus' && why !== 'hp' && why !== 'full' && why !== 'camo' && why !== 'blind') return false;
     if (beltChosen(st)) { st.me.use = null; st.swapRound = 0; }   // вміння замість речі з пояса
@@ -721,10 +721,11 @@
      st.me.tog — увімкнені за порядком. Другий — лише з «Другим запалом», коштує мани ×mul%.
      Камуфляж після Засідки «зачаївся» (fx.camoLock — до якого ходу): не діє, не їсть ману й не вимикається,
      а потім знову діє сам, якщо вистачає мани. */
-  var TOG = { 'ranger.camo': 1, 'ranger.haste': 1 };
+  var TOG = { 'ranger.camo': 1, 'ranger.haste': 1, 'ranger.hunter': 1 };
   function togOn(st, id) { return (st.me.tog || []).indexOf(id) >= 0; }
   function camoLocked(st) { var f = st.me && st.me.fx; return !!(f && num(f.camoLock) >= st.round); }
   function camoOn(st) { var f = st.me && st.me.fx; return !!(f && num(f.camoOn) === st.round); }   // діє цього ходу (мана знята)
+  function eyeOn(st) { var f = st.me && st.me.fx; return !!(f && num(f.hunterOn) === st.round) && !blindOn(st); }   // Око мисливця: мана знята й не осліплений
   function hasteOn(st) { var f = st.me && st.me.fx; return !!(f && num(f.hasteOn) === st.round); }   // Поспіх діє цього ходу (мана знята)
   function toggleSkill(st, id) {
     var l = st.me.tog || (st.me.tog = []), i = l.indexOf(id);
@@ -734,11 +735,23 @@
     st.rev++;
     return true;
   }
+  /* порядок оплати перемикачів — АВТОМАТИЧНО: дорожчий (за базовою ціною) платить ×1, дешевший — ×mul «Другого запалу».
+     Камуфляж, що зачаївся, не платить — тоді інший платить ×1. Порядок увімкнення не важить. */
+  function togOrder(st) {
+    return (st.me.tog || []).map(function (id, i) { return { id: id, i: i, c: V(st, id, 'mana') }; })
+      .sort(function (a, b) { return b.c - a.c || a.i - b.i; }).map(function (x) { return x.id; });
+  }
+  /* множник ціни перемикача цього ходу (100 — повна ціна, 200 — ×2…) — для панелі (×1 / ×2) */
+  function togMul(st, id) {
+    var first = togOrder(st).filter(function (x) { return !(x === 'ranger.camo' && camoLocked(st)); })[0];
+    if (!togOn(st, id) || id === first) return 100;
+    return V(st, 'ranger.fire2', 'mul') || 200;
+  }
   /* початок ходу: зняти ману за кожен увімкнений перемикач → записи для журналу */
   function togTick(st) {
     var l = st.me.tog; if (!l || !l.length) return null;
     var out = [], f = fxOf(st.me), paid = 0;
-    l.slice().forEach(function (id) {
+    togOrder(st).forEach(function (id) {
       if (id === 'ranger.camo' && camoLocked(st)) { out.push({ id: id, locked: num(f.camoLock) }); return; }
       var cost = V(st, id, 'mana');
       if (paid > 0) cost = Math.round(cost * (V(st, 'ranger.fire2', 'mul') || 200) / 100);   // другий перемикач — дорожче
@@ -746,6 +759,7 @@
       st.me.mana = num(st.me.mana) - cost; paid++;
       if (id === 'ranger.camo') f.camoOn = st.round;
       if (id === 'ranger.haste') f.hasteOn = st.round;
+      if (id === 'ranger.hunter') f.hunterOn = st.round;
       out.push({ id: id, cost: cost });
     });
     if (paid > 1) grow(st, 'ranger.fire2', true);
@@ -1377,6 +1391,9 @@
     if (hideOn(st)) { pm = clone(pm); pm.dmgMul = (num(pm.dmgMul) || 1) * (V(st, 'ranger.hide', 'dmgMul') || 130) / 100; }   // сховався — твої удари цього ходу сильніші
     if (camoOn(st)) { pm = clone(pm); pm.dmgMul = Math.round((num(pm.dmgMul) || 1) * (V(st, 'ranger.camo', 'dmgMul') || 110)) / 100; }   // Камуфляж — сильніші удари
     if (camoOn(vo)) { po = clone(po); po.dmgMul = Math.round((num(po.dmgMul) || 1) * (V(vo, 'ranger.camo', 'dmgMul') || 110)) / 100; }
+    /* Око мисливця: точність +accPct %, кожен удар у закриту зону — шанс gap % пробити блок (strike: att.gapPct) */
+    var eyeP = function (v, p) { if (!eyeOn(v)) return p; p = clone(p); p.accuracy = Math.round(num(p.accuracy) * (1 + V(v, 'ranger.hunter', 'accPct') / 100)); p.gapPct = V(v, 'ranger.hunter', 'gap'); return p; };
+    pm = eyeP(st, pm); po = eyeP(vo, po);
     // Кистень: шанс блоку щита суперника проти твоїх ударів менший
     // перевага Слідопита «Хльосткий кнут»: з кнутом шанс блоку суперника менший (разом із Кистенем — множаться)
     var flailCut = function (v, pD) {
@@ -1434,6 +1451,7 @@
         if (wsk && !h.left) grow(st, wsk, ok);                         // вміння зброї — лише від ударів правою
         grow(st, 'knight.enh', ok);                                   // Посилений урон — від кожного удару
         if (wpn && !h.left) grow(st, 'ranger.wmaster', ok);           // Майстер зброї — від ударів зброєю
+        if (h.gapRoll != null) grow(st, 'ranger.hunter', !!h.gap);     // Око мисливця — від ударів у закриту зону
       });
       if (fm.bond) grow(st, 'base.bond', meHit.dmg > 0);
       if (gripOn(st) && hasSk(st, 'knight.grip')) (meHit.hits || []).forEach(function (h) { if (!h.left) grow(st, 'knight.grip', h.kind === 'hit' || h.kind === 'crit'); });
@@ -1746,6 +1764,7 @@
     eqLite: eqLite, profile: profile, wearOf: wearOf, itemWear: itemWear, leftDur: leftDur, activeIn: activeIn,
     create: create, botChoice: botChoice, autoChoice: autoChoice, turn: turn, catchUp: catchUp,
     poisonRes: poisonRes,
+    togMul: togMul, togOrder: togOrder,
     swap: swap, useBelt: useBelt, beltItem: beltItem, beltLite: beltLite, applyUse: applyUse, fxOf: fxOf,
     surrender: surrender, finish: finish, applyToHero: applyToHero, lockLive: lockLive, noticeText: noticeText,
     SKILL: SKILL, useSkill: useSkill, skillBlock: skillBlock, berserkOn: berserkOn, blessOn: blessOn, disarmedOn: disarmedOn, SKILL_WEAPONS: SKILL_WEAPONS, SHATTER_MUL: SHATTER_MUL, PARRY: PARRY, swapped: swapped, beltChosen: beltChosen, knockedNow: knockedNow

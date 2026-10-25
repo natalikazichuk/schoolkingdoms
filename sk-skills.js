@@ -229,8 +229,8 @@ S('ranger',11,null,'lash','Захльост','A','','удар, який щит �
 S('ranger',12,null,'daze','Збити з пантелику','A','перезар. 4','удар, що збиває концентрацію ворога',
   'як у Лицаря: удар ×0.5; влучив — ворог втрачає всю концентрацію',
   'Збий ворога з думки — його сила зосередження зникне.','★',true);
-S('ranger',14,null,'hunter','Око мисливця','P','','підказує незахищену зону ворога',
-  'на початку ходу шанс (20 + 40·м)% підсвітити зону, яку ворог цього ходу не блокує',
+S('ranger',14,null,'hunter','Око мисливця','A','7 мани щоходу · перемикач','бачиш щілину навіть у закритій зоні',
+  'перемикач (−7 мани щоходу): точність +5% (25%) → +10% (100%); кожен удар у закриту ворогом зону — шанс 30% → 50% знайти щілину й пробити блок (повний урон); шанс блоку щитом і парирування діють як завжди; поки ти осліплена — не діє, а мана йде (вимкни сама, щоб зекономити)',
   'Ти помічаєш, де ворог не захищається.','★');
 S('ranger',15,null,'enh','Посилений урон','P','','+урон криту',
   'урон криту +(10 + 40·м)%',
@@ -709,6 +709,10 @@ var RULES = {
     { k: 'mana', v: 7, t: 'мани за кожен хід, поки увімкнено' },
     { k: 'dmgMul', v: 130, from: 110, u: '%', t: 'урону твоїх ударів, поки увімкнено' },
     { k: 'dodgePlus', v: 10, from: 5, u: '%', t: 'до шансу Ухилення (якщо вміння вивчене), поки увімкнено' }] },
+  'ranger.hunter':  { kind: 'toggle', perBattle: 10, on: 'удар у закриту зону з Оком: знайшов щілину — ✔, ні — ✖', p: [
+    { k: 'mana', v: 7, t: 'мани за кожен хід, поки увімкнено' },
+    { k: 'gap', v: 50, from: 30, u: '%', t: 'шанс пробити блок закритої зони (кожен удар)' },
+    { k: 'accPct', v: 10, from: 5, u: '%', t: 'точності, поки увімкнено' }] },
   'ranger.haste':   { kind: 'toggle', perBattle: 10, on: 'додатковий удар Поспіху: влучив — ✔, ні — ✖', p: [
     { k: 'mana', v: 30, t: 'мани за кожен хід, поки увімкнено' },
     { k: 'dmgMul', v: 100, from: 70, u: '%', t: 'урону додаткового удару' }] },
@@ -961,7 +965,7 @@ function iconHtml(id) {
   return src ? '<img class="skb-ic" src="' + src + '" alt="' + esc1(s ? s.name : '') + '" draggable="false">' : (s ? s.icon : '⚡');
 }
 var ICONS = {
-  'ranger.wmaster': '⚔️', 'ranger.hide': '🫥', 'ranger.camo': '🌿', 'ranger.haste': '💨', 'ranger.poison': '🐍', 'ranger.bandage': '🩹', 'ranger.bow': '🏹', 'ranger.sand': '🫳', 'ranger.ambush': '🐾', 'ranger.fire2': '🔥', 'ranger.aimed': '🎯', 'ranger.ult': '🐺', 'healer.poisonres': '🍃', 'ranger.zeal': '🐺',
+  'ranger.wmaster': '⚔️', 'ranger.hide': '🫥', 'ranger.camo': '🌿', 'ranger.haste': '💨', 'ranger.hunter': '👁️', 'ranger.poison': '🐍', 'ranger.bandage': '🩹', 'ranger.bow': '🏹', 'ranger.sand': '🫳', 'ranger.ambush': '🐾', 'ranger.fire2': '🔥', 'ranger.aimed': '🎯', 'ranger.ult': '🐺', 'healer.poisonres': '🍃', 'ranger.zeal': '🐺',
   'knight.sword': '⚔️', 'knight.axe': '🪓', 'knight.spear': '🔱', 'knight.dagger': '🗡️', 'knight.mace': '🔨', 'knight.flail': '⛓️', 'knight.whip': '➰', 'knight.staff': '🦯', 'knight.shield': '🛡️', 'knight.bash': '💥',
   'knight.berserk': '😡', 'knight.fists': '👊', 'knight.brave': '🦁', 'knight.care': '🧰',
   'knight.lunge': '🗡️', 'knight.enh': '💪', 'knight.calm': '🧘', 'knight.tough': '🪨', 'knight.second': '⚡', 'knight.haft': '🔱',
@@ -1150,6 +1154,7 @@ var FX = {
   'ranger.wmaster': function(v){ return 'урон будь-якою зброєю +' + v.dmgPct + '%'; },
   'healer.poisonres': function(v){ return 'свій опір отруті +' + v.resPct + '%'; },
   'ranger.bow':     function(v){ return 'з луком: +' + v.accPct + '% точності, +' + v.dmgPct + '% урону'; },
+  'ranger.hunter':  function(v){ return 'перемикач (−' + v.mana + ' мани за хід): точність +' + v.accPct + '%, удар у закриту зону пробиває блок у ' + v.gap + '%'; },
   'ranger.haste':   function(v){ return 'перемикач (−' + v.mana + ' мани за хід): ще один удар щоходу ×' + (v.dmgMul / 100); },
   'ranger.camo':    function(v){ return 'перемикач (−' + v.mana + ' мани за хід): урон ×' + (v.dmgMul / 100) + ', Ухилення +' + v.dodgePlus + '%'; },
   'ranger.zeal':    function(v){ return 'приціл: влучив більше — +1, порівну — +1 з шансом ' + v.tie + '%, пропустив більше — −1'; },

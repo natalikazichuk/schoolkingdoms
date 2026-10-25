@@ -588,5 +588,31 @@ test('Поспіх і Камуфляж разом — лише з Другим �
   const s2 = battle({ 'ranger.haste': 1, 'ranger.camo': 1, 'ranger.fire2': 0.25 }, ['ranger.haste', 'ranger.camo']);
   SB.useSkill(ctx, s2, 'ranger.camo'); assert.ok(SB.useSkill(ctx, s2, 'ranger.haste'));
   const m0 = s2.me.mana; turnOf(s2, { atk: 'head', block: 'body' });
-  assert.strictEqual(m0 - s2.me.mana, 7 + 60, 'Камуфляж 7 + Поспіх ×2');
+  assert.strictEqual(m0 - s2.me.mana, 30 + 14, 'дорожчий (Поспіх 30) — ×1, дешевший (Камуфляж 7) — ×2, хоч Камуфляж увімкнено першим');
+  assert.strictEqual(SB.togMul(s2, 'ranger.haste'), 100); assert.strictEqual(SB.togMul(s2, 'ranger.camo'), 200);
+});
+
+test('Око мисливця: перемикач −7; точність +10%; удар у закриту зону — шанс 50% пробити блок; осліплена — не діє, мана йде, вимкнути можна', () => {
+  assert.deepStrictEqual([S.skillValues('ranger.hunter', 25).gap, S.skillValues('ranger.hunter', 100).gap], [30, 50]);
+  assert.deepStrictEqual([S.skillValues('ranger.hunter', 25).accPct, S.skillValues('ranger.hunter', 100).accPct], [5, 10]);
+  assert.ok(S.byId('ranger.hunter').ready);
+  let gap = 0, shut = 0;
+  for (let k = 0; k < 30; k++) {
+    const st = battle({ 'ranger.hunter': 1 }, ['ranger.hunter'], [wear(DAGGER, 'weaponR')]);
+    st.me.p.accuracy = 5000; st.op.p.agility = 1; st.op.force = 99999;
+    assert.ok(SB.useSkill(ctx, st, 'ranger.hunter'));
+    const m0 = st.me.mana;
+    const e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+    assert.strictEqual(m0 - st.me.mana, 7);
+    (e.meHit.hits || []).forEach(h => { if (h.gapRoll != null) { if (h.gap) { gap++; assert.notStrictEqual(h.kind, 'block'); } else shut++; } });
+  }
+  assert.ok(gap > 0 && shut > 0, 'бувають і пробиття, і блоки: ' + gap + '/' + shut);
+  // осліплена
+  const sb = battle({ 'ranger.hunter': 1 }, ['ranger.hunter'], [wear(DAGGER, 'weaponR')]);
+  SB.useSkill(ctx, sb, 'ranger.hunter'); sb.me.fx.blind = { from: sb.round, until: sb.round + 2 };
+  assert.strictEqual(SB.skillBlock(sb, 'ranger.hunter'), 'eyeblind');
+  const m1 = sb.me.mana, eb = SB.turn(ctx, sb, { atk: 'head', block: 'body' }, {}, Date.now());
+  assert.strictEqual(m1 - sb.me.mana, 7, 'мана йде');
+  assert.ok(!(eb.meHit.hits || []).some(h => h.gapRoll != null), 'осліплена — Око не діє');
+  assert.ok(SB.useSkill(ctx, sb, 'ranger.hunter'), 'вимкнути можна'); assert.ok(!(sb.me.tog || []).includes('ranger.hunter'));
 });

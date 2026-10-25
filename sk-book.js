@@ -277,7 +277,7 @@ function render(){
    саму зону, що й основний. Без бою — просто показ панелі з книги. */
 var BS = null;
 /* колір ефекту перемикача (ободок і хвилі на панелі бою) */
-var TOG_FX = { 'ranger.camo': '#c6e84a', 'ranger.haste': '#7fd6ff' };   // Камуфляж — листяний жовто-зелений (не плутати з зеленим «обрано на хід»), Поспіх — блакитний вітер
+var TOG_FX = { 'ranger.camo': '#c6e84a', 'ranger.haste': '#7fd6ff', 'ranger.hunter': '#ffb347' };   // Камуфляж — листяний жовто-зелений (не плутати з зеленим «обрано на хід»), Поспіх — блакитний вітер
 function paintBattle(bs){
   if (bs !== undefined) BS = bs;
   var aw = $('skbAsk');
@@ -299,6 +299,7 @@ function paintBattle(bs){
       // обране вміння на перезарядці / без мани — теж сіре: цього ходу не спрацює, але вибір лишається
       var cd = (b.me.cd || {})[id], tog = (b.me.tog || []).indexOf(id) >= 0, sel2 = b.me.skill === id || tog;
       if (tog) cls += ' tog';
+      var tmul = tog && (b.me.tog || []).length > 1 && window.SKBATTLE && SKBATTLE.togMul ? SKBATTLE.togMul(b, id) : 0;   // два перемикачі: хто скільки платить (дорожчий — ×1)
       if (sel2) cls += ' on';
       var why = window.SKBATTLE ? SKBATTLE.skillBlock(b, id) : '';
       if (why === 'cd') { cls += ' cd'; badge = '<span class="skb-cd">' + (cd - b.round + 1) + '</span>'; tip += sel2 ? ' · обрано, спрацює після перезарядки' : ' · перезарядка'; }
@@ -313,6 +314,7 @@ function paintBattle(bs){
       else if (why === 'careful') { cls += ' cd'; badge = '<span class="skb-cd">👀</span>'; tip += ' · суперник обережний — спрацює, коли обережність мине'; }
       else if (why === 'focus') { cls += ' cd'; badge = '<span class="skb-cd">🕯️</span>'; tip += ' · потрібна концентрація'; }
       else if (why === 'locked') { cls += ' on cd'; badge = '<span class="skb-cd">🐾</span>'; tip += ' · зачаївся після Засідки'; }
+      else if (why === 'eyeblind') { cls += ' on cd'; badge = '<span class="skb-cd">🙈</span>'; tip += ' · ти осліплена — Око не діє, а мана йде · торкнись, щоб вимкнути'; }
       else if (why === 'camo') { cls += ' cd'; badge = '<span class="skb-cd">🌿</span>'; tip += ' · лише з увімкненим Камуфляжем'; }
       else if (why === 'blind') { cls += ' cd'; badge = '<span class="skb-cd">🫳</span>'; tip += ' · суперник ще сліпий чи оговтується'; }
       else if (why === 'full') { cls += ' cd'; badge = '<span class="skb-cd">❤️</span>'; tip += ' · здоров\'я повне'; }
@@ -322,7 +324,7 @@ function paintBattle(bs){
       else if (sel2) tip += ' · спрацює цього ходу';
     }
     var cls2 = 'skb-sk' + (s.type === 'A' ? ' act' : '') + (p >= 100 ? ' max' : '');
-    h += '<div class="' + cls + '" data-skb-use="' + id + '" title="' + esc(tip) + '"' + (isTog ? ' style="--fx:' + fxc + '"' : '') + '><span class="k">' + (i + 1) + '</span>' + (isTog ? '<span class="skb-wave"></span><span class="skb-togm" title="Перемикач: діє щоходу, поки увімкнено">⟳</span>' : '')
+    h += '<div class="' + cls + '" data-skb-use="' + id + '" title="' + esc(tip) + '"' + (isTog ? ' style="--fx:' + fxc + '"' : '') + '><span class="k">' + (i + 1) + '</span>' + (isTog ? '<span class="skb-wave"></span><span class="skb-togm" title="Перемикач: діє щоходу, поки увімкнено">⟳</span>' : '') + (b && tmul ? '<span class="skb-tmul" title="Ціна мани: ×' + (tmul / 100) + ' (дорожчий перемикач платить ×1, другий — більше)">×' + (tmul / 100) + '</span>' : '')
       + '<div class="' + cls2 + '" style="--p:' + p + '"><div class="in">' + (SKS.iconHtml ? SKS.iconHtml(id) : s.icon) + '</div></div>' + badge + '</div>';
   }
   var hint = !any ? 'Постав вміння:<br>Інвентар → 📖'
