@@ -32,6 +32,7 @@ var CLS_RANGES = [['c1', 1, 10], ['c2', 11, 20], ['c3', 21, 30]];
 function clsRange(tab){ return CLS_RANGES.filter(function(r){ return r[0] === tab; })[0] || null; }
 var sel = null;                  // обране активне вміння, чекає на слот
 var lastTap = { id: null, t: 0 };
+var LIST_TAB = null;              // вкладка, для якої запам'ятали прокрутку списку
 
 var $ = function(id){ return document.getElementById(id); };
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
@@ -242,7 +243,10 @@ function renderBook(){
     if (!hero()) h += '<div class="skb-msg">Вміння вивчає сам Герой. Увійди Героєм, щоб вивчати й ставити їх на панель.</div>';
     h += groupsHTML(SKS.UNIVERSAL);
   }
+  var was = host.querySelector('.skb-list'), y = was && LIST_TAB === TAB ? was.scrollTop : 0;   // перемальовка не скидає прокрутку (інакше другий клік подвійного влучає вже в інше вміння)
   host.innerHTML = h + '</div>';
+  var now = host.querySelector('.skb-list'); if (now && y) now.scrollTop = y;
+  LIST_TAB = TAB;
 }
 /* переваги класу (SKARENA.CLASS_PERKS): діють самі, щойно обрано клас */
 function perksOf(cls){ var R = window.SKARENA; return (R && R.CLASS_PERKS && R.CLASS_PERKS[cls]) || []; }
