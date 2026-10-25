@@ -394,6 +394,9 @@ S('healer',1,10,'faith','Віра','P','','опір страху й прокля
 S('healer',1,5,'rest','Відпочинок','P','мирне','швидше відновлення між боями',
   'після бою відновлює (10 + 40·м)% здоров\'я й мани. Запрацює, коли здоров\'я між боями зберігатиметься',
   'Після бою ти швидко набираєшся сил.','Аладон: отдых');
+S('healer',5,null,'poisonres','Стійкість до отрут','P','','опір отруті',
+  'пасивне: свій опір отруті +10% → +40% (разом із речами — не більше 100%). Менше урону отрутою з удару й тіків, менший шанс тебе отруїти, після отрути опір спадає не нижче нього. Росте від спроб тебе отруїти: встояв — ✔, отруїли чи шкодить тік — ✖',
+  'Цілитель знає трави й зілля — отрута діє на нього слабше.','★');
 S('healer',6,null,'calm','Незворушність','P','','зберігає частину концентрації при уроні',
   'коли тебе вдарили, лишається (20 + 50·м)% рівнів концентрації',
   'Навіть після удару ти лишаєшся спокійним.','★',true);
@@ -734,6 +737,9 @@ var RULES = {
     { k: 'cd', v: 7, t: 'ходів перезарядки' },
     { k: 'heal', v: 10, from: 5, u: '%', t: 'макс. здоров\'я — лікує ще до ударів' },
     { k: 'cleanse', v: 1, calc: function (pct) { return pct >= 100 ? 1 : 0; }, t: 'на 100%: знімає отруту й дає 50% опору до отрути на 5 ходів' }] },
+  /* ── ✨ Цілитель ── */
+  'healer.poisonres': { kind: 'const', perBattle: 3, on: 'спроба тебе отруїти: встояв — ✔; отруїли чи шкодить тік отрути — ✖', p: [
+    { k: 'resPct', v: 40, from: 10, u: '%', t: 'до свого опору отруті' }] },
   /* ── 🛡️ Лицар, вміння 1 рівня класу ── */
   'knight.sword':   { kind: 'const', perBattle: 30, on: 'удар мечем: влучив — ✔, промах чи блок — ✖', p: [
     { k: 'accPct', v: 20, grow: true, u: '%', t: 'точності з мечем' },
@@ -947,7 +953,7 @@ function iconHtml(id) {
   return src ? '<img class="skb-ic" src="' + src + '" alt="' + esc1(s ? s.name : '') + '" draggable="false">' : (s ? s.icon : '⚡');
 }
 var ICONS = {
-  'ranger.wmaster': '⚔️', 'ranger.hide': '🫥', 'ranger.camo': '🌿', 'ranger.poison': '🐍', 'ranger.bandage': '🩹', 'ranger.bow': '🏹', 'ranger.sand': '🫳', 'ranger.ambush': '🐾', 'ranger.fire2': '🔥', 'ranger.aimed': '🎯', 'ranger.ult': '🐺',
+  'ranger.wmaster': '⚔️', 'ranger.hide': '🫥', 'ranger.camo': '🌿', 'ranger.poison': '🐍', 'ranger.bandage': '🩹', 'ranger.bow': '🏹', 'ranger.sand': '🫳', 'ranger.ambush': '🐾', 'ranger.fire2': '🔥', 'ranger.aimed': '🎯', 'ranger.ult': '🐺', 'healer.poisonres': '🍃',
   'knight.sword': '⚔️', 'knight.axe': '🪓', 'knight.spear': '🔱', 'knight.dagger': '🗡️', 'knight.mace': '🔨', 'knight.flail': '⛓️', 'knight.whip': '➰', 'knight.staff': '🦯', 'knight.shield': '🛡️', 'knight.bash': '💥',
   'knight.berserk': '😡', 'knight.fists': '👊', 'knight.brave': '🦁', 'knight.care': '🧰',
   'knight.lunge': '🗡️', 'knight.enh': '💪', 'knight.calm': '🧘', 'knight.tough': '🪨', 'knight.second': '⚡', 'knight.haft': '🔱',
@@ -1121,6 +1127,7 @@ var FX = {
   'knight.daze':    function(v){ return 'вдається в ' + v.chance + '%: удар ×' + (v.dmgMul / 100) + ', ворог втрачає концентрацію'; },
   'knight.riposte': function(v){ return 'після твого блоку — контрудар ×0.5 з шансом ' + v.chance + '%'; },
   'ranger.wmaster': function(v){ return 'урон будь-якою зброєю +' + v.dmgPct + '%'; },
+  'healer.poisonres': function(v){ return 'свій опір отруті +' + v.resPct + '%'; },
   'ranger.bow':     function(v){ return 'з луком: +' + v.accPct + '% точності, +' + v.dmgPct + '% урону'; },
   'ranger.camo':    function(v){ return 'перемикач (−' + v.mana + ' мани за хід): урон ×' + (v.dmgMul / 100) + ', Ухилення +' + v.dodgePlus + '%'; },
   'ranger.sand':    function(v){ return 'вдається в ' + v.chance + '% (−' + v.mana + ' мани): ' + v.turns + ' ходи ворог сліпий — точність −' + v.acc + '%, спритність −' + v.agi + '%'; },

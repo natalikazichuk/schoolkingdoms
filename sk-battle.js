@@ -167,6 +167,7 @@
     if (wt0 === 'dagger' && perkOf(st, 'daggerCrit')) p.critPct = num(p.critPct) + perkOf(st, 'daggerCrit');
     if (!shieldEntry(st.me) && perkOf(st, 'lightStep')) p.agility = Math.round(num(p.agility) * (1 + perkOf(st, 'lightStep') / 100));
     if (weaponOn(st) && hasSk(st, 'ranger.wmaster')) p.dmgPct = num(p.dmgPct) + V(st, 'ranger.wmaster', 'dmgPct');
+    if (hasSk(st, 'healer.poisonres')) p.resPoison = Math.min(100, num(p.resPoison) + V(st, 'healer.poisonres', 'resPct'));   // Цілитель: Стійкість до отрут
     if (V(st, 'knight.tough', 'hpPct')) p.hp = Math.round(num(p.hp) * (1 + V(st, 'knight.tough', 'hpPct') / 100));   // Міцне тіло: + максимум здоров'я
     var bp = shieldOn(st) ? V(st, 'knight.shield', 'blockPct') : 0;      // Блок щитом: + до «шансу блоку» щита
     if (bp) {
@@ -808,7 +809,9 @@
       if (poisoned(v.op, v.round)) return;
       var need = Math.round(num(vn.ch) * (1 - res / 100) * 10) / 10, r = ctx.R.d100(rnd);
       h.poisonTry = [r, need];
-      if (need > 0 && r <= need) { fxOf(v.op).poison = { from: v.round, until: v.round + 2, tick: num(vn.tick) || 5 }; h.poisoned = true; }
+      var ok = need > 0 && r <= need;
+      if (ok) { fxOf(v.op).poison = { from: v.round, until: v.round + 2, tick: num(vn.tick) || 5 }; h.poisoned = true; }
+      grow({ me: v.op, op: v.me, round: v.round }, 'healer.poisonres', !ok);   // Стійкість до отрут: встояв — вдале очко
     });
     hit.dmg = hit.hits.reduce(function (a, h) { return a + (h.dmg || 0); }, 0);
   }
@@ -816,7 +819,7 @@
     var f = u.fx, p = f && f.poison;
     if (!p || round < num(p.from) || round > num(p.until)) return 0;
     var d = Math.round(num(u.max) * (num(p.tick) || 5) / 100 * (1 - poisonRes(u, round, 'dmg') / 100));
-    if (d > 0) u.force -= d;
+    if (d > 0) { u.force -= d; grow({ me: u, round: round }, 'healer.poisonres', false); }   // тік шкодить — Стійкість учиться
     if (round >= num(p.until)) { delete f.poison; f.pimm = round + 1; f.pimmHold = 0; }   // минула — далі опір 100% і спад
     return d;
   }

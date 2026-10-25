@@ -451,3 +451,16 @@ test('Поки отруєний — удруге не отруїти', () => {
   const e = turnOf(st, { atk: 'legs', block: 'body' });
   assert.ok(!e.meHit.hits.some(h => h.poisonTry || h.poisoned));
 });
+
+test('Цілитель: Стійкість до отрут — до свого опору +10% → +40% (з речами — не більше 100%)', () => {
+  const sk = S.byId('healer.poisonres');
+  assert.ok(sk && sk.ready && sk.lv === 5);
+  assert.strictEqual(S.skillValues('healer.poisonres', 25).resPct, 10); assert.strictEqual(S.skillValues('healer.poisonres', 100).resPct, 40);
+  const mk = (skm, eq) => SB.create(ctx, { bid: 'hl-' + (n++), me: { name: 'Ц', stats: { health: 400, accuracy: 60, agility: 50, mana: 500 }, eq: eq || [], sk: skm, skv: skvOf(skm), bar: [], cls: 'healer' },
+    op: { f: { name: 'Бот', level: 3 }, p: R.fighter({ health: 400, accuracy: 50, agility: 50, mana: 0 }, [], K) } });
+  assert.strictEqual(mk({ 'healer.poisonres': 1 }).me.p.resPoison, 40);
+  const AM = item({ id: 'AM2', name: 'Амулет', category: 'Амулет', stat: 'Броня', valueMin: 1, valueMax: 1, addStats: [{ stat: 'Опір отруті', value: 70 }] });
+  assert.strictEqual(mk({ 'healer.poisonres': 1 }, [wear(AM, 'amulet')]).me.p.resPoison, 100, 'не більше 100%');
+  const st = mk({ 'healer.poisonres': 1 });
+  assert.strictEqual(SB.poisonRes(st.me, 1, 'dmg'), 40);
+});
