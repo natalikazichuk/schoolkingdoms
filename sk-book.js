@@ -27,7 +27,7 @@ if (!SKS) return;
 var ST = SKS.bookState({});      // стан книги (sk-skills.js bookState)
 var LOADED = false, BUSY = false;
 var OPEN = false;                // книга відкрита замість сумки
-var TAB = 1;                     // 1 | 2 | 3 | 'cls' (клас ще не обрано) | 'c1' | 'c2' | 'c3' (вміння класу 1–10 / 11–20 / 21–30)
+var TAB = 'base';                // 'base' (базові 1–3) | 'cls' (клас ще не обрано) | 'c1' | 'c2' | 'c3' (вміння класу 1–10 / 11–20 / 21–30) | 'perks' (переваги класу)
 var CLS_RANGES = [['c1', 1, 10], ['c2', 11, 20], ['c3', 21, 30]];
 function clsRange(tab){ return CLS_RANGES.filter(function(r){ return r[0] === tab; })[0] || null; }
 var sel = null;                  // обране активне вміння, чекає на слот
@@ -205,7 +205,7 @@ function rowHTML(id){
     : tile(id, { drag: L && isActive(id), lock: lock });
   return '<div class="skb-row' + (can ? ' can' : '') + (lock ? ' lock' : '') + '">' + left
     + '<div class="skb-txt" data-skb-info="' + id + '"><div class="skb-nm">' + esc(s.name) + ' <span class="skb-tag ' + (s.type === 'A' ? 'a">АКТИВНЕ' : 'p">ПАСИВНЕ') + '</span>'
-    + (TAB === 'cls' || clsRange(TAB) ? '<span class="skb-tag lv">рів. ' + (s.lv || 1) + '</span>' : '') + '</div>'
+    + (TAB === 'cls' || TAB === 'base' || clsRange(TAB) ? '<span class="skb-tag lv">рів. ' + (s.lv || 1) + '</span>' : '') + '</div>'
     + '<div class="skb-kid">' + esc(s.kid) + '</div>' + st + '</div>'
     + (can ? '<button class="skb-learn" type="button" data-skb-learn="' + id + '"' + (BUSY ? ' disabled' : '') + '>✨ Вивчити</button>' : '') + '</div>';
 }
@@ -216,11 +216,8 @@ function renderBook(){
     + (hero() ? '<span class="skb-chip' + (f > 0 ? '' : ' zero') + '">✨ ' + f + ' ' + plural(f, 'очко', 'очки', 'очок') + '</span>' : '')
     + '<button class="skb-mini" type="button" data-skb-close="1">🎒 Сумка</button></div>';
   var t = '';
-  [1, 2, 3].forEach(function(lv){
-    var has = f > 0 && SKS.UNIVERSAL.some(function(s){ return s.lv === lv && s.lv <= ST.lv && !learned(s.id); });
-    t += '<button class="skb-tab' + (TAB === lv ? ' on' : '') + (has && TAB !== lv ? ' glow' : '') + '" type="button" data-skb-tab="' + lv + '">'
-      + (lv > ST.lv ? '🔒 ' : '') + 'Рівень ' + lv + '</button>';
-  });
+  var hasBase = f > 0 && SKS.UNIVERSAL.some(function(s){ return s.lv <= ST.lv && !learned(s.id); });   // базові 1–3 рівня — однією вкладкою
+  t += '<button class="skb-tab' + (TAB === 'base' ? ' on' : '') + (hasBase && TAB !== 'base' ? ' glow' : '') + '" type="button" data-skb-tab="base">Базові</button>';
   var ready = ST.lv >= SKS.CLASS_LEVEL;
   if (ready && ST.cls) {   // клас обрано — вміння класу трьома вкладками за рівнями
     var cc = SKS.CLASSES[ST.cls], all = SKS.readyFor ? SKS.readyFor(ST.cls) : [];
@@ -230,18 +227,20 @@ function renderBook(){
       t += '<button class="skb-tab' + (TAB === r[0] ? ' on' : '') + (newHere && TAB !== r[0] ? ' glow' : '') + '" type="button" data-skb-tab="' + r[0] + '">'
         + (r[1] > ST.lv ? '🔒 ' : cc.icon + ' ') + cc.name + ' ' + r[1] + '–' + r[2] + '</button>';
     });
+    t += '<button class="skb-tab' + (TAB === 'perks' ? ' on' : '') + '" type="button" data-skb-tab="perks">🏰 Переваги</button>';   // потім — у довідник
   } else {
-    if (clsRange(TAB)) TAB = 'cls';
+    if (clsRange(TAB) || TAB === 'perks') TAB = 'cls';
     var clsNew = ready && !ST.cls;
     t += '<button class="skb-tab' + (TAB === 'cls' ? ' on' : '') + (clsNew && TAB !== 'cls' ? ' glow' : '') + '" type="button" data-skb-tab="cls">'
       + (!ready ? '🔒 ' : '✨ ') + 'Клас</button>';
   }
   h += '<div class="skb-tabs">' + t + '</div><div class="skb-list">';
   if (!LOADED) h += '<div class="skb-msg">Завантаження…</div>';
+  else if (TAB === 'perks') h += perksHTML(ST.cls);
   else if (TAB === 'cls' || clsRange(TAB)) h += clsHTML(ready);
   else {
     if (!hero()) h += '<div class="skb-msg">Вміння вивчає сам Герой. Увійди Героєм, щоб вивчати й ставити їх на панель.</div>';
-    h += groupsHTML(SKS.UNIVERSAL.filter(function(s){ return s.lv === TAB; }));
+    h += groupsHTML(SKS.UNIVERSAL);
   }
   host.innerHTML = h + '</div>';
 }
@@ -259,8 +258,7 @@ function clsHTML(ready){
         return '<button class="skb-ccard" type="button" data-skb-cls="' + k + '"><span class="ci">' + c.icon + '</span><b>' + c.name + '</b><p>' + esc(c.about) + '</p>' + perksHTML(k, true) + '</button>'; }).join('') + '</div>';
   var c = SKS.CLASSES[ST.cls], r = clsRange(TAB) || CLS_RANGES[0];
   var list = SKS.readyFor ? SKS.readyFor(ST.cls).filter(function(s){ return s.lv >= r[1] && s.lv <= r[2]; }) : [];   // і ще закриті — видно, що чекає далі
-  var head = '<div class="skb-msg">' + c.icon + ' Ти — <b>' + c.name + '</b>. Вміння ' + r[1] + '–' + r[2] + ' рівня вивчаються за очки вмінь, як і звичайні.</div>'
-    + (r === CLS_RANGES[0] ? perksHTML(ST.cls) : '');
+  var head = '<div class="skb-msg">' + c.icon + ' Ти — <b>' + c.name + '</b>. Вміння ' + r[1] + '–' + r[2] + ' рівня вивчаються за очки вмінь, як і звичайні.</div>';
   if (!list.length) return head + '<div class="skb-msg">Вміння цих рівнів з\'являться в наступних оновленнях.</div>';
   return head + groupsHTML(list);
 }
@@ -414,7 +412,7 @@ document.addEventListener('click', function(e){
   var t = e.target, b;
   if (t.closest('#skbBtn')) { OPEN = !OPEN; sel = null; render(); return; }
   if (t.closest('[data-skb-close]')) { OPEN = false; sel = null; render(); return; }
-  if ((b = t.closest('[data-skb-tab]'))) { var v = b.getAttribute('data-skb-tab'); TAB = (v === 'cls' || clsRange(v)) ? v : +v; renderBook(); return; }
+  if ((b = t.closest('[data-skb-tab]'))) { var v = b.getAttribute('data-skb-tab'); TAB = v; renderBook(); return; }
   if ((b = t.closest('[data-skb-cls]'))) { pickClass(b.getAttribute('data-skb-cls')); return; }
   if ((b = t.closest('[data-skb-pick]'))) { var k = b.getAttribute('data-skb-pick'); closeSheet();
     send('chooseClass', [k], [SKS.CLASSES[k].icon + ' Тепер ти — ' + SKS.CLASSES[k].name + '!']); return; }
