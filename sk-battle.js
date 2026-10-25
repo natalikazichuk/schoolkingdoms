@@ -721,10 +721,11 @@
      st.me.tog — увімкнені за порядком. Другий — лише з «Другим запалом», коштує мани ×mul%.
      Камуфляж після Засідки «зачаївся» (fx.camoLock — до якого ходу): не діє, не їсть ману й не вимикається,
      а потім знову діє сам, якщо вистачає мани. */
-  var TOG = { 'ranger.camo': 1 };
+  var TOG = { 'ranger.camo': 1, 'ranger.haste': 1 };
   function togOn(st, id) { return (st.me.tog || []).indexOf(id) >= 0; }
   function camoLocked(st) { var f = st.me && st.me.fx; return !!(f && num(f.camoLock) >= st.round); }
   function camoOn(st) { var f = st.me && st.me.fx; return !!(f && num(f.camoOn) === st.round); }   // діє цього ходу (мана знята)
+  function hasteOn(st) { var f = st.me && st.me.fx; return !!(f && num(f.hasteOn) === st.round); }   // Поспіх діє цього ходу (мана знята)
   function toggleSkill(st, id) {
     var l = st.me.tog || (st.me.tog = []), i = l.indexOf(id);
     if (id === 'ranger.camo' && camoLocked(st)) return false;
@@ -744,10 +745,20 @@
       if (num(st.me.mana) < cost) { l.splice(l.indexOf(id), 1); out.push({ id: id, off: true, cost: cost }); return; }
       st.me.mana = num(st.me.mana) - cost; paid++;
       if (id === 'ranger.camo') f.camoOn = st.round;
+      if (id === 'ranger.haste') f.hasteOn = st.round;
       out.push({ id: id, cost: cost });
     });
     if (paid > 1) grow(st, 'ranger.fire2', true);
     return out;
+  }
+  /* Поспіх: ще один звичайний удар у ту саму зону (×dmgMul), свої кидки; Другу й Третю атаку не запускає.
+     Лише коли боєць атакує цього ходу (не збитий з ніг, не наляканий) — мана знята в togTick і так. */
+  function hasteTry(ctx, v, hit, pA, pD, blocked, rnd) {
+    if (!hasteOn(v) || !hit || !hit.hits) return;
+    var a = {}, k; for (k in pA) a[k] = pA[k];
+    a.dmgMul = Math.round((num(pA.dmgMul) || 1) * (V(v, 'ranger.haste', 'dmgMul') || 100)) / 100;
+    var h = ctx.R.strike(a, pD, blocked, rnd); h.haste = true; addHit(hit, h);
+    grow(v, 'ranger.haste', h.kind === 'hit' || h.kind === 'crit');
   }
   function camoLanded(v, hit) {                                 // ріст Камуфляжу: хід з ним — удар влучив чи ні
     if (!camoOn(v) || !hit || !hit.hits || !hit.hits.length) return;
@@ -1411,6 +1422,8 @@
     if (opAtk) thirdTry(ctx, vo, opHit, po, pmA, op.atk === me.block, sd(vo, 'third'));
     if (meAtk) offhandTry(ctx, st, meHit, pm, poA, me.atk === op.block, sd(st, 'offhand'));
     if (opAtk) offhandTry(ctx, vo, opHit, po, pmA, op.atk === me.block, sd(vo, 'offhand'));
+    if (meAtk) hasteTry(ctx, st, meHit, pm, poA, me.atk === op.block, sd(st, 'haste'));   // Поспіх — ще один удар
+    if (opAtk) hasteTry(ctx, vo, opHit, po, pmA, op.atk === me.block, sd(vo, 'haste'));
     // вміння Героя, що ростуть від ударів
     if (meAtk) {
       // удар зброєю: влучив — вдале, промах / блок / ухилення — невдале

@@ -252,8 +252,8 @@ S('ranger',20,null,'third','Третя атака','P','','шанс третьо
 S('ranger',13,null,'dual','Друга зброя','P','','зброя в обох руках',
   'як у Лицаря (буде спільне): зброя в лівій руці замість щита',
   'Ти б\'єшся двома клинками одразу.','Аладон: второе оружие',true);
-S('ranger',23,null,'haste','Поспіх','A','раз за бій','+1 удар на 2 ходи',
-  '2 ходи: +1 удар за хід',
+S('ranger',23,null,'haste','Поспіх','A','30 мани щоходу · перемикач','+1 удар щоходу',
+  'перемикач (−30 мани щоходу): щоходу ще один звичайний удар у ту саму зону, навіть у хід зі спецвмінням чи кидком піску; урон ×0.7 (25%) → ×1.0 (100%); свої кидки — ворог може ухилитись, заблокувати, парирувати; Другу й Третю атаку не запускає; збитий з ніг чи наляканий — удару немає, а мана знімається',
   'Ти рухаєшся дуже швидко.','Аладон: спешка');
 S('ranger',25,null,'sharpen','Заточка','A','раз за бій','+урон до кінця бою',
   'до кінця бою урон +(15 + 15·м)%',
@@ -709,6 +709,9 @@ var RULES = {
     { k: 'mana', v: 7, t: 'мани за кожен хід, поки увімкнено' },
     { k: 'dmgMul', v: 130, from: 110, u: '%', t: 'урону твоїх ударів, поки увімкнено' },
     { k: 'dodgePlus', v: 10, from: 5, u: '%', t: 'до шансу Ухилення (якщо вміння вивчене), поки увімкнено' }] },
+  'ranger.haste':   { kind: 'toggle', perBattle: 10, on: 'додатковий удар Поспіху: влучив — ✔, ні — ✖', p: [
+    { k: 'mana', v: 30, t: 'мани за кожен хід, поки увімкнено' },
+    { k: 'dmgMul', v: 100, from: 70, u: '%', t: 'урону додаткового удару' }] },
   'ranger.zeal':    { kind: 'const', perBattle: 10, on: 'хід: +1 концентрації — ✔, −1 — ✖', p: [
     { k: 'tie', v: 50, from: 0, u: '%', t: 'шанс, що нічия (порівну влучань) теж дасть +1' }] },
   'ranger.sand':    { kind: 'active', perBattle: 3, on: 'осліпив — ✔; не вдалося чи встояв — ✖', p: [
@@ -958,7 +961,7 @@ function iconHtml(id) {
   return src ? '<img class="skb-ic" src="' + src + '" alt="' + esc1(s ? s.name : '') + '" draggable="false">' : (s ? s.icon : '⚡');
 }
 var ICONS = {
-  'ranger.wmaster': '⚔️', 'ranger.hide': '🫥', 'ranger.camo': '🌿', 'ranger.poison': '🐍', 'ranger.bandage': '🩹', 'ranger.bow': '🏹', 'ranger.sand': '🫳', 'ranger.ambush': '🐾', 'ranger.fire2': '🔥', 'ranger.aimed': '🎯', 'ranger.ult': '🐺', 'healer.poisonres': '🍃', 'ranger.zeal': '🐺',
+  'ranger.wmaster': '⚔️', 'ranger.hide': '🫥', 'ranger.camo': '🌿', 'ranger.haste': '💨', 'ranger.poison': '🐍', 'ranger.bandage': '🩹', 'ranger.bow': '🏹', 'ranger.sand': '🫳', 'ranger.ambush': '🐾', 'ranger.fire2': '🔥', 'ranger.aimed': '🎯', 'ranger.ult': '🐺', 'healer.poisonres': '🍃', 'ranger.zeal': '🐺',
   'knight.sword': '⚔️', 'knight.axe': '🪓', 'knight.spear': '🔱', 'knight.dagger': '🗡️', 'knight.mace': '🔨', 'knight.flail': '⛓️', 'knight.whip': '➰', 'knight.staff': '🦯', 'knight.shield': '🛡️', 'knight.bash': '💥',
   'knight.berserk': '😡', 'knight.fists': '👊', 'knight.brave': '🦁', 'knight.care': '🧰',
   'knight.lunge': '🗡️', 'knight.enh': '💪', 'knight.calm': '🧘', 'knight.tough': '🪨', 'knight.second': '⚡', 'knight.haft': '🔱',
@@ -1147,6 +1150,7 @@ var FX = {
   'ranger.wmaster': function(v){ return 'урон будь-якою зброєю +' + v.dmgPct + '%'; },
   'healer.poisonres': function(v){ return 'свій опір отруті +' + v.resPct + '%'; },
   'ranger.bow':     function(v){ return 'з луком: +' + v.accPct + '% точності, +' + v.dmgPct + '% урону'; },
+  'ranger.haste':   function(v){ return 'перемикач (−' + v.mana + ' мани за хід): ще один удар щоходу ×' + (v.dmgMul / 100); },
   'ranger.camo':    function(v){ return 'перемикач (−' + v.mana + ' мани за хід): урон ×' + (v.dmgMul / 100) + ', Ухилення +' + v.dodgePlus + '%'; },
   'ranger.zeal':    function(v){ return 'приціл: влучив більше — +1, порівну — +1 з шансом ' + v.tie + '%, пропустив більше — −1'; },
   'ranger.sand':    function(v){ return 'вдається в ' + v.chance + '% (−' + v.mana + ' мани): ' + v.turns + ' ходи ворог сліпий — точність −' + v.acc + '%, спритність −' + v.agi + '%'; },
