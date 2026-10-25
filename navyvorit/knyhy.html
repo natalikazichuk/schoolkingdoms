@@ -27,7 +27,31 @@ body.flipped #scene{background:linear-gradient(180deg,#e4d6fb 0%,#f3ecff 100%);}
 .book.hop{transform:translateY(-22px);}
 .b-r{background:#f06565;} .b-g{background:#51cf66;} .b-b{background:#4dabf7;} .b-o{background:#ffa94d;}
 .opts .bk{display:inline-block; width:22px; height:30px; border-radius:3px; margin:0 2px; vertical-align:middle; border:2px solid rgba(0,0,0,.2);}
+
+/* ═════ картинки художника (img/knyhy/) ═════ */
+/* бібліотека; сцена — у пропорції картинки, книжки стоять на її порожній полиці */
+#scene{height:auto; aspect-ratio:798/395; background:#c9a477 url(img/knyhy/scene-bg.webp) center/100% 100% no-repeat;}
+body.flipped #scene{background:#ae9bcc url(img/knyhy/scene-bg.webp) center/100% 100% no-repeat;}
+#scene{border:3px solid #e3c27a; box-shadow:0 0 0 2px #c9a05a, 0 8px 16px rgba(60,30,10,.25);}
+#scene:before{content:""; position:absolute; inset:0; background:rgba(150,90,230,.3); opacity:0; transition:opacity .6s; pointer-events:none; z-index:0;}   /* 🔄 — фіолетовий світ */
+body.flipped #scene:before{opacity:1;}
+#scene > *{z-index:1;}   /* усе — над фіолетовим шаром 🔄 */
+#shelf{bottom:35%; height:72px;}
+#shelf:after{display:none;}   /* полиця — на картинці */
+/* біла книжка художника; колір дає код (шар --bc з multiply під маскою книжки), літера — поверх */
+.book{width:44px; height:72px; border:0; border-radius:0; box-shadow:none; isolation:isolate; font-size:20px; padding-left:6px; text-shadow:0 1px 2px rgba(0,0,0,.55);
+  background:url(img/knyhy/book-white.webp) center/100% 100% no-repeat; filter:drop-shadow(0 3px 2px rgba(0,0,0,.3));}
+.book:before{content:""; position:absolute; inset:0; z-index:-1; background:var(--bc); mix-blend-mode:multiply;
+  -webkit-mask:url(img/knyhy/book-white.webp) center/100% 100% no-repeat; mask:url(img/knyhy/book-white.webp) center/100% 100% no-repeat;}
+.book.b-r{--bc:#f06565;} .book.b-g{--bc:#51cf66;} .book.b-b{--bc:#4dabf7;} .book.b-o{--bc:#ffa94d;}
+/* золотий дзвоник художника */
+#bell{width:40px; height:60px; font-size:0; top:8px; background:url(img/knyhy/bell.webp) center/contain no-repeat; filter:drop-shadow(0 3px 2px rgba(0,0,0,.3));}
+/* табличка з назвою на старті — художника */
+#startScreen.scrolled .titlebox{aspect-ratio:760/257; width:min(100%,370px);}
+#startScreen.scrolled .titlebox h1{left:11%; right:17%; top:39%; bottom:19%;}
+body{background:linear-gradient(180deg,rgba(255,250,240,.10),rgba(255,250,240,.35)), url(img/knyhy/page-bg.webp) center/cover no-repeat fixed, var(--paper);}   /* фон сторінки гри — малюнок художника */
 </style>
+<link rel="stylesheet" href="nav-scroll.css?v=7">
 </head>
 <body>
 <script src="../sk-footer.js?v=6" data-base="../" data-back="self"></script>
@@ -36,7 +60,7 @@ body.flipped #scene{background:linear-gradient(180deg,#e4d6fb 0%,#f3ecff 100%);}
 (function(){
   "use strict";
   var TOTAL = 5, log, order, bells;
-  var SLOT = 64;
+  var SLOT = 50;
   /* книги: колір і буква на корінці */
   var B = {r:"А", g:"Б", b:"В", o:"Г"};
 
@@ -53,7 +77,7 @@ body.flipped #scene{background:linear-gradient(180deg,#e4d6fb 0%,#f3ecff 100%);}
       "Тому важлива лише <b>парність</b>: парна кількість дзвінків — як було, непарна — крайні помінялись.",
       "🔄 Рух по колу: кожна книга зсувається на одне місце, остання — на початок. Щоб повернутись, потрібно <b>стільки дзвінків, скільки книг</b>."
     ],
-    scene:'<div id="bells">🔔 × <b id="bellN">0</b></div><span id="bell">🔔</span><div id="shelf"></div>',
+    scene:'<div id="bells">🔔 × <b id="bellN">0</b></div><span id="bell"></span><div id="shelf"></div>',
     afterScene:'<div class="log" id="log"></div>',
     onStart:startGame
   });
@@ -201,6 +225,8 @@ body.flipped #scene{background:linear-gradient(180deg,#e4d6fb 0%,#f3ecff 100%);}
 <script src="../sk-rewards.js?v=6"></script>
 <script src="../sk-prize.js?v=3"></script>
 <script src="../sk-finish.js?v=6"></script>
+<script src="nav-scroll.js?v=3"></script>
+<script>NAVSCROLL.init({winImg:"img/knyhy/bell.webp", bg:"img/knyhy/start-hero.webp", frame:"img/knyhy/title-frame.webp", focus:[0.12, 0.95], top:"#544978", bot:"#a76f54", play:"До бібліотеки"});</script>
 <script src="nav-intro.js?v=3"></script>
 </body>
 </html>
