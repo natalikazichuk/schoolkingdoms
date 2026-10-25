@@ -1839,8 +1839,27 @@ window.SKHERO = (function(){
     {name:'Тренувальний лицар', avatar:'hero:knight-green-boy',  power:0, ic:'🟢', pct:25,  mana:100, use:30, smart:false, xp:0.75},
     {name:'Джура Тимко',        avatar:'hero:knight-blue-boy',   power:1, ic:'🔵', pct:50,  mana:200, use:50, smart:false, xp:1},
     {name:'Лицарка Оленка',     avatar:'hero:knight-purple-girl',power:2, ic:'🟣', pct:75,  mana:300, use:70, smart:true,  xp:1.25},
-    {name:'Вартовий Грім',      avatar:'hero:knight-green-girl', power:3, ic:'🔴', pct:100, mana:400, use:90, smart:true,  xp:1.5}
+    {name:'Вартовий Грім',      avatar:'hero:knight-green-girl', power:3, ic:'🔴', pct:100, mana:400, use:90, smart:true,  xp:1.5,
+     gear:['IT-163']}   // ⚠️ ТЕСТ-КОСТИЛЬ (25.10): бот завжди вдягає ці речі з каталогу (замість випадкової того слоту) — перевірка опорів.
+                       //    ПІСЛЯ ТЕСТІВ ПРИБРАТИ рядок gear — і все як раніше (нагадування в docs/PLAN-balance-sims.md)
   ];
+
+  /* ТЕСТ: речі з BOTS[].gear — у свій слот (перший вільний за категорією; зброя — у праву руку),
+     замість випадкової; дворучна знімає щит. Немає в каталозі — пропускаємо. */
+  function botGear(ids, bits, catalog){
+    var SLOTS = window.SKIT && SKIT.store && SKIT.store.SLOT_CATS;
+    if(!ids || !ids.length || !SLOTS) return bits;
+    var used = {};
+    ids.forEach(function(id){
+      var base = (catalog||[]).filter(function(b){ return b && b.id===id; })[0]; if(!base) return;
+      var slot = Object.keys(SLOTS).filter(function(k){ return SLOTS[k].indexOf(base.category)>=0 && !used[k]; })[0]; if(!slot) return;
+      used[slot] = 1;
+      var inst = SKIT.makeInstance ? SKIT.makeInstance(base, {bonus:1}) : {id:base.id, bonus:1}; inst.slot = slot;
+      bits = bits.filter(function(e){ return e.slot!==slot; }).concat([{slot:slot, base:base, inst:inst}]);
+      if(slot==='weaponR' && RULES.isTwoHanded && RULES.isTwoHanded(base)) bits = bits.filter(function(e){ return e.slot!=='weaponL'; });
+    });
+    return bits;
+  }
 
   /* ── стан гравця (арена) ── */
   var arena = { level:1, xp:0, wins:0, losses:0, draws:0 };
@@ -2866,7 +2885,9 @@ window.SKHERO = (function(){
     var vals = function(u){ return Object.keys(u.skv||{}).map(function(id){ var s = S && S.byId(id), v = u.skv[id];
       return (s ? s.icon+' '+s.name : id)+' '+Math.round((u.sk&&u.sk[id]||0)*100)+'%: '+Object.keys(v).map(function(k){ return k+'='+v[k]; }).join(', '); }); };
     var pl = function(p, mana){ return 'здоров\'я '+p.hp+' · мана '+(mana!=null?mana+' (бюджет на вміння)':(p.mana||0))+' · урон зброї '+(p.wMin||0)+'–'+(p.wMax||0)+' · урон +'+(p.dmgFlat||0)+' · урон %+'+(p.dmgPct||0)
-      +' · маг. %+'+(p.magPct||0)+' · крит +'+(p.critPct||0)+'% · блок фіз '+(p.blockPhys||0)+'% / маг '+(p.blockMag||0)+'%'+(p.pierce?' · пробиття '+p.pierce+'%':'')+(p.extra?' · дод. атак '+p.extra:'')+(p.evade?' · відскок':''); };
+      +' · маг. %+'+(p.magPct||0)+' · крит +'+(p.critPct||0)+'% · блок фіз '+(p.blockPhys||0)+'% / маг '+(p.blockMag||0)+'%'+(p.pierce?' · пробиття '+p.pierce+'%':'')+(p.extra?' · дод. атак '+p.extra:'')+(p.evade?' · відскок':'')+res(p); };
+    var res = function(p){ var R = RULES.RES_KEY||{}, t = Object.keys(R).concat(['poison']).map(function(k){ var key = k==='poison'?'resPoison':R[k], v = +(p[key]||0), d = window.SKIT && SKIT.dmgType ? SKIT.dmgType(k) : null;
+      return v ? (d?d.icon+' '+d.label.toLowerCase():k)+' '+v+'%' : ''; }).filter(Boolean); return t.length ? ' · опір: '+t.join(', ') : ''; };
     out.push('  Ти (профіль): '+pl(B.me.p));
     vals(B.me).forEach(function(l){ out.push('    '+l); });
     out.push('  '+B.op.f.name+' (профіль): '+pl(B.op.p, B.op.f.mana));
@@ -3057,6 +3078,7 @@ window.SKHERO = (function(){
         if(bits){ var bw = botWeapon(r.catalog, r.eq);
           if(bw){ bits = bits.filter(function(e){ return e.slot!=='weaponR'; }); bits.push(bw);
             if(RULES.isTwoHanded && RULES.isTwoHanded(bw.base)) bits = bits.filter(function(e){ return e.slot!=='weaponL'; }); } }
+        if(bits) bits = botGear(BOTS[bot.tier].gear, bits, r.catalog);
         var bsk = botSkills(bot, bits);
         var bp;
         if(bits && bits.length && RULES.fighter){

@@ -135,7 +135,11 @@
   }
   function setMsg(t,ok){ var m=q('msg'); m.textContent=t; m.style.color=ok===false?'#ff9aa5':(ok?'#7ef0a0':'var(--muted)'); }
 
+  /* firebase-config.js — модуль, вантажиться ПІСЛЯ цього скрипта: чекаємо, поки з'явиться window.SK */
+  function whenSK(){ return new Promise(function(res, rej){ var t=0;
+    (function w(){ if(window.SK && window.SK.ready) return res(window.SK); if(t++<200) setTimeout(w,50); else rej(new Error('база не завантажилась — онови сторінку')); })(); }); }
   async function boot(){
+    await whenSK();
     await window.SK.ready;
     var hero=await SK.getActiveHero();
     if(!hero){ q('who').textContent='Увійди як герой, щоб бачити інвентар.'; ['giveAll','giveOne','clear','reload'].forEach(function(i){q(i).disabled=true;}); return; }
@@ -157,6 +161,7 @@
   /* одна річ з каталогу (для тесту): нова — найновіший запис каталогу з такою назвою.
      Опізнана, бонус ×1 (базові числа); іде через сумку — повна сумка → 🎁 скриня */
   q('giveOne').addEventListener('click', async function(){
+    if(!CATALOG.length){ setMsg('⏳ Каталог ще завантажується — зачекай секунду',false); return; }
     var t=q('pick').value.trim(), id=t.split(' — ')[0].trim(), low=t.toLowerCase();
     var base=BYID[id] || CATALOG.filter(function(b){ return (b.name||'').toLowerCase()===low; }).pop()
       || CATALOG.filter(function(b){ return low && (b.name||'').toLowerCase().indexOf(low)>=0; }).pop();
