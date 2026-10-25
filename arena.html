@@ -714,6 +714,10 @@ html.res-fire .avablk .hpwrap b.mn{color:#ffb070}
 .dmg-float.blk{color:#7bd8ff} .dmg-float.miss{color:#eaf2ff;font-size:2rem}
 /* лікування (Благословення, зілля) — зелене й летить повільніше, щоб встигнути помітити */
 .dmg-float.heal{color:#7dff9a;animation-duration:4.2s}
+/* отрута: тік отрути — зеленим; частка отрути в уроні удару — зеленим у дужках */
+.dmg-float.ven{color:#8dff5a;font-size:2.3rem;white-space:nowrap}
+.dmg-float.hit,.dmg-float.crit{white-space:nowrap}
+.dmg-float .venp{font-size:.5em;color:#8dff5a;-webkit-text-stroke:1px rgba(0,30,0,.6)}
 /* вміння зросло в бою: велика іконка + «+1» злітає посередині між бійцями,
    знизу вгору хвилькою, повільно */
 .scene-mid{position:relative}
@@ -748,6 +752,20 @@ html.res-fire .avablk .hpwrap b.mn{color:#ffb070}
   75%{transform:translate(-50%,-50%) translate(0,-10px) scale(.6);opacity:.55}
   100%{transform:translate(-50%,-50%) translate(-42px,0) scale(.85);opacity:.9}}
 @media (max-width:640px){.stun i{font-size:1.15rem}}
+/* осліплений (Пісок в очі): фігура «запилена» й вицвіла, над головою кружляє пісок — поки діє.
+   Не пов'язка на очах: аватари різні, і де саме очі — наперед не відомо */
+.figwrap.blinded img{filter:sepia(.75) saturate(.7) brightness(.85) blur(.6px);transition:filter .3s}
+.blindf{position:absolute;top:13%;left:50%;width:0;height:0;z-index:41;pointer-events:none}
+.blindf i{position:absolute;left:0;top:0;width:9px;height:9px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%,#ffe7a8,#d4a24c 60%,#9a6b26);box-shadow:0 0 6px rgba(255,214,120,.8);animation:sandorb 1.8s linear infinite}
+.blindf i:nth-child(2){animation-delay:-.36s;width:6px;height:6px}.blindf i:nth-child(3){animation-delay:-.72s}
+.blindf i:nth-child(4){animation-delay:-1.08s;width:7px;height:7px}.blindf i:nth-child(5){animation-delay:-1.44s;width:5px;height:5px}
+@keyframes sandorb{
+  0%{transform:translate(-50%,-50%) translate(-38px,2px);opacity:.9}
+  25%{transform:translate(-50%,-50%) translate(0,12px) scale(1.2);opacity:1}
+  50%{transform:translate(-50%,-50%) translate(38px,0);opacity:.9}
+  75%{transform:translate(-50%,-50%) translate(0,-10px) scale(.7);opacity:.6}
+  100%{transform:translate(-50%,-50%) translate(-38px,2px);opacity:.9}}
 @keyframes floatup{
   0%{opacity:0;transform:translate(-50%,16px) scale(.55)}
   11%{opacity:1;transform:translate(-50%,-2px) scale(1.2)}
@@ -1380,7 +1398,7 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text}
 @media(max-width:520px){#wtabGear{--ek-cell:66px}.ek-slots{grid-template-columns:repeat(3,var(--ek-cell))}.ek-body{gap:10px}}
 
 </style>
-<link rel="stylesheet" href="sk-book.css?v=11">
+<link rel="stylesheet" href="sk-book.css?v=12">
 </head>
 <body>
 <div class="bg-img"></div>
@@ -1754,7 +1772,7 @@ function resW(){ return (window.SKRES && SKRES.of()) || {name:'Мана', gen:'�
 <script src="sk-avatar.js?v=9"></script>
 <script src="sk-progress.js"></script>
 <script src="sk-arena-rules.js?v=32"></script>
-<script src="sk-battle.js?v=45"></script>
+<script src="sk-battle.js?v=46"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
    Інвентар, скриня, смітник, продане / куплене сьогодні й монети
@@ -2284,6 +2302,16 @@ window.SKHERO = (function(){
     if(f.bless) timed(f.bless.until, function(n){ return {neg:false, ic:'🙏', n:n, title:'Благословення', text:'Броня й маг. захист +'+(f.bless.def||0)+'%, лікує '+(f.bless.heal||0)+'% здоров\'я щоходу.', left:left(n)}; });
     if(u.skv && u.skv['knight.berserk']){ var bz=u.skv['knight.berserk'];
       timed(f.berserk, function(n){ return {neg:false, ic:'😡', n:n, title:'Берсерк', text:'+'+(bz.dmgPct||0)+'% урону, −'+(bz.armorCut||0)+'% броні.', left:left(n)}; }); }
+    /* 🏹 Слідопит: сліпота, отрута, стріла, змащена зброя, опір отруті, Камуфляж */
+    if(f.blind) timed(f.blind.until, function(n){ return {neg:true, ic:'🫳', n:n, title:'Осліплений', text:'Пісок в очі: точність −'+(f.blind.acc||0)+'%, спритність −'+(f.blind.agi||0)+'%, Ухилення не прокидається. Щоходу може протерти очі.', left:left(n)}; });
+    if(f.poison) timed(f.poison.until, function(n){ return {neg:true, ic:'☠️', n:n, title:'Отруєний', text:'−'+(f.poison.tick||5)+'% здоров\'я наприкінці кожного ходу, броня не захищає.', left:left(n)}; });
+    if(f.arrow) timed(f.arrow.until, function(n){ return {neg:true, ic:'🎯', n:n, title:'Стріла застрягла', text:'Б\'є слабше на '+(f.arrow.weak||0)+'%.', left:f.arrow.from>B.round?'З наступного ходу':left(n)}; });
+    if(f.venom) timed(f.venom.until, function(n){ return {neg:false, ic:'🐍', n:n, title:'Зброя змащена отрутою', text:'Кожен удар, що завдав урону: +'+(f.venom.pct||0)+'% урону отрутою і шанс '+(f.venom.ch||0)+'% отруїти.', left:left(n)}; });
+    if(f.pimm!=null && B){ var pd = B.round - f.pimm, pr = pd < 0 ? 0 : pd < 3 ? 100 : Math.max(0, 100 - 10*(pd-2));
+      if(pr > 0) out.push({neg:false, ic:'🧪', n:pr+'', title:pr>=100?'Імунітет до отрути':'Опір отруті', text:pr>=100?'Отруїти не можна.':'Шанс отруїти й урон отрутою менші ('+pr+'%). Щоходу опір слабшає на 10%.', left:pr>=100?'Ще '+(3-pd)+' '+((3-pd)===1?'хід':'ходи'):'Щоходу −10%'}); }
+    if(f.bres) timed(f.bres.until, function(n){ return {neg:false, ic:'🩹', n:n, title:'Опір отруті', text:'Перев\'язка: +'+(f.bres.pct||50)+'% опору отруті.', left:left(n)}; });
+    if((u.tog||[]).indexOf('ranger.camo')>=0 && u.skv && u.skv['ranger.camo']){ var cm = u.skv['ranger.camo'], lk = f.camoLock && f.camoLock>=B.round;
+      out.push({neg:false, ic:'🌿', n:lk?(f.camoLock-B.round+1):'', past:lk, title:lk?'Камуфляж зачаївся':'Камуфляж', text:lk?'Після Засідки не діє й не їсть ману; потім увімкнеться сам, якщо вистачить.':'Урон ×'+((cm.dmgMul||110)/100)+', Ухилення +'+(cm.dmgMul?cm.dodgePlus:0)+'%. −'+(cm.mana||7)+' щоходу.', left:lk?'Ще '+(f.camoLock-B.round+1)+' ход.':'Поки увімкнено й є мана'}); }
     if(f.barrier>0) out.push({neg:false, ic:'🫧', n: f.barrier>1 ? '×'+f.barrier : '',
       title: "Бар'єр", text: "Поглине "+(f.barrier>1?f.barrier+' удари':'один удар')+", що забрав би здоров'я. Ухилився чи заблокував — бар'єр лишається.", left: 'До першого удару, що влучить'});
     if(f.fear>=imm) out.push({neg:false, ic:'😱', n:'∞', title:'Імунітет до страху', text:'Свитки страху більше не діють.', left:'До кінця бою'});
@@ -2310,8 +2338,17 @@ window.SKHERO = (function(){
     var row = document.querySelector('#screen-battle .scene-row'); if(row) row.classList.toggle('nofx', !any);
     paintStun();
   }
-  /* збитий з ніг цього ходу — зірочки над головою, доки не мине пропущений хід */
+  /* збитий з ніг цього ходу — зірочки над головою, доки не мине пропущений хід;
+     осліплений — червона пов'язка на очах, доки діє Пісок в очі */
   function paintStun(){
+    [['p', B.me], ['o', B.op]].forEach(function(x){
+      var card = document.querySelector('#'+x[0]+'Scene .figwrap'); if(!card) return;
+      var b = x[1] && x[1].fx && x[1].fx.blind, on = B.status!=='over' && !!b && b.from<=B.round && b.until>=B.round;
+      var el = card.querySelector('.blindf');
+      if(on && !el){ el = document.createElement('div'); el.className='blindf'; el.innerHTML='<i></i><i></i><i></i><i></i><i></i>'; el.title='Осліплений — гірше влучає й не ухиляється'; card.appendChild(el); }
+      else if(!on && el) el.remove();
+      card.classList.toggle('blinded', on);
+    });
     [['p', B.me], ['o', B.op]].forEach(function(x){
       var card = document.querySelector('#'+x[0]+'Scene .figwrap'); if(!card) return;
       var f = (x[1] && x[1].fx) || {}, on = B.status!=='over' && !!f.knock && f.knock===B.round;
@@ -3565,8 +3602,8 @@ window.SKHERO = (function(){
     if(e.opSkill){ var oki = window.SKSKILLS && SKSKILLS.byId(e.opSkill.id), ok2 = e.opSkill;   // вміння суперника — дзеркально
       if(ok2.kind!=='lunge' && ok2.kind!=='noweapon' && ok2.kind!=='immune' && ok2.kind!=='noshield' && ok2.kind!=='fail') floatOne(SELF_K[ok2.kind] ? 'o' : 'p', ok2, 0, 1, oki ? oki.icon : '⚡');
       if(ok2.knock||ok2.stun) setTimeout(function(){ floatOne('p', {kind:'knock', stun:!!ok2.stun}, 0, 1); }, 380); }
-    if(e.poison) setTimeout(function(){ floatOne('o', {kind:'hit', dmg:e.poison}, 0, 1, '🐍'); }, (nMe+2)*380);   // отрута — наприкінці ходу
-    if(e.mePoison) setTimeout(function(){ floatOne('p', {kind:'hit', dmg:e.mePoison}, 0, 1, '🐍'); }, 760);
+    if(e.poison) setTimeout(function(){ floatOne('o', {kind:'poisonTick', dmg:e.poison}, 0, 1); }, (nMe+2)*380);   // отрута — наприкінці ходу, зеленим
+    if(e.mePoison) setTimeout(function(){ floatOne('p', {kind:'poisonTick', dmg:e.mePoison}, 0, 1); }, 760);
     floatGrow(grow0, B.me.grow, growF0, B.me.growF, (nMe + (e.skill ? 2 : 1)) * 380 + 500);
 
     renderTurn(e);          // журнал: Хід N (+ поломки)
@@ -3696,7 +3733,9 @@ window.SKHERO = (function(){
     else if(h.kind==='block'){ var ev = !!h.evade, mg = !ev && !!h.magic;
       el.className='dmg-float blk'+(ev?' ev':mg?' mblk':''); el.textContent= pre+(h.dmg ? '−'+h.dmg : (ev ? 'відскочив 💨' : mg ? 'блок ✨' : 'блок')); }
     else if(h.kind==='crit'){ el.className='dmg-float crit'; el.textContent=pre+'−'+h.dmg+'!'; }
+    else if(h.kind==='poisonTick'){ el.className='dmg-float ven'; el.textContent='🐍 −'+h.dmg; }
     else { el.className='dmg-float hit'+(h.magic?' mblk':''); el.textContent=pre+'−'+h.dmg; }
+    if(h.venom && (h.kind==='hit' || h.kind==='crit')){ var vs = document.createElement('small'); vs.className='venp'; vs.textContent=' (🐍'+h.venom+')'; el.appendChild(vs); }   // скільки з урону — отрута
     if(n > 1) el.style.left = (50 + (i - (n-1)/2) * 22) + '%';
     var put = function(){ card.appendChild(el); setTimeout(function(){ el.remove(); }, 2900); };
     if(i) setTimeout(put, i*380); else put();
@@ -4181,8 +4220,8 @@ window.SKHERO = (function(){
 </script>
 
 <script src="sk-items.js?v=22"></script>
-<script src="sk-skills.js?v=55"></script>
-<script src="sk-book.js?v=20"></script>
+<script src="sk-skills.js?v=56"></script>
+<script src="sk-book.js?v=22"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
    Дані ЗАРАЗ demo (локально). Крок 2: джерело речей → Firestore (адмінка).

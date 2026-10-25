@@ -384,3 +384,16 @@ test('Влучний постріл: лише з луком; постріл ×1.
   }
   assert.ok(stuck);
 });
+
+test('Перемикачі живуть лише в бою: новий бій — усе вимкнене; кінець бою вимикає', () => {
+  const st = battle({ 'ranger.camo': 1 }, ['ranger.camo']);
+  SB.useSkill(ctx, st, 'ranger.camo');
+  assert.strictEqual(JSON.stringify(st.me.tog), JSON.stringify(['ranger.camo']));
+  st.op.force = 1; st.me.p.accuracy = 5000; st.op.p.agility = 1;
+  for (let k = 0; k < 10 && st.status === 'live'; k++) turnOf(st, { atk: 'head', block: 'body' });
+  assert.notStrictEqual(st.status, 'live');
+  assert.strictEqual(JSON.stringify(st.me.tog), '[]', 'бій скінчився — вимкнено');
+  assert.strictEqual(SB.useSkill(ctx, st, 'ranger.camo'), false, 'поза боєм не вмикається');
+  const st2 = battle({ 'ranger.camo': 1 }, ['ranger.camo']);
+  assert.ok(!(st2.me.tog && st2.me.tog.length), 'новий бій — вимкнено');
+});
