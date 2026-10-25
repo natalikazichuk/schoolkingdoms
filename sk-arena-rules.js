@@ -518,6 +518,11 @@
     function critCheck() { out.critNeed = pctOf(critChance(att)); out.critRoll = d100(rnd); return out.critRoll <= out.critNeed; }
     // 2) заблокував? щит приймає удар; ПІСЛЯ блоку — перевірка, чи удар був критичним
     //    (від цього залежить знос щита: shieldCritBlock замість shieldBlock)
+    // 2а) Око мисливця: удар у закриту зону з шансом gapPct «знаходить щілину» — блок зони не діє (щит і парирування — як завжди)
+    if (blocked && num(att.gapPct) > 0) {
+      out.gapNeed = Math.min(100, Math.round(num(att.gapPct))); out.gapRoll = d100(rnd);
+      if (out.gapRoll <= out.gapNeed) { blocked = false; out.gap = true; }
+    }
     if (blocked && !BATTLE.blockKeep) {
       var bc = critCheck();
       return ret({ dmg: 0, kind: 'block', crit: bc,
