@@ -752,20 +752,19 @@ html.res-fire .avablk .hpwrap b.mn{color:#ffb070}
   75%{transform:translate(-50%,-50%) translate(0,-10px) scale(.6);opacity:.55}
   100%{transform:translate(-50%,-50%) translate(-42px,0) scale(.85);opacity:.9}}
 @media (max-width:640px){.stun i{font-size:1.15rem}}
-/* осліплений (Пісок в очі): фігура «запилена» й вицвіла, над головою кружляє пісок — поки діє.
-   Не пов'язка на очах: аватари різні, і де саме очі — наперед не відомо */
-.figwrap.blinded img{filter:sepia(.75) saturate(.7) brightness(.85) blur(.6px);transition:filter .3s}
-.blindf{position:absolute;top:13%;left:50%;width:0;height:0;z-index:41;pointer-events:none}
-.blindf i{position:absolute;left:0;top:0;width:9px;height:9px;border-radius:50%;
-  background:radial-gradient(circle at 35% 35%,#ffe7a8,#d4a24c 60%,#9a6b26);box-shadow:0 0 6px rgba(255,214,120,.8);animation:sandorb 1.8s linear infinite}
-.blindf i:nth-child(2){animation-delay:-.36s;width:6px;height:6px}.blindf i:nth-child(3){animation-delay:-.72s}
-.blindf i:nth-child(4){animation-delay:-1.08s;width:7px;height:7px}.blindf i:nth-child(5){animation-delay:-1.44s;width:5px;height:5px}
-@keyframes sandorb{
-  0%{transform:translate(-50%,-50%) translate(-38px,2px);opacity:.9}
-  25%{transform:translate(-50%,-50%) translate(0,12px) scale(1.2);opacity:1}
-  50%{transform:translate(-50%,-50%) translate(38px,0);opacity:.9}
-  75%{transform:translate(-50%,-50%) translate(0,-10px) scale(.7);opacity:.6}
-  100%{transform:translate(-50%,-50%) translate(-38px,2px);opacity:.9}}
+/* осліплений (Пісок в очі): піщана завіса на всю фігуру (піщинки летять навскіс), фігура вицвітає,
+   угорі — плашка «сліпий · N ходів». Не прив'язано до голови: аватари різні, де очі — наперед не відомо */
+.figwrap.blinded img{filter:sepia(.8) saturate(.65) brightness(.82) blur(.7px);transition:filter .3s}
+.blindf{position:absolute;inset:0;z-index:41;pointer-events:none;overflow:hidden;border-radius:inherit}
+.blindf::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 30%,rgba(232,190,110,.42),rgba(196,146,64,.22) 55%,rgba(150,105,40,.12));animation:sandveil 3s ease-in-out infinite}
+.blindf::after{content:'';position:absolute;inset:-40% -40%;
+  background-image:radial-gradient(circle,rgba(255,226,150,.95) 0 1.6px,transparent 2.2px),radial-gradient(circle,rgba(214,160,72,.9) 0 1.2px,transparent 1.8px);
+  background-size:26px 22px,17px 19px;background-position:0 0,9px 7px;animation:sanddrift 1.9s linear infinite;opacity:.85}
+.blindf b{position:absolute;top:6px;left:50%;transform:translateX(-50%);white-space:nowrap;font:800 .72rem/1 'Nunito',sans-serif;color:#3b2405;
+  background:linear-gradient(180deg,#ffe6a6,#e4b25a);border:2px solid #fff3cf;border-radius:999px;padding:3px 9px;box-shadow:0 2px 6px rgba(0,0,0,.45)}
+@keyframes sanddrift{from{transform:translate(0,0)}to{transform:translate(-26px,22px)}}
+@keyframes sandveil{0%,100%{opacity:.8}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.blindf::after,.blindf::before{animation:none}}
 @keyframes floatup{
   0%{opacity:0;transform:translate(-50%,16px) scale(.55)}
   11%{opacity:1;transform:translate(-50%,-2px) scale(1.2)}
@@ -1772,7 +1771,7 @@ function resW(){ return (window.SKRES && SKRES.of()) || {name:'Мана', gen:'�
 <script src="sk-avatar.js?v=9"></script>
 <script src="sk-progress.js"></script>
 <script src="sk-arena-rules.js?v=32"></script>
-<script src="sk-battle.js?v=46"></script>
+<script src="sk-battle.js?v=48"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
    Інвентар, скриня, смітник, продане / куплене сьогодні й монети
@@ -2303,7 +2302,7 @@ window.SKHERO = (function(){
     if(u.skv && u.skv['knight.berserk']){ var bz=u.skv['knight.berserk'];
       timed(f.berserk, function(n){ return {neg:false, ic:'😡', n:n, title:'Берсерк', text:'+'+(bz.dmgPct||0)+'% урону, −'+(bz.armorCut||0)+'% броні.', left:left(n)}; }); }
     /* 🏹 Слідопит: сліпота, отрута, стріла, змащена зброя, опір отруті, Камуфляж */
-    if(f.blind) timed(f.blind.until, function(n){ return {neg:true, ic:'🫳', n:n, title:'Осліплений', text:'Пісок в очі: точність −'+(f.blind.acc||0)+'%, спритність −'+(f.blind.agi||0)+'%, Ухилення не прокидається. Щоходу може протерти очі.', left:left(n)}; });
+    if(f.blind) timed(f.blind.until, function(n){ return {neg:true, ic:'🫳', n:n, title:'Осліплений', text:'Пісок в очі: точність −'+(f.blind.acc||0)+'%, спритність −'+(f.blind.agi||0)+'%, Ухилення не прокидається. Щоходу може протерти очі. У груповому бою б\'є й застосовує вміння лише по тому, з ким зараз б\'ється.', left:left(n)}; });
     if(f.poison) timed(f.poison.until, function(n){ return {neg:true, ic:'☠️', n:n, title:'Отруєний', text:'−'+(f.poison.tick||5)+'% здоров\'я наприкінці кожного ходу, броня не захищає.', left:left(n)}; });
     if(f.arrow) timed(f.arrow.until, function(n){ return {neg:true, ic:'🎯', n:n, title:'Стріла застрягла', text:'Б\'є слабше на '+(f.arrow.weak||0)+'%.', left:f.arrow.from>B.round?'З наступного ходу':left(n)}; });
     if(f.venom) timed(f.venom.until, function(n){ return {neg:false, ic:'🐍', n:n, title:'Зброя змащена отрутою', text:'Кожен удар, що завдав урону: +'+(f.venom.pct||0)+'% урону отрутою і шанс '+(f.venom.ch||0)+'% отруїти.', left:left(n)}; });
@@ -2345,8 +2344,9 @@ window.SKHERO = (function(){
       var card = document.querySelector('#'+x[0]+'Scene .figwrap'); if(!card) return;
       var b = x[1] && x[1].fx && x[1].fx.blind, on = B.status!=='over' && !!b && b.from<=B.round && b.until>=B.round;
       var el = card.querySelector('.blindf');
-      if(on && !el){ el = document.createElement('div'); el.className='blindf'; el.innerHTML='<i></i><i></i><i></i><i></i><i></i>'; el.title='Осліплений — гірше влучає й не ухиляється'; card.appendChild(el); }
+      if(on && !el){ el = document.createElement('div'); el.className='blindf'; el.title='Осліплений — гірше влучає й не ухиляється'; card.appendChild(el); }
       else if(!on && el) el.remove();
+      if(on){ var nl = b.until - B.round + 1; el.innerHTML = '<b>🫳 сліпий · '+nl+' '+(nl===1?'хід':'ходи')+'</b>'; }
       card.classList.toggle('blinded', on);
     });
     [['p', B.me], ['o', B.op]].forEach(function(x){
@@ -3066,7 +3066,8 @@ window.SKHERO = (function(){
       + (e.blessHeal ? '<span class="ln use">🙏 Благословення: <span class="g">+'+e.blessHeal+' ❤️</span></span>' : '')
       + (e.opDisarmed && !(e.skill && e.skill.kind==='disarm') ? '<span class="ln use">🤚 '+biEsc(B.op.f.name)+' без зброї</span>' : '')
       + (e.opBlessHeal ? '<span class="ln use op">🙏 '+biEsc(B.op.f.name)+': благословення <span class="g">+'+e.opBlessHeal+' ❤️</span></span>' : '')
-      + (e.meDisarmed && !(e.opSkill && e.opSkill.kind==='disarm') ? '<span class="ln use op">🤚 Ти без зброї — вдягни її сам (дія ходу) або чекай хід</span>' : '')
+      + (e.meDisarmed && !(e.opSkill && e.opSkill.kind==='disarm') ? '<span class="ln use op">🤚 Ти без зброї — наступного ходу вона повернеться сама (або вдягни її сам — дія ходу)</span>' : '')
+      + (e.rearm ? '<span class="ln use">🗡️ Ти підняв «'+biEsc(e.rearm)+'» — зброя знову в руці</span>' : '')
       + (e.opNoShield && !(e.skill && e.skill.kind==='shatter') ? '<span class="ln use">💥 '+biEsc(B.op.f.name)+' без щита — рука німіє</span>' : '')
       + (e.meNoShield && !(e.opSkill && e.opSkill.kind==='shatter') ? '<span class="ln use op">💥 Ти без щита — рука німіє</span>' : '')
       + (e.will ? (e.will.ok ? '<span class="ln use">🦾 Залізна воля: <span class="g">броня +'+e.will.pct+'% на '+e.will.turns+(e.will.turns<5?' ходи':' ходів')+'</span> — ти не здаєшся!<span class="dice">мало здоров\'я · 🎲 '+e.will.roll+' ≤ '+e.will.need+'%</span></span>' : '<span class="dice">🦾 Залізна воля: не спрацювала 🎲 '+e.will.roll+' > '+e.will.need+'%</span>') : '')
@@ -3129,7 +3130,7 @@ window.SKHERO = (function(){
     if(k.id==='knight.disarm'){
       if(k.kind==='noweapon') return LN+nm+': <span class="b">у суперника немає зброї</span></span>';
       if(k.kind==='immune') return LN+nm+': <span class="b">суперник і так без зброї</span></span>';
-      return LN+nm+': '+(k.ok ? (op?'<span class="crit">вибив у тебе зброю! 🤚</span> — '+(k.toBag?'«'+biEsc(k.toBag)+'» ':'')+'летить у сумку: вдягни її сам (це дія ходу)':'<span class="crit">вибив зброю! 🤚</span> — суперник б\'є без неї цей і наступний хід') : '<span class="b">не вдалося</span>')
+      return LN+nm+': '+(k.ok ? (op?'<span class="crit">вибив у тебе зброю! 🤚</span> — '+(k.toBag?'«'+biEsc(k.toBag)+'» ':'')+'летить у сумку: через хід повернеться в руку сама (або вдягни раніше сам — це дія ходу)':'<span class="crit">вибив зброю! 🤚</span> — суперник б\'є без неї цей і наступний хід') : '<span class="b">не вдалося</span>')
         +'<span class="dice">🎲 '+k.roll+(k.ok?' ≤ ':' > ')+k.need+'% (50 + (володіння '+(op?'суперника ':'твоє ')+k.my+'% − '+(op?'твоє ':'суперника ')+k.opl+'%) / 2)</span></span>';
     }
     if((k.id==='knight.haft'||k.id==='knight.daze'||k.id==='knight.stun'||k.id==='knight.lash'||k.id==='knight.ult'||k.id==='ranger.aimed') && k.hits){
@@ -4220,7 +4221,7 @@ window.SKHERO = (function(){
 </script>
 
 <script src="sk-items.js?v=22"></script>
-<script src="sk-skills.js?v=56"></script>
+<script src="sk-skills.js?v=57"></script>
 <script src="sk-book.js?v=22"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
