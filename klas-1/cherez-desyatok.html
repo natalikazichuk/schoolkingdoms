@@ -175,9 +175,16 @@ h1,h2,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px
 .opt.no{border-color:var(--bad);background:var(--bad-bg);color:var(--bad)}
 .opt:disabled{cursor:default}
 
-/* після помилки замість завдання — правильний крок (видно над дошкою) */
+/* після помилки замість завдання — «спробуй ще раз» */
 .task.no{color:var(--bad);font-size:25px}
-.task small{display:block;font-family:'Nunito';font-size:14px;font-weight:800;color:var(--soft);margin-top:2px}
+/* сердечка: помилка забирає одне, усі втрачено — рівень спочатку */
+.hearts{display:flex;justify-content:center;gap:4px;margin:-4px 0 6px;font-size:24px;line-height:1}
+.hearts span{transition:opacity .3s,filter .3s}
+.hearts span.off{opacity:.35;filter:grayscale(1)}
+.hearts span.lost{animation:heartLost .6s ease}
+@keyframes heartLost{0%{transform:scale(1)}30%{transform:scale(1.45)}60%{transform:scale(.8) rotate(-12deg)}100%{transform:none}}
+.opt.no{animation:optShake .4s ease}
+@keyframes optShake{0%,100%{transform:none}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 
 /* результат рівня */
 .done-box{background:#fff;border:3px solid var(--line);border-radius:20px;padding:20px 16px;text-align:center;box-shadow:var(--shadow);margin:6px 0 14px}
@@ -247,6 +254,7 @@ h1,h2,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px
       <span class="score" id="p-score">✓ 0</span>
     </div>
     <div class="qbar"><i id="p-bar"></i></div>
+    <div class="hearts" id="p-hearts" aria-label="Сердечка"></div>
     <div class="task" id="p-task"></div>
     <div class="board" id="p-board"></div>
     <div class="opts" id="p-opts"></div>
@@ -280,9 +288,11 @@ h1,h2,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px
    другого числа: 8 + 5 = 8 + 2 + 3 = 13 · 15 − 8 = 15 − 5 − 3 = 7.
    10 рівнів; у рівні N — 5·N прикладів (від 5 до 50), без таймера.
    Варіанти: «крок за кроком» (скільки до 10 → решта → відповідь),
-   «пропущене число» в розкладі, «швидко» (одразу відповідь, а при
-   помилці — підказка з розкладом) і «чемпіон» (усе разом).
+   «пропущене число» в розкладі, «швидко» (одразу відповідь)
+   і «чемпіон» (усе разом).
    Рівень пройдено — 80% прикладів без помилки.
+   Помилку не підказуємо — кнопка червоніє, пауза, нові варіанти;
+   кожна помилка забирає ❤️ (їх LIVES), усі втрачено — рівень спочатку.
    Прогрес: localStorage 'sk_game_cherez_desyatok' (простір sk_*,
    синхронізується в heroes/{id}.progress). Нагорода — лише з адмінки.
    ============================================================ */
@@ -299,6 +309,7 @@ const LEVELS = [
   {t:"Швидкий мікс",            s:"± одразу",         mode:"fast",   set:"mix"},
   {t:"Чемпіон десятка",         s:"усе разом",        mode:"champ",  set:"mix"},
 ];
+const LIVES = 5;                                       // сердечок на рівень
 const QN = i => 5*(i+1);                               // 5, 10, … 50 прикладів
 const MINUS = "−";
 
@@ -395,12 +406,12 @@ function schemeHTML(e, st, opt){
 function fastHTML(e, st){
   return `<div class="row main fast">${e.a} <span class="op">${e.op}</span> ${e.b} <span class="op">=</span> ${val(e.r, st, st==="v"?"res-ok":"")}</div>`;
 }
-function hintLine(e){ return `${e.a} ${e.op} ${e.b} = ${e.a} ${e.op} ${e.p} ${e.op} ${e.q} = ${e.r}`; }
 
 /* ---------- гра ---------- */
 let L = 0, qi = 0, correct = 0, ex = null, exErr = false, busy = true;
 let Q = null;        // поточне питання: {kind, step, ans, lo, hi}
 let run = 0;         // «покоління» гри — скасовує відкладені кроки після виходу
+let lives = LIVES;   // сердечка, що лишилися на рівні
 
 function later(fn, ms){ const id = run; setTimeout(() => { if(id === run) fn(); }, ms); }
 
@@ -452,6 +463,8 @@ function drawMap(){
 function startLevel(i){
   stopRound();
   L = i; qi = 0; correct = 0;
+  lives = LIVES;
+  drawHearts();
   deck = []; dpos = 0; lastEx = null;
   $("p-title").textContent = LEVELS[i].t;
   $("p-eyebrow").textContent = `Рівень ${i+1} з 10 · ${QN(i)} прикладів`;
@@ -464,6 +477,12 @@ function updateHud(){
   $("p-num").textContent = Math.min(qi+1, QN(L));
   $("p-score").textContent = "✓ " + correct;
   $("p-bar").style.width = (qi / QN(L) * 100).toFixed(1) + "%";
+}
+
+function drawHearts(lost){
+  let s = "";
+  for(let k=0;k<LIVES;k++) s += `<span class="${k<lives?"":"off"}${k===lives&&lost?" lost":""}">❤️</span>`;
+  $("p-hearts").innerHTML = s;
 }
 
 /* новий приклад: вибір варіанта для рівня */
@@ -504,29 +523,25 @@ function ask(){
     task = add ? "Додай через десяток" : "Відніми через десяток";
     $("p-board").innerHTML = fastHTML(e, "ask");
   }
-  Q.ans = ans;
+  Q.ans = ans; Q.lo = lo; Q.hi = hi; Q.task = task;
   $("p-task").textContent = task; $("p-task").className = "task";
+  drawOpts();
+  busy = false;
+}
+/* варіанти відповіді; після помилки — інший набір чи порядок, ніж був */
+function drawOpts(){
+  const was = [...$("p-opts").children].map(b => b.textContent).join();
+  let vs;
+  for(let t=0;t<12;t++){ vs = optsNear(Q.ans, Q.lo, Q.hi); if(vs.join() !== was) break; }
   $("p-opts").innerHTML = "";
-  optsNear(ans, lo, hi).forEach(v => {
+  vs.forEach(v => {
     const b = document.createElement("button");
     b.className = "opt"; b.type = "button"; b.textContent = v;
     b.onclick = () => tapOpt(b, v);
     $("p-opts").appendChild(b);
   });
-  busy = false;
 }
 function lockOpts(){ [...$("p-opts").children].forEach(b => b.disabled = true); }
-
-/* підказка після помилки — правильний крок */
-function stepHint(){
-  const e = ex;
-  if(Q.kind === "guided"){
-    if(Q.step === 0) return `${e.a} ${e.op} ${e.p} = 10`;
-    if(Q.step === 1) return `${e.b} = ${e.p} + ${e.q}`;
-    return `10 ${e.op} ${e.q} = ${e.r}`;
-  }
-  return hintLine(e);
-}
 
 function tapOpt(btn, v){
   if(busy) return;
@@ -536,12 +551,21 @@ function tapOpt(btn, v){
     btn.classList.add("ok");
     later(advance, 380);
   }else{
-    exErr = true;
+    // відповідь не підказуємо — червона кнопка, пауза, нові варіанти
+    exErr = true; lives--;
     btn.classList.add("no");
-    [...$("p-opts").children].forEach(b => { if(Number(b.textContent) === Q.ans) b.classList.add("ok"); });
+    drawHearts(true);
     $("p-task").className = "task no";
-    $("p-task").innerHTML = stepHint() + (Q.kind !== "guided" ? "<small>розклади число: до десятка і решту</small>" : "");
-    later(advance, Q.kind === "guided" ? 1500 : 2300);
+    if(lives === 0){
+      $("p-task").textContent = "💔 Сердечка закінчилися — починаємо спочатку!";
+      later(() => startLevel(L), 2200);
+      return;
+    }
+    $("p-task").textContent = "Ні, спробуй ще раз!";
+    later(() => {
+      $("p-task").textContent = Q.task; $("p-task").className = "task";
+      drawOpts(); busy = false;
+    }, 1100);
   }
 }
 
