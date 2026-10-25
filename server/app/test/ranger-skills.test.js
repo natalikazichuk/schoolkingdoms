@@ -397,3 +397,18 @@ test('Перемикачі живуть лише в бою: новий бій �
   const st2 = battle({ 'ranger.camo': 1 }, ['ranger.camo']);
   assert.ok(!(st2.me.tog && st2.me.tog.length), 'новий бій — вимкнено');
 });
+
+test('Змащена зброя: поки зброю вибито (б\'є кулаками) — ні урону отрутою, ні отруєння', () => {
+  const st = battle({ 'ranger.poison': 1 }, ['ranger.poison'], [wear(DAGGER, 'weaponR')]);
+  st.me.p.accuracy = 5000; st.op.p.agility = 1; st.op.p.accuracy = 1; st.op.force = st.op.max = 100000;
+  SB.useSkill(ctx, st, 'ranger.poison');
+  const e1 = turnOf(st, { atk: 'head', block: 'body' });
+  assert.strictEqual(e1.skill.kind, 'venom');
+  st.me.fx.disarm = st.round + 1;                              // вибили зброю на цей і наступний хід
+  for (let k = 0; k < 2; k++) {
+    const e = turnOf(st, { atk: 'head', block: 'body' });
+    assert.ok(!e.meHit.hits.some(h => h.venom || h.poisonTry), 'без зброї отрута не діє');
+  }
+  const back = [turnOf(st, { atk: 'head', block: 'body' }), turnOf(st, { atk: 'legs', block: 'body' })];   // два ходи: бот може закрити зону
+  assert.ok(back.some(e => e.meHit.hits.some(h => h.venom)), 'зброя знову в руці — отрута ще діє');
+});

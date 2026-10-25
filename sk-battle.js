@@ -787,7 +787,7 @@
     return rec;
   }
   function venomHits(ctx, v, hit, rnd) {                        // v — той, чия зброя змащена; hit — його удари
-    if (!venomOn(v) || !hit || !hit.hits) return;
+    if (!venomOn(v) || !wTypeNow(v) || !hit || !hit.hits) return;   // отрута на клинку: зброю вибито (б'є кулаками) — не діє
     var vn = v.me.fx.venom, res = poisonRes(v.op, v.round), cut = Math.min(res, 50);
     hit.hits.forEach(function (h) {
       if ((h.kind !== 'hit' && h.kind !== 'crit') || !(num(h.dmg) > 0)) return;
