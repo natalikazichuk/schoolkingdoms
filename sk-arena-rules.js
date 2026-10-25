@@ -104,7 +104,13 @@
     { key: 'fear',        label: 'Страх',                 emoji: '😱', base: 0, arena: 'свиток: суперник у цьому ході не атакує й не робить спецдій. Перший спрацьовує з шансом 90%, далі — 50% (опір); після двох спрацювань — імунітет' },
     { key: 'barrier',     label: "Бар'єр",                emoji: '🫧', base: 0, arena: 'свиток: поглинає один удар, що забрав би здоров\'я (ухилився чи заблокував — бар\'єр лишається)' },
     { key: 'stun',        label: 'Оглушення',             emoji: '💫', base: 0, arena: null },
-    { key: 'antidote',    label: 'Антидот',               emoji: '🧪', base: 0, arena: 'зілля: знімає отруту; далі імунітет до отрути — 3 ходи повний, потім опір 90%, 80% … 0%' }
+    { key: 'antidote',    label: 'Антидот',               emoji: '🧪', base: 0, arena: 'зілля: знімає отруту; далі 2 ходи опір отруті 100%, потім щоходу −10% — до свого опору (з речей)' },
+    { key: 'resPoison',   label: 'Опір отруті',           emoji: '🐍', base: 0, arena: 'свій опір отруті (%): менше урону отрутою з удару й тіків отрути, менший шанс тебе отруїти; після отруєння опір падає не нижче нього' },
+    { key: 'resFire',     label: 'Опір вогню',            emoji: '🔥', base: 0, arena: null },
+    { key: 'resCold',     label: 'Опір холоду',           emoji: '❄️', base: 0, arena: null },
+    { key: 'resShock',    label: 'Опір струму',           emoji: '⚡', base: 0, arena: null },
+    { key: 'resLight',    label: 'Опір світлу',           emoji: '☀️', base: 0, arena: null },
+    { key: 'resDark',     label: 'Опір темряві',          emoji: '🌑', base: 0, arena: null }
   ];
   /* характеристики Героя (зберігаються в heroes/{id}) — що вони роблять на арені */
   var HERO_STATS = {
@@ -265,6 +271,7 @@
     p.magPct = pct.magicDamage || 0;
     p.critPct = (pct.critDamage || 0) + (flat.critDamage || 0);
     p.extra = Math.max(0, Math.floor(flat.extraAttack || 0));
+    ['resPoison', 'resFire', 'resCold', 'resShock', 'resLight', 'resDark'].forEach(function (k) { var r = (pct[k] || 0) + (flat[k] || 0); if (r) p[k] = Math.max(0, Math.min(100, r)); });   // опір стихіям (%)
     // щит зі спритністю (плащ матадора, кришка…): усі «Шанси блоку» з речей разом і навпіл —
     // однаково проти фізичних і магічних ударів; це не блок, а відскок (evade)
     var lh = (equipped || []).filter(function (e) {

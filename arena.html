@@ -1749,8 +1749,8 @@ function resW(){ return (window.SKRES && SKRES.of()) || {name:'Мана', gen:'�
 <script type="module" src="firebase-config.js"></script>
 <script src="sk-avatar.js?v=9"></script>
 <script src="sk-progress.js"></script>
-<script src="sk-arena-rules.js?v=32"></script>
-<script src="sk-battle.js?v=50"></script>
+<script src="sk-arena-rules.js?v=33"></script>
+<script src="sk-battle.js?v=53"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
    Інвентар, скриня, смітник, продане / куплене сьогодні й монети
@@ -2151,8 +2151,9 @@ window.SKHERO = (function(){
     if(f.poison) timed(f.poison.until, function(n){ return {neg:true, ic:'☠️', n:n, title:'Отруєний', text:'−'+(f.poison.tick||5)+'% здоров\'я наприкінці кожного ходу, броня не захищає.', left:left(n)}; });
     if(f.arrow) timed(f.arrow.until, function(n){ return {neg:true, ic:'🎯', n:n, title:'Стріла застрягла', text:'Б\'є слабше на '+(f.arrow.weak||0)+'%.', left:f.arrow.from>B.round?'З наступного ходу':left(n)}; });
     if(f.venom) timed(f.venom.until, function(n){ return {neg:false, ic:'🐍', n:n, title:'Зброя змащена отрутою', text:'Кожен удар, що завдав урону: +'+(f.venom.pct||0)+'% урону отрутою і шанс '+(f.venom.ch||0)+'% отруїти.', left:left(n)}; });
-    if(f.pimm!=null && B){ var pd = B.round - f.pimm, pr = pd < 0 ? 0 : pd < 3 ? 100 : Math.max(0, 100 - 10*(pd-2));
-      if(pr > 0) out.push({neg:false, ic:'🧪', n:pr+'', title:pr>=100?'Імунітет до отрути':'Опір отруті', text:pr>=100?'Отруїти не можна.':'Шанс отруїти й урон отрутою менші ('+pr+'%). Щоходу опір слабшає на 10%.', left:pr>=100?'Ще '+(3-pd)+' '+((3-pd)===1?'хід':'ходи'):'Щоходу −10%'}); }
+    if(B && SB.poisonRes){ var prC = SB.poisonRes(u, B.round, 'chance'), prD = SB.poisonRes(u, B.round, 'dmg'), own = Math.min(100, +(u.p && u.p.resPoison) || 0), dec = prC > prD;
+      if(prC > 0) out.push({neg:false, ic:'🧪', n:prC+'', title:prC>=100?'Опір отруті 100%':'Опір отруті', text:(prC>=100?'Отруїти не можна. ':'Шанс отруїти менший на '+prC+'%. ')+(prD?'Урон отрутою менший на '+prD+'%. ':'')+(own?'Свій опір (з речей): '+own+'%.':''),
+        left:dec?'Після отрути: щоходу −10% (до свого)':'Поки є'}); }
     if(f.bres) timed(f.bres.until, function(n){ return {neg:false, ic:'🩹', n:n, title:'Опір отруті', text:'Перев\'язка: +'+(f.bres.pct||50)+'% опору отруті.', left:left(n)}; });
     if((u.tog||[]).indexOf('ranger.camo')>=0 && u.skv && u.skv['ranger.camo']){ var cm = u.skv['ranger.camo'], lk = f.camoLock && f.camoLock>=B.round;
       out.push({neg:false, ic:'🌿', n:lk?(f.camoLock-B.round+1):'', past:lk, title:lk?'Камуфляж зачаївся':'Камуфляж', text:lk?'Після Засідки не діє й не їсть ману; потім увімкнеться сам, якщо вистачить.':'Урон ×'+((cm.dmgMul||110)/100)+', Ухилення +'+(cm.dmgMul?cm.dodgePlus:0)+'%. −'+(cm.mana||7)+' щоходу.', left:lk?'Ще '+(f.camoLock-B.round+1)+' ход.':'Поки увімкнено й є мана'}); }
@@ -4035,8 +4036,8 @@ window.SKHERO = (function(){
 })();
 </script>
 
-<script src="sk-items.js?v=22"></script>
-<script src="sk-skills.js?v=59"></script>
+<script src="sk-items.js?v=23"></script>
+<script src="sk-skills.js?v=63"></script>
 <script src="sk-book.js?v=22"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════

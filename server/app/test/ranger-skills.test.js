@@ -319,8 +319,8 @@ test('Змастити зброю: −50 мани, удари +10% отруто�
     const t2 = turnOf(st), t3 = turnOf(st);
     assert.strictEqual(t2.poison, tick); assert.strictEqual(t3.poison, tick);
     assert.strictEqual(st.op.fx.pimm, r0 + 3);
-    const res = (round) => { const d = round - st.op.fx.pimm; return d < 3 ? 100 : Math.max(0, 100 - 10 * (d - 2)); };
-    assert.strictEqual(res(r0 + 5), 100); assert.strictEqual(res(r0 + 6), 90); assert.strictEqual(res(r0 + 7), 80);
+    const res = (round) => SB.poisonRes(st.op, round, 'chance');   // отрута минула: 100%, далі щоходу −10%
+    assert.strictEqual(res(r0 + 3), 100); assert.strictEqual(res(r0 + 4), 90); assert.strictEqual(res(r0 + 5), 80); assert.strictEqual(res(r0 + 13), 0);
     done = true;
   }
   assert.ok(done, 'хоч раз отруїв');
@@ -336,7 +336,9 @@ test('Антидот з пояса: знімає отруту й дає імун
   const e = turnOf(st);
   const fx = (e.uses || [])[0] && e.uses[0].fx.find(x => x.type === 'antidote');
   assert.ok(fx && fx.cured, 'антидот спрацював');
-  assert.ok(!st.me.fx.poison); assert.strictEqual(st.me.fx.pimm, 1);
+  assert.ok(!st.me.fx.poison); assert.strictEqual(st.me.fx.pimm, 1); assert.strictEqual(st.me.fx.pimmHold, 2);
+  const res = (r) => SB.poisonRes(st.me, r, 'chance');          // антидот: 2 ходи 100%, далі −10%
+  assert.strictEqual(res(1), 100); assert.strictEqual(res(2), 100); assert.strictEqual(res(3), 90); assert.strictEqual(res(4), 80);
 });
 
 test('Перев\'язка: −15 мани, лікує 10%; на 100% знімає отруту (і з повним здоров\'ям), +50% опору', () => {
@@ -421,4 +423,68 @@ test('Змащена зброя: зняв / замінив клинок — от
   turnOf(st, { atk: 'head', block: 'body' });
   assert.ok(SB.swap(ctx, st, 'weaponR', was.inst, DAGGER), 'повернув той самий');
   for (let k = 0; k < 2; k++) { const e = turnOf(st, { atk: k ? 'legs' : 'head', block: 'body' }); assert.ok(!e.meHit.hits.some(h => h.venom)); }
+});
+
+test('Опір отруті з речей: свій опір — нижня межа спаду; урон отрутою й тіки — лише свій + Перев\'язка', () => {
+  const AM = item({ id: 'AM1', name: 'Амулет', category: 'Амулет', stat: 'Броня', valueMin: 1, valueMax: 1, addStats: [{ stat: 'Опір отруті', value: 30 }] });
+  const st = battle({}, [], [wear(AM, 'amulet')]);
+  assert.strictEqual(st.me.p.resPoison, 30, 'опір з речі');
+  assert.strictEqual(SB.poisonRes(st.me, 1, 'dmg'), 30); assert.strictEqual(SB.poisonRes(st.me, 1, 'chance'), 30);
+  st.me.fx.pimm = 5; st.me.fx.pimmHold = 0;                      // отрута минула на 4-му ходу
+  assert.strictEqual(SB.poisonRes(st.me, 5, 'chance'), 100);
+  assert.strictEqual(SB.poisonRes(st.me, 10, 'chance'), 50);
+  assert.strictEqual(SB.poisonRes(st.me, 20, 'chance'), 30, 'не нижче свого');
+  assert.strictEqual(SB.poisonRes(st.me, 6, 'dmg'), 30, 'урон отрутою — лише свій');
+  st.me.fx.bres = { until: 99, pct: 50 };
+  assert.strictEqual(SB.poisonRes(st.me, 20, 'dmg'), 80, 'свій + Перев\'язка');
+  assert.strictEqual(SB.poisonRes(st.me, 20, 'chance'), 80);
+  assert.strictEqual(S.byId('ranger.poison') && K.isPctStat('Опір отруті'), true, 'завжди у відсотках');
+  assert.ok(K.dmgType('poison'), 'тип урону «Отрута»');
+});
+
+test('Поки отруєний — удруге не отруїти', () => {
+  const st = battle({ 'ranger.poison': 1 }, ['ranger.poison'], [wear(DAGGER, 'weaponR')]);
+  st.me.p.accuracy = 5000; st.op.p.agility = 1; st.op.p.accuracy = 1; st.op.force = st.op.max = 100000;
+  SB.useSkill(ctx, st, 'ranger.poison'); turnOf(st, { atk: 'head', block: 'body' });
+  st.op.fx.poison = { from: st.round, until: st.round + 2, tick: 5 };
+  st.me.fx.venom.ch = 100;                                        // навіть зі 100% шансом
+  const e = turnOf(st, { atk: 'legs', block: 'body' });
+  assert.ok(!e.meHit.hits.some(h => h.poisonTry || h.poisoned));
+});
+
+test('Цілитель: Стійкість до отрут — до свого опору +10% → +40% (з речами — не більше 100%)', () => {
+  const sk = S.byId('healer.poisonres');
+  assert.ok(sk && sk.ready && sk.lv === 5);
+  assert.strictEqual(S.skillValues('healer.poisonres', 25).resPct, 10); assert.strictEqual(S.skillValues('healer.poisonres', 100).resPct, 40);
+  const mk = (skm, eq) => SB.create(ctx, { bid: 'hl-' + (n++), me: { name: 'Ц', stats: { health: 400, accuracy: 60, agility: 50, mana: 500 }, eq: eq || [], sk: skm, skv: skvOf(skm), bar: [], cls: 'healer' },
+    op: { f: { name: 'Бот', level: 3 }, p: R.fighter({ health: 400, accuracy: 50, agility: 50, mana: 0 }, [], K) } });
+  assert.strictEqual(mk({ 'healer.poisonres': 1 }).me.p.resPoison, 40);
+  const AM = item({ id: 'AM2', name: 'Амулет', category: 'Амулет', stat: 'Броня', valueMin: 1, valueMax: 1, addStats: [{ stat: 'Опір отруті', value: 70 }] });
+  assert.strictEqual(mk({ 'healer.poisonres': 1 }, [wear(AM, 'amulet')]).me.p.resPoison, 100, 'не більше 100%');
+  const st = mk({ 'healer.poisonres': 1 });
+  assert.strictEqual(SB.poisonRes(st.me, 1, 'dmg'), 40);
+});
+
+test('Мисливський азарт: влучив більше — +1, пропустив більше — −1 (не скидання), без вміння — урон скидає', () => {
+  assert.ok(S.byId('ranger.zeal').ready && S.byId('ranger.zeal').lv === 3);
+  const mk = (sk) => { const st = battle(Object.assign({ 'base.focus': 1 }, sk), []); st.me.fx.focus = 3; return st; };
+  // в тебе влучили, ти — ні: −1 з азартом, скидання без нього
+  for (let k = 0; k < 20; k++) {
+    const a = mk({ 'ranger.zeal': 1 }); a.op.p.accuracy = 5000; a.me.p.agility = 1; a.me.p.accuracy = 1; a.op.p.agility = 5000;
+    const e = turnOf(a, { atk: 'head', block: 'body' });
+    const mine = e.meHit.hits.filter(h => (h.kind === 'hit' || h.kind === 'crit') && h.dmg > 0).length, theirs = e.opHit.hits.filter(h => (h.kind === 'hit' || h.kind === 'crit') && h.dmg > 0).length;
+    if (theirs > mine) { assert.strictEqual(a.me.fx.focus, 2, 'азарт: −1'); break; }
+  }
+  for (let k = 0; k < 20; k++) {
+    const b = mk({}); b.op.p.accuracy = 5000; b.me.p.agility = 1;
+    const e = turnOf(b, { atk: 'head', block: 'body' });
+    if (e.opHit.dmg > 0) { assert.strictEqual(b.me.fx.focus, 0, 'без азарту — скидання'); break; }
+  }
+  // ти влучив, в тебе — ні: +1
+  for (let k = 0; k < 20; k++) {
+    const c = mk({ 'ranger.zeal': 1 }); c.me.p.accuracy = 5000; c.op.p.agility = 1; c.op.p.accuracy = 1; c.me.p.agility = 5000;
+    const e = turnOf(c, { atk: 'head', block: 'body' });
+    const theirs = e.opHit.hits.filter(h => (h.kind === 'hit' || h.kind === 'crit') && h.dmg > 0).length, mine = e.meHit.hits.filter(h => (h.kind === 'hit' || h.kind === 'crit') && h.dmg > 0).length;
+    if (mine > theirs) { assert.strictEqual(c.me.fx.focus, 4, 'азарт: +1'); break; }
+  }
 });
