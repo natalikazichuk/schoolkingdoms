@@ -136,7 +136,7 @@
 | 3 | `heart-awake.webp` | 400 × 400 | Те саме серце **прокинулось** — яскраво сяє фіолетовим і золотим, навколо іскри |
 | 4 | `gem-off.webp` | 220 × 260 | Один кристал-ромб, **згаслий**, сірий |
 | 5 | `gem-on.webp` | 220 × 260 | Той самий кристал **засвічений** золотом |
-| 6 | `celebration.webp` | 1024 × 1536 | **Бажано:** фінальна картинка серії — Серце сяє, світ навколо стає на місце (замок перевертається правильно), герої радіють разом із чарівником |
+| 6 | `celebration.webp` | 1024 × 1536 | Фінальна картинка всієї серії — див. окремий розділ «🎉 Фінальна картинка серії» нижче |
 
 **Промпт `start-hero`:**
 > Vertical 2:3 game splash screen. The magical Heart of the Upside-Down World: a huge sleeping purple crystal heart floats above a round pedestal in a hall of crystal columns under a starry purple sky with floating islands; below it three dim crystals wait to be lit. A boy in a yellow hoodie with a blue backpack, a princess with long purple hair and a crown in a purple dress and a white-and-blue robot puppy look up at the heart in awe. Keep the top third calm starry sky and the bottom quarter plain floor.
@@ -144,8 +144,35 @@
 **Промпт аркуша:**
 > A game asset sheet separated by thin white lines. Left, tall vertical panel 2:3: [start-hero prompt]. Top right: a wooden signboard with an empty dark-blue panel, vines, a lantern on the right and a golden emblem with a glowing purple crystal heart at the top center. Middle right, wide panel: a magical hall with crystal columns, floating islands and a starry purple sky at the sides, an empty round pedestal in the middle and a plain floor at the bottom, no heart, no characters. Bottom right, on a plain white background: a big crystal heart, dim, sleepy and grey-purple; the same heart awake, glowing bright purple and gold with sparkles; one rhombus crystal, dim and grey; the same crystal glowing gold.
 
-**Промпт `celebration` (окремо, бажано):**
-> Vertical 2:3 celebration screen, the grand finale. The giant purple crystal heart shines brightly, and the whole upside-down world turns right side up around it: the castle flips back onto the ground, floating islands settle, colorful sparkles and confetti fill the sky. A kind old wizard in a starry robe smiles, a boy in a yellow hoodie with a blue backpack and a princess with long purple hair and a crown in a purple dress jump with joy, a white-and-blue robot puppy spins happily. Keep the top third sky and the bottom quarter plain ground.
+Промпт фінальної картинки — в окремому розділі «🎉 Фінальна картинка серії» нижче.
+
+---
+
+## 🎉 Фінальна картинка серії → `img/sertse-svitu/celebration.webp` (+ `celebration-wide.webp`)
+
+Нагорода за всю пригоду: дитина пройшла 30 загадок, розбудила Серце — і **Світ навиворіт перевертається назад, як треба**. Картинку побачать на фіналі «Серця Світу» (на весь екран під вітальною карткою) і на карті серії, коли пройдено всі розділи.
+
+**Що має бути видно (зверху вниз):**
+1. **Небо** — чисте, світанково-золоте з фіолетовим, феєрверк іскор і конфетті. Угорі ⅓ — **спокійно**, без важливих деталей (там стрічка «Світ урятовано!», її пише код).
+2. **Шість місць пригоди, що стають на місце** — по колу або вздовж горизонту, маленькі, як на мапі: дерево догори корінням → тепер кроною вгору (розділ I); вулиця з автобусом і поштою (II); квартал із мостом і годинником (III); сад з обсерваторією й вітряком (IV); замок — **перевертається з даху на фундамент**, золоті смуги руху показують, куди (V); летючі острови опускаються на землю (VI).
+3. **Серце Світу** посередині — велике фіолетово-золоте кристалічне серце, сяє, від нього розходиться хвиля світла, що й «перевертає» світ.
+4. **Герої** — перед Серцем, радісно: хлопчик у жовтій худі з синім рюкзаком і дівчинка-принцеса з довгим фіолетовим волоссям і короною стрибають, тримаючись за руки; собака-робот біло-блакитний крутиться від радості; **Чарівник** — той самий, що на карті (`img/wiz-joy.webp`: синя мантія й капелюх із золотими зірками, біла борода, жезл-зірка) — піднімає жезл, з нього летять зірки.
+5. **Унизу ¼ — рівна земля** (трава й бруківка), без важливих деталей: там вітальна картка й кнопки.
+
+**Не треба:** тексту, букв, цифр, рамок і стрічок із написами — їх ставить код. Не обрізати героїв краями.
+
+| Файл | Розмір | Для чого |
+|---|---|---|
+| `celebration.webp` | 1024 × 1536 (вертикальна 2:3) | фінал «Серця Світу» на телефоні |
+| `celebration-wide.webp` | 1600 × 900 (бажано) | та сама сцена горизонтально — для карти серії й великих екранів |
+
+**Reference:** `budynok-yakoho-nemaye/start-hero.webp` (герої) і `img/wiz-joy.webp` (Чарівник).
+
+**Промпт `celebration`:**
+> Vertical 2:3 grand finale celebration screen of a children's fantasy adventure. In the center a giant purple-and-gold crystal heart shines brightly, sending a wave of golden light outward, and the whole upside-down world turns right side up around it: a tree that grew with its roots in the sky flips so its green crown is on top, a little town street with a bus and a post office, a quarter with a bridge and a clock tower, a garden with an observatory dome and a windmill, a royal castle flipping from its roof back onto its foundation with golden motion trails, and floating islands gently settling onto the ground. In front of the heart a boy in a yellow hoodie with a blue backpack and a princess with long purple hair and a crown in a purple dress jump with joy holding hands, a white-and-blue robot puppy spins happily, and a kind old wizard in a blue robe and hat covered with golden stars, with a long white beard, raises his golden star wand releasing sparkling stars. Dawn sky in gold and soft purple with fireworks of sparkles and confetti. Keep the top third calm sky and the bottom quarter plain grass and cobblestone. Cute stylized 3D children's fantasy game art, soft warm lighting, bright saturated colors, rounded shapes, high detail, same style as the reference images. No text, no letters, no numbers.
+
+**Промпт `celebration-wide` (бажано):**
+> The same grand finale scene as a wide 16:9 panorama: the shining purple-and-gold crystal heart in the center, the six places of the adventure turning right side up along the horizon from left to right (the upside-down tree, the town street with a bus, the quarter with a bridge and a clock tower, the garden with an observatory and a windmill, the castle flipping back onto its foundation, floating islands settling down), the boy, the princess, the robot puppy and the star-robed wizard celebrating in front of the heart, fireworks of sparkles and confetti in a gold-and-purple dawn sky. Keep a calm strip of sky at the top and plain ground at the bottom. Cute stylized 3D children's fantasy game art, soft warm lighting, bright saturated colors, rounded shapes, high detail, same style as the reference images. No text, no letters, no numbers.
 
 ---
 
