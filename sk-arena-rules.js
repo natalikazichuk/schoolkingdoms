@@ -106,16 +106,15 @@
     { key: 'stun',        label: 'Оглушення',             emoji: '💫', base: 0, arena: null },
     { key: 'antidote',    label: 'Антидот',               emoji: '🧪', base: 0, arena: 'зілля: знімає отруту; далі 2 ходи опір отруті 100%, потім щоходу −10% — до свого опору (з речей)' },
     { key: 'resPoison',   label: 'Опір отруті',           emoji: '🐍', base: 0, arena: 'свій опір отруті (%): менше урону отрутою з удару й тіків отрути, менший шанс тебе отруїти; після отруєння опір падає не нижче нього' },
-    { key: 'resFire',     label: 'Опір вогню',            emoji: '🔥', base: 0, arena: null },
-    { key: 'resCold',     label: 'Опір холоду',           emoji: '❄️', base: 0, arena: null },
-    { key: 'resShock',    label: 'Опір струму',           emoji: '⚡', base: 0, arena: null },
-    { key: 'resLight',    label: 'Опір світлу',           emoji: '☀️', base: 0, arena: null },
-    { key: 'resDark',     label: 'Опір темряві',          emoji: '🌑', base: 0, arena: null },
-    { key: 'resPierce',   label: 'Опір колючому',         emoji: '📌', base: 0, arena: null },
-    { key: 'resSlash',    label: 'Опір рублячому',        emoji: '🪚', base: 0, arena: null },
-    { key: 'resBash',     label: 'Опір тупому',           emoji: '🪨', base: 0, arena: null },
-    { key: 'resMagic',    label: 'Опір магії',            emoji: '✨', base: 0, arena: null },
-    { key: 'resElem',     label: 'Опір стихіям',          emoji: '🌈', base: 0, arena: null }
+    { key: 'resFire',     label: 'Опір вогню',            emoji: '🔥', base: 0, arena: 'кінцеве −% урону вогнем; з речей разом ≤ 33% (запрацює зі стихійною зброєю й чарами)' },
+    { key: 'resCold',     label: 'Опір холоду',           emoji: '❄️', base: 0, arena: 'кінцеве −% урону холодом; з речей разом ≤ 33% (запрацює зі стихійною зброєю й чарами)' },
+    { key: 'resShock',    label: 'Опір струму',           emoji: '⚡', base: 0, arena: 'кінцеве −% урону струмом; з речей разом ≤ 33% (запрацює зі стихійною зброєю й чарами)' },
+    { key: 'resLight',    label: 'Опір світлу',           emoji: '☀️', base: 0, arena: 'кінцеве −% урону світлом; з речей разом ≤ 33% (запрацює зі стихійною зброєю й чарами)' },
+    { key: 'resDark',     label: 'Опір темряві',          emoji: '🌑', base: 0, arena: 'кінцеве −% урону темрявою; з речей разом ≤ 33% (запрацює зі стихійною зброєю й чарами)' },
+    { key: 'resPierce',   label: 'Опір колючому',         emoji: '📌', base: 0, arena: 'кінцеве −% урону колючою зброєю (кинджал, спис, лук); з речей разом ≤ 33%' },
+    { key: 'resSlash',    label: 'Опір рублячому',        emoji: '🪚', base: 0, arena: 'кінцеве −% урону рублячою зброєю (меч, сокира, кнут); з речей разом ≤ 33%' },
+    { key: 'resBash',     label: 'Опір тупому',           emoji: '🪨', base: 0, arena: 'кінцеве −% урону тупою зброєю (булава, кистень, посох, кулаки, Пінок); з речей разом ≤ 33%' },
+    { key: 'resMagic',    label: 'Опір магії',            emoji: '✨', base: 0, arena: 'кінцеве −% магічного урону (магічна зброя, Вогник, свитки); з речей разом ≤ 33%' }
   ];
   /* характеристики Героя (зберігаються в heroes/{id}) — що вони роблять на арені */
   var HERO_STATS = {
@@ -235,6 +234,16 @@
      Головна характеристика зброї в руках («Урон» / «Магічний урон») — діапазон
      удару; решта — сталі числа або відсотки (+N% множить суму Героя й речей). */
   function num(v) { v = Number(v); return isNaN(v) ? 0 : v; }
+  /* ОПОРИ ТИПАМ УРОНУ: тип удару → характеристика захисника. Кінцеве зменшення (після броні, % і криту):
+     урон × (1 − опір%). З речей разом — щонайбільше RES_CAP. Гравцям стелю не показуємо (лише адмінка). */
+  var RES_KEY = { pierce: 'resPierce', slash: 'resSlash', bash: 'resBash', magic: 'resMagic',
+    fire: 'resFire', cold: 'resCold', shock: 'resShock', light: 'resLight', dark: 'resDark' };
+  var RES_CAP = 33;
+  function resCut(dmg, type, def) {                            // → {dmg, r} — урон після опору й сам опір %
+    var r = Math.max(0, Math.min(RES_CAP, num(def && def[RES_KEY[type]])));
+    if (!(r > 0) || !(dmg > 0)) return { dmg: dmg, r: 0 };
+    return { dmg: Math.max(BATTLE.minDmg, Math.round(dmg * (1 - r / 100))), r: r };
+  }
   function fighter(stats, equipped, skit) {
     stats = stats || {};
     var flat = {}, pct = {}, p = { wMin: 0, wMax: 0, magMin: 0, magMax: 0, blockPhys: 0, blockMag: 0, blockSrc: [] };
@@ -276,7 +285,13 @@
     p.magPct = pct.magicDamage || 0;
     p.critPct = (pct.critDamage || 0) + (flat.critDamage || 0);
     p.extra = Math.max(0, Math.floor(flat.extraAttack || 0));
-    ['resPoison', 'resFire', 'resCold', 'resShock', 'resLight', 'resDark', 'resPierce', 'resSlash', 'resBash', 'resMagic', 'resElem'].forEach(function (k) { var r = (pct[k] || 0) + (flat[k] || 0); if (r) p[k] = Math.max(0, Math.min(100, r)); });   // опір стихіям (%)
+    /* опори (%): отрута — окрема механіка (до 100%); решта — кінцеве зменшення урону свого типу, з речей разом ≤ RES_CAP */
+    var rp = (pct.resPoison || 0) + (flat.resPoison || 0); if (rp) p.resPoison = Math.max(0, Math.min(100, rp));
+    Object.keys(RES_KEY).forEach(function (t) { var k = RES_KEY[t], r = (pct[k] || 0) + (flat[k] || 0); if (r) p[k] = Math.max(0, Math.min(RES_CAP, r)); });
+    // тип удару — за зброєю в правій руці (поле речі dmgType або типовий для виду); без зброї — тупий (кулаки)
+    var wr = (equipped || []).filter(function (e) { return e && e.base && e.inst && e.inst.slot === 'weaponR' && e.base.category === 'Зброя'
+      && !(e.inst.durMax != null && e.inst.durCur != null && num(e.inst.durCur) <= 0); })[0];
+    p.dmgType = wr ? (wr.base.dmgType || (skit.defaultDmgType ? skit.defaultDmgType(wr.base.weaponType, wr.base.stat) : null) || 'bash') : 'bash';
     // щит зі спритністю (плащ матадора, кришка…): усі «Шанси блоку» з речей разом і навпіл —
     // однаково проти фізичних і магічних ударів; це не блок, а відскок (evade)
     var lh = (equipped || []).filter(function (e) {
@@ -549,11 +564,14 @@
     var crit = critCheck();
     var mult = crit ? BATTLE.critMult : 1;
     var dmg = Math.max(BATTLE.minDmg, Math.round(base * mult));
+    var dt = magic && (!att.dmgType || att.dmgType === 'pierce' || att.dmgType === 'slash' || att.dmgType === 'bash') ? 'magic' : (att.dmgType || (magic ? 'magic' : 'bash'));
+    var rc = resCut(dmg, dt, def); if (rc.r) { dmg = rc.dmg; out.res = rc.r; out.resType = dt; }   // опір типу урону — останнім
     out.raw = raw; out.armor = defV; out.magic = magic; out.pass = pass;
     out.magDmg = magic ? dmg : 0; out.physDmg = magic ? 0 : dmg;   // журнал фарбує магічний урон фіолетовим
     out.parts = { magic: magic, raw: raw, def: defV, pass: pass, pct: pctV, mult: mult, half: half, mul: mul };
     var calc = (magic ? '✨маг. ' : '') + raw + (defV > 0 ? ' × ' + pctOf(pass) + '% (' + (magic ? 'маг. захист ' : 'броня ') + defV + (out.pierce ? ', 🪓 пів броні' : '') + ')' : '')
-      + (pctV ? ' × ' + (100 + pctV) + '%' : '') + (half ? ' × ½' : mul !== 1 ? ' × ' + mul : '') + (crit ? ' × ' + BATTLE.critMult + ' крит' : '');
+      + (pctV ? ' × ' + (100 + pctV) + '%' : '') + (half ? ' × ½' : mul !== 1 ? ' × ' + mul : '') + (crit ? ' × ' + BATTLE.critMult + ' крит' : '')
+      + (out.res ? ' × ' + (100 - out.res) + '% опір' : '');
     if (blocked) {   // частковий блок (лише якщо blockKeep > 0)
       var kept = Math.round(dmg * BATTLE.blockKeep);
       return ret({ dmg: kept, kind: 'block', crit: crit, calc: 'блок: ' + calc + ' = ' + dmg + ' → проходить ' + Math.round(BATTLE.blockKeep * 100) + '%' });
@@ -621,6 +639,7 @@
     var raw = rollRange(eff.min, eff.max, rnd), defV = num(def.magicResist), pctV = num(att.magPct);
     var pass = armorPass(raw, defV);
     var dmg = Math.max(BATTLE.minDmg, Math.round(raw * pass * (1 + pctV / 100)));
+    var rcs = resCut(dmg, 'magic', def); if (rcs.r) { dmg = rcs.dmg; out.res = rcs.r; }   // свиток — магія: Опір магії останнім
     out.raw = raw; out.armor = defV; out.pass = pass; out.dmg = dmg; out.magDmg = dmg; out.physDmg = 0;
     out.parts = { magic: true, raw: raw, def: defV, pass: pass, pct: pctV, mult: 1 };
     out.calc = '📜 ✨маг. ' + raw + (defV > 0 ? ' × ' + pctOf(pass) + '% (маг. захист ' + defV + ')' : '') + (pctV ? ' × ' + (100 + pctV) + '%' : '');
@@ -642,7 +661,7 @@
     handCats: handCats, isTwoHanded: isTwoHanded, fitsHand: fitsHand, handsFix: handsFix, handsClash: handsClash, handsFromHero: handsFromHero, offhandSlot: offhandSlot,
     HERO_STATS: HERO_STATS, BUFF_KEYS: BUFF_KEYS, attrInfo: attrInfo,
     blockKind: blockKind, blockBy: blockBy, useEffects: useEffects, botBelt: botBelt, buffed: buffed, scrollStrike: scrollStrike,
-    fighter: fighter, varyFighter: varyFighter, heroSheet: heroSheet, heroStatsOf: heroStatsOf, levelBonus: levelBonus, LEVEL_BONUS: LEVEL_BONUS, CLASS_PERKS: CLASS_PERKS, perk: perk, HERO_DEFAULTS: HERO_DEFAULTS, hitChance: hitChance, critChance: critChance, isMagic: isMagic,
+    fighter: fighter, varyFighter: varyFighter, resCut: resCut, RES_KEY: RES_KEY, RES_CAP: RES_CAP, heroSheet: heroSheet, heroStatsOf: heroStatsOf, levelBonus: levelBonus, LEVEL_BONUS: LEVEL_BONUS, CLASS_PERKS: CLASS_PERKS, perk: perk, HERO_DEFAULTS: HERO_DEFAULTS, hitChance: hitChance, critChance: critChance, isMagic: isMagic,
     strike: strike, attack: attack, d100: d100, armorPass: armorPass,
     power: power, xpCoef: xpCoef, xpNeed: xpNeed, itemPower: itemPower, botItems: botItems
   };

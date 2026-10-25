@@ -470,7 +470,7 @@
     if(window.SKIT) return Promise.resolve(window.SKIT);
     if(!skitP) skitP = new Promise(function(res){
       var s = document.createElement('script');
-      s.src = BASE + 'sk-items.js?v=24';
+      s.src = BASE + 'sk-items.js?v=25';
       s.onload = function(){ res(window.SKIT || null); };
       s.onerror = function(){ res(null); };
       document.head.appendChild(s);
@@ -486,7 +486,7 @@
   var rulesP = null;
   function needRules(){
     if(window.SKARENA && window.SKARENA.heroSheet) return Promise.resolve(window.SKARENA);
-    if(!rulesP) rulesP = loadScript('sk-arena-rules.js?v=34').then(function(){ return window.SKARENA || null; });
+    if(!rulesP) rulesP = loadScript('sk-arena-rules.js?v=35').then(function(){ return window.SKARENA || null; });
     return rulesP;
   }
   function sheetOf(h){
@@ -541,8 +541,8 @@
   }
   function battleDeps(){
     return Promise.all([
-      window.SKARENA  ? true : loadScript('sk-arena-rules.js?v=34'),
-      window.SKBATTLE ? true : loadScript('sk-battle.js?v=53'),
+      window.SKARENA  ? true : loadScript('sk-arena-rules.js?v=35'),
+      window.SKBATTLE ? true : loadScript('sk-battle.js?v=54'),
       needSKIT()
     ]).then(function(){ return !!(window.SKARENA && window.SKBATTLE && window.SKIT); });
   }
