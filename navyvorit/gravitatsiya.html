@@ -24,7 +24,29 @@ body.flipped #magnet{top:calc(100% - 56px); transform:translateX(-50%) rotate(0d
 #obj .wood{filter:sepia(1) saturate(2.2) hue-rotate(-10deg) brightness(.85);}
 #objName{position:absolute; left:10px; top:22px; background:#fff; border-radius:12px; padding:3px 10px; font-weight:800; font-size:13px;}
 #gravity{position:absolute; right:10px; top:22px; background:rgba(255,255,255,.9); border-radius:12px; padding:3px 10px; font-weight:800; font-size:12px;}
+
+/* ═════ картинки художника (img/gravitatsiya/) ═════ */
+/* кругла обсерваторія без гравітації; сцена — у пропорції картинки */
+#scene{height:250px; background:#1f2a48 url(img/gravitatsiya/scene-bg.webp) center/cover no-repeat;}
+body.flipped #scene{background:#ae9bcc url(img/gravitatsiya/scene-bg.webp) center/cover no-repeat;}
+#scene{border:3px solid #e3c27a; box-shadow:0 0 0 2px #c9a05a, 0 8px 16px rgba(60,30,10,.25);}
+#scene:before{content:""; position:absolute; inset:0; background:rgba(150,90,230,.3); opacity:0; transition:opacity .6s; pointer-events:none; z-index:0;}   /* 🔄 — фіолетовий світ */
+body.flipped #scene:before{opacity:1;}
+#scene > *{z-index:1;}   /* усе — над фіолетовим шаром 🔄 */
+#scene .star{display:none;}   /* зорі — на картинці */
+/* магніт художника: кінцями донизу — на стелі; 🔄 — на підлозі, кінцями вгору */
+#magnet{width:50px; height:auto; aspect-ratio:153/173; font-size:0; top:34px; transform:translateX(-50%); background:url(img/gravitatsiya/magnet.webp) center/contain no-repeat; filter:drop-shadow(0 3px 3px rgba(0,0,0,.4));}
+body.flipped #magnet{top:calc(100% - 62px); transform:translateX(-50%) rotate(180deg);}
+/* предмет художника замість емодзі */
+#obj .it{display:block; height:54px; width:auto; filter:drop-shadow(0 4px 4px rgba(0,0,0,.45));}
+#obj .it.wood{filter:sepia(1) saturate(2.2) hue-rotate(-10deg) brightness(.85) drop-shadow(0 4px 4px rgba(0,0,0,.45));}
+#objName, #gravity{top:8px;}
+/* табличка з назвою на старті — художника */
+#startScreen.scrolled .titlebox{aspect-ratio:836/256; width:min(100%,370px);}
+#startScreen.scrolled .titlebox h1{left:12%; right:17%; top:40%; bottom:13%;}
+body{background:linear-gradient(180deg,rgba(255,250,240,.10),rgba(255,250,240,.35)), url(img/gravitatsiya/page-bg.webp) center/cover no-repeat fixed, var(--paper);}   /* фон сторінки гри — малюнок художника */
 </style>
+<link rel="stylesheet" href="nav-scroll.css?v=7">
 </head>
 <body>
 <script src="../sk-footer.js?v=6" data-base="../" data-back="self"></script>
@@ -35,6 +57,7 @@ body.flipped #magnet{top:calc(100% - 56px); transform:translateX(-50%) rotate(0d
   var TOTAL = 5, log;
   var METAL = [{em:"🔑", nm:"залізний ключ", adj:"металевий"}, {em:"🔩", nm:"гвинт", adj:"металевий"}, {em:"🥄", nm:"ложка", adj:"металева"}, {em:"📎", nm:"скріпка", adj:"металева"}, {em:"🪛", nm:"викрутка", adj:"металева"}];
   var SOFT  = [{em:"🪶", nm:"перо"}, {em:"🧸", nm:"ведмедик"}, {em:"🍎", nm:"яблуко"}, {em:"📗", nm:"книжка"}, {em:"🧦", nm:"шкарпетка"}];
+  var IMG = {"🔑":"key", "🔩":"screw", "🥄":"spoon", "📎":"clip", "🪛":"screwdriver", "🪶":"feather", "🧸":"bear", "🍎":"apple", "📗":"book", "🧦":"sock"};   // предмети художника (img/gravitatsiya/)
   var UP = "up", DOWN = "down", STAY = "stay";
   var TX = {up:"⬆️ Полетить до стелі", down:"⬇️ Опуститься на підлогу", stay:"〰️ Плаватиме на місці"};
 
@@ -52,7 +75,7 @@ body.flipped #magnet{top:calc(100% - 56px); transform:translateX(-50%) rotate(0d
       "🔄 Навиворіт гравітація тягне <b>вгору</b>, а магніт — на підлозі. Метал летить до магніту вниз, а все інше «падає» на стелю."
     ],
     scene:'<span class="star" style="left:12%;top:40%">✦</span><span class="star" style="left:82%;top:62%">✦</span><span class="star" style="left:30%;top:78%">✦</span><span class="star" style="left:70%;top:30%">✦</span>'+
-          '<span id="magnet">🧲</span><div id="objName"></div><div id="gravity">🪐 гравітації немає</div><span id="obj"></span>',
+          '<span id="magnet"></span><div id="objName"></div><div id="gravity">🪐 гравітації немає</div><span id="obj"></span>',
     afterScene:'<div class="log" id="log"></div>',
     onStart:startGame
   });
@@ -64,7 +87,7 @@ body.flipped #magnet{top:calc(100% - 56px); transform:translateX(-50%) rotate(0d
   }
   function show(o, wood){
     var e = NAV.$("obj"); e.style.transition = "none"; e.style.top = "50%"; void e.offsetWidth; e.style.transition = "";
-    e.innerHTML = '<span'+(wood ? ' class="wood"' : '')+'>'+o.em+'</span>'; e.classList.add("bob");
+    e.innerHTML = IMG[o.em] ? '<img class="it'+(wood ? ' wood' : '')+'" src="img/gravitatsiya/'+IMG[o.em]+'.webp" alt="">' : '<span'+(wood ? ' class="wood"' : '')+'>'+o.em+'</span>'; e.classList.add("bob");
     NAV.$("objName").textContent = o.em+" "+o.nm;
   }
   function move(where, cb){
@@ -157,6 +180,8 @@ body.flipped #magnet{top:calc(100% - 56px); transform:translateX(-50%) rotate(0d
 <script src="../sk-rewards.js?v=6"></script>
 <script src="../sk-prize.js?v=3"></script>
 <script src="../sk-finish.js?v=6"></script>
+<script src="nav-scroll.js?v=3"></script>
+<script>NAVSCROLL.init({winImg:"img/gravitatsiya/magnet.webp", bg:"img/gravitatsiya/start-hero.webp", frame:"img/gravitatsiya/title-frame.webp", focus:[0.08, 0.7], top:"#663d22", bot:"#9b8280", play:"У кімнату"});</script>
 <script src="nav-intro.js?v=3"></script>
 </body>
 </html>
