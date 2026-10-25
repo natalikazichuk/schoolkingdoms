@@ -2885,7 +2885,8 @@ window.SKHERO = (function(){
     var vals = function(u){ return Object.keys(u.skv||{}).map(function(id){ var s = S && S.byId(id), v = u.skv[id];
       return (s ? s.icon+' '+s.name : id)+' '+Math.round((u.sk&&u.sk[id]||0)*100)+'%: '+Object.keys(v).map(function(k){ return k+'='+v[k]; }).join(', '); }); };
     var pl = function(p, mana){ return 'здоров\'я '+p.hp+' · мана '+(mana!=null?mana+' (бюджет на вміння)':(p.mana||0))+' · урон зброї '+(p.wMin||0)+'–'+(p.wMax||0)+' · урон +'+(p.dmgFlat||0)+' · урон %+'+(p.dmgPct||0)
-      +' · маг. %+'+(p.magPct||0)+' · крит +'+(p.critPct||0)+'% · блок фіз '+(p.blockPhys||0)+'% / маг '+(p.blockMag||0)+'%'+(p.pierce?' · пробиття '+p.pierce+'%':'')+(p.extra?' · дод. атак '+p.extra:'')+(p.evade?' · відскок':'')+res(p); };
+      +' · маг. %+'+(p.magPct||0)+' · крит +'+(p.critPct||0)+'% · блок фіз '+(p.blockPhys||0)+'% / маг '+(p.blockMag||0)+'%'+(p.pierce?' · пробиття '+p.pierce+'%':'')+(p.extra?' · дод. атак '+p.extra:'')+(p.evade?' · відскок':'')+(p.dmgType?' · тип удару '+dtName(p.dmgType):'')+res(p); };
+    var dtName = function(k){ var d = window.SKIT && SKIT.dmgType ? SKIT.dmgType(k) : null; return d ? d.icon+' '+d.label.toLowerCase() : k; };
     var res = function(p){ var R = RULES.RES_KEY||{}, t = Object.keys(R).concat(['poison']).map(function(k){ var key = k==='poison'?'resPoison':R[k], v = +(p[key]||0), d = window.SKIT && SKIT.dmgType ? SKIT.dmgType(k) : null;
       return v ? (d?d.icon+' '+d.label.toLowerCase():k)+' '+v+'%' : ''; }).filter(Boolean); return t.length ? ' · опір: '+t.join(', ') : ''; };
     out.push('  Ти (профіль): '+pl(B.me.p));
@@ -2895,6 +2896,10 @@ window.SKHERO = (function(){
     vals(B.op).forEach(function(l){ out.push('    '+l); });
     if(B.op.up) out.push('    ріст у бою (спрацювань до +1%): '+Object.keys(B.op.up).map(function(id){ var s = S && S.byId(id), u = B.op.up[id][0]; return (s?s.icon:id)+' '+(u?u.u:'—'); }).join(' · '));
     var C = RULES.BATTLE || {};
+    /* діагностика: які файли реально завантажив браузер (стара копія з кешу — частий винуватець) */
+    var vers = Array.prototype.slice.call(document.scripts).map(function(x){ var m = /(sk-(?:arena-rules|battle|skills|items))\.js\?v=(\d+)/.exec(x.src||''); return m ? m[1]+' v'+m[2] : ''; }).filter(Boolean);
+    var resIn = !!(RULES.strike && /resCut/.test(String(RULES.strike)));
+    out.push('  Файли: '+vers.join(' · ')+' · опір у формулі удару: '+(resIn?'так':'НІ (стара копія — онови Ctrl+F5)'));
     out.push('  Правила бою: база урону '+C.baseDmg+' · крит ×'+C.critMult+' (база '+C.critBase+'%) · влучання '+Math.round(C.hitMin*100)+'–'+Math.round(C.hitMax*100)+'% · страх '+Math.round(C.fearFirst*100)+'%/'+Math.round(C.fearNext*100)+'% · пояс бота '+(C.botBeltTest?'тест (свитки)':'порожній'));
     return out;
   }
@@ -4073,7 +4078,7 @@ window.SKHERO = (function(){
 </script>
 
 <script src="sk-items.js?v=25"></script>
-<script src="sk-skills.js?v=64"></script>
+<script src="sk-skills.js?v=65"></script>
 <script src="sk-book.js?v=22"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
