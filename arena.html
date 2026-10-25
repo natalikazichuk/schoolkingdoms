@@ -1383,6 +1383,28 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text}
 #ek-card .ic-spark{color:#ffe28a;font-size:1rem;text-shadow:0 0 8px #ffd23b}
 .ek-hint2{margin-top:10px;font-size:.72rem;color:#9fb2d6;text-align:center}
 .ek-hint2 b{color:#ffd98a}
+/* ── ІНВЕНТАР У БОЮ (#ward.ek-battle): лише те, що можна в бою; ефекти, шанси, таймер ── */
+.ek-bbadge,.ek-bfx,.ek-bhint{display:none}
+#ward.ek-battle .ek-bbadge{display:inline-flex;align-items:center;gap:6px;margin-left:10px;padding:3px 10px;border-radius:999px;
+  background:linear-gradient(180deg,#b8322f,#7d1c1a);border:2px solid #ffb3a8;color:#fff;font-weight:900;font-size:.78rem}
+#ward.ek-battle .ek-bbadge span{color:#ffe08a}
+#ward.ek-battle .ek-lvltop,#ward.ek-battle .ek-acts,#ward.ek-battle .ek-bars,#ward.ek-battle .ek-edit,
+#ward.ek-battle .skb-sides,#ward.ek-battle #ek-boxes,#ward.ek-battle .ek-nhint,#ward.ek-battle .skb-btn{display:none!important}
+#ward.ek-battle .ek-bhint{display:block}
+#ward.ek-battle .ek-bfx{display:flex;flex-direction:column;gap:6px;margin:8px 0 6px}
+.ek-bfx-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;min-height:40px;padding:5px 8px;border-radius:12px;
+  border:2px solid rgba(123,216,138,.45);background:rgba(8,16,36,.45)}
+.ek-bfx-row.neg{border-color:rgba(232,90,90,.5)}
+.ek-bfx-row.neg .fxi{background:linear-gradient(180deg,#6a2020,#3e1212);border-color:#e85a5a}
+.ek-bfx-l{flex:1 0 100%;font-size:.68rem;font-weight:900;color:#cfe0ff}
+.ek-bfx-none{font-size:.75rem;color:#7f93b8}
+.ek-bfx .fxi .fxtip{top:auto;bottom:calc(100% + 6px);left:0;transform:none}
+.ek-bfx-hit{font-size:.78rem;font-weight:800;color:#eaf2ff;text-align:center}
+.ek-bfx-hit b{color:#ffe08a}
+.ek-bfx-msg{font-size:.74rem;font-weight:800;line-height:1.3;padding:6px 8px;border-radius:10px;background:rgba(80,200,140,.16);border:1px solid rgba(123,216,138,.5);color:#bff5cf;text-align:center}
+.ek-bfx-msg.no{background:rgba(255,190,90,.12);border-color:rgba(255,200,110,.45);color:#ffe2a8}
+.ek-slot.ek-locked{opacity:.6}
+.ek-gh .ek-off{display:block;font-size:.62rem;font-weight:900;color:#ffb3a8;line-height:1.1}
 .ek-lvltop{display:flex;align-items:center;gap:8px;margin-bottom:9px}
 .ek-lvltop .ek-xpwrap{flex:1;min-width:0}
 .ek-avapick{position:absolute;right:7px;bottom:7px;width:34px;height:34px;border-radius:50%;border:2px solid #ffd873;background:linear-gradient(180deg,#2c4a7d,#1b3157);color:#fff;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 8px rgba(0,0,0,.4);z-index:4;line-height:1;padding:0}
@@ -1699,7 +1721,7 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text}
     <aside class="skb-bar" id="skbBar" aria-label="Панель вмінь"></aside>
   </div>
   <div class="ward-card">
-    <div class="ward-h"><b>🎒 Інвентар</b><button class="ward-x" id="wardX" aria-label="Закрити">✕</button></div>
+    <div class="ward-h"><b>🎒 Інвентар</b><span class="ek-bbadge">⚔ У бою <span id="ekBTimer"></span></span><button class="ward-x" id="wardX" aria-label="Закрити">✕</button></div>
 
     <!-- вкладка: спорядження (лялька + слоти) -->
     <div id="wtabGear">
@@ -1714,6 +1736,8 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text}
             <div class="ek-xpwrap"><div class="t" id="ek-xpTxt">2450 / 3000</div><div class="ek-xpbar"><i id="ek-xpFill" style="width:82%"></i></div></div>
           </div>
           <div class="ek-art"><img id="ek-heroImg" alt="Герой"></div>
+          <!-- лише в бою: ефекти зараз, шанси влучити, чи можна перевдягнутись -->
+          <div class="ek-bfx" id="ek-bfx"></div>
           <div class="ek-acts"><button class="ek-dress" id="ek-dress" type="button" hidden></button><button class="ek-dress ek-gpt" id="ek-dress-gpt" type="button" hidden></button></div>
           <div class="ek-bars">
             <div class="ek-bar hp"><span class="ek-bico"><img class="st-img" src="img/stats/hp.webp" alt="Здоровʼя"></span><span class="ek-track"><i id="ek-hpFill"></i><span class="ek-val" id="ek-hpVal">—</span></span></div>
@@ -1737,7 +1761,8 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text}
         </div></section>
       </div>
       <div class="ek-storepop" id="ek-storepop" hidden><section class="ek-store" id="ek-store"></section></div>
-      <div class="ek-hint2"><b>Права кнопка</b> миші (на телефоні — <b>тап</b>) — картка речі з кнопками. <b>Подвійний клік</b> — вдягнути чи покласти на пояс (з пояса чи героя — зняти). Можна й <b>перетягнути</b> річ у слот.</div>
+      <div class="ek-hint2 ek-bhint">⚔ <b>У бою</b> перевдягання — дія ходу (одна річ за хід). <b>Подвійний клік</b> — вдягнути в <b>порожній</b> слот. Замінити чи зняти — <b>перетягни</b> річ на слот або в сумку. Пояс, скриня й смітник — після бою.</div>
+      <div class="ek-hint2 ek-nhint"><b>Права кнопка</b> миші (на телефоні — <b>тап</b>) — картка речі з кнопками. <b>Подвійний клік</b> — вдягнути чи покласти на пояс (з пояса чи героя — зняти). Можна й <b>перетягнути</b> річ у слот.</div>
     </div>
 
     <!-- вкладка: образ (базовий лицар) -->
@@ -1981,6 +2006,7 @@ window.SKHERO = (function(){
 
   function openInv(side){
     if(!B) return;
+    if(side==='p' && window.EKEQUIP){ openWardrobe(); return; }   // свій — справжній інвентар у режимі бою
     BI.side = side; BI.sel = null;
     $('binv').classList.toggle('red', side==='o');
     $('binv').hidden = false;
@@ -2151,9 +2177,9 @@ window.SKHERO = (function(){
      Перевдягання живе лише в бою: основний запис Героя не змінюється, після бою
      на ньому те саме, що й до бою. Перед вдяганням перевіряємо в базі, що річ
      ще є (могли викинути з іншого пристрою) — інакше хід перевдягання не витрачається. */
-  function doSwap(slot, inst){
+  function doSwap(slot, inst, base0){
     if(!swapsLeft() || !slot || LOCKED_SLOTS.indexOf(slot)>=0 || UI.swapping) return;
-    var base = inst ? BI.byId[inst.id] : null;
+    var base = inst ? (base0 || BI.byId[inst.id]) : null;
     if(inst && (!base || !fitsSlot(base, slot) || bagDur(inst)===0)) return;
     var bid = B.bid;
     var check = (inst && remote()) ? SK.getInventory().then(function(inv){
@@ -2175,12 +2201,39 @@ window.SKHERO = (function(){
       BI.sel = null;
       saveBattle();
       renderInv();
+      if(window.EKEQUIP && EKEQUIP.battleRefresh) EKEQUIP.battleRefresh();   // інвентар у бою — показати нове
     }, function(e){
       UI.swapping = false;
       try{ console.error('[арена] перевірка речі:', e); }catch(_){}
       showToast('Немає звʼязку', 'Не вдалося перевірити річ — спробуй ще раз');
     });
   }
+  /* ── ІНВЕНТАР У БОЮ: справжній інвентар (EK) показує стан бою й перевдягає лише через бій ──
+     Нічого не записує в Героя: заміна — SB.swap (doSwap), одна за хід, як і раніше. */
+  function swapWhy(){
+    if(!live()) return 'Бій завершено.';
+    if(UI.resolving) return 'Хід розраховується… Перевдягнутись можна в наступному ході.';
+    if(SB.knockedNow(B, B.me)) return 'Тебе збили з ніг — цього ходу без дій.';
+    if(SB.swapped(B)) return 'Цього ходу ти вже перевдягнувся. Наступна заміна — у наступному ході.';
+    return '';
+  }
+  window.SKBATTLEINV = {
+    live: function(){ return !!B && live(); },
+    /* вдягнене в бою: {slot, uid, inst, left (міцність зараз), broken} */
+    worn: function(){ return (B.me.eq||[]).filter(function(e){ return !e.off; }).map(function(e){ return { slot:e.slot, uid:e.uid, inst:e.inst, left:leftDur(e), broken:!!e.broken }; }); },
+    bagDur: function(inst){ return bagDur(inst); },
+    canSwap: function(){ return !!swapsLeft(); },
+    why: swapWhy,
+    locked: LOCKED_SLOTS,
+    swap: function(slot, inst, base){ if(!swapsLeft()){ showToast('🔄 Перевдягання', swapWhy()); return; } doSwap(slot, inst, base); },
+    /* річ, що зараз «на землі»: вибита зброя / відбитий щит */
+    offIn: function(slot){ var f = B.me.fx || {};
+      return slot==='weaponR' && (+f.disarm||0) >= B.round ? '🤚 вибито' : slot==='weaponL' && (+f.shieldOff||0) >= B.round ? '💥 відбито' : ''; },
+    sheet: function(){ var p = RULES.buffed ? RULES.buffed(B.me.p, (B.me.fx||{}).buffs) : B.me.p;
+      return { p:p, dmg:dmgText(p), crit:Math.round((CFG.critBase||0)+(p.critPct||0)), extra:1+(p.extra||0), hit:chance(p, B.op.p), opHit:chance(B.op.p, p), opName:B.op.f.name }; },
+    fx: function(){ var l = fxList(B.me); return { pos:fxHtml(l.filter(function(e){ return !e.neg; })), neg:fxHtml(l.filter(function(e){ return e.neg; })) }; },
+    left: function(){ return Math.max(0, UI.left||0); }
+  };
   /* ── ПОЯС У БОЮ ──
      Комірки пояса над «Атакою». Натиснув — річ спрацює в цьому ході, коли
      розіграється хід (до ударів). Це спецвміння ходу: або пояс, або перевдягання.
@@ -3329,6 +3382,7 @@ window.SKHERO = (function(){
   function drawTimer(){
     $('timerNum').textContent = Math.max(0,UI.left);
     var bt = $('biTimer'); if(bt) bt.textContent = '⏱ '+Math.max(0,UI.left)+' с';
+    var et = $('ekBTimer'); if(et) et.textContent = '⏱ '+Math.max(0,UI.left)+' с';
     var arc = $('timerArc'), full=201;
     arc.style.strokeDashoffset = full*(1 - UI.left/TURN_SECONDS);
   }
@@ -3621,6 +3675,7 @@ window.SKHERO = (function(){
       el.textContent = '+'+x[1]+' 🙏'; c.appendChild(el); setTimeout(function(){ el.remove(); }, 4300);
     });
     paintBelt(); paintFx(); if(window.SKBOOK) SKBOOK.paintBattle(B);
+    if(window.EKEQUIP && EKEQUIP.battleRefresh) EKEQUIP.battleRefresh();
 
     // анімації смужок
     updateForce('o', B.op); updateForce('p', B.me);
@@ -3867,6 +3922,7 @@ window.SKHERO = (function(){
     var st = B, s = st.summary;
     UI.finishing = st.bid; UI.resolving = true;
     stopTimer(); stopTicker(); closeInv();
+    if(window.EKEQUIP && EKEQUIP.battleEnd) EKEQUIP.battleEnd();
     try{ renderLog(); }catch(e){}                    // журнал (і доіграні без гравця ходи) — для збереження
     localPut(st);                                    // поки не записано — копія на пристрої
     var done;
@@ -4221,7 +4277,7 @@ window.SKHERO = (function(){
 </script>
 
 <script src="sk-items.js?v=22"></script>
-<script src="sk-skills.js?v=57"></script>
+<script src="sk-skills.js?v=58"></script>
 <script src="sk-book.js?v=22"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
@@ -4251,6 +4307,23 @@ function entryOf(inst){var base=BYID[inst.id];if(!base)return null;return {uid:i
 var BELT=[];
 /* розкладка інвентаря — те саме правило, що й у магазині (SKIT.store.bagView) */
 function viewOpts(){var R=R0();return {dualWield:!!(R.BATTLE&&R.BATTLE.dualWield),isTwoHanded:R.isTwoHanded,handsClash:R.handsClash,fitsHand:R.fitsHand};}
+/* ── РЕЖИМ БОЮ ── інвентар відкрили з картки героя в бою (window.SKBATTLEINV з логіки арени):
+   вдягнене — зі стану бою (з поточною міцністю), сумка — усе, чого зараз немає на герої в бою.
+   Заміна — лише через бій (одна за хід), у Героя нічого не пишеться; пояс, скриня, смітник — замкнені. */
+function BM(){return !!(window.SKBATTLEINV&&SKBATTLEINV.live());}
+function battleView(){var A=SKBATTLEINV,wu={};for(var s in EQUIP)EQUIP[s]=null;
+ A.worn().forEach(function(w){wu[w.uid]=1;var inst=Object.assign({},w.inst,{slot:w.slot});if(w.left!=null)inst.durCur=w.left;var e=entryOf(inst);if(e){e.broken=w.broken;EQUIP[w.slot]=e;}});
+ INV=ALL_INST.filter(function(x){return !wu[x.uid]&&!/^belt\d/.test(x.slot||'');}).map(function(x){var l=A.bagDur(x);return entryOf(l==null?x:Object.assign({},x,{durCur:l}));}).filter(Boolean);}
+function bToast(t,m){if(window.showToast)showToast(t,m);}
+/* заміна в бою: річ із сумки → слот (або null — зняти) */
+function battleEquip(u,slotId){var inst=findInst(u),e=inst&&entryOf(inst);if(!e)return;
+ if(e.usable){bToast('🔒 Пояс у бою замкнено','Зілля й свитки — з пояса бою; змінити пояс можна після бою');return;}
+ if(!compat(e.cat,slotId))return;
+ if((SKBATTLEINV.locked||[]).indexOf(slotId)>=0){bToast('🔒 Замкнено в бою','Пояс можна змінити після бою');return;}
+ if((slotId==='weaponR'||slotId==='weaponL')&&R0().fitsHand&&!R0().fitsHand(BYID[e.id],slotId)){bToast('Ліва рука','У ліву руку — лише одноручна зброя ближнього бою (не дворучна, не лук, не кастети, не жезл).');return;}
+ if(SKBATTLEINV.bagDur(inst)===0){bToast('Зламано','Ця річ зламалась у бою');return;}
+ SKBATTLEINV.swap(slotId,inst,BYID[e.id]);}
+function battleUnequip(slotId){if(!EQUIP[slotId])return;if((SKBATTLEINV.locked||[]).indexOf(slotId)>=0){bToast('🔒 Замкнено в бою','Пояс можна змінити після бою');return;}SKBATTLEINV.swap(slotId,null);}
 function rebuild(){
  for(var s in EQUIP)EQUIP[s]=null;
  MISSING=[];BELT=[];INV=[];
@@ -4260,6 +4333,7 @@ function rebuild(){
  for(var k in v.equip){var e=entryOf(v.equip[k]);if(e)EQUIP[k]=e;}
  BELT=v.belt.map(function(i){return i?entryOf(i):null;});
  INV=v.bag.map(entryOf).filter(Boolean);
+ if(BM())battleView();
  return v.fixed;
 }
 function firstFreeBelt(){for(var i=0;i<BELT.length;i++)if(!BELT[i])return i;return -1;}
@@ -4285,11 +4359,11 @@ function moveBelt(a,b){if(inBattle())return;if(a===b)return;var ea=BELT[a];if(!e
 /* Після збереження оновлюємо стати в хедері: вони враховують вдягнені речі. */
 /* Поки Герой у бою, спорядження лише для перегляду: бій іде з копією речей,
    а основний запис змінюється тільки після бою (SK.finishBattle). */
-function inBattle(){if(window.SKARENA_LIVE&&SKARENA_LIVE()){if(window.showToast)showToast('⚔ Герой у бою','Спорядження можна змінити після бою');return true;}return false;}
+function inBattle(){if(window.SKARENA_LIVE&&SKARENA_LIVE()){if(window.showToast)showToast(BM()?'🔒 У бою замкнено':'⚔ Герой у бою',BM()?'Пояс, скриня, смітник і порядок у сумці — після бою. Перевдягнутись можна: це дія ходу':'Спорядження можна змінити після бою');return true;}return false;}
 /* запис змін спорядження: лише різниця з останнім станом бази (SKIT.store.diffInv),
    у транзакції поверх СВІЖОГО інвентаря — нагорода з іншої вкладки не загубиться */
 var BASE_INV=[],CAT_REFETCHED=false;
-function persist(){if(!loaded||!(window.SK&&SK.storeTx)||!ST())return;var d=ST().diffInv(BASE_INV,ALL_INST);if(d.empty)return;
+function persist(){if(BM())return;if(!loaded||!(window.SK&&SK.storeTx)||!ST())return;var d=ST().diffInv(BASE_INV,ALL_INST);if(d.empty)return;
  BASE_INV=JSON.parse(JSON.stringify(ALL_INST));
  SK.storeTx(function(st){return ST().applyDiff(st,d);},{noBattle:true}).then(function(r){if(window.SKHERO)SKHERO.apply(r);})
  .catch(function(e){var m=(e&&e.message)||String(e);if(window.showToast)showToast('Не збережено',m);if(window.SKHERO)SKHERO.load(true).catch(function(){});});}
@@ -4336,6 +4410,9 @@ function hideCard(){if(card)card.hidden=true;}
 var CARD_ACTS=[];
 function showCard(el){var x=entryOfChip(el);if(!x)return;
  var acts=[],src=el.getAttribute('data-src');
+ if(BM()){if(src==='inv'&&!x.usable){var fs=firstFree(x.cat,x.id);if(fs)acts.push({label:(EQUIP[fs]?'🔄 Замінити':'🔄 Вдягнути')+' — дія ходу',disabled:!SKBATTLEINV.canSwap(),fn:function(){battleEquip(x.uid,fs);}});}
+   else if(src==='slot')acts.push({label:'↩ Зняти — дія ходу',disabled:!SKBATTLEINV.canSwap(),fn:function(){battleUnequip(el.getAttribute('data-slot'));}});
+   itemCard(x,acts);return;}
  // та сама дія, що й тап по речі: вдягнути / на пояс / зняти
  acts.push({label:src==='inv'?(x.usable?'🪢 На пояс':'✅ Вдягнути'):(src==='belt'?'↩ Зняти з пояса':'↩ Зняти'),fn:function(){tap(el);}});
  if(src==='inv'&&window.SK&&SK.trashItem)acts.push({label:'🗑 Викинути'+((Number(x.qty)||1)>1?' (усі '+x.qty+')':''),cls:'ic-trash',fn:function(){
@@ -4467,7 +4544,16 @@ function sheetNow(){var R=R0();if(!R.heroSheet||!window.SKIT)return null;
  var eq=[];for(var s in EQUIP){var e=EQUIP[s];if(e&&e._inst&&BYID[e.id])eq.push({base:BYID[e.id],inst:e._inst});}
  var cls=HERO.cls!==undefined?HERO.cls:(window.SKBOOK&&SKBOOK.state?SKBOOK.state().cls:null);   /* ріст за рівень — як у бою */
  return R.heroSheet(R.heroStatsOf?R.heroStatsOf(HERO,LEVEL.level,cls):{health:HERO.health,mana:HERO.mana,agility:HERO.agility,accuracy:HERO.accuracy},eq,SKIT);}
-function renderStats(){var t=totals(),sh=sheetNow();
+function renderBattleStats(){var A=SKBATTLEINV,s=A.sheet(),p=s.p,fx=A.fx(),why=A.why();
+ var tiles=[['dmg',statImg('dmg'),'Урон',s.dmg],['arm',statImg('arm'),'Броня',p.armor||0],['acc',statImg('acc'),'Точність',p.accuracy],
+  ['mres',statImg('mres'),'Маг. захист',p.magicResist||0],['agi',statImg('agi'),'Спритність',p.agility],['crit','💥','Шанс криту',s.crit+'%']];
+ q('ek-statGrid').innerHTML=tiles.map(function(a){return '<div class="ek-stat '+a[0]+'"><div class="ek-si">'+a[1]+'</div><div class="ek-sl">'+a[2]+'</div><div class="ek-sv">'+a[3]+'</div></div>';}).join('');
+ var bf=q('ek-bfx');if(!bf)return;
+ bf.innerHTML='<div class="ek-bfx-row pos"><span class="ek-bfx-l">✨ Діє на тебе</span>'+(fx.pos||'<span class="ek-bfx-none">—</span>')+'</div>'
+  +'<div class="ek-bfx-row neg"><span class="ek-bfx-l">⚠️ Проти тебе</span>'+(fx.neg||'<span class="ek-bfx-none">—</span>')+'</div>'
+  +'<div class="ek-bfx-hit">🎯 Ти влучаєш: <b>'+esc(s.hit)+'</b> · '+esc(s.opName)+': <b>'+esc(s.opHit)+'</b>'+(s.extra>1?' · ⚡ ударів за хід: <b>'+s.extra+'</b>':'')+'</div>'
+  +'<div class="ek-bfx-msg'+(why?' no':'')+'">'+(why?esc(why):'🔄 Можна замінити або зняти одну річ — це дія ходу. Атака й захист лишаються.')+'</div>';}
+function renderStats(){if(BM()){renderBattleStats();return;}var t=totals(),sh=sheetNow();
  if(sh){t=Object.assign({},t,{health:sh.health,mana:sh.mana,agility:sh.agility,accuracy:sh.accuracy,armor:sh.armor,magicResist:sh.magicResist});}
  q('ek-lvl').textContent=LEVEL.level;q('ek-xpTxt').textContent=LEVEL.xp+' / '+LEVEL.xpMax;
  q('ek-xpFill').style.width=Math.min(100,LEVEL.xp/LEVEL.xpMax*100)+'%';
@@ -4479,11 +4565,12 @@ function renderStats(){var t=totals(),sh=sheetNow();
   ['mdmg',statImg('mdmg'),'Магічний урон',dm.mag],['mres',statImg('mres'),'Магічна стійкість',t.magicResist],['agi',statImg('agi'),'Спритність',t.agility]];
  q('ek-statGrid').innerHTML=tiles.map(function(a){return '<div class="ek-stat '+a[0]+'"><div class="ek-si">'+a[1]+'</div><div class="ek-sl">'+a[2]+'</div><div class="ek-sv">'+a[3]+'</div></div>';}).join('');}
 
-function renderSlots(){q('ek-slots').innerHTML=SLOT_DEFS.map(function(d){var id=d[0],lab=d[1],ghost=d[2];var item=EQUIP[id];
- var inner=item?chip(item,' data-src="slot" data-slot="'+id+'" title="'+esc(item.name||'')+' — надіто ✔️"').replace('class="ek-chip ','class="ek-chip ek-drag ')+'<span class="ek-worn" aria-label="надіто">✔</span>'
-  :'<span class="ek-gh">'+ghost+'</span>';
- return '<div class="ek-slot'+(item?' ek-filled':'')+'" data-slot="'+id+'">'+inner+'<span class="ek-lab">'+lab.split('|').join('<br>')+'</span></div>';}).join('')
-  +(window.SKBOOK?SKBOOK.btnHtml():'');}   /* під слотами — кнопка «📖 Книга вмінь» (sk-book.js) */
+function renderSlots(){var bm=BM();q('ek-slots').innerHTML=SLOT_DEFS.map(function(d){var id=d[0],lab=d[1],ghost=d[2];var item=EQUIP[id];
+ var lock=bm&&(SKBATTLEINV.locked||[]).indexOf(id)>=0,off=bm&&!item?SKBATTLEINV.offIn(id):'';
+ var inner=item?chip(item,' data-src="slot" data-slot="'+id+'" title="'+esc(item.name||'')+' — надіто ✔️"').replace('class="ek-chip ',lock?'class="ek-chip ':'class="ek-chip ek-drag ')+'<span class="ek-worn" aria-label="надіто">'+(lock?'🔒':'✔')+'</span>'
+  :'<span class="ek-gh">'+(off?'<small class="ek-off">'+off+'</small>':ghost)+'</span>';
+ return '<div class="ek-slot'+(item?' ek-filled':'')+(lock?' ek-locked':'')+'" data-slot="'+id+'">'+inner+'<span class="ek-lab">'+lab.split('|').join('<br>')+'</span></div>';}).join('')
+  +(window.SKBOOK&&!bm?SKBOOK.btnHtml():'');}   /* під слотами — кнопка «📖 Книга вмінь» (sk-book.js); у бою її немає */
 
 function renderInv(){if(q('ek-tabs'))renderTabs();
  var list=INV.filter(function(x){return x.qty>0&&(curTab==='all'||grpOf(x)===curTab);}).sort(byItem);var g=q('ek-invGrid');
@@ -4563,7 +4650,7 @@ function storeAct(fn){if(!(window.SK&&SK[fn]))return;if(inBattle()||STORE_BUSY)r
 document.addEventListener('click',function(e){var b=e.target.closest?e.target.closest('[data-sact]'):null;if(!b)return;
  var u=b.getAttribute('data-suid'),a=b.getAttribute('data-sact');
  if(a==='claim')storeAct('claimChest',u);else if(a==='restore')storeAct('restoreTrash',u);});
-function renderAll(){renderTabs();renderSlots();renderInv();renderBelt();renderStats();renderStore();}
+function renderAll(){var w=q('ward');if(w)w.classList.toggle('ek-battle',BM());renderTabs();renderSlots();renderInv();renderBelt();renderStats();renderStore();}
 
 function findInv(u){for(var i=0;i<INV.length;i++)if(INV[i].uid===u)return INV[i];return null;}
 function findInst(u){for(var i=0;i<ALL_INST.length;i++)if(ALL_INST[i].uid===u)return ALL_INST[i];return null;}
@@ -4574,7 +4661,7 @@ function clashE(r,l){if(!r||!l)return false;var R=R0();return R.handsClash?R.han
 function offhandMsg(s){if(s==='weaponL'&&EQUIP.weaponL&&EQUIP.weaponL.cat==='weapon'&&window.showToast)showToast('Друга зброя','Одноручна зброя пішла в ліву руку. Щоб замінити основну — перетягни її на праву руку.');}
 function handMsg(t){if(window.showToast)showToast('Дворучна зброя',t);}
 function firstFree(cat,id){var s,oh=cat==='weapon'&&id&&R0().offhandSlot&&EQUIP.weaponR?R0().offhandSlot(BYID[id],BYID[EQUIP.weaponR.id]):null;if(oh)return oh;for(s in SLOT_CAT)if(SLOT_CAT[s]===cat&&!EQUIP[s])return s;for(s in SLOT_CAT)if(SLOT_CAT[s]===cat)return s;return null;}
-function equipFromInv(u,slotId){if(inBattle())return;var inst=findInst(u);if(!inst)return;var e=entryOf(inst);if(!e||!compat(e.cat,slotId))return;var cur=EQUIP[slotId];
+function equipFromInv(u,slotId){if(BM())return battleEquip(u,slotId);if(inBattle())return;var inst=findInst(u);if(!inst)return;var e=entryOf(inst);if(!e||!compat(e.cat,slotId))return;var cur=EQUIP[slotId];
  if((slotId==='weaponR'||slotId==='weaponL')&&R0().fitsHand&&!R0().fitsHand(BYID[e.id],slotId)){if(window.showToast)showToast('Ліва рука','У ліву руку — лише одноручна зброя ближнього бою (не дворучна, не лук, не кастети, не жезл).');return;}
  // руки: дворучна знімає річ з лівої руки; щит знімає дворучну (зі «Хваткою велетня» дворучна + щит можна)
  var also=null;if(slotId==='weaponR'&&clashE(e,EQUIP.weaponL))also=EQUIP.weaponL;else if(slotId==='weaponL'&&clashE(EQUIP.weaponR,e))also=EQUIP.weaponR;
@@ -4596,10 +4683,10 @@ function beltFullMsg(n){var m='На поясі є зілля ('+n+') — для 
 function beltEmpty(out){out.forEach(function(inst){
  for(var i=0;i<ALL_INST.length;i++){var x=ALL_INST[i];if(x!==inst&&!x.slot&&ST()&&ST().sameStack(x,inst)){x.qty=(Number(x.qty)||1)+(Number(inst.qty)||1);ALL_INST.splice(ALL_INST.indexOf(inst),1);return;}}
  inst.slot=null;});}
-function unequip(slotId){if(inBattle())return;var e=EQUIP[slotId];if(!e||!e._inst)return;
+function unequip(slotId){if(BM())return battleUnequip(slotId);if(inBattle())return;var e=EQUIP[slotId];if(!e||!e._inst)return;
  if(slotId==='belt'){var out=beltOut(0);if(out.length){if(!beltFits(out,1)){beltFullMsg(out.length);return;}beltEmpty(out);}}
  if(bagFull()){bagFullMsg();return;}e._inst.slot=null;rebuild();renderAll();persist();}
-function moveSlot(a,b){if(inBattle())return;if(a===b)return;var ea=EQUIP[a];if(!ea)return;if(!compat(ea.cat,b))return;var eb=EQUIP[b];if(ea._inst)ea._inst.slot=b;if(eb&&eb._inst)eb._inst.slot=a;rebuild();renderAll();persist();}
+function moveSlot(a,b){if(BM()){bToast('🔄 У бою','Переклади через сумку: спершу зніми річ, наступного ходу вдягни');return;}if(inBattle())return;if(a===b)return;var ea=EQUIP[a];if(!ea)return;if(!compat(ea.cat,b))return;var eb=EQUIP[b];if(ea._inst)ea._inst.slot=b;if(eb&&eb._inst)eb._inst.slot=a;rebuild();renderAll();persist();}
 
 var ghost=null;function mkGhost(){if(ghost)return;ghost=document.createElement('div');ghost.id='ek-ghost';ghost.hidden=true;document.body.appendChild(ghost);}
 var drag=null,down=null;
@@ -4643,6 +4730,9 @@ function moveInBag(u,target,after){if(inBattle())return;var a=findInst(u),b=find
  ALL_INST.splice(ALL_INST.indexOf(a),1);ALL_INST.splice(ALL_INST.indexOf(b)+(after?1:0),0,a);rebuild();renderAll();persist();}
 function cleanup(){drag=null;if(ghost)ghost.hidden=true;var c=document.querySelectorAll('.ek-slot.ek-compat,.ek-slot.ek-over,.ek-bslot.ek-compat,.ek-bslot.ek-over,.ek-art.ek-compat,.ek-art.ek-over,.ek-ins-before,.ek-ins-after');for(var i=0;i<c.length;i++)c[i].classList.remove('ek-compat','ek-over','ek-ins-before','ek-ins-after');document.body.style.userSelect='';}
 function tap(el){var src=el.getAttribute('data-src');
+ if(BM()){if(src==='inv'){var bi2=findInv(el.getAttribute('data-uid'));if(!bi2)return;if(bi2.usable){inBattle();return;}
+    var fs=firstFree(bi2.cat,bi2.id);if(!fs)return;if(EQUIP[fs]){bToast('Слот зайнятий','Щоб замінити — перетягни річ на слот (це дія ходу)');return;}battleEquip(bi2.uid,fs);}
+   else if(src==='slot')bToast('Зняти річ','Перетягни її в сумку (це дія ходу)');else inBattle();return;}
  if(src==='inv'){var i=findInv(el.getAttribute('data-uid'));if(!i)return;
    if(i.usable){var bi=firstFreeBelt();if(bi>=0)equipToBelt(el.getAttribute('data-uid'),bi);return;}
    var s=firstFree(i.cat,i.id);if(s){equipFromInv(el.getAttribute('data-uid'),s);offhandMsg(s);}}
@@ -4696,7 +4786,11 @@ function loadData(force){if((loaded&&!force)||loading)return Promise.resolve();l
    try{console.error('[гардероб] не вдалось прочитати предмети:',e);}catch(_){}
    renderAll();});}
 if(window.SKHERO)SKHERO.on(function(st){if(loaded)applyState(st);});
-window.EKEQUIP={render:function(token,hd){if(hd){['health','mana','agility','accuracy','coins','baseHP'].forEach(function(k){if(hd[k]!=null)HERO[k]=hd[k];});if(hd.cls!==undefined)HERO.cls=hd.cls;if(hd.level!=null)LEVEL.level=hd.level;if(hd.xp!=null)LEVEL.xp=hd.xp;if(hd.xpMax!=null&&hd.xpMax>0)LEVEL.xpMax=hd.xpMax;if(hd.name!=null){var nn=document.getElementById('ek-heroName');if(nn)nn.textContent=hd.name;}if(hd.grade!=null){var gg=document.getElementById('ek-heroGrade');if(gg)gg.textContent=hd.grade;}}paintAvatar(token);renderAll();loadData();if(window.SKBOOK)SKBOOK.refresh();},reload:function(){return loadData(true);}};   /* книга вмінь — свіжий стан з бази (рівень — той, що бачить сервер) */
+/* бій: після ходу / заміни — оновити (якщо інвентар відкрито); бій скінчився — звичайний режим і закрити */
+function wardOpen(){var w=q('ward');return !!(w&&!w.hidden);}
+window.EKEQUIP_BATTLE={refresh:function(){if(!loaded)return;if(window.SKBOOK&&BM()&&SKBOOK.isOpen())SKBOOK.close();rebuild();renderAll();},
+ end:function(){var w=q('ward'),was=!!(w&&w.classList.contains('ek-battle'));if(loaded){rebuild();renderAll();}if(was&&w)w.hidden=true;}};
+window.EKEQUIP={battleRefresh:function(){if(wardOpen())EKEQUIP_BATTLE.refresh();},battleEnd:function(){EKEQUIP_BATTLE.end();},render:function(token,hd){if(hd){['health','mana','agility','accuracy','coins','baseHP'].forEach(function(k){if(hd[k]!=null)HERO[k]=hd[k];});if(hd.cls!==undefined)HERO.cls=hd.cls;if(hd.level!=null)LEVEL.level=hd.level;if(hd.xp!=null)LEVEL.xp=hd.xp;if(hd.xpMax!=null&&hd.xpMax>0)LEVEL.xpMax=hd.xpMax;if(hd.name!=null){var nn=document.getElementById('ek-heroName');if(nn)nn.textContent=hd.name;}if(hd.grade!=null){var gg=document.getElementById('ek-heroGrade');if(gg)gg.textContent=hd.grade;}}paintAvatar(token);renderAll();loadData();if(window.SKBOOK)SKBOOK.refresh();},reload:function(){return loadData(true);}};   /* книга вмінь — свіжий стан з бази (рівень — той, що бачить сервер) */
 function init(){renderAll();paintAvatar(null);loadData();}
 if(document.readyState!=='loading')init();else document.addEventListener('DOMContentLoaded',init);
 })();
