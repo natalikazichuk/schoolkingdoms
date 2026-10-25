@@ -55,6 +55,7 @@
   .durbar{height:8px;border-radius:999px;background:rgba(255,255,255,.1);overflow:hidden}
   .durfill{height:100%;background:linear-gradient(90deg,#5fd0ff,#3aa0e0)}
   .row{display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:8px;font-size:.85rem}
+  .pick{flex:1;min-width:220px;border:1px solid var(--border);background:var(--panel-2);color:var(--text);border-radius:10px;padding:8px 10px;font:inherit}
   .mini{border:1px solid var(--border);background:var(--panel-2);color:var(--text);border-radius:8px;padding:4px 8px;font-weight:800;cursor:pointer;font-size:.78rem}
   .msg{margin-top:10px;font-weight:800}
   .empty{color:var(--muted);padding:24px;text-align:center}
@@ -70,6 +71,11 @@
     <button class="btn gold" id="giveAll">🧪 Дати всі речі (тест)</button>
     <button class="btn" id="reload">↻ Оновити</button>
     <button class="btn danger" id="clear">🗑 Очистити інвентар</button>
+  </div>
+  <div class="bar">
+    <input class="pick" id="pick" list="pickList" placeholder="Назва або ID речі з каталогу…" autocomplete="off">
+    <datalist id="pickList"></datalist>
+    <button class="btn gold" id="giveOne">➕ Дати одну річ</button>
   </div>
   <div class="msg" id="msg"></div>
   <div class="grid" id="grid"></div>
@@ -132,10 +138,11 @@
   async function boot(){
     await window.SK.ready;
     var hero=await SK.getActiveHero();
-    if(!hero){ q('who').textContent='Увійди як герой, щоб бачити інвентар.'; ['giveAll','clear','reload'].forEach(function(i){q(i).disabled=true;}); return; }
+    if(!hero){ q('who').textContent='Увійди як герой, щоб бачити інвентар.'; ['giveAll','giveOne','clear','reload'].forEach(function(i){q(i).disabled=true;}); return; }
     window.__HERO=hero;
     q('who').textContent='Герой: '+(hero.name||hero.login||'—');
     CATALOG=await SK.listItems(); BYID={}; CATALOG.forEach(function(b){BYID[b.id]=b;});
+    q('pickList').innerHTML=CATALOG.map(function(b){ return '<option value="'+esc(b.id+' — '+(b.name||''))+'">'; }).join('');
     INV=await SK.getInventory(); render();
   }
 
@@ -144,6 +151,20 @@
     this.disabled=true; setMsg('Створюю екземпляри…');
     var list=CATALOG.map(function(b){ return SKIT.makeInstance(b); });
     try{ await SK.saveInventory(list); INV=list; render(); setMsg('✅ Видано '+list.length+' речей.',true); }
+    catch(e){ setMsg('⚠️ '+(e&&e.message||e),false); }
+    this.disabled=false;
+  });
+  /* одна річ з каталогу (для тесту): нова — найновіший запис каталогу з такою назвою.
+     Опізнана, бонус ×1 (базові числа); іде через сумку — повна сумка → 🎁 скриня */
+  q('giveOne').addEventListener('click', async function(){
+    var t=q('pick').value.trim(), id=t.split(' — ')[0].trim(), low=t.toLowerCase();
+    var base=BYID[id] || CATALOG.filter(function(b){ return (b.name||'').toLowerCase()===low; }).pop()
+      || CATALOG.filter(function(b){ return low && (b.name||'').toLowerCase().indexOf(low)>=0; }).pop();
+    if(!base){ setMsg('⚠️ Немає такої речі в каталозі: '+t,false); return; }
+    this.disabled=true;
+    try{ var r=await SK.addToInventory([SKIT.makeInstance(base,{bonus:1,identified:true})]);
+      INV=await SK.getInventory(); render();
+      setMsg('✅ Видано: '+(base.name||base.id)+(r&&r.chest?' (сумка повна — у 🎁 скрині)':'')+(r&&r.lost?' — ⚠️ сумка й скриня повні, не влізло':''),true); q('pick').value=''; }
     catch(e){ setMsg('⚠️ '+(e&&e.message||e),false); }
     this.disabled=false;
   });
