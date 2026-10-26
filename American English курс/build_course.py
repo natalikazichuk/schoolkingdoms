@@ -42,7 +42,7 @@ body {{ margin: 0; font-family: "DejaVu Sans", sans-serif; color: {INK}; font-si
 .eyebrow {{ font-size: 8.5pt; letter-spacing: .08em; text-transform: uppercase; color: {SOFT}; }}
 h1 {{ font-size: 24pt; line-height: 1.1; margin: 2mm 0 4mm; }}
 h2 {{ font-size: 13pt; margin: 4.5mm 0 1.5mm; }}
-h3 {{ font-size: 11.5pt; margin: 4mm 0 1mm; }}
+h3 {{ font-size: 11pt; margin: 3mm 0 1mm; }}
 p {{ margin: 0 0 2.5mm; }}
 table {{ width: 100%; border-collapse: collapse; font-size: 8.6pt; }}
 td.l {{ white-space: nowrap; }}
@@ -59,13 +59,16 @@ td.n {{ font-weight: bold; white-space: nowrap; }}
 .toc td {{ font-size: 10pt; padding: 1.3mm 2mm; }} .toc td.pg {{ text-align: right; width: 18mm; }}
 .toc tr.g td {{ font-weight: bold; font-size: 11pt; padding-top: 4mm; border-bottom: .5mm solid {INK}; }}
 .letters {{ display: flex; gap: 2.5mm; margin: 2mm 0 3mm; flex-wrap: wrap; }}
-.letters div {{ width: 26mm; border: .5mm solid; border-radius: 3mm; padding: 2mm; text-align: center; }}
+.letters div {{ width: 28mm; font-size: 9pt; border: .5mm solid; border-radius: 3mm; padding: 2mm; text-align: center; }}
 .letters b {{ display: block; font-size: 20pt; line-height: 1.1; }}
 .cols {{ display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }}
 ul {{ margin: 0; padding-left: 5mm; }} li {{ margin-bottom: 1mm; }}
-.dlg p {{ margin: 0 0 1.2mm; }} .dlg .t {{ color: {ACC}; font-weight: bold; }}
+.dlg {{ font-size: 9.4pt; line-height: 1.32; }} .dlg p {{ margin: 0 0 .9mm; }} .dlg .t {{ color: {ACC}; font-weight: bold; }}
 .box {{ border: .4mm solid {LINE}; border-radius: 3mm; padding: 3mm 4mm; margin-top: 4mm; }}
 .box b {{ color: {INK}; }}
+a {{ color: {ACC}; text-decoration: none; font-weight: bold; }}
+ul.songs li {{ margin-bottom: .8mm; line-height: 1.25; }}
+.url {{ font-size: 7pt; color: {SOFT}; word-break: break-all; }}
 p.res {{ font-size: 8.8pt; margin: 0 0 1.4mm; }}
 """
 
@@ -76,6 +79,7 @@ def about_html():
     return doc('<section class="pg"><div class="eyebrow">Про курс</div><h1>Як влаштований курс</h1>' +
                "".join(f"<p>{e(p)}</p>" for p in C["about"]) +
                "<h2>Як користуватися</h2><ul>" + "".join(f"<li>{e(p)}</li>" for p in C["howto"]) + "</ul>" +
+               f'<h2>Пісні</h2><p>{e(C["songs_note"])}</p>' +
                "<h2>Класи</h2><table><tr><th>Клас</th><th>Назва</th><th>Готово</th><th>Тренажер на сайті</th></tr>" +
                "".join(f'<tr><td class="n">{g["grade"]} клас</td><td>{e(g["title"].split("·",1)[1].strip())}</td><td>{g["_ready"]} з {len(g["modules"])} модулів</td><td>{e(g["site"])}</td></tr>' for g in C["grades"]) +
                "".join(f'<tr><td class="n">{e(x)}</td><td class="muted">у планах</td><td>—</td><td>—</td></tr>' for x in C.get("planned", [])) +
@@ -109,7 +113,9 @@ def module_html(g, m, sm):
         words = ", ".join(f"{v[0]} ({v[2]})" for v in sm["V"])
         cvc = ", ".join(x[0] for x in sm.get("C", []))
         body += f'<div class="cols"><div><h3>Слова теми</h3><p>{e(words)}</p><h3>Фоніка</h3><p>{e(m.get("phonics", ""))}</p><h3>Читаємо за звуками</h3><p>{e(cvc)}</p></div>'
-    body += f'<div><h3>Мовні зразки</h3><p>{e(m["phrases"])}</p><h3>Пісні й культура</h3><p>{e(m["songs"])}</p></div></div>'
+    songs = "".join(f'<li><a href="{e(x["url"])}">{e(x["title"])}</a><br><span class="url">{e(x["url"].replace("https://", ""))}</span></li>' for x in m["songs"])
+    body += (f'<div><h3>Мовні зразки</h3><p>{e(m["phrases"])}</p><h3>Пісні (Super Simple Songs)</h3><ul class="songs">{songs}</ul>'
+             f'<h3>Культура США</h3><p>{e(m["culture"])}</p></div></div>')
     dlg = ""
     for line, opts, ok in sm.get("D", []):
         a = opts[ok] if ok >= 0 else opts[0]
