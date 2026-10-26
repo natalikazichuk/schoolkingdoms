@@ -3249,8 +3249,10 @@ window.SKHERO = (function(){
       btn.addEventListener('click', function(){
         if(!live() || UI.resolving) return;
         /* 🪤 обрано Пастку: перший тап — блок (якщо ще не стоїть), наступний — зона пастки (ще раз по ній — зняти) */
-        var z0 = btn.getAttribute('data-zone');
-        if(B.me.skill==='ranger.trap' && B.me.block && z0!==B.me.block){ B.me.trapZone = (B.me.trapZone===z0 ? null : z0); saveBattle(); paintTrap(); return; }
+        var z0 = btn.getAttribute('data-zone'), ft = B.me.fx && B.me.fx.trap, tOn = ft && ft.from<=B.round && ft.until>=B.round;
+        if(tOn && ft.zone===z0){ showToast('🪤 Тут стоїть пастка', 'У зону з пасткою блок не ставиться — обери іншу зону захисту.'); return; }   // пастка стоїть — блок туди не можна
+        if(!tOn && B.me.trapZone===z0){ B.me.trapZone = null; saveBattle(); paintTrap(); return; }   // обрана зона пастки: клік — зняти пастку, наступний — уже блок
+        if(B.me.skill==='ranger.trap' && B.me.block && z0!==B.me.block){ B.me.trapZone = z0; saveBattle(); paintTrap(); return; }
         $('guardRow').querySelectorAll('.gbtn').forEach(function(b){ b.classList.remove('sel'); });
         btn.classList.add('sel');
         B.me.block = z0;
