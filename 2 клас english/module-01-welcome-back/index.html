@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="uk">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+<title>Welcome Back! 2 клас</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Nunito:wght@800;900&display=swap">
+<style>
+/* Layout: the grade-1 notebook page, one grade up: ruled paper, phonics tiles, one activity at a time under a tab strip */
+:root {
+  --paper: #fbfcff;
+  --rule: #dbe5f6;
+  --margin: #f2b8b8;
+  --ink: #1f2a44;
+  --ink-soft: #5b6680;
+  --card: #ffffff;
+  --line: #d6dceb;
+  --c1: #2e86de; --c2: #3aa65b; --c3: #e4572e; --c4: #8e5bd6; --c5: #e0a000; --c6: #e0457b;
+  --vowel: #e4572e;
+  --ok: #2f9e5a; --no: #d64545;
+  --display: "Nunito", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --body: "Andika", "Trebuchet MS", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #161b29; --rule: #222a3d; --margin: #5a2f36; --ink: #eef2fb; --ink-soft: #a5afc6; --card: #1e2536; --line: #323c55;
+  --vowel: #ff7a54; --ok: #4cc27f; --no: #ef6b6b; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #161b29; --rule: #222a3d; --margin: #5a2f36; --ink: #eef2fb; --ink-soft: #a5afc6; --card: #1e2536; --line: #323c55;
+  --vowel: #ff7a54; --ok: #4cc27f; --no: #ef6b6b; color-scheme: dark }
+
+body {
+  background: var(--paper);
+  background-image: linear-gradient(90deg, transparent 38px, var(--margin) 38px, var(--margin) 40px, transparent 40px),
+                    repeating-linear-gradient(var(--paper) 0 31px, var(--rule) 31px 32px);
+  color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 48px;
+}
+.wrap { max-width: 880px; margin: 0 auto; display: grid; gap: 20px; }
+.back { color: var(--ink-soft); font-size: 15px; justify-self: start; }
+header { display: grid; gap: 4px; padding-left: 36px; }
+.eyebrow { font-family: var(--display); font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+h1 { font-family: var(--display); font-weight: 900; font-size: clamp(34px, 7vw, 52px); line-height: 1.05; margin: 0; text-wrap: balance; }
+h1 .w { color: var(--c1); } h1 .b { color: var(--c3); }
+.sub { margin: 0; color: var(--ink-soft); max-width: 62ch; }
+
+.printbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 14px; border: 2px solid var(--ink); border-radius: 16px; background: var(--card); }
+.printbtn { font: 800 17px var(--display); background: var(--ink); color: var(--paper); border: 0; border-radius: 12px; padding: 11px 18px; cursor: pointer; }
+.printbtn:disabled { opacity: .6; cursor: default; }
+.printbar .note { flex: 1 1 220px; }
+
+nav { display: flex; flex-wrap: wrap; gap: 8px; }
+nav button { font: 700 15px var(--body); color: var(--ink); background: var(--card); border: 2px solid var(--line); border-radius: 999px; padding: 8px 14px; cursor: pointer; }
+nav button[aria-selected="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+button:focus-visible { outline: 3px solid var(--c1); outline-offset: 2px; }
+
+section.panel { background: var(--card); border: 2px solid var(--line); border-radius: 18px; padding: 20px; display: grid; gap: 16px; min-width: 0; }
+h2 { font-family: var(--display); font-size: 26px; margin: 0; }
+.how { margin: 0; color: var(--ink-soft); font-size: 15px; }
+.note { font-size: 14px; color: var(--ink-soft); margin: 0; }
+
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 12px; }
+.tile { --c: var(--ink); border: 3px solid var(--c); border-radius: 16px; background: var(--card); color: var(--ink); padding: 12px 8px; cursor: pointer; display: grid; justify-items: center; gap: 2px; font: inherit; }
+.tile .pic { font-size: 40px; line-height: 1.2; }
+.tile .word { font-weight: 700; font-size: 19px; }
+.tile.playing { transform: scale(1.05); box-shadow: 0 6px 0 var(--c); }
+
+.abc { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 8px; }
+.abc button { font: 700 26px var(--body); padding: 6px 0; border-radius: 12px; border: 2px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+.abc button.v { color: var(--vowel); border-color: color-mix(in srgb, var(--vowel) 45%, var(--line)); }
+.abc button small { display: block; font-size: 18px; line-height: 1; }
+.sound-card { display: flex; align-items: center; gap: 16px; min-height: 64px; font-size: 22px; }
+.sound-card .pic { font-size: 46px; }
+.sound-card b { color: var(--vowel); }
+
+.big-q { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+.speak { font: 800 18px var(--display); background: var(--c1); color: #fff; border: 0; border-radius: 14px; padding: 12px 18px; cursor: pointer; }
+.ghost { font: 700 15px var(--body); background: var(--card); color: var(--ink); border: 2px solid var(--line); border-radius: 12px; padding: 8px 12px; cursor: pointer; }
+.choices { display: flex; flex-wrap: wrap; gap: 12px; }
+.choice { font: 700 36px var(--body); min-width: 76px; padding: 8px 18px; border-radius: 16px; border: 3px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+.choice.text { font-size: 22px; }
+.right { border-color: var(--ok) !important; background: color-mix(in srgb, var(--ok) 14%, var(--card)) !important; }
+.wrong { border-color: var(--no) !important; animation: shake .3s; }
+@keyframes shake { 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
+.feedback { font-weight: 700; min-height: 26px; }
+.score { font-family: var(--display); font-size: 18px; min-height: 28px; color: var(--c5); }
+.q-pic { font-size: 84px; line-height: 1; }
+.q-text { font: 700 30px var(--body); }
+
+.slots { display: flex; gap: 8px; flex-wrap: wrap; }
+.slot { width: 58px; height: 66px; border-bottom: 4px solid var(--ink); display: grid; place-items: center; font: 700 40px var(--body); }
+.slot.v { color: var(--vowel); }
+.letters { display: flex; gap: 10px; flex-wrap: wrap; }
+.letters button { width: 58px; height: 58px; font: 700 32px var(--body); border-radius: 14px; border: 2px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+.letters button:disabled { opacity: .25; cursor: default; }
+
+.dialog { display: grid; gap: 10px; }
+.bubble { max-width: 80%; padding: 10px 14px; border-radius: 16px; font-size: 19px; }
+.bubble.t { background: color-mix(in srgb, var(--c1) 16%, var(--card)); justify-self: start; border-bottom-left-radius: 4px; }
+.bubble.k { background: color-mix(in srgb, var(--c2) 18%, var(--card)); justify-self: end; border-bottom-right-radius: 4px; }
+.answers { display: flex; flex-wrap: wrap; gap: 8px; }
+.answers button { font: 700 18px var(--body); padding: 10px 14px; border-radius: 14px; border: 2px solid var(--c2); background: var(--card); color: var(--ink); cursor: pointer; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+input#kidname, select#kidage { font: 700 19px var(--body); padding: 8px 12px; border-radius: 12px; border: 2px solid var(--line); background: var(--paper); color: var(--ink); }
+input#kidname { width: min(200px, 100%); }
+footer { padding-left: 36px; }
+@media (max-width: 480px) { header, footer { padding-left: 30px; } .choice { font-size: 30px; min-width: 64px; } .slot, .letters button { width: 48px; } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <a class="back" href="../">← Усі модулі</a>
+  <header>
+    <div class="eyebrow">2 клас · Модуль 1 · American English</div>
+    <h1><span class="w">Welcome</span> <span class="b">Back!</span></h1>
+    <p class="sub">Повторюємо 1 клас і вчимося читати за звуками: шкільні речі, алфавіт зі звуками, питання «Is it a…?», перші слова з трьох літер і розмова про себе.</p>
+  </header>
+
+  <div class="printbar">
+    <button class="printbtn" id="print-btn">Роздрукувати аркуші (PDF, A4)</button>
+    <p class="note" id="print-note">8 аркушів для друку: алфавіт, перші звуки, шкільні речі, «Is it a…?», числа 11–20, читання й письмо.</p>
+  </div>
+
+  <nav role="tablist" aria-label="Вправи">
+    <button role="tab" data-tab="words" aria-selected="true">1. Слова</button>
+    <button role="tab" data-tab="sounds" aria-selected="false">2. Звуки ABC</button>
+    <button role="tab" data-tab="isit" aria-selected="false">3. Is it a…?</button>
+    <button role="tab" data-tab="spell" aria-selected="false">4. Склади слово</button>
+    <button role="tab" data-tab="talk" aria-selected="false">5. About me</button>
+  </nav>
+
+  <section class="panel" id="p-words">
+    <h2>School things</h2>
+    <p class="how">Натисни на картку: почуєш слово й речення. Повтори вголос: «It's a ruler.»</p>
+    <div class="tiles" id="tiles"></div>
+  </section>
+
+  <section class="panel" id="p-sounds" hidden>
+    <h2>Letters and sounds</h2>
+    <p class="how">Натисни на літеру: почуєш, як вона називається, який звук дає і слово з цим звуком. Голосні позначено червоним.</p>
+    <div class="abc" id="abc"></div>
+    <div class="sound-card" id="sound-card" aria-live="polite"><span class="note">Обери літеру вище.</span></div>
+    <hr style="border:0;border-top:2px dashed var(--line);width:100%">
+    <h2>First sound</h2>
+    <p class="how">Послухай слово й вибери літеру, з якої воно починається.</p>
+    <div class="big-q"><button class="speak" id="fs-play">▶ Слухати</button><span class="q-pic" id="fs-pic" aria-hidden="true"></span></div>
+    <div class="choices" id="fs-choices"></div>
+    <div class="feedback" id="fs-fb" aria-live="polite"></div>
+    <div class="score" id="fs-score"></div>
+  </section>
+
+  <section class="panel" id="p-isit" hidden>
+    <h2>Is it a…?</h2>
+    <p class="how">Подивись на картинку, послухай питання й вибери відповідь. Скажи її вголос.</p>
+    <div class="big-q"><span class="q-pic" id="ii-pic" aria-hidden="true"></span><span class="q-text" id="ii-q"></span><button class="ghost" id="ii-say">▶ Питання</button></div>
+    <div class="choices" id="ii-choices"></div>
+    <div class="feedback" id="ii-fb" aria-live="polite"></div>
+    <div class="score" id="ii-score"></div>
+  </section>
+
+  <section class="panel" id="p-spell" hidden>
+    <h2>Spell it</h2>
+    <p class="how">Склади слово з трьох літер. Натискай літери по черзі: перший звук, голосний посередині, останній звук. c-a-t → cat!</p>
+    <div class="big-q"><span class="q-pic" id="sp-pic" aria-hidden="true"></span><button class="ghost" id="sp-say">▶ Послухати слово</button><button class="ghost" id="sp-clear">Стерти</button></div>
+    <div class="slots" id="sp-slots"></div>
+    <div class="letters" id="sp-letters"></div>
+    <div class="feedback" id="sp-fb" aria-live="polite"></div>
+    <div class="score" id="sp-score"></div>
+  </section>
+
+  <section class="panel" id="p-talk" hidden>
+    <h2>Hi, I'm Teddy!</h2>
+    <p class="how">Teddy повернувся до школи й хоче познайомитися ще раз. Дитина відповідає вголос, а потім натискає відповідь.</p>
+    <div class="row">
+      <label class="note" for="kidname">Ім'я англійською:</label><input id="kidname" value="Anna" autocomplete="off">
+      <label class="note" for="kidage">Вік:</label>
+      <select id="kidage"><option>six</option><option selected>seven</option><option>eight</option></select>
+    </div>
+    <div class="dialog" id="dialog"></div>
+    <div class="answers" id="answers"></div>
+    <button class="ghost" id="talk-restart" style="justify-self:start">Почати знову</button>
+  </section>
+
+  <footer><p class="note" id="voice-note">Звук працює через синтезатор мови браузера (американська вимова, якщо вона є на пристрої).</p></footer>
+</div>
+
+<script>
+const WORDS = [
+  ["pencil","✏️","олівець"], ["ruler","📏","лінійка"], ["book","📘","книжка"], ["notebook","📓","зошит"],
+  ["eraser","🧽","гумка"], ["marker","🖍️","маркер"], ["scissors","✂️","ножиці"], ["glue","🧴","клей"],
+  ["backpack","🎒","рюкзак"], ["desk","🪑","парта"], ["board","🟩","дошка"], ["teacher","👩‍🏫","вчителька"],
+];
+const ABC = [
+  ["A","apple","🍎"],["B","ball","⚽"],["C","cat","🐱"],["D","dog","🐶"],["E","egg","🥚"],["F","fish","🐟"],["G","goat","🐐"],
+  ["H","hat","🎩"],["I","igloo","🧊"],["J","jam","🍓"],["K","kite","🪁"],["L","lion","🦁"],["M","map","🗺️"],["N","nest","🪺"],
+  ["O","octopus","🐙"],["P","pen","🖊️"],["Q","queen","👸"],["R","red","🟥"],["S","sun","☀️"],["T","ten","🔟"],["U","umbrella","☂️"],
+  ["V","van","🚐"],["W","web","🕸️"],["X","box","📦"],["Y","yo-yo","🪀"],["Z","zebra","🦓"],
+];
+const VOWELS = "AEIOU";
+const CVC = [["cat","🐱"],["hat","🎩"],["bag","👜"],["map","🗺️"],["pen","🖊️"],["bed","🛏️"],["ten","🔟"],["red","🟥"],
+             ["pig","🐷"],["six","6️⃣"],["dog","🐶"],["box","📦"],["sun","☀️"],["cup","🥤"],["bus","🚌"]];
+const COLORS = ["--c1","--c2","--c3","--c4","--c5","--c6"];
+
+/* speech */
+let voice = null;
+function pickVoice(){ try { const vs = speechSynthesis.getVoices(); voice = vs.find(v=>v.lang==="en-US" && /Samantha|Google US|Aria|Jenny|Allison/i.test(v.name)) || vs.find(v=>v.lang==="en-US") || vs.find(v=>v.lang && v.lang.startsWith("en")) || null; } catch(e){} }
+try { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; } catch(e) { document.getElementById("voice-note").textContent = "На цьому пристрої озвучення недоступне — читайте слова вголос самі."; }
+function say(text, rate){ try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = "en-US"; if (voice) u.voice = voice; u.rate = rate || .82; speechSynthesis.speak(u); } catch(e){} }
+const shuffle = a => a.map(x=>[Math.random(),x]).sort((p,q)=>p[0]-q[0]).map(p=>p[1]);
+const pick = a => a[Math.floor(Math.random()*a.length)];
+const stars = (id, n) => document.getElementById(id).textContent = "★".repeat(Math.min(n, 20)) + (n>20 ? ` ×${n}` : "");
+function flashWrong(b){ b.classList.remove("wrong"); void b.offsetWidth; b.classList.add("wrong"); }
+
+/* tabs */
+const tabs = document.querySelectorAll("nav button");
+tabs.forEach(b => b.addEventListener("click", () => {
+  tabs.forEach(x => x.setAttribute("aria-selected", x===b));
+  document.querySelectorAll("section.panel").forEach(p => p.hidden = p.id !== "p-"+b.dataset.tab);
+}));
+
+/* 1. words */
+const tiles = document.getElementById("tiles");
+WORDS.forEach((w,i) => {
+  const t = document.createElement("button"); t.className = "tile"; t.style.setProperty("--c", `var(${COLORS[i%6]})`);
+  t.innerHTML = `<span class="pic" aria-hidden="true">${w[1]}</span><span class="word">${w[0]}</span><span class="note">${w[2]}</span>`;
+  t.addEventListener("click", () => { document.querySelectorAll(".tile").forEach(x=>x.classList.remove("playing")); t.classList.add("playing");
+    const art = /^[aeiou]/.test(w[0]) ? "an" : "a"; say(w[0] === "scissors" ? "Scissors. These are scissors." : `${w[0]}. It's ${art} ${w[0]}.`); });
+  tiles.appendChild(t);
+});
+
+/* 2. sounds */
+const abc = document.getElementById("abc"), card = document.getElementById("sound-card");
+ABC.forEach(([L,word,pic]) => {
+  const b = document.createElement("button"); if (VOWELS.includes(L)) b.className = "v";
+  b.innerHTML = `${L}<small>${L.toLowerCase()}</small>`; b.setAttribute("aria-label", L);
+  b.onclick = () => {
+    const pos = L === "X" ? "ends with" : "is for";
+    card.innerHTML = `<span class="pic" aria-hidden="true">${pic}</span><span><b>${L}${L.toLowerCase()}</b> ${pos} <b>${word}</b></span>`;
+    say(L === "X" ? `X. Box ends with X. Box.` : `${L}. ${L} is for ${word}. ${word}!`);
+  };
+  abc.appendChild(b);
+});
+let fq = null, fStars = 0;
+const fsPool = [...ABC.filter(a=>a[0]!=="X").map(a=>[a[1],a[2]]), ...CVC];
+function newFirst(){
+  fq = pick(fsPool); const right = fq[0][0].toUpperCase();
+  document.getElementById("fs-pic").textContent = fq[1];
+  const others = shuffle("ABCDEFGHIJKLMNOPRSTUVWYZ".split("").filter(x=>x!==right)).slice(0,3);
+  const box = document.getElementById("fs-choices"); box.innerHTML = "";
+  shuffle([right, ...others]).forEach(L => {
+    const b = document.createElement("button"); b.className = "choice"; b.textContent = L + L.toLowerCase();
+    if (VOWELS.includes(L)) b.style.color = "var(--vowel)";
+    b.onclick = () => {
+      if (L === right) { b.classList.add("right"); fStars++; stars("fs-score", fStars); document.getElementById("fs-fb").textContent = `Yes! ${fq[0]} starts with ${right}.`; say(`Yes! ${fq[0]}`); setTimeout(()=>{ newFirst(); say(fq[0]); }, 1400); }
+      else { flashWrong(b); document.getElementById("fs-fb").textContent = "Try again! Послухай перший звук."; say(fq[0], .6); }
+    };
+    box.appendChild(b);
+  });
+  document.getElementById("fs-fb").textContent = "";
+}
+document.getElementById("fs-play").onclick = () => say(fq[0]);
+newFirst();
+
+/* 3. is it a...? */
+let iq = null, iStars = 0;
+function article(w){ return /^[aeiou]/.test(w) ? "an" : "a"; }
+function newIsIt(){
+  const real = pick(WORDS.filter(w=>w[0]!=="scissors" && w[0]!=="glue"));
+  const asked = Math.random() < .5 ? real : pick(WORDS.filter(w=>w!==real && w[0]!=="scissors" && w[0]!=="glue"));
+  iq = { real, asked, q: `Is it ${article(asked[0])} ${asked[0]}?`, yes: real===asked };
+  document.getElementById("ii-pic").textContent = real[1];
+  document.getElementById("ii-q").textContent = iq.q;
+  const box = document.getElementById("ii-choices"); box.innerHTML = "";
+  ["Yes, it is.", "No, it isn't."].forEach((t,i) => {
+    const b = document.createElement("button"); b.className = "choice text"; b.textContent = t;
+    b.onclick = () => {
+      const ok = (i===0) === iq.yes;
+      if (ok) { b.classList.add("right"); iStars++; stars("ii-score", iStars);
+        const full = iq.yes ? `Yes, it is. It's ${article(real[0])} ${real[0]}.` : `No, it isn't. It's ${article(real[0])} ${real[0]}.`;
+        document.getElementById("ii-fb").textContent = full; say(full); setTimeout(()=>{ newIsIt(); say(iq.q); }, 2200); }
+      else { flashWrong(b); document.getElementById("ii-fb").textContent = "Look again! Подивись уважно на картинку."; }
+    };
+    box.appendChild(b);
+  });
+  document.getElementById("ii-fb").textContent = "";
+}
+document.getElementById("ii-say").onclick = () => say(iq.q);
+newIsIt();
+
+/* 4. spell it */
+let sq = null, typed = [], sStars = 0;
+function newSpell(){
+  sq = pick(CVC); typed = [];
+  document.getElementById("sp-pic").textContent = sq[1];
+  const extra = shuffle("abdefgilmnoprstu".split("").filter(c=>!sq[0].includes(c))).slice(0,2);
+  const lb = document.getElementById("sp-letters"); lb.innerHTML = "";
+  shuffle([...sq[0].split(""), ...extra]).forEach(ch => {
+    const b = document.createElement("button"); b.textContent = ch; if ("aeiou".includes(ch)) b.style.color = "var(--vowel)";
+    b.onclick = () => {
+      if (typed.length >= 3) return;
+      const expect = sq[0][typed.length];
+      if (ch === expect) { typed.push(ch); b.disabled = true; say(ch === "x" ? "ks" : ch, .7); renderSlots();
+        if (typed.length === 3) { sStars++; stars("sp-score", sStars); document.getElementById("sp-fb").textContent = `Great! ${sq[0].split("").join("-")} → ${sq[0]}`;
+          setTimeout(()=>say(`${sq[0].split("").join(", ")}. ${sq[0]}!`), 500); setTimeout(newSpell, 2600); } }
+      else { flashWrong(b); document.getElementById("sp-fb").textContent = "Not this one. Послухай слово ще раз."; say(sq[0], .55); }
+    };
+    lb.appendChild(b);
+  });
+  renderSlots(); document.getElementById("sp-fb").textContent = "";
+}
+function renderSlots(){
+  const s = document.getElementById("sp-slots"); s.innerHTML = "";
+  for (let i=0;i<3;i++){ const d = document.createElement("div"); d.className = "slot" + (i===1 ? " v" : ""); d.textContent = typed[i] || ""; s.appendChild(d); }
+}
+document.getElementById("sp-say").onclick = () => say(sq[0], .6);
+document.getElementById("sp-clear").onclick = () => { typed = []; document.querySelectorAll("#sp-letters button").forEach(b=>b.disabled=false); renderSlots(); };
+newSpell();
+
+/* 5. dialogue */
+const nm = () => (document.getElementById("kidname").value.trim() || "Anna");
+const age = () => document.getElementById("kidage").value;
+const steps = [
+  { t:"Hi! Welcome back to school!", opts:["Hi, Teddy!", "Goodbye!"], ok:0 },
+  { t:"I'm Teddy Star. What's your name?", opts:["I'm {n}.", "I'm fine."], ok:0 },
+  { t:"Nice to see you again, {n}! How old are you?", opts:["I'm {a}.", "It's a pen."], ok:0 },
+  { t:"Wow! I'm seven too. Look! 📏 Is it a pencil?", opts:["No, it isn't. It's a ruler.", "Yes, it is."], ok:0 },
+  { t:"Oh! What color is your backpack?", opts:["It's blue.", "It's red.", "It's green.", "It's pink."], ok:-1 },
+  { t:"How many pencils? ✏️✏️✏️✏️✏️✏️✏️✏️✏️✏️✏️✏️", opts:["Twelve.", "Ten."], ok:0 },
+  { t:"Great! Have a good school year, {n}! Bye!", opts:["Bye, Teddy! See you!", "I'm seven."], ok:0 },
+];
+let si = 0;
+const dlg = document.getElementById("dialog"), ans = document.getElementById("answers");
+const fill = s => s.replace("{n}", nm()).replace("{a}", age());
+function bubble(text, who){ const d = document.createElement("div"); d.className = "bubble " + who; d.textContent = (who==="t" ? "🧸 " : "") + text; dlg.appendChild(d); }
+function step(){
+  ans.innerHTML = "";
+  if (si >= steps.length) { bubble("★ ★ ★ Super! Welcome to Grade 2!", "t"); say("Super! Welcome to grade two!"); return; }
+  const s = steps[si], line = fill(s.t); bubble(line, "t"); say(line.replace(/\p{Extended_Pictographic}|\uFE0F/gu, ""));
+  s.opts.forEach((o,i) => { const b = document.createElement("button"); const txt = fill(o); b.textContent = txt;
+    b.onclick = () => { if (s.ok === -1 || i === s.ok) { bubble(txt, "k"); say(txt); si++; setTimeout(step, 1400); } else { b.style.borderColor = "var(--no)"; say("Hmm, try again!"); } };
+    ans.appendChild(b); });
+}
+document.getElementById("talk-restart").onclick = () => { si = 0; dlg.innerHTML = ""; step(); };
+step();
+
+/* print: in Claude save the PDF through the downloads capability; on the website open it in a new tab */
+(() => {
+  const btn = document.getElementById("print-btn"), note = document.getElementById("print-note");
+  btn.addEventListener("click", async () => {
+    let dl = null;
+    try { dl = window.claude?.use ? await window.claude.use("downloads") : null; } catch(e) {}
+    if (!dl) { const a = document.createElement("a"); a.href = "worksheets.pdf"; a.target = "_blank"; a.rel = "noopener"; document.body.appendChild(a); a.click(); a.remove(); note.textContent = "PDF відкрито в новій вкладці: натисніть «Друк» там."; return; }
+    btn.disabled = true; const old = btn.textContent; btn.textContent = "Готую файл…";
+    try {
+      const res = await fetch("worksheets.pdf"); if (!res.ok) throw new Error("fetch");
+      await dl.save({ filename: "Grade2-Module1-Welcome-Back-worksheets.pdf", data: await res.blob() });
+      note.textContent = "Файл збережено. Відкрийте його й натисніть «Друк».";
+    } catch(e) {
+      note.textContent = e && e.code === "declined" ? "Збереження скасовано. Натисніть кнопку ще раз, коли будете готові." : "Не вдалося зберегти файл. Спробуйте ще раз за хвилину.";
+    } finally { btn.disabled = false; btn.textContent = old; }
+  });
+})();
+</script>
