@@ -58,8 +58,8 @@ td.n {{ font-weight: bold; white-space: nowrap; }}
 .cover .flag span {{ width: 18mm; height: 18mm; border-radius: 4mm; display: grid; place-items: center; color: #fff; font-size: 20pt; font-weight: bold; }}
 .toc td {{ font-size: 10pt; padding: 1.3mm 2mm; }} .toc td.pg {{ text-align: right; width: 18mm; }}
 .toc tr.g td {{ font-weight: bold; font-size: 11pt; padding-top: 4mm; border-bottom: .5mm solid {INK}; }}
-.letters {{ display: flex; gap: 2.5mm; margin: 2mm 0 3mm; flex-wrap: wrap; }}
-.letters div {{ width: 28mm; font-size: 9pt; border: .5mm solid; border-radius: 3mm; padding: 2mm; text-align: center; }}
+.letters {{ display: flex; gap: 2mm; margin: 2mm 0 3mm; flex-wrap: wrap; }}
+.letters div {{ width: 27.5mm; font-size: 8.6pt; padding: 2mm 1mm; border: .5mm solid; border-radius: 3mm; padding: 2mm; text-align: center; }}
 .letters b {{ display: block; font-size: 20pt; line-height: 1.1; }}
 .cols {{ display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }}
 ul {{ margin: 0; padding-left: 5mm; }} li {{ margin-bottom: 1mm; }}
