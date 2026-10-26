@@ -56,7 +56,27 @@ M2 = {
 M1["tags"] = "слова, звуки, Is it a…?, читання"
 M1["ws"] = "8 аркушів A4: алфавіт, перші звуки, слова, числа 11–20."
 M2["ws"] = "8 аркушів A4: кімнати, Where is the cat?, слова з a, Halloween."
-MODS = [M1, M2]
+M3 = {
+ "n": 3, "pdf": "module-03-my-day", "t": "My Day", "ua": "Мій день (+ Thanksgiving)",
+ "talk": "What time is it?", "fin": "Super! Good night, see you tomorrow!", "tags": "розпорядок дня, What time is it?, коротке e",
+ "ws": "8 аркушів A4: мій день, годинник, слова з e, Thanksgiving.",
+ "L3": "time", "read": "e", "plain": True,
+ "B": [["D", "☀️"], ["A", "⏰"], ["Y", "🥣"], ["T", "🕖"], ["E", "🥚"], ["N", "🌙"]],
+ "V": [["get up", "⏰", "вставати"], ["wash my face", "🧼", "вмиватися"], ["brush my teeth", "🪥", "чистити зуби"],
+       ["eat breakfast", "🥣", "снідати"], ["go to school", "🏫", "йти до школи"], ["play", "⚽", "гратися"],
+       ["do my homework", "📝", "робити домашнє завдання"], ["eat dinner", "🍽️", "вечеряти"], ["go to bed", "🛌", "лягати спати"],
+       ["morning", "🌅", "ранок"], ["afternoon", "🌤️", "день (після обіду)"], ["evening", "🌙", "вечір"]],
+ "C": [["bed", "🛏️"], ["pen", "🖊️"], ["red", "🟥"], ["ten", "🔟"], ["hen", "🐔"], ["leg", "🦵"], ["net", "🥅"],
+       ["jet", "✈️"], ["web", "🕸️"], ["wet", "💦"], ["egg", "🥚"], ["pet", "🐶"], ["vet", "🩺"], ["men", "👬"]],
+ "D": [["Good morning, {n}! What time is it? 🕖", ["It's seven o'clock.", "It's ten o'clock."], 0],
+       ["Time to get up! What do you do in the morning?", ["I brush my teeth.", "I wash my face.", "I eat breakfast."], -1],
+       ["What do you eat for breakfast? 🥣", ["I eat cereal.", "I eat pancakes.", "I eat eggs."], -1],
+       ["I go to school at eight o'clock. 🏫 And you?", ["I go to school at eight, too.", "I go to bed."], 0],
+       ["What do you do in the afternoon?", ["I play.", "I do my homework.", "I read books."], -1],
+       ["Happy Thanksgiving! 🦃 What are you thankful for?", ["I'm thankful for my family.", "I'm thankful for my friends."], -1],
+       ["It's nine o'clock. Time for bed! Good night, {n}!", ["Good night, Teddy!", "Good morning!"], 0]],
+}
+MODS = [M1, M2, M3]
 ABC = [["A","apple","🍎"],["B","ball","⚽"],["C","cat","🐱"],["D","dog","🐶"],["E","egg","🥚"],["F","fish","🐟"],["G","goat","🐐"],
        ["H","hat","🎩"],["I","igloo","🧊"],["J","jam","🍓"],["K","kite","🪁"],["L","lion","🦁"],["M","map","🗺️"],["N","nest","🪺"],
        ["O","octopus","🐙"],["P","pen","🖊️"],["Q","queen","👸"],["R","red","🟥"],["S","sun","☀️"],["T","ten","🔟"],["U","umbrella","☂️"],
@@ -91,6 +111,7 @@ s = rep(s, "</style>", """
 .scene.under .ct{bottom:2px;z-index:1}
 .scene.next .ob{left:38%}
 .scene.next .ct{left:76%;bottom:10px}
+.clock{width:150px;height:150px;display:block;margin:0 auto}
 </style>""")
 s = rep(s, '<span class="bm">English 1</span><span class="bt">Вчимо літери</span><span class="bs">10 модулів · <span class="nw">American English</span></span>',
         '<span class="bm">English 2</span><span class="bt">Читаємо й говоримо</span><span class="bs">2 клас · <span class="nw">American English</span></span>')
@@ -160,7 +181,7 @@ function fill(right, near, all, k){
 }
 function takeN(list, n){ const out = []; let g = 0; while(out.length < n && g++ < 20) out.push(...shuffle(list)); return out.slice(0, n); }
 const art = w => /^[aeiou]/.test(w) ? "an" : "a";
-const itIs = w => w === "scissors" ? "These are scissors." : `It's ${art(w)} ${w}.`;
+const itIs = w => (MOD && MOD.plain) ? `${w}.` : w === "scissors" ? "These are scissors." : `It's ${art(w)} ${w}.`;
 
 /* 1. Слова теми: почуй → картинка; картинка → слово; слово → значення */
 function hearPic(v, all){
@@ -217,7 +238,26 @@ function whereQ(){
     say:`The cat is ${prep} the ${obj}.`, tip:`The cat is ${prep} the ${obj}. (in — у, on — на, under — під, next to — поруч)` };
 }
 function genWhere(){ const out = []; for(let i = 0; i < 8; i++) out.push(whereQ()); return out; }
-function genL3(){ return MOD.L3 === "where" ? genWhere() : genIsIt(); }
+/* 3в. What time is it? — годинник зі стрілками, повні години */
+const NUMS = ["twelve","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve"];
+function clockSvg(h){
+  const a = (h % 12) * 30 * Math.PI / 180, hx = 50 + 24 * Math.sin(a), hy = 50 - 24 * Math.cos(a);
+  let ticks = "";
+  for(let i = 1; i <= 12; i++){ const t = i * 30 * Math.PI / 180;
+    ticks += `<text x="${(50 + 36 * Math.sin(t)).toFixed(1)}" y="${(50 - 36 * Math.cos(t) + 4).toFixed(1)}" text-anchor="middle" font-size="10" font-family="Fredoka, Nunito, sans-serif" font-weight="700" fill="#1e3a6b">${i}</text>`; }
+  return `<svg class="clock" viewBox="0 0 100 100" aria-label="${h} o'clock"><circle cx="50" cy="50" r="46" fill="#fff" stroke="#4dabf7" stroke-width="5"/>${ticks}` +
+    `<line x1="50" y1="50" x2="50" y2="16" stroke="#e03131" stroke-width="3" stroke-linecap="round"/>` +
+    `<line x1="50" y1="50" x2="${hx.toFixed(1)}" y2="${hy.toFixed(1)}" stroke="#1e3a6b" stroke-width="5" stroke-linecap="round"/><circle cx="50" cy="50" r="4" fill="#1e3a6b"/></svg>`;
+}
+function timeQ(){
+  const h = 1 + Math.floor(Math.random() * 12), ans = `It's ${NUMS[h]} o'clock.`;
+  const hrs = []; for(let i = 1; i <= 12; i++) if(i !== h) hrs.push(i);
+  return { ask:"What time is it? Котра година?", board:`${clockSvg(h)}${sayBtn("What time is it?")}`, pre:"What time is it?",
+    opts:shuffle([h, ...others(hrs, h, 2)]).map(x => ({t:`It's ${NUMS[x]} o'clock.`})), ans, one:true, cls:"long", say:ans,
+    tip:`${ans} Коротка стрілка — на ${h}, довга — на 12.` };
+}
+function genTime(){ const out = [], used = new Set(); let g = 0; while(out.length < 8 && g++ < 40){ const q = timeQ(); if(!used.has(q.ans)){ used.add(q.ans); out.push(q); } } return out; }
+function genL3(){ return MOD.L3 === "where" ? genWhere() : MOD.L3 === "time" ? genTime() : genIsIt(); }
 
 /* 4. Читаємо слова з трьох літер: пропущена голосна; почуй і обери слово */
 const VW = ["a","e","i","o","u"];
@@ -277,9 +317,9 @@ function levelsOf(m){
   return [
     {t:"Слова теми",     s:m.V.slice(0, 3).map(x => x[0]).join(", ") + "…", ic:picHtml(m.V[0][1]), gen:genWords, raw:true},
     {t:"Перший звук",    s:"з якої літери слово",                ic:"👂",   gen:genSounds},
-    m.L3 === "where"
-      ? {t:"Where is the cat?", s:"in / on / under / next to",      ic:"🐱",   gen:genL3}
-      : {t:"Is it a …?",     s:"Yes, it is. / No, it isn't.",          ic:"❓",   gen:genL3},
+    m.L3 === "where" ? {t:"Where is the cat?", s:"in / on / under / next to", ic:"🐱", gen:genL3}
+    : m.L3 === "time" ? {t:"What time is it?", s:"It's seven o'clock.", ic:"🕖", gen:genL3}
+    : {t:"Is it a …?",     s:"Yes, it is. / No, it isn't.",          ic:"❓",   gen:genL3},
     {t:m.read ? "Читаємо: коротке " + m.read : "Читаємо слова", s:m.C.slice(0, 3).map(x => x[0]).join(", ") + "…", ic:"📖", gen:genRead},
     {t:"Діалог з Teddy", s:m.talk,                                 ic:"🧸",   gen:genTalk},
     {t:"Фінал",          s:"усе разом",                            ic:"🏆",   gen:() => finalMix(10)},
@@ -378,7 +418,15 @@ for m in MODS:
     pool = [[a[1], a[2]] for a in ABC if a[0] != "X"] + m["C"]
     L2 = [{"q": f"{w[1]} {w[0]} — з якої літери починається слово?", "options": [w[0][0].upper() + w[0][0]] + [u + u.lower() for u in random.sample([x for x in ups if x != w[0][0].upper()], 2)], "correct": 0} for w in pool]
     L3 = []
-    if m.get("L3") == "where":
+    NUMW = ["twelve","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve"]
+    CLK = "🕛🕐🕑🕒🕓🕔🕕🕖🕗🕘🕙🕚🕛"
+    if m.get("L3") == "time":
+        for h in range(1, 13):
+            o = random.sample([x for x in range(1, 13) if x != h], 2)
+            L3.append({"q": f"{CLK[h]} What time is it?", "options": [f"It's {NUMW[h]} o'clock."] + [f"It's {NUMW[x]} o'clock." for x in o], "correct": 0})
+            L3.append({"q": f"Як сказати англійською: «Я встаю о {h}-й»?" if h <= 9 else f"{CLK[h]} Котра година?",
+                       "options": [f"I get up at {NUMW[h]}." if h <= 9 else f"It's {NUMW[h]} o'clock."] + ([f"I get up at {NUMW[x]}." for x in o] if h <= 9 else [f"It's {NUMW[x]} o'clock." for x in o]), "correct": 0})
+    elif m.get("L3") == "where":
         UKO = {"box": ("коробці", "коробкою"), "bed": ("ліжку", "ліжком"), "chair": ("стільці", "стільцем"), "sofa": ("дивані", "диваном")}
         UKP = {"in": lambda o: "у " + UKO[o][0], "on": lambda o: "на " + UKO[o][0], "under": lambda o: "під " + UKO[o][1], "next to": lambda o: "поруч із " + UKO[o][1]}
         for obj, pic, preps in m["W"]:
@@ -401,7 +449,7 @@ for m in MODS:
              "stat": "mana", "format": "levels", "xpMode": "perCorrect", "xpValue": 1, "statMode": "fixed", "statValue": 1, "active": True,
              "levels": [{"level": 1, "name": "Слова теми", "count": 6, "questions": L1},
                         {"level": 2, "name": "Перший звук", "count": 6, "questions": L2},
-                        {"level": 3, "name": "Where is the cat?" if m.get("L3") == "where" else "Is it a …?", "count": 6, "questions": L3},
+                        {"level": 3, "name": {"where": "Where is the cat?", "time": "What time is it?"}.get(m.get("L3"), "Is it a …?"), "count": 6, "questions": L3},
                         {"level": 4, "name": f"Читаємо: коротке {m['read']}" if m.get("read") else "Читаємо слова", "count": 6, "questions": L4},
                         {"level": 5, "name": "Діалог з Teddy", "count": len(L5), "questions": L5}]}]
     json.dump(test, open(os.path.join(ROOT, f"tests/test-english-2-module-{m['n']:02d}.json"), "w", encoding="utf8"), ensure_ascii=False, indent=2)
