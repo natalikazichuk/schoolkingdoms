@@ -1025,7 +1025,7 @@
     var rec = (id === SKILL.haft.id || id === SKILL.daze.id || id === SKILL.stun.id || id === SKILL.lash.id || id === SKILL.ult.id || id === SKILL.aimed.id) ? weaponStrike(ctx, v, id, pA, pD, mine, theirs, rnd)
       : skillStrike(ctx, v, id, pA, pD, mine.atk === theirs.block, rnd);
     var cdN = V(v, id, 'cd');
-    if (id === SKILL.aimed.id && rec && rec.kind === 'fail') cdN = 0;   // Влучний постріл: перезарядка лише після вдалого пострілу (не вдалося — можна знову наступного ходу)
+    if ((id === SKILL.aimed.id || id === SKILL.daze.id) && rec && rec.kind === 'fail') cdN = 0;   // Влучний постріл, Збити з пантелику: перезарядка лише після вдалої спроби (не вдалося — можна знову наступного ходу)
     if (cdN > 0) { v.me.cd = v.me.cd || {}; v.me.cd[id] = v.round + cdN; }
     return rec;
   }
