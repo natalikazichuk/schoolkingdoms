@@ -131,6 +131,16 @@
   /* Вибір класen:'classroomen:'home', ', у всередині набору. Тема (Home, Numbers) може мати слова
      кількох класів; за замовчуванням показуємо клас самого набору, щоб
      четвертий клас не підмішувався до першого, але дитина може взяти всі. */
+  /* вкладки: загальний Словник / AE Words (слова курсу American English) */
+  .pick[hidden]{display:none}
+  .dtabs{flex:none;display:flex;gap:8px;margin:0 0 12px;padding:5px;background:#fff;border:2px solid var(--line);border-radius:18px}
+  .dtab{flex:1;border:none;border-radius:13px;padding:10px 6px;background:transparent;color:var(--soft);cursor:pointer;
+    font-family:'Fredoka';font-weight:700;font-size:17px;-webkit-user-select:none;user-select:none}
+  .dtab.on{background:var(--ink);color:#fff;box-shadow:0 3px 0 rgba(30,58,107,.25)}
+  .ae-lead{flex:none;text-align:center;color:var(--soft);font-weight:800;font-size:13px;margin:-2px 0 2px}
+  .ae-h{flex:none;font-family:'Fredoka';font-size:16px;color:var(--ink);margin:6px 2px -4px}
+  .pic-dot{display:inline-block;width:64%;aspect-ratio:1;border-radius:50%;border:4px solid rgba(44,43,58,.15)}
+  .pic-num{font-family:'Fredoka';font-weight:700;color:var(--ink)}
   .gpick{flex:none;margin:0 0 10px}
   .gpick .gp-lab{display:block;text-align:center;color:var(--soft);font-weight:800;font-size:13px;margin-bottom:6px}
   .gpick .gp-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
@@ -279,7 +289,12 @@
            onerror="this.style.display='none'">
       <button class="hero-back" id="deckBack" title="Назад">←</button>
     </div>
+    <div class="dtabs" role="tablist">
+      <button class="dtab on" type="button" data-tab="dict" role="tab">📚 Словник</button>
+      <button class="dtab" type="button" data-tab="ae" role="tab">🇺🇸 AE Words</button>
+    </div>
     <div class="pick" id="deckList"><div class="msg">Завантаження…</div></div>
+    <div class="pick" id="aeList" hidden><div class="msg">Завантаження…</div></div>
   </section>
 
   <!-- вибір режиму -->
@@ -335,6 +350,7 @@
 
 </div>
 
+<script src="sk-ae-words.js?v=1"></script>
 <script src="sk-items.js?v=25"></script>
 <script src="sk-footer.js?v=6" data-back="tests.html"></script>
 <!-- «Тести» ведуть сюди з ?skdone=t:std-words-en — без sk-finish.js цей
@@ -380,10 +396,19 @@ function wImgList(w){
 }
 function wImg(w){ var l=wImgList(w); return l.length ? l[0] : ''; }
 /* Не знайшли за першим шляхом — пробуємо наступний; скінчились — емодзі. */
+/* Картинка слова з курсу AE Words: емодзі, колір (#rrggbb) або число — як у тренажері. */
+function aePic(p){
+  p=String(p||'');
+  if(!p) return '<div class="emoji">🔤</div>';
+  if(p.charAt(0)==='#') return '<div class="emoji"><span class="pic-dot" style="background:'+esc(p)+'"></span></div>';
+  if(/^\d+$/.test(p)) return '<div class="emoji"><span class="pic-num">'+esc(p)+'</span></div>';
+  return '<div class="emoji">'+esc(p)+'</div>';
+}
 window.SKWFB=function(el){
   var fb=String(el.getAttribute('data-fb')||'').split('|').filter(Boolean);
   if(!fb.length){
-    el.replaceWith(Object.assign(document.createElement('div'),{className:'emoji',textContent:'🔤'}));
+    var t=document.createElement('div'); t.innerHTML=aePic(el.getAttribute('data-pic')||'🔤');
+    el.replaceWith(t.firstChild);
     return;
   }
   el.setAttribute('data-fb', fb.slice(1).join('|'));
@@ -391,8 +416,8 @@ window.SKWFB=function(el){
 };
 function wPic(w){
   var l=wImgList(w);
-  if(!l.length) return '<div class="emoji">🔤</div>';
-  return '<img src="'+esc(l[0])+'" alt="" data-fb="'+esc(l.slice(1).join('|'))+'" onerror="SKWFB(this)">';
+  if(!l.length) return aePic(w&&w.pic);
+  return '<img src="'+esc(l[0])+'" alt="" data-fb="'+esc(l.slice(1).join('|'))+'" data-pic="'+esc((w&&w.pic)||'')+'" onerror="SKWFB(this)">';
 }
 function itImg(base){var u=String((base&&base.img)||'').trim();if(/^https?:\/\//i.test(u))return u;if(base&&base.id)return 'img/items/'+base.id+'.webp';return '';}
 function aud(w){var u=String((w&&w.audio)||'').trim();return u||'';}
@@ -492,6 +517,8 @@ function renderGradePick(gs){
    набір свого класу Героя, інакше перший справжній набір теми. */
 function deckForGrade(g){
   if(!topic) return null;
+  if(topic.ae) return { id:'ae:'+topic.key+'-'+(g==null?'all':g), title:topic.title, topic:'AE Words', grade:g, active:true,
+                        test:{statValue:0}, trial:{coins:0,rewards:[]}, _auto:true, _ae:true };
   if(g!=null) return topic.byGrade[g] || autoDeck(topic.topic, g);
   var hg=(HERO && HERO.grade!=null) ? Number(HERO.grade) : NaN;
   if(isFinite(hg) && topic.byGrade[hg]) return topic.byGrade[hg];
@@ -503,7 +530,10 @@ function deckForGrade(g){
 function showRewards(){
   var sv=num(deck&&deck.test&&deck.test.statValue);
   var rc=((deck&&deck.trial&&deck.trial.rewards)||[]).length, tc=num(deck&&deck.trial&&deck.trial.coins);
-  if(!deck || deck._auto){
+  if(deck && deck._ae){
+    $('tagTest').textContent='📘 тренування слів курсу — без нагороди';
+    $('tagTrial').textContent='📘 тренування слів курсу — без нагороди';
+  }else if(!deck || deck._auto){
     /* Клас без набору: нагороди задаються в адмінці, тож поки їх немає —
        краще сказати прямо, ніж малювати «+0 мани». */
     $('tagTest').textContent='🔮 без нагороди — набір ще не налаштований';
@@ -582,6 +612,67 @@ function renderDecks(err){
       +'<span class="go">›</span></button>';
   }).join('');
 }
+/* ============ AE WORDS — слова курсу American English ============ */
+var AE=null;
+function aeDeckBtn(d, i){
+  var sk=DECK_SKINS[(i+2)%DECK_SKINS.length];
+  var pic=d.cover
+    ? '<img src="'+esc(d.cover)+'" alt="" loading="lazy" style="padding:0;border-radius:16px;object-fit:cover" onerror="this.parentNode.textContent=\''+esc(d.emo)+'\'">'
+    : esc(d.emo);
+  d._skin=sk; d._pic=pic;
+  return '<button class="deck" data-ae="'+esc(d.key)+'" style="--c1:'+sk.c1+';--c1b:'+sk.c1b+';--c2:'+sk.c2+';--c3:'+sk.c3+'">'
+    +'<span class="ic">'+pic+'</span>'
+    +'<span class="dx"><span class="dt">'+esc(d.title)+'</span>'
+    +'<span class="ds">'+esc(d.sub)+'</span></span>'
+    +'<span class="wm">'+esc(d.emo)+'</span><span class="go">›</span></button>';
+}
+function renderAE(){
+  var box=$('aeList');
+  window.SKAE.load().then(function(list){
+    if(!list.length){ box.innerHTML='<div class="msg">Не вдалося завантажити слова курсу. Перевір інтернет і спробуй ще раз.</div>'; return; }
+    var all=[]; list.forEach(function(d){ all=all.concat(d.words); });
+    var grades=[]; list.forEach(function(d){ if(grades.indexOf(d.grade)<0) grades.push(d.grade); });
+    AE={ all:{ key:'ae:all', title:'Усі слова курсу', ua:'', sub:all.length+' слів · '+gradesLabel(grades), emo:'🇺🇸', cover:'', words:all, grade:null }, list:list };
+    var hg=(HERO && HERO.grade!=null) ? Number(HERO.grade) : NaN;
+    var html='<div class="ae-lead">Слова з курсу American English — по модулях, як на уроках</div>'+aeDeckBtn(AE.all, -1);
+    var i=0;
+    grades.sort(function(a,b){ return (a===hg?-1:b===hg?1:a-b); }).forEach(function(g){
+      html+='<div class="ae-h">'+esc(gradeLabel(g))+'</div>';
+      list.filter(function(d){ return d.grade===g; }).forEach(function(d){
+        d.sub='Module '+d.n+(d.ua?(' · '+d.ua):'')+' · '+d.words.length+' слів';
+        html+=aeDeckBtn(d, i++);
+      });
+    });
+    box.innerHTML=html;
+  });
+}
+function openAE(key){
+  if(!AE) return;
+  var d = key==='ae:all' ? AE.all : AE.list.find(function(x){ return x.key===key; });
+  if(!d) return;
+  ALLWORDS=d.words.slice(); WORDS=[]; deck=null;
+  var gs=[]; ALLWORDS.forEach(function(w){ var g=wGrade(w); if(gs.indexOf(g)<0) gs.push(g); });
+  gs.sort(function(a,b){ return a-b; });
+  topic={ key:d.key, topic:'AE Words', title:d.title, byGrade:{}, grades:gs, ae:true, _skin:d._skin, _pic:d._pic, _sub:d.sub };
+  var hg=(HERO && HERO.grade!=null) ? Number(HERO.grade) : NaN;
+  gradeSel = gs.length===1 ? gs[0] : ((isFinite(hg) && gs.indexOf(hg)>=0) ? hg : null);
+  renderGradePick(gs);
+  var mh=$('modeHead'), sk=d._skin;
+  mh.hidden=false;
+  mh.setAttribute('style','--c1:'+sk.c1+';--c1b:'+sk.c1b+';--c2:'+sk.c2+';--c3:'+sk.c3);
+  mh.innerHTML='<span class="ic">'+d._pic+'</span><span class="dx"><span class="dt">'+esc(d.title)+'</span><span class="ds">'+esc(d.sub)+'</span></span>';
+  $('modeTitle').textContent='Як тренуємось?';
+  applyGrade();
+  show('sMode');
+}
+function setTab(t){
+  document.querySelectorAll('.dtab').forEach(function(b){ var on=b.getAttribute('data-tab')===t; b.classList.toggle('on',on); b.setAttribute('aria-selected',on); });
+  $('deckList').hidden = t!=='dict';
+  $('aeList').hidden   = t!=='ae';
+  try{ sessionStorage.setItem('sk_dict_tab', t); }catch(e){}
+  if(t==='ae' && !AE) renderAE();
+}
+
 async function openDeck(key){
   topic=TOPICS.find(function(t){ return String(t.key)===String(key); }); if(!topic) return;
   ALLWORDS=[]; WORDS=[]; deck=null;
@@ -777,7 +868,15 @@ function bad(){
 }
 
 /* ============ ФІНІШ ============ */
-function finish(){ if(mode==='test') finishTest(); else finishTrial(); }
+function finish(){
+  if(deck && deck._ae){   // AE Words — тренування слів курсу, без нагород
+    showDone(mode==='test'?'🎯':'🏆', mode==='test'?'Тест пройдено!':'Випробування пройдено!',
+      '<div class="rh">Слова курсу повторено ✓</div><div class="rrow"><div class="ri"><span>🇺🇸</span></div><div class="rn"><b>'+esc(topic.title)+'</b><small>'+WORDS.length+' слів</small></div><div class="rv">✓</div></div>');
+    var n=$('saveNote'); if(n){ n.textContent=''; }
+    return;
+  }
+  if(mode==='test') finishTest(); else finishTrial();
+}
 
 function finishTest(){
   var gain0=num(deck.test&&deck.test.statValue);
@@ -870,6 +969,12 @@ function setSave(state){
 /* ============ ПОДІЇ ============ */
 function wire(){
   $('deckList').addEventListener('click',function(e){ var b=e.target.closest('[data-deck]'); if(b) openDeck(b.getAttribute('data-deck')); });
+  $('aeList').addEventListener('click',function(e){ var b=e.target.closest('[data-ae]'); if(b) openAE(b.getAttribute('data-ae')); });
+  document.querySelectorAll('.dtab').forEach(function(b){ b.onclick=function(){ setTab(b.getAttribute('data-tab')); }; });
+  /* ?ae=1 — відкрити одразу AE Words (посилання з курсу); інакше — вкладка, де дитина була востаннє */
+  var t0=/[?&]ae=1/.test(location.search) ? 'ae' : null;
+  if(!t0) try{ t0=sessionStorage.getItem('sk_dict_tab'); }catch(e){}
+  if(t0==='ae') setTab('ae');
   $('deckBack').onclick=function(){ var bb=document.getElementById('heroBackBtn'); if(bb) bb.click(); else location.href='tests.html'; };
   $('gradePick').addEventListener('click',function(e){
     var b=e.target.closest('.gchip'); if(!b) return;
