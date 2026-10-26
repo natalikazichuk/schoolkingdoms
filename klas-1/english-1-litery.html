@@ -242,6 +242,13 @@ h1,h2,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px
 .opt.ok{border-color:var(--good);background:var(--good-bg);color:var(--good)}
 .opt.no{border-color:var(--bad);background:var(--bad-bg);color:var(--bad)}
 .opt:disabled{cursor:default}
+.name-ask{display:flex;flex-direction:column;gap:10px;align-items:stretch}
+.na-line{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;font-family:'Fredoka';font-weight:700;font-size:22px;color:var(--ink)}
+.na-line input{width:9em;max-width:60%;font:inherit;color:#1e3a6b;text-align:center;border:3px solid var(--line);border-radius:16px;
+  padding:8px 10px;background:#fff;outline:none;user-select:text;-webkit-user-select:text}
+.na-line input:focus{border-color:#5ab8ff;box-shadow:0 0 0 4px rgba(90,184,255,.25)}
+.na-line input:disabled{background:var(--good-bg);border-color:var(--good);color:var(--good)}
+.na-hint{text-align:center;font-size:13px;font-weight:700;color:#7a7890}
 .msg{text-align:center;font-size:16px;font-weight:800;margin-top:12px;min-height:22px}
 .msg.no{color:var(--bad)}.msg.ok{color:var(--good)}
 .msg{display:flex;align-items:center;justify-content:center;gap:8px}
@@ -489,12 +496,17 @@ if(TTS) try{ TTS.getVoices(); TTS.onvoiceschanged = () => TTS.getVoices(); }catc
 const TR = {"а":"a","б":"b","в":"v","г":"h","ґ":"g","д":"d","е":"e","є":"ie","ж":"zh","з":"z","и":"y","і":"i","ї":"i","й":"i",
   "к":"k","л":"l","м":"m","н":"n","о":"o","п":"p","р":"r","с":"s","т":"t","у":"u","ф":"f","х":"kh","ц":"ts","ч":"ch",
   "ш":"sh","щ":"shch","ь":"","ю":"iu","я":"ia","'":"","ʼ":"","’":""};
+function latinName(n){
+  n = String(n || "").trim().split(/\s+/)[0] || "";
+  n = n.toLowerCase().split("").map(c => c in TR ? TR[c] : c).join("").replace(/[^a-z-]/g, "").slice(0, 15);
+  return n ? n.charAt(0).toUpperCase() + n.slice(1) : "";
+}
+/* ім'я, яке дитина сама ввела в діалозі з Teddy (sk_en_name), інакше — ім'я Героя */
+function savedName(){ try{ return latinName(localStorage.getItem("sk_en_name")); }catch(e){ return ""; } }
 function kidName(){
-  let n = "";
-  try{ const p = JSON.parse(localStorage.getItem("sk_hero_profile") || "null"); if(p && p.name) n = String(p.name); }catch(e){}
-  n = n.trim().split(/\s+/)[0] || "";
-  n = n.toLowerCase().split("").map(c => c in TR ? TR[c] : c).join("").replace(/[^a-z-]/g, "");
-  return n ? n.charAt(0).toUpperCase() + n.slice(1) : "friend";
+  let n = savedName();
+  if(!n) try{ const p = JSON.parse(localStorage.getItem("sk_hero_profile") || "null"); if(p && p.name) n = latinName(p.name); }catch(e){}
+  return n || "friend";
 }
 
 /* ---------- картинка слова: емодзі, число або колір ---------- */
@@ -576,14 +588,46 @@ function genWords(){
 
 /* 4. Діалог з Teddy: репліки по черзі, дитина обирає відповідь */
 function genTalk(){
-  const n = kidName();
   return MOD.D.map(([line, opts, ok]) => {
-    const t = line.replace(/\{n\}/g, n), os = opts.map(o => o.replace(/\{n\}/g, n));
-    return { ask:"Що відповісти Teddy? Скажи вголос і натисни.",
-      board:`<div class="teddy"><span class="who">${TED("hello")}<b>Teddy Star</b></span><div class="bub">${esc(t)}</div></div>${sayBtn(t)}`, pre:t,
-      opts:(ok < 0 ? shuffle(os) : os).map(o=>({t:o})), ans: ok < 0 ? "*" : os[ok], one:true, cls:"long",
-      say: ok < 0 ? null : os[ok], tip: ok < 0 ? "Чудова відповідь!" : os[ok] };
+    // «What's your name?» з відповіддю «My name is {n}.» — дитина вводить своє ім'я
+    const nameAsk = ok >= 0 && /name/i.test(line) && /\{n\}/.test(opts[ok]);
+    const order = ok < 0 ? shuffle(opts.map((_, i) => i)) : opts.map((_, i) => i);
+    // текст будуємо під час показу: ім'я, введене раніше в цьому ж діалозі, одразу з'являється в репліках Teddy
+    const mk = () => {
+      const n = kidName(), t = line.replace(/\{n\}/g, n), os = opts.map(o => o.replace(/\{n\}/g, n));
+      return { board:`<div class="teddy"><span class="who">${TED("hello")}<b>Teddy Star</b></span><div class="bub">${esc(t)}</div></div>${sayBtn(t)}`, pre:t,
+        opts:order.map(i => ({t:os[i]})), ans: ok < 0 ? "*" : os[ok], say: ok < 0 ? null : os[ok], tip: ok < 0 ? "Чудова відповідь!" : os[ok] };
+    };
+    return Object.assign({ ask: nameAsk ? "Напиши своє ім'я і скажи вголос." : "Що відповісти Teddy? Скажи вголос і натисни.",
+      one:true, cls:"long", mk, nameAsk }, mk());
   });
+}
+
+/* відповідь «My name is …»: поле для імені замість кнопок */
+function drawNameAsk(q){
+  const box = $("p-opts");
+  box.className = "opts one";
+  box.innerHTML = `<form class="name-ask" id="nameForm" autocomplete="off">
+    <label class="na-line">My name is <input id="nameIn" maxlength="15" placeholder="Your name" autocapitalize="words" spellcheck="false" enterkeyhint="done">.</label>
+    <div class="na-hint">Можна писати українськими буквами — Teddy перекладе на англійські.</div>
+    <button class="big-btn green" type="submit">Відповісти ✓</button></form>`;
+  const inp = $("nameIn");
+  inp.value = savedName();
+  $("nameForm").onsubmit = e => {
+    e.preventDefault();
+    if(busy) return;
+    const n = latinName(inp.value), m = $("p-msg");
+    if(!n){ m.className = "msg no"; m.innerHTML = `<span class="tmini">${TED("think")}</span><span>Напиши своє ім'я, щоб Teddy знав, як тебе звати.</span>`; inp.focus(); return; }
+    busy = true;
+    try{ localStorage.setItem("sk_en_name", n); }catch(err){}
+    inp.value = n; inp.disabled = true; box.querySelector("button").disabled = true;
+    results[qi] = true;
+    speak("My name is " + n + ".");
+    m.className = "msg ok";
+    m.innerHTML = `<span class="tmini">${TED("heart")}</span><span>${esc("✓ My name is " + n + ". Nice to meet you, " + n + "!")}</span>`;
+    $("p-next").classList.remove("hide");
+    drawDots();
+  };
 }
 
 /* 5. Фінал: питання з рівнів 1–3, без повторів */
@@ -740,6 +784,7 @@ function drawDots(){
 }
 function drawQ(){
   const q = Q[qi];
+  if(q.mk) Object.assign(q, q.mk());
   busy = false;
   $("p-eyebrow").textContent = `Питання ${qi+1} з ${Q.length}`;
   drawDots();
@@ -750,7 +795,8 @@ function drawQ(){
   const box = $("p-opts");
   box.innerHTML = "";
   box.className = "opts" + (q.one ? " one" : q.three ? " three" : "");
-  q.opts.forEach(o => {
+  if(q.nameAsk) drawNameAsk(q);
+  else q.opts.forEach(o => {
     const b = document.createElement("button");
     b.type = "button"; b.className = "opt" + (q.cls ? " "+q.cls : "");
     b.dataset.v = o.t;
