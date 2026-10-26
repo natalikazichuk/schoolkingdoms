@@ -255,8 +255,8 @@ S('ranger',13,null,'dual','Друга зброя','P','','зброя в обох
 S('ranger',23,null,'haste','Поспіх','A','30 мани щоходу · перемикач','+1 удар щоходу',
   'перемикач (−30 мани щоходу): щоходу ще один звичайний удар у ту саму зону, навіть у хід зі спецвмінням чи кидком піску; урон ×0.7 (25%) → ×1.0 (100%); свої кидки — ворог може ухилитись, заблокувати, парирувати; Другу й Третю атаку не запускає; збитий з ніг чи наляканий — удару немає, а мана знімається',
   'Ти рухаєшся дуже швидко.','Аладон: спешка');
-S('ranger',25,null,'sharpen','Заточка','A','раз за бій','+урон до кінця бою',
-  'до кінця бою урон +(15 + 15·м)%',
+S('ranger',25,null,'sharpen','Заточка','A','7 мани щоходу · перемикач','+урон і менше броні ворога, поки гостра',
+  'перемикач (−7 мани щоходу): урон +10% (25%) → +20% (100%) — додається до суми відсотків урону; броня ворога рахується на 95% → 90%; лише зі зброєю в руці (вибили — не діє, мана йде)',
   'Нагостри зброю — вона ріже краще.','Аладон: заточка');
 S('ranger',27,null,'vines','Пута лісу','A','перезар. 6','ворог не може захищатися',
   '1 хід ворог не блокує й не ухиляється',
@@ -717,6 +717,10 @@ var RULES = {
     { k: 'wait', v: 4, from: 2, t: 'ходів стоїть після ходу, коли поставив' },
     { k: 'cut', v: 40, from: 60, u: '%', t: 'урону першого удару ворога в пастку' },
     { k: 'cd', v: 5, t: 'ходів перезарядки (після спрацювання чи зникнення)' }] },
+  'ranger.sharpen': { kind: 'toggle', perBattle: 10, on: 'хід із Заточкою: удар зброєю влучив — ✔, ні — ✖', p: [
+    { k: 'mana', v: 7, t: 'мани за кожен хід, поки увімкнено' },
+    { k: 'dmgPct', v: 20, from: 10, u: '%', t: 'урону (до суми відсотків)' },
+    { k: 'armorCut', v: 10, from: 5, u: '%', t: 'менше броні ворога (броня ×0.95 → ×0.9)' }] },
   'ranger.hunter':  { kind: 'toggle', perBattle: 10, on: 'удар у закриту зону з Оком: знайшов щілину — ✔, ні — ✖', p: [
     { k: 'mana', v: 7, t: 'мани за кожен хід, поки увімкнено' },
     { k: 'gap', v: 50, from: 30, u: '%', t: 'шанс пробити блок закритої зони (кожен удар)' },
@@ -973,7 +977,7 @@ function iconHtml(id) {
   return src ? '<img class="skb-ic" src="' + src + '" alt="' + esc1(s ? s.name : '') + '" draggable="false">' : (s ? s.icon : '⚡');
 }
 var ICONS = {
-  'ranger.wmaster': '⚔️', 'ranger.hide': '🫥', 'ranger.camo': '🌿', 'ranger.haste': '💨', 'ranger.hunter': '👁️', 'ranger.trap': '🪤', 'ranger.poison': '🐍', 'ranger.bandage': '🩹', 'ranger.bow': '🏹', 'ranger.sand': '🫳', 'ranger.ambush': '🐾', 'ranger.fire2': '🔥', 'ranger.aimed': '🎯', 'ranger.ult': '🐺', 'healer.poisonres': '🍃', 'ranger.zeal': '🐺',
+  'ranger.wmaster': '⚔️', 'ranger.hide': '🫥', 'ranger.camo': '🌿', 'ranger.haste': '💨', 'ranger.hunter': '👁️', 'ranger.sharpen': '🔪', 'ranger.trap': '🪤', 'ranger.poison': '🐍', 'ranger.bandage': '🩹', 'ranger.bow': '🏹', 'ranger.sand': '🫳', 'ranger.ambush': '🐾', 'ranger.fire2': '🔥', 'ranger.aimed': '🎯', 'ranger.ult': '🐺', 'healer.poisonres': '🍃', 'ranger.zeal': '🐺',
   'knight.sword': '⚔️', 'knight.axe': '🪓', 'knight.spear': '🔱', 'knight.dagger': '🗡️', 'knight.mace': '🔨', 'knight.flail': '⛓️', 'knight.whip': '➰', 'knight.staff': '🦯', 'knight.shield': '🛡️', 'knight.bash': '💥',
   'knight.berserk': '😡', 'knight.fists': '👊', 'knight.brave': '🦁', 'knight.care': '🧰',
   'knight.lunge': '🗡️', 'knight.enh': '💪', 'knight.calm': '🧘', 'knight.tough': '🪨', 'knight.second': '⚡', 'knight.haft': '🔱',
@@ -1168,6 +1172,7 @@ var FX = {
   'healer.poisonres': function(v){ return 'свій опір отруті +' + v.resPct + '%'; },
   'ranger.bow':     function(v){ return 'з луком: +' + v.accPct + '% точності, +' + v.dmgPct + '% урону'; },
   'ranger.trap':    function(v){ return 'пастка в зоні · вдається в ' + v.chance + '% (−' + v.mana + ' мани), стоїть ' + v.wait + ' ход.: удар ворога ×' + (v.cut / 100) + ', наступного ходу він без ударів і не ухиляється'; },
+  'ranger.sharpen': function(v){ return 'перемикач (−' + v.mana + ' мани за хід): урон +' + v.dmgPct + '%, броня ворога ×' + ((100 - v.armorCut) / 100); },
   'ranger.hunter':  function(v){ return 'перемикач (−' + v.mana + ' мани за хід): точність +' + v.accPct + '%, удар у закриту зону пробиває блок у ' + v.gap + '%'; },
   'ranger.haste':   function(v){ return 'перемикач (−' + v.mana + ' мани за хід): ще один удар щоходу ×' + (v.dmgMul / 100); },
   'ranger.camo':    function(v){ return 'перемикач (−' + v.mana + ' мани за хід): урон ×' + (v.dmgMul / 100) + ', Ухилення +' + v.dodgePlus + '%'; },
