@@ -281,6 +281,7 @@ h1,h2,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px
 .chip{border:3px solid var(--line);background:#fff;border-radius:14px;padding:6px 12px;cursor:pointer;
   font-family:'Fredoka';font-weight:700;font-size:20px;color:var(--c,var(--ink))}
 .chip.on{border-color:var(--c,var(--blue));background:#fffdf6}
+button{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .pad-box{border:3px solid var(--line);border-radius:20px;background:#fff;box-shadow:var(--shadow);overflow:hidden;touch-action:none}
 .pad-box canvas{display:block;width:100%;height:auto;touch-action:none}
 .tools{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
@@ -831,7 +832,7 @@ function drawCards(){
 
 /* ---------- обведи літеру ---------- */
 const pad = $("pad"), ctx = pad.getContext("2d");
-let TI = 0, upper = true, drawing = false, last = null;
+let TI = 0, upper = true, drawing = false, last = null, strokes = [];
 function drawChips(){
   $("traceLetters").innerHTML = "";
   MOD.L.forEach((l, i) => {
@@ -855,26 +856,55 @@ function drawGuide(){
   ctx.setLineDash([14,12]); ctx.lineWidth = 5; ctx.strokeStyle = "#a9a7b8";
   ctx.strokeText(upper ? l[0] : l[1], W/2, 350);
   ctx.setLineDash([]);
+  strokes = [];
   $("traceCase").textContent = upper ? "Aa: велика" : "Aa: мала";
   $("traceMsg").textContent = "";
 }
 function pos(e){ const r = pad.getBoundingClientRect(); return [(e.clientX-r.left)*pad.width/r.width, (e.clientY-r.top)*pad.height/r.height]; }
-pad.addEventListener("pointerdown", e => { drawing = true; last = pos(e); try{ pad.setPointerCapture(e.pointerId); }catch(_){} e.preventDefault(); });
+pad.addEventListener("pointerdown", e => { drawing = true; last = pos(e); strokes.push([last]); try{ pad.setPointerCapture(e.pointerId); }catch(_){} e.preventDefault(); });
 pad.addEventListener("pointermove", e => {
   if(!drawing) return;
   const p = pos(e);
   ctx.strokeStyle = COLS[TI % COLS.length]; ctx.lineWidth = 18; ctx.lineCap = "round"; ctx.setLineDash([]);
   ctx.beginPath(); ctx.moveTo(...last); ctx.lineTo(...p); ctx.stroke(); last = p;
+  if(strokes.length) strokes[strokes.length - 1].push(p);
 });
 ["pointerup","pointercancel","pointerleave"].forEach(ev => pad.addEventListener(ev, () => { drawing = false; }));
 $("traceCase").onclick  = () => { upper = !upper; drawGuide(); };
 $("traceClear").onclick = drawGuide;
 $("traceSay").onclick   = () => { const l = MOD.L[TI]; speak(`${l[0]}. ${l[0]} is for ${l[2]}.`); };
+/* Перевірка обведення: порівнюємо лінії дитини з формою літери (у зменшеному масштабі).
+   cover — яку частину літери закрито (лінії «потовщені» до ~44px, бо дитина веде посередині);
+   inside — яка частина ліній дитини лежить на літері (з запасом ~20px). */
+function traceScore(){
+  const k = 4, W = pad.width / k, H = pad.height / k, l = MOD.L[TI], ch = upper ? l[0] : l[1];
+  const mk = () => { const c = document.createElement("canvas"); c.width = W; c.height = H;
+    const x = c.getContext("2d"); x.scale(1 / k, 1 / k); x.lineCap = x.lineJoin = "round"; return x; };
+  const glyph = (x, extra) => { x.font = "700 330px Fredoka, Nunito, sans-serif"; x.textAlign = "center"; x.textBaseline = "alphabetic";
+    x.fillText(ch, pad.width / 2, 350); x.lineWidth = extra; x.strokeText(ch, pad.width / 2, 350); };
+  const ink = (x, w) => { x.lineWidth = w; strokes.forEach(st => { x.beginPath(); x.moveTo(...st[0]);
+    st.slice(1).forEach(p => x.lineTo(...p)); if(st.length === 1) x.lineTo(st[0][0] + .1, st[0][1]); x.stroke(); }); };
+  const A = x => x.getImageData(0, 0, W, H).data;
+  const g = mk(); glyph(g, 6);  const tol = mk(); glyph(tol, 40);
+  const thin = mk(); ink(thin, 18); const fat = mk(); ink(fat, 44);
+  const G = A(g), T = A(tol), I = A(thin), F = A(fat);
+  let gN = 0, gHit = 0, iN = 0, iIn = 0;
+  for(let i = 3; i < G.length; i += 4){
+    if(G[i] > 128){ gN++; if(F[i] > 128) gHit++; }
+    if(I[i] > 128){ iN++; if(T[i] > 128) iIn++; }
+  }
+  return { cover: gN ? gHit / gN : 0, inside: iN ? iIn / iN : 0, ink: iN };
+}
+function traceFail(t){ const m = $("traceMsg"); m.className = "msg no"; m.textContent = t; speak("Try again!"); }
 $("traceDone").onclick  = () => {
+  if(!strokes.length) return traceFail("Спершу обведи літеру пальцем по пунктиру.");
+  const r = traceScore();
+  if(r.inside < 0.7) return traceFail("Ой, лінія вийшла за пунктир. Натисни «Стерти» і веди точно по літері.");
+  if(r.cover < 0.65) return traceFail("Ще трохи! Обведи всю літеру — від початку до кінця.");
   speak("Well done!");
-  if(upper){ upper = false; drawGuide(); $("traceMsg").textContent = "Well done! ★ Тепер обведи малу літеру."; return; }
+  if(upper){ upper = false; drawGuide(); $("traceMsg").className = "msg ok"; $("traceMsg").textContent = "Well done! ★ Тепер обведи малу літеру."; return; }
   TI = (TI + 1) % MOD.L.length; upper = true; drawGuide();
-  $("traceMsg").textContent = "Well done! ★ Ось наступна літера.";
+  $("traceMsg").className = "msg ok"; $("traceMsg").textContent = "Well done! ★ Ось наступна літера.";
 };
 if(document.fonts) document.fonts.ready.then(() => { if(curScreen() === "screen-trace") drawGuide(); });
 
