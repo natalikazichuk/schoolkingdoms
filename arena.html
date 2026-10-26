@@ -587,6 +587,8 @@ html.res-fire .avablk .hpwrap b.mn{color:#ffb070}
 .gbtn.trapz::before{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:1;
   background:linear-gradient(105deg,rgba(157,255,46,0) 25%,rgba(157,255,46,.55) 45%,rgba(230,255,190,.75) 50%,rgba(157,255,46,.55) 55%,rgba(157,255,46,0) 75%),rgba(157,255,46,.16);
   background-size:260% 100%,100% 100%;background-repeat:no-repeat;animation:trapWave 1.6s linear infinite}
+.gbtn.trappend{outline:3px dashed #9dff2e;outline-offset:-5px}
+.gbtn.trappend::before{content:'🪤 обрано';position:absolute;right:10px;top:5px;font-size:.7rem;font-weight:900;color:#d8ff9e;text-shadow:0 1px 2px #000;pointer-events:none;z-index:2}
 @keyframes trapGlow{0%,100%{box-shadow:0 0 0 3px #9dff2e,0 0 10px rgba(157,255,46,.5)}50%{box-shadow:0 0 0 4px #e2ffb8,0 0 22px rgba(157,255,46,.95)}}
 @keyframes trapWave{0%{background-position:130% 0,0 0}100%{background-position:-30% 0,0 0}}
 .gbtn.sel::after,.tcard.sel::after{content:'✓';position:absolute;top:4px;right:7px;font-weight:900;font-size:.82rem;color:var(--gold)}
@@ -1769,7 +1771,7 @@ function resW(){ return (window.SKRES && SKRES.of()) || {name:'Мана', gen:'�
 <script src="sk-avatar.js?v=9"></script>
 <script src="sk-progress.js"></script>
 <script src="sk-arena-rules.js?v=37"></script>
-<script src="sk-battle.js?v=61"></script>
+<script src="sk-battle.js?v=62"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
    Інвентар, скриня, смітник, продане / куплене сьогодні й монети
@@ -2128,7 +2130,7 @@ window.SKHERO = (function(){
         else if(SKSKILLS.RULES && SKSKILLS.RULES[id] && SKSKILLS.RULES[id].kind==='toggle' && B.me.sk && B.me.sk['ranger.fire2']!=null) showToast('🔥 Уже два перемикачі', 'Більше двох одночасно не можна — вимкни один (Камуфляж, що зачаївся, теж займає місце).');
         else if(SKSKILLS.RULES && SKSKILLS.RULES[id] && SKSKILLS.RULES[id].kind==='toggle') showToast('🔥 Лише один перемикач', 'Щоб тримати два одночасно, потрібне вміння «Другий запал». Вимкни інший перемикач.');
         return; }
-      else if(id==='ranger.trap' && !why) showToast('🪤 Пастка', B.me.block ? 'Тепер торкнись іншої зони захисту — туди стане пастка (вона переливатиметься).' : 'Спершу обери блок, потім торкнись іншої зони — туди стане пастка.');
+      else if(id==='ranger.trap' && !why) showToast('🪤 Пастка', B.me.block ? 'Тепер торкнись іншої зони захисту — пунктир: зону обрано; коли пастку поставлено — зона переливається.' : 'Спершу обери блок, потім торкнись іншої зони — туди стане пастка.');
       else if(why==='cd') showToast('⏳ Перезарядка', 'Обрано — спрацює, щойно перезарядиться (ще '+((B.me.cd||{})[id]-B.round+1)+' хід.).');
       else if(why==='mana') showToast((resW().key==='fire'?'🔥 Не вистачає ':'💧 Не вистачає ')+resW().gen, 'Обрано — спрацює, коли буде '+((B.me.skv&&B.me.skv[id]&&B.me.skv[id].mana)||5)+' '+resW().gen+'.');
       else if(why==='shield') showToast('🛡️ Потрібен щит', 'Обрано — спрацює, коли вдягнеш щит у ліву руку.');
@@ -3292,7 +3294,8 @@ window.SKHERO = (function(){
     row.classList.toggle('trapon', on);
     row.querySelectorAll('.gbtn').forEach(function(b){
       var z = b.getAttribute('data-zone');
-      b.classList.toggle('trapz', on && (t ? t.zone===z : B.me.trapZone===z));
+      b.classList.toggle('trapz', !!t && t.zone===z);                                   // пастка стоїть — хвиля
+      b.classList.toggle('trappend', !t && on && B.me.trapZone===z);                   // зону обрано, пастку ще не поставлено — пунктир
       b.classList.toggle('trapset', !!t && t.zone===z);
     });
   }
@@ -4134,7 +4137,7 @@ window.SKHERO = (function(){
 </script>
 
 <script src="sk-items.js?v=25"></script>
-<script src="sk-skills.js?v=75"></script>
+<script src="sk-skills.js?v=76"></script>
 <script src="sk-book.js?v=24"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
