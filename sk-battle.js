@@ -881,7 +881,7 @@
      суперника чи вистрілити в нього не можна. Перевіряти blindOn() там, де обирається ціль вміння. */
   function blindOn(st) { var f = st.me && st.me.fx, b = f && f.blind; return !!(b && num(b.from) <= st.round && num(b.until) >= st.round); }
   /* ── ПАСТКА (Слідопит): ставиш у зону (st.me.trapZone; не та, що блокуєш; не обрав — випадкова). Шанс 50% → 100%,
-     вдалося — −mana; стоїть цей хід + ще wait ходів (2 → 4). Суперник ударив у цю зону — перший удар, що влучив, ×cut %,
+     вдалося — −mana; стоїть цей хід + ще wait ходів (2 → 4). Суперник ударив у цю зону й ВЛУЧИВ — перший такий удар ×cut % (промах / ухилення — пастка чекає далі),
      і наступного ходу він «у пастці» 🪤: звичайних ударів немає (вміння, пояс, блок — так), ухилитись від твоїх ударів
      не може. Стійкість рятує від «у пастці» (урон ×cut лишається); після — 2 ходи імунітету. Перезарядка cd — коли
      пастка спрацювала чи зникла. fx.trap = {zone, from, until, cut} у того, хто поставив; fx.trapped = хід у пастці. */
@@ -901,9 +901,10 @@
   /* суперник ударив (inHit — його удар по v) у зону atkZone: пастка v спрацювала? → запис для журналу */
   function trapSpring(ctx, v, id, inHit, atkZone, rnd) {
     var f = fxOf(v.me), t = f.trap; if (!trapOn(v) || !inHit || !inHit.hits || !inHit.hits.length || atkZone !== t.zone) return null;
-    var rec = { id: id, kind: 'trapSprung', zone: t.zone, cut: t.cut };
     var h = inHit.hits.filter(function (x) { return (x.kind === 'hit' || x.kind === 'crit') && num(x.dmg) > 0; })[0];
-    if (h) { var d0 = num(h.dmg), d1 = Math.max(1, Math.round(d0 * t.cut / 100)); h.dmg = d1; if (h.magDmg) h.magDmg = d1; else h.physDmg = d1; h.trap = true; h.trapFrom = d0; rec.from = d0; rec.to = d1;
+    if (!h) return null;                                         // промах, ухилення, парирування, блок — пастка лишається й чекає
+    var rec = { id: id, kind: 'trapSprung', zone: t.zone, cut: t.cut };
+    { var d0 = num(h.dmg), d1 = Math.max(1, Math.round(d0 * t.cut / 100)); h.dmg = d1; if (h.magDmg) h.magDmg = d1; else h.physDmg = d1; h.trap = true; h.trapFrom = d0; rec.from = d0; rec.to = d1;
       inHit.dmg = inHit.hits.reduce(function (a, x) { return a + (x.dmg || 0); }, 0); }
     var fo = fxOf(v.op);
     if (num(fo.trapImm) > v.round) rec.imm = true;

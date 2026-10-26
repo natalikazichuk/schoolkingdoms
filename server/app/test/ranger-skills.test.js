@@ -660,3 +660,11 @@ test('Перемикач без мани не вмикається (💧), ви�
   st.me.mana = 0; assert.ok(SB.useSkill(ctx, st, 'ranger.haste'), 'вимкнути — завжди');
   st.me.fx.camoLock = st.round + 3; assert.strictEqual(SB.togMul(st, 'ranger.camo'), 0);
 });
+
+test('Пастка спрацьовує лише від удару, що влучив: промах — пастка лишається', () => {
+  const st = battle({ 'ranger.trap': 1 }, ['ranger.trap'], [wear(DAGGER, 'weaponR')]);
+  st.op.force = 99999; st.op.p.accuracy = 1; st.me.p.agility = 99999;   // бот промахується
+  st.me.trapZone = 'legs'; SB.useSkill(ctx, st, 'ranger.trap');
+  let e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+  for (let i = 0; i < 2; i++) { assert.ok(!e.trap || e.trap.kind !== 'trapSprung', 'промах — не спрацювала'); e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now()); }
+});
