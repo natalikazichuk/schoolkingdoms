@@ -582,11 +582,7 @@ html.res-fire .avablk .hpwrap b.mn{color:#ffb070}
 .z-legs{border-color:#4a86d6;background:linear-gradient(180deg,rgba(34,66,116,.92),rgba(22,44,82,.94))}
 .z-legs .zi{background:linear-gradient(180deg,#4a86d6,#2c5aa0)}
 .gbtn.sel,.tcard.sel{box-shadow:0 0 0 3px var(--gold),0 6px 16px rgba(0,0,0,.5)}
-/* 🪤 Пастка: капкан на кнопках захисту (лише коли вміння обрано / пастка стоїть); зона пастки переливається */
-.gbtn .trapk{display:none;position:absolute;left:5px;top:3px;font-size:.95rem;line-height:1;padding:2px 3px;border-radius:7px;background:rgba(0,0,0,.45);cursor:pointer;z-index:2;opacity:.65}
-#guardRow.trapon .gbtn .trapk{display:block}
-#guardRow.trapon .gbtn .trapk:hover{opacity:1;transform:scale(1.12)}
-.gbtn.trapz .trapk{opacity:1;background:#b8742a}
+/* 🪤 Пастка: обрано вміння — тап по іншій зоні захисту ставить туди пастку; зона пастки переливається, поки пастка не спрацює */
 .gbtn.trapz{animation:trapGlow 1.6s ease-in-out infinite}
 @keyframes trapGlow{0%,100%{box-shadow:0 0 0 2px #ffb347,0 0 6px rgba(255,179,71,.35)}50%{box-shadow:0 0 0 3px #ffd08a,0 0 16px rgba(255,179,71,.85)}}
 .gbtn.trapz.sel{animation:none}
@@ -2129,6 +2125,7 @@ window.SKHERO = (function(){
         else if(SKSKILLS.RULES && SKSKILLS.RULES[id] && SKSKILLS.RULES[id].kind==='toggle' && B.me.sk && B.me.sk['ranger.fire2']!=null) showToast('🔥 Уже два перемикачі', 'Більше двох одночасно не можна — вимкни один (Камуфляж, що зачаївся, теж займає місце).');
         else if(SKSKILLS.RULES && SKSKILLS.RULES[id] && SKSKILLS.RULES[id].kind==='toggle') showToast('🔥 Лише один перемикач', 'Щоб тримати два одночасно, потрібне вміння «Другий запал». Вимкни інший перемикач.');
         return; }
+      else if(id==='ranger.trap' && !why) showToast('🪤 Пастка', B.me.block ? 'Тепер торкнись іншої зони захисту — туди стане пастка (вона переливатиметься).' : 'Спершу обери блок, потім торкнись іншої зони — туди стане пастка.');
       else if(why==='cd') showToast('⏳ Перезарядка', 'Обрано — спрацює, щойно перезарядиться (ще '+((B.me.cd||{})[id]-B.round+1)+' хід.).');
       else if(why==='mana') showToast((resW().key==='fire'?'🔥 Не вистачає ':'💧 Не вистачає ')+resW().gen, 'Обрано — спрацює, коли буде '+((B.me.skv&&B.me.skv[id]&&B.me.skv[id].mana)||5)+' '+resW().gen+'.');
       else if(why==='shield') showToast('🛡️ Потрібен щит', 'Обрано — спрацює, коли вдягнеш щит у ліву руку.');
@@ -3246,9 +3243,12 @@ window.SKHERO = (function(){
     $('guardRow').querySelectorAll('.gbtn').forEach(function(btn){
       btn.addEventListener('click', function(){
         if(!live() || UI.resolving) return;
+        /* 🪤 обрано Пастку: перший тап — блок (якщо ще не стоїть), наступний — зона пастки (ще раз по ній — зняти) */
+        var z0 = btn.getAttribute('data-zone');
+        if(B.me.skill==='ranger.trap' && B.me.block && z0!==B.me.block){ B.me.trapZone = (B.me.trapZone===z0 ? null : z0); saveBattle(); paintTrap(); return; }
         $('guardRow').querySelectorAll('.gbtn').forEach(function(b){ b.classList.remove('sel'); });
         btn.classList.add('sel');
-        B.me.block = btn.getAttribute('data-zone');
+        B.me.block = z0;
         if(B.me.trapZone===B.me.block) B.me.trapZone = null;   // блок і пастка — різні зони
         setRole('p', B.me.block);
         refreshStrike();
@@ -3288,13 +3288,7 @@ window.SKHERO = (function(){
     var on = !!t || (B.me.skill==='ranger.trap' && live());
     row.classList.toggle('trapon', on);
     row.querySelectorAll('.gbtn').forEach(function(b){
-      var z = b.getAttribute('data-zone'), k = b.querySelector('.trapk');
-      if(!k){ k = document.createElement('span'); k.className = 'trapk'; k.textContent = '🪤'; k.title = 'Поставити пастку в цю зону'; b.appendChild(k);
-        k.addEventListener('click', function(ev){
-          ev.stopPropagation(); if(!B || !live() || UI.resolving) return;
-          var f2 = B.me.fx || {}; if(f2.trap && f2.trap.until>=B.round){ showToast('🪤 Пастка вже стоїть', 'Нову можна буде поставити після перезарядки.'); return; }
-          if(z===B.me.block){ showToast('🪤 Тут твій блок', 'Пастку став в іншу зону — туди, куди суперник може вдарити.'); return; }
-          B.me.trapZone = (B.me.trapZone===z ? null : z); saveBattle(); paintTrap(); }); }
+      var z = b.getAttribute('data-zone');
       b.classList.toggle('trapz', on && (t ? t.zone===z : B.me.trapZone===z));
       b.classList.toggle('trapset', !!t && t.zone===z);
     });
@@ -4137,7 +4131,7 @@ window.SKHERO = (function(){
 </script>
 
 <script src="sk-items.js?v=25"></script>
-<script src="sk-skills.js?v=72"></script>
+<script src="sk-skills.js?v=73"></script>
 <script src="sk-book.js?v=24"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
