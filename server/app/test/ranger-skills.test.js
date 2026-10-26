@@ -616,3 +616,34 @@ test('Око мисливця: перемикач −7; точність +10%; �
   assert.ok(!(eb.meHit.hits || []).some(h => h.gapRoll != null), 'осліплена — Око не діє');
   assert.ok(SB.useSkill(ctx, sb, 'ranger.hunter'), 'вимкнути можна'); assert.ok(!(sb.me.tog || []).includes('ranger.hunter'));
 });
+
+test('Пастка: ставиш у зону (−50), стоїть 2→4 ходи; ворог ударив у неї — урон ×0.4 і наступного ходу без ударів, не ухиляється; перезарядка після', () => {
+  let sprung = 0, gone = 0;
+  for (let k = 0; k < 40 && (!sprung || !gone); k++) {
+    const st = battle({ 'ranger.trap': 1 }, ['ranger.trap'], [wear(DAGGER, 'weaponR')]);
+    st.op.force = 99999; st.op.p.accuracy = 5000;
+    st.me.trapZone = 'legs';
+    assert.ok(SB.useSkill(ctx, st, 'ranger.trap'));
+    const m0 = st.me.mana;
+    let e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+    assert.strictEqual(e.skill.kind, 'trapSet'); assert.strictEqual(e.skill.zone, 'legs'); assert.strictEqual(m0 - st.me.mana, 50);
+    assert.strictEqual(SB.skillBlock(st, 'ranger.trap') === 'active' || !!e.trap, true);
+    for (let i = 0; i < 5 && !e.trap; i++) e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+    if (e.trap && e.trap.kind === 'trapSprung') {
+      sprung++;
+      if (e.trap.from) assert.strictEqual(e.trap.to, Math.max(1, Math.round(e.trap.from * 0.4)));
+      assert.ok(st.me.cd['ranger.trap'] > st.round, 'перезарядка');
+      if (e.trap.trapped) {
+        st.me.p.accuracy = 1; st.op.p.agility = 99999;   // і так не промахнешся
+        const e2 = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
+        assert.strictEqual(e2.opHit.kind, 'trap', 'у пастці — без ударів'); assert.ok(e2.opTrapped);
+        e2.meHit.hits.forEach(h => assert.notStrictEqual(h.kind, 'dodge', 'у пастці — не ухиляється'));
+      }
+    } else if (e.trap && e.trap.kind === 'trapGone') { gone++; assert.ok(st.me.cd['ranger.trap'] > st.round); }
+  }
+  assert.ok(sprung > 0 && gone > 0, sprung + '/' + gone);
+  // зона блоку — не можна: випадкова інша
+  const sb = battle({ 'ranger.trap': 1 }, ['ranger.trap'], [wear(DAGGER, 'weaponR')]); sb.me.trapZone = 'body';
+  SB.useSkill(ctx, sb, 'ranger.trap'); const eb = SB.turn(ctx, sb, { atk: 'head', block: 'body' }, {}, Date.now());
+  assert.notStrictEqual(eb.skill.zone, 'body'); assert.ok(eb.skill.auto);
+});
