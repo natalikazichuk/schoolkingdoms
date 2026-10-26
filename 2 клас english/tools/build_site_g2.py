@@ -33,7 +33,30 @@ M1 = {
        ["How many pencils? ✏️✏️✏️✏️✏️✏️✏️✏️✏️✏️✏️✏️", ["Twelve.", "Ten."], 0],
        ["Great! Have a good school year, {n}! Bye!", ["Bye, Teddy! See you!", "I'm seven."], 0]],
 }
-MODS = [M1]
+M2 = {
+ "n": 2, "pdf": "module-02-my-home", "t": "My Home", "ua": "Мій дім (+ Halloween)",
+ "talk": "Where is the cat?", "fin": "Super! Welcome to my home!", "tags": "кімнати, Where is…?, коротке a",
+ "L3": "where", "read": "a",
+ "B": [["H", "🏠"], ["B", "🛏️"], ["S", "🛋️"], ["L", "💡"], ["D", "🚪"], ["W", "🪟"]],
+ "V": [["house", "🏠", "будинок"], ["apartment", "🏢", "квартира"], ["kitchen", "🍳", "кухня"], ["bedroom", "🛌", "спальня"],
+       ["bathroom", "🛁", "ванна кімната"], ["bed", "🛏️", "ліжко"], ["sofa", "🛋️", "диван"], ["lamp", "💡", "лампа"],
+       ["door", "🚪", "двері"], ["window", "🪟", "вікно"], ["chair", "🪑", "стілець"], ["TV", "📺", "телевізор"]],
+ "C": [["cat", "🐱"], ["hat", "🎩"], ["bag", "👜"], ["map", "🗺️"], ["van", "🚐"], ["fan", "🪭"], ["can", "🥫"], ["bat", "🦇"],
+       ["jam", "🍓"], ["cap", "🧢"], ["ham", "🍖"], ["rat", "🐀"], ["dad", "👨"], ["pan", "🥘"]],
+ "W": [["box", "📦", ["in", "on", "next to"]], ["bed", "🛏️", ["on", "under", "next to"]],
+       ["chair", "🪑", ["on", "under", "next to"]], ["sofa", "🛋️", ["on", "under", "next to"]]],
+ "D": [["Hi, {n}! Welcome to my home! 🏠", ["Wow! Nice house!", "Goodbye!"], 0],
+       ["This is my bedroom. What's this? 🛏️", ["It's a bed.", "It's a lamp."], 0],
+       ["Look! The cat is in the box. 📦 Where is the cat?", ["It's in the box.", "It's on the bed."], 0],
+       ["What is there in your room?", ["There is a bed.", "There is a lamp.", "There is a desk."], -1],
+       ["Is there a window in your room? 🪟", ["Yes, there is.", "No, there isn't."], -1],
+       ["Trick or treat! 🎃 What's your costume?", ["I'm a witch!", "I'm a ghost!", "I'm a cat!", "I'm a pumpkin!"], -1],
+       ["Happy Halloween, {n}! See you!", ["Happy Halloween, Teddy!", "It's a lamp."], 0]],
+}
+M1["tags"] = "слова, звуки, Is it a…?, читання"
+M1["ws"] = "8 аркушів A4: алфавіт, перші звуки, слова, числа 11–20."
+M2["ws"] = "8 аркушів A4: кімнати, Where is the cat?, слова з a, Halloween."
+MODS = [M1, M2]
 ABC = [["A","apple","🍎"],["B","ball","⚽"],["C","cat","🐱"],["D","dog","🐶"],["E","egg","🥚"],["F","fish","🐟"],["G","goat","🐐"],
        ["H","hat","🎩"],["I","igloo","🧊"],["J","jam","🍓"],["K","kite","🪁"],["L","lion","🦁"],["M","map","🗺️"],["N","nest","🪺"],
        ["O","octopus","🐙"],["P","pen","🖊️"],["Q","queen","👸"],["R","red","🟥"],["S","sun","☀️"],["T","ten","🔟"],["U","umbrella","☂️"],
@@ -58,6 +81,16 @@ s = rep(s, "</style>", """
 .snd .p{font-size:46px;line-height:1}
 .snd b{color:#e03131}
 @media (max-width:400px){ .abcg{grid-template-columns:repeat(5,1fr)} }
+/* ══ WHERE IS THE CAT? ══ */
+.scene{position:relative;width:220px;height:160px;margin:0 auto}
+.scene .ob{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);font-size:100px;line-height:1;z-index:2}
+.scene .ct{position:absolute;left:50%;transform:translateX(-50%);font-size:50px;line-height:1;z-index:3}
+.scene.on .ct{bottom:58px}
+.scene.in .ct{bottom:84px;z-index:1}
+.scene.under .ob{bottom:40px}
+.scene.under .ct{bottom:2px;z-index:1}
+.scene.next .ob{left:38%}
+.scene.next .ct{left:76%;bottom:10px}
 </style>""")
 s = rep(s, '<span class="bm">English 1</span><span class="bt">Вчимо літери</span><span class="bs">10 модулів · <span class="nw">American English</span></span>',
         '<span class="bm">English 2</span><span class="bt">Читаємо й говоримо</span><span class="bs">2 клас · <span class="nw">American English</span></span>')
@@ -174,6 +207,17 @@ function isItQ(){
     pre:q, opts:[{t:"Yes, it is."}, {t:"No, it isn't."}], ans: yes ? "Yes, it is." : "No, it isn't.", say:full, tip:full };
 }
 function genIsIt(){ const out = []; for(let i = 0; i < 8; i++) out.push(isItQ()); return out; }
+/* 3б. Where is the cat? — кіт у / на / під / поруч з предметом */
+const PREP_CLS = {"in":"in", "on":"on", "under":"under", "next to":"next"};
+function whereQ(){
+  const [obj, pic, preps] = pick(MOD.W), prep = pick(preps);
+  const ans = `It's ${prep} the ${obj}.`;
+  return { ask:"Where is the cat? Де кіт?", board:`<div class="scene ${PREP_CLS[prep]}"><span class="ob">${picHtml(pic)}</span><span class="ct">🐱</span></div>${sayBtn("Where is the cat?")}`,
+    pre:"Where is the cat?", opts:shuffle(preps).map(p => ({t:`It's ${p} the ${obj}.`})), ans, one:true, cls:"long",
+    say:`The cat is ${prep} the ${obj}.`, tip:`The cat is ${prep} the ${obj}. (in — у, on — на, under — під, next to — поруч)` };
+}
+function genWhere(){ const out = []; for(let i = 0; i < 8; i++) out.push(whereQ()); return out; }
+function genL3(){ return MOD.L3 === "where" ? genWhere() : genIsIt(); }
 
 /* 4. Читаємо слова з трьох літер: пропущена голосна; почуй і обери слово */
 const VW = ["a","e","i","o","u"];
@@ -187,7 +231,21 @@ function hearWord(w){
   return { ask:"Послухай і обери слово, яке почув.", board:sayBtn(w[0], true), pre:w[0], three:true,
     opts:shuffle([w[0], ...alt]).map(t=>({t})), ans:w[0], say:w[0], tip:`${w[1]} ${w[0]}` };
 }
-function genRead(){ return shuffle(MOD.C).slice(0, 8).map((w, i) => (i % 2 ? hearWord : missVowel)(w)); }
+/* режим «одна голосна» (MOD.read = "a"): прочитай слово → картинка; почуй → слово з тим самим звуком */
+function readPic(w){
+  return { ask:"Прочитай слово й обери картинку.", board:`<div class="word">${esc(w[0])}</div>${sayBtn(w[0])}`, cls:"emo", three:true,
+    opts:fill(w, MOD.C, MOD.C).map(x=>({t:x[0], h:picHtml(x[1])})), ans:w[0], say:`${w[0].split("").join(", ")}. ${w[0]}!`, tip:`${w[0][0]}-${w[0][1]}-${w[0][2]} → ${w[0]}` };
+}
+function hearRhyme(w){
+  const near = MOD.C.filter(x => x !== w && (x[0][0] === w[0][0] || x[0].slice(1) === w[0].slice(1))).map(x => x[0]);
+  const all = MOD.C.map(x => x[0]);
+  return { ask:"Послухай і обери слово, яке почув.", board:sayBtn(w[0], true), pre:w[0], three:true,
+    opts:fill(w[0], near, all).map(t=>({t})), ans:w[0], say:w[0], tip:`${w[1]} ${w[0]}` };
+}
+function genRead(){
+  if(MOD.read) return shuffle(MOD.C).slice(0, 8).map((w, i) => (i % 2 ? hearRhyme : readPic)(w));
+  return shuffle(MOD.C).slice(0, 8).map((w, i) => (i % 2 ? hearWord : missVowel)(w));
+}
 
 /* 5. Діалог з Teddy: репліки по черзі, дитина обирає відповідь */
 function genTalk(){
@@ -203,7 +261,7 @@ function genTalk(){
 
 /* 6. Фінал: питання з рівнів 1–4, без повторів */
 function finalMix(n){
-  const out = [], seen = new Set(), gens = [genWords, genSounds, genIsIt, genRead];
+  const out = [], seen = new Set(), gens = [genWords, genSounds, genL3, genRead];
   let g = 0;
   while(out.length < n && g++ < 10){
     shuffle(gens).forEach(gen => {
@@ -219,8 +277,10 @@ function levelsOf(m){
   return [
     {t:"Слова теми",     s:m.V.slice(0, 3).map(x => x[0]).join(", ") + "…", ic:picHtml(m.V[0][1]), gen:genWords, raw:true},
     {t:"Перший звук",    s:"з якої літери слово",                ic:"👂",   gen:genSounds},
-    {t:"Is it a …?",     s:"Yes, it is. / No, it isn't.",          ic:"❓",   gen:genIsIt},
-    {t:"Читаємо слова",  s:m.C.slice(0, 3).map(x => x[0]).join(", ") + "…", ic:"📖", gen:genRead},
+    m.L3 === "where"
+      ? {t:"Where is the cat?", s:"in / on / under / next to",      ic:"🐱",   gen:genL3}
+      : {t:"Is it a …?",     s:"Yes, it is. / No, it isn't.",          ic:"❓",   gen:genL3},
+    {t:m.read ? "Читаємо: коротке " + m.read : "Читаємо слова", s:m.C.slice(0, 3).map(x => x[0]).join(", ") + "…", ic:"📖", gen:genRead},
     {t:"Діалог з Teddy", s:m.talk,                                 ic:"🧸",   gen:genTalk},
     {t:"Фінал",          s:"усе разом",                            ic:"🏆",   gen:() => finalMix(10)},
   ];
@@ -252,6 +312,7 @@ s = cut(s, "function fillStart(){", "function starCount", '''function fillStart(
   $("icoTrace").innerHTML = `<span class="note">${["A","b","C","d","E","f","G","h","I"].map(x => `<b>${x}</b>`).join("")}</span><span class="pen">🔊</span>`;
   $("icoPrint").innerHTML = `<span class="pr">🖨️</span>` + [c, d, e].map(w => `<span class="sh">${esc(w[0])}<i>${picHtml(w[1])}</i></span>`).join("");
   $("printBtn").href = "../" + encodeURI("2 клас english/" + MOD.pdf + "/worksheets.pdf");
+  const pt = $("printBtn").querySelector(".pt span"); if(pt && MOD.ws) pt.textContent = MOD.ws;
   $("map-title").textContent = "Module " + MOD.n + " · " + MOD.t;
 }
 
@@ -299,7 +360,7 @@ open(os.path.join(ROOT, "klas-2/english-2.html"), "w", encoding="utf8").write(s)
 tiles = [{
   "title": f"Module {m['n']} · {m['t']}", "subject": "English", "topic": "Читаємо й говоримо", "grade": 2,
   "format": "html", "linkHref": f"klas-2/english-2.html?m={m['n']}", "icon": "🎒",
-  "desc": f"{m['ua']} · слова, звуки, Is it a…?, читання", "stat": "mana", "statMode": "fixed", "statValue": 1, "active": True,
+  "desc": f"{m['ua']} · {m['tags']}", "stat": "mana", "statMode": "fixed", "statValue": 1, "active": True,
   "rewards": {"wheel": {"on": False, "slots": []}, "extras": [{"on": True, "item": "", "chance": 100, "coins": 20}], "repeat": False}}
   for m in MODS]
 json.dump(tiles, open(os.path.join(ROOT, "tests/english-2-tiles.json"), "w", encoding="utf8"), ensure_ascii=False, indent=2)
@@ -316,20 +377,32 @@ for m in MODS:
     ups = [a[0] for a in ABC]
     pool = [[a[1], a[2]] for a in ABC if a[0] != "X"] + m["C"]
     L2 = [{"q": f"{w[1]} {w[0]} — з якої літери починається слово?", "options": [w[0][0].upper() + w[0][0]] + [u + u.lower() for u in random.sample([x for x in ups if x != w[0][0].upper()], 2)], "correct": 0} for w in pool]
-    isit = [v for v in m["V"] if v[0] not in ("scissors", "glue", "teacher")]
     L3 = []
-    for v in isit:
-        other = random.choice([x for x in isit if x != v])
-        L3.append({"q": f"{v[1]} Is it {'an' if v[0][0] in 'aeiou' else 'a'} {v[0]}?", "options": ["Yes, it is.", "No, it isn't."], "correct": 0})
-        L3.append({"q": f"{v[1]} Is it {'an' if other[0][0] in 'aeiou' else 'a'} {other[0]}?", "options": ["No, it isn't.", "Yes, it is."], "correct": 0})
-    L4 = [{"q": f"{w[1]} {w[0][0]}_{w[0][2]} — яка голосна пропущена?", "options": [w[0][1]] + random.sample([x for x in "aeiou" if x != w[0][1]], 2), "correct": 0} for w in m["C"]]
+    if m.get("L3") == "where":
+        UKO = {"box": ("коробці", "коробкою"), "bed": ("ліжку", "ліжком"), "chair": ("стільці", "стільцем"), "sofa": ("дивані", "диваном")}
+        UKP = {"in": lambda o: "у " + UKO[o][0], "on": lambda o: "на " + UKO[o][0], "under": lambda o: "під " + UKO[o][1], "next to": lambda o: "поруч із " + UKO[o][1]}
+        for obj, pic, preps in m["W"]:
+            for p in preps:
+                L3.append({"q": f"🐱 {pic} Кіт {UKP[p](obj)}. Як сказати англійською?",
+                           "options": [f"It's {p} the {obj}."] + [f"It's {x} the {obj}." for x in preps if x != p], "correct": 0})
+    else:
+        isit = [v for v in m["V"] if v[0] not in ("scissors", "glue", "teacher")]
+        for v in isit:
+            other = random.choice([x for x in isit if x != v])
+            L3.append({"q": f"{v[1]} Is it {'an' if v[0][0] in 'aeiou' else 'a'} {v[0]}?", "options": ["Yes, it is.", "No, it isn't."], "correct": 0})
+            L3.append({"q": f"{v[1]} Is it {'an' if other[0][0] in 'aeiou' else 'a'} {other[0]}?", "options": ["No, it isn't.", "Yes, it is."], "correct": 0})
+    if m.get("read"):
+        cw = [w[0] for w in m["C"]]
+        L4 = [{"q": f"{w[1]} Яке слово?", "options": opts3(w[0], cw), "correct": 0} for w in m["C"]]
+    else:
+        L4 = [{"q": f"{w[1]} {w[0][0]}_{w[0][2]} — яка голосна пропущена?", "options": [w[0][1]] + random.sample([x for x in "aeiou" if x != w[0][1]], 2), "correct": 0} for w in m["C"]]
     L5 = [{"q": f"🧸 Teddy: «{d[0].replace('{n}', 'Anna')}» Що відповісти?", "options": [o.replace("{n}", "Anna") for o in d[1]][:2], "correct": d[2]} for d in m["D"] if d[2] >= 0]
     test = [{"title": f"English 2 · Module {m['n']} · {m['t']} — перевір себе", "subject": "English", "topic": "Читаємо й говоримо", "grade": 2,
              "stat": "mana", "format": "levels", "xpMode": "perCorrect", "xpValue": 1, "statMode": "fixed", "statValue": 1, "active": True,
              "levels": [{"level": 1, "name": "Слова теми", "count": 6, "questions": L1},
                         {"level": 2, "name": "Перший звук", "count": 6, "questions": L2},
-                        {"level": 3, "name": "Is it a …?", "count": 6, "questions": L3},
-                        {"level": 4, "name": "Читаємо слова", "count": 6, "questions": L4},
+                        {"level": 3, "name": "Where is the cat?" if m.get("L3") == "where" else "Is it a …?", "count": 6, "questions": L3},
+                        {"level": 4, "name": f"Читаємо: коротке {m['read']}" if m.get("read") else "Читаємо слова", "count": 6, "questions": L4},
                         {"level": 5, "name": "Діалог з Teddy", "count": len(L5), "questions": L5}]}]
     json.dump(test, open(os.path.join(ROOT, f"tests/test-english-2-module-{m['n']:02d}.json"), "w", encoding="utf8"), ensure_ascii=False, indent=2)
 print("ok")

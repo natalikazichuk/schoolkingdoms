@@ -242,6 +242,13 @@ h1,h2,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px
 .opt.ok{border-color:var(--good);background:var(--good-bg);color:var(--good)}
 .opt.no{border-color:var(--bad);background:var(--bad-bg);color:var(--bad)}
 .opt:disabled{cursor:default}
+.name-ask{display:flex;flex-direction:column;gap:10px;align-items:stretch}
+.na-line{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;font-family:'Fredoka';font-weight:700;font-size:22px;color:var(--ink)}
+.na-line input{width:9em;max-width:60%;font:inherit;color:#1e3a6b;text-align:center;border:3px solid var(--line);border-radius:16px;
+  padding:8px 10px;background:#fff;outline:none;user-select:text;-webkit-user-select:text}
+.na-line input:focus{border-color:#5ab8ff;box-shadow:0 0 0 4px rgba(90,184,255,.25)}
+.na-line input:disabled{background:var(--good-bg);border-color:var(--good);color:var(--good)}
+.na-hint{text-align:center;font-size:13px;font-weight:700;color:#7a7890}
 .msg{text-align:center;font-size:16px;font-weight:800;margin-top:12px;min-height:22px}
 .msg.no{color:var(--bad)}.msg.ok{color:var(--good)}
 .msg{display:flex;align-items:center;justify-content:center;gap:8px}
@@ -281,6 +288,7 @@ h1,h2,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px
 .chip{border:3px solid var(--line);background:#fff;border-radius:14px;padding:6px 12px;cursor:pointer;
   font-family:'Fredoka';font-weight:700;font-size:20px;color:var(--c,var(--ink))}
 .chip.on{border-color:var(--c,var(--blue));background:#fffdf6}
+button{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .pad-box{border:3px solid var(--line);border-radius:20px;background:#fff;box-shadow:var(--shadow);overflow:hidden;touch-action:none}
 .pad-box canvas{display:block;width:100%;height:auto;touch-action:none}
 .tools{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
@@ -299,6 +307,16 @@ h1,h2,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px
 .snd .p{font-size:46px;line-height:1}
 .snd b{color:#e03131}
 @media (max-width:400px){ .abcg{grid-template-columns:repeat(5,1fr)} }
+/* ══ WHERE IS THE CAT? ══ */
+.scene{position:relative;width:220px;height:160px;margin:0 auto}
+.scene .ob{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);font-size:100px;line-height:1;z-index:2}
+.scene .ct{position:absolute;left:50%;transform:translateX(-50%);font-size:50px;line-height:1;z-index:3}
+.scene.on .ct{bottom:58px}
+.scene.in .ct{bottom:84px;z-index:1}
+.scene.under .ob{bottom:40px}
+.scene.under .ct{bottom:2px;z-index:1}
+.scene.next .ob{left:38%}
+.scene.next .ct{left:76%;bottom:10px}
 </style>
 </head>
 <body>
@@ -441,7 +459,8 @@ h1,h2,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px
    C — слова з трьох літер для читання за звуками [слово, картинка]
    D — діалог з Teddy [репліка, [відповіді], правильна | -1 — будь-яка] */
 const MODS = [
-  {"n": 1, "pdf": "module-01-welcome-back", "t": "Welcome Back!", "ua": "Повторення 1 класу й звуки", "talk": "Hi! How old are you?", "fin": "Super! Welcome to Grade 2!", "B": [["A", "🍎"], ["B", "⚽"], ["C", "🐱"], ["D", "🐶"], ["E", "🥚"], ["F", "🐟"]], "V": [["pencil", "✏️", "олівець"], ["ruler", "📏", "лінійка"], ["book", "📘", "книжка"], ["notebook", "📓", "зошит"], ["eraser", "🧽", "гумка"], ["marker", "🖍️", "маркер"], ["scissors", "✂️", "ножиці"], ["glue", "🧴", "клей"], ["backpack", "🎒", "рюкзак"], ["desk", "🪑", "парта"], ["board", "🟩", "дошка"], ["teacher", "👩‍🏫", "вчителька"]], "C": [["cat", "🐱"], ["hat", "🎩"], ["bag", "👜"], ["map", "🗺️"], ["pen", "🖊️"], ["bed", "🛏️"], ["ten", "🔟"], ["red", "🟥"], ["pig", "🐷"], ["six", "6"], ["dog", "🐶"], ["box", "📦"], ["sun", "☀️"], ["cup", "🥤"], ["bus", "🚌"]], "D": [["Hi! Welcome back to school!", ["Hi, Teddy!", "Goodbye!"], 0], ["I'm Teddy Star. What's your name?", ["I'm {n}.", "I'm fine."], 0], ["Nice to see you again, {n}! How old are you?", ["I'm seven.", "I'm eight.", "I'm six."], -1], ["Look! 📏 Is it a pencil?", ["No, it isn't. It's a ruler.", "Yes, it is."], 0], ["What color is your backpack?", ["It's blue.", "It's red.", "It's green.", "It's pink."], -1], ["How many pencils? ✏️✏️✏️✏️✏️✏️✏️✏️✏️✏️✏️✏️", ["Twelve.", "Ten."], 0], ["Great! Have a good school year, {n}! Bye!", ["Bye, Teddy! See you!", "I'm seven."], 0]]}
+  {"n": 1, "pdf": "module-01-welcome-back", "t": "Welcome Back!", "ua": "Повторення 1 класу й звуки", "talk": "Hi! How old are you?", "fin": "Super! Welcome to Grade 2!", "B": [["A", "🍎"], ["B", "⚽"], ["C", "🐱"], ["D", "🐶"], ["E", "🥚"], ["F", "🐟"]], "V": [["pencil", "✏️", "олівець"], ["ruler", "📏", "лінійка"], ["book", "📘", "книжка"], ["notebook", "📓", "зошит"], ["eraser", "🧽", "гумка"], ["marker", "🖍️", "маркер"], ["scissors", "✂️", "ножиці"], ["glue", "🧴", "клей"], ["backpack", "🎒", "рюкзак"], ["desk", "🪑", "парта"], ["board", "🟩", "дошка"], ["teacher", "👩‍🏫", "вчителька"]], "C": [["cat", "🐱"], ["hat", "🎩"], ["bag", "👜"], ["map", "🗺️"], ["pen", "🖊️"], ["bed", "🛏️"], ["ten", "🔟"], ["red", "🟥"], ["pig", "🐷"], ["six", "6"], ["dog", "🐶"], ["box", "📦"], ["sun", "☀️"], ["cup", "🥤"], ["bus", "🚌"]], "D": [["Hi! Welcome back to school!", ["Hi, Teddy!", "Goodbye!"], 0], ["I'm Teddy Star. What's your name?", ["I'm {n}.", "I'm fine."], 0], ["Nice to see you again, {n}! How old are you?", ["I'm seven.", "I'm eight.", "I'm six."], -1], ["Look! 📏 Is it a pencil?", ["No, it isn't. It's a ruler.", "Yes, it is."], 0], ["What color is your backpack?", ["It's blue.", "It's red.", "It's green.", "It's pink."], -1], ["How many pencils? ✏️✏️✏️✏️✏️✏️✏️✏️✏️✏️✏️✏️", ["Twelve.", "Ten."], 0], ["Great! Have a good school year, {n}! Bye!", ["Bye, Teddy! See you!", "I'm seven."], 0]], "tags": "слова, звуки, Is it a…?, читання", "ws": "8 аркушів A4: алфавіт, перші звуки, слова, числа 11–20."},
+  {"n": 2, "pdf": "module-02-my-home", "t": "My Home", "ua": "Мій дім (+ Halloween)", "talk": "Where is the cat?", "fin": "Super! Welcome to my home!", "tags": "кімнати, Where is…?, коротке a", "L3": "where", "read": "a", "B": [["H", "🏠"], ["B", "🛏️"], ["S", "🛋️"], ["L", "💡"], ["D", "🚪"], ["W", "🪟"]], "V": [["house", "🏠", "будинок"], ["apartment", "🏢", "квартира"], ["kitchen", "🍳", "кухня"], ["bedroom", "🛌", "спальня"], ["bathroom", "🛁", "ванна кімната"], ["bed", "🛏️", "ліжко"], ["sofa", "🛋️", "диван"], ["lamp", "💡", "лампа"], ["door", "🚪", "двері"], ["window", "🪟", "вікно"], ["chair", "🪑", "стілець"], ["TV", "📺", "телевізор"]], "C": [["cat", "🐱"], ["hat", "🎩"], ["bag", "👜"], ["map", "🗺️"], ["van", "🚐"], ["fan", "🪭"], ["can", "🥫"], ["bat", "🦇"], ["jam", "🍓"], ["cap", "🧢"], ["ham", "🍖"], ["rat", "🐀"], ["dad", "👨"], ["pan", "🥘"]], "W": [["box", "📦", ["in", "on", "next to"]], ["bed", "🛏️", ["on", "under", "next to"]], ["chair", "🪑", ["on", "under", "next to"]], ["sofa", "🛋️", ["on", "under", "next to"]]], "D": [["Hi, {n}! Welcome to my home! 🏠", ["Wow! Nice house!", "Goodbye!"], 0], ["This is my bedroom. What's this? 🛏️", ["It's a bed.", "It's a lamp."], 0], ["Look! The cat is in the box. 📦 Where is the cat?", ["It's in the box.", "It's on the bed."], 0], ["What is there in your room?", ["There is a bed.", "There is a lamp.", "There is a desk."], -1], ["Is there a window in your room? 🪟", ["Yes, there is.", "No, there isn't."], -1], ["Trick or treat! 🎃 What's your costume?", ["I'm a witch!", "I'm a ghost!", "I'm a cat!", "I'm a pumpkin!"], -1], ["Happy Halloween, {n}! See you!", ["Happy Halloween, Teddy!", "It's a lamp."], 0]], "ws": "8 аркушів A4: кімнати, Where is the cat?, слова з a, Halloween."}
 ];
 const ABC = [["A", "apple", "🍎"], ["B", "ball", "⚽"], ["C", "cat", "🐱"], ["D", "dog", "🐶"], ["E", "egg", "🥚"], ["F", "fish", "🐟"], ["G", "goat", "🐐"], ["H", "hat", "🎩"], ["I", "igloo", "🧊"], ["J", "jam", "🍓"], ["K", "kite", "🪁"], ["L", "lion", "🦁"], ["M", "map", "🗺️"], ["N", "nest", "🪺"], ["O", "octopus", "🐙"], ["P", "pen", "🖊️"], ["Q", "queen", "👸"], ["R", "red", "🟥"], ["S", "sun", "☀️"], ["T", "ten", "🔟"], ["U", "umbrella", "☂️"], ["V", "van", "🚐"], ["W", "web", "🕸️"], ["X", "box", "📦"], ["Y", "yo-yo", "🪀"], ["Z", "zebra", "🦓"]];
 const VOWELS = "AEIOU";
@@ -488,13 +507,17 @@ if(TTS) try{ TTS.getVoices(); TTS.onvoiceschanged = () => TTS.getVoices(); }catc
 const TR = {"а":"a","б":"b","в":"v","г":"h","ґ":"g","д":"d","е":"e","є":"ie","ж":"zh","з":"z","и":"y","і":"i","ї":"i","й":"i",
   "к":"k","л":"l","м":"m","н":"n","о":"o","п":"p","р":"r","с":"s","т":"t","у":"u","ф":"f","х":"kh","ц":"ts","ч":"ch",
   "ш":"sh","щ":"shch","ь":"","ю":"iu","я":"ia","'":"","ʼ":"","’":""};
+function latinName(n){
+  n = String(n || "").trim().split(/\s+/)[0] || "";
+  n = n.toLowerCase().split("").map(c => c in TR ? TR[c] : c).join("").replace(/[^a-z-]/g, "").slice(0, 15);
+  return n ? n.charAt(0).toUpperCase() + n.slice(1) : "";
+}
+/* ім'я, яке дитина сама ввела в діалозі з Teddy (sk_en_name), інакше — ім'я Героя */
+function savedName(){ try{ return latinName(localStorage.getItem("sk_en_name")); }catch(e){ return ""; } }
 function kidName(){
-  let n = "";
-  try{ n = localStorage.getItem("sk_en_name") || ""; }catch(e){}   // ім'я, яке дитина ввела в діалозі з Teddy (1 клас)
-  if(!n) try{ const p = JSON.parse(localStorage.getItem("sk_hero_profile") || "null"); if(p && p.name) n = String(p.name); }catch(e){}
-  n = n.trim().split(/\s+/)[0] || "";
-  n = n.toLowerCase().split("").map(c => c in TR ? TR[c] : c).join("").replace(/[^a-z-]/g, "");
-  return n ? n.charAt(0).toUpperCase() + n.slice(1) : "friend";
+  let n = savedName();
+  if(!n) try{ const p = JSON.parse(localStorage.getItem("sk_hero_profile") || "null"); if(p && p.name) n = latinName(p.name); }catch(e){}
+  return n || "friend";
 }
 
 /* ---------- картинка слова: емодзі, число або колір ---------- */
@@ -566,6 +589,17 @@ function isItQ(){
     pre:q, opts:[{t:"Yes, it is."}, {t:"No, it isn't."}], ans: yes ? "Yes, it is." : "No, it isn't.", say:full, tip:full };
 }
 function genIsIt(){ const out = []; for(let i = 0; i < 8; i++) out.push(isItQ()); return out; }
+/* 3б. Where is the cat? — кіт у / на / під / поруч з предметом */
+const PREP_CLS = {"in":"in", "on":"on", "under":"under", "next to":"next"};
+function whereQ(){
+  const [obj, pic, preps] = pick(MOD.W), prep = pick(preps);
+  const ans = `It's ${prep} the ${obj}.`;
+  return { ask:"Where is the cat? Де кіт?", board:`<div class="scene ${PREP_CLS[prep]}"><span class="ob">${picHtml(pic)}</span><span class="ct">🐱</span></div>${sayBtn("Where is the cat?")}`,
+    pre:"Where is the cat?", opts:shuffle(preps).map(p => ({t:`It's ${p} the ${obj}.`})), ans, one:true, cls:"long",
+    say:`The cat is ${prep} the ${obj}.`, tip:`The cat is ${prep} the ${obj}. (in — у, on — на, under — під, next to — поруч)` };
+}
+function genWhere(){ const out = []; for(let i = 0; i < 8; i++) out.push(whereQ()); return out; }
+function genL3(){ return MOD.L3 === "where" ? genWhere() : genIsIt(); }
 
 /* 4. Читаємо слова з трьох літер: пропущена голосна; почуй і обери слово */
 const VW = ["a","e","i","o","u"];
@@ -579,7 +613,21 @@ function hearWord(w){
   return { ask:"Послухай і обери слово, яке почув.", board:sayBtn(w[0], true), pre:w[0], three:true,
     opts:shuffle([w[0], ...alt]).map(t=>({t})), ans:w[0], say:w[0], tip:`${w[1]} ${w[0]}` };
 }
-function genRead(){ return shuffle(MOD.C).slice(0, 8).map((w, i) => (i % 2 ? hearWord : missVowel)(w)); }
+/* режим «одна голосна» (MOD.read = "a"): прочитай слово → картинка; почуй → слово з тим самим звуком */
+function readPic(w){
+  return { ask:"Прочитай слово й обери картинку.", board:`<div class="word">${esc(w[0])}</div>${sayBtn(w[0])}`, cls:"emo", three:true,
+    opts:fill(w, MOD.C, MOD.C).map(x=>({t:x[0], h:picHtml(x[1])})), ans:w[0], say:`${w[0].split("").join(", ")}. ${w[0]}!`, tip:`${w[0][0]}-${w[0][1]}-${w[0][2]} → ${w[0]}` };
+}
+function hearRhyme(w){
+  const near = MOD.C.filter(x => x !== w && (x[0][0] === w[0][0] || x[0].slice(1) === w[0].slice(1))).map(x => x[0]);
+  const all = MOD.C.map(x => x[0]);
+  return { ask:"Послухай і обери слово, яке почув.", board:sayBtn(w[0], true), pre:w[0], three:true,
+    opts:fill(w[0], near, all).map(t=>({t})), ans:w[0], say:w[0], tip:`${w[1]} ${w[0]}` };
+}
+function genRead(){
+  if(MOD.read) return shuffle(MOD.C).slice(0, 8).map((w, i) => (i % 2 ? hearRhyme : readPic)(w));
+  return shuffle(MOD.C).slice(0, 8).map((w, i) => (i % 2 ? hearWord : missVowel)(w));
+}
 
 /* 5. Діалог з Teddy: репліки по черзі, дитина обирає відповідь */
 function genTalk(){
@@ -595,7 +643,7 @@ function genTalk(){
 
 /* 6. Фінал: питання з рівнів 1–4, без повторів */
 function finalMix(n){
-  const out = [], seen = new Set(), gens = [genWords, genSounds, genIsIt, genRead];
+  const out = [], seen = new Set(), gens = [genWords, genSounds, genL3, genRead];
   let g = 0;
   while(out.length < n && g++ < 10){
     shuffle(gens).forEach(gen => {
@@ -611,8 +659,10 @@ function levelsOf(m){
   return [
     {t:"Слова теми",     s:m.V.slice(0, 3).map(x => x[0]).join(", ") + "…", ic:picHtml(m.V[0][1]), gen:genWords, raw:true},
     {t:"Перший звук",    s:"з якої літери слово",                ic:"👂",   gen:genSounds},
-    {t:"Is it a …?",     s:"Yes, it is. / No, it isn't.",          ic:"❓",   gen:genIsIt},
-    {t:"Читаємо слова",  s:m.C.slice(0, 3).map(x => x[0]).join(", ") + "…", ic:"📖", gen:genRead},
+    m.L3 === "where"
+      ? {t:"Where is the cat?", s:"in / on / under / next to",      ic:"🐱",   gen:genL3}
+      : {t:"Is it a …?",     s:"Yes, it is. / No, it isn't.",          ic:"❓",   gen:genL3},
+    {t:m.read ? "Читаємо: коротке " + m.read : "Читаємо слова", s:m.C.slice(0, 3).map(x => x[0]).join(", ") + "…", ic:"📖", gen:genRead},
     {t:"Діалог з Teddy", s:m.talk,                                 ic:"🧸",   gen:genTalk},
     {t:"Фінал",          s:"усе разом",                            ic:"🏆",   gen:() => finalMix(10)},
   ];
@@ -713,6 +763,7 @@ function fillStart(){
   $("icoTrace").innerHTML = `<span class="note">${["A","b","C","d","E","f","G","h","I"].map(x => `<b>${x}</b>`).join("")}</span><span class="pen">🔊</span>`;
   $("icoPrint").innerHTML = `<span class="pr">🖨️</span>` + [c, d, e].map(w => `<span class="sh">${esc(w[0])}<i>${picHtml(w[1])}</i></span>`).join("");
   $("printBtn").href = "../" + encodeURI("2 клас english/" + MOD.pdf + "/worksheets.pdf");
+  const pt = $("printBtn").querySelector(".pt span"); if(pt && MOD.ws) pt.textContent = MOD.ws;
   $("map-title").textContent = "Module " + MOD.n + " · " + MOD.t;
 }
 
@@ -747,6 +798,7 @@ function drawDots(){
 }
 function drawQ(){
   const q = Q[qi];
+  if(q.mk) Object.assign(q, q.mk());
   busy = false;
   $("p-eyebrow").textContent = `Питання ${qi+1} з ${Q.length}`;
   drawDots();
@@ -757,7 +809,8 @@ function drawQ(){
   const box = $("p-opts");
   box.innerHTML = "";
   box.className = "opts" + (q.one ? " one" : q.three ? " three" : "");
-  q.opts.forEach(o => {
+  if(q.nameAsk) drawNameAsk(q);
+  else q.opts.forEach(o => {
     const b = document.createElement("button");
     b.type = "button"; b.className = "opt" + (q.cls ? " "+q.cls : "");
     b.dataset.v = o.t;

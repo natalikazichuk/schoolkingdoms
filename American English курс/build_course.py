@@ -140,7 +140,7 @@ def module_html(g, m, sm):
         a = opts[ok] if ok >= 0 else opts[0]
         dlg += f'<p><span class="t">Teddy:</span> {e(noemo(line.replace("{n}", "Anna")))}<br><span class="muted">Дитина:</span> {e(noemo(a.replace("{n}", "Anna")))}</p>'
     body += f'<h3>Діалог з Teddy (рівень тренажера)</h3><div class="dlg">{dlg}</div>'
-    lv = " → ".join(g["level_names"])
+    lv = " → ".join(m.get("levels") or g["level_names"])
     body += (f'<div class="box"><b>На сайті:</b> {e(g["site"])}?m={m["n"]} — рівні: {e(lv)}. Нагорода — за весь модуль.<br>'
              f'<b>Аркуші для друку ({m["_ws_pages"]} шт.):</b> окремий файл «{e(WS_NAME)}», с. {m["_ws_from"]}–{m["_ws_to"]}, або кнопка «Аркуші для друку» в тренажері.</div>')
     return doc(f'<section class="pg">{head}{lead}{body}</section>')
