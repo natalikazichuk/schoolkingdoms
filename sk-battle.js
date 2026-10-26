@@ -722,11 +722,12 @@
      st.me.tog — увімкнені за порядком. Другий — лише з «Другим запалом», коштує мани ×mul%.
      Камуфляж після Засідки «зачаївся» (fx.camoLock — до якого ходу): не діє, не їсть ману й не вимикається,
      а потім знову діє сам, якщо вистачає мани. */
-  var TOG = { 'ranger.camo': 1, 'ranger.haste': 1, 'ranger.hunter': 1 };
+  var TOG = { 'ranger.camo': 1, 'ranger.haste': 1, 'ranger.hunter': 1, 'ranger.sharpen': 1 };
   function togOn(st, id) { return (st.me.tog || []).indexOf(id) >= 0; }
   function camoLocked(st) { var f = st.me && st.me.fx; return !!(f && num(f.camoLock) >= st.round); }
   function camoOn(st) { var f = st.me && st.me.fx; return !!(f && num(f.camoOn) === st.round); }   // діє цього ходу (мана знята)
   function eyeOn(st) { var f = st.me && st.me.fx; return !!(f && num(f.hunterOn) === st.round) && !blindOn(st); }   // Око мисливця: мана знята й не осліплений
+  function sharpOn(st) { var f = st.me && st.me.fx; return !!(f && num(f.sharpenOn) === st.round) && !!weaponOn(st); }   // Заточка: мана знята й зброя в руці
   function hasteOn(st) { var f = st.me && st.me.fx; return !!(f && num(f.hasteOn) === st.round); }   // Поспіх діє цього ходу (мана знята)
   /* вистачить мани, щоб увімкнути перемикач цього ходу? Другий (поруч з іншим, що платить) — за ціною ×mul, якщо дешевший */
   function togShort(st, id) {
@@ -770,6 +771,7 @@
       if (id === 'ranger.camo') f.camoOn = st.round;
       if (id === 'ranger.haste') f.hasteOn = st.round;
       if (id === 'ranger.hunter') f.hunterOn = st.round;
+      if (id === 'ranger.sharpen') f.sharpenOn = st.round;
       out.push({ id: id, cost: cost });
     });
     if (paid > 1) grow(st, 'ranger.fire2', true);
@@ -1447,6 +1449,9 @@
     /* Око мисливця: точність +accPct %, кожен удар у закриту зону — шанс gap % пробити блок (strike: att.gapPct) */
     var eyeP = function (v, p) { if (!eyeOn(v)) return p; p = clone(p); p.accuracy = Math.round(num(p.accuracy) * (1 + V(v, 'ranger.hunter', 'accPct') / 100)); p.gapPct = V(v, 'ranger.hunter', 'gap'); return p; };
     pm = eyeP(st, pm); po = eyeP(vo, po);
+    /* Заточка: +dmgPct до суми відсотків урону, броня ворога ×(100 − armorCut)% (лише зі зброєю в руці) */
+    var sharpP = function (v, p) { if (!sharpOn(v)) return p; p = clone(p); p.dmgPct = num(p.dmgPct) + V(v, 'ranger.sharpen', 'dmgPct'); p.armorPct = Math.round((num(p.armorPct) > 0 ? num(p.armorPct) : 100) * (100 - V(v, 'ranger.sharpen', 'armorCut')) / 100); return p; };
+    pm = sharpP(st, pm); po = sharpP(vo, po);
     // Кистень: шанс блоку щита суперника проти твоїх ударів менший
     // перевага Слідопита «Хльосткий кнут»: з кнутом шанс блоку суперника менший (разом із Кистенем — множаться)
     var flailCut = function (v, pD) {
@@ -1533,6 +1538,7 @@
     var trapRec = opAtk ? trapSpring(ctx, st, SKILL.trap.id, opHit, op.atk, sd(st, 'trap')) : null;   // Пастка: суперник ударив у її зону
     var opTrapRec = meAtk ? trapSpring(ctx, vo, SKILL.trap.id, meHit, me.atk, sd(vo, 'trap')) : null;
     camoLanded(st, meHit); camoLanded(vo, opHit);
+    if (sharpOn(st) && meHit.hits && meHit.hits.length) grow(st, 'ranger.sharpen', meHit.hits.some(function (h) { return !h.left && (h.kind === 'hit' || h.kind === 'crit'); }));   // Заточка росте від ходів, коли б'єш нею
     venomHits(ctx, st, meHit, sd(st, 'venom')); venomHits(ctx, vo, opHit, sd(vo, 'venom'));   // змащена зброя: урон отрутою й шанс отруїти
     // Міцне тіло: росте від кожного удару суперника, що завдав урону — після ухилення, парирування й щита (у бота — в межах бою)
     if (opAtk) (opHit.hits || []).forEach(function (h) { if ((h.kind === 'hit' || h.kind === 'crit') && num(h.dmg) > 0) grow(st, 'knight.tough', true); });

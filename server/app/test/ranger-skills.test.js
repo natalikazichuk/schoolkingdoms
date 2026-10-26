@@ -681,3 +681,16 @@ test('Збити з пантелику: не вдалося — без пере�
   }
   assert.ok(fail && ok);
 });
+
+test('Заточка: перемикач −7; урон +10→20% до суми відсотків, броня ворога ×0.95→×0.9; без зброї — не діє', () => {
+  assert.deepStrictEqual([S.skillValues('ranger.sharpen', 25).dmgPct, S.skillValues('ranger.sharpen', 100).dmgPct], [10, 20]);
+  assert.deepStrictEqual([S.skillValues('ranger.sharpen', 25).armorCut, S.skillValues('ranger.sharpen', 100).armorCut], [5, 10]);
+  const ARM = item({ id: 'AR9', name: 'Броня', category: 'Обладунки', stat: 'Броня', valueMin: 10, valueMax: 10 });
+  const mk = (on) => { const st = battle({ 'ranger.sharpen': 1 }, ['ranger.sharpen'], [wear(DAGGER, 'weaponR')], [wear(ARM, 'armor')]);
+    st.me.p.accuracy = 5000; st.op.p.agility = 1; st.op.force = 99999; if (on) assert.ok(SB.useSkill(ctx, st, 'ranger.sharpen')); return st; };
+  const a = mk(true), m0 = a.me.mana; let h = null;
+  for (let k = 0; k < 10 && !h; k++) { const e = turnOf(a, { atk: ['head', 'legs', 'arms', 'body'][k % 4], block: 'body' }); h = e.meHit.hits.filter(x => x.kind === 'hit' && !x.left)[0]; }
+  assert.ok(h && h.armorPct === 90, 'броня ×0.9: ' + (h && h.calc));
+  assert.strictEqual(m0 - a.me.mana >= 7, true);
+  const b = mk(false); assert.ok(a.me.p.dmgPct === b.me.p.dmgPct, 'профіль не міняється — бонус лише в ході');
+});
