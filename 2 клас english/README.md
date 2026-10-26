@@ -1,6 +1,6 @@
 # English · 2 клас — «Читаємо й говоримо»
 
-> **Увесь курс одним файлом** (програма 1–2 класу + усі аркуші) — `American English курс/American English для молодшої школи.pdf`. Після нового модуля зберіть його заново: `python3 "American English курс/build_course.py"`.
+> **Курс** — папка `American English курс/`: опис курсу (програма 1–2 класу) і окремий файл з усіма аркушами для друку. Після нового модуля зберіть його заново: `python3 "American English курс/build_course.py"`.
 
 > **На сайті** модулі працюють як один тренажер `klas-2/english-2.html?m=N` (дизайн, прогрес і нагороди сайту, як у `klas-1/english-1-litery.html`). Плитка для адмінки — `tests/english-2-tiles.json` (⬆ Імпорт JSON), тест «перевір себе» — `tests/test-english-2-module-01.json`. Аркуші PDF сайт відкриває звідси.
 

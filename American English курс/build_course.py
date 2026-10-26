@@ -1,8 +1,9 @@
 """Збирає один PDF курсу «American English для молодшої школи».
 
-Що потрапляє у файл:
-  обкладинка → зміст → про курс → для кожного класу: огляд програми,
-  далі для кожного готового модуля сторінка-опис і його 8 аркушів для друку.
+Збирає два файли:
+  1) «American English для молодшої школи.pdf» — обкладинка, зміст, про курс,
+     програма кожного класу й сторінка-опис кожного готового модуля;
+  2) «… — аркуші для друку.pdf» — зміст із номерами сторінок і всі аркуші A4.
 Модуль вважається готовим, коли він є в MODS тренажера на сайті
 (klas-N/...html) і поруч лежить «N клас english/<папка модуля>/worksheets.pdf».
 Програма, місяці, фрази, пісні — у course.json поруч із цим скриптом.
@@ -20,6 +21,8 @@ from reportlab.pdfbase.ttfonts import TTFont
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 OUT = os.path.join(HERE, "American English для молодшої школи.pdf")
+WS_NAME = "American English для молодшої школи — аркуші для друку.pdf"
+OUT_WS = os.path.join(HERE, WS_NAME)
 C = json.load(open(os.path.join(HERE, "course.json"), encoding="utf8"))
 INK, SOFT, LINE, ACC, ACC2 = "#1f2a44", "#66708a", "#d6dceb", "#2e86de", "#e4572e"
 COLS = ["#e4572e", "#2e86de", "#3aa65b", "#8e5bd6", "#e0a000", "#e0457b"]
@@ -114,7 +117,7 @@ def module_html(g, m, sm):
     body += f'<h3>Діалог з Teddy (рівень тренажера)</h3><div class="dlg">{dlg}</div>'
     lv = " → ".join(g["level_names"])
     body += (f'<div class="box"><b>На сайті:</b> {e(g["site"])}?m={m["n"]} — рівні: {e(lv)}. Нагорода — за весь модуль.<br>'
-             f'<b>Аркуші для друку:</b> наступні сторінки ({m["_ws_pages"]} шт.), або кнопка «Аркуші для друку» в тренажері.</div>')
+             f'<b>Аркуші для друку ({m["_ws_pages"]} шт.):</b> окремий файл «{e(WS_NAME)}», с. {m["_ws_from"]}–{m["_ws_to"]}, або кнопка «Аркуші для друку» в тренажері.</div>')
     return doc(f'<section class="pg">{head}{lead}{body}</section>')
 
 def cover_toc_html(toc):
@@ -140,15 +143,38 @@ def render(jobs, tmp):
     subprocess.run(["node", "-e", js], check=True)
     return {name: os.path.join(tmp, name + ".pdf") for name, _ in jobs}
 
-def stamp(writer, skip_first):
+def stamp(writer, skip_first, label):
     pdfmetrics.registerFont(TTFont("DJ", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"))
     for i, page in enumerate(writer.pages):
         if i < skip_first: continue
         w, h = float(page.mediabox.width), float(page.mediabox.height)
         tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False).name
         c = rl_canvas.Canvas(tmp, pagesize=(w, h)); c.setFont("DJ", 7.5); c.setFillColorRGB(.45, .48, .56)
-        c.drawCentredString(w / 2, 14, f"{C['title']} · {i + 1}"); c.save()
+        c.drawCentredString(w / 2, 14, f"{label} · {i + 1}"); c.save()
         page.merge_page(PdfReader(tmp).pages[0]); os.unlink(tmp)
+
+def ws_cover_html(toc):
+    today = datetime.date.today().strftime("%d.%m.%Y")
+    rows = "".join(f'<tr class="{"g" if k == "g" else ""}"><td>{"" if k == "g" else "&nbsp;&nbsp;"}{e(t)}</td><td class="pg">{pg}</td></tr>' for k, t, pg in toc)
+    return doc(f'<section class="pg"><div class="eyebrow">{e(C["title"])}</div><h1>Аркуші для друку</h1>'
+               f'<p>Усі аркуші A4 готових модулів курсу. Друкуйте потрібні сторінки модуля — номери нижче. Опис модулів і програма — у файлі «{e(C["title"])}.pdf».</p>'
+               f'<p class="muted">Оновлено {today}</p><table class="toc">{rows}</table></section>')
+
+def assemble(head, parts, out, label, title):
+    """head: PDF з першими сторінками; parts: [(path, label, start_page, kind)]."""
+    w = PdfWriter()
+    for p in PdfReader(head).pages: w.add_page(p)
+    for path, _, _, _ in parts:
+        for p in PdfReader(path).pages: w.add_page(p)
+    stamp(w, 1, label)
+    cur = None
+    for path, lab, start, kind in parts:
+        if not lab: continue
+        if kind == "g": cur = w.add_outline_item(lab, start - 1)
+        else: w.add_outline_item(lab, start - 1, parent=cur)
+    w.add_metadata({"/Title": title, "/Author": "SchoolKingdoms"})
+    with open(out, "wb") as f: w.write(f)
+    print(out, len(PdfReader(out).pages), "сторінок")
 
 def main():
     for g in C["grades"]:
@@ -163,14 +189,27 @@ def main():
             m["_ready"] = bool(s and m["_ws"])
             m["_ws_pages"] = len(PdfReader(m["_ws"]).pages) if m["_ready"] else 0
             g["_ready"] += m["_ready"]
+    # 1) файл аркушів: с. 1 — обкладинка зі змістом, далі аркуші модулів
+    ws_parts, ws_toc, page = [], [], 2
+    for g in C["grades"]:
+        first = True
+        for m in g["modules"]:
+            if not m["_ready"]: continue
+            if first: ws_toc.append(("g", g["title"], "")); first = False
+            m["_ws_from"], m["_ws_to"] = page, page + m["_ws_pages"] - 1
+            ws_toc.append(("m", f"Module {m['n']} · {m['_title']}", f"{m['_ws_from']}–{m['_ws_to']}"))
+            ws_parts.append((m["_ws"], f"{g['grade']} клас · Module {m['n']} · {m['_title']}", page, "m"))
+            page += m["_ws_pages"]
     with tempfile.TemporaryDirectory() as tmp:
-        jobs = [("about", about_html())]
+        jobs = [("about", about_html()), ("wscover", ws_cover_html(ws_toc))]
         for g in C["grades"]:
             jobs.append((f"g{g['grade']}", grade_html(g)))
             for m in g["modules"]:
                 if m["_ready"]: jobs.append((f"g{g['grade']}m{m['n']}", module_html(g, m, g["_site"][m["n"]])))
         pdfs = render(jobs, tmp)
-        # order of parts + page numbers (cover and contents are 1 page each)
+        assert len(PdfReader(pdfs["wscover"]).pages) == 1, "зміст аркушів має вміщатися на 1 сторінку"
+        assemble(pdfs["wscover"], ws_parts, OUT_WS, "Аркуші для друку", C["title"] + " — аркуші для друку")
+        # 2) файл курсу: обкладинка, зміст, про курс, програми класів, описи модулів
         parts, toc, page = [], [], 3
         def add(path, label=None, kind="m"):
             nonlocal page
@@ -181,27 +220,11 @@ def main():
         for g in C["grades"]:
             add(pdfs[f"g{g['grade']}"], g["title"], "g")
             for m in g["modules"]:
-                if not m["_ready"]: continue
-                add(pdfs[f"g{g['grade']}m{m['n']}"], f"Module {m['n']} · {m['_title']}")
-                add(m["_ws"])
+                if m["_ready"]: add(pdfs[f"g{g['grade']}m{m['n']}"], f"Module {m['n']} · {m['_title']}")
         for x in C.get("planned", []): toc.append(("g", f"{x} — у планах", "—"))
         head = render([("cover", cover_toc_html(toc))], tmp)["cover"]
         assert len(PdfReader(head).pages) == 2, "обкладинка + зміст мають бути по 1 сторінці"
-        w = PdfWriter()
-        for p in PdfReader(head).pages: w.add_page(p)
-        parents = {}
-        for path, label, start, kind in parts:
-            for p in PdfReader(path).pages: w.add_page(p)
-        stamp(w, 1)
-        w.add_outline_item("Зміст", 1)
-        cur = None
-        for path, label, start, kind in parts:
-            if not label: continue
-            if kind == "g": cur = w.add_outline_item(label, start - 1)
-            else: w.add_outline_item(label, start - 1, parent=cur)
-        w.add_metadata({"/Title": C["title"], "/Author": "SchoolKingdoms"})
-        with open(OUT, "wb") as f: w.write(f)
-    print(OUT, len(PdfReader(OUT).pages), "сторінок")
+        assemble(head, parts, OUT, C["title"], C["title"])
 
 if __name__ == "__main__":
     main()
