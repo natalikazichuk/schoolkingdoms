@@ -279,7 +279,7 @@
     if (!isLive(st)) return 'over';
     id = canon(id);                                               // спільне вміння іншого класу — як у Лицаря (перезарядка теж під його id)
     if ((st.me.bar || []).map(canon).indexOf(id) < 0 || !hasSk(st, id)) return 'none';
-    if (TOG[id]) return id === 'ranger.camo' && camoLocked(st) ? 'locked' : id === 'ranger.hunter' && togOn(st, id) && blindOn(st) ? 'eyeblind' : '';   // перемикач: дії ходу не забирає; Око осліплене — не діє (мана йде), вимкнути можна
+    if (TOG[id]) return id === 'ranger.camo' && camoLocked(st) ? 'locked' : id === 'ranger.hunter' && togOn(st, id) && blindOn(st) ? 'eyeblind' : !togOn(st, id) && togShort(st, id) ? 'mana' : '';   // перемикач: дії ходу не забирає; Око осліплене — не діє (мана йде), вимкнути можна
     if (knockedNow(st, st.me)) return 'knock';                   // оглушений — спецдій немає
     if (swapped(st)) return 'swap';                              // цього ходу вже перевдягнувся
     var cd = (st.me.cd || {})[id];
@@ -728,11 +728,19 @@
   function camoOn(st) { var f = st.me && st.me.fx; return !!(f && num(f.camoOn) === st.round); }   // діє цього ходу (мана знята)
   function eyeOn(st) { var f = st.me && st.me.fx; return !!(f && num(f.hunterOn) === st.round) && !blindOn(st); }   // Око мисливця: мана знята й не осліплений
   function hasteOn(st) { var f = st.me && st.me.fx; return !!(f && num(f.hasteOn) === st.round); }   // Поспіх діє цього ходу (мана знята)
+  /* вистачить мани, щоб увімкнути перемикач цього ходу? Другий (поруч з іншим, що платить) — за ціною ×mul, якщо дешевший */
+  function togShort(st, id) {
+    var c = V(st, id, 'mana'), other = (st.me.tog || []).filter(function (x) { return x !== id && !(x === 'ranger.camo' && camoLocked(st)); });
+    var paidC = 0; other.forEach(function (x) { paidC += V(st, x, 'mana'); });
+    if (other.length) { var oc = V(st, other[0], 'mana'), mul = (V(st, 'ranger.fire2', 'mul') || 200) / 100;
+      paidC = c > oc ? c + Math.round(oc * mul) : oc + Math.round(c * mul); return num(st.me.mana) < paidC; }
+    return num(st.me.mana) < c;
+  }
   function toggleSkill(st, id) {
     var l = st.me.tog || (st.me.tog = []), i = l.indexOf(id);
     if (id === 'ranger.camo' && camoLocked(st)) return false;
     if (i >= 0) l.splice(i, 1);
-    else { if (l.length >= (hasSk(st, 'ranger.fire2') ? 2 : 1)) return false; l.push(id); }
+    else { if (l.length >= (hasSk(st, 'ranger.fire2') ? 2 : 1) || togShort(st, id)) return false; l.push(id); }
     st.rev++;
     return true;
   }
@@ -744,6 +752,7 @@
   }
   /* множник ціни перемикача цього ходу (100 — повна ціна, 200 — ×2…) — для панелі (×1 / ×2) */
   function togMul(st, id) {
+    if (id === 'ranger.camo' && camoLocked(st)) return 0;               // зачаївся — не платить (значка немає)
     var first = togOrder(st).filter(function (x) { return !(x === 'ranger.camo' && camoLocked(st)); })[0];
     if (!togOn(st, id) || id === first) return 100;
     return V(st, 'ranger.fire2', 'mul') || 200;

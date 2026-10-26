@@ -261,6 +261,7 @@ test('Камуфляж — перемикач: дії ходу не забира
   const e2 = turnOf(st);
   assert.ok(e2.tog[0].off, 'не вистачило мани — вимкнувся');
   assert.strictEqual(JSON.stringify(st.me.tog), JSON.stringify([]));
+  assert.ok(!SB.useSkill(ctx, st, 'ranger.camo'), 'без мани — не вмикається'); st.me.mana = 100;
   assert.ok(SB.useSkill(ctx, st, 'ranger.camo')); assert.ok(SB.useSkill(ctx, st, 'ranger.camo')); assert.strictEqual(JSON.stringify(st.me.tog), JSON.stringify([]), 'ще раз — вимкнути');
 });
 
@@ -646,4 +647,16 @@ test('Пастка: ставиш у зону (−50), стоїть 2→4 ход�
   const sb = battle({ 'ranger.trap': 1 }, ['ranger.trap'], [wear(DAGGER, 'weaponR')]); sb.me.trapZone = 'body';
   SB.useSkill(ctx, sb, 'ranger.trap'); const eb = SB.turn(ctx, sb, { atk: 'head', block: 'body' }, {}, Date.now());
   assert.notStrictEqual(eb.skill.zone, 'body'); assert.ok(eb.skill.auto);
+});
+
+test('Перемикач без мани не вмикається (💧), вимкнути можна завжди; Камуфляж, що зачаївся, — без значка ×', () => {
+  const st = battle({ 'ranger.haste': 1, 'ranger.camo': 1, 'ranger.fire2': 0.25 }, ['ranger.haste', 'ranger.camo']);
+  st.me.mana = 20;
+  assert.strictEqual(SB.skillBlock(st, 'ranger.haste'), 'mana'); assert.ok(!SB.useSkill(ctx, st, 'ranger.haste'));
+  assert.ok(SB.useSkill(ctx, st, 'ranger.camo'), 'Камуфляж за 7 — можна');
+  st.me.mana = 40;   // Поспіх 30 + Камуфляж 7×2 = 44 > 40
+  assert.ok(!SB.useSkill(ctx, st, 'ranger.haste'), 'разом не вистачить');
+  st.me.mana = 44; assert.ok(SB.useSkill(ctx, st, 'ranger.haste'));
+  st.me.mana = 0; assert.ok(SB.useSkill(ctx, st, 'ranger.haste'), 'вимкнути — завжди');
+  st.me.fx.camoLock = st.round + 3; assert.strictEqual(SB.togMul(st, 'ranger.camo'), 0);
 });
