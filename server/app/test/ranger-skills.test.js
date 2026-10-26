@@ -695,7 +695,7 @@ test('Заточка: перемикач −7; урон +10→20% до суми 
   const b = mk(false); assert.ok(a.me.p.dmgPct === b.me.p.dmgPct, 'профіль не міняється — бонус лише в ході');
 });
 
-test('Поспіх: з другою зброєю в лівій — лише з шансом 50%; удар Поспіху без отрути з клинка', () => {
+test('Поспіх: з другою зброєю в лівій — лише з шансом 50%; отрута лише на основному клинку (лівою — без отрути)', () => {
   const B = R.BATTLE, d0 = B.dualWield;
   try {
     R.handsFromHero({ heroClass: 'ranger', skills: { 'ranger.dual': 5 } });
@@ -710,13 +710,17 @@ test('Поспіх: з другою зброєю в лівій — лише з �
     assert.ok(with_ > 0 && without > 0, with_ + '/' + without);
   } finally { B.dualWield = d0; }
   let checked = 0;
-  for (let k = 0; k < 20 && !checked; k++) {
-    const st = battle({ 'ranger.haste': 1, 'ranger.poison': 1 }, ['ranger.haste', 'ranger.poison'], [wear(DAGGER, 'weaponR')]);
-    st.me.p.accuracy = 5000; st.op.p.agility = 1; st.op.force = 99999;
-    SB.useSkill(ctx, st, 'ranger.poison'); turnOf(st, HIT); SB.useSkill(ctx, st, 'ranger.haste');
-    const e = turnOf(st, HIT); const hh = e.meHit.hits.filter(h => h.haste && h.kind === 'hit')[0];
-    const other = e.meHit.hits.filter(h => !h.haste && h.venom)[0];
-    if (hh && other) { assert.ok(!hh.venom, 'Поспіх без отрути'); checked++; }
-  }
+  try {
+    R.handsFromHero({ heroClass: 'ranger', skills: { 'ranger.dual': 5 } });
+    const DAG3 = Object.assign({}, DAGGER, { id: 'D3' });
+    for (let k = 0; k < 40 && !checked; k++) {
+      const st = battle({ 'ranger.dual': 1, 'ranger.poison': 1 }, ['ranger.poison'], [wear(DAGGER, 'weaponR'), wear(DAG3, 'weaponL')]);
+      st.me.p.accuracy = 5000; st.op.p.agility = 1; st.op.force = 99999;
+      SB.useSkill(ctx, st, 'ranger.poison'); turnOf(st, HIT);
+      const e = turnOf(st, HIT); const lh = e.meHit.hits.filter(h => h.left && h.kind === 'hit')[0];
+      const main = e.meHit.hits.filter(h => !h.left && h.venom)[0];
+      if (lh && main) { assert.ok(!lh.venom, 'лівою — без отрути'); checked++; }
+    }
+  } finally { B.dualWield = d0; }
   assert.ok(checked);
 });

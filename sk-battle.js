@@ -844,7 +844,7 @@
     if (!venomOn(v) || !wTypeNow(v) || !hit || !hit.hits) return;   // отрута на клинку: зброю вибито (б'є кулаками) — не діє
     var vn = v.me.fx.venom, res = poisonRes(v.op, v.round, 'chance'), cut = poisonRes(v.op, v.round, 'dmg');
     hit.hits.forEach(function (h) {
-      if ((h.kind !== 'hit' && h.kind !== 'crit') || !(num(h.dmg) > 0) || h.haste) return;   // удар Поспіху — без отрути з клинка
+      if ((h.kind !== 'hit' && h.kind !== 'crit') || !(num(h.dmg) > 0) || h.left) return;   // змащено лише основний клинок — удар лівою (Друга зброя) без отрути
       var x = Math.round(h.dmg * num(vn.pct) / 100 * (1 - cut / 100));
       if (x > 0) { h.dmg += x; h.venom = x; if (cut) h.venomCut = cut; }
       if (poisoned(v.op, v.round)) return;
