@@ -2210,6 +2210,7 @@ window.SKHERO = (function(){
     if(f.trap && f.trap.until>=B.round){ var ZW2 = {head:'голові', body:'тулубі', arms:'руках', legs:'ногах'}, tn = f.trap.until-B.round+1;
       out.push({neg:false, ic:'🪤', n:tn, title:'Пастка', text:'Стоїть у '+(ZW2[f.trap.zone]||f.trap.zone)+'. Суперник ударить туди — удар ×'+((f.trap.cut||50)/100)+', і наступного ходу він без ударів.', left:left(tn)}); }
     if(B && f.trapped===B.round) out.push({neg:true, ic:'🪤', n:'', title:'У пастці', text:'Цього ходу — без звичайних ударів і без ухилення. Вміння, пояс і блок — можна.', left:'Цей хід'});
+    else if(B && (+f.trapImm||0) > B.round){ var ti = f.trapImm-B.round; out.push({neg:false, ic:'🪤', n:ti, past:true, title:'Оговтується після пастки', text:'Поки оговтується, нова пастка не затримає — лише послабить удар.', left:left(ti)}); }
     if((u.tog||[]).indexOf('ranger.hunter')>=0 && u.skv && u.skv['ranger.hunter']){ var hu = u.skv['ranger.hunter'], hb = f.blind && f.blind.from<=B.round && f.blind.until>=B.round;
       out.push({neg:false, ic:'👁️', n:'', past:hb, title:hb?'Око мисливця не діє':'Око мисливця', text:hb?'Ти осліплена — Око не бачить, а мана йде. Вимкни, щоб зекономити.':'Точність +'+(hu.accPct||10)+'%, удар у закриту зону пробиває блок у '+(hu.gap||50)+'%. −'+(hu.mana||7)+' щоходу.', left:'Поки увімкнено й є мана'}); }
     if((u.tog||[]).indexOf('ranger.haste')>=0 && u.skv && u.skv['ranger.haste']){ var hs = u.skv['ranger.haste'];
@@ -3529,6 +3530,8 @@ window.SKHERO = (function(){
       if(r.type==='scroll' && r.hit) floatDmg(u.side==='me'?'o':'p', r.hit);
       if(r.type==='heal' && r.hp>0){ var c=$(u.side==='me'?'pScene':'oScene'); if(c){ var el=document.createElement('div'); el.className='dmg-float heal'; el.textContent='+'+r.hp+' ❤️'; c.appendChild(el); setTimeout(function(){ el.remove(); }, 4300); } }
     }); });
+    if(e.trap && e.trap.kind==='trapSprung') floatOne('o', {kind:'trap'}, 0, 1);       // 🪤 суперник ступив у пастку
+    if(e.opTrap && e.opTrap.kind==='trapSprung') floatOne('p', {kind:'trap'}, 0, 1);
     if(e.will && e.will.ok) floatOne('p', {kind:'will'}, 0, 1, '🦾');
     if(e.opWill && e.opWill.ok) floatOne('o', {kind:'will'}, 0, 1, '🦾');
     // 🙏 Благословення лікує на початку ходу: зелене «+N 🙏» на картці (як зілля)
