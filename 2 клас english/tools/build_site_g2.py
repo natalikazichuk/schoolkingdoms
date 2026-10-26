@@ -76,7 +76,27 @@ M3 = {
        ["Happy Thanksgiving! 🦃 What are you thankful for?", ["I'm thankful for my family.", "I'm thankful for my friends."], -1],
        ["It's nine o'clock. Time for bed! Good night, {n}!", ["Good night, Teddy!", "Good morning!"], 0]],
 }
-MODS = [M1, M2, M3]
+M4 = {
+ "n": 4, "pdf": "module-04-clothes", "t": "Clothes", "ua": "Одяг (+ зимові свята)",
+ "talk": "What are you wearing?", "fin": "Super! Merry Christmas!", "tags": "одяг, I'm wearing…, коротке i",
+ "ws": "8 аркушів A4: одяг, кольори, Dress Teddy, слова з i, Ugly Sweater.",
+ "L3": "wear", "read": "i",
+ "B": [["C", "🧥"], ["L", "🧣"], ["O", "🧦"], ["T", "👕"], ["H", "🧢"], ["S", "👟"]],
+ "V": [["T-shirt", "👕", "футболка"], ["pants", "👖", "штани"], ["shorts", "🩳", "шорти"], ["dress", "👗", "сукня"],
+       ["sweater", "🧶", "светр"], ["coat", "🧥", "пальто, куртка"], ["shoes", "👟", "взуття, черевики"], ["socks", "🧦", "шкарпетки"],
+       ["boots", "🥾", "чоботи"], ["scarf", "🧣", "шарф"], ["cap", "🧢", "кепка"], ["mittens", "🧤", "рукавиці"]],
+ "C": [["pig", "🐷"], ["six", "6"], ["pin", "📌"], ["bin", "🗑️"], ["lip", "👄"], ["kid", "🧒"], ["zip", "🤐"],
+       ["win", "🏆"], ["dig", "⛏️"], ["big", "🐘"], ["sit", "🪑"], ["hit", "🥊"]],
+ "WR": [["T-shirt", "👕", 0], ["dress", "👗", 0], ["coat", "🧥", 0], ["scarf", "🧣", 0], ["cap", "🧢", 0], ["sweater", "🧶", 0],
+        ["pants", "👖", 1], ["shorts", "🩳", 1], ["shoes", "👟", 1], ["socks", "🧦", 1], ["boots", "🥾", 1], ["mittens", "🧤", 1]],
+ "D": [["Brr! It's cold today! ❄️ What are you wearing?", ["I'm wearing a sweater.", "I'm wearing a coat.", "I'm wearing a scarf."], -1],
+       ["Look! 🧣 What's this?", ["It's a scarf.", "It's a cap."], 0],
+       ["Put on your coat, please! 🧥", ["OK! I'm putting on my coat.", "Good night!"], 0],
+       ["Whose hat is it? 🎩", ["It's my hat.", "It's a cat."], 0],
+       ["It's Ugly Sweater Day! 🎄 What color is your sweater?", ["It's red and green.", "It's blue.", "It's white."], -1],
+       ["Merry Christmas, {n}! 🎁", ["Merry Christmas, Teddy!", "Happy Halloween!"], 0]],
+}
+MODS = [M1, M2, M3, M4]
 ABC = [["A","apple","🍎"],["B","ball","⚽"],["C","cat","🐱"],["D","dog","🐶"],["E","egg","🥚"],["F","fish","🐟"],["G","goat","🐐"],
        ["H","hat","🎩"],["I","igloo","🧊"],["J","jam","🍓"],["K","kite","🪁"],["L","lion","🦁"],["M","map","🗺️"],["N","nest","🪺"],
        ["O","octopus","🐙"],["P","pen","🖊️"],["Q","queen","👸"],["R","red","🟥"],["S","sun","☀️"],["T","ten","🔟"],["U","umbrella","☂️"],
@@ -257,7 +277,18 @@ function timeQ(){
     tip:`${ans} Коротка стрілка — на ${h}, довга — на 12.` };
 }
 function genTime(){ const out = [], used = new Set(); let g = 0; while(out.length < 8 && g++ < 40){ const q = timeQ(); if(!used.has(q.ans)){ used.add(q.ans); out.push(q); } } return out; }
-function genL3(){ return MOD.L3 === "where" ? genWhere() : MOD.L3 === "time" ? genTime() : genIsIt(); }
+/* 3г. I'm wearing … — кружечок кольору + річ: обери речення */
+const WCOL = [["red","🔴"],["blue","🔵"],["green","🟢"],["yellow","🟡"],["purple","🟣"],["black","⚫"],["white","⚪"],["orange","🟠"],["brown","🟤"]];
+const wearTxt = (it, c) => `I'm wearing ${it[2] ? "" : art(c) + " "}${c} ${it[0]}.`;
+function wearQ(){
+  const it = pick(MOD.WR), col = pick(WCOL), ans = wearTxt(it, col[0]);
+  const c2 = pick(WCOL.filter(c => c !== col)), it2 = pick(MOD.WR.filter(x => x !== it));
+  return { ask:"Що вдягнув Teddy? Обери речення.", board:`<div class="pic">${col[1]} ${picHtml(it[1], true)}</div>${sayBtn(ans)}`,
+    opts:shuffle([ans, wearTxt(it, c2[0]), wearTxt(it2, col[0])]).map(t => ({t})), ans, one:true, cls:"long", say:ans,
+    tip:`${ans} (${it[2] ? "без a: " + it[0] + " — їх багато / пара" : art(col[0]) + " — перед " + col[0]})` };
+}
+function genWear(){ const out = [], used = new Set(); let g = 0; while(out.length < 8 && g++ < 40){ const q = wearQ(); if(!used.has(q.ans)){ used.add(q.ans); out.push(q); } } return out; }
+function genL3(){ return MOD.L3 === "where" ? genWhere() : MOD.L3 === "time" ? genTime() : MOD.L3 === "wear" ? genWear() : genIsIt(); }
 
 /* 4. Читаємо слова з трьох літер: пропущена голосна; почуй і обери слово */
 const VW = ["a","e","i","o","u"];
@@ -319,6 +350,7 @@ function levelsOf(m){
     {t:"Перший звук",    s:"з якої літери слово",                ic:"👂",   gen:genSounds},
     m.L3 === "where" ? {t:"Where is the cat?", s:"in / on / under / next to", ic:"🐱", gen:genL3}
     : m.L3 === "time" ? {t:"What time is it?", s:"It's seven o'clock.", ic:"🕖", gen:genL3}
+    : m.L3 === "wear" ? {t:"I'm wearing…", s:"a red sweater, blue pants", ic:"👕", gen:genL3}
     : {t:"Is it a …?",     s:"Yes, it is. / No, it isn't.",          ic:"❓",   gen:genL3},
     {t:m.read ? "Читаємо: коротке " + m.read : "Читаємо слова", s:m.C.slice(0, 3).map(x => x[0]).join(", ") + "…", ic:"📖", gen:genRead},
     {t:"Діалог з Teddy", s:m.talk,                                 ic:"🧸",   gen:genTalk},
@@ -420,7 +452,14 @@ for m in MODS:
     L3 = []
     NUMW = ["twelve","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve"]
     CLK = "🕛🕐🕑🕒🕓🕔🕕🕖🕗🕘🕙🕚🕛"
-    if m.get("L3") == "time":
+    WCOLS = [("red", "🔴"), ("blue", "🔵"), ("green", "🟢"), ("yellow", "🟡"), ("purple", "🟣"), ("black", "⚫"), ("white", "⚪"), ("orange", "🟠"), ("brown", "🟤")]
+    if m.get("L3") == "wear":
+        wt = lambda it, c: f"I'm wearing {'' if it[2] else ('an ' if c[0] in 'aeiou' else 'a ')}{c} {it[0]}."
+        for it in m["WR"]:
+            for _ in range(2):
+                col = random.choice(WCOLS); c2 = random.choice([c for c in WCOLS if c != col]); it2 = random.choice([x for x in m["WR"] if x != it])
+                L3.append({"q": f"{col[1]} {it[1]} Що вдягнув Teddy?", "options": [wt(it, col[0]), wt(it, c2[0]), wt(it2, col[0])], "correct": 0})
+    elif m.get("L3") == "time":
         for h in range(1, 13):
             o = random.sample([x for x in range(1, 13) if x != h], 2)
             L3.append({"q": f"{CLK[h]} What time is it?", "options": [f"It's {NUMW[h]} o'clock."] + [f"It's {NUMW[x]} o'clock." for x in o], "correct": 0})
@@ -449,7 +488,7 @@ for m in MODS:
              "stat": "mana", "format": "levels", "xpMode": "perCorrect", "xpValue": 1, "statMode": "fixed", "statValue": 1, "active": True,
              "levels": [{"level": 1, "name": "Слова теми", "count": 6, "questions": L1},
                         {"level": 2, "name": "Перший звук", "count": 6, "questions": L2},
-                        {"level": 3, "name": {"where": "Where is the cat?", "time": "What time is it?"}.get(m.get("L3"), "Is it a …?"), "count": 6, "questions": L3},
+                        {"level": 3, "name": {"where": "Where is the cat?", "time": "What time is it?", "wear": "I'm wearing…"}.get(m.get("L3"), "Is it a …?"), "count": 6, "questions": L3},
                         {"level": 4, "name": f"Читаємо: коротке {m['read']}" if m.get("read") else "Читаємо слова", "count": 6, "questions": L4},
                         {"level": 5, "name": "Діалог з Teddy", "count": len(L5), "questions": L5}]}]
     json.dump(test, open(os.path.join(ROOT, f"tests/test-english-2-module-{m['n']:02d}.json"), "w", encoding="utf8"), ensure_ascii=False, indent=2)
