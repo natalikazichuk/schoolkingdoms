@@ -29,6 +29,13 @@ COLS = ["#e4572e", "#2e86de", "#3aa65b", "#8e5bd6", "#e0a000", "#e0457b"]
 e = lambda s: html.escape(str(s))
 noemo = lambda s: re.sub(r"[\U0001F000-\U0001FAFF☀-➿️‍⬀-⯿]", "", str(s)).replace("  ", " ").strip()
 
+def teddy(pose, h_mm, cls=""):
+    """Teddy Star як data-URI (PNG), щоб Chromium точно підхопив картинку."""
+    import base64, io
+    from PIL import Image
+    im = Image.open(os.path.join(ROOT, "img/teddy", pose + ".webp")).convert("RGBA"); b = io.BytesIO(); im.save(b, "PNG")
+    return f'<img class="{cls}" style="height:{h_mm}mm" src="data:image/png;base64,{base64.b64encode(b.getvalue()).decode()}" alt="Teddy Star">'
+
 def site_mods(path):
     src = open(os.path.join(ROOT, path), encoding="utf8").read()
     block = re.search(r"const MODS = \[\n(.*?)\n\];", src, re.S).group(1)
@@ -54,6 +61,9 @@ td.n {{ font-weight: bold; white-space: nowrap; }}
 .pill.ok {{ border-color: #3aa65b; color: #2b8a4a; }}
 .cover {{ height: 255mm; display: flex; flex-direction: column; justify-content: space-between; }}
 .cover h1 {{ font-size: 36pt; margin-top: 30mm; }}
+.cover .top {{ display: grid; grid-template-columns: 1fr auto; gap: 6mm; align-items: end; }}
+.mascot {{ display: grid; grid-template-columns: 1fr 1fr; gap: 3mm 6mm; margin-top: 3mm; }}
+.pose {{ display: flex; align-items: center; gap: 3mm; font-size: 9pt; }}
 .cover .flag {{ display: flex; gap: 2mm; margin-top: 8mm; }}
 .cover .flag span {{ width: 18mm; height: 18mm; border-radius: 4mm; display: grid; place-items: center; color: #fff; font-size: 20pt; font-weight: bold; }}
 .toc td {{ font-size: 10pt; padding: 1.3mm 2mm; }} .toc td.pg {{ text-align: right; width: 18mm; }}
@@ -75,15 +85,24 @@ p.res {{ font-size: 8.8pt; margin: 0 0 1.4mm; }}
 def doc(body):
     return f'<!doctype html><html lang="uk"><head><meta charset="utf-8"><style>{CSS}</style></head><body>{body}</body></html>'
 
+def mascot_html():
+    M = C["mascot"]
+    poses = "".join(f'<div class="pose">{teddy(p, 22)}<span>{e(t)}</span></div>' for p, t in M["poses"])
+    return (f'<section class="pg"><div class="eyebrow">Маскот курсу</div><div class="top" style="display:grid;grid-template-columns:1fr auto;gap:6mm;align-items:start">'
+            f'<div><h1>{e(M["name"])}</h1>' + "".join(f"<p>{e(x)}</p>" for x in M["bio"]) + f'</div>{teddy("globe", 52)}</div>'
+            f'<h2>Пози й де вони з’являються</h2><div class="mascot">{poses}</div>'
+            '<p class="muted" style="margin-top:3mm">Файли поз — img/teddy/&lt;поза&gt;.webp (прозорий фон).</p></section>')
+
 def about_html():
     return doc('<section class="pg"><div class="eyebrow">Про курс</div><h1>Як влаштований курс</h1>' +
                "".join(f"<p>{e(p)}</p>" for p in C["about"]) +
                "<h2>Як користуватися</h2><ul>" + "".join(f"<li>{e(p)}</li>" for p in C["howto"]) + "</ul>" +
                f'<h2>Пісні</h2><p>{e(C["songs_note"])}</p>' +
+
                "<h2>Класи</h2><table><tr><th>Клас</th><th>Назва</th><th>Готово</th><th>Тренажер на сайті</th></tr>" +
                "".join(f'<tr><td class="n">{g["grade"]} клас</td><td>{e(g["title"].split("·",1)[1].strip())}</td><td>{g["_ready"]} з {len(g["modules"])} модулів</td><td>{e(g["site"])}</td></tr>' for g in C["grades"]) +
                "".join(f'<tr><td class="n">{e(x)}</td><td class="muted">у планах</td><td>—</td><td>—</td></tr>' for x in C.get("planned", [])) +
-               "</table></section>")
+               "</table></section>" + mascot_html())
 
 def grade_html(g):
     rows = ""
@@ -130,7 +149,8 @@ def cover_toc_html(toc):
     today = datetime.date.today().strftime("%d.%m.%Y")
     cover = (f'<section class="pg cover"><div><div class="eyebrow">SchoolKingdoms · курс англійської</div><h1>{e(C["title"])}</h1>'
              f'<p style="font-size:13pt;max-width:150mm">{e(C["subtitle"])}</p>'
-             '<div class="flag">' + "".join(f'<span style="background:{COLS[i]}">{ch}</span>' for i, ch in enumerate("ABCDEF")) + '</div></div>'
+             '<div class="top"><div class="flag">' + "".join(f'<span style="background:{COLS[i]}">{ch}</span>' for i, ch in enumerate("ABCDEF")) + '</div>'
+             f'<div style="text-align:center">{teddy("wave", 95)}<div class="muted">{e(C["mascot"]["name"])}: Let\'s learn together!</div></div></div></div>'
              f'<div class="muted">Оновлено {today} · ' + " · ".join(f'{g["grade"]} клас: {g["_ready"]}/{len(g["modules"])} модулів' for g in C["grades"]) + '</div></section>')
     rows = ""
     for kind, text, page in toc:

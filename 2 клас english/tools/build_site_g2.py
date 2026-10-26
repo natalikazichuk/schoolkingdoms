@@ -26,7 +26,7 @@ M1 = {
  "C": [["cat", "🐱"], ["hat", "🎩"], ["bag", "👜"], ["map", "🗺️"], ["pen", "🖊️"], ["bed", "🛏️"], ["ten", "🔟"], ["red", "🟥"],
        ["pig", "🐷"], ["six", "6"], ["dog", "🐶"], ["box", "📦"], ["sun", "☀️"], ["cup", "🥤"], ["bus", "🚌"]],
  "D": [["Hi! Welcome back to school!", ["Hi, Teddy!", "Goodbye!"], 0],
-       ["I'm Teddy. What's your name?", ["I'm {n}.", "I'm fine."], 0],
+       ["I'm Teddy Star. What's your name?", ["I'm {n}.", "I'm fine."], 0],
        ["Nice to see you again, {n}! How old are you?", ["I'm seven.", "I'm eight.", "I'm six."], -1],
        ["Look! 📏 Is it a pencil?", ["No, it isn't. It's a ruler.", "Yes, it is."], 0],
        ["What color is your backpack?", ["It's blue.", "It's red.", "It's green.", "It's pink."], -1],
@@ -195,7 +195,7 @@ function genTalk(){
   return MOD.D.map(([line, opts, ok]) => {
     const t = line.replace(/\{n\}/g, n), os = opts.map(o => o.replace(/\{n\}/g, n));
     return { ask:"Що відповісти Teddy? Скажи вголос і натисни.",
-      board:`<div class="teddy"><span class="who">🧸</span><div class="bub">${esc(t)}</div></div>${sayBtn(t)}`, pre:t,
+      board:`<div class="teddy"><span class="who">${TED("hello")}<b>Teddy Star</b></span><div class="bub">${esc(t)}</div></div>${sayBtn(t)}`, pre:t,
       opts:(ok < 0 ? shuffle(os) : os).map(o=>({t:o})), ans: ok < 0 ? "*" : os[ok], one:true, cls:"long",
       say: ok < 0 ? null : os[ok], tip: ok < 0 ? "Чудова відповідь!" : os[ok] };
   });
