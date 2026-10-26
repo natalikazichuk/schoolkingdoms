@@ -90,6 +90,31 @@
   .pill.hero{background:#f3edfc;color:#6b3fa0}
   .pill.parent{background:#eaf1fb;color:#2f5ea8}
   .pill.old{background:#fdf5e0;color:var(--gold-ink)}
+  .acc td.act{white-space:nowrap;word-break:normal}
+  /* телефон: замість широкої таблиці — картка на акаунт */
+  @media (max-width:640px){
+    .accwrap{overflow:visible;border:0;border-radius:0}
+    table.acc,.acc tbody{display:block;background:none;border-radius:0;overflow:visible}
+    .acc thead{display:none}
+    .acc tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;align-items:center;
+      background:var(--card);border:1px solid var(--border);border-radius:14px;padding:10px 12px;margin:0 0 8px;box-shadow:var(--shadow)}
+    .acc td{display:block;padding:0;border:0;min-width:0}
+    .acc td.nm{font-size:.98rem;font-weight:800;word-break:break-word}
+    .acc td.act{grid-column:2;grid-row:1 / span 2;align-self:start}
+    .acc td.who{grid-column:1}
+    .acc td.dt,.acc td.pw,.acc td.ses{grid-column:1 / -1;font-size:.8rem;white-space:normal}
+    .acc td[data-l]::before{content:attr(data-l) ': ';color:var(--muted);font-weight:700}
+    .acc .btn.del{padding:9px 12px;font-size:.84rem}
+  }
+  .delmsg{font-weight:600;color:var(--ink);font-size:.92rem}
+  .delmsg ul{margin:6px 0 10px;padding-left:20px}
+  .delname{display:inline-block;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:800;font-size:1.05rem;
+    background:#fdecea;color:var(--danger);border-radius:8px;padding:2px 8px;word-break:break-all;user-select:all}
+  #delIn{width:100%;box-sizing:border-box;font:inherit;font-size:16px;font-weight:700;padding:10px 12px;margin-top:8px;
+    border:2px solid var(--border);border-radius:12px;background:var(--card);color:var(--ink)}
+  #delIn.ok{border-color:#2e9d5b}
+  #delOk:not(:disabled){background:var(--danger);border-color:var(--danger);color:#fff}
+  .sheet-acts{flex-wrap:wrap}
 </style>
 </head>
 <body>
@@ -99,6 +124,17 @@
     <div class="empty">Завантаження…</div>
   </div>
 </div>
+
+<div class="modal" id="delModal"><div class="sheet">
+  <h2>🗑 Видалення акаунта</h2>
+  <div id="delBody"></div>
+  <input type="text" id="delIn" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="логін / email">
+  <div class="sheet-acts">
+    <span class="sp"></span>
+    <button class="btn ghost" id="delNo">Скасувати</button>
+    <button class="btn danger" id="delOk" disabled>Видалити назавжди</button>
+  </div>
+</div></div>
 
 <script type="module" src="firebase-config.js"></script>
 <script>
@@ -215,13 +251,13 @@
       + S.acc.map(function(a){
         var hero = /@hero\.schoolkingdom\.app$/.test(a.email);
         var link = a.has_hero ? 'heroes/' + a.uid : a.has_user ? 'users/' + a.uid : '';
-        return '<tr><td>' + (link ? '<a data-path="' + esc(link) + '">' + esc(hero ? a.email.split('@')[0] : a.email) + '</a>' : esc(a.email))
+        return '<tr><td class="nm">' + (link ? '<a data-path="' + esc(link) + '">' + esc(hero ? a.email.split('@')[0] : a.email) + '</a>' : esc(a.email))
           + (a.disabled ? ' 🚫' : '') + '</td>'
-          + '<td><span class="pill ' + (hero ? 'hero">герой' : 'parent">дорослий') + '</span></td>'
-          + '<td class="dt">' + esc(when(a.last_login)) + '</td><td class="dt">' + esc(when(a.created_at)) + '</td>'
-          + '<td>' + (a.pass_format === 'firebase' ? '<span class="pill old" title="Ще не входив на новому сервері">з Firebase</span>' : 'новий') + '</td>'
-          + '<td>' + a.sessions + '</td>'
-          + '<td><button class="btn xs del" data-del="' + esc(a.uid) + '" title="Видалити акаунт">🗑 Видалити</button></td></tr>';
+          + '<td class="who"><span class="pill ' + (hero ? 'hero">герой' : 'parent">дорослий') + '</span></td>'
+          + '<td class="dt" data-l="Вхід">' + esc(when(a.last_login)) + '</td><td class="dt" data-l="Створено">' + esc(when(a.created_at)) + '</td>'
+          + '<td class="pw" data-l="Пароль">' + (a.pass_format === 'firebase' ? '<span class="pill old" title="Ще не входив на новому сервері">з Firebase</span>' : 'новий') + '</td>'
+          + '<td class="ses" data-l="Сесій">' + a.sessions + '</td>'
+          + '<td class="act"><button class="btn xs del" data-del="' + esc(a.uid) + '" title="Видалити акаунт">🗑 Видалити</button></td></tr>';
       }).join('') + '</tbody></table></div>';
   }
   function render(){
@@ -252,23 +288,37 @@
     S.view = 'acc'; render();
     api('GET', 'accounts').then(function(r){ S.acc = r.accounts; render(); }, fail);
   }
-  /* видалення: спершу сервер показує, що зникне (dry), потім треба ввести логін / email */
+  /* видалення: спершу сервер показує, що зникне (dry), потім у вікні треба ввести логін / email.
+     Своє вікно, а не prompt(): на телефоні prompt обрізав текст і не було видно, що вводити. */
+  var delModal = document.getElementById('delModal');
+  var norm = function(v){ return String(v || '').replace(/\s+/g, '').toLowerCase(); };
   function delAcc(uid){
     api('POST', 'account/delete', { uid:uid, dry:true }).then(function(r){
       var hero = /@hero\.schoolkingdom\.app$/.test(r.email);
       var name = hero ? r.email.split('@')[0] : r.email;
-      var msg = 'Видалити акаунт «' + name + '» назавжди?\n\n';
-      if(r.heroes.length) msg += 'Разом з ' + (hero ? 'Героєм' : 'Героями (' + r.heroes.length + ')') + ':\n'
-        + r.heroes.map(function(h){ return '  • ' + (h.name || h.id) + (h.login ? ' (' + h.login + ')' : ''); }).join('\n') + '\n\n';
-      msg += 'Акаунтів: ' + r.accounts.length + ', документів: ' + r.docs + '. Повернути можна лише з копії бази.\n\n'
-        + 'Щоб підтвердити, введи: ' + name;
-      var typed = prompt(msg);
-      if(typed == null) return;
-      if(typed.trim().toLowerCase() !== name.toLowerCase()) return SKADMIN.toast('Не збігається — нічого не видалено', true);
-      return api('POST', 'account/delete', { uid:uid, confirm:r.email }).then(function(d){
-        SKADMIN.toast('Видалено: акаунтів ' + d.accounts.length + ', документів ' + d.docs);
-        return loadInfo().then(openAcc);
-      });
+      document.getElementById('delBody').innerHTML = '<div class="delmsg">'
+        + 'Видалити акаунт <b>«' + esc(name) + '»</b> назавжди?'
+        + (r.heroes.length ? '<div style="margin-top:8px">Разом з ' + (hero ? 'Героєм' : 'Героями (' + r.heroes.length + ')') + ':</div><ul>'
+          + r.heroes.map(function(h){ return '<li>' + esc(h.name || h.id) + (h.login ? ' (' + esc(h.login) + ')' : '') + '</li>'; }).join('') + '</ul>' : '')
+        + '<div class="muted" style="margin:8px 0">Акаунтів: ' + r.accounts.length + ', документів: ' + r.docs + '. Повернути можна лише з копії бази.</div>'
+        + 'Щоб підтвердити, введи: <span class="delname">' + esc(name) + '</span></div>';
+      var inp = document.getElementById('delIn'), ok = document.getElementById('delOk');
+      inp.value = ''; inp.className = ''; ok.disabled = true;
+      inp.oninput = function(){ var m = norm(inp.value) === norm(name); ok.disabled = !m; inp.className = m ? 'ok' : ''; };
+      var close = function(){ delModal.classList.remove('open'); };
+      document.getElementById('delNo').onclick = close;
+      delModal.onclick = function(e){ if(e.target === delModal) close(); };
+      ok.onclick = function(){
+        if(norm(inp.value) !== norm(name)) return SKADMIN.toast('Не збігається — нічого не видалено', true);
+        ok.disabled = true;
+        api('POST', 'account/delete', { uid:uid, confirm:r.email }).then(function(d){
+          close();
+          SKADMIN.toast('Видалено: акаунтів ' + d.accounts.length + ', документів ' + d.docs);
+          return loadInfo().then(openAcc);
+        }).catch(function(e){ ok.disabled = false; fail(e); });
+      };
+      delModal.classList.add('open');
+      setTimeout(function(){ inp.focus(); }, 50);
     }).catch(fail);
   }
   function loadInfo(){
