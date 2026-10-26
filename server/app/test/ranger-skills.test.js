@@ -668,3 +668,16 @@ test('Пастка спрацьовує лише від удару, що влу�
   let e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now());
   for (let i = 0; i < 2; i++) { assert.ok(!e.trap || e.trap.kind !== 'trapSprung', 'промах — не спрацювала'); e = SB.turn(ctx, st, { atk: 'head', block: 'body' }, {}, Date.now()); }
 });
+
+test('Збити з пантелику: не вдалося — без перезарядки; вдалося — перезарядка', () => {
+  let fail = 0, ok = 0;
+  for (let k = 0; k < 60 && (!fail || !ok); k++) {
+    const st = battle({ 'ranger.daze': 0 }, ['ranger.daze'], [wear(DAGGER, 'weaponR')]);
+    SB.useSkill(ctx, st, 'ranger.daze');
+    const e = turnOf(st, { atk: 'head', block: 'body' });
+    if (!e.skill) continue;
+    if (e.skill.kind === 'fail') { fail++; assert.ok(!(st.me.cd && st.me.cd['knight.daze'] > st.round) && !(st.me.cd && st.me.cd['ranger.daze'] > st.round)); }
+    else { ok++; assert.ok((st.me.cd['knight.daze'] || st.me.cd['ranger.daze']) > st.round); }
+  }
+  assert.ok(fail && ok);
+});
