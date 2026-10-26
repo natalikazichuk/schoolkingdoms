@@ -881,7 +881,7 @@
      суперника чи вистрілити в нього не можна. Перевіряти blindOn() там, де обирається ціль вміння. */
   function blindOn(st) { var f = st.me && st.me.fx, b = f && f.blind; return !!(b && num(b.from) <= st.round && num(b.until) >= st.round); }
   /* ── ПАСТКА (Слідопит): ставиш у зону (st.me.trapZone; не та, що блокуєш; не обрав — випадкова). Шанс 50% → 100%,
-     вдалося — −mana; стоїть wait ходів (2 → 4, цей теж). Суперник ударив у цю зону — перший удар, що влучив, ×cut %,
+     вдалося — −mana; стоїть цей хід + ще wait ходів (2 → 4). Суперник ударив у цю зону — перший удар, що влучив, ×cut %,
      і наступного ходу він «у пастці» 🪤: звичайних ударів немає (вміння, пояс, блок — так), ухилитись від твоїх ударів
      не може. Стійкість рятує від «у пастці» (урон ×cut лишається); після — 2 ходи імунітету. Перезарядка cd — коли
      пастка спрацювала чи зникла. fx.trap = {zone, from, until, cut} у того, хто поставив; fx.trapped = хід у пастці. */
@@ -893,7 +893,7 @@
     var mn = V(st, id, 'mana'); if (mn) { st.me.mana = Math.max(0, num(st.me.mana) - mn); rec.mana = mn; }
     var z = st.me.trapZone; if (ZONES.indexOf(z) < 0 || z === block) { var free = ZONES.filter(function (x) { return x !== block; }); z = pick(free, rnd); rec.auto = true; }
     var n = Math.max(1, V(st, id, 'wait') || 2);
-    fxOf(st.me).trap = { zone: z, from: st.round, until: st.round + n - 1, cut: V(st, id, 'cut') || 50 };
+    fxOf(st.me).trap = { zone: z, from: st.round, until: st.round + n, cut: V(st, id, 'cut') || 50 };   // діє вже цього ходу + ще n повних ходів
     st.me.skill = null; st.me.trapZone = null;                   // поставив — вибір знято
     rec.kind = 'trapSet'; rec.zone = z; rec.turns = n;
     return rec;
