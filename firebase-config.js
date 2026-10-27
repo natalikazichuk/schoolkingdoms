@@ -180,13 +180,24 @@ function itemsDay(ts) {
   try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Kyiv', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ts)); }
   catch (e) { return new Date(ts).toISOString().slice(0, 10); }
 }
+/* старі назви в записах речей (до 27.10) → нові: категорії «Зелья» → «Зілля», «Свиток» → «Сувій»,
+   характеристика «Барєр» → «Бар'єр». Записи в базі оновлює адмінка («Орфографія в назвах»),
+   а доти сайт бачить уже нові назви. */
+const ITEM_CAT_RENAME = { 'Зелья': 'Зілля', 'Свиток': 'Сувій' };
+const ITEM_STAT_RENAME = { 'Барєр': "Бар'єр" };
+function itemNorm(it) {
+  if (!it) return it;
+  if (ITEM_CAT_RENAME[it.category]) it.category = ITEM_CAT_RENAME[it.category];
+  if (Array.isArray(it.addStats)) it.addStats.forEach(e => { if (e && ITEM_STAT_RENAME[e.stat]) e.stat = ITEM_STAT_RENAME[e.stat]; });
+  return it;
+}
 function itemsCacheGet() {
   let c = itemsMem;
   if (!c) { try { c = JSON.parse(localStorage.getItem(ITEMS_CACHE_KEY) || 'null'); } catch (e) { c = null; } }
   const now = Date.now();
   if (!c || !c.json || c.day !== itemsDay(now) || (c.at || 0) > now) return null;
   itemsMem = c;
-  try { return JSON.parse(c.json); } catch (e) { return null; }
+  try { return JSON.parse(c.json).map(itemNorm); } catch (e) { return null; }
 }
 function itemsCachePut(list, ver) {
   const json = JSON.stringify(list, (k, v) => (v && typeof v.toMillis === 'function') ? v.toMillis() : v);
@@ -1105,6 +1116,11 @@ const SK = {
      Тепер (власний сервер, квоти Firestore немає) кеш ще й звіряється з міткою
      meta/items раз на хвилину — зміни з адмінки видно одразу (див. itemsVer). */
   async listItems(opts) {
+    if (opts && opts.raw) {                      // як лежить у базі, без нормалізації назв (адмінка «Орфографія в назвах»)
+      const snap = await getDocs(collection(db, 'items'));
+      const out = []; snap.forEach(d => out.push(Object.assign({ id: d.id }, d.data())));
+      return out;
+    }
     const fresh = !!(opts && opts.fresh);
     if (!fresh) {
       const c = itemsCacheGet();
@@ -1122,7 +1138,7 @@ const SK = {
         itemsVerAt = Date.now();
         const snap = await getDocs(collection(db, 'items'));
         const out = [];
-        snap.forEach(d => out.push(Object.assign({ id: d.id }, d.data())));
+        snap.forEach(d => out.push(itemNorm(Object.assign({ id: d.id }, d.data()))));
         out.sort((a, b) =>
           (Number(a.order) || 0) - (Number(b.order) || 0) ||
           String(a.id || '').localeCompare(String(b.id || ''), 'uk'));
@@ -1152,7 +1168,7 @@ const SK = {
   async getItem(id) {
     if (!id) return null;
     const s = await getDoc(doc(db, 'items', id));
-    return s.exists() ? Object.assign({ id: s.id }, s.data()) : null;
+    return s.exists() ? itemNorm(Object.assign({ id: s.id }, s.data())) : null;
   },
 
   // Створити/оновити предмет. Якщо є id (напр. «IT-001») — пише саме туди

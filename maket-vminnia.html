@@ -22,7 +22,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
-<script src="sk-skills.js?v=84"></script>
+<script src="sk-skills.js?v=85"></script>
 <style>
 /* ════════════════════════════════════════════════════════════════
    МАКЕТ «Книга вмінь» у вікні героя (арена → Інвентар).
@@ -343,7 +343,7 @@ var FX = {
   'base.weapons': function(m){ return '+' + pc(25 * m) + ' урону зброєю'; },
   'base.kick':    function(m){ return 'вдається в ' + pc(50 + 50 * m) + ', збиває з ніг ' + pc(10 * m); },
   'base.potions': function(m){ return 'зілля сильніші на ' + pc(50 * m); },
-  'base.scrolls': function(m){ return 'свитки сильніші на ' + pc(50 * m) + (m >= 1 ? ', 2 бар\'єри' : ''); },
+  'base.scrolls': function(m){ return 'сувої сильніші на ' + pc(50 * m) + (m >= 1 ? ', 2 бар\'єри' : ''); },
   'base.trade':   function(m){ return 'купуєш дешевше на ' + pc(20 * m) + ', продаєш дорожче на ' + pc(20 * m); },
   'base.magic':   function(m){ return '+' + pc(25 * m) + ' сили заклинань'; },
   'base.spark':   function(m){ return 'вдається в ' + pc(50 + 50 * m) + ', урон 5–10'; },
@@ -361,9 +361,9 @@ function fresh(){
            bar: ['base.kick', null, null, null, null], cls: null, tab: 1, book: true,
            bag: freshBag(), belt: [{ id: 'IT-126', q: 1 }, { id: 'IT-119', q: 1 }], beltCap: 2 };
 }
-/* речі макета: справжні картинки й назви з бази; на пояс — лише зілля (IT-119…125) і свитки (IT-126…131) */
+/* речі макета: справжні картинки й назви з бази; на пояс — лише зілля (IT-119…125) і сувої (IT-126…131) */
 var ITEM_NM = { 'IT-119':'Зілля маг. захисту', 'IT-120':'Зілля здоров\'я', 'IT-121':'Зілля-антидот', 'IT-122':'Кам\'яна шкіра',
-  'IT-123':'Зілля точності', 'IT-124':'Зілля ухилення', 'IT-125':'Зілля удачі', 'IT-126':'Свиток страху', 'IT-127':'Виклик блискавки',
+  'IT-123':'Зілля точності', 'IT-124':'Зілля ухилення', 'IT-125':'Зілля удачі', 'IT-126':'Сувій страху', 'IT-127':'Виклик блискавки',
   'IT-128':'Вогняна куля', 'IT-129':'Кислотний пар', 'IT-130':'Захисний бар\'єр' };
 function itemNo(id){ return +String(id).slice(3); }
 function isCons(id){ var n = itemNo(id); return n >= 119 && n <= 131; }
@@ -379,7 +379,7 @@ if (!S.bag) { var F = fresh(); S.bag = F.bag; S.belt = F.belt; S.beltCap = F.bel
 S.belt.forEach(function(b){ if (b && b.q > 1) { var extra = b.q - 1; b.q = 1; var x = S.bag.filter(function(y){ return y.id === b.id; })[0]; if (x) x.q += extra; else S.bag.unshift({ id: b.id, q: extra }); } });
 function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} }
 var sel = null;          // обране (піднесене) активне вміння, чекає на слот
-var selIt = null;        // обрана в сумці річ (зілля/свиток), чекає на комірку пояса
+var selIt = null;        // обрана в сумці річ (зілля/сувій), чекає на комірку пояса
 var lastTap = { id: null, t: 0 };
 
 /* ── обчислення ── */
@@ -455,7 +455,7 @@ function renderBelt(){
       + (b ? '<div class="bit" data-bit="' + b.id + '" data-bfrom="' + i + '"><img src="img/items/' + b.id + '.webp" alt="">' + (b.q > 1 ? '<span class="q">×' + b.q + '</span>' : '') + '</div>'
            + '<span class="nm">' + esc(ITEM_NM[b.id] || '') + '</span>' : '') + '</div>';
   }
-  h += '<div class="hint">' + (selIt ? 'Торкнись комірки, куди покласти «' + esc(ITEM_NM[selIt]) + '»' : 'Зілля й свитки на бій.<br>Торкнись — повернеш у сумку') + '</div>';
+  h += '<div class="hint">' + (selIt ? 'Торкнись комірки, куди покласти «' + esc(ITEM_NM[selIt]) + '»' : 'Зілля й сувої на бій.<br>Торкнись — повернеш у сумку') + '</div>';
   $('bbar').innerHTML = h;
 }
 
@@ -581,7 +581,7 @@ function beltBack(slot){
   toast('🎒 «' + ITEM_NM[b.id] + '» повернулось у сумку');
 }
 function tapItem(id){
-  if (!isCons(id)) return toast('На пояс можна класти лише зілля й свитки');
+  if (!isCons(id)) return toast('На пояс можна класти лише зілля й сувої');
   var now = Date.now(), key = 'it:' + id;
   var dbl = lastTap.id === key && now - lastTap.t < 380;
   lastTap = { id: key, t: now };
@@ -708,7 +708,7 @@ function endDrag(e){
     var under = document.elementFromPoint(e.clientX, e.clientY);
     var s = under && under.closest('.bslot');
     var mine = s && s.matches(TARGET[d.type]);
-    if (s && !mine) { toast(d.type === 'sk' ? 'Вміння — на панель вмінь ⚡' : 'Зілля й свитки — на пояс 🪢'); render(); return; }
+    if (s && !mine) { toast(d.type === 'sk' ? 'Вміння — на панель вмінь ⚡' : 'Зілля й сувої — на пояс 🪢'); render(); return; }
     if (d.type === 'sk') {
       if (s && !s.classList.contains('lock')) place(d.id, +s.dataset.slot);
       else if (s) toast('🔒 Цей слот відкриється на ' + SLOT_LV[+s.dataset.slot] + ' рівні');

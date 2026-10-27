@@ -368,6 +368,33 @@ test('Пісок в очі: ворог сліпий — точність і сп
   assert.ok(acc0 > 0);
 });
 
+test('Пута лісу: −30 мани; 3 ходи спритність −30% і −4% здоров\'я щоходу; удруге не накласти; потім імунітет', () => {
+  const st = battle({ 'ranger.vines': 1 }, ['ranger.vines']);
+  const max = st.op.max;
+  SB.useSkill(ctx, st, 'ranger.vines');
+  const m0 = st.me.mana, e = turnOf(st);
+  assert.strictEqual(e.skill.kind, 'vines'); assert.strictEqual(m0 - st.me.mana, 30);
+  assert.strictEqual(e.skill.turns, 3); assert.strictEqual(e.skill.agi, 30); assert.strictEqual(e.skill.tick, 4);
+  assert.strictEqual(e.vines, Math.round(max * 0.04), 'стягнули вже в хід накладання');
+  assert.strictEqual(SB.skillBlock(st, 'ranger.vines'), 'cd');
+  const e2 = turnOf(st), e3 = turnOf(st), e4 = turnOf(st);
+  assert.strictEqual(e2.vines, Math.round(max * 0.04)); assert.strictEqual(e3.vines, Math.round(max * 0.04));
+  assert.ok(!e4.vines, 'після 3 ходів пута спали');
+  assert.ok(!st.op.fx.vines);
+  st.me.cd = {};
+  assert.strictEqual(SB.skillBlock(st, 'ranger.vines'), 'vines', 'імунітет після пут');
+});
+
+test('Пута лісу: у путах спритність менша — по ворогу легше влучити', () => {
+  const st = battle({ 'ranger.vines': 1 }, ['ranger.vines']);
+  st.op.fx = { vines: { from: st.round, until: st.round + 2, agi: 30, tick: 4 } };
+  const mir = { me: st.op, op: st.me, round: st.round };
+  assert.ok(SB.vinesOn(st.op, st.round));
+  assert.strictEqual(SB.turnBoost(mir, st.op.p).agility, Math.round(st.op.p.agility * 0.7));
+  mir.round = st.round + 3;
+  assert.strictEqual(SB.turnBoost(mir, st.op.p).agility, st.op.p.agility, 'пута спали — спритність як була');
+});
+
 test('Лук: вміння зброї — точність і урон з луком', () => {
   const a = battle({}, [], [wear(BOW, 'weaponR')]), b = battle({ 'ranger.bow': 1 }, [], [wear(BOW, 'weaponR')]);
   assert.strictEqual(b.me.p.accuracy, Math.round(a.me.p.accuracy * 1.2));

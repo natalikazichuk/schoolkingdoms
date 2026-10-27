@@ -52,7 +52,7 @@
     'Додаткова атака': 'extraAttack',
     'Комірки пояса': 'beltSlots',
     'Страх': 'fear',
-    'Барєр': 'barrier',
+    'Барєр': 'barrier',            // стара назва (до 27.10) — ключі в базі
     "Бар'єр": 'barrier',
     'Антидот': 'antidote',
     'Оглушення': 'stun',
@@ -86,7 +86,7 @@
     { key: 'mace',     label: 'Булава',       icon: '🔨', dmg: 'bash',   hint: 'булави, молоти, дубини, киянки' },
     { key: 'flail',    label: 'Кистень',      icon: '⛓️', dmg: 'bash',   hint: 'кистені, ціпи' },
     { key: 'spear',    label: 'Спис',         icon: '🔱', dmg: 'pierce', hint: 'списи, вила, алебарди' },
-    { key: 'whip',     label: 'Кнут',         icon: '➰', dmg: 'slash',  hint: 'кнути, батоги, плетки' },
+    { key: 'whip',     label: 'Кнут',         icon: '➰', dmg: 'slash',  hint: 'кнути, батоги, нагайки' },
     { key: 'staff',    label: 'Посох',        icon: '🦯', dmg: 'bash',   hint: 'посохи, палиці' },
     { key: 'wand',     label: 'Жезл',         icon: '🪄', dmg: 'magic',  hint: 'жезли, чарівні палички, указки' },
     { key: 'knuckles', label: 'Кастети',      icon: '🥊', dmg: 'bash',   hint: 'кастети, бойові рукавиці — пара на обидві руки, щит у лівій можна' },
@@ -119,6 +119,11 @@
     var w = weaponType(wKey); return w ? w.dmg : null;
   }
 
+  /* старі назви категорій і характеристик (до 27.10: «Зелья», «Сувій», «Барєр») → нові;
+     каталог нормалізується при завантаженні (firebase-config.js), тут — запас для перевірок */
+  var CAT_RENAME = { 'Зелья': 'Зілля', 'Свиток': 'Сувій' };
+  function catCanon(c) { return CAT_RENAME[c] || c; }
+  function isScrollCat(c) { return catCanon(c) === 'Сувій'; }
   function isFlagEntry(e) { return !!(e && (e.flag || FLAG_STATS.indexOf(e.stat) >= 0)); }
   /* шанси (крит, блок) — завжди у відсотках, незалежно від галочки «%» у записі речі */
   var PCT_ALWAYS = { critDamage: 1, block: 1, resPoison: 1, resFire: 1, resCold: 1, resShock: 1, resLight: 1, resDark: 1, resPierce: 1, resSlash: 1, resBash: 1, resMagic: 1 };
@@ -447,10 +452,10 @@
       (b.addStats || []).some(function (e) { return e && canon(e.stat) === 'mana'; })));
   }
   /* скільки штук разового товару в наявності за день:
-     зілля здоров'я й мани — 3–10, свитки — 1–5, решта зілль (удачі, точності…) — 1–3 */
+     зілля здоров'я й мани — 3–10, сувої — 1–5, решта зілль (удачі, точності…) — 1–3 */
   var SHOP_QTY = { potion: [3, 10], scroll: [1, 5], other: [1, 3] };
   function consQty(b, rnd) {
-    var r = (isHealthPotion(b) || isManaPotion(b)) ? SHOP_QTY.potion : (b && b.category === 'Свиток') ? SHOP_QTY.scroll : SHOP_QTY.other;
+    var r = (isHealthPotion(b) || isManaPotion(b)) ? SHOP_QTY.potion : (b && isScrollCat(b.category)) ? SHOP_QTY.scroll : SHOP_QTY.other;
     return r[0] + Math.floor(rnd() * (r[1] - r[0] + 1));
   }
   /* Порядок товарів — за «жеребом» кожної речі (хеш героя, дня й id), а не перемішуванням
@@ -459,7 +464,7 @@
   /* СПОРЯДЖЕННЯ: спершу по одній речі з кожної категорії (SHOP_MAIN_CATS), решта місць —
      кидок категорії (усі рівні, незалежно від того, скільки в ній речей), потім річ у ній;
      однієї категорії — не більше SHOP_CAT_MAX. Невідомі категорії — у кидку як окремі.
-     opts.stockPct — «Торгівля»: +N% місць і для речей, і для зілль/свитків (на 100% — удвічі). */
+     opts.stockPct — «Торгівля»: +N% місць і для речей, і для зілль/сувоїв (на 100% — удвічі). */
   function shopStock(catalog, heroId, now, opts) {
     var day = kyivDay(now), key = String(heroId || '') + '|' + day;
     var more = 1 + Math.max(0, Number(opts && opts.stockPct) || 0) / 100;
@@ -613,7 +618,7 @@
      категорії), «×N» для стопки, смужка міцності; cls — колір бонусу
      (b20 золото, b10 срібло, bm10 сіре). opts.root — шлях до кореня сайту. */
   var CAT_EMO = { 'Шоломи': '⛑️', 'Обладунки': '🥋', 'Рукавиці': '🧤', 'Наручі': '🦾', 'Пояси': '🪢', 'Штани': '👖', 'Взуття': '👢',
-    'Зброя': '⚔️', 'Щити': '🛡️', 'Кільце': '💍', 'Амулет': '📿', 'Зелья': '🧪', 'Свиток': '📜' };
+    'Зброя': '⚔️', 'Щити': '🛡️', 'Кільце': '💍', 'Амулет': '📿', 'Зілля': '🧪', 'Сувій': '📜', 'Зелья': '🧪', 'Свиток': '📜' };
   /* ── ГРУПИ РЕЧЕЙ за місцем на тілі (закладки інвентаря й магазину) ──
      cats — категорії каталогу в порядку сортування всередині групи. */
   var GROUPS = [
@@ -623,7 +628,7 @@
     { key: 'arms',   label: 'Руки',      icon: '🧤', cats: ['Рукавиці', 'Наручі'] },
     { key: 'legs',   label: 'Ноги',      icon: '👢', cats: ['Штани', 'Взуття'] },
     { key: 'jewel',  label: 'Біжутерія', icon: '💍', cats: ['Кільце', 'Амулет'] },
-    { key: 'other',  label: 'Інше',      icon: '🧪', cats: ['Зелья', 'Свиток'] }
+    { key: 'other',  label: 'Інше',      icon: '🧪', cats: ['Зілля', 'Сувій', 'Зелья', 'Свиток'] }
   ];
   var CAT_ORDER = {};
   GROUPS.forEach(function (g, gi) { g.cats.forEach(function (c, ci) { CAT_ORDER[c] = { g: g.key, n: gi * 10 + ci }; }); });
@@ -681,7 +686,7 @@
      .claude/skills/item-image-prompt — змінюєш стиль, міняй тут. */
   var PROMPT_CATS = { 'Зброя': 'weapon', 'Щити': 'shield', 'Шоломи': 'helmet', 'Обладунки': 'body armor', 'Рукавиці': 'gloves (a pair)',
     'Наручі': 'bracers (a pair)', 'Пояси': 'belt', 'Штани': 'pants', 'Взуття': 'boots (a pair)', 'Кільце': 'ring', 'Амулет': 'amulet',
-    'Зелья': 'potion in a glass bottle', 'Зілля': 'potion in a glass bottle', 'Свиток': 'magic scroll' };
+    'Зелья': 'potion in a glass bottle', 'Зілля': 'potion in a glass bottle', 'Свиток': 'magic scroll', 'Сувій': 'magic scroll' };
   var PROMPT_WEAPONS = { sword: 'sword', dagger: 'dagger', axe: 'axe', mace: 'mace', flail: 'flail', spear: 'spear', whip: 'whip', staff: 'staff',
     wand: 'magic wand', knuckles: 'pair of brass knuckles', bow: 'bow', exotic: 'unusual improvised weapon' };
   var PROMPT_TIERS = [
@@ -733,6 +738,7 @@
     STAT_MAP: STAT_MAP,
     FLAG_STATS: FLAG_STATS,
     isFlagEntry: isFlagEntry,
+    catCanon: catCanon, isScrollCat: isScrollCat,
     isPctStat: isPctStat,
     canon: canon,
     rollBonus: rollBonus,
