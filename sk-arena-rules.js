@@ -71,11 +71,11 @@
     swapsPerTurn: 1,   // спецвмінь за хід: перевдягання АБО одна річ із пояса
     buffMin: 5,        // підсилення із зілля діє 🎲 від buffMin …
     buffMax: 10,       // … до buffMax ходів (кидок при використанні)
-    fearFirst: 0.90,   // шанс, що перший свиток страху спрацює
+    fearFirst: 0.90,   // шанс, що перший сувій страху спрацює
     fearNext: 0.50,    // шанс кожного наступного (після першого спрацювання — опір 50%)
     fearImmune: 2,     // після стількох спрацювань страху — імунітет до кінця бою
     botBeltSlots: 5,   // пояс суперника: комірок (за замовчуванням порожній)
-    botBeltTest: true, // ТЕСТ: класти боту в пояс свитки з каталогу (спершу — страх); false — пояс порожній
+    botBeltTest: true, // ТЕСТ: класти боту в пояс сувої з каталогу (спершу — страх); false — пояс порожній
     botBeltUse: 25,    // шанс за хід, що бот використає річ із пояса (якщо є)
     dualWield: false,  // дві зброї одночасно: вмикається для Героя з вмінням «Друга зброя» (handsFromHero)
     grip: false,       // дворучна зброя + щит: вмикається для Героя з вмінням «Хватка велетня» (handsFromHero)
@@ -93,16 +93,16 @@
      у бою зараз (null — на арені поки не використовується). */
   var COMBAT_STATS = [
     { key: 'armor',       label: 'Броня',                 emoji: '🛡️', base: 0, arena: 'зменшує фізичний урон суперника: броня = удару → проходить 50%, удвічі більша → 25% (мінімум)' },
-    { key: 'magicResist', label: 'Магічний захист',       emoji: '🔮', base: 0, arena: 'зменшує магічний урон (і свитки) так само, як броня — фізичний' },
+    { key: 'magicResist', label: 'Магічний захист',       emoji: '🔮', base: 0, arena: 'зменшує магічний урон (і сувої) так само, як броня — фізичний' },
     { key: 'damage',      label: 'Фізичний урон',         emoji: '⚔️', base: 0, arena: 'фізична зброя — діапазон удару; інші речі — + до удару, % — множник (лише для фізичного удару)' },
-    { key: 'magicDamage', label: 'Магічний урон',         emoji: '✨', base: 0, arena: 'магічна зброя робить увесь удар магічним; інші речі — + до удару, % — множник магічного удару й свитків; на свитку — урон свитка' },
+    { key: 'magicDamage', label: 'Магічний урон',         emoji: '✨', base: 0, arena: 'магічна зброя робить увесь удар магічним; інші речі — + до удару, % — множник магічного удару й сувоїв; на сувою — урон сувою' },
     { key: 'critDamage',  label: 'Шанс крит. урону',      emoji: '💥', base: 0, arena: '+ до шансу криту (у %)' },
     { key: 'extraAttack', label: 'Додаткова атака',       emoji: '⚡', base: 0, arena: '+1 удар за хід за кожну одиницю' },
-    { key: 'block',       label: 'Шанс блоку',            emoji: '🧱', base: 0, arena: 'шанс заблокувати удар у НЕзахищену зону. Річ із бронею (або іншою характеристикою) блокує фізичні удари, з магічним захистом чи магічним уроном — магічні удари й свитки. Зі щитом, головна характеристика якого «Спритність», усі шанси з речей разом і навпіл діють проти будь-яких ударів — це відскок' },
-    { key: 'beltSlots',   label: 'Комірки пояса',         emoji: '🧵', base: 0, arena: 'скільки зілль і свитків можна взяти в бій (пояс)' },
+    { key: 'block',       label: 'Шанс блоку',            emoji: '🧱', base: 0, arena: 'шанс заблокувати удар у НЕзахищену зону. Річ із бронею (або іншою характеристикою) блокує фізичні удари, з магічним захистом чи магічним уроном — магічні удари й сувої. Зі щитом, головна характеристика якого «Спритність», усі шанси з речей разом і навпіл діють проти будь-яких ударів — це відскок' },
+    { key: 'beltSlots',   label: 'Комірки пояса',         emoji: '🧵', base: 0, arena: 'скільки зілль і сувоїв можна взяти в бій (пояс)' },
     { key: 'healthRegen', label: "Відновлення здоров'я",  emoji: '💚', base: 0, arena: "зілля з пояса: + N% від максимального здоров'я одразу, не вище максимуму" },
-    { key: 'fear',        label: 'Страх',                 emoji: '😱', base: 0, arena: 'свиток: суперник у цьому ході не атакує й не робить спецдій. Перший спрацьовує з шансом 90%, далі — 50% (опір); після двох спрацювань — імунітет' },
-    { key: 'barrier',     label: "Бар'єр",                emoji: '🫧', base: 0, arena: 'свиток: поглинає один удар, що забрав би здоров\'я (ухилився чи заблокував — бар\'єр лишається)' },
+    { key: 'fear',        label: 'Страх',                 emoji: '😱', base: 0, arena: 'сувій: суперник у цьому ході не атакує й не робить спецдій. Перший спрацьовує з шансом 90%, далі — 50% (опір); після двох спрацювань — імунітет' },
+    { key: 'barrier',     label: "Бар'єр",                emoji: '🫧', base: 0, arena: 'сувій: поглинає один удар, що забрав би здоров\'я (ухилився чи заблокував — бар\'єр лишається)' },
     { key: 'stun',        label: 'Оглушення',             emoji: '💫', base: 0, arena: null },
     { key: 'antidote',    label: 'Антидот',               emoji: '🧪', base: 0, arena: 'зілля: знімає отруту; далі 2 ходи опір отруті 100%, потім щоходу −10% — до свого опору (з речей)' },
     { key: 'resPoison',   label: 'Опір отруті',           emoji: '🐍', base: 0, arena: 'свій опір отруті (%): менше урону отрутою з удару й тіків отрути, менший шанс тебе отруїти; після отруєння опір падає не нижче нього' },
@@ -114,7 +114,7 @@
     { key: 'resPierce',   label: 'Опір колючому',         emoji: '📌', base: 0, arena: 'кінцеве −% урону колючою зброєю (кинджал, спис, лук); з речей разом ≤ 33%' },
     { key: 'resSlash',    label: 'Опір рублячому',        emoji: '🪚', base: 0, arena: 'кінцеве −% урону рублячою зброєю (меч, сокира, кнут); з речей разом ≤ 33%' },
     { key: 'resBash',     label: 'Опір тупому',           emoji: '🪨', base: 0, arena: 'кінцеве −% урону тупою зброєю (булава, кистень, посох, кулаки, Пінок); з речей разом ≤ 33%' },
-    { key: 'resMagic',    label: 'Опір магії',            emoji: '✨', base: 0, arena: 'кінцеве −% магічного урону (магічна зброя, Вогник, свитки); з речей разом ≤ 33%' }
+    { key: 'resMagic',    label: 'Опір магії',            emoji: '✨', base: 0, arena: 'кінцеве −% магічного урону (магічна зброя, Вогник, сувої); з речей разом ≤ 33%' }
   ];
   /* характеристики Героя (зберігаються в heroes/{id}) — що вони роблять на арені */
   var HERO_STATS = {
@@ -374,7 +374,7 @@
   }
 
   /* яку атаку блокує «Шанс блоку» речі — за її головною характеристикою:
-     магічний захист або магічний урон → магічні удари (магічна зброя, свитки);
+     магічний захист або магічний урон → магічні удари (магічна зброя, сувої);
      броня й усе інше → фізичні удари */
   function blockKind(base, skit) {
     var k = base && base.stat ? (skit && skit.canon ? skit.canon(base.stat) : base.stat) : '';
@@ -479,8 +479,8 @@
 
   /* ── пояс суперника ──
      botBelt(catalog, skit) → [{base, inst}] до botBeltSlots речей. За замовчуванням
-     порожній; у тесті (botBeltTest) — свитки з каталогу: спершу до 2 свитків страху
-     (після 2 спрацювань — імунітет, більше не треба), решта — випадкові свитки. */
+     порожній; у тесті (botBeltTest) — сувої з каталогу: спершу до 2 сувоїв страху
+     (після 2 спрацювань — імунітет, більше не треба), решта — випадкові сувої. */
   function hasFear(base, skit) {
     return useEffects(base, { bonus: 1 }, skit).some(function (f) { return f.type === 'fear'; });
   }
@@ -488,7 +488,7 @@
     rnd = rnd || Math.random;
     var n = Math.max(0, Math.floor(num(BATTLE.botBeltSlots)));
     if (!BATTLE.botBeltTest || !n || !skit) return [];
-    var pool = (catalog || []).filter(function (b) { return b && b.category === 'Свиток' && b.active !== false; });
+    var pool = (catalog || []).filter(function (b) { return b && skit.isScrollCat(b.category) && b.active !== false; });
     if (!pool.length) return [];
     var fear = pool.filter(function (b) { return hasFear(b, skit); }), other = pool.filter(function (b) { return !hasFear(b, skit); });
     var out = [], pickOf = function (arr) { return arr[Math.floor(rnd() * arr.length)]; };
@@ -584,7 +584,7 @@
     return ret({ dmg: dmg, kind: crit ? 'crit' : 'hit', crit: crit, calc: calc });
   }
 
-  /* ── ПОЯС: що робить разова річ (зілля, свиток) ──
+  /* ── ПОЯС: що робить разова річ (зілля, сувій) ──
      useEffects(base, inst, skit) → [{type, ...}]:
        heal    {pct}            — + pct% від максимального здоров'я, не вище максимуму;
        buff    {key, pct}       — + pct% до показника на 🎲 buffMin–buffMax ходів;
@@ -627,7 +627,7 @@
     }
     return o;
   }
-  /* удар свитка: без ухилення й криту; крізь маг. захист; × «% маг. урону»;
+  /* удар сувою: без ухилення й криту; крізь маг. захист; × «% маг. урону»;
      заблокувати можна лише шансом магічного блоку */
   function scrollStrike(att, def, eff, rnd) {
     rnd = rnd || Math.random;
@@ -637,14 +637,14 @@
       out.blockNeed = Math.min(100, Math.round(bch)); out.blockRoll = d100(rnd);
       if (out.blockRoll <= out.blockNeed) {
         out.dmg = 0; out.kind = 'block'; out.byChance = true; out.evade = !!def.evade; out.blockBy = blockBy(def, true);
-        out.calc = (def.evade ? 'від свитка спритно відскочив 💨 🎲 ' : 'свиток заблоковано шансом 🎲 ') + out.blockRoll + ' ≤ ' + out.blockNeed + '%' + (def.evade ? '' : ' (маг.)');
+        out.calc = (def.evade ? 'від сувою спритно відскочив 💨 🎲 ' : 'сувій заблоковано шансом 🎲 ') + out.blockRoll + ' ≤ ' + out.blockNeed + '%' + (def.evade ? '' : ' (маг.)');
         return out;
       }
     }
     var raw = rollRange(eff.min, eff.max, rnd), defV = num(def.magicResist), pctV = num(att.magPct);
     var pass = armorPass(raw, defV);
     var dmg = Math.max(BATTLE.minDmg, Math.round(raw * pass * (1 + pctV / 100)));
-    var rcs = resCut(dmg, 'magic', def); if (rcs.r) { dmg = rcs.dmg; out.res = rcs.r; }   // свиток — магія: Опір магії останнім
+    var rcs = resCut(dmg, 'magic', def); if (rcs.r) { dmg = rcs.dmg; out.res = rcs.r; }   // сувій — магія: Опір магії останнім
     out.raw = raw; out.armor = defV; out.pass = pass; out.dmg = dmg; out.magDmg = dmg; out.physDmg = 0;
     out.parts = { magic: true, raw: raw, def: defV, pass: pass, pct: pctV, mult: 1 };
     out.calc = '📜 ✨маг. ' + raw + (defV > 0 ? ' × ' + pctOf(pass) + '% (маг. захист ' + defV + ')' : '') + (pctV ? ' × ' + (100 + pctV) + '%' : '');

@@ -8,7 +8,7 @@
    вносить у документ Героя ЛИШЕ зміни: знос речей, зникнення зламаних,
    використані зілля/сувої, досвід і статистику.
 
-   ПОЯС: зілля й свитки з комірок пояса — спецвміння ходу (замість
+   ПОЯС: зілля й сувої з комірок пояса — спецвміння ходу (замість
    перевдягання). Діють лише в цьому бою (здоров'я, підсилення на кілька
    ходів, бар'єр, страх); після бою з інвентаря зникає лише використане.
 
@@ -1195,8 +1195,8 @@
     if (side === 'me') { item.used = true; (st.used = st.used || []).push({ uid: item.uid, id: item.id, bonus: item.bonus }); }
     if (fa.feared) { rec.lost = true; return rec; }                    // під страхом: річ витрачено без ефекту
     var effs = R.useEffects ? R.useEffects(item.base, { bonus: item.bonus || 1 }, ctx.K) : [];
-    // вміння «Зілля» / «Свитки» (лише Герой): сила × (1 + 0.5 × м)
-    var isScroll = !!(item.base && item.base.category === 'Свиток');
+    // вміння «Зілля» / «Сувої» (лише Герой): сила × (1 + 0.5 × м)
+    var isScroll = !!(item.base && ctx.K.isScrollCat(item.base.category));
     var skId = isScroll ? 'base.scrolls' : 'base.potions', skP = side === 'me' ? V(st, skId, 'powerPct') : 0;
     if (side === 'me') grow(st, skId, true);
     if (skP > 0) {
@@ -1401,7 +1401,7 @@
     var R = ctx.R, fm = fxOf(st.me), fo = fxOf(st.op);
     var rearmed = rearm(ctx, st);                                   // вибита зброя — знову в руці (через хід)
     var g0 = clone(st.me.grow || {}), f0 = clone(st.me.growF || {});   // для журналу: ріст вмінь за цей хід
-    // 1) пояс — до ударів. Обидва щось використали — 🎲 хто перший (свиток страху першого
+    // 1) пояс — до ударів. Обидва щось використали — 🎲 хто перший (сувій страху першого
     //    може зірвати дію другого). Бот бере річ із пояса сам (botUse, BATTLE.botBeltUse).
     var acts = [], ur = rng(st.bid + '|' + st.round + '|use');
     var meKnocked = knockedNow(st, st.me);                         // Героя оглушили — ні пояса, ні вміння, ні удару
@@ -1422,7 +1422,7 @@
       return a.side === 'me' ? applyUse(ctx, st, st.me, st.op, 'me', a.item, ur) : applyUse(ctx, st, st.op, st.me, 'op', a.item, ur);
     });
     st.me.use = null; if (st.op.use) { if (oi) oi.used = true; st.op.use = null; }
-    // 2) удари (з підсиленнями зілль). Під страхом — не атакує. Хтось упав від свитка — ударів немає.
+    // 2) удари (з підсиленнями зілль). Під страхом — не атакує. Хтось упав від сувою — ударів немає.
     var down = st.me.force <= 0 || st.op.force <= 0;
     var none = function (why) { return { dmg: 0, kind: why, crit: false, hits: [] }; };
     /* ДВА БІЙЦІ: усі вміння пишуться як «я (st.me) → суперник (st.op)». Для бота — той самий

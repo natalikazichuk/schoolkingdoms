@@ -150,3 +150,19 @@ test('зілля: лікування сильніше на powerPct; свито�
   assert.ok(h && (h.dmg > 0 || h.kind !== 'hit'), 'свиток спрацював');
   assert.strictEqual(s1.st.me.grow['base.scrolls'], 1);
 });
+
+test('нові назви категорій (27.10): «Сувій» і «Зілля» працюють так само, як старі «Свиток» і «Зелья»', () => {
+  assert.ok(K.isScrollCat('Сувій') && K.isScrollCat('Свиток') && !K.isScrollCat('Зілля'));
+  assert.strictEqual(K.catCanon('Зелья'), 'Зілля'); assert.strictEqual(K.catCanon('Свиток'), 'Сувій'); assert.strictEqual(K.catCanon('Щити'), 'Щити');
+  assert.strictEqual(K.canon("Бар'єр"), 'barrier'); assert.strictEqual(K.canon('Барєр'), 'barrier');
+  const NEW = Object.assign({}, SCROLL, { category: 'Сувій' });
+  const run = (base) => {
+    const st = battle({ 'base.scrolls': 100 }, { belt: [{ base, inst: { uid: 'b1', id: base.id, slot: 'belt0' } }] });
+    assert.ok(SB.useBelt(ctx, st, 'b1'));
+    hit(st); return st.me.grow['base.scrolls'];
+  };
+  assert.strictEqual(run(NEW), 1, 'сувій з новою категорією росте вміння «Сувої»');
+  assert.strictEqual(run(SCROLL), 1, 'і зі старою');
+  const pool = R.botBelt([NEW, Object.assign({}, SCROLL, { id: 'S2' })], K, () => 0.5);
+  assert.ok(pool.length > 0, 'бот бере в пояс сувої з обома назвами категорії');
+});
