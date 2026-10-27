@@ -5,7 +5,10 @@
      програма кожного класу й сторінка-опис кожного готового модуля;
   2) «… — аркуші для друку.pdf» — зміст із номерами сторінок і всі аркуші A4.
 Модуль вважається готовим, коли він є в MODS тренажера на сайті
-(klas-N/...html) і поруч лежить «N клас english/<папка модуля>/worksheets.pdf».
+(klas-N/...html) і є його аркуші: «N клас english/<папка модуля>/worksheets.pdf»
+або файл за шаблоном worksheets_file з course.json (2 клас: klas-2/english-2/mNN.pdf).
+Клас з "own_pdf": true збирається окремою парою файлів
+«… · N клас.pdf» і «… · N клас — аркуші для друку.pdf», а не в спільні.
 Програма, місяці, фрази, пісні — у course.json поруч із цим скриптом.
 
 Запуск (з кореня репозиторію або звідки завгодно):
@@ -99,9 +102,9 @@ def about_html():
                "<h2>Як користуватися</h2><ul>" + "".join(f"<li>{e(p)}</li>" for p in C["howto"]) + "</ul>" +
                f'<h2>Пісні</h2><p>{e(C["songs_note"])}</p>' +
 
-               "<h2>Класи</h2><table><tr><th>Клас</th><th>Назва</th><th>Готово</th><th>Тренажер на сайті</th></tr>" +
-               "".join(f'<tr><td class="n">{g["grade"]} клас</td><td>{e(g["title"].split("·",1)[1].strip())}</td><td>{g["_ready"]} з {len(g["modules"])} модулів</td><td>{e(g["site"])}</td></tr>' for g in C["grades"]) +
-               "".join(f'<tr><td class="n">{e(x)}</td><td class="muted">у планах</td><td>—</td><td>—</td></tr>' for x in C.get("planned", [])) +
+               "<h2>Класи</h2><table><tr><th>Клас</th><th>Назва</th><th>Готово</th><th>Тренажер на сайті</th><th>Файл PDF</th></tr>" +
+               "".join(f'<tr><td class="n">{g["grade"]} клас</td><td>{e(g["title"].split("·",1)[1].strip())}</td><td>{g["_ready"]} з {len(g["modules"])} модулів</td><td>{e(g["site"])}</td><td>{e(g["_file"])}</td></tr>' for g in C["grades"]) +
+               "".join(f'<tr><td class="n">{e(x)}</td><td class="muted">у планах</td><td>—</td><td>—</td><td>—</td></tr>' for x in C.get("planned", [])) +
                "</table></section>" + mascot_html())
 
 def grade_html(g):
@@ -130,7 +133,7 @@ def module_html(g, m, sm):
         body += f'<div class="cols"><div><h3>Слова теми</h3><p>{e(words)}</p><h3>Ще слова на ці літери</h3><p>{e(more)}</p></div>'
     else:
         words = ", ".join(f"{v[0]} ({v[2]})" for v in sm["V"])
-        cvc = ", ".join(x[0] for x in sm.get("C", []))
+        cvc = ", ".join(x[0] for x in (sm.get("W") or sm.get("C") or []))
         body += f'<div class="cols"><div><h3>Слова теми</h3><p>{e(words)}</p><h3>Фоніка</h3><p>{e(m.get("phonics", ""))}</p><h3>Читаємо за звуками</h3><p>{e(cvc)}</p></div>'
     songs = "".join(f'<li><a href="{e(x["url"])}">{e(x["title"])}</a><br><span class="url">{e(x["url"].replace("https://", ""))}</span></li>' for x in m["songs"])
     body += (f'<div><h3>Мовні зразки</h3><p>{e(m["phrases"])}</p><h3>Пісні (Super Simple Songs)</h3><ul class="songs">{songs}</ul>'
@@ -142,16 +145,16 @@ def module_html(g, m, sm):
     body += f'<h3>Діалог з Teddy (рівень тренажера)</h3><div class="dlg">{dlg}</div>'
     lv = " → ".join(g["level_names"])
     body += (f'<div class="box"><b>На сайті:</b> {e(g["site"])}?m={m["n"]} — рівні: {e(lv)}. Нагорода — за весь модуль.<br>'
-             f'<b>Аркуші для друку ({m["_ws_pages"]} шт.):</b> окремий файл «{e(WS_NAME)}», с. {m["_ws_from"]}–{m["_ws_to"]}, або кнопка «Аркуші для друку» в тренажері.</div>')
+             f'<b>Аркуші для друку ({m["_ws_pages"]} шт.):</b> окремий файл «{e(g["_ws_file"])}», с. {m["_ws_from"]}–{m["_ws_to"]}, або кнопка «Аркуші для друку» в тренажері.</div>')
     return doc(f'<section class="pg">{head}{lead}{body}</section>')
 
-def cover_toc_html(toc):
+def cover_toc_html(toc, grades, title=None, sub=None):
     today = datetime.date.today().strftime("%d.%m.%Y")
-    cover = (f'<section class="pg cover"><div><div class="eyebrow">SchoolKingdoms · курс англійської</div><h1>{e(C["title"])}</h1>'
-             f'<p style="font-size:13pt;max-width:150mm">{e(C["subtitle"])}</p>'
+    cover = (f'<section class="pg cover"><div><div class="eyebrow">SchoolKingdoms · курс англійської</div><h1>{e(title or C["title"])}</h1>'
+             f'<p style="font-size:13pt;max-width:150mm">{e(sub or C["subtitle"])}</p>'
              '<div class="top"><div class="flag">' + "".join(f'<span style="background:{COLS[i]}">{ch}</span>' for i, ch in enumerate("ABCDEF")) + '</div>'
              f'<div style="text-align:center">{teddy("wave", 95)}<div class="muted">{e(C["mascot"]["name"])}: Let\'s learn together!</div></div></div></div>'
-             f'<div class="muted">Оновлено {today} · ' + " · ".join(f'{g["grade"]} клас: {g["_ready"]}/{len(g["modules"])} модулів' for g in C["grades"]) + '</div></section>')
+             f'<div class="muted">Оновлено {today} · ' + " · ".join(f'{g["grade"]} клас: {g["_ready"]}/{len(g["modules"])} модулів' for g in grades) + '</div></section>')
     rows = ""
     for kind, text, page in toc:
         rows += f'<tr class="{"g" if kind == "g" else ""}"><td>{"" if kind == "g" else "&nbsp;&nbsp;"}{e(text)}</td><td class="pg">{page}</td></tr>'
@@ -179,11 +182,11 @@ def stamp(writer, skip_first, label):
         c.drawCentredString(w / 2, 14, f"{label} · {i + 1}"); c.save()
         page.merge_page(PdfReader(tmp).pages[0]); os.unlink(tmp)
 
-def ws_cover_html(toc):
+def ws_cover_html(toc, title, desc_file):
     today = datetime.date.today().strftime("%d.%m.%Y")
     rows = "".join(f'<tr class="{"g" if k == "g" else ""}"><td>{"" if k == "g" else "&nbsp;&nbsp;"}{e(t)}</td><td class="pg">{pg}</td></tr>' for k, t, pg in toc)
-    return doc(f'<section class="pg"><div class="eyebrow">{e(C["title"])}</div><h1>Аркуші для друку</h1>'
-               f'<p>Усі аркуші A4 готових модулів курсу. Друкуйте потрібні сторінки модуля — номери нижче. Опис модулів і програма — у файлі «{e(C["title"])}.pdf».</p>'
+    return doc(f'<section class="pg"><div class="eyebrow">{e(title)}</div><h1>Аркуші для друку</h1>'
+               f'<p>Усі аркуші A4 готових модулів. Друкуйте потрібні сторінки модуля — номери нижче. Опис модулів і програма — у файлі «{e(desc_file)}».</p>'
                f'<p class="muted">Оновлено {today}</p><table class="toc">{rows}</table></section>')
 
 def assemble(head, parts, out, label, title):
@@ -202,22 +205,38 @@ def assemble(head, parts, out, label, title):
     with open(out, "wb") as f: w.write(f)
     print(out, len(PdfReader(out).pages), "сторінок")
 
-def main():
+def prepare(tmp):
+    """Дані класів: модулі, готовність, файли аркушів. Аркуші з worksheets_file (їх генерує скрипт
+    тренажера, без шапки) оформлюються як у brand_sheets.py — на копії в tmp, оригінал не чіпаємо."""
     for g in C["grades"]:
         sm = site_mods(g["site_mods_from"])
         g["_site"] = sm; g["_ready"] = 0
+        if g.get("own_pdf"):
+            g["_file"] = f'{C["title"]} · {g["grade"]} клас.pdf'
+            g["_ws_file"] = f'{C["title"]} · {g["grade"]} клас — аркуші для друку.pdf'
+        else:
+            g["_file"] = os.path.basename(OUT); g["_ws_file"] = WS_NAME
         for m in g["modules"]:
             s = sm.get(m["n"])
             m["_title"] = (s or {}).get("t") or m.get("title", f"Module {m['n']}")
             if s and "L" in s: m["_letters"] = " ".join(l[0] for l in s["L"])
-            ws = os.path.join(ROOT, g["worksheets_dir"], s["pdf"], "worksheets.pdf") if s else None
+            if not s: ws = None
+            elif g.get("worksheets_file"): ws = os.path.join(ROOT, g["worksheets_file"].format(n=m["n"]))
+            else: ws = os.path.join(ROOT, g["worksheets_dir"], s["pdf"], "worksheets.pdf")
             m["_ws"] = ws if ws and os.path.exists(ws) else None
             m["_ready"] = bool(s and m["_ws"])
+            if m["_ready"] and g.get("worksheets_file"):
+                import shutil, brand_sheets
+                cp = os.path.join(tmp, f"ws-g{g['grade']}m{m['n']}.pdf"); shutil.copy(m["_ws"], cp)
+                brand_sheets.brand(cp); m["_ws"] = cp
             m["_ws_pages"] = len(PdfReader(m["_ws"]).pages) if m["_ready"] else 0
             g["_ready"] += m["_ready"]
+
+def build(tmp, grades, out, out_ws, title, sub, others):
+    """Пара файлів (опис курсу + аркуші) для групи класів. others — класи з окремими файлами (у змісті — посиланням)."""
     # 1) файл аркушів: с. 1 — обкладинка зі змістом, далі аркуші модулів
     ws_parts, ws_toc, page = [], [], 2
-    for g in C["grades"]:
+    for g in grades:
         first = True
         for m in g["modules"]:
             if not m["_ready"]: continue
@@ -226,31 +245,45 @@ def main():
             ws_toc.append(("m", f"Module {m['n']} · {m['_title']}", f"{m['_ws_from']}–{m['_ws_to']}"))
             ws_parts.append((m["_ws"], f"{g['grade']} клас · Module {m['n']} · {m['_title']}", page, "m"))
             page += m["_ws_pages"]
+    key = "-".join(str(g["grade"]) for g in grades)
+    jobs = [(f"about{key}", about_html()), (f"wscover{key}", ws_cover_html(ws_toc, title, os.path.basename(out)))]
+    for g in grades:
+        jobs.append((f"g{g['grade']}", grade_html(g)))
+        for m in g["modules"]:
+            if m["_ready"]: jobs.append((f"g{g['grade']}m{m['n']}", module_html(g, m, g["_site"][m["n"]])))
+    pdfs = render(jobs, tmp)
+    assert len(PdfReader(pdfs[f"wscover{key}"]).pages) == 1, "зміст аркушів має вміщатися на 1 сторінку"
+    assemble(pdfs[f"wscover{key}"], ws_parts, out_ws, "Аркуші для друку", title + " — аркуші для друку")
+    # 2) файл курсу: обкладинка, зміст, про курс, програми класів, описи модулів
+    parts, toc, page = [], [], 3
+    def add(path, label=None, kind="m"):
+        nonlocal page
+        n = len(PdfReader(path).pages)
+        if label: toc.append((kind, label, page))
+        parts.append((path, label, page, kind)); page += n
+    add(pdfs[f"about{key}"], "Про курс", "g")
+    for g in grades:
+        add(pdfs[f"g{g['grade']}"], g["title"], "g")
+        for m in g["modules"]:
+            if m["_ready"]: add(pdfs[f"g{g['grade']}m{m['n']}"], f"Module {m['n']} · {m['_title']}")
+    for g in others: toc.append(("g", f"{g['title']} — окремий файл «{g['_file']}»", "—"))
+    for x in C.get("planned", []): toc.append(("g", f"{x} — у планах", "—"))
+    head = render([(f"cover{key}", cover_toc_html(toc, grades, title, sub))], tmp)[f"cover{key}"]
+    assert len(PdfReader(head).pages) == 2, "обкладинка + зміст мають бути по 1 сторінці"
+    assemble(head, parts, out, title, title)
+
+def main():
     with tempfile.TemporaryDirectory() as tmp:
-        jobs = [("about", about_html()), ("wscover", ws_cover_html(ws_toc))]
-        for g in C["grades"]:
-            jobs.append((f"g{g['grade']}", grade_html(g)))
-            for m in g["modules"]:
-                if m["_ready"]: jobs.append((f"g{g['grade']}m{m['n']}", module_html(g, m, g["_site"][m["n"]])))
-        pdfs = render(jobs, tmp)
-        assert len(PdfReader(pdfs["wscover"]).pages) == 1, "зміст аркушів має вміщатися на 1 сторінку"
-        assemble(pdfs["wscover"], ws_parts, OUT_WS, "Аркуші для друку", C["title"] + " — аркуші для друку")
-        # 2) файл курсу: обкладинка, зміст, про курс, програми класів, описи модулів
-        parts, toc, page = [], [], 3
-        def add(path, label=None, kind="m"):
-            nonlocal page
-            n = len(PdfReader(path).pages)
-            if label: toc.append((kind, label, page))
-            parts.append((path, label, page, kind)); page += n
-        add(pdfs["about"], "Про курс", "g")
-        for g in C["grades"]:
-            add(pdfs[f"g{g['grade']}"], g["title"], "g")
-            for m in g["modules"]:
-                if m["_ready"]: add(pdfs[f"g{g['grade']}m{m['n']}"], f"Module {m['n']} · {m['_title']}")
-        for x in C.get("planned", []): toc.append(("g", f"{x} — у планах", "—"))
-        head = render([("cover", cover_toc_html(toc))], tmp)["cover"]
-        assert len(PdfReader(head).pages) == 2, "обкладинка + зміст мають бути по 1 сторінці"
-        assemble(head, parts, OUT, C["title"], C["title"])
+        prepare(tmp)
+        own = [g for g in C["grades"] if g.get("own_pdf")]
+        common = [g for g in C["grades"] if not g.get("own_pdf")]
+        if common:
+            build(tmp, common, OUT, OUT_WS, C["title"], C["subtitle"], own)
+        for g in own:
+            t = f'{C["title"]} · {g["grade"]} клас'
+            build(tmp, [g], os.path.join(HERE, g["_file"]), os.path.join(HERE, g["_ws_file"]), t,
+                  f'{g["title"]}: програма, тренажер на сайті SchoolKingdoms і аркуші для друку',
+                  [x for x in C["grades"] if x is not g])
 
 if __name__ == "__main__":
     main()

@@ -1,15 +1,15 @@
 /* AE Words — словник курсу «American English для молодшої школи».
    Слова НЕ дублюються вручну: беремо їх просто з тренажерів курсу
-   (масив MODS у klas-1/english-1-litery.html і klas-2/english-2.html).
+   (масив MODS у klas-1/english-1-litery.html і klas-2/english-2-chytannia.html).
    Додали модуль або слово в тренажер — воно саме з'явиться в AE Words.
 
    SKAE.load() → Promise<[{ key, grade, n, title, ua, cover, emo, words:[{word, uk, pic, grade, module}] }]>
      pic — емодзі, колір (#rrggbb) або число, як у тренажері.
-   Слова модуля: «Слова теми» (V) + слова до літер (L, 1 клас), без повторів. */
+   Слова модуля: «Слова теми» (V) + слова до літер (L, 1 клас) + слова на звук (W, 2 клас), без повторів. */
 (function(){
   var SRC = [
     { grade:1, url:'klas-1/english-1-litery.html', cover:function(n){ return 'img/tr/english-1-m'+(n<10?'0':'')+n+'.webp'; } },
-    { grade:2, url:'klas-2/english-2.html',        cover:function(){ return ''; } }
+    { grade:2, url:'klas-2/english-2-chytannia.html', cover:function(n){ return 'img/tr/english-2-m'+(n<10?'0':'')+n+'.webp'; } }
   ];
 
   /* MODS у тренажері — по одному JSON-об'єкту модуля на рядок, з комою в кінці */
@@ -32,6 +32,7 @@
     }
     (m.V || []).forEach(function(v){ add(v[0], v[1], v[2]); });
     (m.L || []).forEach(function(l){ add(l[2], l[3], l[4]); });
+    (m.W || []).forEach(function(w){ add(w[0], w[1], w[2]); });
     var emo = '🔤';   // значок модуля — перше слово з емодзі (не колір і не число)
     for(var i = 0; i < words.length; i++){ var pp = words[i].pic; if(pp && pp.charAt(0) !== '#' && !/^\d+$/.test(pp)){ emo = pp; break; } }
     return { key:'ae:'+src.grade+':'+m.n, grade:src.grade, n:m.n, title:m.t, ua:m.ua || '',
