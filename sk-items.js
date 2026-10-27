@@ -328,7 +328,8 @@
       trash: Array.isArray(st.trash) ? st.trash.slice() : [],
       shopSold: Array.isArray(st.shopSold) ? st.shopSold.slice() : [],
       shopBought: Array.isArray(st.shopBought) ? st.shopBought.slice() : [],
-      coins: Math.max(0, Math.round(Number(st.coins) || 0))
+      coins: Math.max(0, Math.round(Number(st.coins) || 0)),
+      bagMax: st.bagMax > 0 ? Math.floor(st.bagMax) : null   // свій розмір сумки (ставить адмін; немає — BAG_LIMIT)
     };
   }
   /* прибирання за часом: скриня — після CHEST_DAYS діб; смітник і викуп — після півночі */
@@ -342,6 +343,8 @@
     return st;
   }
   /* покласти одну річ у сумку (стопкою, якщо можна); false — нема місця */
+  /* розмір сумки героя: свій (heroes.bagMax, ставить адмін в адмінці арени) або BAG_LIMIT */
+  function bagLimit(st) { var n = st && Number(st.bagMax); return n > 0 ? Math.floor(n) : BAG_LIMIT; }
   function putBag(st, inst) {
     var i = cloneInst(inst); i.slot = null;
     if (i.cons) {
@@ -350,7 +353,7 @@
         if (isBag(x) && sameStack(x, i)) { x.qty = (Number(x.qty) || 1) + (Number(i.qty) || 1); return true; }
       }
     }
-    if (bagCount(st.inventory) >= BAG_LIMIT) return false;
+    if (bagCount(st.inventory) >= bagLimit(st)) return false;
     st.inventory.push(i); return true;
   }
   /* нагороди: у сумку → у скриню → зникає */
@@ -374,7 +377,7 @@
     st = tidy(st, now);
     var c = takeFrom(st.chest, uid, function (x) { return x.inst; });
     if (!c) fail('gone', 'Річ уже зникла зі скрині');
-    if (!putBag(st, c.inst)) fail('full', 'Сумка повна (' + BAG_LIMIT + ')');
+    if (!putBag(st, c.inst)) fail('full', 'Сумка повна (' + bagLimit(st) + ')');
     return { state: st };
   }
   function trashItem(st, uid, now) {
@@ -389,7 +392,7 @@
     st = tidy(st, now);
     var t = takeFrom(st.trash, uid, function (x) { return x.inst; });
     if (!t) fail('gone', 'Річ уже зникла зі смітника');
-    if (!putBag(st, t.inst)) fail('full', 'Сумка повна (' + BAG_LIMIT + ')');
+    if (!putBag(st, t.inst)) fail('full', 'Сумка повна (' + bagLimit(st) + ')');
     return { state: st };
   }
   /* скільки штук товару куплено сьогодні (кожна куплена штука — окремий запис) */
@@ -423,7 +426,7 @@
       var t = takeFrom(st.shopSold, uid, function (x) { return x.inst; });
       if (!t) fail('gone', 'Викуп уже недоступний');
       spent += t.price; st.coins -= t.price;
-      if (!putBag(st, t.inst)) fail('full', 'Сумка повна (' + BAG_LIMIT + ')');
+      if (!putBag(st, t.inst)) fail('full', 'Сумка повна (' + bagLimit(st) + ')');
     });
     (order.buy || []).forEach(function (base) {
       if (!base || !base.id) fail('gone', 'Товару вже немає');
@@ -433,7 +436,7 @@
       var price = buyPrice(base, m);
       spent += price; st.coins -= price;
       var inst = makeInstance(base, { bonus: 1, identified: true });
-      if (!putBag(st, inst)) fail('full', 'Сумка повна (' + BAG_LIMIT + ')');
+      if (!putBag(st, inst)) fail('full', 'Сумка повна (' + bagLimit(st) + ')');
       bought.push(inst);
     });
     if (st.coins < 0) fail('money', 'Не вистачає грошей');
@@ -669,7 +672,7 @@
   }
 
   var STORE = {
-    BAG_LIMIT: BAG_LIMIT, SHOP_SOLD_LIMIT: SHOP_SOLD_LIMIT, CHEST_LIMIT: CHEST_LIMIT, CHEST_DAYS: CHEST_DAYS, SHOP_GEAR: SHOP_GEAR, SHOP_CONS: SHOP_CONS, SHOP_MAIN_CATS: SHOP_MAIN_CATS, SHOP_CAT_MAX: SHOP_CAT_MAX,
+    BAG_LIMIT: BAG_LIMIT, bagLimit: bagLimit, SHOP_SOLD_LIMIT: SHOP_SOLD_LIMIT, CHEST_LIMIT: CHEST_LIMIT, CHEST_DAYS: CHEST_DAYS, SHOP_GEAR: SHOP_GEAR, SHOP_CONS: SHOP_CONS, SHOP_MAIN_CATS: SHOP_MAIN_CATS, SHOP_CAT_MAX: SHOP_CAT_MAX,
     kyivDay: kyivDay, bagCount: bagCount, sameStack: sameStack, sellPrice: sellPrice, sellTotal: sellTotal, buyPrice: buyPrice,
     normState: normState, normSlots: normSlots, tidy: tidy, addItems: addItems, claimChest: claimChest, trashItem: trashItem,
     restoreTrash: restoreTrash, deal: deal, boughtToday: boughtToday, boughtCount: boughtCount, SHOP_QTY: SHOP_QTY, isManaPotion: isManaPotion,
@@ -704,7 +707,7 @@
     var long = w && /^(bow|spear|staff|whip|flail)$/.test(o.weaponType);
     var pair = /pair/.test(cat + (w || ''));
     return [
-      'Generate a NEW image from scratch (do not edit or reuse any previous image). Follow every rule below exactly.',
+      'Draw a brand-new picture from scratch. There is NO input image — do not ask me to upload anything, just create the image right away. Follow every rule below exactly.',
       '',
       'MOST IMPORTANT RULES',
       '1. The WHOLE item must be inside the picture with empty space around it: at least 12% margin on every side.',
@@ -712,6 +715,8 @@
       '2. Background: plain solid pure white (#FFFFFF), perfectly flat and even.',
       '   Do NOT draw a checkerboard / transparency grid, no gradient, no floor, no scenery, no frame.',
       '3. Exactly one ' + (pair ? 'pair of items' : 'item') + '. No hands, no characters, no text, no letters, no logos, no watermark.',
+      '4. The item must stand out clearly from the white background: give it a thin slightly darker outline,',
+      '   and no pure-white highlights on its outer edges (bright metal edges should be light grey or steel blue, not white).',
       '',
       'ITEM: ' + what + (o.name && o.desc ? ' (item name: «' + o.name + '»)' : ''),
       'TYPE: ' + (w ? w + ' (' + cat + ')' : cat),

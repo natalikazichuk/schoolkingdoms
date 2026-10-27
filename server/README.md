@@ -32,6 +32,7 @@
 | `/srv/sk/avatars` | згенеровані образи Героїв (`/img/ava/gen/`); у копії бази не входять — за потреби перемальовуються |
 | `/srv/sk/avatars/upload/img/items` | картинки речей, завантажені в адмінці «Предмети» (nginx віддає їх як `/img/items/`, якщо в репозиторії такого файлу немає) |
 | `/srv/sk/avatars/upload/originals/items` | архів оригіналів цих картинок (як їх завантажили; `<код>-<дата-час>.png/jpg/webp`), назовні не віддається |
+| `server/originals/items` (у репозиторії) | оригінали картинок, оброблених скриптом `tools/item-image.py` (не через адмінку) — `<код>-<дата>.<розширення>`; папка `server/` назовні не віддається |
 | `/srv/sk/data/hash-config.json` | параметри паролів Firebase |
 | `/srv/sk/migration` | вивантаження з Firebase (`firestore.json`, `users.json`) |
 

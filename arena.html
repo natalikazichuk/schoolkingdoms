@@ -4191,7 +4191,7 @@ window.SKHERO = (function(){
 })();
 </script>
 
-<script src="sk-items.js?v=26"></script>
+<script src="sk-items.js?v=28"></script>
 <script src="sk-skills.js?v=87"></script>
 <script src="sk-book.js?v=27"></script>
 <script>
@@ -4262,8 +4262,9 @@ function firstFreeBelt(){for(var i=0;i<BELT.length;i++)if(!BELT[i])return i;retu
    Знята з пояса — повертається в стопку того ж зілля (той самий id і бонус).
    Сумка — не більше SKIT.store.BAG_LIMIT речей: повна — зняти річ не можна. */
 function ST(){return window.SKIT&&SKIT.store;}
-function bagFull(){return !!(ST()&&ST().bagCount(ALL_INST)>=ST().BAG_LIMIT);}
-function bagFullMsg(){var m='Не більше '+(ST()?ST().BAG_LIMIT:100)+' речей — продай або викинь зайве';if(window.showToast)showToast('Сумка повна',m);else alert('Сумка повна. '+m);}
+function BAGLIM(){return ST()?ST().bagLimit(window.SKHERO&&SKHERO.get()):100;}   // розмір сумки героя (свій або 100)
+function bagFull(){return !!(ST()&&ST().bagCount(ALL_INST)>=BAGLIM());}
+function bagFullMsg(){var m='Не більше '+BAGLIM()+' речей — продай або викинь зайве';if(window.showToast)showToast('Сумка повна',m);else alert('Сумка повна. '+m);}
 function backToBag(inst){
  for(var i=0;i<ALL_INST.length;i++){var x=ALL_INST[i];if(x!==inst&&!x.slot&&ST()&&ST().sameStack(x,inst)){x.qty=(Number(x.qty)||1)+(Number(inst.qty)||1);ALL_INST.splice(ALL_INST.indexOf(inst),1);return true;}}
  if(bagFull()){bagFullMsg();return false;}
@@ -4484,7 +4485,7 @@ function renderStats(){if(isOpp()){renderOppStats();return;}if(BM()){renderBattl
  q('ek-lvl').textContent=LEVEL.level;q('ek-xpTxt').textContent=LEVEL.xp+' / '+LEVEL.xpMax;
  q('ek-xpFill').style.width=Math.min(100,LEVEL.xp/LEVEL.xpMax*100)+'%';
  q('ek-hpVal').textContent=t.health+' / '+t.health;q('ek-mpVal').textContent=t.mana+' / '+t.mana;q('ek-coins').innerHTML=coinsTxt(HERO.coins!=null?HERO.coins:0);
- var bcn=q('ek-bagCount');if(bcn&&ST())bcn.textContent=ST().bagCount(ALL_INST)+'/'+ST().BAG_LIMIT;
+ var bcn=q('ek-bagCount');if(bcn&&ST())bcn.textContent=ST().bagCount(ALL_INST)+'/'+BAGLIM();
  q('ek-hpFill').style.width='100%';q('ek-mpFill').style.width='100%';
  var dm=sh?{phys:sh.dmg,mag:sh.mag}:dmgRange();
  var tiles=[['dmg',statImg('dmg'),'Урон',dm.phys],['arm',statImg('arm'),'Броня',t.armor],['acc',statImg('acc'),'Точність',t.accuracy],
@@ -4567,7 +4568,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'){var pop=q('
 /* лічильники на плитках інвентаря в таверні — з уже прочитаних даних, без запитів */
 function tvCounts(){var set=function(id,t){var el=document.getElementById(id);if(el)el.textContent=t;};
  if(!loaded){return;}
- var bagN=(ST()?ST().bagCount(ALL_INST):INV.length),lim=ST()?ST().BAG_LIMIT:100;
+ var bagN=(ST()?ST().bagCount(ALL_INST):INV.length),lim=BAGLIM();
  var worn=0;for(var k in EQUIP)if(EQUIP[k])worn++;
  set('tvBag',bagN+'/'+lim);set('tvGear','вдягнено '+worn);
  set('tvChest',(STORE.chest||[]).length?(STORE.chest.length+' — забери!'):'порожня');
@@ -4600,7 +4601,7 @@ function equipFromInv(u,slotId){if(BM())return battleEquip(u,slotId);if(inBattle
  if((slotId==='weaponR'||slotId==='weaponL')&&R0().fitsHand&&!R0().fitsHand(BYID[e.id],slotId)){if(window.showToast)showToast('Ліва рука','У ліву руку — лише одноручна зброя ближнього бою (не дворучна, не лук, не кастети, не жезл).');return;}
  // руки: дворучна знімає річ з лівої руки; щит знімає дворучну (зі «Хваткою велетня» дворучна + щит можна)
  var also=null;if(slotId==='weaponR'&&clashE(e,EQUIP.weaponL))also=EQUIP.weaponL;else if(slotId==='weaponL'&&clashE(EQUIP.weaponR,e))also=EQUIP.weaponR;
- if(also&&cur&&ST()&&ST().bagCount(ALL_INST)+1>ST().BAG_LIMIT){bagFullMsg();return;}
+ if(also&&cur&&ST()&&ST().bagCount(ALL_INST)+1>BAGLIM()){bagFullMsg();return;}
  // новий пояс з меншою кількістю комірок — зайві зілля з пояса в сумку (якщо є місце)
  if(slotId==='belt'){var bout=beltOut(beltCap(inst));if(bout.length){if(!beltFits(bout,cur?0:-1)){beltFullMsg(bout.length);return;}beltEmpty(bout);}}
  if(cur&&cur._inst)cur._inst.slot=null;if(also&&also._inst)also._inst.slot=null;inst.slot=slotId;rebuild();renderAll();persist();
@@ -4612,7 +4613,7 @@ function beltCap(inst){var b=inst&&BYID[inst.id];if(!b||!window.SKIT)return 0;va
 function beltOut(cap){return BELT.filter(function(e,i){return e&&e._inst&&i>=cap;}).map(function(e){return e._inst;});}
 function beltFits(out,extra){if(!ST())return true;var cells=extra||0,seen=[];
  out.forEach(function(inst){var stack=ALL_INST.some(function(x){return !x.slot&&ST().sameStack(x,inst);})||seen.some(function(y){return ST().sameStack(y,inst);});if(!stack)cells++;seen.push(inst);});
- return ST().bagCount(ALL_INST)+cells<=ST().BAG_LIMIT;}
+ return ST().bagCount(ALL_INST)+cells<=BAGLIM();}
 function beltFullMsg(n){var m='На поясі є зілля ('+n+') — для них немає місця в сумці. Звільни місце (продай або викинь зайве) і спробуй ще раз';if(window.showToast)showToast('Сумка повна',m);else alert('Сумка повна. '+m);}
 // місце вже перевірено (beltFits) — кладемо в стопку або окремо, без повторної перевірки
 function beltEmpty(out){out.forEach(function(inst){
@@ -5076,7 +5077,7 @@ function renderCounter(){
    .concat(S.ct.buyback.map(function(u){var t=soldRec(u);if(!t)return '';var b=S.byId[t.inst.id];
     return '<button type="button" class="sh-row" data-back="buyback" data-key="'+esc(u)+'"><span class="ic">'+icon(b)+'</span><span class="nm">↩ '+esc(b?b.name:t.inst.id)+(qtyOf(t.inst)>1?' ×'+qtyOf(t.inst):'')+'</span><span class="pr minus">−'+coinsH(t.price)+'</span></button>';}));
   if(buys.length)h+='<div class="sh-lbl buy">🛍 Купую</div><div class="sh-list">'+buys.join('')+'</div>';
-  var t=totals(),lim=ST().BAG_LIMIT,poor=t.after<0,full=t.bagAfter>lim,empty=ctEmpty();
+  var t=totals(),lim=BAGLIM(),poor=t.after<0,full=t.bagAfter>lim,empty=ctEmpty();
   /* дитині — лише сума угоди (отримаю / заплачу / разом), без усього гаманця */
   var net=t.got-t.spent;
   h+='<div class="sh-sum">'
@@ -5090,7 +5091,7 @@ function renderCounter(){
     +'<div class="sh-how"><span class="s">🎒 Річ у сумці → натисни, щоб <b>продати</b></span><span class="b">🏪 Товар → натисни, щоб <b>купити</b></span></div>';
   q('shCounter').innerHTML=tradeLine()+h;}
 function renderInv(){
-  var b0=bag();q('shBagCnt').textContent=S.st?(ST().bagCount(S.st.inventory)+'/'+ST().BAG_LIMIT):'';
+  var b0=bag();q('shBagCnt').textContent=S.st?(ST().bagCount(S.st.inventory)+'/'+BAGLIM()):'';
   if(!S.st){q('shInv').innerHTML='<div class="sh-empty">'+(S.err?esc(S.err):'Завантаження…')+'</div>';return;}
   /* вдягнене на Герої в магазині не показуємо — його видно на аватарі; продати — спершу зняти */
   var bf=S.bf||'all';

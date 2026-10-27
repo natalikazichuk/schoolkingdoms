@@ -28,19 +28,25 @@ def checker(im):
     light = [v for v in vals if v >= 180]
     return len(light) > 0.8 * len(vals) and max(light) - min(light) >= 20
 
-def bg_mask(im, lo):
-    """тло = світлі нейтральні пікселі, зʼєднані з краєм (сама річ лишається непрозорою)"""
+def bg_mask(im, lo, step=None):
+    """тло = світлі нейтральні пікселі, зʼєднані з краєм (сама річ лишається непрозорою).
+    step — для білого тла: заливка йде лише плавними переходами (біле тло й розмита тінь),
+    а на різкій межі з річчю зупиняється — світлі краї металу (лез, обідків) лишаються"""
     w, h = im.size; px = im.load(); m = bytearray(w * h); q = deque()
+    lum = lambda c: (c[0] + c[1] + c[2]) / 3
     for x in range(w):
-        q.append((x, 0)); q.append((x, h - 1))
+        q.append((x, 0, None)); q.append((x, h - 1, None))
     for y in range(h):
-        q.append((0, y)); q.append((w - 1, y))
+        q.append((0, y, None)); q.append((w - 1, y, None))
     while q:
-        x, y = q.popleft()
+        x, y, prev = q.popleft()
         if x < 0 or y < 0 or x >= w or y >= h or m[y * w + x]: continue
-        if not is_light_neutral(px[x, y], lo): continue
+        c = px[x, y]
+        if not is_light_neutral(c, lo): continue
+        l = lum(c)
+        if step is not None and prev is not None and abs(l - prev) > step: continue
         m[y * w + x] = 1
-        q.extend(((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)))
+        q.extend(((x + 1, y, l), (x - 1, y, l), (x, y + 1, l), (x, y - 1, l)))
     return m
 
 def holes(im, m, lo):
@@ -59,13 +65,20 @@ def holes(im, m, lo):
                     if 0 <= nx < w and 0 <= ny < h:
                         k = ny * w + nx
                         if not seen[k] and not m[k] and is_light_neutral(px[nx, ny], lo): seen[k] = 1; q.append((nx, ny))
-            if len(comp) >= minA:
+            # велика світла ділянка — тло; дрібна (ланка ланцюга) — лише якщо в середньому майже чисто біла (блиски металу такими не бувають)
+            def ring():   # що довкола: ланка ланцюга оточена темним металом, а блиск на лезі — світлим
+                cs = set(comp); tot = n = 0
+                for k in comp:
+                    for nk in (k + 3, k - 3, k + 3 * w, k - 3 * w):   # за 3 px — минаючи згладжений обідок
+                        if 0 <= nk < w * h and nk not in cs and not m[nk]: c = px[nk % w, nk // w]; tot += c[0] + c[1] + c[2]; n += 1
+                return n and tot / n / 3 < 150
+            if len(comp) >= minA or (len(comp) >= 25 and lo >= 238 and sum(sum(px[k % w, k // w][:3]) for k in comp) >= 3 * 250 * len(comp) and ring()):
                 for k in comp: m[k] = 1
     return m
 
 def clear_bg(im, keep_shadow):
     """тло → прозоре; на білому тлі сіра тінь стає напівпрозорою темною (видно на будь-якому фоні)"""
-    w, h = im.size; px = im.load(); m = holes(im, bg_mask(im, 150 if keep_shadow else 175), 238 if keep_shadow else 175)
+    w, h = im.size; px = im.load(); m = holes(im, bg_mask(im, 150 if keep_shadow else 175, 6 if keep_shadow else None), 238 if keep_shadow else 175)
     for y in range(h):
         for x in range(w):
             if not m[y * w + x]: continue

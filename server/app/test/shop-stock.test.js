@@ -65,3 +65,15 @@ test('кількість: зілля здоров\'я/мани 3–10, свит�
   }
   assert.deepStrictEqual(Object.keys(seen).sort(), ['1', '2', '3']);
 });
+
+test('сумка героя: свій розмір (bagMax, ставить адмін) або 100', () => {
+  const S = K.store, inst = n => ({ uid: 'u' + n, id: 'X', bonus: 1 });
+  const full = n => Array.from({ length: n }, (_, i) => inst(i));
+  assert.strictEqual(S.bagLimit({}), 100);
+  assert.strictEqual(S.bagLimit(S.normState({ bagMax: 300 })), 300);
+  assert.strictEqual(S.bagLimit(S.normState({ bagMax: 0 })), 100);
+  const st100 = S.normState({ inventory: full(100) }), st300 = S.normState({ inventory: full(100), bagMax: 300 });
+  const r1 = S.addItems(st100, [inst('a')], Date.now()), r2 = S.addItems(st300, [inst('b')], Date.now());
+  assert.strictEqual(S.bagCount(r1.state.inventory), 100, 'звичайна сумка повна — у скриню');
+  assert.strictEqual(S.bagCount(r2.state.inventory), 101, 'велика сумка — ще влазить');
+});
