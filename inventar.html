@@ -73,9 +73,9 @@
     <button class="btn danger" id="clear">🗑 Очистити інвентар</button>
   </div>
   <div class="bar">
-    <input class="pick" id="pick" list="pickList" placeholder="Назва або ID речі з каталогу…" autocomplete="off">
+    <input class="pick" id="pick" list="pickList" placeholder="Назва чи ID; кілька — через кому, або діапазон IT-200..IT-210" autocomplete="off">
     <datalist id="pickList"></datalist>
-    <button class="btn gold" id="giveOne">➕ Дати одну річ</button>
+    <button class="btn gold" id="giveOne">➕ Дати річ(і)</button>
   </div>
   <div class="msg" id="msg"></div>
   <div class="grid" id="grid"></div>
@@ -160,16 +160,32 @@
   });
   /* одна річ з каталогу (для тесту): нова — найновіший запис каталогу з такою назвою.
      Опізнана, бонус ×1 (базові числа); іде через сумку — повна сумка → 🎁 скриня */
+  /* одна річ: ID або назва. Кілька: через кому / крапку з комою, або діапазон кодів «IT-200..IT-210» */
+  function findBase(t){
+    var id=t.split(' — ')[0].trim(), low=t.toLowerCase();
+    return BYID[id] || CATALOG.filter(function(b){ return (b.name||'').toLowerCase()===low; }).pop()
+      || CATALOG.filter(function(b){ return low && (b.name||'').toLowerCase().indexOf(low)>=0; }).pop();
+  }
+  function parsePick(t){
+    var out=[];
+    t.split(/[;,]/).map(function(x){ return x.trim(); }).filter(Boolean).forEach(function(part){
+      var m=part.match(/^([A-Za-z]+-)(\d+)\s*(?:\.\.|…|–|—|-)\s*(?:[A-Za-z]+-)?(\d+)$/);
+      if(m){ var a=+m[2], z=+m[3], w=m[2].length; for(var n=Math.min(a,z); n<=Math.max(a,z); n++){ var s=String(n); while(s.length<w) s='0'+s; out.push(m[1]+s); } }
+      else out.push(part);
+    });
+    return out;
+  }
   q('giveOne').addEventListener('click', async function(){
     if(!CATALOG.length){ setMsg('⏳ Каталог ще завантажується — зачекай секунду',false); return; }
-    var t=q('pick').value.trim(), id=t.split(' — ')[0].trim(), low=t.toLowerCase();
-    var base=BYID[id] || CATALOG.filter(function(b){ return (b.name||'').toLowerCase()===low; }).pop()
-      || CATALOG.filter(function(b){ return low && (b.name||'').toLowerCase().indexOf(low)>=0; }).pop();
-    if(!base){ setMsg('⚠️ Немає такої речі в каталозі: '+t,false); return; }
+    var parts=parsePick(q('pick').value.trim()), bases=[], miss=[];
+    parts.forEach(function(t){ var b=findBase(t); if(b) bases.push(b); else miss.push(t); });
+    if(!bases.length){ setMsg('⚠️ Немає такої речі в каталозі: '+(miss.join(', ')||'—'),false); return; }
     this.disabled=true;
-    try{ var r=await SK.addToInventory([SKIT.makeInstance(base,{bonus:1,identified:true})]);
+    try{ var r=await SK.addToInventory(bases.map(function(b){ return SKIT.makeInstance(b,{bonus:1,identified:true}); }));
       INV=await SK.getInventory(); render();
-      setMsg('✅ Видано: '+(base.name||base.id)+(r&&r.chest?' (сумка повна — у 🎁 скрині)':'')+(r&&r.lost?' — ⚠️ сумка й скриня повні, не влізло':''),true); q('pick').value=''; }
+      setMsg('✅ Видано ('+bases.length+'): '+bases.map(function(b){ return b.name||b.id; }).join(', ')
+        +(r&&r.chest?' (сумка повна — частина у 🎁 скрині)':'')+(r&&r.lost?' — ⚠️ сумка й скриня повні, не все влізло':'')
+        +(miss.length?' · ⚠️ не знайдено: '+miss.join(', '):''),!miss.length); q('pick').value=''; }
     catch(e){ setMsg('⚠️ '+(e&&e.message||e),false); }
     this.disabled=false;
   });
