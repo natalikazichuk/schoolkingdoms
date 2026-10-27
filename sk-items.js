@@ -700,18 +700,37 @@
     o = o || {};
     var cat = PROMPT_CATS[o.category] || 'item', w = o.category === 'Зброя' && PROMPT_WEAPONS[o.weaponType];
     var tier = PROMPT_TIERS.filter(function (t) { return t.key === o.tier; })[0] || PROMPT_TIERS[0];
+    var what = (o.desc && String(o.desc).trim()) || (o.name ? '«' + o.name + '»' : 'a ' + (w || cat));
     var long = w && /^(bow|spear|staff|whip|flail)$/.test(o.weaponType);
     var pair = /pair/.test(cat + (w || ''));
-    // коротко: довгий промт ChatGPT читає гірше (рішення 27.10); тіні не просимо — чистіша іконка
     return [
-      'Draw a new image from scratch (there is no input image, do not ask for one).',
-      'Item: ' + (o.name ? '«' + o.name + '», ' : '') + 'a ' + (w || cat) + (o.desc ? ': ' + String(o.desc).trim() : '') + '.',
-      'Tier: ' + tier.en + '.',
-      'Style: fantasy RPG inventory icon for a kids\' game, semi-realistic stylized 3D, soft light from the upper left, friendly, nothing scary.',
-      'Exactly one ' + (pair ? 'pair' : 'item') + ', shown whole with wide empty margins (about 70% of the frame), three-quarter view, ' + (long ? 'placed diagonally from lower-left to upper-right' : 'slight diagonal tilt') + '.',
-      'Background: flat pure white #FFFFFF — no checkerboard, no shadow, no floor, no text.',
-      'Thin slightly darker outline; no pure-white highlights on the outer edges.',
-      'Square 1024×1024.'
+      'Draw a brand-new picture from scratch. There is NO input image — do not ask me to upload anything, just create the image right away. Follow every rule below exactly.',
+      '',
+      'MOST IMPORTANT RULES',
+      '1. The WHOLE item must be inside the picture with empty space around it: at least 12% margin on every side.',
+      '   Nothing may touch or cross the edges. Do NOT crop, do NOT zoom in. The item takes about 70% of the image.',
+      '2. Background: plain solid pure white (#FFFFFF), perfectly flat and even.',
+      '   Do NOT draw a checkerboard / transparency grid, no gradient, no floor, no scenery, no frame.',
+      '3. Exactly one ' + (pair ? 'pair of items' : 'item') + '. No hands, no characters, no text, no letters, no logos, no watermark.',
+      '4. The item must stand out clearly from the white background: give it a thin slightly darker outline,',
+      '   and no pure-white highlights on its outer edges (bright metal edges should be light grey or steel blue, not white).',
+      '',
+      'ITEM: ' + what + (o.name && o.desc ? ' (item name: «' + o.name + '»)' : ''),
+      'TYPE: ' + (w ? w + ' (' + cat + ')' : cat),
+      'TIER: ' + tier.en,
+      '',
+      'STYLE (fantasy RPG inventory icon for a children\'s educational game)',
+      '- Semi-realistic stylized 3D render, like a polished mobile RPG; friendly and kid-appropriate, nothing scary.',
+      '- Soft studio lighting from the upper left, gentle rim light, clear readable silhouette.',
+      '- Rich but natural colors, crisp material detail (wood grain, leather stitching, metal scratches, fabric weave).',
+      '',
+      'COMPOSITION',
+      '- Three-quarter view, centered, shown in full from end to end.',
+      long ? '- Long item: place it diagonally from the lower-left corner area to the upper-right, still with margins on all sides.'
+           : '- Slight diagonal tilt for a dynamic look.',
+      '- A soft light-grey contact shadow directly under the item (blurred, subtle), on the white background.',
+      '',
+      'OUTPUT: square 1:1, 1024×1024.'
     ].join('\n');
   }
 
