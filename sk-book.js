@@ -317,6 +317,7 @@ function paintBattle(bs){
       else if (why === 'eyeblind') { cls += ' on cd'; badge = '<span class="skb-cd">🙈</span>'; tip += ' · ти осліплена — Око не діє, а мана йде · торкнись, щоб вимкнути'; }
       else if (why === 'camo') { cls += ' cd'; badge = '<span class="skb-cd">🌿</span>'; tip += ' · лише з увімкненим Камуфляжем'; }
       else if (why === 'blind') { cls += ' cd'; badge = '<span class="skb-cd">🫳</span>'; tip += ' · суперник ще сліпий чи оговтується'; }
+      else if (why === 'vines') { cls += ' cd'; badge = '<span class="skb-cd">🌱</span>'; tip += ' · суперник ще в путах чи оговтується'; }
       else if (why === 'full') { cls += ' cd'; badge = '<span class="skb-cd">❤️</span>'; tip += ' · здоров\'я повне'; }
       else if (why === 'hp') { cls += ' cd'; badge = '<span class="skb-cd">❤️</span>'; tip += ' · у суперника вже менше 30% здоров\'я'; }
       else if (why) { cls += ' cd'; tip += ' · зараз не можна'; }   // будь-яка інша причина — теж сіре
