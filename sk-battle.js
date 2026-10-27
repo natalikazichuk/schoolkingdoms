@@ -90,9 +90,9 @@
     frenzy: { id: 'knight.frenzy' }, cleave: { id: 'knight.cleave' }, ult: { id: 'knight.ult' },
     stone: { id: 'knight.stoneskin' }, song: { id: 'knight.song' }, shieldbreak: { id: 'knight.shieldbreak' },
     rhide: { id: 'ranger.hide' }, poison: { id: 'ranger.poison' }, bandage: { id: 'ranger.bandage' },
-    sand: { id: 'ranger.sand' }, ambush: { id: 'ranger.ambush' }, aimed: { id: 'ranger.aimed' }, trap: { id: 'ranger.trap' }, vines: { id: 'ranger.vines' } };
+    sand: { id: 'ranger.sand' }, ambush: { id: 'ranger.ambush' }, aimed: { id: 'ranger.aimed' }, trap: { id: 'ranger.trap' }, vines: { id: 'ranger.vines' }, wolf: { id: 'ranger.ult' } };
   /* вміння, що діють ДО ударів ходу (не окремий удар) */
-  var PRE = { 'knight.berserk': 1, 'knight.bless': 1, 'knight.disarm': 1, 'knight.lunge': 1, 'knight.stoneskin': 1, 'knight.song': 1, 'knight.shieldbreak': 1, 'knight.frenzy': 1, 'knight.cleave': 1, 'ranger.hide': 1, 'ranger.poison': 1, 'ranger.bandage': 1, 'ranger.sand': 1, 'ranger.ambush': 1, 'ranger.trap': 1, 'ranger.vines': 1 };
+  var PRE = { 'knight.berserk': 1, 'knight.bless': 1, 'knight.disarm': 1, 'knight.lunge': 1, 'knight.stoneskin': 1, 'knight.song': 1, 'knight.shieldbreak': 1, 'knight.frenzy': 1, 'knight.cleave': 1, 'ranger.hide': 1, 'ranger.poison': 1, 'ranger.bandage': 1, 'ranger.sand': 1, 'ranger.ambush': 1, 'ranger.trap': 1, 'ranger.vines': 1, 'ranger.ult': 1 };
   /* СПІЛЬНІ ВМІННЯ: однакова назва в різних класах — однакова механіка й числа. Код пише id Лицаря,
      а в Героя іншого класу вміння лежить під своїм id — SAME зводить їх докупи (ріст іде у вміння Героя).
      Те, чим клас кращий, — не тут, а в перевагах класу (SKARENA.CLASS_PERKS). */
@@ -291,6 +291,9 @@
     if (id === SKILL.cleave.id && carefulOn(st.op, st.round)) return 'careful';    // ворог обережний — Розсікти чекає, хід не марнується
     if (id === SKILL.ult.id && !(num((st.me.fx || {}).focus) > 0)) return 'focus';  // Королівська лють — потрібна концентрація
     if (id === SKILL.ult.id && num(st.op.force) < num(st.op.max) * (V(st, id, 'hpMin') || 30) / 100) return 'hp';   // … і в ворога ще щонайменше hpMin % здоров'я (не добиває)
+    if (id === SKILL.wolf.id && wolfOn(st.me, st.round)) return 'active';      // вовк ще поруч
+    if (id === SKILL.wolf.id && !(num((st.me.fx || {}).focus) > 0)) return 'focus';   // Спустити звіра — потрібен Приціл
+    if (id === SKILL.wolf.id && num(st.op.force) < num(st.op.max) * (V(st, id, 'hpMin') || 30) / 100) return 'hp';
     if (id === SKILL.shieldbreak.id && !opShield(st) && !shieldOffNow(st.op, st.round)) return 'noshield';   // у суперника немає щита — хід не марнується
     if (id === SKILL.spark.id && num(st.me.mana) < (V(st, id, 'mana') || 5)) return 'mana';
     if (V(st, id, 'mana') && num(st.me.mana) < V(st, id, 'mana')) return 'mana';   // Берсерк 100, Благословення 50
@@ -963,6 +966,66 @@
     if (round >= num(v.until)) delete u.fx.vines;
     return d;
   }
+  /* 🐺 Спустити звіра (ульта Слідопита): постріл-мітка. Потрібен Приціл K ≥ 1 і щонайменше hpMin % здоров'я ворога.
+     Вдалося — −mana і весь Приціл: ворог — «Здобич» K + 1 ходів (цей теж). Щоходу вовк кусає (×dmgMul від урону зброї;
+     ухилитись можна, блок зони не рятує), укус може пустити кров (не накопичується — лише продовжується).
+     З наступного ходу −upkeep Запалу щоходу; Запал скінчився / мітка минула / вовк завдав dmgCap % макс. здоров'я
+     ворога (разом із кров'ю) — вовк відступає: «зробив усе, що міг — добий сам». Ультою не вбити. */
+  function wolfOn(u, round) { var w = u && u.fx && u.fx.wolf; return !!(w && num(w.until) >= round); }
+  function wolfTry(ctx, st, id, rnd) {
+    var need = V(st, id, 'chance'), roll = ctx.R.d100(rnd), rec = { id: id, need: need, roll: roll, ok: roll <= need, dmg: 0 };
+    if (!rec.ok) { grow(st, id, false); rec.kind = 'fail'; return rec; }
+    var f = fxOf(st.me), K = Math.max(1, num(f.focus)), mn = V(st, id, 'mana');
+    f.focus = 0; if (mn) { st.me.mana = Math.max(0, num(st.me.mana) - mn); rec.mana = mn; }
+    grow(st, id, true);
+    var cap = Math.max(1, Math.round(num(st.op.max) * (V(st, id, 'dmgCap') || 25) / 100));
+    f.wolf = { from: st.round, until: st.round + K, cap: cap, dealt: 0, mul: V(st, id, 'dmgMul') || 50, bleed: V(st, id, 'bleed'), bleedPct: V(st, id, 'bleedPct') || 2, bleedTurns: V(st, id, 'bleedTurns') || 2 };
+    fxOf(st.op).prey = st.round + K;
+    rec.kind = 'wolf'; rec.K = K; rec.turns = K + 1; rec.cap = cap;
+    return rec;
+  }
+  /* з другого ходу мітки: −upkeep Запалу; не вистачає — вовк іде */
+  function wolfPay(st) {
+    var f = st.me && st.me.fx, w = f && f.wolf; if (!w || num(w.from) >= st.round || num(w.until) < st.round) return null;
+    var c = V(st, SKILL.wolf.id, 'upkeep') || 25;
+    if (num(st.me.mana) < c) return wolfGone(st, 'mana');
+    st.me.mana = num(st.me.mana) - c;
+    return { pay: c };
+  }
+  function wolfGone(st, why) {
+    var f = fxOf(st.me), w = f.wolf; delete f.wolf; if (st.op.fx) delete st.op.fx.prey;
+    return { gone: why, dealt: w ? num(w.dealt) : 0 };
+  }
+  /* укус: окремий кидок; блок зони не рятує (вовк з флангу), ухилення — так */
+  function wolfBite(ctx, st, pA, pD, rnd) {
+    var w = st.me.fx && st.me.fx.wolf; if (!wolfOn(st.me, st.round)) return null;
+    var a = {}, k; for (k in pA) a[k] = pA[k];
+    a.dmgMul = Math.round((num(pA.dmgMul) || 1) * num(w.mul)) / 100; a.extra = 0;
+    var h = ctx.R.strike(a, pD, false, rnd), left = num(w.cap) - num(w.dealt);
+    if (h.dmg > left) { h.dmg = Math.max(0, left); h.capped = true; }
+    w.dealt = num(w.dealt) + num(h.dmg);
+    var rec = { kind: h.kind, dmg: num(h.dmg), crit: !!h.crit };
+    grow(st, SKILL.wolf.id, h.kind === 'hit' || h.kind === 'crit');
+    if (h.dmg > 0 && w.bleed > 0 && num(w.dealt) < num(w.cap)) {   // кровотеча: не накопичується — лише продовжується
+      var br = ctx.R.d100(rnd); rec.bleedRoll = [br, w.bleed];
+      if (br <= w.bleed) {
+        var bt = { careful: null };
+        if (steadyTry(ctx.R, st, bt, rnd)) rec.bleedSaved = bt.steady || bt.careful;
+        else { fxOf(st.op).bleed = { from: st.round, until: st.round + num(w.bleedTurns) - 1, pct: num(w.bleedPct) }; rec.bleed = num(w.bleedTurns); }
+      }
+    }
+    if (num(w.dealt) >= num(w.cap)) rec.gone = wolfGone(st, 'cap');
+    return rec;
+  }
+  /* кров — наприкінці ходу, броня не захищає; разом з укусами — у стелю вовка (поки він поруч) */
+  function bleedTick(st, u, src) {
+    var b = u.fx && u.fx.bleed; if (!b || num(b.from) > st.round || num(b.until) < st.round) return 0;
+    var d = Math.max(1, Math.round(num(u.max) * num(b.pct) / 100)), w = src && src.fx && src.fx.wolf;
+    if (w) { d = Math.min(d, Math.max(0, num(w.cap) - num(w.dealt))); w.dealt = num(w.dealt) + d; }
+    if (st.round >= num(b.until)) delete u.fx.bleed;
+    u.force -= d;
+    return d;
+  }
   /* осліплений протирає очі (з другого ходу осліплення): вдалося — сліпота минула, але цього ходу без вміння й пояса */
   function wipeTry(ctx, v, rnd) {
     if (!blindOn(v)) return null;
@@ -1440,6 +1503,7 @@
     if (!oi && st.op.ai) st.op.skill = botSkill(st, vo);                          // бот обирає вміння сам
     var osid = oi ? null : st.op.skill, opCan = !down && !fo.feared && !knocked && !(opWipe && opWipe.ok);   // бот: пояс АБО вміння
     var meTog = down ? null : togTick(st), opTog = down ? null : togTick(vo);    // перемикачі: мана за хід
+    var meWolfPay = down ? null : wolfPay(st), opWolfPay = down ? null : wolfPay(vo);   // вовк: Запал за хід (з другого ходу мітки)
     // Берсерк, Благословення — до ударів: діють уже цього ходу
     var skillRec = preBuff(ctx, st, sid, canAct, sd(st, 'skill'));
     var opRec = preBuff(ctx, vo, osid, opCan, sd(vo, 'skill'));
@@ -1455,6 +1519,8 @@
     if (osid === SKILL.trap.id && opCan && !skillBlock(vo, osid)) opRec = trapTry(ctx, vo, osid, op.block, sd(vo, 'skill'));
     if (osid === SKILL.sand.id && opCan && !skillBlock(vo, osid)) opRec = sandTry(ctx, vo, osid, sd(vo, 'skill'));
     if (sid === SKILL.vines.id && canAct && !skillBlock(st, sid)) skillRec = vinesTry(ctx, st, sid, sd(st, 'skill'));
+    if (sid === SKILL.wolf.id && canAct && !skillBlock(st, sid)) skillRec = wolfTry(ctx, st, sid, sd(st, 'skill'));
+    if (osid === SKILL.wolf.id && opCan && !skillBlock(vo, osid)) opRec = wolfTry(ctx, vo, osid, sd(vo, 'skill'));
     if (osid === SKILL.vines.id && opCan && !skillBlock(vo, osid)) opRec = vinesTry(ctx, vo, osid, sd(vo, 'skill'));
     var blessHeal = down ? 0 : blessTick(st), opBlessHeal = down ? 0 : blessTick(vo);
     var meWill = down ? null : willTry(ctx, st, sd(st, 'will')), opWill = down ? null : willTry(ctx, vo, sd(vo, 'will'));   // Залізна воля — сама, до ударів (здоров'я < 20%)
@@ -1599,10 +1665,15 @@
       var sw = (ctx.R.WEAR && ctx.R.WEAR.shieldBreakHit) || 20; st.wear.shield = (st.wear.shield || 0) + sw; wlog.push({ k: 'shield', n: sw });
     }
     var broke = checkBreaks(ctx, st);
-    st.op.force -= meHit.dmg + (skillRec ? skillRec.dmg : 0);
-    st.me.force -= opHit.dmg + (opRec ? opRec.dmg : 0);
+    var meWolf = down ? null : wolfBite(ctx, st, pm, poA, sd(st, 'wolf')), opWolf = down ? null : wolfBite(ctx, vo, po, pmA, sd(vo, 'wolf'));   // укус вовка — окремо від ударів Героя
+    st.op.force -= meHit.dmg + (skillRec ? skillRec.dmg : 0) + (meWolf ? meWolf.dmg : 0);
+    st.me.force -= opHit.dmg + (opRec ? opRec.dmg : 0) + (opWolf ? opWolf.dmg : 0);
     var psnOp = down ? 0 : poisonTick(st.op, st.round), psnMe = down ? 0 : poisonTick(st.me, st.round);   // отрута — наприкінці ходу, броня не захищає
     var vinOp = down ? 0 : vinesTick(st.op, st.round), vinMe = down ? 0 : vinesTick(st.me, st.round);     // Пута лісу — теж наприкінці ходу
+    var bldOp = down ? 0 : bleedTick(st, st.op, st.me), bldMe = down ? 0 : bleedTick(st, st.me, st.op);   // кров від укусів вовка
+    var meWolfEnd = null, opWolfEnd = null;                                       // мітка минула / стелю вичерпала кров — вовк відступає
+    if (st.me.fx && st.me.fx.wolf && (num(st.me.fx.wolf.until) <= st.round || num(st.me.fx.wolf.dealt) >= num(st.me.fx.wolf.cap))) meWolfEnd = wolfGone(st, num(st.me.fx.wolf.dealt) >= num(st.me.fx.wolf.cap) ? 'cap' : 'time');
+    if (st.op.fx && st.op.fx.wolf && (num(st.op.fx.wolf.until) <= st.round || num(st.op.fx.wolf.dealt) >= num(st.op.fx.wolf.cap))) opWolfEnd = wolfGone(vo, num(st.op.fx.wolf.dealt) >= num(st.op.fx.wolf.cap) ? 'cap' : 'time');
     // концентрація кожного: Лицар — росте від урону; решта — у спокійний хід
     var meN = landedN(meHit, skillRec), opN = landedN(opHit, opRec);   // для «Мисливського азарту»: рахунок влучань ходу
     var calmRec = focusTick(ctx, st, opHit.dmg + (opRec ? opRec.dmg : 0), down, sd(st, 'focus'), sd(st, 'calm'), meN, opN);
@@ -1659,6 +1730,12 @@
     if (psnMe) e.mePoison = psnMe;
     if (vinOp) e.vines = vinOp;
     if (vinMe) e.meVines = vinMe;
+    if (bldOp) e.bleed = bldOp;
+    if (bldMe) e.meBleed = bldMe;
+    var wl = function (pay, bite, end) { if (!pay && !bite && !end) return null; var o = {}; if (pay) { if (pay.pay) o.pay = pay.pay; if (pay.gone) o.gone = pay; } if (bite) { o.bite = bite; if (bite.gone) o.gone = bite.gone; } if (end) o.gone = end; return o; };
+    var wm = wl(meWolfPay, meWolf, meWolfEnd), wo = wl(opWolfPay, opWolf, opWolfEnd);
+    if (wm) e.wolf = wm;
+    if (wo) e.opWolf = wo;
     if (meTog && meTog.length) e.tog = meTog;
     if (opWipe) e.opWipe = opWipe;
     if (rearmed != null) e.rearm = rearmed;
