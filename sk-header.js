@@ -470,7 +470,7 @@
     if(window.SKIT) return Promise.resolve(window.SKIT);
     if(!skitP) skitP = new Promise(function(res){
       var s = document.createElement('script');
-      s.src = BASE + 'sk-items.js?v=25';
+      s.src = BASE + 'sk-items.js?v=26';
       s.onload = function(){ res(window.SKIT || null); };
       s.onerror = function(){ res(null); };
       document.head.appendChild(s);

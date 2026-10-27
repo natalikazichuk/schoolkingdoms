@@ -86,7 +86,7 @@
     { key: 'mace',     label: 'Булава',       icon: '🔨', dmg: 'bash',   hint: 'булави, молоти, дубини, киянки' },
     { key: 'flail',    label: 'Кистень',      icon: '⛓️', dmg: 'bash',   hint: 'кистені, ціпи' },
     { key: 'spear',    label: 'Спис',         icon: '🔱', dmg: 'pierce', hint: 'списи, вила, алебарди' },
-    { key: 'whip',     label: 'Кнут',         icon: '➰', dmg: 'slash',  hint: 'кнути, батоги, плетки' },
+    { key: 'whip',     label: 'Кнут',         icon: '➰', dmg: 'slash',  hint: 'кнути, батоги, нагайки' },
     { key: 'staff',    label: 'Посох',        icon: '🦯', dmg: 'bash',   hint: 'посохи, палиці' },
     { key: 'wand',     label: 'Жезл',         icon: '🪄', dmg: 'magic',  hint: 'жезли, чарівні палички, указки' },
     { key: 'knuckles', label: 'Кастети',      icon: '🥊', dmg: 'bash',   hint: 'кастети, бойові рукавиці — пара на обидві руки, щит у лівій можна' },
