@@ -215,6 +215,10 @@ h1,h2,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px
 .board .pic.letter{font-family:'Fredoka';font-weight:700;font-size:clamp(84px,26vw,120px);color:#1e3a6b}
 .board .sent{font-family:'Fredoka';font-weight:600;font-size:clamp(21px,6vw,28px);line-height:1.35;color:var(--ink)}
 .board .sent .hole{display:inline-block;min-width:40px;border-bottom:3px solid var(--aim-d);color:var(--aim-d);padding:0 4px}
+/* правильна відповідь: «?» стає літерою — падає, підстрибує й світиться зеленим */
+.board .sent .hole.fill{color:var(--good);border-bottom-color:var(--good);animation:ltrIn .6s cubic-bezier(.3,1.5,.5,1) both,ltrGlow 1.2s .5s ease-out}
+@keyframes ltrIn{0%{opacity:0;transform:translateY(-28px) scale(.4)}55%{opacity:1;transform:translateY(4px) scale(1.3)}78%{transform:translateY(-2px) scale(.95)}100%{opacity:1;transform:none}}
+@keyframes ltrGlow{0%{text-shadow:0 0 0 rgba(55,178,111,0)}35%{text-shadow:0 0 14px rgba(55,178,111,.85)}100%{text-shadow:0 0 0 rgba(55,178,111,0)}}
 .board .word{font-family:'Fredoka';font-weight:700;font-size:clamp(26px,8vw,34px);color:#1e3a6b;text-align:center}
 .board .say{position:absolute;right:10px;top:10px;width:44px;height:44px;border-radius:14px;border:2px solid var(--line);
   background:#fff;font-size:20px;cursor:pointer}
@@ -759,6 +763,8 @@ function tapOpt(btn, v){
   const q = Q[qi], any = q.ans === "*", ok = any || v === q.ans;
   [...$("p-opts").children].forEach(b => { b.disabled = true; if(any ? b === btn : b.dataset.v === q.ans) b.classList.add("ok"); });
   if(!ok) btn.classList.add("no");
+  const gap = ok && !any && $("p-board").querySelector(".hole");
+  if(gap){ gap.textContent = q.ans; gap.classList.add("fill"); }   // «?» → правильна літера з анімацією
   results[qi] = ok;
   if(!ok) mistakes++;
   speak(any ? v : q.say);
