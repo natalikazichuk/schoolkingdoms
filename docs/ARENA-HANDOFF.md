@@ -15,7 +15,7 @@
 - Доступу до бази гри (Firebase) у Claude немає: речі героям видає користувач (сторінка `inventar.html`,
   кнопка «➕ Дати одну річ»), або через тестові костилі в коді (див. нижче).
 - Після зміни JS — **підняти `?v=N`** у всіх html, що його підключають (і `sk-header.js`, якщо там).
-  Зараз: sk-skills v=87, sk-battle v=68, sk-arena-rules v=38, sk-items v=28, sk-book v=27, sk-book.css v=13.
+  Зараз: sk-skills v=88, sk-battle v=68, sk-arena-rules v=38, sk-items v=28, sk-book v=27, sk-book.css v=13.
 - Тести: `cd server/app && node --test test/*.test.js` (197 зелених на 26.10).
 - Перевірка в браузері: `python3 -m http.server 8765` у корені + Playwright зі стабом `window.SK`
   (інлайн-скрипти сторінок запускаються раніше за модуль `firebase-config.js`, тож стаб — через `addInitScript`).
