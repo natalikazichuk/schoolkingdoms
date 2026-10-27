@@ -181,8 +181,7 @@ function itemsDay(ts) {
   catch (e) { return new Date(ts).toISOString().slice(0, 10); }
 }
 /* старі назви в записах речей (до 27.10) → нові: категорії «Зелья» → «Зілля», «Свиток» → «Сувій»,
-   характеристика «Барєр» → «Бар'єр». Записи в базі оновлює адмінка («Орфографія в назвах»),
-   а доти сайт бачить уже нові назви. */
+   характеристика «Барєр» → «Бар'єр». Страховка для старих записів у базі й старого кешу. */
 const ITEM_CAT_RENAME = { 'Зелья': 'Зілля', 'Свиток': 'Сувій' };
 const ITEM_STAT_RENAME = { 'Барєр': "Бар'єр" };
 function itemNorm(it) {
@@ -1116,11 +1115,6 @@ const SK = {
      Тепер (власний сервер, квоти Firestore немає) кеш ще й звіряється з міткою
      meta/items раз на хвилину — зміни з адмінки видно одразу (див. itemsVer). */
   async listItems(opts) {
-    if (opts && opts.raw) {                      // як лежить у базі, без нормалізації назв (адмінка «Орфографія в назвах»)
-      const snap = await getDocs(collection(db, 'items'));
-      const out = []; snap.forEach(d => out.push(Object.assign({ id: d.id }, d.data())));
-      return out;
-    }
     const fresh = !!(opts && opts.fresh);
     if (!fresh) {
       const c = itemsCacheGet();
