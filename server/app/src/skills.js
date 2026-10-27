@@ -215,13 +215,16 @@ function testClass(heroId, body) {
 function setLevel(heroId, body) {
   const lvRaw = body.level == null ? null : Math.floor(Number(body.level));
   const add = Math.max(0, Math.min(20, Math.floor(Number(body.addPoints) || 0)));
+  const bag = body.bagMax === undefined ? undefined : Math.floor(Number(body.bagMax) || 0);   // розмір сумки: 0 — як у всіх (100)
   if (lvRaw != null && !(lvRaw >= 1 && lvRaw <= 30)) throw new SkillError('invalid-argument', 'Рівень — від 1 до 30');
-  if (lvRaw == null && !add) throw new SkillError('invalid-argument', 'Нічого змінювати');
+  if (bag !== undefined && !(bag === 0 || (bag >= 10 && bag <= 999))) throw new SkillError('invalid-argument', 'Сумка — від 10 до 999 (0 — як у всіх)');
+  if (lvRaw == null && !add && bag === undefined) throw new SkillError('invalid-argument', 'Нічого змінювати');
   return withHeroId(String(heroId || ''), (hero, st) => {
     if (battleLive(hero)) throw new SkillError('failed-precondition', 'Герой зараз у бою — спершу хай завершить бій');
     const out = {};
     if (lvRaw != null) out.arena = Object.assign({}, hero.arena || {}, { level: lvRaw, xp: 0 });
     if (add) out.skillBonus = st.bonus + add;
+    if (bag !== undefined) out.bagMax = bag || null;
     return out;
   });
 }
@@ -231,7 +234,7 @@ async function heroList() {
   const S = lib();
   return r.rows.map(x => {
     const st = S.bookState(x.data);
-    return { id: x.id, name: x.data.name || '', lv: st.lv, cls: st.cls, bonus: st.bonus,
+    return { id: x.id, name: x.data.name || '', lv: st.lv, cls: st.cls, bonus: st.bonus, bagMax: x.data.bagMax || null,
       skills: Object.keys(st.skills).map(id => ({ id, pct: S.mastery(st, id) })) };
   });
 }

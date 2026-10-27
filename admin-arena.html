@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="sk-admin.css?v=2">
 <script src="sk-admin.js?v=1"></script>
 <script src="sk-curriculum.js?v=9"></script>
-<script src="sk-items.js?v=27"></script>
+<script src="sk-items.js?v=28"></script>
 <script src="sk-arena-rules.js?v=38"></script>
 <script src="sk-skills.js?v=87"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1029,6 +1029,8 @@ function heroAdminHTML(){
       +'<button type="button" class="btn-ghost" data-hadm="level" data-id="'+esc(h.id)+'">🆙 Рівень</button>'
       +'<button type="button" class="btn-ghost" data-hadm="point" data-id="'+esc(h.id)+'">🎁 +1 очко вмінь</button>'
       +'<span class="key" style="align-self:center">очок понад рівень: '+(h.bonus||0)+'</span>'
+      +'<input type="number" id="hadm-bag-'+esc(h.id)+'" value="'+(h.bagMax||100)+'" min="10" max="999" style="width:70px" aria-label="Розмір сумки">'
+      +'<button type="button" class="btn-ghost" data-hadm="bag" data-id="'+esc(h.id)+'">🎒 Сумка</button>'
       +(HADM.done===h.id?'<span style="align-self:center;color:#2e7d32;font-weight:700">✓ Готово</span>':'')+'</div></td></tr>';
   }).join('');
   return '<section class="sec" id="hadm"><h2>🧪 Герої: клас і вміння (тест)</h2>'
@@ -1050,6 +1052,10 @@ root.addEventListener('click',function(e){
     if(!(lv>=1&&lv<=30)){alert('Рівень — від 1 до 30');return;}
     if(!confirm('Встановити Героєві «'+(h.name||id)+'» рівень арени '+lv+'? Досвід почнеться з нуля.'))return;
     p=hadmApi('POST','hero/set-level',{id:id,level:lv});
+  } else if(b.dataset.hadm==='bag'){
+    var bg=Math.floor(+document.getElementById('hadm-bag-'+id).value||0);
+    if(!(bg>=10&&bg<=999)){alert('Сумка — від 10 до 999 місць');return;}
+    p=hadmApi('POST','hero/set-level',{id:id,bagMax:bg===100?0:bg});
   } else if(b.dataset.hadm==='point'){
     p=hadmApi('POST','hero/set-level',{id:id,addPoints:1});
   } else {
