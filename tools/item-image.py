@@ -65,7 +65,14 @@ def holes(im, m, lo):
                     if 0 <= nx < w and 0 <= ny < h:
                         k = ny * w + nx
                         if not seen[k] and not m[k] and is_light_neutral(px[nx, ny], lo): seen[k] = 1; q.append((nx, ny))
-            if len(comp) >= minA:
+            # велика світла ділянка — тло; дрібна (ланка ланцюга) — лише якщо в середньому майже чисто біла (блиски металу такими не бувають)
+            def ring():   # що довкола: ланка ланцюга оточена темним металом, а блиск на лезі — світлим
+                cs = set(comp); tot = n = 0
+                for k in comp:
+                    for nk in (k + 3, k - 3, k + 3 * w, k - 3 * w):   # за 3 px — минаючи згладжений обідок
+                        if 0 <= nk < w * h and nk not in cs and not m[nk]: c = px[nk % w, nk // w]; tot += c[0] + c[1] + c[2]; n += 1
+                return n and tot / n / 3 < 150
+            if len(comp) >= minA or (len(comp) >= 25 and lo >= 238 and sum(sum(px[k % w, k // w][:3]) for k in comp) >= 3 * 250 * len(comp) and ring()):
                 for k in comp: m[k] = 1
     return m
 

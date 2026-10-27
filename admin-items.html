@@ -1107,7 +1107,15 @@ function prepImage(im){
       while(st.length){ var k=st.pop(), kx=k%w, ky=(k-kx)/w; comp.push(k);
         [[kx+1,ky],[kx-1,ky],[kx,ky+1],[kx,ky-1]].forEach(function(t){ if(t[0]<0||t[1]<0||t[0]>=w||t[1]>=h) return; var kk=t[1]*w+t[0];
           if(!seen[kk]&&!mark[kk]&&light(kk*4, hlo)){ mark[kk]=1; st.push(kk); } }); }
-      if(comp.length>=minA) comp.forEach(function(k){ seen[k]=1; });
+      // дрібна замкнена ділянка (ланка ланцюга) — тло, лише якщо майже чисто біла: блиски металу такими не бувають
+      var pure=keep && comp.length>=25 && comp.reduce(function(a,k){ var q=k*4; return a+p[q]+p[q+1]+p[q+2]; },0)>=3*250*comp.length;
+      if(pure){   // що довкола: ланка ланцюга оточена темним металом, а блиск на лезі — світлим
+        var cs={}, tot=0, cnt=0; comp.forEach(function(k){ cs[k]=1; });
+        comp.forEach(function(k){ [k+3,k-3,k+3*w,k-3*w].forEach(function(nk){   // за 3 px — минаючи згладжений обідок
+           if(nk>=0&&nk<w*h&&!cs[nk]&&!seen[nk]){ var q=nk*4; tot+=p[q]+p[q+1]+p[q+2]; cnt++; } }); });
+        pure = cnt>0 && tot/cnt/3<150;
+      }
+      if(comp.length>=minA || pure) comp.forEach(function(k){ seen[k]=1; });
     }
     for(var nn=0;nn<w*h;nn++){ if(!seen[nn]) continue; var jj=nn*4;
       var a=keep?Math.min(150, Math.max(0, (250-(p[jj]+p[jj+1]+p[jj+2])/3)*2.2)):0;
