@@ -704,7 +704,7 @@
     var long = w && /^(bow|spear|staff|whip|flail)$/.test(o.weaponType);
     var pair = /pair/.test(cat + (w || ''));
     return [
-      'Generate a NEW image from scratch (do not edit or reuse any previous image). Follow every rule below exactly.',
+      'Draw a brand-new picture from scratch. There is NO input image — do not ask me to upload anything, just create the image right away. Follow every rule below exactly.',
       '',
       'MOST IMPORTANT RULES',
       '1. The WHOLE item must be inside the picture with empty space around it: at least 12% margin on every side.',

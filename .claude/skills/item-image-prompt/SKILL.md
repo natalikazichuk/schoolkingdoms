@@ -23,7 +23,7 @@ desc:\"a sturdy hunter's recurve bow of dark wood, leather-wrapped grip\"}))"
 ```
 
 - `category` — як у каталозі: `Зброя`, `Щити`, `Шоломи`, `Обладунки`, `Рукавиці`, `Наручі`, `Пояси`,
-  `Штани`, `Взуття`, `Кільце`, `Амулет`, `Зелья`, `Свиток`.
+  `Штани`, `Взуття`, `Кільце`, `Амулет`, `Зілля`, `Сувій`.
 - `weaponType` (лише для зброї) — `SKIT.WEAPON_TYPES`: sword, dagger, axe, mace, flail, spear, whip,
   staff, wand, knuckles, bow, exotic.
 - `tier` — `common` / `uncommon` / `rare` / `epic` / `legendary` (чим рідкісніша, тим багатші матеріали;
