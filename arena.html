@@ -582,6 +582,15 @@ html.res-fire .avablk .hpwrap b.mn{color:#ffb070}
 .z-legs{border-color:#4a86d6;background:linear-gradient(180deg,rgba(34,66,116,.92),rgba(22,44,82,.94))}
 .z-legs .zi{background:linear-gradient(180deg,#4a86d6,#2c5aa0)}
 .gbtn.sel,.tcard.sel{box-shadow:0 0 0 3px var(--gold),0 6px 16px rgba(0,0,0,.5)}
+/* 🪤 Пастка: обрано вміння — тап по іншій зоні захисту ставить туди пастку; зона пастки переливається, поки пастка не спрацює */
+.gbtn.trapz{animation:trapGlow 1.4s ease-in-out infinite}
+.gbtn.trapz::before{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:1;
+  background:linear-gradient(105deg,rgba(157,255,46,0) 25%,rgba(157,255,46,.55) 45%,rgba(230,255,190,.75) 50%,rgba(157,255,46,.55) 55%,rgba(157,255,46,0) 75%),rgba(157,255,46,.16);
+  background-size:260% 100%,100% 100%;background-repeat:no-repeat;animation:trapWave 1.6s linear infinite}
+.gbtn.trappend{outline:3px dashed #9dff2e;outline-offset:-5px}
+.gbtn.trappend::before{content:'🪤 обрано';position:absolute;right:10px;top:5px;font-size:.7rem;font-weight:900;color:#d8ff9e;text-shadow:0 1px 2px #000;pointer-events:none;z-index:2}
+@keyframes trapGlow{0%,100%{box-shadow:0 0 0 3px #9dff2e,0 0 10px rgba(157,255,46,.5)}50%{box-shadow:0 0 0 4px #e2ffb8,0 0 22px rgba(157,255,46,.95)}}
+@keyframes trapWave{0%{background-position:130% 0,0 0}100%{background-position:-30% 0,0 0}}
 .gbtn.sel::after,.tcard.sel::after{content:'✓';position:absolute;top:4px;right:7px;font-weight:900;font-size:.82rem;color:var(--gold)}
 .tcard.hitflash{animation:tcflash .6s}
 .tcard.blockflash{animation:tcblock .6s}
@@ -1369,7 +1378,12 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text}
   #ward.ek-battle .ek-body>.ek-card{order:3}
   #ward.ek-battle .ek-grid{max-height:45vh}
 }
+#ward.ek-battle .ek-cell.ek-knocked{position:relative;border-radius:14px;box-shadow:0 0 0 3px #ff5a5a,0 0 14px rgba(255,90,90,.7);animation:knkPulse 1.2s ease-in-out infinite}
+#ward.ek-battle .ek-knk{position:absolute;left:50%;top:2px;transform:translateX(-50%);z-index:3;white-space:nowrap;font-size:.66rem;font-weight:900;color:#fff;background:#c62828;border-radius:8px;padding:1px 6px;pointer-events:none}
+@keyframes knkPulse{50%{box-shadow:0 0 0 3px #ffb0b0,0 0 22px rgba(255,90,90,.95)}}
 #ward.ek-battle .skb-face.back{display:none}   /* у бою книги вмінь на звороті сумки немає — і її висоти теж */
+#ward.ek-battle .skb-flip.book .skb-flip-in{transform:none}   /* книгу відкрили до бою — у бою сумка все одно лицем (інакше порожньо) */
+#ward.ek-battle .skb-flip.book .skb-face.front{visibility:visible}
 .ek-gh .ek-off{display:block;font-size:.62rem;font-weight:900;color:#ffb3a8;line-height:1.1}
 .ek-lvltop{display:flex;align-items:center;gap:8px;margin-bottom:9px}
 .ek-lvltop .ek-xpwrap{flex:1;min-width:0}
@@ -1760,7 +1774,7 @@ function resW(){ return (window.SKRES && SKRES.of()) || {name:'Мана', gen:'�
 <script src="sk-avatar.js?v=9"></script>
 <script src="sk-progress.js"></script>
 <script src="sk-arena-rules.js?v=37"></script>
-<script src="sk-battle.js?v=58"></script>
+<script src="sk-battle.js?v=66"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
    Інвентар, скриня, смітник, продане / куплене сьогодні й монети
@@ -2013,7 +2027,7 @@ window.SKHERO = (function(){
       if(!text) return;
       updateForce('p', B.me);
       addSwap(B.round, text);
-      paintBelt(); if(window.SKBOOK) SKBOOK.paintBattle(B);
+      paintBelt(); if(window.SKBOOK) SKBOOK.paintBattle(B); paintTrap();
       saveBattle();
       if(window.EKEQUIP && EKEQUIP.battleRefresh) EKEQUIP.battleRefresh();   // інвентар у бою — показати нове
     }, function(e){
@@ -2040,6 +2054,10 @@ window.SKHERO = (function(){
     why: swapWhy,
     locked: LOCKED_SLOTS,
     swap: function(slot, inst, base){ if(!swapsLeft()){ showToast('🔄 Перевдягання', swapWhy()); return; } doSwap(slot, inst, base); },
+    /* вибита зброя (uid) — у сумці стоїть першою й підсвічена, поки не повернеться в руку */
+    knocked: function(){ var p = (B.me.fx||{}).pickup; return p && p.uid ? p.uid : null; },
+    round: function(){ return B.round; },
+    knockedBack: function(){ var p = (B.me.fx||{}).pickup; return p ? +p.at||0 : 0; },
     /* річ, що зараз «на землі»: вибита зброя / відбитий щит */
     offIn: function(slot){ var f = B.me.fx || {};
       return slot==='weaponR' && (+f.disarm||0) >= B.round ? '🤚 вибито' : slot==='weaponL' && (+f.shieldOff||0) >= B.round ? '💥 відбито' : ''; },
@@ -2115,8 +2133,11 @@ window.SKHERO = (function(){
         else if(why==='swap') showToast('🔁 Ти вже перевдягнувся', 'За хід — одна дія: вміння, пояс або перевдягання.');
         else if(why==='knock') showToast('😵 Тебе збили з ніг', 'Цей хід — без атаки й без спецдій.');
         else if(why==='locked') showToast('🌿 Камуфляж зачаївся', 'Після Засідки він кілька ходів не діє й не вимикається — потім увімкнеться сам, якщо вистачить '+resW().gen+'.');
+        else if(why==='mana' && SKSKILLS.RULES && SKSKILLS.RULES[id] && SKSKILLS.RULES[id].kind==='toggle') showToast('🔥 Не вистачає '+resW().gen, 'Щоб увімкнути, потрібно '+((B.me.skv&&B.me.skv[id]&&B.me.skv[id].mana)||'')+((B.me.tog||[]).length?' (другий перемикач — дорожче)':'')+'.');
+        else if(SKSKILLS.RULES && SKSKILLS.RULES[id] && SKSKILLS.RULES[id].kind==='toggle' && B.me.sk && B.me.sk['ranger.fire2']!=null) showToast('🔥 Уже два перемикачі', 'Більше двох одночасно не можна — вимкни один (Камуфляж, що зачаївся, теж займає місце).');
         else if(SKSKILLS.RULES && SKSKILLS.RULES[id] && SKSKILLS.RULES[id].kind==='toggle') showToast('🔥 Лише один перемикач', 'Щоб тримати два одночасно, потрібне вміння «Другий запал». Вимкни інший перемикач.');
         return; }
+      else if(id==='ranger.trap' && !why) showToast('🪤 Пастка', B.me.block ? 'Тепер торкнись іншої зони захисту — пунктир: зону обрано; коли пастку поставлено — зона переливається.' : 'Спершу обери блок, потім торкнись іншої зони — туди стане пастка.');
       else if(why==='cd') showToast('⏳ Перезарядка', 'Обрано — спрацює, щойно перезарядиться (ще '+((B.me.cd||{})[id]-B.round+1)+' хід.).');
       else if(why==='mana') showToast((resW().key==='fire'?'🔥 Не вистачає ':'💧 Не вистачає ')+resW().gen, 'Обрано — спрацює, коли буде '+((B.me.skv&&B.me.skv[id]&&B.me.skv[id].mana)||5)+' '+resW().gen+'.');
       else if(why==='shield') showToast('🛡️ Потрібен щит', 'Обрано — спрацює, коли вдягнеш щит у ліву руку.');
@@ -2129,7 +2150,7 @@ window.SKHERO = (function(){
       else if(why==='blind') showToast('🫳 Суперник ще сліпий', 'Або ще оговтується — спрацює, коли мине імунітет.');
       else if(why==='full') showToast('❤️ Здоров\'я повне', 'Обрано — Перев\'язка спрацює, щойно тебе поранять.');
       else if(why==='hp') showToast('👑 Ще рано', 'Королівська лють — лише поки в суперника щонайменше 30% здоров\'я.');
-      saveBattle(); if(window.SKBOOK) SKBOOK.paintBattle(B); paintBelt();
+      saveBattle(); if(window.SKBOOK) SKBOOK.paintBattle(B); paintTrap(); paintBelt();
     });
   }
   function bindBelt(){
@@ -2138,7 +2159,7 @@ window.SKHERO = (function(){
       var b = e.target.closest('[data-belt-uid]'); if(!b || b.disabled || !B || !live() || UI.resolving) return;
       var uid = b.getAttribute('data-belt-uid');
       if(!SB.useBelt(ctx(), B, B.me.use===uid ? null : uid)) return;
-      saveBattle(); paintBelt(); if(window.SKBOOK) SKBOOK.paintBattle(B); if(window.EKEQUIP && EKEQUIP.battleRefresh) EKEQUIP.battleRefresh();
+      saveBattle(); paintBelt(); if(window.SKBOOK) SKBOOK.paintBattle(B); paintTrap(); if(window.EKEQUIP && EKEQUIP.battleRefresh) EKEQUIP.battleRefresh();
     });
   }
   /* ── значки ефектів: позитивні (зелений стовпчик) і негативні (червоний) ──
@@ -2186,8 +2207,14 @@ window.SKHERO = (function(){
     if(f.bres) timed(f.bres.until, function(n){ return {neg:false, ic:'🩹', n:n, title:'Опір отруті', text:'Перев\'язка: +'+(f.bres.pct||50)+'% опору отруті.', left:left(n)}; });
     if((u.tog||[]).indexOf('ranger.camo')>=0 && u.skv && u.skv['ranger.camo']){ var cm = u.skv['ranger.camo'], lk = f.camoLock && f.camoLock>=B.round;
       out.push({neg:false, ic:'🌿', n:lk?(f.camoLock-B.round+1):'', past:lk, title:lk?'Камуфляж зачаївся':'Камуфляж', text:lk?'Після Засідки не діє й не їсть ману; потім увімкнеться сам, якщо вистачить.':'Урон ×'+((cm.dmgMul||110)/100)+', Ухилення +'+(cm.dmgMul?cm.dodgePlus:0)+'%. −'+(cm.mana||7)+' щоходу.', left:lk?'Ще '+(f.camoLock-B.round+1)+' ход.':'Поки увімкнено й є мана'}); }
+    if(f.trap && f.trap.until>=B.round){ var ZW2 = {head:'голові', body:'тулубі', arms:'руках', legs:'ногах'}, tn = f.trap.until-B.round+1;
+      out.push({neg:false, ic:'🪤', n:tn, title:'Пастка', text:'Стоїть у '+(ZW2[f.trap.zone]||f.trap.zone)+'. Суперник ударить туди — удар ×'+((f.trap.cut||50)/100)+', і наступного ходу він без ударів.', left:left(tn)}); }
+    if(B && f.trapped===B.round) out.push({neg:true, ic:'🪤', n:'', title:'У пастці', text:'Цього ходу — без звичайних ударів і без ухилення. Вміння, пояс і блок — можна.', left:'Цей хід'});
+    else if(B && (+f.trapImm||0) > B.round){ var ti = f.trapImm-B.round; out.push({neg:false, ic:'🪤', n:ti, past:true, title:'Оговтується після пастки', text:'Поки оговтується, нова пастка не затримає — лише послабить удар.', left:left(ti)}); }
     if((u.tog||[]).indexOf('ranger.hunter')>=0 && u.skv && u.skv['ranger.hunter']){ var hu = u.skv['ranger.hunter'], hb = f.blind && f.blind.from<=B.round && f.blind.until>=B.round;
       out.push({neg:false, ic:'👁️', n:'', past:hb, title:hb?'Око мисливця не діє':'Око мисливця', text:hb?'Ти осліплена — Око не бачить, а мана йде. Вимкни, щоб зекономити.':'Точність +'+(hu.accPct||10)+'%, удар у закриту зону пробиває блок у '+(hu.gap||50)+'%. −'+(hu.mana||7)+' щоходу.', left:'Поки увімкнено й є мана'}); }
+    if((u.tog||[]).indexOf('ranger.sharpen')>=0 && u.skv && u.skv['ranger.sharpen']){ var sp = u.skv['ranger.sharpen'], noW = !(u.eq||[]).some(function(e){ return !e.off && !e.broken && e.slot==='weaponR'; });
+      out.push({neg:false, ic:'🔪', n:'', past:noW, title:noW?'Заточка не діє':'Заточка', text:noW?'Зброї в руці немає — Заточка не діє, а мана йде.':'Урон +'+(sp.dmgPct||10)+'%, броня ворога ×'+((100-(sp.armorCut||5))/100)+'. −'+(sp.mana||7)+' щоходу.', left:'Поки увімкнено й є мана'}); }
     if((u.tog||[]).indexOf('ranger.haste')>=0 && u.skv && u.skv['ranger.haste']){ var hs = u.skv['ranger.haste'];
       out.push({neg:false, ic:'💨', n:'', title:'Поспіх', text:'Ще один удар щоходу ×'+((hs.dmgMul||100)/100)+'. −'+(hs.mana||30)+' щоходу.', left:'Поки увімкнено й є мана'}); }
     if(f.barrier>0) out.push({neg:false, ic:'🫧', n: f.barrier>1 ? '×'+f.barrier : '',
@@ -2834,7 +2861,7 @@ window.SKHERO = (function(){
     applySel();                          // вибір лишається з попереднього ходу
     renderLog();
     paintBelt(); paintFx();
-    if(window.SKBOOK) SKBOOK.paintBattle(B);  // колонка вмінь ліворуч від сцени (вибір вміння на хід)
+    if(window.SKBOOK) SKBOOK.paintBattle(B); paintTrap();  // колонка вмінь ліворуч від сцени (вибір вміння на хід)
   }
   /* журнал — із записів бою (і доіграних без гравця ходів теж) */
   function renderLog(){
@@ -2932,7 +2959,7 @@ window.SKHERO = (function(){
       + (e.opWill && e.opWill.ok ? '<span class="ln use op">🦾 '+biEsc(B.op.f.name)+': Залізна воля — <span class="g">броня +'+e.opWill.pct+'% на '+e.opWill.turns+(e.opWill.turns<5?' ходи':' ходів')+'</span></span>' : '')
       + (e.opShieldBack ? '<span class="ln use op">🛡️ '+biEsc(B.op.f.name)+' підняв щит — він знову захищає</span>' : '')
       + (e.meShieldBack ? '<span class="ln use">🛡️ Ти підняв щит — він знову захищає</span>' : '')
-      + strikeLines(e) + skillLine(e)
+      + strikeLines(e) + skillLine(e) + trapLine(e.trap, false) + trapLine(e.opTrap, true)
       + (e.calm ? '<span class="dice">🧘 Незворушність: 🎲 '+e.calm[0]+(e.calm[2]?' ≤ ':' > ')+e.calm[1]+'% — '+(e.calm[2]?'концентрація втрималась':e.calm[3]==='reset'?'концентрація скинулась':'концентрація −1')+'</span>' : '')
       + (e.tog||[]).map(function(t){ var S3 = window.SKSKILLS && SKSKILLS.byId(t.id), nm3 = S3 ? S3.icon+' '+S3.name : t.id;
           return t.off ? '<span class="ln use">'+nm3+': <span class="b">вимкнувся — не вистачило '+resW().gen+' ('+t.cost+')</span></span>'
@@ -2947,12 +2974,22 @@ window.SKHERO = (function(){
   }
   /* рядок журналу: удар активним вмінням (у ту саму зону, що й основний) */
   /* рядки вмінь обох: твоє (e.skill) і суперника (e.opSkill — бот-Лицар) */
+  /* Пастка: спрацювала / зникла */
+  function trapLine(k, op){
+    if(!k) return '';
+    var ZW = {head:'голову', body:'тулуб', arms:'руки', legs:'ноги'}, who = op ? biEsc(B.op.f.name) : 'Ти', foe = op ? 'ти' : 'суперник';
+    if(k.kind==='trapGone') return '<span class="ln use'+(op?' op':'')+'">🪤 '+who+': <span class="b">пастка в '+(ZW[k.zone]||k.zone)+' простояла марно — зникла</span></span>';
+    return '<span class="ln use'+(op?' op':'')+'">🪤 '+who+': <span class="crit">'+foe+' ступив у пастку ('+(ZW[k.zone]||k.zone)+')!</span>'
+      + (k.from ? ' удар '+k.from+' → '+k.to : '')
+      + (k.trapped ? ' · <span class="crit">наступного ходу '+(op?'ти без ударів і не ухиляєшся':'він без ударів і не ухиляється')+'</span>' : k.saved ? ' · <span class="b">вирвався (🧱 Стійкість)</span>' : k.imm ? ' · <span class="b">ще оговтується з минулої пастки</span>' : '')
+      + (k.steady ? '<span class="dice">🧱 Стійкість 🎲 '+k.steady[0]+(k.steady[2]?' ≤ ':' > ')+k.steady[1]+'%</span>' : '')+'</span>';
+  }
   function skillLine(e){ return skillLineOf(e.skill, e.me.atk, 'Ти', false) + skillLineOf(e.opSkill, e.op.atk, B.op.f.name, true); }
   function skillLineOf(k, zone, who, op){
     if(!k) return '';
     var LN = '<span class="ln use'+(op?' op':'')+'">'+biEsc(who)+': ';
     var S = window.SKSKILLS && SKSKILLS.byId(k.id), nm = S ? S.icon+' «'+S.name+'»' : '⚡ вміння';
-    if(k.kind==='fail' && (k.id==='ranger.hide' || k.id==='ranger.poison' || k.id==='ranger.bandage' || k.id==='ranger.sand' || k.id==='ranger.ambush' || k.id==='knight.berserk' || k.id==='knight.bless' || k.id==='knight.stoneskin' || k.id==='knight.song' || k.id==='knight.will' || k.id==='knight.frenzy' || k.id==='knight.cleave')) return LN+nm+': <span class="b">не вдалося</span> — спробуй наступного ходу<span class="dice">🎲 '+k.roll+' > '+k.need+'%</span></span>';
+    if(k.kind==='fail' && (k.id==='ranger.hide' || k.id==='ranger.poison' || k.id==='ranger.bandage' || k.id==='ranger.sand' || k.id==='ranger.ambush' || k.id==='ranger.trap' || k.id==='knight.berserk' || k.id==='knight.bless' || k.id==='knight.stoneskin' || k.id==='knight.song' || k.id==='knight.will' || k.id==='knight.frenzy' || k.id==='knight.cleave')) return LN+nm+': <span class="b">не вдалося</span> — спробуй наступного ходу<span class="dice">🎲 '+k.roll+' > '+k.need+'%</span></span>';
     var dice = '<span class="dice">🎲 '+k.roll+(k.ok?' ≤ ':' > ')+k.need+'%'+(k.calc && k.kind==='hit' && !k.noDmg ? ' · '+biEsc(k.calc)+' = '+k.dmg : '')
       +(k.knockNeed!=null ? ' · збити з ніг 🎲 '+k.knockRoll+(k.knockRoll<=k.knockNeed?' ≤ ':' > ')+k.knockNeed+'%' : '')
       +(k.steady ? ' · 🧱 Стійкість 🎲 '+k.steady[0]+(k.steady[2]?' ≤ ':' > ')+k.steady[1]+'%' : '')+'</span>';
@@ -2970,6 +3007,8 @@ window.SKHERO = (function(){
     if(k.kind==='ambush') return LN+nm+': <span class="crit">удар з засідки ×'+k.mul+' — його не уникнути!</span>'+manaW+' · <span class="b">Камуфляж зачаївся на '+turnsW(k.lock)+'</span><span class="dice">🎲 '+k.roll+' ≤ '+k.need+'%</span></span>';
     if(k.kind==='blind') return LN+nm+': <span class="crit">'+(op?'ти осліплений 🫳':'суперник осліплений 🫳')+'</span> на '+turnsW(k.turns)+': точність −'+k.acc+'%, спритність −'+k.agi+'%'+manaW+'<span class="dice">🎲 '+k.roll+' ≤ '+k.need+'%'+stdW()+'</span></span>';
     if(k.kind==='blindSaved') return LN+nm+': <span class="b">'+(op?'ти відвернувся (🧱 Стійкість)':'суперник відвернувся (🧱 Стійкість)')+'</span>'+manaW+'<span class="dice">🎲 '+k.roll+' ≤ '+k.need+'%'+stdW()+'</span></span>';
+    var ZW = {head:'голову', body:'тулуб', arms:'руки', legs:'ноги'};
+    if(k.kind==='trapSet') return LN+nm+': <span class="g">пастка 🪤 у '+(ZW[k.zone]||k.zone)+': цей хід і ще '+turnsW(k.turns)+'</span>'+(k.auto?' <span style="opacity:.75">(зону обрано навмання)</span>':'')+manaW+'<span class="dice">🎲 '+k.roll+' ≤ '+k.need+'%</span></span>';
     if(k.kind==='hide') return LN+nm+': <span class="g">сховався 🫥 — цього ходу удар '+(op?'Героя':'суперника')+' з шансом '+k.hitCut+'% пролетить повз, твої удари ×'+k.mul+'</span>'+manaW+'<span class="dice">🎲 '+k.roll+' ≤ '+k.need+'%</span></span>';
     if(k.kind==='frenzy') return LN+nm+': <span class="g">+1 удар за хід на '+turnsW(k.turns)+'</span>'+manaW+'<span class="dice">🎲 '+k.roll+' ≤ '+k.need+'%</span></span>';
     if(k.kind==='cleave' && k.missed) return LN+nm+': <span class="b">удар ×'+k.mul+' не влучив</span> — мана й обережність не витрачені<span class="dice">🎲 '+k.roll+' ≤ '+k.need+'%</span></span>';
@@ -3020,14 +3059,14 @@ window.SKHERO = (function(){
   function strikesOf(hit){
     if(!hit) return [];
     var hs = hit.hits;
-    if(hit.kind==='fear' || hit.kind==='skip' || hit.kind==='knock' || hit.kind==='slow' || !hs || !hs.length) return [hit];   // не атакував — один рядок
+    if(hit.kind==='fear' || hit.kind==='skip' || hit.kind==='knock' || hit.kind==='trap' || hit.kind==='slow' || !hs || !hs.length) return [hit];   // не атакував — один рядок
     return hs.map(function(h){ return { kind:h.kind, dmg:h.dmg||0, crit:!!h.crit, hits:[h] }; });
   }
   /* позначка удару: друга / третя атака, удар лівою (Друга зброя), Розсікти, протидія */
   function strikeTag(h){
     if(!h) return '';
     var t = (h.left ? '🤹 лівою' : '') + (h.second ? (h.left?' · ':'')+'⚡ друга атака' : h.third ? (h.left?' · ':'')+'⚡ третя атака' : '')
-      + (h.haste ? '💨 поспіх' : '') + (h.gap ? ' 👁️ знайшов щілину — пробив блок' : '') + (h.cleave ? '🪓 Розсікти' : '') + (h.riposte ? '↩️ протидія' : '') + (h.ambush ? '🐾 засідка' : '') + (h.venom ? ' 🐍 +'+h.venom+' отрутою' : '') + (h.poisoned ? ' ☠️ отруїв!' : '');
+      + (h.haste ? '💨 поспіх' : '') + (h.gap ? ' 👁️ знайшов щілину — пробив блок' : '') + (h.trap ? ' 🪤 у пастку: '+h.trapFrom+' → '+h.dmg : '') + (h.cleave ? '🪓 Розсікти' : '') + (h.riposte ? '↩️ протидія' : '') + (h.ambush ? '🐾 засідка' : '') + (h.venom ? ' 🐍 +'+h.venom+' отрутою' : '') + (h.poisoned ? ' ☠️ отруїв!' : '');
     return t ? ' <span class="sno">'+t+'</span>' : '';
   }
   function strikeLines(e){
@@ -3219,9 +3258,15 @@ window.SKHERO = (function(){
     $('guardRow').querySelectorAll('.gbtn').forEach(function(btn){
       btn.addEventListener('click', function(){
         if(!live() || UI.resolving) return;
+        /* 🪤 обрано Пастку: перший тап — блок (якщо ще не стоїть), наступний — зона пастки (ще раз по ній — зняти) */
+        var z0 = btn.getAttribute('data-zone'), ft = B.me.fx && B.me.fx.trap, tOn = ft && ft.from<=B.round && ft.until>=B.round;
+        if(tOn && ft.zone===z0){ showToast('🪤 Тут стоїть пастка', 'У зону з пасткою блок не ставиться — обери іншу зону захисту.'); return; }   // пастка стоїть — блок туди не можна
+        if(!tOn && B.me.trapZone===z0){ B.me.trapZone = null; saveBattle(); paintTrap(); return; }   // обрана зона пастки: клік — зняти пастку, наступний — уже блок
+        if(B.me.skill==='ranger.trap' && B.me.block && z0!==B.me.block){ B.me.trapZone = z0; saveBattle(); paintTrap(); return; }
         $('guardRow').querySelectorAll('.gbtn').forEach(function(b){ b.classList.remove('sel'); });
         btn.classList.add('sel');
-        B.me.block = btn.getAttribute('data-zone');
+        B.me.block = z0;
+        if(B.me.trapZone===B.me.block) B.me.trapZone = null;   // блок і пастка — різні зони
         setRole('p', B.me.block);
         refreshStrike();
       });
@@ -3252,7 +3297,22 @@ window.SKHERO = (function(){
     setRole('o', B.me.atk); setRole('p', B.me.block);
     refreshStrike();
   }
+  /* 🪤 Пастка: поки вміння обрано (чи пастка стоїть) — на кнопках захисту з'являється капкан; тап по ньому —
+     зона пастки (не та, що блокуєш). Обрана / поставлена зона переливається, як перемикач. */
+  function paintTrap(){
+    var row = $('guardRow'); if(!row || !B || !B.me) return;
+    var f = B.me.fx || {}, t = f.trap && f.trap.from<=B.round && f.trap.until>=B.round ? f.trap : null;
+    var on = !!t || (B.me.skill==='ranger.trap' && live());
+    row.classList.toggle('trapon', on);
+    row.querySelectorAll('.gbtn').forEach(function(b){
+      var z = b.getAttribute('data-zone');
+      b.classList.toggle('trapz', !!t && t.zone===z);                                   // пастка стоїть — хвиля
+      b.classList.toggle('trappend', !t && on && B.me.trapZone===z);                   // зону обрано, пастку ще не поставлено — пунктир
+      b.classList.toggle('trapset', !!t && t.zone===z);
+    });
+  }
   function refreshStrike(){
+    paintTrap();
     $('strikeBtn').disabled = !(live() && !UI.resolving && B.me.atk && B.me.block);
   }
 
@@ -3472,6 +3532,8 @@ window.SKHERO = (function(){
       if(r.type==='scroll' && r.hit) floatDmg(u.side==='me'?'o':'p', r.hit);
       if(r.type==='heal' && r.hp>0){ var c=$(u.side==='me'?'pScene':'oScene'); if(c){ var el=document.createElement('div'); el.className='dmg-float heal'; el.textContent='+'+r.hp+' ❤️'; c.appendChild(el); setTimeout(function(){ el.remove(); }, 4300); } }
     }); });
+    if(e.trap && e.trap.kind==='trapSprung') floatOne('o', {kind:'trap'}, 0, 1);       // 🪤 суперник ступив у пастку
+    if(e.opTrap && e.opTrap.kind==='trapSprung') floatOne('p', {kind:'trap'}, 0, 1);
     if(e.will && e.will.ok) floatOne('p', {kind:'will'}, 0, 1, '🦾');
     if(e.opWill && e.opWill.ok) floatOne('o', {kind:'will'}, 0, 1, '🦾');
     // 🙏 Благословення лікує на початку ходу: зелене «+N 🙏» на картці (як зілля)
@@ -3480,7 +3542,7 @@ window.SKHERO = (function(){
       var el = document.createElement('div'); el.className = 'dmg-float heal'; el.style.top = '18%';
       el.textContent = '+'+x[1]+' 🙏'; c.appendChild(el); setTimeout(function(){ el.remove(); }, 4300);
     });
-    paintBelt(); paintFx(); if(window.SKBOOK) SKBOOK.paintBattle(B);
+    paintBelt(); paintFx(); if(window.SKBOOK) SKBOOK.paintBattle(B); paintTrap();
     if(window.EKEQUIP && EKEQUIP.battleRefresh) EKEQUIP.battleRefresh();
 
     // анімації смужок
@@ -3522,6 +3584,7 @@ window.SKHERO = (function(){
     // короткий підсумок відповіді суперника
     var ok;
     if(opHit.kind==='fear') ok='не атакує (страх 😱)';
+    else if(opHit.kind==='trap') ok='не атакує (у пастці 🪤)';
     else if(opHit.kind==='knock') ok=opHit.stun ? 'не атакує (оглушений 💫)' : 'не атакує (збитий з ніг 😵)';
     else if(opHit.kind==='skip') ok='удару не було';
     else if(opHit.kind==='slow') ok='не встиг ударити — ти був першим 🔱';
@@ -3537,7 +3600,7 @@ window.SKHERO = (function(){
         + (sk.roll!=null && sk.need!=null ? ' (🎲 '+sk.roll+(sk.ok?' ≤ ':' > ')+sk.need+'%)' : '') + '</span>'; }
     rb.innerHTML = '<span class="rnum">'+num+'</span><span class="rlbl">'+lbl+'</span>' + skl
       + (h0.hitRoll!=null ? '<span class="rdice" id="rdice"></span>' : '')
-      + '<span class="ropp">Суперник'+(opHit.kind==='fear'||opHit.kind==='skip'||opHit.kind==='knock'||opHit.kind==='slow' ? '' : ' → '+ZONE_UA[B.op.atk])+': '+ok+'</span>';
+      + '<span class="ropp">Суперник'+(opHit.kind==='fear'||opHit.kind==='skip'||opHit.kind==='knock'||opHit.kind==='trap'||opHit.kind==='slow' ? '' : ' → '+ZONE_UA[B.op.atk])+': '+ok+'</span>';
     if(h0.hitRoll!=null) rollDice($('rdice'), meHit.hits || [meHit]);
     void rb.offsetWidth;              // перезапуск drop-анімації
     rb.classList.add('show');
@@ -3570,6 +3633,7 @@ window.SKHERO = (function(){
     var el = document.createElement('div'), pre = icon ? icon+' ' : '';
     if(h.kind==='fear'){ el.className='dmg-float miss'; el.textContent='😱'; }
     else if(h.kind==='knock'){ el.className='dmg-float miss'; el.textContent=h.stun?'💫':'😵'; }
+    else if(h.kind==='trap'){ el.className='dmg-float miss'; el.textContent='🪤'; }
     else if(h.kind==='skip' || h.kind==='slow'){ return; }
     else if(h.kind==='hide'){ el.className='dmg-float blk'; el.textContent=pre+'сховався'; }
     else if(h.kind==='bandage'){ el.className='dmg-float hit'; el.style.color='#7dff9a'; el.textContent=pre+'+'+h.heal; }
@@ -3603,7 +3667,7 @@ window.SKHERO = (function(){
     if(i) setTimeout(put, i*380); else put();
   }
   function floatDmg(side, hit, from, icon){
-    var hs = (hit && hit.hits && hit.hits.length && hit.kind!=='fear' && hit.kind!=='skip' && hit.kind!=='knock' && hit.kind!=='slow') ? hit.hits : [hit];
+    var hs = (hit && hit.hits && hit.hits.length && hit.kind!=='fear' && hit.kind!=='skip' && hit.kind!=='knock' && hit.kind!=='trap' && hit.kind!=='slow') ? hit.hits : [hit];
     var n = hs.length + (from||0);
     hs.forEach(function(h, i){ floatOne(side, h, i + (from||0), n, icon); });
     return hs.length;
@@ -3667,7 +3731,7 @@ window.SKHERO = (function(){
         + (h.left && h.left.length ? '🤹 лівою 🎲 <b>'+h.left[0]+'</b> ≤ '+h.left[1]+'% · ' : h.left ? '🤹 лівою · ' : '')
         + (h.second ? '⚡ друга атака 🎲 <b>'+h.second[0]+'</b> ≤ '+h.second[1]+'% · ' : '')
         + (h.third ? '⚡ третя атака 🎲 <b>'+h.third[0]+'</b> ≤ '+h.third[1]+'% · ' : '')
-        + (h.haste ? '💨 поспіх · ' : '')
+        + (h.haste ? '💨 поспіх '+(h.hasteDual ? '🎲 <b>'+h.hasteDual[0]+'</b> ≤ '+h.hasteDual[1]+'% (друга зброя) ' : '')+'· ' : '')
         + (h.gapRoll!=null ? '👁️ щілина 🎲 <b>'+h.gapRoll+'</b> '+(h.gap?'≤':'>')+' '+h.gapNeed+'% · ' : '')
         + (h.cleave ? '🪓 Розсікти — без блоку · ' : '')
         + (h.riposte ? '↩️ протидія 🎲 <b>'+h.riposte[0]+'</b> ≤ '+h.riposte[1]+'% · ' : '')
@@ -3693,6 +3757,7 @@ window.SKHERO = (function(){
     if(hit.kind==='skip') return '<span>'+prefix.split(' →')[0]+': <span class="b">удару не було</span></span>';
     if(hit.kind==='slow') return '<span>'+prefix.split(' →')[0]+': <span class="b">не встиг ударити — 🔱 Швидкий спис був першим</span></span>';
     if(hit.kind==='dodge' && hs.some(function(h){ return h.hideMiss; })) return '<span title="'+biEsc(hs.map(function(h){ return h.dodgeCalc||''; }).join(' '))+'">'+prefix+': <span class="ev">🫥 не помітив тебе</span>'+x+'</span>';
+    if(hit.kind==='trap') return '<span>'+prefix.split(' →')[0]+': <span class="b">🪤 у пастці — не атакує</span></span>';
     if(hit.kind==='knock') return '<span>'+prefix.split(' →')[0]+': <span class="b">'+(hit.stun ? '💫 оглушений — пропускає хід' : '😵 збитий з ніг — не атакує')+'</span></span>';
     if(hit.kind==='dodge' && hs.some(function(h){ return h.skillDodge; })) return '<span title="'+biEsc(hs.map(function(h){ return h.dodgeCalc||''; }).join(' '))+'">'+prefix+': <span class="ev">💨 ухилився вмінням</span>'+x+'</span>';
     if(hit.kind==='block' && hs.some(function(h){ return h.skillParry; })) return '<span title="'+biEsc(hs.map(function(h){ return h.blockCalc||''; }).join(' '))+'">'+prefix+': <span class="ev">🤺 парирував зброєю</span>'+x+'</span>';
@@ -4086,8 +4151,8 @@ window.SKHERO = (function(){
 </script>
 
 <script src="sk-items.js?v=25"></script>
-<script src="sk-skills.js?v=70"></script>
-<script src="sk-book.js?v=24"></script>
+<script src="sk-skills.js?v=84"></script>
+<script src="sk-book.js?v=25"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
    Дані ЗАРАЗ demo (локально). Крок 2: джерело речей → Firestore (адмінка).
@@ -4399,14 +4464,16 @@ function renderInv(){var hd=document.querySelector('#ek-flip .ek-inv-h b');if(hd
   var want=isOpp()?'🎒 Сумка суперника':INV_HEAD;if(hd.innerHTML!==want)hd.innerHTML=want;}
  if(isOpp()){renderOppBelt();return;}
  if(q('ek-tabs'))renderTabs();
+ var ku=BM()&&SKBATTLEINV.knocked?SKBATTLEINV.knocked():null;   /* вибита зброя — першою */
  var list=INV.filter(function(x){return x.qty>0&&(curTab==='all'||grpOf(x)===curTab);}).sort(byItem);var g=q('ek-invGrid');
+ if(ku)list.sort(function(a,b){return (b.uid===ku)-(a.uid===ku);});
  if(!list.length){
    var why='Порожньо';
    if(NO_HERO||LOAD_ERR==='permission-denied') why='Увійди як Герой, щоб бачити свої речі';
    else if(LOAD_ERR) why='Не вдалося прочитати інвентар<br><small>'+esc(String(LOAD_ERR))+'</small>';
    else if(MISSING.length) why='У базі є '+MISSING.length+' предмет(ів), але їх немає в каталозі:<br><small>'+esc(MISSING.join(', '))+'</small>';
    g.innerHTML='<div class="ek-empty">'+why+'</div>';return;}
- g.innerHTML=list.map(function(x){return '<div class="ek-cell" data-uid="'+x.uid+'">'+
+ g.innerHTML=list.map(function(x){var kn=ku&&x.uid===ku,kb=kn?SKBATTLEINV.knockedBack()-SKBATTLEINV.round():0;return '<div class="ek-cell'+(kn?' ek-knocked':'')+'" data-uid="'+x.uid+'"'+(kn?' title="Цю зброю вибили 🤚 — '+(kb>1?'повернеться в руку сама через хід':'повернеться в руку сама на початку ходу')+' (або вдягни раніше — дія ходу)"':'')+'>'+(kn?'<span class="ek-knk">🤚 вибито</span>':'')+
   chip(x,' data-src="inv" data-uid="'+x.uid+'"').replace('class="ek-chip ','class="ek-chip ek-drag ')+'</div>';}).join('');}
 
 /* закладки в один ряд: якщо з підписами не влазять — лише значки (як у магазині) */

@@ -90,9 +90,9 @@
     frenzy: { id: 'knight.frenzy' }, cleave: { id: 'knight.cleave' }, ult: { id: 'knight.ult' },
     stone: { id: 'knight.stoneskin' }, song: { id: 'knight.song' }, shieldbreak: { id: 'knight.shieldbreak' },
     rhide: { id: 'ranger.hide' }, poison: { id: 'ranger.poison' }, bandage: { id: 'ranger.bandage' },
-    sand: { id: 'ranger.sand' }, ambush: { id: 'ranger.ambush' }, aimed: { id: 'ranger.aimed' } };
+    sand: { id: 'ranger.sand' }, ambush: { id: 'ranger.ambush' }, aimed: { id: 'ranger.aimed' }, trap: { id: 'ranger.trap' } };
   /* вміння, що діють ДО ударів ходу (не окремий удар) */
-  var PRE = { 'knight.berserk': 1, 'knight.bless': 1, 'knight.disarm': 1, 'knight.lunge': 1, 'knight.stoneskin': 1, 'knight.song': 1, 'knight.shieldbreak': 1, 'knight.frenzy': 1, 'knight.cleave': 1, 'ranger.hide': 1, 'ranger.poison': 1, 'ranger.bandage': 1, 'ranger.sand': 1, 'ranger.ambush': 1 };
+  var PRE = { 'knight.berserk': 1, 'knight.bless': 1, 'knight.disarm': 1, 'knight.lunge': 1, 'knight.stoneskin': 1, 'knight.song': 1, 'knight.shieldbreak': 1, 'knight.frenzy': 1, 'knight.cleave': 1, 'ranger.hide': 1, 'ranger.poison': 1, 'ranger.bandage': 1, 'ranger.sand': 1, 'ranger.ambush': 1, 'ranger.trap': 1 };
   /* СПІЛЬНІ ВМІННЯ: однакова назва в різних класах — однакова механіка й числа. Код пише id Лицаря,
      а в Героя іншого класу вміння лежить під своїм id — SAME зводить їх докупи (ріст іде у вміння Героя).
      Те, чим клас кращий, — не тут, а в перевагах класу (SKARENA.CLASS_PERKS). */
@@ -279,7 +279,7 @@
     if (!isLive(st)) return 'over';
     id = canon(id);                                               // спільне вміння іншого класу — як у Лицаря (перезарядка теж під його id)
     if ((st.me.bar || []).map(canon).indexOf(id) < 0 || !hasSk(st, id)) return 'none';
-    if (TOG[id]) return id === 'ranger.camo' && camoLocked(st) ? 'locked' : id === 'ranger.hunter' && togOn(st, id) && blindOn(st) ? 'eyeblind' : '';   // перемикач: дії ходу не забирає; Око осліплене — не діє (мана йде), вимкнути можна
+    if (TOG[id]) return id === 'ranger.camo' && camoLocked(st) ? 'locked' : id === 'ranger.hunter' && togOn(st, id) && blindOn(st) ? 'eyeblind' : !togOn(st, id) && togShort(st, id) ? 'mana' : '';   // перемикач: дії ходу не забирає; Око осліплене — не діє (мана йде), вимкнути можна
     if (knockedNow(st, st.me)) return 'knock';                   // оглушений — спецдій немає
     if (swapped(st)) return 'swap';                              // цього ходу вже перевдягнувся
     var cd = (st.me.cd || {})[id];
@@ -296,6 +296,7 @@
     if (id === SKILL.bash.id && !shieldOn(st)) return 'shield';
     if (id === SKILL.bandage.id && !(num(st.me.force) < num(st.me.max)) && !(V(st, id, 'cleanse') && poisoned(st.me, st.round))) return 'full';   // Перев'язка: здоров'я повне — чекає
     if (id === SKILL.poison.id && venomOn(st)) return 'active';                  // зброя ще змащена
+    if (id === SKILL.trap.id && trapOn(st)) return 'active';                     // Пастка ще стоїть
     if (id === SKILL.poison.id && !wTypeNow(st)) return 'weapon';                // змастити можна лише зброю в руці
     if (id === SKILL.ambush.id && !(togOn(st, 'ranger.camo') && !camoLocked(st))) return 'camo';   // Засідка — лише з Камуфляжем
     if (id === SKILL.sand.id && st.op.fx && (blindOn(mirror(st)) || num(st.op.fx.blindImm) >= st.round)) return 'blind';   // ще сліпий чи оговтується
@@ -721,17 +722,26 @@
      st.me.tog — увімкнені за порядком. Другий — лише з «Другим запалом», коштує мани ×mul%.
      Камуфляж після Засідки «зачаївся» (fx.camoLock — до якого ходу): не діє, не їсть ману й не вимикається,
      а потім знову діє сам, якщо вистачає мани. */
-  var TOG = { 'ranger.camo': 1, 'ranger.haste': 1, 'ranger.hunter': 1 };
+  var TOG = { 'ranger.camo': 1, 'ranger.haste': 1, 'ranger.hunter': 1, 'ranger.sharpen': 1 };
   function togOn(st, id) { return (st.me.tog || []).indexOf(id) >= 0; }
   function camoLocked(st) { var f = st.me && st.me.fx; return !!(f && num(f.camoLock) >= st.round); }
   function camoOn(st) { var f = st.me && st.me.fx; return !!(f && num(f.camoOn) === st.round); }   // діє цього ходу (мана знята)
   function eyeOn(st) { var f = st.me && st.me.fx; return !!(f && num(f.hunterOn) === st.round) && !blindOn(st); }   // Око мисливця: мана знята й не осліплений
+  function sharpOn(st) { var f = st.me && st.me.fx; return !!(f && num(f.sharpenOn) === st.round) && !!weaponOn(st); }   // Заточка: мана знята й зброя в руці
   function hasteOn(st) { var f = st.me && st.me.fx; return !!(f && num(f.hasteOn) === st.round); }   // Поспіх діє цього ходу (мана знята)
+  /* вистачить мани, щоб увімкнути перемикач цього ходу? Другий (поруч з іншим, що платить) — за ціною ×mul, якщо дешевший */
+  function togShort(st, id) {
+    var c = V(st, id, 'mana'), other = (st.me.tog || []).filter(function (x) { return x !== id && !(x === 'ranger.camo' && camoLocked(st)); });
+    var paidC = 0; other.forEach(function (x) { paidC += V(st, x, 'mana'); });
+    if (other.length) { var oc = V(st, other[0], 'mana'), mul = (V(st, 'ranger.fire2', 'mul') || 200) / 100;
+      paidC = c > oc ? c + Math.round(oc * mul) : oc + Math.round(c * mul); return num(st.me.mana) < paidC; }
+    return num(st.me.mana) < c;
+  }
   function toggleSkill(st, id) {
     var l = st.me.tog || (st.me.tog = []), i = l.indexOf(id);
     if (id === 'ranger.camo' && camoLocked(st)) return false;
     if (i >= 0) l.splice(i, 1);
-    else { if (l.length >= (hasSk(st, 'ranger.fire2') ? 2 : 1)) return false; l.push(id); }
+    else { if (l.length >= (hasSk(st, 'ranger.fire2') ? 2 : 1) || togShort(st, id)) return false; l.push(id); }
     st.rev++;
     return true;
   }
@@ -743,6 +753,7 @@
   }
   /* множник ціни перемикача цього ходу (100 — повна ціна, 200 — ×2…) — для панелі (×1 / ×2) */
   function togMul(st, id) {
+    if (id === 'ranger.camo' && camoLocked(st)) return 0;               // зачаївся — не платить (значка немає)
     var first = togOrder(st).filter(function (x) { return !(x === 'ranger.camo' && camoLocked(st)); })[0];
     if (!togOn(st, id) || id === first) return 100;
     return V(st, 'ranger.fire2', 'mul') || 200;
@@ -760,6 +771,7 @@
       if (id === 'ranger.camo') f.camoOn = st.round;
       if (id === 'ranger.haste') f.hasteOn = st.round;
       if (id === 'ranger.hunter') f.hunterOn = st.round;
+      if (id === 'ranger.sharpen') f.sharpenOn = st.round;
       out.push({ id: id, cost: cost });
     });
     if (paid > 1) grow(st, 'ranger.fire2', true);
@@ -769,9 +781,11 @@
      Лише коли боєць атакує цього ходу (не збитий з ніг, не наляканий) — мана знята в togTick і так. */
   function hasteTry(ctx, v, hit, pA, pD, blocked, rnd) {
     if (!hasteOn(v) || !hit || !hit.hits) return;
+    var lw = leftWeapon(v) ? (V(v, 'ranger.haste', 'dual') || 50) : 0, lr = lw ? ctx.R.d100(rnd) : 0;   // зброя в лівій руці — Поспіх лише з шансом dual %
+    if (lw && lr > lw) { hit.hasteMiss = [lr, lw]; return; }
     var a = {}, k; for (k in pA) a[k] = pA[k];
     a.dmgMul = Math.round((num(pA.dmgMul) || 1) * (V(v, 'ranger.haste', 'dmgMul') || 100)) / 100;
-    var h = ctx.R.strike(a, pD, blocked, rnd); h.haste = true; addHit(hit, h);
+    var h = ctx.R.strike(a, pD, blocked, rnd); h.haste = true; if (lw) h.hasteDual = [lr, lw]; addHit(hit, h);
     grow(v, 'ranger.haste', h.kind === 'hit' || h.kind === 'crit');
   }
   function camoLanded(v, hit) {                                 // ріст Камуфляжу: хід з ним — удар влучив чи ні
@@ -830,7 +844,7 @@
     if (!venomOn(v) || !wTypeNow(v) || !hit || !hit.hits) return;   // отрута на клинку: зброю вибито (б'є кулаками) — не діє
     var vn = v.me.fx.venom, res = poisonRes(v.op, v.round, 'chance'), cut = poisonRes(v.op, v.round, 'dmg');
     hit.hits.forEach(function (h) {
-      if ((h.kind !== 'hit' && h.kind !== 'crit') || !(num(h.dmg) > 0)) return;
+      if ((h.kind !== 'hit' && h.kind !== 'crit') || !(num(h.dmg) > 0) || h.left) return;   // змащено лише основний клинок — удар лівою (Друга зброя) без отрути
       var x = Math.round(h.dmg * num(vn.pct) / 100 * (1 - cut / 100));
       if (x > 0) { h.dmg += x; h.venom = x; if (cut) h.venomCut = cut; }
       if (poisoned(v.op, v.round)) return;
@@ -870,6 +884,47 @@
      отрута, контроль) йдуть лише в того суперника, з яким він зараз б'ється (його поточна пара); вибрати іншого
      суперника чи вистрілити в нього не можна. Перевіряти blindOn() там, де обирається ціль вміння. */
   function blindOn(st) { var f = st.me && st.me.fx, b = f && f.blind; return !!(b && num(b.from) <= st.round && num(b.until) >= st.round); }
+  /* ── ПАСТКА (Слідопит): ставиш у зону (st.me.trapZone; не та, що блокуєш; не обрав — випадкова). Шанс 50% → 100%,
+     вдалося — −mana; стоїть цей хід + ще wait ходів (2 → 4). Суперник ударив у цю зону й ВЛУЧИВ — перший такий удар ×cut % (промах / ухилення — пастка чекає далі),
+     і наступного ходу він «у пастці» 🪤: звичайних ударів немає (вміння, пояс, блок — так), ухилитись від твоїх ударів
+     не може. Стійкість рятує від «у пастці» (урон ×cut лишається); після — 2 ходи імунітету. Перезарядка cd — коли
+     пастка спрацювала чи зникла. fx.trap = {zone, from, until, cut} у того, хто поставив; fx.trapped = хід у пастці. */
+  function trapOn(st) { var t = st.me && st.me.fx && st.me.fx.trap; return !!(t && num(t.from) <= st.round && num(t.until) >= st.round); }
+  function trappedNow(st, u) { return !!(u && u.fx && num(u.fx.trapped) === st.round); }
+  function trapTry(ctx, st, id, block, rnd) {
+    var need = V(st, id, 'chance'), roll = ctx.R.d100(rnd), rec = { id: id, need: need, roll: roll, ok: roll <= need, dmg: 0 };
+    if (!rec.ok) { grow(st, id, false); rec.kind = 'fail'; return rec; }
+    var mn = V(st, id, 'mana'); if (mn) { st.me.mana = Math.max(0, num(st.me.mana) - mn); rec.mana = mn; }
+    var z = st.me.trapZone; if (ZONES.indexOf(z) < 0 || z === block) { var free = ZONES.filter(function (x) { return x !== block; }); z = pick(free, rnd); rec.auto = true; }
+    var n = Math.max(1, V(st, id, 'wait') || 2);
+    fxOf(st.me).trap = { zone: z, from: st.round, until: st.round + n, cut: V(st, id, 'cut') || 50 };   // діє вже цього ходу + ще n повних ходів
+    st.me.skill = null; st.me.trapZone = null;                   // поставив — вибір знято
+    rec.kind = 'trapSet'; rec.zone = z; rec.turns = n;
+    return rec;
+  }
+  /* суперник ударив (inHit — його удар по v) у зону atkZone: пастка v спрацювала? → запис для журналу */
+  function trapSpring(ctx, v, id, inHit, atkZone, rnd) {
+    var f = fxOf(v.me), t = f.trap; if (!trapOn(v) || !inHit || !inHit.hits || !inHit.hits.length || atkZone !== t.zone) return null;
+    var h = inHit.hits.filter(function (x) { return (x.kind === 'hit' || x.kind === 'crit') && num(x.dmg) > 0; })[0];
+    if (!h) return null;                                         // промах, ухилення, парирування, блок — пастка лишається й чекає
+    var rec = { id: id, kind: 'trapSprung', zone: t.zone, cut: t.cut };
+    { var d0 = num(h.dmg), d1 = Math.max(1, Math.round(d0 * t.cut / 100)); h.dmg = d1; if (h.magDmg) h.magDmg = d1; else h.physDmg = d1; h.trap = true; h.trapFrom = d0; rec.from = d0; rec.to = d1;
+      inHit.dmg = inHit.hits.reduce(function (a, x) { return a + (x.dmg || 0); }, 0); }
+    var fo = fxOf(v.op);
+    if (num(fo.trapImm) > v.round) rec.imm = true;
+    else if (steadyTry(ctx.R, v, rec, rnd)) rec.saved = true;
+    else { fo.trapped = v.round + 1; fo.trapImm = v.round + 3; rec.trapped = true; }
+    delete f.trap; grow(v, id, true);
+    var cdN = V(v, id, 'cd'); if (cdN > 0) { v.me.cd = v.me.cd || {}; v.me.cd[id] = v.round + cdN; }
+    return rec;
+  }
+  /* кінець ходу: пастка простояла своє й не спрацювала — зникла, перезарядка */
+  function trapExpire(v, id) {
+    var f = fxOf(v.me), t = f.trap; if (!t || num(t.until) > v.round) return null;
+    delete f.trap; grow(v, id, false);
+    var cdN = V(v, id, 'cd'); if (cdN > 0) { v.me.cd = v.me.cd || {}; v.me.cd[id] = v.round + cdN; }
+    return { id: id, kind: 'trapGone', zone: t.zone };
+  }
   function sandTry(ctx, st, id, rnd) {
     var need = V(st, id, 'chance'), roll = ctx.R.d100(rnd), rec = { id: id, need: need, roll: roll, ok: roll <= need, dmg: 0 };
     var cdN = V(st, id, 'cd'); if (cdN > 0) { st.me.cd = st.me.cd || {}; st.me.cd[id] = st.round + cdN; }
@@ -974,7 +1029,7 @@
     var rec = (id === SKILL.haft.id || id === SKILL.daze.id || id === SKILL.stun.id || id === SKILL.lash.id || id === SKILL.ult.id || id === SKILL.aimed.id) ? weaponStrike(ctx, v, id, pA, pD, mine, theirs, rnd)
       : skillStrike(ctx, v, id, pA, pD, mine.atk === theirs.block, rnd);
     var cdN = V(v, id, 'cd');
-    if (id === SKILL.aimed.id && rec && rec.kind === 'fail') cdN = 0;   // Влучний постріл: перезарядка лише після вдалого пострілу (не вдалося — можна знову наступного ходу)
+    if ((id === SKILL.aimed.id || id === SKILL.daze.id) && rec && rec.kind === 'fail') cdN = 0;   // Влучний постріл, Збити з пантелику: перезарядка лише після вдалої спроби (не вдалося — можна знову наступного ходу)
     if (cdN > 0) { v.me.cd = v.me.cd || {}; v.me.cd[id] = v.round + cdN; }
     return rec;
   }
@@ -1371,6 +1426,8 @@
     if (sid === SKILL.poison.id && canAct && !skillBlock(st, sid)) skillRec = venomTry(ctx, st, sid, sd(st, 'skill'));
     if (osid === SKILL.poison.id && opCan && !skillBlock(vo, osid)) opRec = venomTry(ctx, vo, osid, sd(vo, 'skill'));
     if (sid === SKILL.sand.id && canAct && !skillBlock(st, sid)) skillRec = sandTry(ctx, st, sid, sd(st, 'skill'));
+    if (sid === SKILL.trap.id && canAct && !skillBlock(st, sid)) skillRec = trapTry(ctx, st, sid, me.block, sd(st, 'skill'));
+    if (osid === SKILL.trap.id && opCan && !skillBlock(vo, osid)) opRec = trapTry(ctx, vo, osid, op.block, sd(vo, 'skill'));
     if (osid === SKILL.sand.id && opCan && !skillBlock(vo, osid)) opRec = sandTry(ctx, vo, osid, sd(vo, 'skill'));
     var blessHeal = down ? 0 : blessTick(st), opBlessHeal = down ? 0 : blessTick(vo);
     var meWill = down ? null : willTry(ctx, st, sd(st, 'will')), opWill = down ? null : willTry(ctx, vo, sd(vo, 'will'));   // Залізна воля — сама, до ударів (здоров'я < 20%)
@@ -1394,6 +1451,9 @@
     /* Око мисливця: точність +accPct %, кожен удар у закриту зону — шанс gap % пробити блок (strike: att.gapPct) */
     var eyeP = function (v, p) { if (!eyeOn(v)) return p; p = clone(p); p.accuracy = Math.round(num(p.accuracy) * (1 + V(v, 'ranger.hunter', 'accPct') / 100)); p.gapPct = V(v, 'ranger.hunter', 'gap'); return p; };
     pm = eyeP(st, pm); po = eyeP(vo, po);
+    /* Заточка: +dmgPct до суми відсотків урону, броня ворога ×(100 − armorCut)% (лише зі зброєю в руці) */
+    var sharpP = function (v, p) { if (!sharpOn(v)) return p; p = clone(p); p.dmgPct = num(p.dmgPct) + V(v, 'ranger.sharpen', 'dmgPct'); p.armorPct = Math.round((num(p.armorPct) > 0 ? num(p.armorPct) : 100) * (100 - V(v, 'ranger.sharpen', 'armorCut')) / 100); return p; };
+    pm = sharpP(st, pm); po = sharpP(vo, po);
     // Кистень: шанс блоку щита суперника проти твоїх ударів менший
     // перевага Слідопита «Хльосткий кнут»: з кнутом шанс блоку суперника менший (разом із Кистенем — множаться)
     var flailCut = function (v, pD) {
@@ -1420,11 +1480,14 @@
       for (var i = 0; i < Math.max(0, Math.floor(num(pA.extra))); i++) addHit(h, R.strike(pA, pD, blocked, r0));
       return h;
     };
-    var meHit = down ? none('skip') : fm.feared ? none('fear') : meKnocked ? none('knock') : hitOf(cleave || ambush, lunge, pm, poA, me.atk === op.block, st.bid + '|' + st.round + '|me');
-    var opHit = down ? none('skip') : fo.feared ? none('fear') : knocked ? none('knock') : hitOf(opCleave || opAmbush, opLunge, po, pmA, op.atk === me.block, st.bid + '|' + st.round + '|op');
+    var meTrapped = trappedNow(st, st.me), opTrapped = trappedNow(st, st.op);   // у пастці — без звичайних ударів (вміння й пояс — так)
+    if (opTrapped) { poA = clone(poA); poA.evade = false; if (po.evade) { poA.blockPhys = 0; poA.blockMag = 0; } pm = clone(pm); pm.sure = true; }   // у пастці — не відскочить і не ухилиться: твої удари не промахуються
+    if (meTrapped) { pmA = clone(pmA); pmA.evade = false; if (pm.evade) { pmA.blockPhys = 0; pmA.blockMag = 0; } po = clone(po); po.sure = true; }
+    var meHit = down ? none('skip') : fm.feared ? none('fear') : meKnocked ? none('knock') : meTrapped ? none('trap') : hitOf(cleave || ambush, lunge, pm, poA, me.atk === op.block, st.bid + '|' + st.round + '|me');
+    var opHit = down ? none('skip') : fo.feared ? none('fear') : knocked ? none('knock') : opTrapped ? none('trap') : hitOf(opCleave || opAmbush, opLunge, po, pmA, op.atk === me.block, st.bid + '|' + st.round + '|op');
     if (cleave && cleave.att) cleaveLanded(st, cleave.rec, meHit);
     if (opCleave && opCleave.att) cleaveLanded(vo, opCleave.rec, opHit);
-    var meAtk = !down && !fm.feared && !meKnocked, opAtk = !down && !fo.feared && !knocked;
+    var meAtk = !down && !fm.feared && !meKnocked && !meTrapped, opAtk = !down && !fo.feared && !knocked && !opTrapped;
     if (meHit.kind === 'knock' && num(fm.stun) === st.round) meHit.stun = true;   // оглушений Оглушливим ударом, не збитий з ніг
     if (opHit.kind === 'knock' && num(fo.stun) === st.round) opHit.stun = true;
     if (lunge && lunge.att) lungeExtra(ctx, st, lunge, meHit, pm, poA, me.atk === op.block, sd(st, 'lunge'));
@@ -1463,7 +1526,7 @@
     }
     // захист: Сховатись (не помітив), ухилення, парирування, щит — кожен від ударів суперника
     hideMiss(ctx, st, opHit, sd(st, 'hide'));
-    applyDodge(ctx, st, opHit, sd(st, 'dodge'));
+    if (!meTrapped) applyDodge(ctx, st, opHit, sd(st, 'dodge'));            // у пастці — не ухилиться
     applyParry(ctx, st, opHit, op.atk !== me.block, sd(st, 'parry'));
     // щит: блок «шансом блоку» речей (не відскок) зі щитом у руці — теж вдале очко вміння
     if (shieldOn(st)) (opHit.hits || []).forEach(function (h) {
@@ -1471,10 +1534,13 @@
       else if ((h.kind === 'hit' || h.kind === 'crit') && op.atk !== me.block) grow(st, 'knight.shield', false);   // Блок щитом: удар у незахищену зону пройшов
     });
     applyShield(ctx, st, opHit, sd(st, 'shield'));
-    applyDodge(ctx, vo, meHit, sd(vo, 'dodge'));
+    if (!opTrapped) applyDodge(ctx, vo, meHit, sd(vo, 'dodge'));
     applyParry(ctx, vo, meHit, me.atk !== op.block, sd(vo, 'parry'));
     applyShield(ctx, vo, meHit, sd(vo, 'shield'));
+    var trapRec = opAtk ? trapSpring(ctx, st, SKILL.trap.id, opHit, op.atk, sd(st, 'trap')) : null;   // Пастка: суперник ударив у її зону
+    var opTrapRec = meAtk ? trapSpring(ctx, vo, SKILL.trap.id, meHit, me.atk, sd(vo, 'trap')) : null;
     camoLanded(st, meHit); camoLanded(vo, opHit);
+    if (sharpOn(st) && meHit.hits && meHit.hits.length) grow(st, 'ranger.sharpen', meHit.hits.some(function (h) { return !h.left && (h.kind === 'hit' || h.kind === 'crit'); }));   // Заточка росте від ходів, коли б'єш нею
     venomHits(ctx, st, meHit, sd(st, 'venom')); venomHits(ctx, vo, opHit, sd(vo, 'venom'));   // змащена зброя: урон отрутою й шанс отруїти
     // Міцне тіло: росте від кожного удару суперника, що завдав урону — після ухилення, парирування й щита (у бота — в межах бою)
     if (opAtk) (opHit.hits || []).forEach(function (h) { if ((h.kind === 'hit' || h.kind === 'crit') && num(h.dmg) > 0) grow(st, 'knight.tough', true); });
@@ -1521,6 +1587,9 @@
     st.op.atk = op.atk; st.op.block = op.block;
     st.played++; if (auto) st.missed++;
     var e = { t: 'turn', r: st.round, me: me, op: op, auto: auto, meHit: meHit, opHit: opHit, broke: broke };
+    trapRec = trapRec || trapExpire(st, SKILL.trap.id); opTrapRec = opTrapRec || trapExpire(vo, SKILL.trap.id);
+    if (trapRec) e.trap = trapRec; if (opTrapRec) e.opTrap = opTrapRec;
+    if (meTrapped) e.meTrapped = true; if (opTrapped) e.opTrapped = true;
     if (uses.length) e.uses = uses;
     if (skillRec) e.skill = skillRec;
     if (knocked) e.knocked = true;
@@ -1764,7 +1833,7 @@
     eqLite: eqLite, profile: profile, wearOf: wearOf, itemWear: itemWear, leftDur: leftDur, activeIn: activeIn,
     create: create, botChoice: botChoice, autoChoice: autoChoice, turn: turn, catchUp: catchUp,
     poisonRes: poisonRes,
-    togMul: togMul, togOrder: togOrder,
+    togMul: togMul, togOrder: togOrder, trapOn: trapOn,
     swap: swap, useBelt: useBelt, beltItem: beltItem, beltLite: beltLite, applyUse: applyUse, fxOf: fxOf,
     surrender: surrender, finish: finish, applyToHero: applyToHero, lockLive: lockLive, noticeText: noticeText,
     SKILL: SKILL, useSkill: useSkill, skillBlock: skillBlock, berserkOn: berserkOn, blessOn: blessOn, disarmedOn: disarmedOn, SKILL_WEAPONS: SKILL_WEAPONS, SHATTER_MUL: SHATTER_MUL, PARRY: PARRY, swapped: swapped, beltChosen: beltChosen, knockedNow: knockedNow

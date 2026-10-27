@@ -277,7 +277,7 @@ function render(){
    саму зону, що й основний. Без бою — просто показ панелі з книги. */
 var BS = null;
 /* колір ефекту перемикача (ободок і хвилі на панелі бою) */
-var TOG_FX = { 'ranger.camo': '#c6e84a', 'ranger.haste': '#7fd6ff', 'ranger.hunter': '#ffb347' };   // Камуфляж — листяний жовто-зелений (не плутати з зеленим «обрано на хід»), Поспіх — блакитний вітер
+var TOG_FX = { 'ranger.camo': '#c6e84a', 'ranger.haste': '#7fd6ff', 'ranger.hunter': '#ffb347', 'ranger.sharpen': '#e6ecff' };   // Камуфляж — листяний жовто-зелений (не плутати з зеленим «обрано на хід»), Поспіх — блакитний вітер
 function paintBattle(bs){
   if (bs !== undefined) BS = bs;
   var aw = $('skbAsk');
