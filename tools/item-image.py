@@ -28,19 +28,25 @@ def checker(im):
     light = [v for v in vals if v >= 180]
     return len(light) > 0.8 * len(vals) and max(light) - min(light) >= 20
 
-def bg_mask(im, lo):
-    """тло = світлі нейтральні пікселі, зʼєднані з краєм (сама річ лишається непрозорою)"""
+def bg_mask(im, lo, step=None):
+    """тло = світлі нейтральні пікселі, зʼєднані з краєм (сама річ лишається непрозорою).
+    step — для білого тла: заливка йде лише плавними переходами (біле тло й розмита тінь),
+    а на різкій межі з річчю зупиняється — світлі краї металу (лез, обідків) лишаються"""
     w, h = im.size; px = im.load(); m = bytearray(w * h); q = deque()
+    lum = lambda c: (c[0] + c[1] + c[2]) / 3
     for x in range(w):
-        q.append((x, 0)); q.append((x, h - 1))
+        q.append((x, 0, None)); q.append((x, h - 1, None))
     for y in range(h):
-        q.append((0, y)); q.append((w - 1, y))
+        q.append((0, y, None)); q.append((w - 1, y, None))
     while q:
-        x, y = q.popleft()
+        x, y, prev = q.popleft()
         if x < 0 or y < 0 or x >= w or y >= h or m[y * w + x]: continue
-        if not is_light_neutral(px[x, y], lo): continue
+        c = px[x, y]
+        if not is_light_neutral(c, lo): continue
+        l = lum(c)
+        if step is not None and prev is not None and abs(l - prev) > step: continue
         m[y * w + x] = 1
-        q.extend(((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)))
+        q.extend(((x + 1, y, l), (x - 1, y, l), (x, y + 1, l), (x, y - 1, l)))
     return m
 
 def holes(im, m, lo):
@@ -65,7 +71,7 @@ def holes(im, m, lo):
 
 def clear_bg(im, keep_shadow):
     """тло → прозоре; на білому тлі сіра тінь стає напівпрозорою темною (видно на будь-якому фоні)"""
-    w, h = im.size; px = im.load(); m = holes(im, bg_mask(im, 150 if keep_shadow else 175), 238 if keep_shadow else 175)
+    w, h = im.size; px = im.load(); m = holes(im, bg_mask(im, 150 if keep_shadow else 175, 6 if keep_shadow else None), 238 if keep_shadow else 175)
     for y in range(h):
         for x in range(w):
             if not m[y * w + x]: continue

@@ -1092,9 +1092,13 @@ function prepImage(im){
     for(x=0;x<w;x+=2){ bv.push(at(x,0)); bv.push(at(x,h-1)); } for(y=0;y<h;y+=2){ bv.push(at(0,y)); bv.push(at(w-1,y)); }
     var lt=bv.filter(function(v){ return v>=180; }), checker=lt.length>0.8*bv.length && Math.max.apply(null,lt)-Math.min.apply(null,lt)>=20;
     var keep=!checker, lo=checker?175:150, seen=new Uint8Array(w*h), q=[];
-    for(x=0;x<w;x++){ q.push(x, 0, x, h-1); } for(y=0;y<h;y++){ q.push(0, y, w-1, y); }
-    while(q.length){ y=q.pop(); x=q.pop(); if(x<0||y<0||x>=w||y>=h) continue; var n=y*w+x; if(seen[n]) continue;
-      var j=n*4; if(!light(j, lo)) continue; seen[n]=1; q.push(x+1, y, x-1, y, x, y+1, x, y-1); }
+    // біле тло: заливка йде лише плавними переходами (тло й розмита тінь) — на різкій межі з річчю
+    // зупиняється, тож світлі краї металу (лез, обідків) не стають прозорими; «шахівниця» — без цього
+    var step=keep?6:999, lum=function(j){ return (p[j]+p[j+1]+p[j+2])/3; };
+    for(x=0;x<w;x++){ q.push(x, 0, -1, x, h-1, -1); } for(y=0;y<h;y++){ q.push(0, y, -1, w-1, y, -1); }
+    while(q.length){ var pl=q.pop(); y=q.pop(); x=q.pop(); if(x<0||y<0||x>=w||y>=h) continue; var n=y*w+x; if(seen[n]) continue;
+      var j=n*4; if(!light(j, lo)) continue; var l=lum(j); if(pl>=0 && Math.abs(l-pl)>step) continue;
+      seen[n]=1; q.push(x+1, y, l, x-1, y, l, x, y+1, l, x, y-1, l); }
     // білі «дірки» всередині речі (між шнурками, у петлях): замкнена світла ділянка > 0,15% кадру — теж тло; дрібні блиски лишаються
     var hlo=keep?238:175, minA=Math.max(40, w*h*0.0015), mark=new Uint8Array(w*h);
     for(var n0=0;n0<w*h;n0++){
