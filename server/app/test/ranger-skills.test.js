@@ -751,3 +751,52 @@ test('Поспіх: з другою зброєю в лівій — лише з �
   } finally { B.dualWield = d0; }
   assert.ok(checked);
 });
+
+test('🐺 Спустити звіра: потрібен Приціл і ≥30% здоров\'я ворога; −60 і весь Приціл; мітка K+1 ходів, укус щоходу', () => {
+  const st = battle({ 'ranger.ult': 1 }, ['ranger.ult'], [wear(DAGGER, 'weaponR')]);
+  assert.strictEqual(SB.skillBlock(st, 'ranger.ult'), 'focus', 'без Прицілу — ні');
+  st.me.fx = { focus: 2 };
+  st.op.force = Math.floor(st.op.max * 0.2);
+  assert.strictEqual(SB.skillBlock(st, 'ranger.ult'), 'hp', 'ворог уже слабкий — ні');
+  st.op.force = st.op.max;
+  st.me.p.accuracy = 5000; st.op.p.agility = 1;
+  SB.useSkill(ctx, st, 'ranger.ult');
+  const m0 = st.me.mana, e = turnOf(st);
+  assert.strictEqual(e.skill.kind, 'wolf'); assert.strictEqual(e.skill.K, 2); assert.strictEqual(e.skill.turns, 3);
+  assert.strictEqual(m0 - st.me.mana, 60, 'на старті лише 60 (без плати за хід)');
+  assert.strictEqual(Number(st.me.fx.focus) || 0, 0, 'Приціл витрачено');
+  assert.ok(e.wolf && e.wolf.bite, 'вовк кусає вже в хід мітки');
+  assert.strictEqual(SB.skillBlock(st, 'ranger.ult'), 'active', 'поки вовк поруч — удруге не кликнути');
+  const m1 = st.me.mana, e2 = turnOf(st);
+  assert.strictEqual(e2.wolf.pay, 25); assert.ok(m1 - st.me.mana >= 25);
+  const e3 = turnOf(st);
+  assert.ok(e3.wolf.bite, 'третій хід — ще кусає');
+  const e4 = turnOf(st);
+  assert.ok(!e4.wolf || !e4.wolf.bite, 'після K+1 ходів вовка немає');
+  assert.ok(!st.me.fx.wolf);
+});
+
+test('🐺 Стеля: вовк (з кров\'ю) — не більше 25% макс. здоров\'я ворога, тоді відступає', () => {
+  const big = W('BIG', 'dagger'); big.valueMin = 400; big.valueMax = 400;
+  const st = battle({ 'ranger.ult': 1 }, ['ranger.ult'], [wear(big, 'weaponR')]);
+  st.me.fx = { focus: 5 }; st.me.p.accuracy = 5000; st.op.p.agility = 1;
+  SB.useSkill(ctx, st, 'ranger.ult');
+  const e = turnOf(st);
+  const cap = Math.round(st.op.max * 0.25);
+  assert.ok(e.wolf.bite.dmg <= cap, 'укус не більше стелі');
+  assert.strictEqual(e.wolf.gone && e.wolf.gone.gone, 'cap', 'вовк зробив усе, що міг');
+  assert.ok(!st.me.fx.wolf);
+});
+
+test('🐺 Без Запалу вовк іде; кров не накопичується (одна за хід)', () => {
+  const st = battle({ 'ranger.ult': 1 }, ['ranger.ult'], [wear(DAGGER, 'weaponR')]);
+  st.me.fx = { focus: 5 }; st.me.p.accuracy = 5000; st.op.p.agility = 1;
+  SB.useSkill(ctx, st, 'ranger.ult');
+  turnOf(st);
+  st.op.fx.bleed = { from: st.round, until: st.round + 1, pct: 2 };
+  st.me.mana = 10;
+  const e2 = turnOf(st);
+  assert.strictEqual(e2.wolf.gone.gone, 'mana');
+  assert.ok(!e2.wolf.bite, 'пішов до укусу');
+  assert.strictEqual(e2.bleed, Math.max(1, Math.round(st.op.max * 0.02)), 'кров — одна частка за хід');
+});

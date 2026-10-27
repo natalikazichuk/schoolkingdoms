@@ -312,7 +312,7 @@ function paintBattle(bs){
       else if (why === 'knock') { cls += ' cd'; badge = '<span class="skb-cd">😵</span>'; tip += ' · тебе збили з ніг: цей хід без дій'; }
       else if (why === 'swap') { cls += ' cd'; badge = '<span class="skb-cd">🔁</span>'; tip += ' · цього ходу ти вже перевдягнувся'; }
       else if (why === 'careful') { cls += ' cd'; badge = '<span class="skb-cd">👀</span>'; tip += ' · суперник обережний — спрацює, коли обережність мине'; }
-      else if (why === 'focus') { cls += ' cd'; badge = '<span class="skb-cd">🕯️</span>'; tip += ' · потрібна концентрація'; }
+      else if (why === 'focus') { cls += ' cd'; badge = '<span class="skb-cd">🕯️</span>'; tip += id === 'ranger.ult' ? ' · потрібен Приціл' : ' · потрібна концентрація'; }
       else if (why === 'locked') { cls += ' on cd'; badge = '<span class="skb-cd">🐾</span>'; tip += ' · зачаївся після Засідки'; }
       else if (why === 'eyeblind') { cls += ' on cd'; badge = '<span class="skb-cd">🙈</span>'; tip += ' · ти осліплена — Око не діє, а мана йде · торкнись, щоб вимкнути'; }
       else if (why === 'camo') { cls += ' cd'; badge = '<span class="skb-cd">🌿</span>'; tip += ' · лише з увімкненим Камуфляжем'; }
