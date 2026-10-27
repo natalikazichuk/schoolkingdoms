@@ -712,6 +712,8 @@
       '2. Background: plain solid pure white (#FFFFFF), perfectly flat and even.',
       '   Do NOT draw a checkerboard / transparency grid, no gradient, no floor, no scenery, no frame.',
       '3. Exactly one ' + (pair ? 'pair of items' : 'item') + '. No hands, no characters, no text, no letters, no logos, no watermark.',
+      '4. The item must stand out clearly from the white background: give it a thin slightly darker outline,',
+      '   and no pure-white highlights on its outer edges (bright metal edges should be light grey or steel blue, not white).',
       '',
       'ITEM: ' + what + (o.name && o.desc ? ' (item name: «' + o.name + '»)' : ''),
       'TYPE: ' + (w ? w + ' (' + cat + ')' : cat),
