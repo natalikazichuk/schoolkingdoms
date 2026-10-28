@@ -71,6 +71,12 @@ const FACE_BOX = {
   'kid-ginger-girl':  { left: 0.101, top: 0, size: 0.721 },
   'kid-dark-girl':    { left: 0.096, top: 0, size: 0.719 },
   'kid-dark-boy':     { left: 0.165, top: 0, size: 0.720 },
+  // малюки (дошкілля)
+  'tot-dark-boy':     { left: 0.106, top: 0, size: 0.779 },
+  'tot-dark-girl':    { left: 0.138, top: 0, size: 0.780 },
+  'tot-fair-boy':     { left: 0.117, top: 0, size: 0.780 },
+  'tot-fair-girl':    { left: 0.141, top: 0, size: 0.779 },
+  'tot-ginger-girl':  { left: 0.081, top: 0, size: 0.780 },
   // старі герої — img/ava/чернетки-аватара/ (лише для тих, хто обрав їх раніше)
   'fair-boy':        { left: 0.020, top: 0, size: 0.750 },
   'fair-boy-fight':  { left: 0.060, top: 0, size: 0.540 },

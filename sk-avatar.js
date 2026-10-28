@@ -47,6 +47,14 @@
     { id:'kid-dark-girl',   name:'Каштанова джура' },
     { id:'kid-dark-boy',    name:'Чорнявий джура'  }
   ];
+  // малюки (дошкілля, 3–5 років) — окремий розділ у вибору
+  var TOTS = [
+    { id:'tot-fair-girl',   name:'Пшенична малючка' },
+    { id:'tot-fair-boy',    name:'Пшеничний малюк'  },
+    { id:'tot-ginger-girl', name:'Руда малючка'     },
+    { id:'tot-dark-girl',   name:'Кучерява малючка' },
+    { id:'tot-dark-boy',    name:'Кучерявий малюк'  }
+  ];
   /* Старі герої — у img/ava/чернетки-аватара/. У вибір не потрапляють,
      лише показуються дітям, які обрали їх раніше (або вдягали образ на їхній основі). */
   var DRAFTS = [
@@ -70,6 +78,7 @@
   ];
   var BY = {}, OLD = {};
   CATALOG.forEach(function(h){ BY[h.id]=h; });
+  TOTS.forEach(function(h){ BY[h.id]=h; });
   DRAFTS.forEach(function(h){ BY[h.id]=h; OLD[h.id]=1; });
   // каталог файлів героя: старі — у чернетках, створені образи (gen/…) і нові — у img/ava/
   function dir(id){ return BASE+'img/ava/'+(OLD[id] ? 'чернетки-аватара/' : ''); }
@@ -180,7 +189,7 @@
   }
   function gridHTML(selected, opt){
     opt = opt||{}; injectCSS();
-    var cells = CATALOG.map(function(h){ return optCell(tokenOf(h.id), h.name, selected); });
+    var cells = CATALOG.concat(TOTS).map(function(h){ return optCell(tokenOf(h.id), h.name, selected); });
     if(opt.emojis!==false){ EMOJIS.forEach(function(e){ cells.push(optCell(e, '', selected)); }); }
     return '<div class="ska-grid">'+cells.join('')+'</div>';
   }
@@ -233,6 +242,8 @@
       + coll
       + '<div class="ska-sub">🛡️ Герої королівства</div>'
       + '<div class="ska-grid">'+heroCells+'</div>'
+      + '<div class="ska-sub">🧸 Малюки</div>'
+      + '<div class="ska-grid">'+TOTS.map(function(h){ return optCell(tokenOf(h.id), h.name, sel); }).join('')+'</div>'
       + '<div class="ska-sub">✨ Інше</div>'
       + '<div class="ska-grid">'+extra+'</div>'
       + '</div>';
@@ -272,7 +283,7 @@
   }
 
   window.SKAVA = {
-    CATALOG: CATALOG, EMOJIS: EMOJIS,
+    CATALOG: CATALOG, TOTS: TOTS, EMOJIS: EMOJIS,
     isHeroToken: isHeroToken, idOf: idOf, tokenOf: tokenOf, has: has, isGen: isGen,
     faceSrc: faceSrc, facePng: facePng, cardSrc: cardSrc, fullSrc: fullSrc, fullPng: fullPng,
     arenaSrc: arenaSrc, arenaPng: arenaPng,
