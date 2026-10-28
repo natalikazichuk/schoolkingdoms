@@ -72,7 +72,7 @@ const FACE_BOX = {
   'kid-dark-girl':    { left: 0.096, top: 0, size: 0.719 },
   'kid-dark-boy':     { left: 0.165, top: 0, size: 0.720 },
   // малюки (дошкілля)
-  'tot-dark-boy':     { left: 0.106, top: 0, size: 0.779 },
+  'tot-dark-boy':     { left: 0.093, top: 0, size: 0.779 },
   'tot-dark-girl':    { left: 0.108, top: 0, size: 0.779 },
   'tot-fair-boy':     { left: 0.117, top: 0, size: 0.780 },
   'tot-fair-girl':    { left: 0.141, top: 0, size: 0.779 },
