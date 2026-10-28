@@ -83,7 +83,8 @@ test('без бази генерації немає: смайлик або ав�
 test('базові зображення вбудованих героїв лежать на сайті й мають рамку обличчя', () => {
   for (const id of ['linen-boy', 'linen-boy-fight', 'blond-boy', 'blond-boy-fight', 'chestnut-boy',
     'chestnut-boy-fight', 'hoodie-boy-fight', 'glasses-girl-fight', 'fair-boy', 'fair-boy-fight', 'fair-girl', 'fair-girl-fight',
-    'kid-fair-boy', 'kid-fair-girl', 'kid-ginger-boy', 'kid-ginger-girl', 'kid-dark-girl', 'kid-dark-boy']) {
+    'kid-fair-boy', 'kid-fair-girl', 'kid-ginger-boy', 'kid-ginger-girl', 'kid-dark-girl', 'kid-dark-boy', 'kid-curly-boy', 'kid-curly-girl',
+    'tot-fair-girl', 'tot-fair-boy', 'tot-ginger-girl', 'tot-dark-girl', 'tot-dark-boy', 'tot-olive-boy']) {
     assert.ok(A.buildSpec(hero('hero:' + id, {}), ITEMS).baseImage);
     assert.ok(A.FACE_BOX[id]);
   }
