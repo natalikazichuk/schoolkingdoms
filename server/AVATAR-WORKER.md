@@ -66,8 +66,8 @@ Authorization: Bearer <AVATAR_WORKER_TOKEN>
       "version": 1,
       "key": "6cf1c3f1d0a54e5b9c3e2a10",
       "base": "linen-boy-fight",
-      "baseImage": "https://school-king.pp.ua/img/ava/linen-boy-base.webp",
-      "fightImage": "https://school-king.pp.ua/img/ava/linen-boy-fight-base.webp",
+      "baseImage": "https://school-king.pp.ua/img/ava/%D1%87%D0%B5%D1%80%D0%BD%D0%B5%D1%82%D0%BA%D0%B8-%D0%B0%D0%B2%D0%B0%D1%82%D0%B0%D1%80%D0%B0/linen-boy-base.webp",
+      "fightImage": "https://school-king.pp.ua/img/ava/%D1%87%D0%B5%D1%80%D0%BD%D0%B5%D1%82%D0%BA%D0%B8-%D0%B0%D0%B2%D0%B0%D1%82%D0%B0%D1%80%D0%B0/linen-boy-fight-base.webp",
       "total": 10,
       "filled": 3,
       "slots": [
@@ -204,7 +204,7 @@ T=…токен…
 curl -s -X POST https://school-king.pp.ua/api/avatar/worker/claim \
   -H "Authorization: Bearer $T" -H 'Content-Type: application/json' -d '{"worker":"curl"}'
 # відповісти базою «як є», щоб перевірити ланцюжок:
-B=$(curl -s https://school-king.pp.ua/img/ava/linen-boy-fight-base.webp | base64 | tr -d '\n')
+B=$(curl -s https://school-king.pp.ua/img/ava/%D1%87%D0%B5%D1%80%D0%BD%D0%B5%D1%82%D0%BA%D0%B8-%D0%B0%D0%B2%D0%B0%D1%82%D0%B0%D1%80%D0%B0/linen-boy-fight-base.webp | base64 | tr -d '\n')
 printf '{"id":1,"image":"%s"}' "$B" | curl -s -X POST https://school-king.pp.ua/api/avatar/worker/result \
   -H "Authorization: Bearer $T" -H 'Content-Type: application/json' --data-binary @-
 ```

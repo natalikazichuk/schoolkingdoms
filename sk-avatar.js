@@ -38,16 +38,23 @@
     return './';
   })();
 
+  // шаблони героїв для вибору: нейтральний одяг, руки видно (у них «Одягти» вкладає зброю)
   var CATALOG = [
+    { id:'kid-fair-boy',    name:'Пшеничний джура' },
+    { id:'kid-fair-girl',   name:'Пшенична джура'  },
+    { id:'kid-ginger-boy',  name:'Рудий джура'     },
+    { id:'kid-ginger-girl', name:'Руда джура'      },
+    { id:'kid-dark-girl',   name:'Каштанова джура' },
+    { id:'kid-dark-boy',    name:'Чорнявий джура'  }
+  ];
+  /* Старі герої — у img/ava/чернетки-аватара/. У вибір не потрапляють,
+     лише показуються дітям, які обрали їх раніше (або вдягали образ на їхній основі). */
+  var DRAFTS = [
     { id:'knight-blue-boy',   name:'Королівський лицар' },
     { id:'knight-green-boy',  name:'Мандрівний лицар'  },
     { id:'knight-wood-boy',   name:'Дубовий лицар'     },
     { id:'knight-green-girl', name:'Лісова лицарка'    },
     { id:'knight-purple-girl',name:'Зоряна лицарка'    },
-    { id:'fair-boy',          name:'Пшеничний джура'   },
-    { id:'fair-boy-fight',    name:'Пшеничний у стійці'},
-    { id:'fair-girl',         name:'Пшенична джура'    },
-    { id:'fair-girl-fight',   name:'Пшенична у стійці' },
     { id:'linen-boy',         name:'Юний джура'        },
     { id:'linen-boy-fight',   name:'Джура в стійці'    },
     { id:'blond-boy',         name:'Сонячний джура'    },
@@ -55,9 +62,17 @@
     { id:'chestnut-boy',      name:'Каштановий джура'  },
     { id:'chestnut-boy-fight',name:'Каштановий у стійці'},
     { id:'hoodie-boy-fight',  name:'Вогняний боєць'    },
-    { id:'glasses-girl-fight',name:'Мудра воїтелька'   }
+    { id:'glasses-girl-fight',name:'Мудра воїтелька'   },
+    { id:'fair-boy',          name:'Пшеничний джура'   },
+    { id:'fair-boy-fight',    name:'Пшеничний у стійці'},
+    { id:'fair-girl',         name:'Пшенична джура'    },
+    { id:'fair-girl-fight',   name:'Пшенична у стійці' }
   ];
-  var BY = {}; CATALOG.forEach(function(h){ BY[h.id]=h; });
+  var BY = {}, OLD = {};
+  CATALOG.forEach(function(h){ BY[h.id]=h; });
+  DRAFTS.forEach(function(h){ BY[h.id]=h; OLD[h.id]=1; });
+  // каталог файлів героя: старі — у чернетках, створені образи (gen/…) і нові — у img/ava/
+  function dir(id){ return BASE+'img/ava/'+(OLD[id] ? 'чернетки-аватара/' : ''); }
 
   var EMOJIS = ['🦁','🐯','🦊','🐺','🐲','🦄','🐉','🦅','🐻','🐼','🦉','🐢'];
 
@@ -72,13 +87,13 @@
   function has(id){ return !!BY[id] || isGen(id); }
   function nameOf(id){ return BY[id] ? BY[id].name : 'Мій герой'; }
 
-  function faceSrc(id,size){ return BASE+'img/ava/'+id+'-'+((size&&size<160)?96:256)+'.webp'; }
-  function facePng(id){ return isGen(id) ? faceSrc(id,256) : BASE+'img/ava/'+id+'-256.png'; }
-  function cardSrc(id){ return isGen(id) ? fullSrc(id) : BASE+'img/ava/'+id+'-card.webp'; }
-  function fullSrc(id){ return BASE+'img/ava/'+id+'-full.webp'; }   // прозора вирізка (повний зріст)
-  function fullPng(id){ return isGen(id) ? fullSrc(id) : BASE+'img/ava/'+id+'-full.png'; }
+  function faceSrc(id,size){ return dir(id)+id+'-'+((size&&size<160)?96:256)+'.webp'; }
+  function facePng(id){ return isGen(id) ? faceSrc(id,256) : dir(id)+id+'-256.png'; }
+  function cardSrc(id){ return isGen(id) ? fullSrc(id) : dir(id)+id+'-card.webp'; }
+  function fullSrc(id){ return dir(id)+id+'-full.webp'; }   // прозора вирізка (повний зріст)
+  function fullPng(id){ return isGen(id) ? fullSrc(id) : dir(id)+id+'-full.png'; }
   // арена: створений образ — у бойовій позі (<файл>-fight.webp); немає її — запас arenaPng (пряма)
-  function arenaSrc(id){ return isGen(id) ? BASE+'img/ava/'+id+'-fight.webp' : fullSrc(id); }
+  function arenaSrc(id){ return isGen(id) ? dir(id)+id+'-fight.webp' : fullSrc(id); }
   function arenaPng(id){ return isGen(id) ? fullSrc(id) : fullPng(id); }
 
   /* «Мої колекції»: створені образи Героя (heroes/{id}.avatarCollection, пише сервер).

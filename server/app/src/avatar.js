@@ -64,6 +64,14 @@ function slotLabel(s, item) {
    маленькі аватарки -256/-96, як у вбудованих героїв. Знайдено зіставленням
    img/ava/<id>-256.webp з <id>-full.webp. */
 const FACE_BOX = {
+  // шаблони для вибору (нейтральний одяг, руки видно)
+  'kid-fair-boy':     { left: 0.173, top: 0, size: 0.720 },
+  'kid-fair-girl':    { left: 0.096, top: 0, size: 0.720 },
+  'kid-ginger-boy':   { left: 0.153, top: 0, size: 0.721 },
+  'kid-ginger-girl':  { left: 0.101, top: 0, size: 0.721 },
+  'kid-dark-girl':    { left: 0.096, top: 0, size: 0.719 },
+  'kid-dark-boy':     { left: 0.165, top: 0, size: 0.720 },
+  // старі герої — img/ava/чернетки-аватара/ (лише для тих, хто обрав їх раніше)
   'fair-boy':        { left: 0.020, top: 0, size: 0.750 },
   'fair-boy-fight':  { left: 0.060, top: 0, size: 0.540 },
   'fair-girl':       { left: 0.090, top: 0, size: 0.720 },
@@ -138,10 +146,16 @@ function standOf(base) {
   return Object.keys(FIGHT_PAIRS).find(k => FIGHT_PAIRS[k] === base) || base;
 }
 /* базове зображення пози; для героя з фото бойова база лежить поруч: <файл>-fight-base.webp */
+/* старі вбудовані герої лежать у чернетках: у вибір не потрапляють, але хто вже їх обрав
+   (і шаблон героя з фото) — малюються з тих самих файлів */
+const DRAFTS_DIR = 'img/ava/чернетки-аватара/';
+const DRAFTS = new Set(['linen-boy', 'linen-boy-fight', 'blond-boy', 'blond-boy-fight', 'chestnut-boy', 'chestnut-boy-fight',
+  'hoodie-boy-fight', 'glasses-girl-fight', 'fair-boy', 'fair-boy-fight', 'fair-girl', 'fair-girl-fight']);
+const avaFile = id => (DRAFTS.has(id) ? DRAFTS_DIR : 'img/ava/') + id;
 function baseImageOf(base, pose) {
-  if (pose !== 'fight') return 'img/ava/' + base + '-base.webp';
+  if (pose !== 'fight') return avaFile(base) + '-base.webp';
   if (isPhotoBase(base)) return 'img/ava/' + base + '-fight-base.webp';
-  return FIGHT_PAIRS[base] ? 'img/ava/' + FIGHT_PAIRS[base] + '-base.webp' : null;
+  return FIGHT_PAIRS[base] ? avaFile(FIGHT_PAIRS[base]) + '-base.webp' : null;
 }
 
 /* Набір для генерації. items — каталог {id: дані}, has(rel) — чи є файл на сайті. */
@@ -797,7 +811,7 @@ async function markFailed(q, key) {
 /* шляхи сайту → повні адреси, щоб воркер міг їх просто завантажити */
 async function absolute(spec, req) {
   const host = process.env.PUBLIC_URL || ('https://' + (req.headers.host || 'school-king.pp.ua'));
-  const abs = p => p ? host.replace(/\/$/, '') + '/' + p : null;
+  const abs = p => p ? host.replace(/\/$/, '') + '/' + encodeURI(p) : null;   // чернетки-аватара — кирилиця в шляху
   // з версії 3 воркер малює на полотні з запасом (CANVAS_PAD) — довга зброя не обрізається
   const pad = (spec.version || 1) >= 3;
   const baseImage = pad ? await canvasImage(spec.base, 'stand') : spec.baseImage;

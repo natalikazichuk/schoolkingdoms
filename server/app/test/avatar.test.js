@@ -26,7 +26,7 @@ test('база: вбудований герой, образ (з avatarGen.base),
 test('набір: 10 слотів з підписами, кільця не малюємо, ліва рука — за категорією', () => {
   const s = A.buildSpec(hero('hero:linen-boy', { helmet: 'IT-001', weaponR: 'IT-093', weaponL: 'IT-102', ring1: 'IT-108', belt0: 'IT-001' }), ITEMS, has);
   assert.strictEqual(s.base, 'linen-boy');
-  assert.strictEqual(s.baseImage, 'img/ava/linen-boy-base.webp');
+  assert.strictEqual(s.baseImage, 'img/ava/чернетки-аватара/linen-boy-base.webp');
   assert.strictEqual(s.total, 10);
   assert.strictEqual(s.filled, 3);
   assert.deepStrictEqual(s.slots.map(x => x.slot), A.SLOTS.map(x => x.slot));
@@ -55,8 +55,8 @@ test('ключ: той самий набір — той самий ключ; к�
 test('дві пози: бойова база для вбудованого джури й для героя з фото', async () => {
   const s = A.buildSpec(hero('hero:linen-boy-fight', { helmet: 'IT-001' }), ITEMS, has);
   assert.strictEqual(s.base, 'linen-boy');
-  assert.strictEqual(s.baseImage, 'img/ava/linen-boy-base.webp');
-  assert.strictEqual(s.fightImage, 'img/ava/linen-boy-fight-base.webp');
+  assert.strictEqual(s.baseImage, 'img/ava/чернетки-аватара/linen-boy-base.webp');
+  assert.strictEqual(s.fightImage, 'img/ava/чернетки-аватара/linen-boy-fight-base.webp');
   assert.strictEqual(A.standOf('linen-boy-fight'), 'linen-boy');
   assert.strictEqual(A.standOf('chestnut-boy-fight'), 'chestnut-boy');
   assert.strictEqual(A.baseImageOf('gen/abc-1', 'fight'), 'img/ava/gen/abc-1-fight-base.webp');
@@ -69,7 +69,7 @@ test('дві пози: бойова база для вбудованого дж�
   const f = await A.makeFiles(out, 'linen-boy', 'fight');
   assert.deepStrictEqual(Object.keys(f).sort(), ['fight', 'fightRegion']);
   const m = await sharp(f.fightRegion).metadata();
-  const b = await sharp(require('path').join(__dirname, '../../../img/ava/linen-boy-fight-base.webp')).metadata();
+  const b = await sharp(require('path').join(__dirname, '../../../img/ava/чернетки-аватара/linen-boy-fight-base.webp')).metadata();
   assert.ok(Math.abs(m.width / m.height - b.width / b.height) < 0.01);
   assert.strictEqual(m.height, A.OUT_H);
 });
@@ -82,7 +82,8 @@ test('без бази генерації немає: смайлик або ав�
 
 test('базові зображення вбудованих героїв лежать на сайті й мають рамку обличчя', () => {
   for (const id of ['linen-boy', 'linen-boy-fight', 'blond-boy', 'blond-boy-fight', 'chestnut-boy',
-    'chestnut-boy-fight', 'hoodie-boy-fight', 'glasses-girl-fight', 'fair-boy', 'fair-boy-fight', 'fair-girl', 'fair-girl-fight']) {
+    'chestnut-boy-fight', 'hoodie-boy-fight', 'glasses-girl-fight', 'fair-boy', 'fair-boy-fight', 'fair-girl', 'fair-girl-fight',
+    'kid-fair-boy', 'kid-fair-girl', 'kid-ginger-boy', 'kid-ginger-girl', 'kid-dark-girl', 'kid-dark-boy']) {
     assert.ok(A.buildSpec(hero('hero:' + id, {}), ITEMS).baseImage);
     assert.ok(A.FACE_BOX[id]);
   }
@@ -158,7 +159,7 @@ test('воркер отримує базу на полотні з запасом
     assert.strictEqual(m.width, cv.W); assert.strictEqual(m.height, cv.H);
     // старе завдання (версія 2) — база як була
     const v2 = await A.absolute(Object.assign({}, spec, { version: 2 }), { headers: {} });
-    assert.match(v2.baseImage, /\/img\/ava\/linen-boy-base\.webp$/);
+    assert.ok(v2.baseImage.endsWith('/img/ava/' + encodeURI('чернетки-аватара') + '/linen-boy-base.webp'), v2.baseImage);
   } finally {
     if (old === undefined) delete process.env.AVATAR_DIR; else process.env.AVATAR_DIR = old;
   }
