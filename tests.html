@@ -52,6 +52,17 @@
     color:#ffe9a8;text-shadow:0 2px 6px rgba(0,0,0,.35)}
   .tg-cnt{font-weight:800;font-size:.8rem;color:#cfe0ff;opacity:.85;
     background:rgba(255,255,255,.10);border-radius:999px;padding:2px 10px}
+  /* Розділ «Випробування…» — виділений: фіолетова рамка, золотий заголовок, 🏆. */
+  .tgroup.trial{margin-top:28px;padding:8px 14px;border-radius:14px 14px 0 0;
+    background:linear-gradient(90deg,rgba(124,77,255,.55),rgba(124,77,255,.12));
+    border:2px solid #b388ff;border-bottom:0;margin-bottom:0}
+  .tgroup.trial .tg-name{color:#ffd75e;font-size:1.22rem}
+  .tgroup.trial .tg-name::before{content:'🏆 '}
+  .grid.trial-grid{padding:14px;border:2px solid #b388ff;border-top:0;border-radius:0 0 14px 14px;
+    background:rgba(124,77,255,.10);box-shadow:0 0 24px rgba(179,136,255,.25)}
+  .grid.trial-grid .tcard{border-color:#b388ff}
+  .tside button.trial{border-color:#b388ff;background:rgba(124,77,255,.35)}
+  .tside button.trial.on{border-color:#ffe08a;background:linear-gradient(180deg,#ffd75e,#f2b632)}
   /* Плитки (.lvgrid/.nv-grid + .lv*) — спільні, у sk-styles.css.
      Тут їх НЕ дублюємо: саме через копії розміри розʼїжджались. */
 
@@ -824,11 +835,13 @@
         + bar(testFrac(t), label, cls) + '</a>';
     }
     /* Розділ, де лише вбудовані картки (словник), — у одну колонку: довгий рядок. */
-    function gridHtml(list){
+    function gridHtml(list, trial){
       var wide = list.length && list.every(function(t){ return t.std; });
       /* дві вбудовані картки (WORDS і TASKS) — в одному рядку */
-      return '<div class="grid'+(wide?' wide-grid'+(list.length===2?' wide-2':''):'')+'">'+list.map(cardHtml).join('')+'</div>';
+      return '<div class="grid'+(wide?' wide-grid'+(list.length===2?' wide-2':''):'')+(trial?' trial-grid':'')+'">'+list.map(cardHtml).join('')+'</div>';
     }
+    /* Розділ «Випробування» (і «Випробування: …») малюємо виділеним. */
+    function isTrial(name){ return /^\s*випробуванн/i.test(String(name||'')); }
     /* Вбудовані картки (словник) не лежать у розділах карти — малюємо їх
        окремим розділом «Словник» першим, над усіма розділами, у кожному
        класі, де є предмет English. */
@@ -861,7 +874,7 @@
       };
       var sideBtn = function(key, name, list, ic){
         var pct = Math.round(topicFrac(list)*100), full = pct>=100 ? ' done' : '';
-        return '<button type="button" data-topic="'+esc(key)+'"'
+        return '<button type="button" data-topic="'+esc(key)+'"'+(isTrial(key)?' class="trial"':'')
           + ' title="Пройдено '+progList(list).filter(isPassed).length+' з '+progList(list).length+'">'
           + '<span class="ts-ic">'+ic+'</span>'
           + '<span class="ts-nm">'+esc(name)+'</span>'
@@ -874,10 +887,11 @@
       /* Показуємо всі теми підряд; меню лише гортає до потрібної й підсвічує ту, що на екрані. */
       var body = '';
       side.forEach(function(x){
-        body += '<div class="tgroup" data-tsec="'+esc(x.name)+'"><span class="tg-name">'+esc(x.name)+'</span>'
+        var tr = isTrial(x.name);
+        body += '<div class="tgroup'+(tr?' trial':'')+'" data-tsec="'+esc(x.name)+'"><span class="tg-name">'+esc(x.name)+'</span>'
               + '<span class="tg-cnt">'+progList(x.tests).filter(isPassed).length+' / '+progList(x.tests).length
               + ' · '+Math.round(topicFrac(x.tests)*100)+'%</span></div>'
-              + gridHtml(x.tests);
+              + gridHtml(x.tests, tr);
       });
       q('screen').innerHTML = '<div class="tlayout">'+nav+'<div class="tmain">'+body+'</div></div>';
       if(jumpTopic){ var jt = jumpTopic; jumpTopic = null; requestAnimationFrame(function(){ goTopic(jt, false); }); }
@@ -892,14 +906,15 @@
     }
     groups.forEach(function(g){
       var done = g.tests.filter(isPassed).length;
+      var tr = titled && isTrial(g.name);
       if(titled && g.name){
-        html += '<div class="tgroup"><span class="tg-name">'+esc(g.name)+'</span>'
+        html += '<div class="tgroup'+(tr?' trial':'')+'"><span class="tg-name">'+esc(g.name)+'</span>'
               + '<span class="tg-cnt">'+done+' / '+g.tests.length+'</span></div>';
       } else if(titled){
         html += '<div class="tgroup"><span class="tg-name">Інші</span>'
               + '<span class="tg-cnt">'+done+' / '+g.tests.length+'</span></div>';
       }
-      html += '<div class="grid">'+g.tests.map(cardHtml).join('')+'</div>';
+      html += '<div class="grid'+(tr?' trial-grid':'')+'">'+g.tests.map(cardHtml).join('')+'</div>';
     });
     q('screen').innerHTML=html;
   }
