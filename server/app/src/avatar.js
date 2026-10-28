@@ -71,6 +71,8 @@ const FACE_BOX = {
   'kid-ginger-girl':  { left: 0.101, top: 0, size: 0.721 },
   'kid-dark-girl':    { left: 0.096, top: 0, size: 0.719 },
   'kid-dark-boy':     { left: 0.165, top: 0, size: 0.720 },
+  'kid-curly-boy':    { left: 0.158, top: 0, size: 0.719 },
+  'kid-curly-girl':   { left: 0.157, top: 0, size: 0.719 },
   // малюки (дошкілля)
   'tot-dark-boy':     { left: 0.093, top: 0, size: 0.779 },
   'tot-dark-girl':    { left: 0.108, top: 0, size: 0.779 },

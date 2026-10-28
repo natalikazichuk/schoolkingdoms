@@ -45,7 +45,9 @@
     { id:'kid-ginger-boy',  name:'Рудий джура'     },
     { id:'kid-ginger-girl', name:'Руда джура'      },
     { id:'kid-dark-girl',   name:'Каштанова джура' },
-    { id:'kid-dark-boy',    name:'Чорнявий джура'  }
+    { id:'kid-dark-boy',    name:'Чорнявий джура'  },
+    { id:'kid-curly-girl',  name:'Кучерява джура'  },
+    { id:'kid-curly-boy',   name:'Кучерявий джура' }
   ];
   // малюки (дошкілля, 3–5 років) — окремий розділ у вибору
   var TOTS = [
