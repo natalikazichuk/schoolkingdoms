@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Чемпіон місяця — мікс за 1 клас на час</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap&subset=cyrillic,cyrillic-ext,latin" rel="stylesheet">
+<style>
+/* Чемпіон місяця — та сама «пісочна» тема й каркас, що в «Через десяток» і «Склад чисел до 20»; замість сердечок — таймер. */
+:root{
+  --ink:#2c2b3a;--soft:#6b6a7d;--paper:#fff9ef;--line:#ece3d2;--card:#fff;
+  --red:#ff6b6b;--orange:#ffa94d;--yellow:#ffd43b;--green:#51cf66;--teal:#22b8cf;
+  --blue:#4dabf7;--purple:#cc5de8;
+  --good:#37b26f;--good-bg:#e4f7ec;--bad:#e06666;--bad-bg:#fbe7e7;
+  --shadow:0 6px 0 rgba(44,43,58,.13);
+  /* таймер і «?» у прикладі — помаранчеві */
+  --aim:#ff9f43;--aim-d:#e07b17;--aim-bg:#fff4e4;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  font-family:'Nunito',system-ui,sans-serif;color:var(--ink);
+  background:
+    radial-gradient(circle at 12% 8%,rgba(255,212,59,.28),transparent 42%),
+    radial-gradient(circle at 88% 14%,rgba(77,171,247,.26),transparent 44%),
+    radial-gradient(circle at 78% 92%,rgba(204,93,232,.22),transparent 46%),
+    radial-gradient(circle at 8% 86%,rgba(81,207,102,.24),transparent 44%),
+    var(--paper);
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  padding:14px;padding-bottom:calc(84px + env(safe-area-inset-bottom));
+}
+h1,h2,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px;margin:0}
+.wrap{width:100%;max-width:540px;flex:1;display:flex;flex-direction:column}
+.screen{display:none;flex-direction:column;flex:1}
+.screen.on{display:flex;animation:pop .3s ease}
+@keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.iconbtn{width:44px;height:44px;border:2px solid var(--line);background:#fff;border-radius:14px;
+  font-size:20px;cursor:pointer;display:grid;place-items:center;flex:none;color:var(--ink);
+  box-shadow:0 1px 3px rgba(44,43,58,.14)}
+.iconbtn:active{transform:translateY(2px)}
+.big-btn{border:none;border-radius:18px;padding:15px 20px;width:100%;cursor:pointer;
+  font-family:'Fredoka';font-weight:700;font-size:19px;color:#fff;background:var(--blue);box-shadow:0 6px 0 #2f8fd6}
+.big-btn:active{transform:translateY(3px);box-shadow:0 3px 0 #2f8fd6}
+.big-btn.green{background:var(--green);box-shadow:0 6px 0 #37a052}
+.big-btn.green:active{box-shadow:0 3px 0 #37a052}
+.big-btn.ghost{background:#fff;color:var(--ink);border:2px solid var(--line);box-shadow:var(--shadow)}
+.hide{display:none!important}
+
+/* ══ СТАРТ (шаблон «Вчимо літери») ══ */
+#start{justify-content:flex-start;text-align:center;gap:11px;padding-top:6px;position:relative}
+#start.screen{min-height:0}
+#start.screen.on{flex:0 0 auto;height:calc(100dvh - 98px - env(safe-area-inset-bottom));overflow-y:auto}
+#start > *:not(.start-hero){flex-shrink:0}
+.start-top{position:absolute;top:22px;left:0;z-index:5}
+.abc-blocks{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:6px 0 2px}
+.ab{position:relative;width:58px;height:58px;border-radius:16px;display:grid;place-items:center;
+  font-family:'Fredoka';font-weight:700;font-size:30px;color:#fff;transform:rotate(var(--r));
+  box-shadow:0 6px 0 rgba(0,0,0,.14),inset 0 -5px 0 rgba(0,0,0,.12),inset 0 3px 0 rgba(255,255,255,.28)}
+.ab::after{content:attr(data-o);position:absolute;right:-8px;bottom:-8px;font-size:20px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.25))}
+.ab:nth-child(1){background:var(--red);--r:-7deg}.ab:nth-child(2){background:var(--orange);--r:5deg}
+.ab:nth-child(3){background:var(--green);--r:-4deg}.ab:nth-child(4){background:var(--blue);--r:6deg}
+.ab:nth-child(5){background:var(--purple);--r:-5deg}
+#start h1{font-family:'Comfortaa','Fredoka',sans-serif;font-size:34px;margin:8px 0 0;line-height:1.1;color:#1e3a6b}
+.start-sub{color:var(--soft);font-weight:800;margin:0;font-size:16px}
+.rhyme{background:#fff;border:3px dashed #cdd8ea;border-radius:20px;padding:12px 18px;
+  font-style:italic;color:#3a5a8c;font-weight:800;max-width:400px;margin:0 auto;box-shadow:0 1px 3px rgba(44,43,58,.14);line-height:1.4}
+.start-hero{max-width:440px;width:100%;margin:0 auto;flex:1 1 auto;min-height:110px;
+  max-height:clamp(150px,32vh,340px);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.start-hero img{max-width:100%;max-height:100%;width:auto;height:auto;display:block}
+.start-btns{display:flex;flex-direction:column;gap:10px;max-width:440px;margin:2px auto 0;width:100%}
+.prog-card{display:flex;align-items:center;gap:12px;background:#fff;border:3px solid var(--line);
+  border-radius:20px;padding:11px 16px;max-width:440px;margin:2px auto 0;width:100%;box-shadow:0 5px 16px rgba(44,43,58,.10)}
+.prog-card .pc-ic{font-size:26px;flex:none}
+.prog-card .pc-body{flex:1;min-width:0;text-align:left}
+.prog-card .pc-txt{font-family:'Fredoka';font-weight:700;font-size:16px;margin-bottom:6px}
+.pc-bar{height:12px;background:#efe6d3;border-radius:999px;overflow:hidden}
+.pc-bar>span{display:block;height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,var(--green),var(--teal));transition:width .5s}
+.done-card{display:none;align-items:center;gap:12px;max-width:440px;width:100%;margin:0 auto;text-align:left;
+  background:linear-gradient(180deg,#fffdf4,#fff6df);border:3px solid #f4c842;border-radius:20px;
+  padding:10px 14px;box-shadow:0 0 0 3px #fff9e6}
+.done-card.on{display:flex}
+.done-card .dc-ic{font-size:30px;flex:none}
+.done-card .dc-got{font-family:'Fredoka';font-weight:700;font-size:15px;color:#8a5e16;line-height:1.2}
+.done-card .dc-go{font-weight:800;font-size:12px;color:var(--soft);margin-top:3px;line-height:1.25}
+@media (max-width:520px){
+  .start-top{top:12px}
+  .abc-blocks{padding:0 48px;gap:6px}
+  .ab{width:44px;height:44px;border-radius:12px;font-size:24px}
+  .ab::after{font-size:16px;right:-6px;bottom:-6px}
+}
+@media (max-width:440px){
+  #start{gap:8px}
+  #start h1{font-size:29px;padding:0 36px}
+  .start-sub{font-size:14px}
+  .rhyme{padding:8px 14px;font-size:14px;border-radius:16px}
+  .big-btn{padding:13px 18px;font-size:18px}
+}
+
+/* ══ ВЕРХНЯ ПАНЕЛЬ (карта / гра) ══ */
+.topbar{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-right:52px}
+/* стіл — нижче «жучка» 🐞 у правому верхньому куті */
+#screen-play .topbar{margin-bottom:34px}
+.topbar .ttl{flex:1;min-width:0}
+.topbar .ttl b{display:block;font-family:'Fredoka';font-size:20px;line-height:1.1}
+.topbar .ttl span{font-size:12px;font-weight:800;color:var(--soft)}
+
+/* ══ КАРТА РІВНІВ ══ */
+.map{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.lvl{text-align:left;border:3px solid var(--line);background:#fff;color:var(--ink);border-radius:18px;
+  padding:11px 12px;cursor:pointer;font-family:'Fredoka';font-weight:600;font-size:15px;line-height:1.2;box-shadow:var(--shadow)}
+.lvl:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(44,43,58,.13)}
+.lvl .n{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--blue);margin-bottom:3px}
+.lvl .tag{display:block;margin-top:5px;font-family:'Nunito';font-weight:800;font-size:11.5px;color:var(--soft)}
+.lvl .st{display:block;margin-top:5px;font-size:15px;letter-spacing:2px;line-height:1;color:#f2b705}
+.lvl .st .off{color:#e3dac8}
+.lvl.done{border-color:var(--good);background:var(--good-bg)}
+.lvl.done .n{color:var(--good)}
+.lvl.lock{opacity:.5;cursor:not-allowed;box-shadow:none}
+.map-note{text-align:center;font-weight:800;font-size:13px;color:var(--soft);margin-top:14px}
+
+
+/* ══ ГРА: прогрес ══ */
+.pbar{display:flex;align-items:center;gap:10px;margin:0 0 8px;padding-right:56px}  /* праворуч — «жучок» 🐞 */
+.pbar .lab{font-weight:800;font-size:15px;color:var(--soft)}
+.pbar .lab b{font-family:'Fredoka';font-size:20px;color:var(--ink)}
+.pbar .score{margin-left:auto;font-family:'Fredoka';font-weight:700;font-size:30px;line-height:1;color:var(--good)}
+.qbar{height:14px;border-radius:999px;background:#efe6d3;overflow:hidden;margin-bottom:12px}
+.qbar > i{display:block;height:100%;width:0;border-radius:999px;
+  background:linear-gradient(90deg,var(--green),var(--teal));transition:width .3s}
+
+/* підказка-завдання над дошкою */
+.task{text-align:center;font-family:'Fredoka';font-weight:600;font-size:21px;line-height:1.25;
+  color:#1e3a6b;min-height:54px;display:flex;align-items:center;justify-content:center;padding:0 4px}
+
+/* ══ ДОШКА: великий приклад + розклад числа ══ */
+.board{border:3px solid var(--line);border-radius:20px;background:#fff;box-shadow:var(--shadow);
+  padding:20px 8px 18px;margin:4px 0 6px;text-align:center;font-family:'Fredoka';font-weight:700;color:var(--ink);
+  min-height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+.row{white-space:nowrap;line-height:1}
+.row.main{font-size:clamp(50px,15vw,76px)}
+.row.main.split-on{margin-bottom:clamp(78px,21vw,96px)}     /* місце під «гілочки» розкладу */
+.row.main.fast{font-size:clamp(60px,18vw,92px);padding:10px 0}
+.row.step{font-size:clamp(34px,10vw,46px);color:#4a4960}
+.row .op{color:var(--blue);margin:0 .08em}
+.row.ok-row{color:var(--good)}
+.hole{display:inline-block;min-width:.75em;padding:0 .1em;border-radius:.18em;color:var(--aim-d);background:var(--aim-bg)}
+.gh{display:inline-block;width:.72em;height:.86em;vertical-align:-.08em;border:3px dashed #d9cfbb;border-radius:.16em}
+.res-ok{color:var(--good)}
+
+/* число, яке розкладаємо, з «гілочками» вниз */
+.sp{position:relative;display:inline-block;color:var(--purple)}
+.sp .legs{position:absolute;left:50%;top:100%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;pointer-events:none}
+.sp .legs svg{display:block;width:clamp(96px,26vw,120px);height:clamp(22px,6vw,28px)}
+.sp .legs svg line{stroke:var(--purple);stroke-width:4;stroke-linecap:round}
+.parts{display:flex;gap:clamp(14px,5vw,26px)}
+.cell{min-width:clamp(52px,14vw,64px);height:clamp(54px,14.5vw,66px);border:3px solid var(--line);border-radius:14px;background:#fff;
+  display:grid;place-items:center;font-size:clamp(36px,10vw,46px);color:var(--ink);padding:0 4px}
+.cell.ask{border-color:var(--aim);background:var(--aim-bg);color:var(--aim-d)}
+.cell.ghost{border-style:dashed;border-color:#d9cfbb;background:transparent}
+.cell.ok{border-color:var(--good);background:var(--good-bg);color:var(--good)}
+
+/* ══ ВАРІАНТИ ВІДПОВІДІ ══ */
+.opts{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:12px}
+.opt{border:3px solid var(--line);background:#fff;color:var(--ink);border-radius:20px;padding:16px 8px;
+  font-family:'Fredoka';font-weight:700;font-size:48px;line-height:1;cursor:pointer;box-shadow:0 5px 0 rgba(44,43,58,.12)}
+.opt:active{transform:translateY(3px);box-shadow:none}
+.opt.ok{border-color:var(--good);background:var(--good-bg);color:var(--good)}
+.opt.no{border-color:var(--bad);background:var(--bad-bg);color:var(--bad)}
+.opt:disabled{cursor:default}
+
+/* після помилки замість завдання — «спробуй ще раз» */
+.task.no{color:var(--bad);font-size:25px}
+/* сердечка: помилка забирає одне, усі втрачено — рівень спочатку */
+.hearts{display:flex;justify-content:center;gap:4px;margin:-4px 0 6px;font-size:24px;line-height:1}
+.hearts span{transition:opacity .3s,filter .3s}
+.hearts span.off{opacity:.35;filter:grayscale(1)}
+.hearts span.lost{animation:heartLost .6s ease}
+@keyframes heartLost{0%{transform:scale(1)}30%{transform:scale(1.45)}60%{transform:scale(.8) rotate(-12deg)}100%{transform:none}}
+.opt.no{animation:optShake .4s ease}
+@keyframes optShake{0%,100%{transform:none}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+/* результат рівня */
+.done-box{background:#fff;border:3px solid var(--line);border-radius:20px;padding:20px 16px;text-align:center;box-shadow:var(--shadow);margin:6px 0 14px}
+.done-box .big{font-family:'Fredoka';font-weight:700;font-size:80px;line-height:.95;color:var(--ink)}
+.done-box .big small{font-size:40px;color:var(--soft)}
+.done-box .cap{font-weight:800;font-size:13px;color:var(--soft);margin-top:4px}
+.done-box .stars{font-size:36px;letter-spacing:6px;margin:12px 0 4px;line-height:1;color:#f2b705}
+.done-box .stars .off{color:#e3dac8}
+.done-box .super{display:inline-block;margin-top:8px;padding:7px 16px;border-radius:999px;
+  border:3px solid var(--good);background:var(--good-bg);color:var(--good);font-family:'Fredoka';font-weight:700;font-size:17px}
+.done-box p{font-weight:800;color:var(--soft);margin:10px 0 0}
+#done .big-btn+.big-btn{margin-top:10px}
+
+/* ══ СКЛАД ЧИСЛА: паличка-десяток і окремі одиниці ══ */
+.row.eq{font-size:clamp(40px,12vw,66px)}
+.pic{display:flex;flex-direction:column;align-items:center;gap:8px}
+.bar10{display:flex;gap:3px;padding:5px 7px;border-radius:999px;background:#f3ecdd;border:2px solid #e3d7bf}
+.dot{width:clamp(15px,4.4vw,22px);height:clamp(15px,4.4vw,22px);border-radius:50%;flex:none;
+  box-shadow:inset 0 -3px 0 rgba(0,0,0,.14),inset 0 2px 0 rgba(255,255,255,.35)}
+.bar10 .dot{background:var(--blue)}
+.bar10 .dot:nth-child(-n+5){background:var(--red)}
+.ones{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;max-width:280px;min-height:clamp(15px,4.4vw,22px)}
+.ones .dot{background:var(--orange)}
+.pic-cap{font-weight:800;font-size:13px;color:var(--soft);margin-top:-2px}
+.board.compact{gap:8px;padding:14px 8px 12px}
+
+/* екран гри вміщається на телефон без прокрутки: розміри стискаються з висотою (vh-кламп) */
+#screen-play .topbar{margin-bottom:clamp(14px,3.4vh,34px)}
+.qbar{margin-bottom:clamp(6px,1.2vh,12px)}
+.hearts{font-size:clamp(19px,3vh,24px);margin:-2px 0 4px}
+.task{font-size:clamp(17px,2.8vh,21px);min-height:clamp(40px,6.4vh,54px)}
+.board{min-height:0;padding:clamp(10px,2vh,20px) 8px;gap:clamp(6px,1.2vh,10px)}
+.board.compact{padding:clamp(8px,1.6vh,14px) 8px}
+.row.main{font-size:clamp(42px,7.6vh,76px)}
+.row.main.split-on{margin-bottom:clamp(62px,10.4vh,96px)}
+.row.step{font-size:clamp(28px,4.8vh,46px)}
+.row.eq{font-size:clamp(36px,6.6vh,66px)}
+.cell{height:clamp(46px,7.6vh,66px);font-size:clamp(30px,5.2vh,46px)}
+.opts{gap:clamp(8px,1.4vh,12px);margin-top:clamp(6px,1.2vh,12px)}
+.opt{padding:clamp(7px,1.5vh,16px) 8px;font-size:clamp(32px,5.4vh,48px)}
+
+/* ══ ТАЙМЕР замість сердечок ══ */
+.tbar{position:relative;height:clamp(20px,3vh,26px);border-radius:999px;background:#fbe9d2;overflow:hidden;margin:0 0 6px}
+.tbar>i{position:absolute;left:0;top:0;bottom:0;width:100%;border-radius:999px;background:linear-gradient(90deg,var(--aim),#ffc04d);transition:width .2s linear}
+.tbar.low>i{background:linear-gradient(90deg,var(--red),#ff9a8b)}
+.tbar>b{position:relative;display:block;text-align:center;font-family:'Fredoka';font-weight:700;font-size:clamp(14px,2.2vh,17px);line-height:clamp(20px,3vh,26px);color:#7a4a10}
+.tbar.low>b{color:#fff}
+.pen{position:fixed;left:50%;top:30%;transform:translateX(-50%);font-family:'Fredoka';font-weight:700;font-size:34px;color:var(--bad);
+  pointer-events:none;animation:penUp .9s ease forwards;z-index:30}
+@keyframes penUp{from{opacity:1;transform:translate(-50%,0)}to{opacity:0;transform:translate(-50%,-50px)}}
+.opts.three{grid-template-columns:repeat(3,1fr)}
+.zt{font-family:'Nunito';font-weight:800;font-size:clamp(16px,2.5vh,20px);line-height:1.3;text-align:left;padding:0 6px;color:var(--ink)}
+.zt .em{font-size:1.5em;vertical-align:-.15em;margin-right:6px}
+.ask-line{font-family:'Fredoka';font-weight:700;font-size:clamp(22px,3.8vh,32px);line-height:1.2;color:#1e3a6b;padding:0 6px}
+.cmp{display:inline-block;min-width:1em;color:var(--aim-d);background:var(--aim-bg);border-radius:.18em;padding:0 .12em}
+/* рекорд місяця на старті */
+.month-card{display:flex;align-items:center;gap:12px;background:linear-gradient(180deg,#fffdf4,#fff6df);border:3px solid #f4c842;
+  border-radius:20px;padding:10px 14px;max-width:440px;width:100%;margin:0 auto;text-align:left}
+.month-card .mc-ic{font-size:28px;flex:none}
+.month-card .mc-body{flex:1;min-width:0}
+.month-card .mc-t{font-family:'Fredoka';font-weight:700;font-size:16px;color:#8a5e16}
+.month-card .mc-s{font-weight:800;font-size:12px;color:var(--soft);line-height:1.25}
+.month-card .mc-n{font-family:'Fredoka';font-size:34px;color:#c98a0b;line-height:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ══════ СТАРТ ══════ -->
+  <section id="start" class="screen on">
+    <div class="start-top">
+      <button class="iconbtn" type="button" onclick="exitPage()" title="Назад" aria-label="Назад">←</button>
+    </div>
+    <div class="abc-blocks">
+      <div class="ab" data-o="⏱️">8</div><div class="ab" data-o="➕">+</div><div class="ab" data-o="🏆">5</div><div class="ab" data-o="⚡">&gt;</div><div class="ab" data-o="⭐">12</div>
+    </div>
+    <h1>Чемпіон місяця</h1>
+    <p class="start-sub">мікс усього за 1 клас · на час</p>
+    <p class="rhyme" id="startRhyme">Рахуй, порівнюй, задачі розв'язуй —<br>хто найшвидший, той чемпіон, це знай!</p>
+    <div class="done-card" id="startDone">
+      <span class="dc-ic">🏆</span>
+      <div><div class="dc-got" id="doneGot">Тренажер пройдено!</div>
+        <div class="dc-go" id="doneGo">Вирушай за новими досягненнями!</div></div>
+    </div>
+    <div class="start-hero">
+      <img src="../img/tr/chempion-misyatsya.webp" alt="" onerror="this.closest('.start-hero').style.display='none'">
+    </div>
+    <div class="start-btns">
+      <button class="big-btn" type="button" onclick="goMap()">Грати ▶</button>
+      <button class="big-btn green" type="button" onclick="startMarathon()">⏱ Марафон місяця · 60 секунд</button>
+    </div>
+    <div class="prog-card">
+      <span class="pc-ic">🏆</span>
+      <div class="pc-body">
+        <div class="pc-txt" id="startProgTxt">Пройдено 0 з 10 рівнів</div>
+        <div class="pc-bar"><span id="startProgFill"></span></div>
+      </div>
+    </div>
+    <div class="month-card" id="monthCard">
+      <span class="mc-ic">🥇</span>
+      <div class="mc-body"><div class="mc-t" id="monthTitle">Рекорд місяця</div>
+        <div class="mc-s" id="monthSub">Зіграй марафон — і встанови свій рекорд!</div></div>
+      <b class="mc-n" id="monthBest">—</b>
+    </div>
+  </section>
+
+  <!-- ══════ КАРТА РІВНІВ ══════ -->
+  <section id="screen-map" class="screen">
+    <div class="topbar">
+      <button class="iconbtn" type="button" onclick="goStart()" title="Назад" aria-label="Назад">←</button>
+      <div class="ttl"><b>Чемпіон місяця</b><span id="hud-lv">Пройдено 0 з 10</span></div>
+    </div>
+    <div class="map" id="map"></div>
+    <div class="map-note">Розв'яжи всі завдання, поки не скінчився час.<br>Помилка забирає 3 секунди.<br>80% правильних — рівень пройдено!</div>
+  </section>
+
+  <!-- ══════ ГРА ══════ -->
+  <section id="screen-play" class="screen">
+    <div class="topbar">
+      <button class="iconbtn" type="button" onclick="goMap()" title="Зупинити · до карти рівнів" aria-label="До карти рівнів">←</button>
+      <div class="ttl"><b id="p-title"></b><span id="p-eyebrow"></span></div>
+    </div>
+    <div class="pbar">
+      <span class="lab">Завдання <b id="p-num">1</b><span id="p-of"> з <span id="p-total">5</span></span></span>
+      <span class="score" id="p-score">✓ 0</span>
+    </div>
+    <div class="qbar"><i id="p-bar"></i></div>
+    <div class="tbar" id="p-tbar"><i id="p-tfill"></i><b id="p-time">60</b></div>
+    <div class="task" id="p-task"></div>
+    <div class="board" id="p-board"></div>
+    <div class="opts" id="p-opts"></div>
+  </section>
+
+  <!-- ══════ РЕЗУЛЬТАТ ══════ -->
+  <section id="done" class="screen">
+    <div class="topbar">
+      <button class="iconbtn" type="button" onclick="goMap()" title="До карти рівнів" aria-label="До карти рівнів">←</button>
+      <div class="ttl"><b id="d-title"></b><span id="d-sub"></span></div>
+    </div>
+    <div class="done-box">
+      <div class="big" id="d-num">0</div>
+      <div class="cap" id="d-cap">розв'язано</div>
+      <div class="stars" id="d-stars"></div>
+      <div id="d-super"></div>
+      <p id="d-text"></p>
+    </div>
+    <button class="big-btn green" id="d-next" type="button">Наступний рівень ▶</button>
+    <button class="big-btn" id="d-again" type="button">↻ Спробувати ще раз</button>
+    <button class="big-btn ghost" id="d-map" type="button">До карти рівнів</button>
+  </section>
+
+</div>
+
+<script src="../sk-footer.js?v=6" data-base="../" data-back="self"></script>
+
+<script src="../sk-zadachi.js"></script>
+<script>
+/* ============================================================
+   ЧЕМПІОН МІСЯЦЯ — мікс усього за 1 клас на час.
+   Теми: додавання й віднімання до 10 і до 20, через десяток,
+   склад чисел, невідоме число, порівняння (> < =), сусіди числа,
+   десятки й одиниці, текстові задачі (з sk-zadachi.js).
+   10 рівнів: розв'язати N завдань, поки не скінчився час.
+   Правильна відповідь — далі; помилка — кнопка червоніє й гасне,
+   −3 секунди (PENALTY), відповідь не підказуємо.
+   Зірки — за залишок часу: ≥40% — 3★, ≥20% — 2★, інакше 1★.
+   «Марафон місяця» — 60 секунд, скільки встигнеш; рекорд окремо
+   на кожен календарний місяць.
+   Прогрес: localStorage 'sk_game_chempion_misyatsya' (простір sk_*,
+   синхронізується в heroes/{id}.progress). Нагорода — лише з адмінки.
+   ============================================================ */
+
+const ALL = ["add10","sub10","unk10","cmp","nbr","add20","sub20","tens","thr","comp","unk20","word"];
+const LEVELS = [
+  {t:"Розминка до 10",          s:"+ і − до 10",       kinds:["add10","sub10"],                 n:10, sec:60},
+  {t:"Знайди невідоме",         s:"? + 4 = 9",         kinds:["add10","sub10","unk10"],         n:12, sec:60},
+  {t:"Порівняй і знайди сусіда",s:"> < = · сусіди",     kinds:["cmp","nbr","add10","sub10"],     n:12, sec:60},
+  {t:"Числа до 20",             s:"12 + 5 · 17 − 4",    kinds:["add20","sub20","tens"],          n:12, sec:60},
+  {t:"Через десяток",           s:"8 + 5 · 13 − 6",     kinds:["thr"],                           n:12, sec:70},
+  {t:"Склад чисел",             s:"14 = 10 + ?",        kinds:["comp","tens","thr","unk20"],     n:14, sec:70},
+  {t:"Задачі на час",           s:"прочитай і порахуй", kinds:["word"],                          n:8,  sec:90},
+  {t:"Мікс до 20",              s:"усе, крім задач",    kinds:ALL.filter(k=>k!=="word"),         n:15, sec:70},
+  {t:"Швидкий мікс",            s:"усе разом",          kinds:ALL,                               n:18, sec:75},
+  {t:"Чемпіон місяця",          s:"фінал",              kinds:ALL,                               n:22, sec:80},
+];
+const PENALTY = 3;                                     // секунд за помилку
+const MARATHON_SEC = 60;
+const MINUS = "−";
+const MONTHS = ["січня","лютого","березня","квітня","травня","червня","липня","серпня","вересня","жовтня","листопада","грудня"];
+
+/* стан гравця (дзеркалиться у localStorage) */
+const S = { unlocked:0, done:Array(10).fill(false), best:Array(10).fill(0), month:{} };
+const LS_KEY = "sk_game_chempion_misyatsya";
+const PRIZE_KEY = "sk_chempion_misyatsya_prize_v1";
+function readLS(){
+  try{
+    const o = JSON.parse(localStorage.getItem(LS_KEY) || "null");
+    if(o && typeof o === "object"){
+      S.unlocked = Math.min(9, Math.max(0, o.unlocked|0));
+      S.done = Array.isArray(o.done) && o.done.length===10 ? o.done.map(Boolean) : Array(10).fill(false);
+      S.best = Array.isArray(o.best) && o.best.length===10 ? o.best.map(v=>Math.max(0,Math.min(3,v|0))) : Array(10).fill(0);
+      S.month = o.month && typeof o.month === "object" ? o.month : {};
+    }
+  }catch(e){}
+}
+function save(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){}
+  try{ if(window.SK && SK.pushLocal) SK.pushLocal().catch(()=>{}); }catch(e){}
+}
+function doneCount(){ return S.done.filter(Boolean).length; }
+function monthKey(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
+function monthName(){ return MONTHS[new Date().getMonth()]; }
+
+const $ = id => document.getElementById(id);
+const rnd = (a,b) => a + Math.floor(Math.random()*(b-a+1));
+const pick = a => a[rnd(0,a.length-1)];
+const shuffle = a => a.map(v=>[Math.random(),v]).sort((x,y)=>x[0]-y[0]).map(p=>p[1]);
+function starStr(k){ let s=""; for(let i=0;i<3;i++) s += `<span class="${i<k?"":"off"}">★</span>`; return s; }
+
+/* ---------- завдання ----------
+   q = {html, ans, lo, hi, opts?:[...], word?:true}
+   html — що показати на дошці; «?» позначаємо <span class="hole">?</span> */
+const H = `<span class="hole">?</span>`, OP = s => `<span class="op">${s}</span>`;
+function row(s, cls){ return `<div class="row main fast${cls?" "+cls:""}">${s}</div>`; }
+function gen(kind){
+  let a, b, c, t = 0;
+  switch(kind){
+    case "add10": a=rnd(1,9); b=rnd(1,10-a); return {html:row(`${a} ${OP("+")} ${b} ${OP("=")} ${H}`), ans:a+b, lo:0, hi:10};
+    case "sub10": a=rnd(2,10); b=rnd(1,a-1); return {html:row(`${a} ${OP(MINUS)} ${b} ${OP("=")} ${H}`), ans:a-b, lo:0, hi:10};
+    case "unk10":
+      a=rnd(1,8); b=rnd(1,9-a); c=a+b;
+      return pick([
+        {html:row(`${H} ${OP("+")} ${b} ${OP("=")} ${c}`), ans:a, lo:0, hi:10},
+        {html:row(`${a} ${OP("+")} ${H} ${OP("=")} ${c}`), ans:b, lo:0, hi:10},
+        {html:row(`${c} ${OP(MINUS)} ${H} ${OP("=")} ${a}`), ans:b, lo:0, hi:10}]);
+    case "unk20":
+      a=rnd(3,12); b=rnd(2,20-a); c=a+b;
+      return pick([
+        {html:row(`${a} ${OP("+")} ${H} ${OP("=")} ${c}`), ans:b, lo:0, hi:20},
+        {html:row(`${c} ${OP(MINUS)} ${H} ${OP("=")} ${a}`), ans:b, lo:0, hi:20}]);
+    case "cmp": {
+      /* ліворуч вираз або число, праворуч число; знак: > < = (= трапляється ~ кожен третій раз) */
+      const L = Math.random()<0.6 ? (()=>{ const x=rnd(1,9), y=rnd(1,10-x); return Math.random()<0.5 ? [`${x} + ${y}`, x+y] : [`${x+y} ${MINUS} ${y}`, x]; })() : (()=>{ const v=rnd(0,20); return [String(v), v]; })();
+      let r = Math.random()<0.33 ? L[1] : rnd(Math.max(0,L[1]-4), L[1]+4);
+      const sign = L[1] > r ? ">" : L[1] < r ? "<" : "=";
+      return {html:row(`${L[0]} <span class="cmp">?</span> ${r}`, ""), ans:sign, opts:["<","=",">"], three:true};
+    }
+    case "nbr": {
+      const n = rnd(1,19);
+      return pick([
+        {html:`<div class="ask-line">Яке число стоїть <b>перед</b> ${n}?</div>`, ans:n-1, lo:0, hi:20},
+        {html:`<div class="ask-line">Яке число стоїть <b>після</b> ${n}?</div>`, ans:n+1, lo:0, hi:20},
+        ...(n>=1 && n<=18 ? [{html:`<div class="ask-line">Яке число <b>між</b> ${n} і ${n+2}?</div>`, ans:n+1, lo:0, hi:20}] : [])]);
+    }
+    case "add20": do{ a=rnd(11,18); b=rnd(1,8); }while(a%10+b>9 && ++t<50); return {html:row(`${a} ${OP("+")} ${b} ${OP("=")} ${H}`), ans:a+b, lo:10, hi:20};
+    case "sub20": do{ a=rnd(12,19); b=rnd(1,8); }while(a%10<b && ++t<50); return {html:row(`${a} ${OP(MINUS)} ${b} ${OP("=")} ${H}`), ans:a-b, lo:10, hi:20};
+    case "tens": {
+      const n = rnd(11,19);
+      return pick([
+        {html:row(`${n} ${OP("=")} 10 ${OP("+")} ${H}`), ans:n-10, lo:0, hi:10},
+        {html:row(`10 ${OP("+")} ${n-10} ${OP("=")} ${H}`), ans:n, lo:10, hi:20}]);
+    }
+    case "thr":
+      if(Math.random()<0.5){ do{ a=rnd(2,9); b=rnd(2,9); }while(a+b<=10 && ++t<50); return {html:row(`${a} ${OP("+")} ${b} ${OP("=")} ${H}`), ans:a+b, lo:10, hi:20}; }
+      do{ a=rnd(11,18); b=rnd(2,9); }while(a-b>=10 && ++t<50); return {html:row(`${a} ${OP(MINUS)} ${b} ${OP("=")} ${H}`), ans:a-b, lo:1, hi:10};
+    case "comp": do{ a=rnd(2,9); b=rnd(2,9); }while(a+b<=10 && ++t<50); return {html:row(`${a+b} ${OP("=")} ${a} ${OP("+")} ${H}`), ans:b, lo:1, hi:10};
+    case "word": {
+      if(!window.ZAD) return gen("add10");
+      const z = ZAD.makeTask({max: Math.random()<0.5 ? 10 : 20});
+      return {html:`<div class="zt"><span class="em">${z.emoji}</span>${z.text}</div>`, ans:z.answer, lo:0, hi:20, word:true};
+    }
+  }
+}
+/* 4 варіанти: правильний + сусідні числа в межах [lo, hi] */
+function optsNear(ans, lo, hi){
+  const set = new Set();
+  [1,-1,2,-2,3,-3,4,-4,5,-5].forEach(d => { const v=ans+d; if(v>=lo && v<=hi) set.add(v); });
+  const near = [...set];
+  const pick3 = shuffle(near.slice(0,4)).slice(0,2).concat(shuffle(near.slice(4))).slice(0,3);
+  return shuffle([ans, ...pick3]);
+}
+
+/* ---------- гра ---------- */
+let L = 0, solved = 0, Q = null, busy = true, run = 0;
+let marathon = false, total = 0, left = 0, endAt = 0, tick = null, lastAns = null, kindsQ = [];
+
+function later(fn, ms){ const id = run; setTimeout(() => { if(id === run) fn(); }, ms); }
+function show(id){ document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on", s.id===id)); window.scrollTo(0,0); }
+function curScreen(){ const s=document.querySelector(".screen.on"); return s?s.id:"start"; }
+function exitPage(){ if(window.skGoBackSmart) skGoBackSmart("tests.html"); else location.href="../tests.html"; }
+function stopRound(){ run++; busy = true; if(tick){ clearInterval(tick); tick = null; } }
+function goStart(){ stopRound(); refreshStart(); show("start"); }
+function goMap(){ stopRound(); drawMap(); show("screen-map"); }
+function stepBack(){ const c=curScreen(); if(c==="screen-play"||c==="done") (marathon ? goStart() : goMap()); else if(c==="screen-map") goStart(); else exitPage(); }
+
+function refreshStart(){
+  const n=doneCount();
+  $("startProgTxt").textContent = n>=10 ? "🎉 Усі 10 рівнів пройдено!" : ("Пройдено "+n+" з 10 рівнів");
+  $("startProgFill").style.width = Math.round(n/10*100)+"%";
+  if(window.skReportProgress) skReportProgress(n, 10);   // прогрес для картки в «Навчанні»
+  const mb = S.month[monthKey()]|0;
+  $("monthTitle").textContent = "Рекорд " + monthName();
+  $("monthBest").textContent = mb ? mb : "—";
+  $("monthSub").textContent = mb ? "Розв'язано за 60 секунд у марафоні. Поб'єш?" : "Зіграй марафон — і встанови свій рекорд!";
+  const p = window.SKPRIZE ? SKPRIZE.summary(PRIZE_KEY) : null;
+  $("startDone").classList.toggle("on", !!p);
+  $("startRhyme").style.display = p ? "none" : "";
+  if(!p) return;
+  const t=SKPRIZE.doneText(p, "«Чемпіон місяця» пройдено — нагороду отримано!");
+  $("doneGot").textContent=t.got; $("doneGo").textContent=t.go;
+}
+
+/* ---------- карта рівнів ---------- */
+function drawMap(){
+  $("hud-lv").textContent = "Пройдено "+doneCount()+" з 10";
+  $("map").innerHTML = "";
+  LEVELS.forEach((lv,i) => {
+    const b = document.createElement("button");
+    const locked = i > S.unlocked;
+    b.className = "lvl" + (S.done[i] ? " done" : "") + (locked ? " lock" : "");
+    const tag = locked ? "🔒 зачинено" : `${lv.n} завдань · ${lv.sec} с`;
+    b.innerHTML = `<span class="n">${S.done[i]?"✓ ":""}РІВЕНЬ ${i+1} · ${lv.s}</span>${lv.t}` +
+      (locked ? "" : `<span class="st">${starStr(S.best[i]|0)}</span>`) + `<span class="tag">${tag}</span>`;
+    b.disabled = locked;
+    b.onclick = () => startLevel(i);
+    $("map").appendChild(b);
+  });
+}
+
+/* ---------- таймер ---------- */
+function startTimer(sec){
+  total = sec; endAt = Date.now() + sec*1000;
+  const id = run;
+  drawTime();
+  tick = setInterval(() => { if(id !== run) return; drawTime(); if(timeLeft() <= 0) timeUp(); }, 100);
+}
+function timeLeft(){ return Math.max(0, (endAt - Date.now())/1000); }
+function drawTime(){
+  const s = timeLeft();
+  $("p-tfill").style.width = (s/total*100).toFixed(1)+"%";
+  $("p-time").textContent = "⏱ " + Math.ceil(s) + " с";
+  $("p-tbar").classList.toggle("low", s <= 10);
+}
+function penalty(){
+  endAt -= PENALTY*1000; drawTime();
+  const el = document.createElement("div"); el.className = "pen"; el.textContent = "−"+PENALTY+" с";
+  document.body.appendChild(el); setTimeout(() => el.remove(), 900);
+}
+
+/* ---------- запуск ---------- */
+function begin(title, eyebrow, n){
+  stopRound();
+  solved = 0; lastAns = null;
+  $("p-title").textContent = title;
+  $("p-eyebrow").textContent = eyebrow;
+  $("p-total").textContent = n;
+  $("p-board").className = "board";
+  $("p-of").style.display = marathon ? "none" : "";          // у марафоні кінця немає
+  $("p-bar").parentNode.style.visibility = marathon ? "hidden" : "";
+  show("screen-play");
+}
+function startLevel(i){
+  marathon = false; L = i;
+  const lv = LEVELS[i];
+  begin(lv.t, `Рівень ${i+1} з 10 · ${lv.n} завдань за ${lv.sec} с`, lv.n);
+  /* рівномірно чергуємо теми рівня, щоб жодна не випала надто часто */
+  kindsQ = [];
+  startTimer(lv.sec);
+  next();
+}
+function startMarathon(){
+  marathon = true;
+  begin("Марафон місяця", `Скільки встигнеш за ${MARATHON_SEC} секунд?`, "∞");
+  kindsQ = [];
+  startTimer(MARATHON_SEC);
+  next();
+}
+function nextKind(){
+  const kinds = marathon ? ALL : LEVELS[L].kinds;
+  if(!kindsQ.length) kindsQ = shuffle(kinds.slice());
+  return kindsQ.pop();
+}
+function next(){
+  for(let t=0;t<20;t++){ Q = gen(nextKind()); if(Q.ans !== lastAns) break; }
+  lastAns = Q.ans;
+  $("p-num").textContent = solved + 1;
+  $("p-score").textContent = "✓ " + solved;
+  $("p-bar").style.width = marathon ? "0%" : (solved / LEVELS[L].n * 100).toFixed(1) + "%";
+  $("p-board").innerHTML = Q.html;
+  $("p-task").textContent = Q.word ? "Розв'яжи задачу" : Q.three ? "Постав знак: >, < або =" : "Обери відповідь";
+  $("p-task").className = "task";
+  const vs = Q.opts ? Q.opts : optsNear(Q.ans, Q.lo, Q.hi);
+  $("p-opts").className = "opts" + (Q.three ? " three" : "");
+  $("p-opts").innerHTML = "";
+  vs.forEach(v => {
+    const b = document.createElement("button");
+    b.className = "opt"; b.type = "button"; b.textContent = v;
+    b.onclick = () => tap(b, v);
+    $("p-opts").appendChild(b);
+  });
+  busy = false;
+}
+function tap(btn, v){
+  if(busy) return;
+  if(v === Q.ans){
+    busy = true;
+    btn.classList.add("ok");
+    [...$("p-opts").children].forEach(b => b.disabled = true);
+    $("p-board").innerHTML = Q.html.replace(/<span class="hole">\?<\/span>|<span class="cmp">\?<\/span>/, `<span class="res-ok">${v}</span>`);
+    solved++;
+    $("p-score").textContent = "✓ " + solved;
+    /* останнє завдання — зупиняємо годинник одразу, щоб таймер не «доїв» перемогу */
+    if(!marathon && solved >= LEVELS[L].n){ const rest = timeLeft(); clearInterval(tick); tick = null; later(() => finish(true, rest), 300); return; }
+    later(next, 280);
+  }else{
+    // відповідь не підказуємо — кнопка червоніє й гасне, мінус секунди
+    btn.classList.add("no"); btn.disabled = true;
+    $("p-task").textContent = "Ні! −" + PENALTY + " секунди"; $("p-task").className = "task no";
+    penalty();
+    if(timeLeft() <= 0) timeUp();
+  }
+}
+function timeUp(){ if(busy && curScreen() !== "screen-play") return; finish(marathon); }
+
+/* ---------- кінець ---------- */
+function finish(ok, restArg){
+  const rest = restArg !== undefined ? restArg : timeLeft();
+  stopRound();
+  let line, stars = 0;
+  $("d-super").innerHTML = "";
+  if(marathon){
+    const key = monthKey(), was = S.month[key]|0, rec = solved > was;
+    if(rec) S.month[key] = solved;
+    save();
+    $("d-title").textContent = "Марафон місяця";
+    $("d-sub").textContent = "Рекорд " + monthName() + ": " + (S.month[key]|0);
+    $("d-num").innerHTML = String(solved);
+    $("d-cap").textContent = "завдань за " + MARATHON_SEC + " секунд";
+    $("d-stars").innerHTML = "";
+    if(rec && solved > 0) $("d-super").innerHTML = `<span class="super">🥇 Новий рекорд ${monthName()}!</span>`;
+    line = rec && was ? `Було ${was} — тепер ${solved}. Ти швидшаєш!` : solved ? "Спробуй ще — рекорд можна побити!" : "Час вийшов. Спробуй ще раз!";
+    $("d-text").textContent = line;
+    $("d-next").classList.add("hide");
+    $("d-again").onclick = startMarathon;
+    $("d-map").textContent = "На старт";
+    $("d-map").onclick = goStart;
+    show("done");
+    return;
+  }
+  const lv = LEVELS[L];
+  if(ok){
+    const f = rest / lv.sec;
+    stars = f >= 0.4 ? 3 : f >= 0.2 ? 2 : 1;
+    const isBest = stars > (S.best[L]|0);
+    if(isBest) S.best[L] = stars;
+    S.done[L] = true;
+    if(L === S.unlocked && L < 9) S.unlocked = L + 1;
+    line = stars === 3 ? "Блискавично! Ти справжній чемпіон." : stars === 2 ? "Швидко! Ще трішки — і будуть три зірки." : "Встиг! Спробуй швидше — за це більше зірок.";
+    if(isBest && S.best[L] > 0 && stars > 1) line += " Новий рекорд! 🎉";
+    $("d-super").innerHTML = `<span class="super">⏱ Залишилось ${Math.ceil(rest)} с</span>`;
+  }else{
+    line = `Час вийшов! Треба розв'язати всі ${lv.n} — ти встиг ${solved}. Ще раз!`;
+  }
+  save();
+  const n = doneCount();
+  if(window.skReportProgress) skReportProgress(n, 10);
+  $("d-title").textContent = lv.t;
+  $("d-sub").textContent = "Пройдено "+n+" з 10 рівнів";
+  $("d-num").innerHTML = `${solved}<small> / ${lv.n}</small>`;
+  $("d-cap").textContent = "розв'язано";
+  $("d-stars").innerHTML = starStr(stars);
+  $("d-text").textContent = line;
+  $("d-next").classList.toggle("hide", !(S.done[L] && L < 9));
+  $("d-again").onclick = () => startLevel(L);
+  $("d-map").textContent = "До карти рівнів";
+  $("d-map").onclick = goMap;
+  show("done");
+  if(n >= 10){
+    if(window.SKPRIZE && !SKPRIZE.summary(PRIZE_KEY))
+      SKPRIZE.claim({key:PRIZE_KEY, href:"chempion-misyatsya.html", title:"Усі рівні пройдено!", onClose:refreshStart});
+    else if(window.skFinishRecord) skFinishRecord();
+  }
+}
+
+/* ---------- кнопки ---------- */
+$("d-next").onclick  = () => startLevel(Math.min(L+1, 9));
+const hb=$("heroBackBtn"); if(hb) hb.addEventListener("click", stepBack);
+window.addEventListener("pagehide", save);
+/* вкладка в фоні — таймер іде далі за годинником; повернулись після кінця часу — завершуємо */
+document.addEventListener("visibilitychange", () => { if(!document.hidden && tick && timeLeft() <= 0) timeUp(); });
+
+function boot(){
+  readLS(); refreshStart();
+  let n = 0;
+  (function poll(){
+    if(window.SK && window.SK.ready){
+      SK.ready.then(async () => {
+        try{
+          if(!SK.isHeroSession || !SK.isHeroSession()) return;
+          await SK.pullLocal();
+          readLS(); refreshStart(); if(curScreen()==="screen-map") drawMap();
+        }catch(e){}
+      });
+      return;
+    }
+    if(++n <= 60) setTimeout(poll, 100);
+  })();
+}
+boot();
+window.addEventListener("load", refreshStart);
+</script>
+<script type="module" src="../firebase-config.js"></script>
+<script src="../sk-items.js?v=28"></script>
+<script src="../sk-curriculum.js?v=9"></script>
+<script src="../sk-rewards.js?v=6"></script>
+<script src="../sk-prize.js?v=3"></script>
+<script src="../sk-finish.js?v=7"></script>
+</body>
+</html>
