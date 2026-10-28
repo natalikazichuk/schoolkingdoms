@@ -146,7 +146,8 @@
     [/десятки (і|й) одиниці/,          'mat-desyatky-odynytsi'],
     [/розряд/,                         'mat-rozryad'],
     [/у дві дії|у 2 дії/,              'mat-vyrazy-dvi-dii'],
-    [/у три дії|у 3 дії/,              'mat-vyrazy-try-dii']
+    [/у три дії|у 3 дії/,              'mat-vyrazy-try-dii'],
+    [/таблиц\S* множення|табличк\S* множення/, 'mat-tablytsya-mnozhennya']
   ];
   function byTitle(title, subj){
     var s = String(title||'').toLowerCase().replace(/[’'`ʼ]/g,'').trim();
