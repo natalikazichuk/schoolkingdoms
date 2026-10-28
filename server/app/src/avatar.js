@@ -65,6 +65,7 @@ function slotLabel(s, item) {
    img/ava/<id>-256.webp з <id>-full.webp. */
 const FACE_BOX = {
   'fair-boy':        { left: 0.020, top: 0, size: 0.750 },
+  'fair-boy-fight':  { left: 0.060, top: 0, size: 0.540 },
   'fair-girl':       { left: 0.090, top: 0, size: 0.720 },
   'linen-boy':       { left: 0.242, top: 0, size: 0.513 },
   'linen-boy-fight': { left: 0.197, top: 0, size: 0.590 },
@@ -77,7 +78,7 @@ const FACE_BOX = {
 };
 const FACE_DEFAULT = { left: 0.2, top: 0, size: 0.6 };
 /* пряма поза → бойова: образ малюється в обох (арена показує бойову) */
-const FIGHT_PAIRS = { 'linen-boy': 'linen-boy-fight', 'blond-boy': 'blond-boy-fight', 'chestnut-boy': 'chestnut-boy-fight' };
+const FIGHT_PAIRS = { 'fair-boy': 'fair-boy-fight', 'linen-boy': 'linen-boy-fight', 'blond-boy': 'blond-boy-fight', 'chestnut-boy': 'chestnut-boy-fight' };
 
 // версія набору й промпту: змінив PROMPT/SLOTS — підніми, і старий кеш не підхопиться
 const SPEC_VERSION = 5;   // 2: дві пози (fightImage); 3: база на полотні з запасом (CANVAS_PAD); 4: описи речей і де сидять шапка/наручі; 5: рукави верхнього одягу, пояс на талії під ним, не-щити в лівій руці
