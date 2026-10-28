@@ -47,6 +47,7 @@
     { id:'fair-boy',          name:'Пшеничний джура'   },
     { id:'fair-boy-fight',    name:'Пшеничний у стійці'},
     { id:'fair-girl',         name:'Пшенична джура'    },
+    { id:'fair-girl-fight',   name:'Пшенична у стійці' },
     { id:'linen-boy',         name:'Юний джура'        },
     { id:'linen-boy-fight',   name:'Джура в стійці'    },
     { id:'blond-boy',         name:'Сонячний джура'    },
