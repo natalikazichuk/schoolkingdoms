@@ -95,7 +95,7 @@
   /* облік часу на сайті (sk-activity.js) — для ігор і тренажерів без бази */
   if(BASE && !window.__skActivityMounted){
     var act = document.createElement('script');
-    act.src = BASE + 'sk-activity.js?v=1';
+    act.src = BASE + 'sk-activity.js?v=2';
     (document.head || document.documentElement).appendChild(act);
   }
 

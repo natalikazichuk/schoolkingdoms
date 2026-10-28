@@ -160,6 +160,34 @@ function isProgressKey(k) {
   return !!k && k.startsWith('sk_') && PROGRESS_SKIP.indexOf(k) === -1;
 }
 
+/* Злиття двох копій обліку часу (формат — у sk-activity.js): секунди за
+   добу й розділ та тривалість візиту лише ростуть, тож беремо більше.
+   Повертає JSON або null, якщо локальної копії немає. */
+function mergeActivity(localStr, remoteStr) {
+  let a = null, b = null;
+  try { a = JSON.parse(localStr || 'null'); } catch (e) {}
+  if (!a || typeof a !== 'object') return null;
+  try { b = JSON.parse(remoteStr || 'null'); } catch (e) {}
+  if (!b || typeof b !== 'object') b = {};
+  const out = { v: 1, d: {}, s: [], last: Math.max(Number(a.last) || 0, Number(b.last) || 0) };
+  [b.d, a.d].forEach(d => Object.keys(d && typeof d === 'object' ? d : {}).forEach(day => {
+    const r = out.d[day] || (out.d[day] = {});
+    Object.keys(d[day] || {}).forEach(c => { r[c] = Math.max(Number(r[c]) || 0, Number(d[day][c]) || 0); });
+  }));
+  const days = Object.keys(out.d).sort();
+  while (days.length > 60) delete out.d[days.shift()];
+  const byKey = {};
+  [b.s, a.s].forEach(list => (Array.isArray(list) ? list : []).forEach(v => {
+    if (!v || !v.at) return;
+    const k = v.c + '|' + v.at, cur = byKey[k];
+    if (!cur) { byKey[k] = Object.assign({}, v); out.s.push(byKey[k]); }
+    else if ((Number(v.s) || 0) > (Number(cur.s) || 0)) { cur.s = v.s; if (v.n) cur.n = v.n; }
+  }));
+  out.s.sort((x, y) => x.at - y.at);
+  if (out.s.length > 40) out.s.splice(0, out.s.length - 40);
+  return JSON.stringify(out);
+}
+
 function progressKeys() {
   const keys = [];
   for (let i = 0; i < localStorage.length; i++) {
@@ -879,13 +907,29 @@ const SK = {
     /* Чистимо ДО перевірки на існування документа. Інакше в Героя без поля
        progress (щойно створений) у localStorage лишався б прогрес попередньої
        дитини на цьому пристрої — і перший же pushLocal записав би його йому. */
+    /* Облік часу (sk_activity_v1) пишеться щохвилини і часто ще не встиг
+       у базу (перехід на іншу сторінку обриває запит). Арена кличе pullLocal
+       на кожен фокус — і копія з бази затирала незбережені хвилини. Якщо
+       localStorage належить цьому ж Героєві, зливаємо: беремо більше. */
+    const ACT = 'sk_activity_v1';
+    let actMerged = null;
+    if (localStorage.getItem('sk_active_child') === hid) {
+      actMerged = mergeActivity(localStorage.getItem(ACT), progress[ACT]);
+    }
     PROG.quiet = true;   // це дані з бази — не позначаємо їх «зміненими»
     try {
       progressKeys().forEach(k => localStorage.removeItem(k));
       Object.entries(progress).forEach(([k, v]) => {
         if (v != null && isProgressKey(k)) localStorage.setItem(k, v);
       });
+      if (actMerged) localStorage.setItem(ACT, actMerged);
     } finally { PROG.quiet = false; PROG.dirty.clear(); }
+    // локальна копія була новіша — доливаємо її в базу
+    if (actMerged && actMerged !== progress[ACT]) {
+      PROG.dirty.add(ACT);
+      clearTimeout(PROG.timer);
+      PROG.timer = setTimeout(() => flushProgress(false), 1500);
+    }
 
     /* Позначаємо власника localStorage одразу тут, а не лише в
        onAuthStateChanged: guard у pushLocal спирається на цей ключ, і
@@ -1922,7 +1966,8 @@ async function flushProgress(closing) {
     return false;
   }
 }
-SK.flushProgress = () => flushProgress(false).catch(() => false);
+// closing=true — сторінка закривається: запит із keepalive (sk-activity.js)
+SK.flushProgress = (closing) => flushProgress(!!closing).catch(() => false);
 
 window.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') {
@@ -1938,7 +1983,7 @@ window.SK = SK;
 if (!window.__skActivityMounted) {
   try {
     const a = document.createElement('script');
-    a.src = new URL('sk-activity.js?v=1', import.meta.url).href;
+    a.src = new URL('sk-activity.js?v=2', import.meta.url).href;
     (document.head || document.documentElement).appendChild(a);
   } catch (e) {}
 }

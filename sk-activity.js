@@ -136,12 +136,19 @@
     try { ls.setItem(KEY, JSON.stringify(o)); } catch (e) {}
   }
 
+  /* Останній відрізок пишемо вже ПІСЛЯ того, як firebase-config відправив
+     прогрес (його обробники pagehide/visibilitychange стоять раніше), тож
+     без цього він не доходив у базу — короткі візити губились. */
+  function flushNow() {
+    try { if (window.SK && window.SK.flushProgress) window.SK.flushProgress(true); } catch (e) {}
+  }
+
   setInterval(function () { tick(false); }, TICK_MS);
   document.addEventListener('visibilitychange', function () {
     if (visible()) { lastTick = Date.now(); lastInput = Date.now(); return; }
-    tick(true); save();
+    tick(true); save(); flushNow();
     // повернулись пізніше — це вже новий візит
     sessStart = Date.now(); sessSec = 0;
   });
-  window.addEventListener('pagehide', function () { if (visible()) tick(true); save(); });
+  window.addEventListener('pagehide', function () { if (visible()) tick(true); save(); flushNow(); });
 })();
