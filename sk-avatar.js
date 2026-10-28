@@ -140,7 +140,12 @@
       '.ska-del{position:absolute;top:4px;right:4px;z-index:2;width:22px;height:22px;border-radius:50%;border:0;',
         'background:rgba(10,18,38,.7);color:#ffe9b8;font-size:.75rem;line-height:22px;padding:0;cursor:pointer}',
       '.ska-empty{font-size:.75rem;color:#cfd8ee;opacity:.85;padding:4px 2px 2px;line-height:1.35}',
-      '.ska-sub{font-size:.7rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#ffd98a;margin:12px 2px 6px}'
+      '.ska-sub{font-size:.7rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#ffd98a;margin:12px 2px 6px}',
+      /* «Мої колекції» згорнуті: видно перші 3 образи, решта — за кнопкою */
+      '.ska-grid.ska-fold>.ska-opt:nth-child(n+4){display:none}',
+      '.ska-more{display:block;width:100%;margin:8px 0 2px;padding:7px 10px;border-radius:12px;cursor:pointer;',
+        'border:2px solid rgba(242,199,92,.45);background:rgba(242,199,92,.1);color:#ffe9b8;font:800 .78rem/1.2 inherit}',
+      '.ska-more:hover{background:rgba(242,199,92,.2)}'
     ].join('');
     document.head.appendChild(css);
   }
@@ -193,7 +198,7 @@
       var mine = (cfg.collection||[]).filter(function(c){ return c && c.key && isGen('gen/'+c.file); });
       coll = '<div class="ska-sub">🎒 Мої колекції</div>'
         + (mine.length
-          ? '<div class="ska-grid">' + mine.map(function(c){
+          ? '<div class="ska-grid'+(mine.length>3 && !mine.slice(3).some(function(c){ return tokenOf('gen/'+c.file)===sel; })?' ska-fold':'')+'" data-coll="1">' + mine.map(function(c){
               var tok = tokenOf('gen/'+c.file);
               // герой із фото: base = 'gen/<файл>' (сам образ — це він, без речей)
               var cap = /^gen\//.test(c.base||'') ? (c.base==='gen/'+c.file ? 'Герой з фото' : 'Герой з фото в образі') : nameOf(c.base)+' в образі';
@@ -204,6 +209,7 @@
                 cell = cell.replace(/<\/div>$/, '<button class="ska-del" type="button" title="Прибрати з колекції" aria-label="Прибрати з колекції">✕</button></div>');
               return cell;
             }).join('') + '</div>'
+            + (mine.length>3 ? '<button class="ska-more" type="button">▾ Показати всі ('+mine.length+')</button>' : '')
           : '<div class="ska-empty">Тут зберігатимуться образи, які ти створиш: вдягни речі в Арені й натисни «🪄 Одягти» або «📸 Аватар з фото».</div>');
     }
     m.innerHTML =
@@ -219,6 +225,15 @@
     function close(){ m.remove(); }
     m.addEventListener('click', function(e){ if(e.target===m) close(); });
     m.querySelector('.ska-x').addEventListener('click', close);
+    // згорнути / розгорнути «Мої колекції»
+    var more = m.querySelector('.ska-more'), cg = m.querySelector('[data-coll]');
+    function moreLabel(){
+      var n = cg ? cg.querySelectorAll('.ska-opt').length : 0;
+      if(!more) return;
+      if(n<=3){ more.remove(); more=null; if(cg) cg.classList.remove('ska-fold'); return; }
+      more.textContent = cg.classList.contains('ska-fold') ? '▾ Показати всі ('+n+')' : '▴ Згорнути';
+    }
+    if(more && cg){ moreLabel(); more.addEventListener('click', function(){ cg.classList.toggle('ska-fold'); moreLabel(); }); }
     m.querySelectorAll('.ska-opt').forEach(function(o){
       if(o.classList.contains('soon')) return;
       var key = o.getAttribute('data-key');
@@ -226,7 +241,7 @@
       if(del) del.addEventListener('click', function(e){
         e.stopPropagation();
         if(!confirm('Прибрати цей образ із колекції?')) return;
-        var grid = o.parentNode; o.remove();
+        var grid = o.parentNode; o.remove(); moreLabel();
         if(grid && !grid.children.length) grid.outerHTML = '<div class="ska-empty">Колекція порожня.</div>';
         cfg.onForget(key);
       });
