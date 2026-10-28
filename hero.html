@@ -22,7 +22,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="hero.css?v=29">
+<link rel="stylesheet" href="hero.css?v=31">
 <script src="sk-resume.js?v=1"></script>
 <script>SKResume.go();   /* відкрили застосунок — одразу туди, де Герой зупинився (якщо не минуло 2 годин) */</script>
 <script src="sk-arena-rules.js?v=38"></script>
@@ -93,6 +93,12 @@
         <img class="photo" id="heroPhoto" src="hero-portrait.png" alt="" onerror="this.style.display='none'">
         <div class="figure" id="heroFig" style="display:none">🧒</div>
         <button class="ava-cam" id="avaCam" type="button" title="Додати своє фото" aria-label="Додати фото героя">📷</button>
+        <button class="ava-bg" id="avaBg" type="button" title="Змінити фон" aria-label="Змінити фон героя" aria-expanded="false">🏞️</button>
+        <div class="bg-pick" id="bgPick" hidden>
+          <button type="button" data-bg="meadow"><span style="background-image:url(img/portrait-bg.webp?v=2)"></span>Лука</button>
+          <button type="button" data-bg="room"><span style="background-image:url(img/portrait-bg-room.webp)"></span>Кімната</button>
+          <button type="button" data-bg="class"><span style="background-image:url(img/portrait-bg-class.webp)"></span>Клас</button>
+        </div>
         <input type="file" id="avaFile" accept="image/*" hidden>
       </div>
     </div>
@@ -1306,6 +1312,30 @@ $('editName').addEventListener('click',()=>{
     if(window.SKAVA && SKAVA.isHeroToken(_ct)) showHeroArt(SKAVA.idOf(_ct));
     else if(_ct) showEmoji(_ct);
   }
+
+  /* ── фон портрета: лука / кімната / клас (вибір пам'ятає цей пристрій) ── */
+  var BGS={ meadow:'img/portrait-bg.webp?v=2', room:'img/portrait-bg-room.webp', 'class':'img/portrait-bg-class.webp' };
+  var bgBtn=document.getElementById('avaBg'), bgPick=document.getElementById('bgPick');
+  function setBg(k){
+    if(!BGS[k]) k='meadow';
+    if(portrait) portrait.style.backgroundImage='url('+BGS[k]+')';
+    if(bgPick) bgPick.querySelectorAll('[data-bg]').forEach(function(b){ b.classList.toggle('sel', b.getAttribute('data-bg')===k); });
+  }
+  var _bg=null; try{ _bg=localStorage.getItem('sk_hero_bg'); }catch(e){}
+  setBg(_bg);
+  function togglePick(open){
+    if(!bgPick) return;
+    bgPick.hidden=!open; if(bgBtn) bgBtn.setAttribute('aria-expanded', open?'true':'false');
+  }
+  if(bgBtn) bgBtn.addEventListener('click',function(e){ e.stopPropagation(); togglePick(bgPick.hidden); });
+  if(bgPick) bgPick.addEventListener('click',function(e){
+    e.stopPropagation();
+    var b=e.target.closest('[data-bg]'); if(!b) return;
+    var k=b.getAttribute('data-bg'); setBg(k);
+    try{ localStorage.setItem('sk_hero_bg',k); }catch(err){}
+    togglePick(false);
+  });
+  document.addEventListener('click',function(e){ if(bgPick && !bgPick.hidden && !bgPick.contains(e.target) && e.target!==bgBtn) togglePick(false); });
 
   // підстрибування при тапі на героя (але не на кнопці 📷)
   if(portrait){
