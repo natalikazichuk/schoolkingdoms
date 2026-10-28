@@ -44,6 +44,8 @@
     { id:'knight-wood-boy',   name:'Дубовий лицар'     },
     { id:'knight-green-girl', name:'Лісова лицарка'    },
     { id:'knight-purple-girl',name:'Зоряна лицарка'    },
+    { id:'fair-boy',          name:'Пшеничний джура'   },
+    { id:'fair-girl',         name:'Пшенична джура'    },
     { id:'linen-boy',         name:'Юний джура'        },
     { id:'linen-boy-fight',   name:'Джура в стійці'    },
     { id:'blond-boy',         name:'Сонячний джура'    },

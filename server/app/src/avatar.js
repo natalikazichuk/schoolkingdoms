@@ -64,6 +64,8 @@ function slotLabel(s, item) {
    маленькі аватарки -256/-96, як у вбудованих героїв. Знайдено зіставленням
    img/ava/<id>-256.webp з <id>-full.webp. */
 const FACE_BOX = {
+  'fair-boy':        { left: 0.020, top: 0, size: 0.750 },
+  'fair-girl':       { left: 0.090, top: 0, size: 0.720 },
   'linen-boy':       { left: 0.242, top: 0, size: 0.513 },
   'linen-boy-fight': { left: 0.197, top: 0, size: 0.590 },
   'blond-boy':          { left: 0.113, top: 0, size: 0.680 },
