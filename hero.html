@@ -22,7 +22,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="hero.css?v=31">
+<link rel="stylesheet" href="hero.css?v=32">
 <script src="sk-resume.js?v=1"></script>
 <script>SKResume.go();   /* відкрили застосунок — одразу туди, де Герой зупинився (якщо не минуло 2 годин) */</script>
 <script src="sk-arena-rules.js?v=38"></script>
@@ -1284,11 +1284,18 @@ $('editName').addEventListener('click',()=>{
   function readToken(){ try{ return localStorage.getItem(TOKEN_KEY); }catch(e){ return null; } }
   function showEmoji(em){ if(fig){ fig.textContent=em||'🧒'; fig.style.display='block'; } if(photo){ photo.classList.remove('art'); photo.style.display='none'; } }
 
+  // малюк (дошкілля, база tot-*) нижчий за школяра — не розтягуємо його на весь кадр
+  function isTot(id){
+    if(/^tot-/.test(id)) return true;
+    var c=_collection.filter(function(x){ return 'gen/'+x.file===id; })[0];
+    return !!(c && /^tot-/.test(c.base||''));
+  }
   // Показати вбудованого героя на ПОВНИЙ ЗРІСТ: прозора вирізка стоїть у сцені
   // портрета (замок + небо + трава + сяйво лишаються позаду).
   function showHeroArt(id){
     if(!window.SKAVA || !SKAVA.has(id) || !photo) return;
     photo.classList.add('art');
+    photo.classList.toggle('tot', isTot(id));
     photo.onerror=function(){ this.onerror=null; this.src=SKAVA.fullPng(id); };
     photo.src=SKAVA.fullSrc(id); photo.style.display='block';
     if(fig) fig.style.display='none';
