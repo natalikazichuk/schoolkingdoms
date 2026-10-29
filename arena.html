@@ -1040,6 +1040,9 @@ body.scr-battle .topbar .iconbtn{margin-left:8px}
 .ek-card{background:linear-gradient(180deg,#1c3357,#111f3c);border:2px solid rgba(224,164,42,.5);border-radius:16px;padding:10px;position:relative}
 .ek-art{position:relative;border-radius:12px;overflow:hidden;background:#bfe3fb url(img/portrait-bg.webp?v=2) center/cover no-repeat;box-shadow:inset 0 -60px 60px -30px rgba(0,0,0,.28);width:100%;aspect-ratio:7/8;display:flex;align-items:flex-end;justify-content:center}
 .ek-art img{width:96%;height:98%;object-fit:contain;object-position:center bottom;filter:drop-shadow(0 8px 10px rgba(0,0,0,.25))}
+/* малюк (база tot-*) — приблизно на чверть нижчий за школяра; ноги на тому ж місці (відступ — від ширини кадру 3:4) */
+img.ska-tot{box-sizing:border-box;padding-top:36%}
+.ek-art img.ska-tot{padding-top:30%}
 /* «Одягти» — образ Героя у вдягнених речах малює сервер (server/app/src/avatar.js) */
 /* кнопки під героєм: «Одягти» і «Аватар з фото» */
 /* кнопки під героєм: «Одягти» (воркер) і «Одягти GPT» (OpenAI, лише тестові Герої) — поруч */
@@ -1771,7 +1774,7 @@ function resW(){ return (window.SKRES && SKRES.of()) || {name:'Мана', gen:'�
 </script>
 
 <script type="module" src="firebase-config.js"></script>
-<script src="sk-avatar.js?v=18"></script>
+<script src="sk-avatar.js?v=19"></script>
 <script src="sk-progress.js"></script>
 <script src="sk-arena-rules.js?v=38"></script>
 <script src="sk-battle.js?v=68"></script>
@@ -1912,7 +1915,7 @@ window.SKHERO = (function(){
       var id = SKAVA.idOf(token);
       img.src = SKAVA.faceSrc(id, 256);
       img.classList.remove('hidden'); em.classList.add('hidden');
-      if(peek){ peek.onerror = function(){ peek.onerror=null; peek.src = SKAVA.fullSrc(id); }; peek.src = (SKAVA.arenaSrc||SKAVA.fullSrc)(id); }
+      if(peek){ peek.onerror = function(){ peek.onerror=null; peek.src = SKAVA.fullSrc(id); }; peek.src = (SKAVA.arenaSrc||SKAVA.fullSrc)(id); SKAVA.markTot(peek, id); }
     }else{
       var heroTok = (typeof token==='string' && token.indexOf('hero:')===0);
       em.textContent = heroTok ? '🧒' : (token || '🧒'); em.classList.remove('hidden'); img.classList.add('hidden');
@@ -1927,7 +1930,7 @@ window.SKHERO = (function(){
     if(SKAVA && SKAVA.isHeroToken && SKAVA.isHeroToken(token)){
       var id=SKAVA.idOf(token);
       img.onerror=function(){ img.onerror=null; img.src=(SKAVA.arenaPng||SKAVA.fullPng)(id); };
-      img.src=(SKAVA.arenaSrc||SKAVA.fullSrc)(id); img.style.display='block';
+      img.src=(SKAVA.arenaSrc||SKAVA.fullSrc)(id); img.style.display='block'; SKAVA.markTot(img, id);
       if(em) em.classList.add('hidden');
     }else{
       img.style.display='none';
@@ -2334,7 +2337,7 @@ window.SKHERO = (function(){
     if(SKAVA && SKAVA.isHeroToken && SKAVA.isHeroToken(token) && SKAVA.has && SKAVA.has(SKAVA.idOf(token))){
       var id = SKAVA.idOf(token);
       img.onerror = function(){ img.onerror=null; img.src = (SKAVA.arenaPng||SKAVA.fullPng)(id); };
-      img.src = (SKAVA.arenaSrc||SKAVA.fullSrc)(id);
+      img.src = (SKAVA.arenaSrc||SKAVA.fullSrc)(id); SKAVA.markTot(img, id);
       img.style.display = 'block'; em.classList.add('hidden');
     }else{
       img.style.display = 'none';
@@ -2401,7 +2404,7 @@ window.SKHERO = (function(){
     if(SKAVA && SKAVA.isHeroToken && SKAVA.isHeroToken(token) && SKAVA.has && SKAVA.has(SKAVA.idOf(token))){
       var id=SKAVA.idOf(token);
       img.onerror=function(){ img.onerror=null; img.src=(SKAVA.arenaPng||SKAVA.fullPng)(id); };
-      img.src=(SKAVA.arenaSrc||SKAVA.fullSrc)(id); img.style.display='block'; em.classList.add('hidden');
+      img.src=(SKAVA.arenaSrc||SKAVA.fullSrc)(id); img.style.display='block'; em.classList.add('hidden'); SKAVA.markTot(img, id);
     }else{ img.style.display='none'; em.classList.remove('hidden'); }
   }
 
@@ -4033,6 +4036,7 @@ window.SKHERO = (function(){
   function applyHeroDoc(h){
     if(!h) return;
     if(h.name)   hero.name   = h.name;
+    if(window.SKAVA && SKAVA.collectionOf) SKAVA.collectionOf(h);   // запамʼятати базу образів (малюк чи школяр)
     if(h.avatar){
       hero.avatar = h.avatar;
       // спільний кеш аватара з головною (hero.html читає той самий ключ) — щоб збігались
@@ -4449,8 +4453,8 @@ function placeTip(x,y){if(!tip||tip.hidden)return;var w=tip.offsetWidth,h=tip.of
 
 function paintAvatar(token){var img=q('ek-heroImg');if(!img)return;var S=window.SKAVA;
  if(S&&S.isHeroToken&&S.isHeroToken(token)&&S.has&&S.has(S.idOf(token))){var id=S.idOf(token);
-  img.onerror=function(){img.onerror=null;img.src=(S.arenaPng||S.fullPng)(id);};img.src=(S.arenaSrc||S.fullSrc)(id);}
- else{img.onerror=function(){img.onerror=null;img.src='https://raw.githubusercontent.com/natalikazichuk/schoolkingdoms/main/img/ava/kid-fair-boy-full.webp';};img.src='img/ava/kid-fair-boy-full.webp';}}
+  img.onerror=function(){img.onerror=null;img.src=(S.arenaPng||S.fullPng)(id);};img.src=(S.arenaSrc||S.fullSrc)(id);S.markTot(img,id);}
+ else{img.classList.remove('ska-tot');img.onerror=function(){img.onerror=null;img.src='https://raw.githubusercontent.com/natalikazichuk/schoolkingdoms/main/img/ava/kid-fair-boy-full.webp';};img.src='img/ava/kid-fair-boy-full.webp';}}
 
 /* Урон удару — як у бою (sk-arena-rules.js): база BATTLE.baseDmg + кидок у діапазоні зброї в руці
    + сталий «Урон» речей. Магічна зброя → увесь удар магічний (база теж), фізичного тоді немає. */

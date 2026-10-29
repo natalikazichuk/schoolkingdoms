@@ -21,6 +21,8 @@
                                    — самодостатня модалка вибору; collection — створені
                                      образи [{key,file,base}] (розділ «Мої колекції»)
      collectionOf(hero)            — колекція образів із документа Героя
+     isTot(id) / markTot(img,id)   — малюк (база tot-*, і створені на ній образи): показуємо
+                                     нижчим за школяра (клас ska-tot на <img> повного зросту)
      gridHTML(selected,{emojis})   — сітка опцій для форми (напр. створення героя)
      bindGrid(el, cb)              — навісити кліки на .ska-opt у сітці
    Шлях до /img/ava визначається автоматично з розташування цього файлу,
@@ -97,6 +99,18 @@
   // образ у речах: id = 'gen/<файл>' — шляхи ті самі, лише без PNG-запасу й картки
   function isGen(id){ return /^gen\/[A-Za-z0-9-]+$/.test(String(id||'')); }
   function has(id){ return !!BY[id] || isGen(id); }
+  /* малюк: вбудований tot-* або створений образ на базі малюка. Базу образу знає лише документ
+     Героя (avatarCollection/avatarGen) — запамʼятовуємо її в collectionOf, між сторінками — у localStorage */
+  var TOT_KEY='sk_ava_tot', TOT_GEN={};
+  try{ (JSON.parse(localStorage.getItem(TOT_KEY))||[]).forEach(function(id){ TOT_GEN[id]=1; }); }catch(e){}
+  function noteBase(file, base){
+    var id='gen/'+file, tot=isTot(base||'');
+    if(!!TOT_GEN[id]===tot) return;
+    if(tot) TOT_GEN[id]=1; else delete TOT_GEN[id];
+    try{ localStorage.setItem(TOT_KEY, JSON.stringify(Object.keys(TOT_GEN))); }catch(e){}
+  }
+  function isTot(id){ return /^tot-/.test(String(id||'')) || !!TOT_GEN[id]; }
+  function markTot(img, id){ if(img) img.classList.toggle('ska-tot', isTot(id)); }
   function nameOf(id){ return BY[id] ? BY[id].name : 'Мій герой'; }
 
   function faceSrc(id,size){ return dir(id)+id+'-'+((size&&size<160)?96:256)+'.webp'; }
@@ -118,6 +132,7 @@
       var g = hero && hero.avatarGen;
       list = (g && g.status==='ready' && g.file && g.key && isGen('gen/'+g.file)) ? [{ key:g.key, file:g.file, base:g.base }] : [];
     }
+    list.forEach(function(x){ noteBase(x.file, x.base); });
     return list.slice().reverse();
   }
 
@@ -291,6 +306,6 @@
     faceSrc: faceSrc, facePng: facePng, cardSrc: cardSrc, fullSrc: fullSrc, fullPng: fullPng,
     arenaSrc: arenaSrc, arenaPng: arenaPng,
     html: html, gridHTML: gridHTML, bindGrid: bindGrid, openPicker: openPicker,
-    collectionOf: collectionOf
+    collectionOf: collectionOf, isTot: isTot, markTot: markTot
   };
 })();
