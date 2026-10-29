@@ -20,7 +20,6 @@
   --shadow:0 6px 0 rgba(44,43,58,.13);
   --hand:"Propysy", cursive;   /* українські прописи (вбудовано вище) */
   --penink:#16305C;--penedge:#cfdcef;
-  --nb:repeating-linear-gradient(64deg,transparent 0,transparent 41px,#EEF3FA 41px,#EEF3FA 42px),#fff;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
@@ -147,17 +146,15 @@ h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px;ma
 .qcard{background:#fff;border-radius:24px;border:4px solid #fff;box-shadow:var(--e2);padding:12px}
 .qlab{text-align:center;font-family:'Fredoka';font-weight:600;font-size:15px;color:var(--soft);margin-bottom:8px}
 .board{border:2px solid var(--penedge);border-radius:18px;position:relative;overflow:hidden;
-  height:150px;color:var(--penink);
-  background:linear-gradient(#a9c4e6,#a9c4e6) 0 96px/100% 2px no-repeat,
-    linear-gradient(#dbe6f4,#dbe6f4) 0 58px/100% 1px no-repeat,var(--nb)}
-.gsvg{display:block;width:100%}
+  height:150px;color:var(--penink);background:#fff}
+/* лінії зошита малюються в самому SVG (svgGlyph) — так само, як у генераторі «Списування» */
+.gsvg{display:block;width:100%;height:100%}
 .instr{text-align:center;font-family:'Fredoka';font-weight:700;font-size:20px;color:#1e3a6b;margin:12px 0 0}
 .opts{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px}
 .opt{border:3px solid var(--line);color:var(--penink);border-radius:18px;padding:0;cursor:pointer;
   height:104px;position:relative;overflow:hidden;box-shadow:var(--shadow);
   transition:transform .08s ease,border-color .1s ease;
-  background:linear-gradient(#a9c4e6,#a9c4e6) 0 68px/100% 2px no-repeat,
-    linear-gradient(#dbe6f4,#dbe6f4) 0 38px/100% 1px no-repeat,var(--nb)}
+  background:#fff}
 .opt:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(44,43,58,.13)}
 .opt.ok{border-color:var(--good);color:var(--good);background-color:var(--good-bg)}
 .opt.no{border-color:var(--bad);color:var(--bad);animation:shake .35s}
@@ -339,11 +336,32 @@ function makeQ(lvl){
   const printedTarget = Math.random() < 0.5;   // цільова літера друкована?
   return { target, printedTarget, opts: optionsFor(lvl, target) };
 }
+/* Літера на аркуші в косу лінію — геометрія й кольори з генератора «Списування»
+   (зошит EDUC, мм): верхня — 5.7 — допоміжна — 5.7 — базова, проміжок 4.4;
+   косі лінії ~65° (нахил праворуч, як у письмі), крок 28 мм.
+   Малі письмові літери стоять у вузькому рядку (4.4), великі сягають допоміжної. */
+/* У віконці видно смугу від допоміжної лінії над рядком до допоміжної під ним (vy…vy+vh). */
+const NB={rowH:11.4, sep:4.4, slope:0.466, step:28, W:200, H:31, top:0.6, vy:4.4, vh:20.6,
+  fs:4.4/0.71, main:"#7d9fd0", aux:"#adc1e5", slant:"#cdd9ef"};
+function nbLines(){
+  const L=(x1,y1,x2,y2,c,w)=>`<line x1="${x1.toFixed(2)}" y1="${y1}" x2="${x2.toFixed(2)}" y2="${y2}" stroke="${c}" stroke-width="${w}" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`;
+  let out="";
+  const dx=NB.H*NB.slope;
+  for(let x=-dx-NB.step*0.4; x<=NB.W; x+=NB.step) out+=L(x,NB.H,x+dx,0,NB.slant,1);
+  const t1=NB.top, t2=NB.top+NB.rowH+NB.sep;          // верхні лінії двох юнітів
+  [t1,t2].forEach(t=>{
+    out+=L(0,t,NB.W,t,NB.main,1.4);
+    out+=L(0,t+NB.rowH/2,NB.W,t+NB.rowH/2,NB.aux,1);
+    out+=L(0,t+NB.rowH,NB.W,t+NB.rowH,NB.main,1.4);
+  });
+  return out;
+}
 function svgGlyph(ch, printed, where){
-  const c = where==='board' ? {h:150,y:96,fs:46} : {h:108,y:68,fs:32};
+  const base=NB.top+NB.rowH+NB.sep;                   // рядок письма: базова = верхня лінія 2-го юніта
   const fam = printed ? "Nunito, sans-serif" : "Propysy, cursive";
   const wt  = printed ? 800 : 400;
-  return `<svg class="gsvg" width="100%" height="${c.h}" xmlns="http://www.w3.org/2000/svg"><text x="50%" y="${c.y}" text-anchor="middle" font-family='${fam}' font-weight="${wt}" font-size="${c.fs}" fill="currentColor">${ch}</text></svg>`;
+  const fs  = printed ? 9.6 : NB.fs;
+  return `<svg class="gsvg" viewBox="0 ${NB.vy} ${NB.W} ${NB.vh}" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">${nbLines()}<text x="${NB.W/2}" y="${base}" text-anchor="middle" font-family='${fam}' font-weight="${wt}" font-size="${fs.toFixed(2)}" fill="currentColor">${ch}</text></svg>`;
 }
 
 /* карта рівнів */
