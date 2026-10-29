@@ -129,6 +129,8 @@ h1,h2,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px
 /* ══ ГРА ══ */
 .pbar{display:flex;align-items:center;gap:10px;margin:0 0 8px;padding-right:56px}  /* праворуч — «жучок» 🐞 */
 .pbar .lab{font-weight:800;font-size:13px;color:var(--soft)}
+.hearts{font-size:18px;letter-spacing:2px;line-height:1}
+.hearts .off{filter:grayscale(1);opacity:.3}
 .pbar .score{margin-left:auto;font-family:'Fredoka';font-weight:700;font-size:30px;line-height:1;color:var(--ink)}
 .pbar .score small{font-family:'Nunito';font-weight:800;font-size:13px;color:var(--soft)}
 .timer{height:14px;border-radius:999px;background:#efe6d3;overflow:hidden;margin-bottom:12px}
@@ -270,6 +272,7 @@ h1,h2,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px
     </div>
     <div class="pbar">
       <span class="lab" id="p-round">Раунд 1 з 6</span>
+      <span class="hearts" id="p-hearts" aria-label="Спроби"></span>
       <span class="score" id="p-score">0<small> / 6</small></span>
     </div>
     <div class="timer" id="p-timer"><i id="p-bar"></i></div>
@@ -278,6 +281,7 @@ h1,h2,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px
     <button class="big-btn green ready" id="p-ready" type="button">Я запам'ятав ✓</button>
     <div class="opts" id="p-opts"></div>
     <div class="msg" id="p-msg"></div>
+    <button class="big-btn ready hide" id="p-next" type="button">Ідемо далі ▶</button>
   </section>
 
   <!-- ══════ РЕЗУЛЬТАТ ══════ -->
@@ -289,7 +293,7 @@ h1,h2,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px
     <div class="done-box">
       <div class="head" id="d-head"></div>
       <div class="big" id="d-num">0</div>
-      <div class="cap">раундів із 6 — без жодної помилки</div>
+      <div class="cap">раундів із 6 — розгадано</div>
       <div class="stars" id="d-stars"></div>
       <div id="d-super"></div>
       <p id="d-text"></p>
@@ -309,7 +313,7 @@ h1,h2,.disp{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:.3px
 /* ============================================================
    ЗАПАМ'ЯТАЙ! — тренажер пам'яті, 10 рівнів (каркас «Швидкого додавання»).
    Раунд: подивись на набір (малюнки / числа / слова / клітинки) →
-   він ховається → згадай. Рівень = 6 раундів; пройдено — 4 без помилки,
+   він ховається → згадай. Рівень = 6 раундів; на раунд 3 сердечка (спроби); пройдено — 4 розгадані,
    3 зірки — усі 6. Прогрес: localStorage 'sk_game_zapamyatai' (простір sk_*,
    синхронізується в heroes/{id}.progress). XP немає: нагорода — лише з адмінки.
    ============================================================ */
@@ -345,6 +349,7 @@ const CHAMP = [
 ];
 
 const ROUNDS = 6;   // раундів на рівень
+const LIVES  = 3;   // сердечок (спроб) на раунд
 const PASS   = 4;   // правильних раундів, щоб відчинити наступний рівень (= 1 зірка)
 
 const EMOJI = ["🍎","🍌","🍇","🍓","🍒","🥕","🌽","🍄","🐶","🐱","🐭","🐰","🦊","🐻","🐼","🐸",
@@ -438,7 +443,7 @@ function cfgFor(lvl, r){
 }
 let CHAMP_ORDER = [];
 function makeRound(cfg){
-  const r = { cfg, mode: cfg.mode, step: 0 };
+  const r = { cfg, mode: cfg.mode, step: 0, lives: LIVES };
   if(cfg.mode==="set" || cfg.mode==="seq"){
     r.items = pick(cfg.pool, cfg.k);
     r.opts  = optionsFor(cfg.pool, r.items, cfg.opts);
@@ -521,7 +526,7 @@ function startLevel(i){
 function clearPlay(){
   $("p-msg").textContent = ""; $("p-msg").className = "msg";
   $("p-opts").innerHTML = ""; $("p-board").innerHTML = ""; $("p-phase").textContent = "";
-  $("p-ready").classList.add("hide");
+  $("p-ready").classList.add("hide"); $("p-next").classList.add("hide"); $("p-hearts").innerHTML = "";
   $("p-bar").style.width = "100%"; $("p-timer").classList.remove("low");
 }
 function preCount(done){
@@ -597,6 +602,7 @@ function startRecall(){
     b.innerHTML = R.items.map((_,i) => `<div class="it slot${i===0?" cur":""}" data-s="${i}">?</div>`).join("");
     renderOpts(R.opts);
   }
+  drawHearts();
   busy = false;
 }
 function renderOpts(list){
@@ -623,6 +629,7 @@ function fillSlot(i, it, cls){
   if(!s) return;
   s.className = `it ${it.t} ${cls}`; s.textContent = it.v;
 }
+function nextSlot(){ const nx = $("p-board").querySelector(`[data-s="${R.step}"]`); if(nx) nx.classList.add("cur"); }
 function tapOpt(btn, it){
   if(busy) return;
   const k = key(it);
@@ -630,34 +637,36 @@ function tapOpt(btn, it){
     if(k === key(R.items[R.step])){
       btn.classList.add("ok"); setTimeout(()=>btn.classList.remove("ok"), 250);
       if(R.cfg.pool!=="d"){ btn.disabled = true; btn.classList.add("used"); }
-      fillSlot(R.step, it, "ok"); R.step++;
-      const nx = $("p-board").querySelector(`[data-s="${R.step}"]`); if(nx) nx.classList.add("cur");
+      fillSlot(R.step, it, "ok"); R.step++; nextSlot();
       if(R.step >= R.items.length) roundWin();
     }else{
-      btn.classList.add("no");
-      R.items.forEach((x,i) => { if(i >= R.step) fillSlot(i, x, i===R.step ? "no" : "miss"); });
-      roundFail("Правильно було: " + R.items.map(x=>x.v).join(" · "));
+      // кнопку не вимикаємо: цей предмет може стояти далі в ряду
+      btn.classList.add("no"); setTimeout(()=>btn.classList.remove("no"), 450);
+      miss(() => {
+        R.items.forEach((x,i) => { if(i >= R.step) fillSlot(i, x, "miss"); });
+        return "Правильно було: " + R.items.map(x=>x.v).join(" · ");
+      });
     }
   }else if(R.mode==="set"){
-    const idx = R.items.findIndex(x => key(x)===k);
-    if(idx >= 0){
+    if(R.items.some(x => key(x)===k)){
       btn.classList.add("ok"); btn.disabled = true;
-      fillSlot(R.step, it, "ok"); R.step++;
-      const nx = $("p-board").querySelector(`[data-s="${R.step}"]`); if(nx) nx.classList.add("cur");
+      fillSlot(R.step, it, "ok"); R.step++; nextSlot();
       if(R.step >= R.items.length) roundWin();
     }else{
-      btn.classList.add("no");
-      const got = new Set([...$("p-opts").querySelectorAll(".opt.ok")].map(b=>b.dataset.k));
-      let s = R.step;
-      R.items.forEach(x => { if(!got.has(key(x))) fillSlot(s++, x, "miss"); });
-      markOpts(R.items.map(key));
-      roundFail("Цього не було. Були: " + R.items.map(x=>x.v).join(" · "));
+      btn.classList.add("no"); btn.disabled = true;
+      miss(() => {
+        const got = new Set([...$("p-opts").querySelectorAll(".opt.ok")].map(b=>b.dataset.k));
+        let s = R.step;
+        R.items.forEach(x => { if(!got.has(key(x))) fillSlot(s++, x, "miss"); });
+        markOpts(R.items.map(key));
+        return "Були: " + R.items.map(x=>x.v).join(" · ");
+      });
     }
   }else if(R.mode==="missing"){
     if(k === key(R.gone)){ btn.classList.add("ok"); roundWin(); }
     else{
-      btn.classList.add("no"); markOpts([key(R.gone)]);
-      roundFail("Зникло: " + R.gone.v);
+      btn.classList.add("no"); btn.disabled = true;
+      miss(() => { markOpts([key(R.gone)]); return "Зникло: " + R.gone.v; });
     }
   }else if(R.mode==="pair"){
     const a = R.asks[R.step];
@@ -665,10 +674,10 @@ function tapOpt(btn, it){
       btn.classList.add("ok"); busy = true;
       R.step++;
       if(R.step >= R.asks.length) roundWin();
-      else later(() => { askPair(); busy = false; }, 550);
+      else later(() => { $("p-msg").textContent = ""; $("p-msg").className = "msg"; askPair(); busy = false; }, 550);
     }else{
-      btn.classList.add("no"); markOpts([key({t:"n",v:String(a.num)})]);
-      roundFail(`Біля ${a.pic} було ${a.num}`);
+      btn.classList.add("no"); btn.disabled = true;
+      miss(() => { markOpts([key({t:"n",v:String(a.num)})]); return `Біля ${a.pic} було ${a.num}`; });
     }
   }
 }
@@ -692,10 +701,29 @@ function tapCell(el, i){
     R.got.add(i); el.className = "cell ok"; el.disabled = true;
     if(R.got.size >= R.cells.length) roundWin();
   }else if(!R.cells.includes(i)){
-    el.className = "cell no";
-    $("p-board").querySelectorAll(".cell").forEach(c => { const j=+c.dataset.i; if(R.cells.includes(j) && !R.got.has(j)) c.className = "cell miss"; });
-    roundFail("Жовтою рамкою — ті, що світились");
+    el.className = "cell no"; el.disabled = true;
+    miss(() => {
+      $("p-board").querySelectorAll(".cell").forEach(c => { const j=+c.dataset.i; if(R.cells.includes(j) && !R.got.has(j)) c.className = "cell miss"; });
+      return "Жовтою рамкою — ті, що світились";
+    });
   }
+}
+
+/* ---------- сердечка: 3 спроби на раунд ---------- */
+function drawHearts(){
+  let h = "";
+  for(let i=0;i<LIVES;i++) h += `<span class="${i < R.lives ? "" : "off"}">❤️</span>`;
+  $("p-hearts").innerHTML = h;
+}
+/* помилка: мінус сердечко; коли сердечок нема — reveal() показує відповідь і повертає текст */
+function miss(reveal){
+  R.lives--; drawHearts();
+  if(R.lives > 0){
+    $("p-msg").className = "msg no";
+    $("p-msg").textContent = R.lives === 1 ? "Ой! Лишилась остання спроба ❤️" : "Ой, не те! Спробуй ще ❤️";
+    return;
+  }
+  roundFail(reveal());
 }
 
 const PRAISE = ["Молодець! 🎉","Супер пам'ять! 🧠","Чудово! ⭐","Так тримати! 💪","Влучно! 🎯"];
@@ -710,8 +738,9 @@ function roundFail(text){
   busy = true; lockAll();
   round++;
   $("p-msg").className = "msg no"; $("p-msg").textContent = text;
-  later(nextRound, 2400);
+  $("p-next").classList.remove("hide");                  // далі — лише за кнопкою, щоб устигнути роздивитись відповідь
 }
+$("p-next").onclick = () => { $("p-next").classList.add("hide"); nextRound(); };
 
 /* ---------- кінець рівня ---------- */
 function endLevel(){
@@ -731,11 +760,11 @@ function endLevel(){
   $("d-sub").textContent   = "Пройдено "+n+" з 10 рівнів";
   $("d-num").textContent   = correct;
   $("d-stars").innerHTML   = starStr(k);
-  $("d-super").innerHTML   = correct >= ROUNDS ? `<span class="super">🏆 Супер · усі ${ROUNDS} без помилки</span>` : "";
+  $("d-super").innerHTML   = correct >= ROUNDS ? `<span class="super">🏆 Супер · усі ${ROUNDS} розгадано</span>` : "";
 
   let line;
   if(correct >= ROUNDS)     line = "Неймовірно! У тебе справжня суперпам'ять.";
-  else if(correct >= PASS)  line = "Рівень пройдено! Спробуй усі 6 без помилки.";
+  else if(correct >= PASS)  line = "Рівень пройдено! Спробуй розгадати всі 6.";
   else                      line = `Треба ${PASS} з ${ROUNDS}, щоб відчинити наступний рівень. Дивись уважніше — і ще раз!`;
   if(isBest && correct > 0 && correct < ROUNDS) line += " Новий рекорд! 🎉";
   $("d-text").textContent = line;
