@@ -4,7 +4,7 @@
    Ідентичний футеру hero.html (ромби-роздільники ◈, ВЕЛИКІ підписи).
 
    Підключення (наприкінці <body>, там де раніше стояв <nav class="botnav">):
-     <script src="sk-footer.js?v=6" data-active="tests"></script>
+     <script src="sk-footer.js?v=7" data-active="tests"></script>
 
    Атрибути на теґу <script>:
      data-active = home | tests | navch | arena | none
@@ -125,5 +125,13 @@ body{padding-bottom:calc(82px + env(safe-area-inset-bottom))}
     rep.src = base + 'sk-report.js?v=7';
     rep.defer = true;
     document.body.appendChild(rep);
+  }
+  /* ── анкета бета-тестування (📝): сама вимикається поза бета-версією ── */
+  if(!window.__skBetaMounted && !document.getElementById('sk-beta-loader')){
+    var bt = document.createElement('script');
+    bt.id = 'sk-beta-loader';
+    bt.src = base + 'sk-beta.js?v=1';
+    bt.defer = true;
+    document.body.appendChild(bt);
   }
 })();

@@ -3,7 +3,7 @@
 
    Підключення (після sk-footer.js, до власного скрипта гри):
      <link rel="stylesheet" href="nav-common.css">
-     <script src="../sk-footer.js?v=6" data-base="../" data-back="self"></script>
+     <script src="../sk-footer.js?v=7" data-base="../" data-back="self"></script>
      <script src="nav-common.js"></script>
 
    NAV.mount({ ... }) будує сторінку: верхня панель (крок, значок

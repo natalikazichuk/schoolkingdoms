@@ -662,4 +662,14 @@
     s.defer = true;
     document.body.appendChild(s);
   })();
+
+  /* ── анкета бета-тестування (📝): сама вимикається поза бета-версією ── */
+  (function(){
+    if(window.__skBetaMounted || document.getElementById('sk-beta-loader')) return;
+    var s = document.createElement('script');
+    s.id = 'sk-beta-loader';
+    s.src = BASE + 'sk-beta.js?v=1';
+    s.defer = true;
+    document.body.appendChild(s);
+  })();
 })();
