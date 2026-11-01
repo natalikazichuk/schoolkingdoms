@@ -3106,7 +3106,7 @@ window.SKHERO = (function(){
         +'<span class="dice">🎲 '+k.roll+' ≤ '+k.need+'%'+(k.dblRoll ? ' · друга стріла 🎲 '+k.dblRoll[0]+(k.dblRoll[0]<=k.dblRoll[1]?' ≤ ':' > ')+k.dblRoll[1]+'%' : '')
         +(k.burnRoll ? ' · підпал 🎲 '+k.burnRoll[0]+(k.burnRoll[0]<=k.burnRoll[1]?' ≤ ':' > ')+k.burnRoll[1]+'%' : '')
         +(k.zapRoll ? ' · струм 🎲 '+k.zapRoll[0]+(k.zapRoll[0]<=k.zapRoll[1]?' ≤ ':' > ')+k.zapRoll[1]+'%' : '')
-        +' · '+k.hits.map(function(h){ return h.calc ? biEsc(h.calc)+(h.kind==='hit' ? ' = '+(h.mshield||h.dmg||0) : '') : ''; }).join(' | ')+'</span></span>';
+        +' · '+k.hits.map(function(h){ return h.calc ? biEsc(h.calc)+(h.kind==='hit' ? ' = '+(h.mshield ? h.mshield+' → 🔮 у комірку Щита' : (h.dmg||0)) : '') : ''; }).join(' | ')+'</span></span>';
     }
     var ZW = {head:'голову', body:'тулуб', arms:'руки', legs:'ноги'};
     if(k.kind==='trapSet') return LN+nm+': <span class="g">пастка 🪤 у '+(ZW[k.zone]||k.zone)+': цей хід і ще '+turnsW(k.turns)+'</span>'+(k.auto?' <span style="opacity:.75">(зону обрано навмання)</span>':'')+manaW+'<span class="dice">🎲 '+k.roll+' ≤ '+k.need+'%</span></span>';
@@ -3147,7 +3147,7 @@ window.SKHERO = (function(){
         +(k.tangle ? (op?' · <span class="crit">сплутав тебе ➰</span> — спритність −'+k.agi+'% на '+turnsW(k.turns):' · <span class="crit">сплутав ➰</span> — спритність суперника −'+k.agi+'% на '+turnsW(k.turns))
           : k.tangleSaved ? (op?' · <span class="b">ти не заплутався (🧱 Стійкість)</span>':' · <span class="b">суперник не заплутався (🧱 Стійкість)</span>') : '')
         +'<span class="dice">🎲 '+k.roll+' ≤ '+k.need+'%'+(k.secNeed!=null ? ' · другий удар 🎲 '+k.secRoll+(k.secRoll<=k.secNeed?' ≤ ':' > ')+k.secNeed+'%' : '')+(k.stunNeed!=null ? ' · оглушити 🎲 '+k.stunRoll+(k.stunRoll<=k.stunNeed?' ≤ ':' > ')+k.stunNeed+'%' : '')+stdW()
-        +' · '+k.hits.map(function(h){ return h.calc ? biEsc(h.calc)+(h.stone ? ' = '+h.stone[0]+' × '+(100-h.stone[1])+'% 🗿 кам\'яна шкіра' : '')+' = '+(h.dmg||0) : ''; }).join(' | ')+'</span></span>';
+        +' · '+k.hits.map(function(h){ return h.calc ? biEsc(h.calc)+(h.stone ? ' = '+h.stone[0]+' × '+(100-h.stone[1])+'% 🗿 кам\'яна шкіра' : '')+' = '+(h.mshield ? h.mshield+' → 🔮 у комірку Щита' : (h.dmg||0)) : ''; }).join(' | ')+'</span></span>';
     }
     var t = k.kind==='fail' ? '<span class="b">не вдалося</span>'
       : k.kind==='block' ? '<span class="b">заблоковано</span>'
@@ -3869,7 +3869,7 @@ window.SKHERO = (function(){
       else if(h.kind==='barrier') t += ' · '+calcHtml(h)+' = '+h.absorbed+' → 🫧 бар\'єр поглинув';
       else if(h.kind!=='dodge') t += (h.blockRoll!=null ? (h.evadeTry ? ' · відскок 🎲 <b>' : ' · блок шансом 🎲 <b>')+h.blockRoll+'</b> > '+h.blockNeed+'%' : '')
         + ' · крит 🎲 <b>'+h.critRoll+'</b> '+(h.crit?'≤':'>')+' '+h.critNeed+'%'
-        + ' · '+calcHtml(h)+(h.stone ? ' = '+h.stone[0]+' × '+(100-h.stone[1])+'% <span class="g">🗿 кам\'яна шкіра</span>' : '')+' = <b>'+dmgHtml(h.dmg, h.magDmg)+'</b>';
+        + ' · '+calcHtml(h)+(h.stone ? ' = '+h.stone[0]+' × '+(100-h.stone[1])+'% <span class="g">🗿 кам\'яна шкіра</span>' : '')+(h.mshield ? ' = <b>'+h.mshield+'</b> → <span class="mblk">🔮 у комірку Щита</span>' : ' = <b>'+dmgHtml(h.dmg, h.magDmg)+'</b>');
       if(h.comboMiss) t += ' · <span style="opacity:.7">👊👊 двійка 🎲 '+h.comboMiss[0]+' > '+h.comboMiss[1]+'% — ні</span>';
       return t;
     }).join(' &nbsp;|&nbsp; ')+'</span>';

@@ -288,3 +288,19 @@ test('Бот-Чарівник: розумний вибір — Медитаці�
   assert.strictEqual(e.opSkill && e.opSkill.id, 'mage.medit');
   assert.ok(e.opFlow > 0, 'Потік мани — і в бота-Чарівника');
 });
+
+test('Щит ловить КІНЦЕВИЙ урон — після броні, % і опорів (те, що пішло б у тіло)', () => {
+  const mk = (bid, sk, bar) => {
+    const st = SB.create(ctx, { bid, me: { name: 'Я', stats: { health: 400, accuracy: 60, agility: 50, mana: 500 }, eq: [], sk, skv: skvOf(sk), bar, cls: 'mage' },
+      op: { f: { name: 'Бот', level: 3 }, p: R.fighter({ health: 400, accuracy: 50, agility: 50, mana: 0 }, [], K) } });
+    st.op.p.wMin = 40; st.op.p.wMax = 40; st.op.p.accuracy = 100000; st.op.p.critPct = 0;
+    st.me.p.armor = 30; st.me.p.resSlash = 20; st.me.p.resBash = 20;          // броня й опір зменшують удар
+    return st;
+  };
+  const a = mk('same-bid', { 'mage.shield': 1 }, ['mage.shield']), b = mk('same-bid', {}, []);
+  SB.useSkill(ctx, a, 'mage.shield');
+  const ch = open(a), ea = SB.turn(ctx, a, ch, {}, Date.now()), eb = SB.turn(ctx, b, ch, {}, Date.now());
+  const plain = Math.max.apply(null, eb.opHit.hits.map(h => h.dmg || 0));
+  assert.ok(plain > 0 && plain < 48, 'броня й опір зменшили удар: ' + plain);
+  assert.strictEqual(ea.msh.dmg, plain, 'у комірці — рівно той урон, що пішов би в тіло');
+});
