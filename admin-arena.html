@@ -14,7 +14,7 @@
 <script src="sk-curriculum.js?v=9"></script>
 <script src="sk-items.js?v=28"></script>
 <script src="sk-arena-rules.js?v=40"></script>
-<script src="sk-skills.js?v=94"></script>
+<script src="sk-skills.js?v=95"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -679,6 +679,7 @@ function detForm(id,fields,commentLabel){
       var fid='pf-'+f.k+'-'+id;
       return '<label for="'+esc(fid)+'">'+f.l+'</label><textarea id="'+esc(fid)+'" data-fid="'+esc(fid)+'" rows="'+(f.r||2)+'">'+esc(pval(fid,f.v))+'</textarea>';
     }).join('')
+    +(planSkill(id)?'<label for="pf-tested-'+esc(id)+'">🧪 Перевірено в бою — що бачили (лог, дата). Порожньо — ще не перевіряли'+(SKSKILLS.byId(id)&&SKSKILLS.byId(id).tested?' <span class="hint">(у коді вже є: '+esc(SKSKILLS.byId(id).tested)+')</span>':'')+'</label><textarea id="pf-tested-'+esc(id)+'" data-fid="pf-tested-'+esc(id)+'" rows="2" placeholder="напр.: лог 02.11 20:15 — оглушив струмом, другий розряд ×0.5">'+esc(pval('pf-tested-'+id,d.tested))+'</textarea>':'')
     +'<label for="pf-comment-'+esc(id)+'">'+commentLabel+'</label><textarea id="pf-comment-'+esc(id)+'" data-fid="pf-comment-'+esc(id)+'" rows="2" placeholder="Що змінити, уточнити, з чого почати…">'+esc(pval('pf-comment-'+id,d.comment))+'</textarea>'
     +'<div class="pl-acts"><button type="button" class="btn-save" data-act="save" data-id="'+esc(id)+'">💾 Зберегти</button>'
     +(fields.length?'<button type="button" class="btn-ghost" data-act="reset" data-id="'+esc(id)+'" title="Повернути тексти з sk-skills.js">↺ Стандартні тексти</button>':'')
@@ -699,7 +700,8 @@ function classSkills(cls){
 /* «оброблено нами»: у вміння є правила бою (RULES у sk-skills.js) — воно вже діє в грі */
 function doneBadge(sk){return sk.ready?'<span class="tag yes" title="Є правила бою: вміння діє в грі, його можна вивчити">✅ оброблено</span>'+testBadge(sk):'<span class="tag no" title="Ще не опрацьоване: у бою не діє">⏳ ні</span>';}
 /* перевірено в живому бою (sk-skills.js TESTED) */
-function testBadge(sk){return sk.tested?' <span class="tag yes" title="Перевірено в бою: '+esc(sk.tested)+'">🧪 перевірено</span>':' <span class="tag no" title="У живому бою ще не бачили">🔎 не перевірено</span>';}
+function testBadge(sk){var t=sk.tested||pdoc(sk.id).tested;return t?' <span class="tag yes" title="Перевірено в бою: '+esc(t)+'">🧪 перевірено</span>':testBadge0(sk);}
+function testBadge0(sk){return sk.tested?' <span class="tag yes" title="Перевірено в бою: '+esc(sk.tested)+'">🧪 перевірено</span>':' <span class="tag no" title="У живому бою ще не бачили">🔎 не перевірено</span>';}
 function addForm(cls){
   var c=SKSKILLS.CLASSES[cls],f=function(k){return 'pa-'+k+'-'+cls;};
   return '<div class="pl-form pl-add"><b>＋ Нове вміння: '+c.icon+' '+esc(c.name)+'</b>'
@@ -855,6 +857,7 @@ function bindPlan(){
       var msg=document.getElementById('pm-'+id),sk=planSkill(id),patch={};
       var cf='pf-comment-'+id,cel=document.getElementById(cf);
       patch.comment=cel?cel.value.trim():(pdoc(id).comment||'');
+      var tel=document.getElementById('pf-tested-'+id); if(tel)patch.tested=tel.value.trim()||null;   // 🧪 перевірено в бою (з адмінки)
       if(sk){
         if(act==='reset'){patch.text=null;['desc','formula','kid'].forEach(function(f){delete PDRAFT['pf-'+f+'-'+id];});}
         else{var tx={},diff=false;['desc','formula','kid'].forEach(function(f){var el=document.getElementById('pf-'+f+'-'+id);var v=el?el.value.trim():ptext(sk,f);
