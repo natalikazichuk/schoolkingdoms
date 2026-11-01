@@ -1259,27 +1259,46 @@
     if (round >= num(b.until)) delete u.fx.burn;
     return d;
   }
-  /* 🔮 Щит (перемикач): за хід бере в себе ОДИН найбільший удар по тобі (inHit — удари, inRec — удар вмінням/закляттям) */
+  /* 🔮 Щит (перемикач) — КОМІРКА на один удар (рішення 01.11):
+     • поки увімкнено, за хід ловить найбільший удар по тобі (зброя, вміння, закляття) — урону одразу немає, удар лежить у комірці;
+     • у комірці вже є удар: новий більший — старий іде в тіло, новий — у комірку; новий менший — іде в тіло як звичайно;
+     • скинути комірку (поглинути) — окрема дія: −pay мани (дію ходу НЕ забирає; mshDump — обрано на цей хід, спрацює на початку ходу);
+     • Щит вимкнено (сам, бо скінчилась мана, чи вручну) — удар із комірки йде в тіло. */
   function mshieldTake(v, inHit, inRec) {
     var f = fxOf(v.me); if (num(f.mshOn) !== v.round) return null;
     var best = null, bd = 0;
     ((inHit && inHit.hits) || []).forEach(function (h) { if (num(h.dmg) > bd) { bd = num(h.dmg); best = h; } });
     if (inRec && num(inRec.dmg) > bd) { bd = num(inRec.dmg); best = inRec; }
     if (!best) { grow(v, 'mage.shield', false); return null; }
+    var held = f.mshHeld ? num(f.mshHeld.dmg) : 0;
+    if (held && bd <= held) { grow(v, 'mage.shield', false); return { kept: held, small: bd }; }   // менший за той, що в комірці, — у тіло
     best.mshield = bd; best.dmg = 0; if (best.magDmg) best.magDmg = 0; if (best.physDmg) best.physDmg = 0;
     if (best.hits && best !== inHit) best.hits.forEach(function (h) { if (num(h.dmg) > 0) h.mshield = num(h.dmg); h.dmg = 0; if (h.magDmg) h.magDmg = 0; });
     if (inHit && inHit.hits) inHit.dmg = inHit.hits.reduce(function (a, h) { return a + (h.dmg || 0); }, 0);
     f.mshHeld = { dmg: bd, r: v.round, pay: V(v, 'mage.shield', 'pay') || 10 };
     grow(v, 'mage.shield', true);
-    return { dmg: bd };
+    return held ? { dmg: bd, rel: held } : { dmg: bd };          // rel — старий удар із комірки пішов у тіло
   }
-  /* початок наступного ходу: вистачає мани — платимо й поглинаємо; ні — урон приходить */
-  function mshieldDue(v) {
-    var f = v.me.fx, h = f && f.mshHeld; if (!h || num(h.r) >= v.round) return null;
-    delete f.mshHeld;
-    if (num(v.me.mana) >= num(h.pay)) { v.me.mana = num(v.me.mana) - num(h.pay); return { dmg: h.dmg, paid: h.pay }; }
-    v.me.force -= num(h.dmg);
-    return { dmg: h.dmg, hit: true };
+  /* обрати / скасувати «скинути комірку» на цей хід (дію ходу не забирає) */
+  function mshDump(st) {
+    if (!isLive(st)) return false;
+    var f = st.me.fx; if (!f || !f.mshHeld) return false;
+    st.me.mshDump = st.me.mshDump === st.round ? 0 : st.round; st.rev++;
+    return true;
+  }
+  /* початок ходу: обрано «скинути» — −pay мани, комірка порожня; не вистачає мани — удар лишається */
+  function mshieldDump(v) {
+    var f = v.me.fx, h = f && f.mshHeld, want = num(v.me.mshDump) === v.round; v.me.mshDump = 0;
+    if (!h || !want) return null;
+    if (num(v.me.mana) < num(h.pay)) return { dmg: h.dmg, short: h.pay };
+    v.me.mana = num(v.me.mana) - num(h.pay); delete f.mshHeld;
+    return { dmg: h.dmg, paid: h.pay };
+  }
+  /* після оплати перемикачів: Щит не увімкнено — удар із комірки йде в тіло */
+  function mshieldOff(v) {
+    var f = v.me.fx, h = f && f.mshHeld; if (!h || togOn(v, 'mage.shield')) return null;
+    delete f.mshHeld; v.me.force -= num(h.dmg);
+    return { dmg: h.dmg, off: true };
   }
   /* 🌀 Потік мани (перевага Чарівника): наприкінці ходу +v% макс. мани × (1 + 0.25·K) */
   function manaFlow(v) {
@@ -1670,7 +1689,7 @@
       return a.side === 'me' ? applyUse(ctx, st, st.me, st.op, 'me', a.item, ur) : applyUse(ctx, st, st.op, st.me, 'op', a.item, ur);
     });
     st.me.use = null; if (st.op.use) { if (oi) oi.used = true; st.op.use = null; }
-    var meMshDue = mshieldDue(st), opMshDue = mshieldDue(mirror(st));   // 🔮 Щит: удар, узятий минулого ходу, — заплатити ману або прийняти
+    var meMshDue = mshieldDump(st), opMshDue = mshieldDump(mirror(st));   // 🔮 Щит: обрано «скинути» — −10 мани, комірка порожня
     // 2) удари (з підсиленнями зілль). Під страхом — не атакує. Хтось упав від сувою — ударів немає.
     var down = st.me.force <= 0 || st.op.force <= 0;
     var none = function (why) { return { dmg: 0, kind: why, crit: false, hits: [] }; };
@@ -1689,6 +1708,8 @@
     if (!oi && st.op.ai) st.op.skill = botSkill(st, vo);                          // бот обирає вміння сам
     var osid = oi ? null : st.op.skill, opCan = !down && !fo.feared && !knocked && !(opWipe && opWipe.ok);   // бот: пояс АБО вміння
     var meTog = down ? null : togTick(st), opTog = down ? null : togTick(vo);    // перемикачі: мана за хід
+    var meMshOff = down ? null : mshieldOff(st), opMshOff = down ? null : mshieldOff(vo);   // 🔮 Щит вимкнувся — удар із комірки в тіло
+    if (st.me.force <= 0 || st.op.force <= 0) { down = true; canAct = false; opCan = false; }
     var meWolfPay = down ? null : wolfPay(st), opWolfPay = down ? null : wolfPay(vo);   // вовк: Запал за хід (з другого ходу мітки)
     // Берсерк, Благословення — до ударів: діють уже цього ходу
     var skillRec = preBuff(ctx, st, sid, canAct, sd(st, 'skill'));
@@ -1863,7 +1884,8 @@
     var broke = checkBreaks(ctx, st);
     var meWolf = down ? null : wolfBite(ctx, st, pm, poA, sd(st, 'wolf')), opWolf = down ? null : wolfBite(ctx, vo, po, pmA, sd(vo, 'wolf'));   // укус вовка — окремо від ударів Героя
     st.op.force -= meHit.dmg + (skillRec ? skillRec.dmg : 0) + (meWolf ? meWolf.dmg : 0);
-    st.me.force -= opHit.dmg + (opRec ? opRec.dmg : 0) + (opWolf ? opWolf.dmg : 0);
+    st.me.force -= opHit.dmg + (opRec ? opRec.dmg : 0) + (opWolf ? opWolf.dmg : 0) + (meMsh ? num(meMsh.rel) : 0);   // + удар, витіснений із комірки Щита
+    st.op.force -= (opMsh ? num(opMsh.rel) : 0);
     var psnOp = down ? 0 : poisonTick(st.op, st.round), psnMe = down ? 0 : poisonTick(st.me, st.round);   // отрута — наприкінці ходу, броня не захищає
     var vinOp = down ? 0 : vinesTick(st.op, st.round), vinMe = down ? 0 : vinesTick(st.me, st.round);     // Пута лісу — теж наприкінці ходу
     var bldOp = down ? 0 : bleedTick(st, st.op, st.me), bldMe = down ? 0 : bleedTick(st, st.me, st.op);   // кров від укусів вовка
@@ -1873,7 +1895,7 @@
     if (st.op.fx && st.op.fx.wolf && (num(st.op.fx.wolf.until) <= st.round || num(st.op.fx.wolf.dealt) >= num(st.op.fx.wolf.cap))) opWolfEnd = wolfGone(vo, num(st.op.fx.wolf.dealt) >= num(st.op.fx.wolf.cap) ? 'cap' : 'time');
     // концентрація кожного: Лицар — росте від урону; решта — у спокійний хід
     var meN = landedN(meHit, skillRec), opN = landedN(opHit, opRec);   // для «Мисливського азарту»: рахунок влучань ходу
-    var calmRec = focusTick(ctx, st, opHit.dmg + (opRec ? opRec.dmg : 0), down, sd(st, 'focus'), sd(st, 'calm'), meN, opN);
+    var calmRec = focusTick(ctx, st, opHit.dmg + (opRec ? opRec.dmg : 0) + (meMsh ? num(meMsh.rel) : 0), down, sd(st, 'focus'), sd(st, 'calm'), meN, opN);
     var opCalm = focusTick(ctx, vo, meHit.dmg + (skillRec ? skillRec.dmg : 0), down, sd(vo, 'focus'), sd(vo, 'calm'), opN, meN);
     var meFlow = down ? 0 : manaFlow(st), opFlow = down ? 0 : manaFlow(vo);   // 🌀 Потік мани (Чарівник)
     var opG0 = clone(st.op.sk || {}); botGrowth(st);
@@ -1909,7 +1931,7 @@
     if (opUp.length) e.opUp = opUp;
     // 🧪 ТИМЧАСОВО ДЛЯ ТЕСТУ: стан обох після ходу (мана, концентрація, до якого ходу діють лють / благословення / обеззброєння / оглушення)
     var snap = function (u) { var f = u.fx || {}; return { m: Math.round(num(u.mana)), f: num(f.focus), bz: num(f.berserk), bl: f.bless ? num(f.bless.until) : 0, dis: num(f.disarm), kn: num(f.knock),
-      sto: f.stone ? num(f.stone.until) : 0, sng: f.song ? num(f.song.until) : 0, wil: num(f.will), sho: num(f.shieldOff), tng: f.tangle ? num(f.tangle.until) : 0, frz: num(f.frenzy), car: num(f.careful), psn: f.poison ? num(f.poison.until) : 0, pres: poisonRes(u, st.round, 'chance'), ven: f.venom ? num(f.venom.until) : 0, bld: f.blind ? num(f.blind.until) : 0, vin: f.vines ? num(f.vines.until) : 0, brn: f.burn ? num(f.burn.until) : 0, chl: f.chill ? num(f.chill.until) : 0, fls: f.flash ? num(f.flash.until) : 0, mar: f.marmor ? num(f.marmor.until) : 0, tog: (u.tog || []).slice(), cd: clone(u.cd || {}) }; };
+      sto: f.stone ? num(f.stone.until) : 0, sng: f.song ? num(f.song.until) : 0, wil: num(f.will), sho: num(f.shieldOff), tng: f.tangle ? num(f.tangle.until) : 0, frz: num(f.frenzy), car: num(f.careful), psn: f.poison ? num(f.poison.until) : 0, pres: poisonRes(u, st.round, 'chance'), ven: f.venom ? num(f.venom.until) : 0, bld: f.blind ? num(f.blind.until) : 0, vin: f.vines ? num(f.vines.until) : 0, brn: f.burn ? num(f.burn.until) : 0, chl: f.chill ? num(f.chill.until) : 0, fls: f.flash ? num(f.flash.until) : 0, mar: f.marmor ? num(f.marmor.until) : 0, msh: f.mshHeld ? num(f.mshHeld.dmg) : 0, tog: (u.tog || []).slice(), cd: clone(u.cd || {}) }; };
     e.st = { me: snap(st.me), op: snap(st.op) };
     if (st.op.fx && st.op.fx.focus) e.opFocus = num(st.op.fx.focus);
     // ріст вмінь цього ходу: {id: [вдалих, невдалих, разом вдалих за бій, разом невдалих за бій]}
@@ -1938,6 +1960,8 @@
     if (opMsh) e.opMsh = opMsh;
     if (meMshDue) e.mshDue = meMshDue;
     if (opMshDue) e.opMshDue = opMshDue;
+    if (meMshOff) e.mshOff = meMshOff;
+    if (opMshOff) e.opMshOff = opMshOff;
     if (meMedit) e.meMedit = true;
     if (num(fm.zap) === st.round) e.meZapped = true;
     if (num(fo.zap) === st.round) e.opZapped = true;
@@ -2150,7 +2174,7 @@
     create: create, botChoice: botChoice, autoChoice: autoChoice, turn: turn, catchUp: catchUp,
     poisonRes: poisonRes, SPELL: SPELL, manaMax: manaMax, marmorOn: marmorOn, flashOn: flashOn, chillOn: chillOn, burnOn: burnOn,
     togMul: togMul, togOrder: togOrder, trapOn: trapOn, vinesOn: vinesOn, turnBoost: turnBoost,
-    swap: swap, useBelt: useBelt, beltItem: beltItem, beltLite: beltLite, applyUse: applyUse, fxOf: fxOf,
+    swap: swap, mshDump: mshDump, useBelt: useBelt, beltItem: beltItem, beltLite: beltLite, applyUse: applyUse, fxOf: fxOf,
     surrender: surrender, finish: finish, applyToHero: applyToHero, lockLive: lockLive, noticeText: noticeText,
     SKILL: SKILL, useSkill: useSkill, skillBlock: skillBlock, berserkOn: berserkOn, blessOn: blessOn, disarmedOn: disarmedOn, SKILL_WEAPONS: SKILL_WEAPONS, SHATTER_MUL: SHATTER_MUL, PARRY: PARRY, swapped: swapped, beltChosen: beltChosen, knockedNow: knockedNow
   };

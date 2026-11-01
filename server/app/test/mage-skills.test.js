@@ -212,25 +212,45 @@ test('Потік мани: щоходу +2% макс. мани × (1 + 0.25·K);
   kn.me.mana = 100; assert.ok(!go(kn).flow, 'у Лицаря — ні');
 });
 
-test('Щит: бере найбільший удар ходу; наступного ходу −10 мани — поглинає, бракує мани — урон приходить', () => {
+test('Щит — комірка: ловить удар і тримає; більший витісняє менший у тіло; скинути — −10 мани; вимкнув — удар у тіло', () => {
   const st = battle({ 'mage.shield': 1 }, ['mage.shield']);
   st.op.p.wMin = 30; st.op.p.wMax = 30; st.op.p.accuracy = 100000; st.op.p.critPct = 0;
   assert.ok(SB.useSkill(ctx, st, 'mage.shield'));
+  assert.ok(!SB.mshDump(st), 'комірка порожня — скидати нічого');
   const hp0 = st.me.force, e = go(st, open(st));
-  assert.ok(e.msh && e.msh.dmg > 0, 'узяв удар');
-  assert.strictEqual(st.me.force, hp0, 'урону одразу немає');
-  SB.useSkill(ctx, st, 'mage.shield');                     // вимкнути
-  const m1 = st.me.mana, e2 = go(st, open(st));
-  assert.ok(e2.mshDue && e2.mshDue.paid === 10, 'заплатив 10 — поглинуто');
-  // без мани — урон приходить
+  const d1 = e.msh.dmg;
+  assert.ok(d1 > 0 && st.me.force === hp0, 'урону немає — удар у комірці');
+  // наступний хід: удар не скидали — лежить далі; новий удар тієї ж сили (не більший) — у тіло
+  const hp1 = st.me.force, e2 = go(st, open(st));
+  assert.strictEqual(st.me.fx.mshHeld.dmg, d1, 'комірка тримає старий удар');
+  assert.ok(e2.msh.kept === d1 && hp1 - st.me.force >= e2.msh.small, 'менший/рівний — пройшов у тіло');
+  // більший удар — старий іде в тіло, новий у комірку
+  st.op.p.wMin = 60; st.op.p.wMax = 60;
+  const hp2 = st.me.force, e3 = go(st, open(st));
+  assert.ok(e3.msh.dmg > d1 && e3.msh.rel === d1, 'більший витіснив');
+  assert.strictEqual(hp2 - st.me.force, d1, 'у тіло — лише старий');
+  // скинути: −10 мани на початку ходу, дію ходу не забирає
+  st.op.p.wMin = 0; st.op.p.wMax = 0;
+  assert.ok(SB.mshDump(st));
+  const m = st.me.mana, e4 = go(st, open(st));
+  assert.strictEqual(e4.mshDue.paid, 10);
+  assert.ok(!st.me.fx.mshHeld || (e4.msh && st.me.fx.mshHeld.dmg === e4.msh.dmg && e4.msh.dmg < e3.msh.dmg), 'старий удар поглинуто (у комірці — хіба що новий удар цього ходу)');
+  // вимкнув Щит — удар із комірки в тіло
   const st2 = battle({ 'mage.shield': 1 }, ['mage.shield']);
   st2.op.p.wMin = 30; st2.op.p.wMax = 30; st2.op.p.accuracy = 100000; st2.op.p.critPct = 0;
   SB.useSkill(ctx, st2, 'mage.shield');
-  const e3 = go(st2, open(st2));
-  SB.useSkill(ctx, st2, 'mage.shield'); st2.me.mana = 0; st2.op.p.wMax = 0; st2.op.p.wMin = 0;
-  const hp1 = st2.me.force, e4 = go(st2, open(st2));
-  assert.ok(e4.mshDue && e4.mshDue.hit);
-  assert.ok(hp1 - st2.me.force >= e3.msh.dmg, 'урон прийшов');
+  const h = go(st2, open(st2)).msh.dmg;
+  SB.useSkill(ctx, st2, 'mage.shield'); st2.op.p.wMin = 0; st2.op.p.wMax = 0;
+  const hp3 = st2.me.force, e5 = go(st2, open(st2));
+  assert.ok(e5.mshOff && e5.mshOff.dmg === h);
+  assert.ok(hp3 - st2.me.force >= h, 'урон прийшов');
+  // скінчилась мана — Щит вимкнувся сам, удар у тіло
+  const st3 = battle({ 'mage.shield': 1 }, ['mage.shield']);
+  st3.op.p.wMin = 30; st3.op.p.wMax = 30; st3.op.p.accuracy = 100000; st3.op.p.critPct = 0;
+  SB.useSkill(ctx, st3, 'mage.shield'); go(st3, open(st3));
+  st3.me.mana = 0; st3.op.p.wMin = 0; st3.op.p.wMax = 0;
+  const e6 = go(st3, open(st3));
+  assert.ok(e6.mshOff, 'без мани — вимкнувся, удар у тіло');
 });
 
 test('Перевага «Майстер сувоїв» і Ясний розум (страх)', () => {
