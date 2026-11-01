@@ -1401,6 +1401,7 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text}
   .ek-bagrow{flex-direction:column}.ek-boxes{order:-1;flex-direction:row;justify-content:center}}
 @media(max-width:520px){#wtabGear{--ek-cell:66px}.ek-slots{grid-template-columns:repeat(3,var(--ek-cell))}.ek-body{gap:10px}}
 
+.fxi.fxdump{cursor:pointer;box-shadow:0 0 0 2px #b9a4ff,0 0 10px rgba(185,164,255,.7);border-radius:10px}.fxi.fxdump.on{box-shadow:0 0 0 2px #2fae62,0 0 10px rgba(47,174,98,.8)}
 </style>
 <link rel="stylesheet" href="sk-book.css?v=14">
 </head>
@@ -2133,15 +2134,19 @@ window.SKHERO = (function(){
     var l = (SB.SKILL_WEAPONS||{})[id] || [];
     return l.map(function(k){ var w = window.SKIT && SKIT.weaponType ? SKIT.weaponType(k) : null; return w ? w.icon+' '+w.label.toLowerCase() : k; }).join(', ') || 'будь-яка';
   }
+  /* 🔮 Щит мага: «скинути» найбільший удар із комірки — кнопка на Щиті в панелі або значок 🔮 у ефектах над «Захистом» */
+  function mshDumpClick(){
+    if(!B || !live() || UI.resolving || !SB.mshDump || !SB.mshDump(B)) return;
+    var cl = SB.mshCells ? SB.mshCells(B.me.fx) : [], big = cl.reduce(function(a,c){ return Math.max(a, +c.dmg||0); }, 0), py = (B.me.skv&&B.me.skv['mage.shield']&&B.me.skv['mage.shield'].pay)||10;
+    showToast(B.me.mshDump===B.round ? '🔮 Скинути Щит' : '🔮 Скасовано', B.me.mshDump===B.round ? (Math.round(+B.me.mana||0) >= py ? 'На початку ходу −'+py+' мани — удар '+big+' буде поглинуто'+(cl.length>1?' (за хід — лише один, найбільший)':'')+'. Дію ходу не забирає. Ще раз — скасувати.' : 'Зараз бракує мани ('+py+') — не скинеться, удар лишиться в комірці.') : 'Удар лишається в комірці.');
+    saveBattle(); if(window.SKBOOK) SKBOOK.paintBattle(B); paintFx();
+  }
+  document.addEventListener('click', function(e){ var t = e.target.closest && e.target.closest('[data-msh-dump]'); if(t){ e.preventDefault(); e.stopPropagation(); mshDumpClick(); } }, true);
   function bindSkills(){
     var col = $('btSkills'); if(!col) return;
     col.addEventListener('click', function(e){
       var dmp = e.target.closest('[data-skb-dump]');
-      if(dmp && B && live() && !UI.resolving){ e.stopPropagation();
-        if(SB.mshDump(B)){ var cl = SB.mshCells ? SB.mshCells(B.me.fx) : [], big = cl.reduce(function(a,c){ return Math.max(a, +c.dmg||0); }, 0), py = (B.me.skv&&B.me.skv['mage.shield']&&B.me.skv['mage.shield'].pay)||10;
-          showToast(B.me.mshDump===B.round ? '🔮 Скинути Щит' : '🔮 Скасовано', B.me.mshDump===B.round ? (Math.round(+B.me.mana||0) >= py ? 'На початку ходу −'+py+' мани — удар '+big+' буде поглинуто'+(cl.length>1?' (за хід — лише один, найбільший)':'')+'. Дію ходу не забирає.' : 'Зараз бракує мани ('+py+') — не скинеться, удар лишиться в комірці.') : 'Удар лишається в комірці.');
-          saveBattle(); if(window.SKBOOK) SKBOOK.paintBattle(B); }
-        return; }
+      if(dmp){ e.stopPropagation(); mshDumpClick(); return; }
       var b = e.target.closest('[data-skb-use]'); if(!b || !B || !live() || UI.resolving) return;
       var id = b.getAttribute('data-skb-use'), why = SB.skillBlock(B, id);
       // вибір лишається, доки гравець його не змінить: вміння б'є щоходу, коли доступне
@@ -2232,7 +2237,7 @@ window.SKHERO = (function(){
       out.push({neg:false, ic:'🔮', n:'', title:'Щит', text:'Щоходу бере в себе найбільший удар. Наступного ходу −'+(ms.pay||10)+' мани — поглинає; бракує мани — урон приходить. −'+(ms.mana||5)+' щоходу.', left:'Поки увімкнено й є мана'}); }
     var mcl = SB.mshCells ? SB.mshCells(f) : [];
     if(mcl.length){ var msum = mcl.map(function(c){ return c.dmg; }).join(' + ');
-      out.push({neg:true, ic:'🔮', n:mcl.length>1 ? msum : mcl[0].dmg, title:mcl.length>1 ? 'Удари в комірках Щита' : 'Удар у комірці Щита', text:'Щит тримає '+(mcl.length>1 ? 'удари '+msum : 'удар '+mcl[0].dmg)+'. Скинути (поглинути) — кнопка з числом на Щиті в панелі вмінь, −'+(((u.skv||{})['mage.shield']||{}).pay||10)+' мани, лише один удар за хід (найбільший), дію ходу не забирає. Більший удар витіснить найменший у тіло; вимкнеш Щит (чи скінчиться мана) — усі удари підуть у тіло.', left:(u.mshDump===B.round?'Скинеться цього ходу':'Поки не скинеш')}); }
+      out.push({neg:true, dump:(B && u===B.me), on:(u.mshDump===B.round), ic:'🔮', n:(u.mshDump===B.round?'✓ ':'')+(mcl.length>1 ? msum : mcl[0].dmg), title:mcl.length>1 ? 'Удари в комірках Щита' : 'Удар у комірці Щита', text:'Щит тримає '+(mcl.length>1 ? 'удари '+msum : 'удар '+mcl[0].dmg)+'. Скинути (поглинути) — торкнись цього значка або кнопки з числом на Щиті в панелі вмінь, −'+(((u.skv||{})['mage.shield']||{}).pay||10)+' мани, лише один удар за хід (найбільший), дію ходу не забирає. Більший удар витіснить найменший у тіло; вимкнеш Щит (чи скінчиться мана) — усі удари підуть у тіло.', left:(u.mshDump===B.round?'Скинеться цього ходу':'Поки не скинеш')}); }
     if(f.poison) timed(f.poison.until, function(n){ return {neg:true, ic:'☠️', n:n, title:'Отруєний', text:'−'+(f.poison.tick||5)+'% здоров\'я наприкінці кожного ходу, броня не захищає.', left:left(n)}; });
     if(f.arrow) timed(f.arrow.until, function(n){ return {neg:true, ic:'🎯', n:n, title:'Стріла застрягла', text:'Б\'є слабше на '+(f.arrow.weak||0)+'%.', left:f.arrow.from>B.round?'З наступного ходу':left(n)}; });
     if(f.venom) timed(f.venom.until, function(n){ return {neg:false, ic:'🐍', n:n, title:'Зброя змащена отрутою', text:'Кожен удар, що завдав урону: +'+(f.venom.pct||0)+'% урону отрутою і шанс '+(f.venom.ch||0)+'% отруїти.', left:left(n)}; });
@@ -2261,7 +2266,7 @@ window.SKHERO = (function(){
   }
   function fxHtml(list){
     return list.map(function(x){
-      return '<span class="fxi'+(x.past?' past':'')+'" tabindex="0" aria-label="'+biEsc(x.title+': '+x.text+'. '+x.left)+'">'+x.ic
+      return '<span class="fxi'+(x.past?' past':'')+(x.dump?' fxdump'+(x.on?' on':''):'')+'"'+(x.dump?' data-msh-dump="1" role="button"':'')+' tabindex="0" aria-label="'+biEsc(x.title+': '+x.text+'. '+x.left)+'">'+x.ic
         + (x.n!=='' && x.n!=null ? '<span class="fxn">'+biEsc(String(x.n))+'</span>' : '')
         + '<span class="fxtip"><b>'+biEsc(x.title)+'</b>'+biEsc(x.text)+'<i>⏳ '+biEsc(x.left)+'</i></span></span>';
     }).join('');
