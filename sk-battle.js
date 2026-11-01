@@ -1279,7 +1279,7 @@
     if (inRec && num(inRec.dmg) > 0) cand.push(inRec);
     cand.sort(function (x, y) { return num(y.dmg) - num(x.dmg); });
     cand = cand.slice(0, cap);
-    if (!cand.length) { grow(v, 'mage.shield', false); return null; }
+    if (!cand.length) return null;                                     // удару не було — нема й чого вчитись (ні ✔, ні ✖)
     var caught = [], rel = 0, small = [];
     cand.forEach(function (h) {
       var d = num(h.dmg);
@@ -1601,6 +1601,7 @@
     if (Object.keys(st.op.sk).length) { st.op.p0 = clone(st.op.p); st.op.p = skillProfile(mirror(st), clone(st.op.p)); }   // пасивні вміння бота — у його профіль
     if (o.op.ai) st.op.ai = o.op.ai;
     if (o.op.up) st.op.up = o.op.up;
+    grow(st, 'mage.sight', true);                                    // 👁️ Магічний зір — +1 за кожен бій (вміння діє весь бій)
     st.op.max = st.op.p.hp; st.op.force = st.op.p.hp;
     st.op.mana = num(o.op.mana != null ? o.op.mana : st.op.p.mana); st.op.mana0 = st.op.mana;
     return st;
