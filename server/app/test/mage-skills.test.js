@@ -336,3 +336,13 @@ test('Холодний розум: поріг 5% на 25% → 15% на 100%; б�
   assert.ok(e.opHit.dmg >= 20 && e.opHit.dmg < 40, 'втратив 5–10%: ' + e.opHit.dmg);
   assert.strictEqual(st.me.fx.focus, 2, 'без Холодного розуму вже ≥ 5% збиває');
 });
+
+test('Ріст: Магічний зір +1 за бій; Щит без ударів по тобі не росте (ні ✔, ні ✖)', () => {
+  const st = battle({ 'mage.sight': 0.5, 'mage.shield': 0.9 }, ['mage.shield']);
+  assert.strictEqual(st.me.grow['mage.sight'], 1, 'Магічний зір — +1 на старті бою');
+  SB.useSkill(ctx, st, 'mage.shield');
+  st.op.p.accuracy = 1; st.me.p.agility = 100000;              // бот не влучає
+  let caught = 0; for (let k = 0; k < 6; k++) { const e = go(st, open(st)); if (e.msh) caught++; }
+  const g = (st.me.grow || {})['mage.shield'] || 0, f = (st.me.growF || {})['mage.shield'] || 0;
+  assert.strictEqual(g + f, caught, 'ріст лише в ходи, коли по тобі влучили (' + caught + '), а не щоходу');
+});
