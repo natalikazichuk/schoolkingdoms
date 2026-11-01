@@ -178,7 +178,7 @@ test('Спалах: точність ворога −40% на 5 ходів; Ст
   assert.strictEqual(e2.skill.mana, 30, 'мана знята');
 });
 
-test('Зосередженість: +1 за хід із закляттям; −1, коли втратив ≥ 10% здоров\'я; Холодний розум — поріг 20%', () => {
+test('Зосередженість: +1 за хід із закляттям; −1, коли втратив ≥ 5% здоров\'я; Холодний розум — поріг 5% → 15%', () => {
   const st = battle({ 'mage.missile': 1, 'base.focus': 1 }, ['mage.missile']);
   SB.useSkill(ctx, st, 'mage.missile');
   go(st); go(st); go(st);
@@ -187,14 +187,14 @@ test('Зосередженість: +1 за хід із закляттям; −1
   assert.strictEqual(st.me.fx.focus, 3, 'без закляття — без змін');
   st.op.p.wMin = 60; st.op.p.wMax = 60; st.op.p.accuracy = 100000; st.op.p.critPct = 0;
   const e = go(st, open(st));
-  assert.ok(e.opHit.dmg >= 40, 'втратив ≥ 10%');
+  assert.ok(e.opHit.dmg >= 40, 'втратив ≥ 5%');
   assert.strictEqual(st.me.fx.focus, 2, '−1');
-  // Холодний розум: втрата 15% уже не збиває
+  // Холодний розум: на 100% втрата менше 15% уже не збиває
   const st2 = battle({ 'mage.missile': 1, 'base.focus': 1, 'mage.calm': 1 }, ['mage.missile']);
-  st2.me.fx.focus = 3; st2.op.p.wMin = 50; st2.op.p.wMax = 50; st2.op.p.accuracy = 100000; st2.op.p.critPct = 0;
+  st2.me.fx.focus = 3; st2.op.p.wMin = 30; st2.op.p.wMax = 30; st2.op.p.accuracy = 100000; st2.op.p.critPct = 0;
   const e2 = go(st2, open(st2));
-  assert.ok(e2.opHit.dmg >= 40 && e2.opHit.dmg < 80);
-  assert.strictEqual(st2.me.fx.focus, 3, 'нижче 20% — не спадає');
+  assert.ok(e2.opHit.dmg >= 20 && e2.opHit.dmg < 60);
+  assert.strictEqual(st2.me.fx.focus, 3, 'нижче 15% — не спадає');
 });
 
 test('Потік мани: щоходу +2% макс. мани × (1 + 0.25·K); не вище максимуму', () => {
@@ -325,4 +325,14 @@ test('Щит ловить КІНЦЕВИЙ урон — після броні, %
   const plain = Math.max.apply(null, eb.opHit.hits.map(h => h.dmg || 0));
   assert.ok(plain > 0 && plain < 48, 'броня й опір зменшили удар: ' + plain);
   assert.strictEqual(ea.msh.dmg, plain, 'у комірці — рівно той урон, що пішов би в тіло');
+});
+
+test('Холодний розум: поріг 5% на 25% → 15% на 100%; без вміння — 5%', () => {
+  assert.strictEqual(S.skillValues('mage.calm', 25).thr, 5);
+  assert.strictEqual(S.skillValues('mage.calm', 100).thr, 15);
+  const st = battle({ 'mage.missile': 1, 'base.focus': 1 }, ['mage.missile']);
+  st.me.fx.focus = 3; st.op.p.wMin = 18; st.op.p.wMax = 18; st.op.p.accuracy = 100000; st.op.p.critPct = 0;
+  const e = go(st, open(st));
+  assert.ok(e.opHit.dmg >= 20 && e.opHit.dmg < 40, 'втратив 5–10%: ' + e.opHit.dmg);
+  assert.strictEqual(st.me.fx.focus, 2, 'без Холодного розуму вже ≥ 5% збиває');
 });

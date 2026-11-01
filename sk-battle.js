@@ -1362,8 +1362,8 @@
       if (!(krz <= kz)) f.focus = num(f.focus) - 1;
       return kz ? [krz, kz, krz <= kz] : null;
     }
-    if (v.me.cls === 'mage') {                                  // 🔮 Зосередженість: +1 за хід із закляттям (Медитація +2); −1, коли втратив ≥ thr% здоров'я
-      var thr = hasSk(v, 'mage.calm') ? (V(v, 'mage.calm', 'thr') || 20) : 10, lost = num(dmgIn) * 100 / Math.max(1, num(v.me.max));
+    if (v.me.cls === 'mage') {                                  // 🔮 Зосередженість: +1 за хід із закляттям (Медитація +2); −1, коли втратив ≥ thr% здоров'я (5%; Холодний розум 5 → 15%)
+      var thr = hasSk(v, 'mage.calm') ? (V(v, 'mage.calm', 'thr') || 5) : 5, lost = num(dmgIn) * 100 / Math.max(1, num(v.me.max));
       if (lost >= thr) {
         if (!(num(f.focus) > 0)) return null;
         var mk = hasSk(v, 'mage.calm') ? V(v, 'mage.calm', 'keepPct') : 0, mr = mk ? ctx.R.d100(rndC) : 101;

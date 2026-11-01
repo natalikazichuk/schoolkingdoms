@@ -18,14 +18,14 @@
    ============================================================ */
 'use strict';
 
-const VERSION = 'sk-offline-v24';
+const VERSION = 'sk-offline-v25';
 const CACHE   = VERSION;
 
 /* Спільне для ігротеки й ігор. Шляхи — від кореня сайту (теки sw.js). */
 const CORE = [
   'igry.html',
   'sk-styles.css', 'sk-game.css', 'sk-game-chalk.css',
-  'sk-header.js?v=20', 'sk-footer.js?v=6', 'sk-resume.js?v=1', 'sk-finish.js?v=7', 'sk-report.js?v=7',
+  'sk-header.js?v=21', 'sk-footer.js?v=6', 'sk-resume.js?v=1', 'sk-finish.js?v=7', 'sk-report.js?v=7',
   'sk-zadachi.js', 'sk-voice.js', 'sk-activity.js?v=2', 'sk-curriculum.js?v=9', 'firebase-config.js', 'sk-fb.js?v=3',
   'manifest.webmanifest', 'favicon-32.png', 'apple-touch-icon.png',
   'icon-192.png', 'icon-512.png', 'logo-small.png'
