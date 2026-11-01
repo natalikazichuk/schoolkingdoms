@@ -1402,7 +1402,7 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text}
 @media(max-width:520px){#wtabGear{--ek-cell:66px}.ek-slots{grid-template-columns:repeat(3,var(--ek-cell))}.ek-body{gap:10px}}
 
 </style>
-<link rel="stylesheet" href="sk-book.css?v=13">
+<link rel="stylesheet" href="sk-book.css?v=14">
 </head>
 <body>
 <div class="bg-img"></div>
@@ -1777,7 +1777,7 @@ function resW(){ return (window.SKRES && SKRES.of()) || {name:'Мана', gen:'�
 <script src="sk-avatar.js?v=19"></script>
 <script src="sk-progress.js"></script>
 <script src="sk-arena-rules.js?v=39"></script>
-<script src="sk-battle.js?v=69"></script>
+<script src="sk-battle.js?v=70"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
    Інвентар, скриня, смітник, продане / куплене сьогодні й монети
@@ -2136,6 +2136,12 @@ window.SKHERO = (function(){
   function bindSkills(){
     var col = $('btSkills'); if(!col) return;
     col.addEventListener('click', function(e){
+      var dmp = e.target.closest('[data-skb-dump]');
+      if(dmp && B && live() && !UI.resolving){ e.stopPropagation();
+        if(SB.mshDump(B)){ var hd = (B.me.fx||{}).mshHeld, py = hd ? hd.pay||10 : 10;
+          showToast(B.me.mshDump===B.round ? '🔮 Скинути Щит' : '🔮 Скасовано', B.me.mshDump===B.round ? (Math.round(+B.me.mana||0) >= py ? 'На початку ходу −'+py+' мани — удар '+(hd?hd.dmg:'')+' буде поглинуто. Дію ходу не забирає.' : 'Зараз бракує мани ('+py+') — не скинеться, удар лишиться в комірці.') : 'Удар лишається в комірці.');
+          saveBattle(); if(window.SKBOOK) SKBOOK.paintBattle(B); }
+        return; }
       var b = e.target.closest('[data-skb-use]'); if(!b || !B || !live() || UI.resolving) return;
       var id = b.getAttribute('data-skb-use'), why = SB.skillBlock(B, id);
       // вибір лишається, доки гравець його не змінить: вміння б'є щоходу, коли доступне
@@ -2224,7 +2230,7 @@ window.SKHERO = (function(){
     if(B && +f.zap===B.round+1) out.push({neg:true, ic:'⚡', n:'', title:'Оглушений струмом', text:'Наступного ходу — на 1 удар менше (якщо удар лише один — без Другої й Третьої атаки).', left:'Наступний хід'});
     if((u.tog||[]).indexOf('mage.shield')>=0 && u.skv && u.skv['mage.shield']){ var ms = u.skv['mage.shield'];
       out.push({neg:false, ic:'🔮', n:'', title:'Щит', text:'Щоходу бере в себе найбільший удар. Наступного ходу −'+(ms.pay||10)+' мани — поглинає; бракує мани — урон приходить. −'+(ms.mana||5)+' щоходу.', left:'Поки увімкнено й є мана'}); }
-    if(f.mshHeld) out.push({neg:true, ic:'🔮', n:f.mshHeld.dmg, title:'Удар у Щиті', text:'Щит тримає удар '+f.mshHeld.dmg+'. На початку наступного ходу: є '+(f.mshHeld.pay||10)+' мани — поглине, ні — урон прийде.', left:'Наступний хід'});
+    if(f.mshHeld) out.push({neg:true, ic:'🔮', n:f.mshHeld.dmg, title:'Удар у комірці Щита', text:'Щит тримає удар '+f.mshHeld.dmg+'. Скинути (поглинути) — кнопка «'+f.mshHeld.dmg+'» на Щиті в панелі вмінь, −'+(f.mshHeld.pay||10)+' мани, дію ходу не забирає. Більший удар витіснить цей у тіло; вимкнеш Щит (чи скінчиться мана) — удар піде в тіло.', left:(u.mshDump===B.round?'Скинеться цього ходу':'Поки не скинеш')});
     if(f.poison) timed(f.poison.until, function(n){ return {neg:true, ic:'☠️', n:n, title:'Отруєний', text:'−'+(f.poison.tick||5)+'% здоров\'я наприкінці кожного ходу, броня не захищає.', left:left(n)}; });
     if(f.arrow) timed(f.arrow.until, function(n){ return {neg:true, ic:'🎯', n:n, title:'Стріла застрягла', text:'Б\'є слабше на '+(f.arrow.weak||0)+'%.', left:f.arrow.from>B.round?'З наступного ходу':left(n)}; });
     if(f.venom) timed(f.venom.until, function(n){ return {neg:false, ic:'🐍', n:n, title:'Зброя змащена отрутою', text:'Кожен удар, що завдав урону: +'+(f.venom.pct||0)+'% урону отрутою і шанс '+(f.venom.ch||0)+'% отруїти.', left:left(n)}; });
@@ -2940,6 +2946,11 @@ window.SKHERO = (function(){
       if(x.tng >= r) t.push('сплутаний до ходу '+x.tng);
       if(x.frz >= r) t.push('шал до ходу '+x.frz);
       if(x.car >= r) t.push('обережний до ходу '+x.car);
+      if(x.mar >= r) t.push('маг. броня до ходу '+x.mar);
+      if(x.fls >= r) t.push('засліплений до ходу '+x.fls);
+      if(x.chl >= r) t.push('охолоджений до ходу '+x.chl);
+      if(x.brn >= r) t.push('горить до ходу '+x.brn);
+      if(x.msh) t.push('🔮 у комірці Щита '+x.msh);
       var cd = Object.keys(x.cd||{}).filter(function(k){ return x.cd[k] > r; }).map(function(k){ var S = window.SKSKILLS && SKSKILLS.byId(k); return (S?S.icon:k)+' до '+x.cd[k]; });
       if(cd.length) t.push('перезарядка: '+cd.join(', '));
       return t.join(' · ');
@@ -3011,10 +3022,13 @@ window.SKHERO = (function(){
       + (e.meBleed ? '<span class="ln use op">🩸 Кровотеча: ти <span class="b">−'+e.meBleed+'</span></span>' : '')
       + (e.burn ? '<span class="ln use">🔥 Горіння: '+biEsc(B.op.f.name)+' <span class="g">−'+e.burn+'</span></span>' : '')
       + (e.meBurn ? '<span class="ln use op">🔥 Горіння: ти <span class="b">−'+e.meBurn+'</span></span>' : '')
-      + (e.msh ? '<span class="ln use">🔮 Щит узяв удар <b>'+e.msh.dmg+'</b> — наступного ходу −10 мани, щоб поглинути (бракує мани — урон прийде)</span>' : '')
-      + (e.opMsh ? '<span class="ln use op">🔮 Щит суперника узяв удар '+e.opMsh.dmg+'</span>' : '')
-      + (e.mshDue ? (e.mshDue.paid ? '<span class="ln use">🔮 Щит <span class="g">поглинув '+e.mshDue.dmg+'</span> (−'+e.mshDue.paid+' мани)</span>' : '<span class="ln use op">🔮 Щит: бракує мани — <span class="b">урон '+e.mshDue.dmg+' прийшов</span></span>') : '')
-      + (e.opMshDue ? '<span class="ln use op">🔮 Щит суперника: '+(e.opMshDue.paid ? 'поглинув '+e.opMshDue.dmg : '<span class="g">урон '+e.opMshDue.dmg+' прийшов</span>')+'</span>' : '')
+      + (e.mshDue ? (e.mshDue.paid ? '<span class="ln use">🔮 Щит скинуто: <span class="g">поглинув '+e.mshDue.dmg+'</span> (−'+e.mshDue.paid+' мани)</span>' : '<span class="ln use">🔮 Скинути Щит не вдалося — бракує мани ('+e.mshDue.short+'); удар '+e.mshDue.dmg+' лишається в комірці</span>') : '')
+      + (e.mshOff ? '<span class="ln use op">🔮 Щит вимкнено — <span class="b">удар '+e.mshOff.dmg+' із комірки пішов у тіло</span></span>' : '')
+      + (e.msh ? (e.msh.dmg ? '<span class="ln use">🔮 Щит узяв удар <b>'+e.msh.dmg+'</b> у комірку'+(e.msh.rel ? ' — <span class="b">попередній ('+e.msh.rel+') пішов у тіло</span>' : '')+' · скинути — кнопка на Щиті (−10 мани)</span>'
+          : '<span class="dice">🔮 У комірці Щита вже '+e.msh.kept+' — менший удар ('+e.msh.small+') пройшов</span>') : '')
+      + (e.opMsh && e.opMsh.dmg ? '<span class="ln use op">🔮 Щит суперника узяв удар '+e.opMsh.dmg+(e.opMsh.rel ? ' (попередній '+e.opMsh.rel+' — у нього в тіло)' : '')+'</span>' : '')
+      + (e.opMshDue && e.opMshDue.paid ? '<span class="ln use op">🔮 Суперник скинув Щит: поглинуто '+e.opMshDue.dmg+'</span>' : '')
+      + (e.opMshOff ? '<span class="ln use">🔮 Щит суперника вимкнено — <span class="g">удар '+e.opMshOff.dmg+' пішов йому в тіло</span></span>' : '')
       + (e.opZapped ? '<span class="ln use">⚡ Оглушення струмом: '+biEsc(B.op.f.name)+' — на 1 удар менше</span>' : '')
       + (e.meZapped ? '<span class="ln use op">⚡ Тебе оглушило струмом — на 1 удар менше</span>' : '')
       + (e.flow ? '<span class="dice">🌀 Потік мани: +'+e.flow+' мани</span>' : '')
@@ -3619,8 +3633,10 @@ window.SKHERO = (function(){
     if(e.bleed) setTimeout(function(){ floatOne('o', {kind:'bleedTick', dmg:e.bleed}, 0, 1); }, (nMe+4)*380);
     if(e.burn) setTimeout(function(){ floatOne('o', {kind:'burnTick', dmg:e.burn}, 0, 1); }, (nMe+4)*380);   // 🔥 горіння
     if(e.meBurn) setTimeout(function(){ floatOne('p', {kind:'burnTick', dmg:e.meBurn}, 0, 1); }, 1330);
-    if(e.msh) setTimeout(function(){ floatOne('p', {kind:'msh', dmg:e.msh.dmg}, 0, 1); }, 570);   // 🔮 Щит узяв удар
-    if(e.opMsh) setTimeout(function(){ floatOne('o', {kind:'msh', dmg:e.opMsh.dmg}, 0, 1); }, (nMe+1)*380);
+    if(e.msh && e.msh.dmg) setTimeout(function(){ floatOne('p', {kind:'msh', dmg:e.msh.dmg}, 0, 1); }, 570);   // 🔮 Щит узяв удар
+    if(e.msh && e.msh.rel) setTimeout(function(){ floatOne('p', {kind:'burnTick', dmg:e.msh.rel, ic:'🔮'}, 0, 1); }, 950);
+    if(e.mshOff) setTimeout(function(){ floatOne('p', {kind:'burnTick', dmg:e.mshOff.dmg, ic:'🔮'}, 0, 1); }, 380);
+    if(e.opMsh && e.opMsh.dmg) setTimeout(function(){ floatOne('o', {kind:'msh', dmg:e.opMsh.dmg}, 0, 1); }, (nMe+1)*380);
     if(e.meBleed) setTimeout(function(){ floatOne('p', {kind:'bleedTick', dmg:e.meBleed}, 0, 1); }, 1330);
     floatGrow(grow0, B.me.grow, growF0, B.me.growF, (nMe + (e.skill ? 2 : 1)) * 380 + 500);
 
@@ -3738,7 +3754,7 @@ window.SKHERO = (function(){
     else if(h.kind==='marmor'){ el.className='dmg-float blk'; el.style.color='#b9a4ff'; el.textContent=pre+'маг. броня'; }
     else if(h.kind==='flash'){ el.className='dmg-float crit'; el.textContent=pre+'засліплений!'; }
     else if(h.kind==='flashSaved'){ el.className='dmg-float miss'; el.textContent='🧱 встояв'; }
-    else if(h.kind==='burnTick'){ el.className='dmg-float crit'; el.textContent='🔥 −'+h.dmg; }
+    else if(h.kind==='burnTick'){ el.className='dmg-float crit'; el.textContent=(h.ic||'🔥')+' −'+h.dmg; }
     else if(h.kind==='msh'){ el.className='dmg-float blk'; el.style.color='#b9a4ff'; el.textContent='🔮 щит узяв '+h.dmg; }
     else if(h.kind==='hide'){ el.className='dmg-float blk'; el.textContent=pre+'сховався'; }
     else if(h.kind==='bandage'){ el.className='dmg-float hit'; el.style.color='#7dff9a'; el.textContent=pre+'+'+h.heal; }
@@ -4266,8 +4282,8 @@ window.SKHERO = (function(){
 </script>
 
 <script src="sk-items.js?v=28"></script>
-<script src="sk-skills.js?v=90"></script>
-<script src="sk-book.js?v=28"></script>
+<script src="sk-skills.js?v=91"></script>
+<script src="sk-book.js?v=29"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
    Дані ЗАРАЗ demo (локально). Крок 2: джерело речей → Firestore (адмінка).
@@ -5337,7 +5353,7 @@ window.addEventListener('pagehide',function(){if(q('shop')&&!q('shop').hidden)lo
 })();
 </script>
 <script>window.SK_HEADER_SUB='Турнірна арена';</script>
-<script src="sk-header.js?v=18"></script>
+<script src="sk-header.js?v=19"></script>
 </body>
 </html>
 
