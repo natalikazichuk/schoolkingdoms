@@ -1776,8 +1776,8 @@ function resW(){ return (window.SKRES && SKRES.of()) || {name:'Мана', gen:'�
 <script type="module" src="firebase-config.js"></script>
 <script src="sk-avatar.js?v=19"></script>
 <script src="sk-progress.js"></script>
-<script src="sk-arena-rules.js?v=39"></script>
-<script src="sk-battle.js?v=70"></script>
+<script src="sk-arena-rules.js?v=40"></script>
+<script src="sk-battle.js?v=72"></script>
 <script>
 /* ═══ SKHERO — один стан героя на сторінці ═══
    Інвентар, скриня, смітник, продане / куплене сьогодні й монети
@@ -2138,8 +2138,8 @@ window.SKHERO = (function(){
     col.addEventListener('click', function(e){
       var dmp = e.target.closest('[data-skb-dump]');
       if(dmp && B && live() && !UI.resolving){ e.stopPropagation();
-        if(SB.mshDump(B)){ var hd = (B.me.fx||{}).mshHeld, py = hd ? hd.pay||10 : 10;
-          showToast(B.me.mshDump===B.round ? '🔮 Скинути Щит' : '🔮 Скасовано', B.me.mshDump===B.round ? (Math.round(+B.me.mana||0) >= py ? 'На початку ходу −'+py+' мани — удар '+(hd?hd.dmg:'')+' буде поглинуто. Дію ходу не забирає.' : 'Зараз бракує мани ('+py+') — не скинеться, удар лишиться в комірці.') : 'Удар лишається в комірці.');
+        if(SB.mshDump(B)){ var cl = SB.mshCells ? SB.mshCells(B.me.fx) : [], big = cl.reduce(function(a,c){ return Math.max(a, +c.dmg||0); }, 0), py = (B.me.skv&&B.me.skv['mage.shield']&&B.me.skv['mage.shield'].pay)||10;
+          showToast(B.me.mshDump===B.round ? '🔮 Скинути Щит' : '🔮 Скасовано', B.me.mshDump===B.round ? (Math.round(+B.me.mana||0) >= py ? 'На початку ходу −'+py+' мани — удар '+big+' буде поглинуто'+(cl.length>1?' (за хід — лише один, найбільший)':'')+'. Дію ходу не забирає.' : 'Зараз бракує мани ('+py+') — не скинеться, удар лишиться в комірці.') : 'Удар лишається в комірці.');
           saveBattle(); if(window.SKBOOK) SKBOOK.paintBattle(B); }
         return; }
       var b = e.target.closest('[data-skb-use]'); if(!b || !B || !live() || UI.resolving) return;
@@ -2192,7 +2192,7 @@ window.SKHERO = (function(){
         title: b.name || 'Підсилення', text: (FX_UK[k]||k)+' '+(b.pct>0?'+':'')+b.pct+'%', left: 'Ще '+b.turns+' '+(b.turns===1?'хід':b.turns<5?'ходи':'ходів')});
     });
     if(f.focus>0) out.push(u.cls==='mage'
-      ? {neg:false, ic:'🕯️', n:f.focus, title:'Зосередженість', text:'+'+(5*f.focus)+'% маг. урону, і мана тече швидше. Хід із закляттям — +1 (Медитація — +2); втратив за хід ≥ 10% здоров\'я — −1.', left:'Доки не втратиш багато здоров\'я'}
+      ? {neg:false, ic:'🕯️', n:f.focus, title:'Зосередженість', text:'+'+(5*f.focus)+'% маг. урону, і мана тече швидше. Хід із закляттям — +1 (Медитація — +2); втратив за хід ≥ 5% здоров\'я (з Холодним розумом — до 15%) — −1.', left:'Доки не втратиш багато здоров\'я'}
       : {neg:false, ic:'🕯️', n:f.focus, title:'Концентрація', text:'+'+(5*f.focus)+'% до урону. Хід без урону — шанс зосередитись ще більше; отримав урон — концентрацію збито.', left:'Доки не отримаєш урон'});
     if(f.bond && u.skv && u.skv['base.bond']) out.push({neg:false, ic:'🔗', n:'', title:"Зв'язок зі зброєю", text:'+'+(u.skv['base.bond'].dmgPct||0)+'% урону: ти добре відчуваєш свою зброю.', left:'Доки не зміниш зброю'});
     /* ефект на ходи: діє — значок із «скільки ще»; щойно скінчився — ще один хід блідий значок «0» (діяв минулого ходу) */
@@ -2230,7 +2230,9 @@ window.SKHERO = (function(){
     if(B && +f.zap===B.round+1) out.push({neg:true, ic:'⚡', n:'', title:'Оглушений струмом', text:'Наступного ходу — на 1 удар менше (якщо удар лише один — без Другої й Третьої атаки).', left:'Наступний хід'});
     if((u.tog||[]).indexOf('mage.shield')>=0 && u.skv && u.skv['mage.shield']){ var ms = u.skv['mage.shield'];
       out.push({neg:false, ic:'🔮', n:'', title:'Щит', text:'Щоходу бере в себе найбільший удар. Наступного ходу −'+(ms.pay||10)+' мани — поглинає; бракує мани — урон приходить. −'+(ms.mana||5)+' щоходу.', left:'Поки увімкнено й є мана'}); }
-    if(f.mshHeld) out.push({neg:true, ic:'🔮', n:f.mshHeld.dmg, title:'Удар у комірці Щита', text:'Щит тримає удар '+f.mshHeld.dmg+'. Скинути (поглинути) — кнопка «'+f.mshHeld.dmg+'» на Щиті в панелі вмінь, −'+(f.mshHeld.pay||10)+' мани, дію ходу не забирає. Більший удар витіснить цей у тіло; вимкнеш Щит (чи скінчиться мана) — удар піде в тіло.', left:(u.mshDump===B.round?'Скинеться цього ходу':'Поки не скинеш')});
+    var mcl = SB.mshCells ? SB.mshCells(f) : [];
+    if(mcl.length){ var msum = mcl.map(function(c){ return c.dmg; }).join(' + ');
+      out.push({neg:true, ic:'🔮', n:mcl.length>1 ? msum : mcl[0].dmg, title:mcl.length>1 ? 'Удари в комірках Щита' : 'Удар у комірці Щита', text:'Щит тримає '+(mcl.length>1 ? 'удари '+msum : 'удар '+mcl[0].dmg)+'. Скинути (поглинути) — кнопка з числом на Щиті в панелі вмінь, −'+(((u.skv||{})['mage.shield']||{}).pay||10)+' мани, лише один удар за хід (найбільший), дію ходу не забирає. Більший удар витіснить найменший у тіло; вимкнеш Щит (чи скінчиться мана) — усі удари підуть у тіло.', left:(u.mshDump===B.round?'Скинеться цього ходу':'Поки не скинеш')}); }
     if(f.poison) timed(f.poison.until, function(n){ return {neg:true, ic:'☠️', n:n, title:'Отруєний', text:'−'+(f.poison.tick||5)+'% здоров\'я наприкінці кожного ходу, броня не захищає.', left:left(n)}; });
     if(f.arrow) timed(f.arrow.until, function(n){ return {neg:true, ic:'🎯', n:n, title:'Стріла застрягла', text:'Б\'є слабше на '+(f.arrow.weak||0)+'%.', left:f.arrow.from>B.round?'З наступного ходу':left(n)}; });
     if(f.venom) timed(f.venom.until, function(n){ return {neg:false, ic:'🐍', n:n, title:'Зброя змащена отрутою', text:'Кожен удар, що завдав урону: +'+(f.venom.pct||0)+'% урону отрутою і шанс '+(f.venom.ch||0)+'% отруїти.', left:left(n)}; });
@@ -3022,10 +3024,10 @@ window.SKHERO = (function(){
       + (e.meBleed ? '<span class="ln use op">🩸 Кровотеча: ти <span class="b">−'+e.meBleed+'</span></span>' : '')
       + (e.burn ? '<span class="ln use">🔥 Горіння: '+biEsc(B.op.f.name)+' <span class="g">−'+e.burn+'</span></span>' : '')
       + (e.meBurn ? '<span class="ln use op">🔥 Горіння: ти <span class="b">−'+e.meBurn+'</span></span>' : '')
-      + (e.mshDue ? (e.mshDue.paid ? '<span class="ln use">🔮 Щит скинуто: <span class="g">поглинув '+e.mshDue.dmg+'</span> (−'+e.mshDue.paid+' мани)</span>' : '<span class="ln use">🔮 Скинути Щит не вдалося — бракує мани ('+e.mshDue.short+'); удар '+e.mshDue.dmg+' лишається в комірці</span>') : '')
-      + (e.mshOff ? '<span class="ln use op">🔮 Щит вимкнено — <span class="b">удар '+e.mshOff.dmg+' із комірки пішов у тіло</span></span>' : '')
-      + (e.msh ? (e.msh.dmg ? '<span class="ln use">🔮 Щит узяв удар <b>'+e.msh.dmg+'</b> у комірку'+(e.msh.rel ? ' — <span class="b">попередній ('+e.msh.rel+') пішов у тіло</span>' : '')+' · скинути — кнопка на Щиті (−10 мани)</span>'
-          : '<span class="dice">🔮 У комірці Щита вже '+e.msh.kept+' — менший удар ('+e.msh.small+') пройшов</span>') : '')
+      + (e.mshDue ? (e.mshDue.paid ? '<span class="ln use">🔮 Щит скинуто: <span class="g">поглинув '+e.mshDue.dmg+'</span> (−'+e.mshDue.paid+' мани)'+(e.mshDue.left ? ' · у комірці ще '+e.mshDue.left : '')+'</span>' : '<span class="ln use">🔮 Скинути Щит не вдалося — бракує мани ('+e.mshDue.short+'); удар '+e.mshDue.dmg+' лишається в комірці</span>') : '')
+      + (e.mshOff ? '<span class="ln use op">🔮 Щит вимкнено — <span class="b">'+(e.mshOff.n>1 ? 'удари з комірок ('+e.mshOff.dmg+') пішли' : 'удар '+e.mshOff.dmg+' із комірки пішов')+' у тіло</span></span>' : '')
+      + (e.msh ? (e.msh.dmg ? '<span class="ln use">🔮 Щит узяв '+(e.msh.caught && e.msh.caught.length>1 ? 'удари <b>'+e.msh.caught.join(' і ')+'</b>' : 'удар <b>'+e.msh.dmg+'</b>')+' у комірку'+(e.msh.rel ? ' — <span class="b">витіснений ('+e.msh.rel+') пішов у тіло</span>' : '')+(e.msh.cells && e.msh.cells.length ? ' · у комірках: '+e.msh.cells.join(' + ') : '')+' · скинути — кнопка на Щиті (−10 мани, один за хід)</span>'
+          : '<span class="dice">🔮 Комірки Щита повні ('+(e.msh.cells||[]).join(' + ')+') — менший удар ('+(e.msh.small||[]).join(', ')+') пройшов</span>') : '')
       + (e.opMsh && e.opMsh.dmg ? '<span class="ln use op">🔮 Щит суперника узяв удар '+e.opMsh.dmg+(e.opMsh.rel ? ' (попередній '+e.opMsh.rel+' — у нього в тіло)' : '')+'</span>' : '')
       + (e.opMshDue && e.opMshDue.paid ? '<span class="ln use op">🔮 Суперник скинув Щит: поглинуто '+e.opMshDue.dmg+'</span>' : '')
       + (e.opMshOff ? '<span class="ln use">🔮 Щит суперника вимкнено — <span class="g">удар '+e.opMshOff.dmg+' пішов йому в тіло</span></span>' : '')
@@ -4282,8 +4284,8 @@ window.SKHERO = (function(){
 </script>
 
 <script src="sk-items.js?v=28"></script>
-<script src="sk-skills.js?v=91"></script>
-<script src="sk-book.js?v=29"></script>
+<script src="sk-skills.js?v=93"></script>
+<script src="sk-book.js?v=30"></script>
 <script>
 /* ═══════════ EK — екіпіровка героя (вкладка «Спорядження») ═══════════
    Дані ЗАРАЗ demo (локально). Крок 2: джерело речей → Firestore (адмінка).
@@ -5353,7 +5355,7 @@ window.addEventListener('pagehide',function(){if(q('shop')&&!q('shop').hidden)lo
 })();
 </script>
 <script>window.SK_HEADER_SUB='Турнірна арена';</script>
-<script src="sk-header.js?v=19"></script>
+<script src="sk-header.js?v=21"></script>
 </body>
 </html>
 

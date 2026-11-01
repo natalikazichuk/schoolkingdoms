@@ -178,7 +178,7 @@ test('Спалах: точність ворога −40% на 5 ходів; Ст
   assert.strictEqual(e2.skill.mana, 30, 'мана знята');
 });
 
-test('Зосередженість: +1 за хід із закляттям; −1, коли втратив ≥ 10% здоров\'я; Холодний розум — поріг 20%', () => {
+test('Зосередженість: +1 за хід із закляттям; −1, коли втратив ≥ 5% здоров\'я; Холодний розум — поріг 5% → 15%', () => {
   const st = battle({ 'mage.missile': 1, 'base.focus': 1 }, ['mage.missile']);
   SB.useSkill(ctx, st, 'mage.missile');
   go(st); go(st); go(st);
@@ -187,14 +187,14 @@ test('Зосередженість: +1 за хід із закляттям; −1
   assert.strictEqual(st.me.fx.focus, 3, 'без закляття — без змін');
   st.op.p.wMin = 60; st.op.p.wMax = 60; st.op.p.accuracy = 100000; st.op.p.critPct = 0;
   const e = go(st, open(st));
-  assert.ok(e.opHit.dmg >= 40, 'втратив ≥ 10%');
+  assert.ok(e.opHit.dmg >= 40, 'втратив ≥ 5%');
   assert.strictEqual(st.me.fx.focus, 2, '−1');
-  // Холодний розум: втрата 15% уже не збиває
+  // Холодний розум: на 100% втрата менше 15% уже не збиває
   const st2 = battle({ 'mage.missile': 1, 'base.focus': 1, 'mage.calm': 1 }, ['mage.missile']);
-  st2.me.fx.focus = 3; st2.op.p.wMin = 50; st2.op.p.wMax = 50; st2.op.p.accuracy = 100000; st2.op.p.critPct = 0;
+  st2.me.fx.focus = 3; st2.op.p.wMin = 30; st2.op.p.wMax = 30; st2.op.p.accuracy = 100000; st2.op.p.critPct = 0;
   const e2 = go(st2, open(st2));
-  assert.ok(e2.opHit.dmg >= 40 && e2.opHit.dmg < 80);
-  assert.strictEqual(st2.me.fx.focus, 3, 'нижче 20% — не спадає');
+  assert.ok(e2.opHit.dmg >= 20 && e2.opHit.dmg < 60);
+  assert.strictEqual(st2.me.fx.focus, 3, 'нижче 15% — не спадає');
 });
 
 test('Потік мани: щоходу +2% макс. мани × (1 + 0.25·K); не вище максимуму', () => {
@@ -213,7 +213,7 @@ test('Потік мани: щоходу +2% макс. мани × (1 + 0.25·K);
 });
 
 test('Щит — комірка: ловить удар і тримає; більший витісняє менший у тіло; скинути — −10 мани; вимкнув — удар у тіло', () => {
-  const st = battle({ 'mage.shield': 1 }, ['mage.shield']);
+  const st = battle({ 'mage.shield': 0.9 }, ['mage.shield']);
   st.op.p.wMin = 30; st.op.p.wMax = 30; st.op.p.accuracy = 100000; st.op.p.critPct = 0;
   assert.ok(SB.useSkill(ctx, st, 'mage.shield'));
   assert.ok(!SB.mshDump(st), 'комірка порожня — скидати нічого');
@@ -222,8 +222,8 @@ test('Щит — комірка: ловить удар і тримає; біль
   assert.ok(d1 > 0 && st.me.force === hp0, 'урону немає — удар у комірці');
   // наступний хід: удар не скидали — лежить далі; новий удар тієї ж сили (не більший) — у тіло
   const hp1 = st.me.force, e2 = go(st, open(st));
-  assert.strictEqual(st.me.fx.mshHeld.dmg, d1, 'комірка тримає старий удар');
-  assert.ok(e2.msh.kept === d1 && hp1 - st.me.force >= e2.msh.small, 'менший/рівний — пройшов у тіло');
+  assert.strictEqual(SB.mshCells(st.me.fx)[0].dmg, d1, 'комірка тримає старий удар');
+  assert.ok(e2.msh.cells[0] === d1 && e2.msh.small[0] > 0 && hp1 - st.me.force >= e2.msh.small[0], 'менший/рівний — пройшов у тіло');
   // більший удар — старий іде в тіло, новий у комірку
   st.op.p.wMin = 60; st.op.p.wMax = 60;
   const hp2 = st.me.force, e3 = go(st, open(st));
@@ -234,9 +234,9 @@ test('Щит — комірка: ловить удар і тримає; біль
   assert.ok(SB.mshDump(st));
   const m = st.me.mana, e4 = go(st, open(st));
   assert.strictEqual(e4.mshDue.paid, 10);
-  assert.ok(!st.me.fx.mshHeld || (e4.msh && st.me.fx.mshHeld.dmg === e4.msh.dmg && e4.msh.dmg < e3.msh.dmg), 'старий удар поглинуто (у комірці — хіба що новий удар цього ходу)');
+  assert.ok(!SB.mshCells(st.me.fx).length || (e4.msh && SB.mshCells(st.me.fx)[0].dmg === e4.msh.dmg && e4.msh.dmg < e3.msh.dmg), 'старий удар поглинуто (у комірці — хіба що новий удар цього ходу)');
   // вимкнув Щит — удар із комірки в тіло
-  const st2 = battle({ 'mage.shield': 1 }, ['mage.shield']);
+  const st2 = battle({ 'mage.shield': 0.9 }, ['mage.shield']);
   st2.op.p.wMin = 30; st2.op.p.wMax = 30; st2.op.p.accuracy = 100000; st2.op.p.critPct = 0;
   SB.useSkill(ctx, st2, 'mage.shield');
   const h = go(st2, open(st2)).msh.dmg;
@@ -245,12 +245,34 @@ test('Щит — комірка: ловить удар і тримає; біль
   assert.ok(e5.mshOff && e5.mshOff.dmg === h);
   assert.ok(hp3 - st2.me.force >= h, 'урон прийшов');
   // скінчилась мана — Щит вимкнувся сам, удар у тіло
-  const st3 = battle({ 'mage.shield': 1 }, ['mage.shield']);
+  const st3 = battle({ 'mage.shield': 0.9 }, ['mage.shield']);
   st3.op.p.wMin = 30; st3.op.p.wMax = 30; st3.op.p.accuracy = 100000; st3.op.p.critPct = 0;
   SB.useSkill(ctx, st3, 'mage.shield'); go(st3, open(st3));
   st3.me.mana = 0; st3.op.p.wMin = 0; st3.op.p.wMax = 0;
   const e6 = go(st3, open(st3));
   assert.ok(e6.mshOff, 'без мани — вимкнувся, удар у тіло');
+});
+
+test('Щит на 100%: дві комірки — ловить два удари; скинути за хід лише один (найбільший); вимкнув — обидва в тіло', () => {
+  const st = battle({ 'mage.shield': 1 }, ['mage.shield']);
+  st.op.p.wMin = 30; st.op.p.wMax = 30; st.op.p.accuracy = 100000; st.op.p.critPct = 0; st.op.p.extra = 1;   // два удари за хід
+  SB.useSkill(ctx, st, 'mage.shield');
+  const hp0 = st.me.force, e = go(st, open(st));
+  assert.strictEqual(e.msh.caught.length, 2, 'узяв обидва удари');
+  assert.strictEqual(st.me.force, hp0, 'урону немає');
+  assert.strictEqual(SB.mshCells(st.me.fx).length, 2);
+  st.op.p.wMin = 0; st.op.p.wMax = 0; st.op.p.extra = 0; st.op.p.accuracy = 1; st.me.p.agility = 100000;
+  assert.ok(SB.mshDump(st));
+  const m0 = st.me.mana, e2 = go(st, open(st));
+  assert.strictEqual(e2.mshDue.paid, 10);
+  assert.strictEqual(e2.mshDue.left, 1, 'за хід скинуто лише один');
+  assert.ok(SB.mshCells(st.me.fx).length >= 1);
+  const left = SB.mshCells(st.me.fx).reduce((a, c) => a + c.dmg, 0);
+  SB.useSkill(ctx, st, 'mage.shield');                       // вимкнути — усе з комірок у тіло
+  const hp1 = st.me.force, e3 = go(st, open(st));
+  assert.strictEqual(e3.mshOff.dmg, left);
+  assert.ok(hp1 - st.me.force >= left);
+  assert.strictEqual(SB.mshCells(st.me.fx).length, 0);
 });
 
 test('Перевага «Майстер сувоїв» і Ясний розум (страх)', () => {
@@ -297,10 +319,20 @@ test('Щит ловить КІНЦЕВИЙ урон — після броні, %
     st.me.p.armor = 30; st.me.p.resSlash = 20; st.me.p.resBash = 20;          // броня й опір зменшують удар
     return st;
   };
-  const a = mk('same-bid', { 'mage.shield': 1 }, ['mage.shield']), b = mk('same-bid', {}, []);
+  const a = mk('same-bid', { 'mage.shield': 0.9 }, ['mage.shield']), b = mk('same-bid', {}, []);
   SB.useSkill(ctx, a, 'mage.shield');
   const ch = open(a), ea = SB.turn(ctx, a, ch, {}, Date.now()), eb = SB.turn(ctx, b, ch, {}, Date.now());
   const plain = Math.max.apply(null, eb.opHit.hits.map(h => h.dmg || 0));
   assert.ok(plain > 0 && plain < 48, 'броня й опір зменшили удар: ' + plain);
   assert.strictEqual(ea.msh.dmg, plain, 'у комірці — рівно той урон, що пішов би в тіло');
+});
+
+test('Холодний розум: поріг 5% на 25% → 15% на 100%; без вміння — 5%', () => {
+  assert.strictEqual(S.skillValues('mage.calm', 25).thr, 5);
+  assert.strictEqual(S.skillValues('mage.calm', 100).thr, 15);
+  const st = battle({ 'mage.missile': 1, 'base.focus': 1 }, ['mage.missile']);
+  st.me.fx.focus = 3; st.op.p.wMin = 18; st.op.p.wMax = 18; st.op.p.accuracy = 100000; st.op.p.critPct = 0;
+  const e = go(st, open(st));
+  assert.ok(e.opHit.dmg >= 20 && e.opHit.dmg < 40, 'втратив 5–10%: ' + e.opHit.dmg);
+  assert.strictEqual(st.me.fx.focus, 2, 'без Холодного розуму вже ≥ 5% збиває');
 });

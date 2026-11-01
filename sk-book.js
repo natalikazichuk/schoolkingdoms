@@ -327,7 +327,9 @@ function paintBattle(bs){
     var cls2 = 'skb-sk' + (s.type === 'A' ? ' act' : '') + (p >= 100 ? ' max' : '');
     h += '<div class="' + cls + '" data-skb-use="' + id + '" title="' + esc(tip) + '"' + (isTog ? ' style="--fx:' + fxc + '"' : '') + '><span class="k">' + (i + 1) + '</span>' + (isTog ? '<span class="skb-wave"></span><span class="skb-togm" title="Перемикач: діє щоходу, поки увімкнено">⟳</span>' : '') + (b && tmul ? '<span class="skb-tmul" title="Ціна мани: ×' + (tmul / 100) + ' (дорожчий перемикач платить ×1, другий — більше)">×' + (tmul / 100) + '</span>' : '')
       + '<div class="' + cls2 + '" style="--p:' + p + '"><div class="in">' + (SKS.iconHtml ? SKS.iconHtml(id) : s.icon) + '</div></div>' + badge
-      + (b && id === 'mage.shield' && b.me.fx && b.me.fx.mshHeld ? '<span class="skb-dump' + (b.me.mshDump === b.round ? ' on' : '') + '" data-skb-dump="1" title="У комірці Щита удар ' + b.me.fx.mshHeld.dmg + '. Торкнись — скинути (поглинути) на початку ходу за ' + (b.me.fx.mshHeld.pay || 10) + ' мани; дію ходу не забирає">' + (b.me.mshDump === b.round ? '✓ ' : '') + b.me.fx.mshHeld.dmg + '</span>' : '') + '</div>';
+      + (function () { var cl = b && id === 'mage.shield' && window.SKBATTLE && SKBATTLE.mshCells ? SKBATTLE.mshCells(b.me.fx) : [];
+          if (!cl.length) return ''; var on = b.me.mshDump === b.round, big = cl.reduce(function (a, c) { return Math.max(a, +c.dmg || 0); }, 0), py = (b.me.skv && b.me.skv[id] && b.me.skv[id].pay) || 10;
+          return '<span class="skb-dump' + (on ? ' on' : '') + '" data-skb-dump="1" title="У комірках Щита: ' + cl.map(function (c) { return c.dmg; }).join(' + ') + '. Торкнись — скинути (поглинути) найбільший удар (' + big + ') на початку ходу за ' + py + ' мани; один за хід, дію ходу не забирає">' + (on ? '✓ ' : '') + cl.map(function (c) { return c.dmg; }).join('+') + '</span>'; })() + '</div>';
   }
   var hint = !any ? 'Постав вміння:<br>Інвентар → 📖'
     : b ? (b.me.skill ? 'Б\'є щоходу, коли<br>доступне · ще раз — зняти' : 'Торкнись — вміння<br>битиме щоходу') : '';

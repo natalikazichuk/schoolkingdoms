@@ -1259,46 +1259,69 @@
     if (round >= num(b.until)) delete u.fx.burn;
     return d;
   }
-  /* 🔮 Щит (перемикач) — КОМІРКА на один удар (рішення 01.11):
-     • поки увімкнено, за хід ловить найбільший удар по тобі (зброя, вміння, закляття) — урону одразу немає, удар лежить у комірці;
-     • у комірці вже є удар: новий більший — старий іде в тіло, новий — у комірку; новий менший — іде в тіло як звичайно;
-     • скинути комірку (поглинути) — окрема дія: −pay мани (дію ходу НЕ забирає; mshDump — обрано на цей хід, спрацює на початку ходу);
-     • Щит вимкнено (сам, бо скінчилась мана, чи вручну) — удар із комірки йде в тіло. */
+  /* 🔮 Щит (перемикач) — КОМІРКИ (рішення 01.11): 1 комірка, на 100% — 2 (slots).
+     • поки увімкнено, за хід ловить найбільші удари по тобі (зброя, вміння, закляття; до slots штук) — урону одразу немає, удар лежить у комірці;
+       це КІНЦЕВИЙ урон — після броні, %, криту, опорів, Кам'яної шкіри й Бар'єра;
+     • комірки повні: новий удар більший за найменший у комірці — той іде в тіло, новий — у комірку; не більший — іде в тіло як звичайно;
+     • скинути (поглинути) — окрема дія: лише ОДНУ комірку за хід (найбільший удар), −pay мани, дію ходу НЕ забирає
+       (mshDump — обрано на цей хід, спрацює на початку ходу);
+     • Щит вимкнено (сам, бо скінчилась мана, чи вручну) — удари з усіх комірок ідуть у тіло. */
+  function mshCells(f) {
+    if (!f) return [];
+    if (f.mshHeld) { f.mshCells = (f.mshCells || []).concat([{ dmg: num(f.mshHeld.dmg), r: num(f.mshHeld.r) }]); delete f.mshHeld; }   // старий формат (одна комірка)
+    return f.mshCells || [];
+  }
+  function mshSum(f) { return mshCells(f).reduce(function (a, c) { return a + num(c.dmg); }, 0); }
   function mshieldTake(v, inHit, inRec) {
     var f = fxOf(v.me); if (num(f.mshOn) !== v.round) return null;
-    var best = null, bd = 0;
-    ((inHit && inHit.hits) || []).forEach(function (h) { if (num(h.dmg) > bd) { bd = num(h.dmg); best = h; } });
-    if (inRec && num(inRec.dmg) > bd) { bd = num(inRec.dmg); best = inRec; }
-    if (!best) { grow(v, 'mage.shield', false); return null; }
-    var held = f.mshHeld ? num(f.mshHeld.dmg) : 0;
-    if (held && bd <= held) { grow(v, 'mage.shield', false); return { kept: held, small: bd }; }   // менший за той, що в комірці, — у тіло
-    best.mshield = bd; best.dmg = 0; if (best.magDmg) best.magDmg = 0; if (best.physDmg) best.physDmg = 0;
-    if (best.hits && best !== inHit) best.hits.forEach(function (h) { if (num(h.dmg) > 0) h.mshield = num(h.dmg); h.dmg = 0; if (h.magDmg) h.magDmg = 0; });
+    var cap = Math.max(1, V(v, 'mage.shield', 'slots') || 1), cells = mshCells(f).slice();
+    var cand = ((inHit && inHit.hits) || []).filter(function (h) { return num(h.dmg) > 0; });
+    if (inRec && num(inRec.dmg) > 0) cand.push(inRec);
+    cand.sort(function (x, y) { return num(y.dmg) - num(x.dmg); });
+    cand = cand.slice(0, cap);
+    if (!cand.length) { grow(v, 'mage.shield', false); return null; }
+    var caught = [], rel = 0, small = [];
+    cand.forEach(function (h) {
+      var d = num(h.dmg);
+      if (cells.length >= cap) {
+        var mi = 0; cells.forEach(function (c, i) { if (num(c.dmg) < num(cells[mi].dmg)) mi = i; });
+        if (!(d > num(cells[mi].dmg))) { small.push(d); return; }          // не більший за найменший у комірках — у тіло
+        rel += num(cells[mi].dmg); cells.splice(mi, 1);                    // найменший із комірки — у тіло
+      }
+      h.mshield = d; h.dmg = 0; if (h.magDmg) h.magDmg = 0; if (h.physDmg) h.physDmg = 0;
+      if (h.hits && h !== inHit) h.hits.forEach(function (x) { if (num(x.dmg) > 0) x.mshield = num(x.dmg); x.dmg = 0; if (x.magDmg) x.magDmg = 0; });
+      cells.push({ dmg: d, r: v.round }); caught.push(d);
+    });
     if (inHit && inHit.hits) inHit.dmg = inHit.hits.reduce(function (a, h) { return a + (h.dmg || 0); }, 0);
-    f.mshHeld = { dmg: bd, r: v.round, pay: V(v, 'mage.shield', 'pay') || 10 };
-    grow(v, 'mage.shield', true);
-    return held ? { dmg: bd, rel: held } : { dmg: bd };          // rel — старий удар із комірки пішов у тіло
+    f.mshCells = cells;
+    grow(v, 'mage.shield', caught.length > 0);
+    var out = { dmg: caught.reduce(function (a, x) { return a + x; }, 0), caught: caught, cells: cells.map(function (c) { return c.dmg; }) };
+    if (rel) out.rel = rel;                                              // rel — витіснений із комірки удар пішов у тіло
+    if (small.length) out.small = small;
+    return out;
   }
-  /* обрати / скасувати «скинути комірку» на цей хід (дію ходу не забирає) */
+  /* обрати / скасувати «скинути» на цей хід (дію ходу не забирає) */
   function mshDump(st) {
     if (!isLive(st)) return false;
-    var f = st.me.fx; if (!f || !f.mshHeld) return false;
+    if (!mshCells(st.me.fx).length) return false;
     st.me.mshDump = st.me.mshDump === st.round ? 0 : st.round; st.rev++;
     return true;
   }
-  /* початок ходу: обрано «скинути» — −pay мани, комірка порожня; не вистачає мани — удар лишається */
+  /* початок ходу: обрано «скинути» — −pay мани, найбільший удар із комірок поглинуто (лише один за хід); бракує мани — лишається */
   function mshieldDump(v) {
-    var f = v.me.fx, h = f && f.mshHeld, want = num(v.me.mshDump) === v.round; v.me.mshDump = 0;
-    if (!h || !want) return null;
-    if (num(v.me.mana) < num(h.pay)) return { dmg: h.dmg, short: h.pay };
-    v.me.mana = num(v.me.mana) - num(h.pay); delete f.mshHeld;
-    return { dmg: h.dmg, paid: h.pay };
+    var f = v.me.fx, cells = mshCells(f), want = num(v.me.mshDump) === v.round, pay = V(v, 'mage.shield', 'pay') || 10; v.me.mshDump = 0;
+    if (!cells.length || !want) return null;
+    var bi = 0; cells.forEach(function (c, i) { if (num(c.dmg) > num(cells[bi].dmg)) bi = i; });
+    var d = num(cells[bi].dmg);
+    if (num(v.me.mana) < pay) return { dmg: d, short: pay };
+    v.me.mana = num(v.me.mana) - pay; cells.splice(bi, 1); f.mshCells = cells;
+    return { dmg: d, paid: pay, left: cells.length };
   }
-  /* після оплати перемикачів: Щит не увімкнено — удар із комірки йде в тіло */
+  /* після оплати перемикачів: Щит не увімкнено — удари з усіх комірок ідуть у тіло */
   function mshieldOff(v) {
-    var f = v.me.fx, h = f && f.mshHeld; if (!h || togOn(v, 'mage.shield')) return null;
-    delete f.mshHeld; v.me.force -= num(h.dmg);
-    return { dmg: h.dmg, off: true };
+    var f = v.me.fx, cells = mshCells(f); if (!cells.length || togOn(v, 'mage.shield')) return null;
+    var d = mshSum(f); f.mshCells = []; v.me.force -= d;
+    return { dmg: d, n: cells.length, off: true };
   }
   /* 🌀 Потік мани (перевага Чарівника): наприкінці ходу +v% макс. мани × (1 + 0.25·K) */
   function manaFlow(v) {
@@ -1339,8 +1362,8 @@
       if (!(krz <= kz)) f.focus = num(f.focus) - 1;
       return kz ? [krz, kz, krz <= kz] : null;
     }
-    if (v.me.cls === 'mage') {                                  // 🔮 Зосередженість: +1 за хід із закляттям (Медитація +2); −1, коли втратив ≥ thr% здоров'я
-      var thr = hasSk(v, 'mage.calm') ? (V(v, 'mage.calm', 'thr') || 20) : 10, lost = num(dmgIn) * 100 / Math.max(1, num(v.me.max));
+    if (v.me.cls === 'mage') {                                  // 🔮 Зосередженість: +1 за хід із закляттям (Медитація +2); −1, коли втратив ≥ thr% здоров'я (5%; Холодний розум 5 → 15%)
+      var thr = hasSk(v, 'mage.calm') ? (V(v, 'mage.calm', 'thr') || 5) : 5, lost = num(dmgIn) * 100 / Math.max(1, num(v.me.max));
       if (lost >= thr) {
         if (!(num(f.focus) > 0)) return null;
         var mk = hasSk(v, 'mage.calm') ? V(v, 'mage.calm', 'keepPct') : 0, mr = mk ? ctx.R.d100(rndC) : 101;
@@ -1931,7 +1954,7 @@
     if (opUp.length) e.opUp = opUp;
     // 🧪 ТИМЧАСОВО ДЛЯ ТЕСТУ: стан обох після ходу (мана, концентрація, до якого ходу діють лють / благословення / обеззброєння / оглушення)
     var snap = function (u) { var f = u.fx || {}; return { m: Math.round(num(u.mana)), f: num(f.focus), bz: num(f.berserk), bl: f.bless ? num(f.bless.until) : 0, dis: num(f.disarm), kn: num(f.knock),
-      sto: f.stone ? num(f.stone.until) : 0, sng: f.song ? num(f.song.until) : 0, wil: num(f.will), sho: num(f.shieldOff), tng: f.tangle ? num(f.tangle.until) : 0, frz: num(f.frenzy), car: num(f.careful), psn: f.poison ? num(f.poison.until) : 0, pres: poisonRes(u, st.round, 'chance'), ven: f.venom ? num(f.venom.until) : 0, bld: f.blind ? num(f.blind.until) : 0, vin: f.vines ? num(f.vines.until) : 0, brn: f.burn ? num(f.burn.until) : 0, chl: f.chill ? num(f.chill.until) : 0, fls: f.flash ? num(f.flash.until) : 0, mar: f.marmor ? num(f.marmor.until) : 0, msh: f.mshHeld ? num(f.mshHeld.dmg) : 0, tog: (u.tog || []).slice(), cd: clone(u.cd || {}) }; };
+      sto: f.stone ? num(f.stone.until) : 0, sng: f.song ? num(f.song.until) : 0, wil: num(f.will), sho: num(f.shieldOff), tng: f.tangle ? num(f.tangle.until) : 0, frz: num(f.frenzy), car: num(f.careful), psn: f.poison ? num(f.poison.until) : 0, pres: poisonRes(u, st.round, 'chance'), ven: f.venom ? num(f.venom.until) : 0, bld: f.blind ? num(f.blind.until) : 0, vin: f.vines ? num(f.vines.until) : 0, brn: f.burn ? num(f.burn.until) : 0, chl: f.chill ? num(f.chill.until) : 0, fls: f.flash ? num(f.flash.until) : 0, mar: f.marmor ? num(f.marmor.until) : 0, msh: mshCells(f).map(function (c) { return num(c.dmg); }).join('+'), tog: (u.tog || []).slice(), cd: clone(u.cd || {}) }; };
     e.st = { me: snap(st.me), op: snap(st.op) };
     if (st.op.fx && st.op.fx.focus) e.opFocus = num(st.op.fx.focus);
     // ріст вмінь цього ходу: {id: [вдалих, невдалих, разом вдалих за бій, разом невдалих за бій]}
@@ -2174,7 +2197,7 @@
     create: create, botChoice: botChoice, autoChoice: autoChoice, turn: turn, catchUp: catchUp,
     poisonRes: poisonRes, SPELL: SPELL, manaMax: manaMax, marmorOn: marmorOn, flashOn: flashOn, chillOn: chillOn, burnOn: burnOn,
     togMul: togMul, togOrder: togOrder, trapOn: trapOn, vinesOn: vinesOn, turnBoost: turnBoost,
-    swap: swap, mshDump: mshDump, useBelt: useBelt, beltItem: beltItem, beltLite: beltLite, applyUse: applyUse, fxOf: fxOf,
+    swap: swap, mshDump: mshDump, mshCells: mshCells, useBelt: useBelt, beltItem: beltItem, beltLite: beltLite, applyUse: applyUse, fxOf: fxOf,
     surrender: surrender, finish: finish, applyToHero: applyToHero, lockLive: lockLive, noticeText: noticeText,
     SKILL: SKILL, useSkill: useSkill, skillBlock: skillBlock, berserkOn: berserkOn, blessOn: blessOn, disarmedOn: disarmedOn, SKILL_WEAPONS: SKILL_WEAPONS, SHATTER_MUL: SHATTER_MUL, PARRY: PARRY, swapped: swapped, beltChosen: beltChosen, knockedNow: knockedNow
   };
